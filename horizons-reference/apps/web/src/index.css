@@ -1,0 +1,264 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root, .dark {
+    /* Core UI Colors - Refined for better WCAG AA contrast */
+    --background: 220 13% 8%; 
+    --foreground: 220 20% 98%; 
+    
+    --border: 220 15% 20%; 
+    --input: 220 20% 14%;
+    --ring: 210 100% 55%;
+    
+    /* Semantic Colors */
+    --primary: 210 100% 55%;
+    --primary-foreground: 220 20% 98%;
+    
+    --secondary: 270 70% 55%;
+    --secondary-foreground: 220 20% 98%;
+    
+    --accent: 180 100% 45%;
+    --accent-foreground: 220 13% 8%;
+    
+    --muted: 220 15% 14%; 
+    --muted-foreground: 220 15% 75%; 
+    
+    --card: 220 15% 10%; 
+    --card-foreground: 220 20% 98%;
+    
+    --popover: 220 15% 10%;
+    --popover-foreground: 220 20% 98%;
+    
+    --destructive: 348 83% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Typography Scale */
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
+    --text-4xl: 2.25rem;
+    --text-5xl: 3rem;
+
+    /* Spacing Scale */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    --space-20: 5rem;
+    --space-24: 6rem;
+    --space-32: 8rem;
+
+    /* Additional Tokens */
+    --radius: 12px;
+    --transition-smooth: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* Refined Shadows & Depth */
+    --shadow-sm: 0 2px 8px -2px rgba(0, 0, 0, 0.4), 0 0 0 1px hsla(220, 15%, 20%, 0.4);
+    --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.5), 0 0 0 1px hsla(220, 15%, 20%, 0.4);
+    --shadow-lg: 0 10px 30px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px hsla(220, 15%, 20%, 0.5);
+    --shadow-cinematic: 0 20px 50px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px hsla(210, 100%, 55%, 0.2);
+
+    /* Professional Background Gradient System */
+    --grad-charcoal: 0 0% 10%; 
+    --grad-dark-blue: 220 61% 15%; 
+    --grad-dark-teal: 200 72% 14%; 
+    --grad-dark-purple: 254 61% 15%; 
+    --grad-accent-teal: 173 87% 30%; 
+    --grad-footer-blue: 206 65% 11%; 
+    --grad-black: 0 0% 0%; 
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply text-foreground antialiased selection:bg-primary/30 selection:text-primary;
+    font-family: 'Outfit', sans-serif;
+    line-height: 1.6;
+    letter-spacing: -0.01em;
+    background-color: transparent !important;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold text-balance;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  h1, h2 {
+    font-family: 'Space Mono', monospace;
+  }
+  p {
+    @apply max-w-[65ch];
+  }
+
+  /* Global Footer Styling */
+  footer {
+    background: linear-gradient(to bottom, hsla(var(--grad-footer-blue), 0.9), hsla(var(--grad-black), 0.95)) !important;
+    position: relative;
+    border-top: 1px solid hsla(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+  }
+  footer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px);
+    background-size: 20px 20px;
+    opacity: 0.03;
+    pointer-events: none;
+  }
+}
+
+@layer utilities {
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  }
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  }
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.8);
+  }
+
+  /* Layout & Spacing Utilities */
+  .section-padding {
+    @apply py-24 md:py-32;
+  }
+  .section-container {
+    @apply container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl;
+  }
+  .grid-layout-3 {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12;
+  }
+
+  /* Typography Utilities */
+  .section-title {
+    @apply text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground mb-6 text-shadow-lg;
+  }
+  .section-subtitle {
+    @apply text-lg md:text-xl text-zinc-100 font-medium max-w-3xl mx-auto leading-relaxed text-shadow;
+  }
+
+  /* Visual Hierarchy & Cards */
+  .professional-card {
+    @apply bg-card/80 backdrop-blur-md border border-border rounded-[var(--radius)] p-8;
+    box-shadow: var(--shadow-md);
+    transition: var(--transition-smooth);
+  }
+  .professional-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+    border-color: hsla(210, 100%, 55%, 0.3);
+  }
+
+  .cinematic-card {
+    @apply bg-card/80 backdrop-blur-md border border-border rounded-[var(--radius)] overflow-hidden relative;
+    box-shadow: var(--shadow-cinematic);
+    transition: var(--transition-smooth);
+  }
+  .cinematic-card:hover {
+    border-color: hsla(210, 100%, 55%, 0.4);
+    box-shadow: 0 0 30px hsla(210, 100%, 55%, 0.15), inset 0 0 15px hsla(210, 100%, 55%, 0.05), var(--shadow-cinematic);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px hsla(var(--primary) / 0.5), 0 4px 24px rgba(0,0,0,1);
+  }
+
+  /* Background Pattern Overlays */
+  .bg-grid-pattern {
+    background-image: linear-gradient(to right, hsla(var(--border)/0.5) 1px, transparent 1px),
+                      linear-gradient(to bottom, hsla(var(--border)/0.5) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: center top;
+  }
+
+  .pattern-dots {
+    background-image: radial-gradient(circle, currentColor 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+  }
+
+  .pattern-lines {
+    background-image: linear-gradient(45deg, currentColor 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .pattern-grid {
+    background-image: linear-gradient(to right, currentColor 1px, transparent 1px),
+                      linear-gradient(to bottom, currentColor 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* Geometric Shapes */
+  .shape-circle {
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, currentColor 0%, transparent 70%);
+    filter: blur(15px);
+  }
+
+  .shape-triangle {
+    width: 0;
+    height: 0;
+    border-left: 200px solid transparent;
+    border-right: 200px solid transparent;
+    border-bottom: 346px solid currentColor;
+    filter: blur(12px);
+  }
+}
+
+@layer components {
+  .saas-button {
+    @apply inline-flex items-center justify-center px-8 py-4 bg-primary text-primary-foreground font-bold rounded-[var(--radius)] shadow-lg hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+    transition: var(--transition-smooth);
+  }
+  .saas-button-secondary {
+    @apply inline-flex items-center justify-center px-8 py-4 bg-muted text-foreground font-bold rounded-[var(--radius)] border border-border shadow-md hover:bg-muted/80 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+    transition: var(--transition-smooth);
+  }
+
+  /* Marketplace Badges */
+  .badge-popular { @apply bg-orange-500/20 text-orange-400 border-orange-500/30 font-medium backdrop-blur-sm; }
+  .badge-best-value { @apply bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-medium backdrop-blur-sm; }
+  .badge-new { @apply bg-blue-500/20 text-blue-400 border-blue-500/30 font-medium backdrop-blur-sm; }
+  .badge-premium { @apply bg-purple-500/20 text-purple-400 border-purple-500/30 font-medium backdrop-blur-sm; }
+  .badge-trending { @apply bg-pink-500/20 text-pink-400 border-pink-500/30 font-medium backdrop-blur-sm; }
+  .badge-verified { @apply bg-primary/20 text-primary border-primary/30 font-medium backdrop-blur-sm; }
+  .badge-limited { @apply bg-red-500/20 text-red-400 border-red-500/30 font-medium animate-pulse backdrop-blur-sm; }
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-30px) rotate(5deg); }
+}
+.animate-float {
+  animation: float 10s ease-in-out infinite;
+}
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 15s ease infinite;
+}

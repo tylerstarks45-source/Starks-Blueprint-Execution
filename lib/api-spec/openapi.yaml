@@ -3,13 +3,46 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: SBEP — Starks Blueprint Execution Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: blueprint-categories
+    description: Blueprint category management
+  - name: blueprints
+    description: Blueprint registry
+  - name: blueprint-steps
+    description: Blueprint step management
+  - name: tool-categories
+    description: Tool category management
+  - name: tools
+    description: Tool registry
+  - name: affiliate-links
+    description: Affiliate link management
+  - name: users
+    description: User management
+  - name: system-instances
+    description: System instance tracking
+  - name: build-sessions
+    description: Build session management
+  - name: build-progress
+    description: Build progress tracking
+  - name: build-outputs
+    description: Build output management
+  - name: user-memory
+    description: User memory/state persistence
+  - name: user-credentials
+    description: User credential storage
+  - name: openrouter
+    description: OpenRouter AI integration
+  - name: admin
+    description: Admin control center
+  - name: notifications
+    description: Notification management
+
 paths:
   /healthz:
     get:
@@ -24,6 +57,1361 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Blueprint Categories ──────────────────────────────────────────────────
+  /blueprint-categories:
+    get:
+      operationId: listBlueprintCategories
+      tags: [blueprint-categories]
+      summary: List all blueprint categories
+      responses:
+        "200":
+          description: List of blueprint categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BlueprintCategory"
+    post:
+      operationId: createBlueprintCategory
+      tags: [blueprint-categories]
+      summary: Create a blueprint category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlueprintCategoryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlueprintCategory"
+
+  /blueprint-categories/{id}:
+    get:
+      operationId: getBlueprintCategory
+      tags: [blueprint-categories]
+      summary: Get a blueprint category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Blueprint category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlueprintCategory"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateBlueprintCategory
+      tags: [blueprint-categories]
+      summary: Update a blueprint category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlueprintCategoryUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlueprintCategory"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteBlueprintCategory
+      tags: [blueprint-categories]
+      summary: Delete a blueprint category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Blueprints ────────────────────────────────────────────────────────────
+  /blueprints:
+    get:
+      operationId: listBlueprints
+      tags: [blueprints]
+      summary: List all blueprints
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of blueprints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Blueprint"
+    post:
+      operationId: createBlueprint
+      tags: [blueprints]
+      summary: Create a blueprint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlueprintInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Blueprint"
+
+  /blueprints/{id}:
+    get:
+      operationId: getBlueprint
+      tags: [blueprints]
+      summary: Get a blueprint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Blueprint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Blueprint"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateBlueprint
+      tags: [blueprints]
+      summary: Update a blueprint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlueprintUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Blueprint"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteBlueprint
+      tags: [blueprints]
+      summary: Delete a blueprint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /blueprints/{id}/steps:
+    get:
+      operationId: listBlueprintSteps
+      tags: [blueprint-steps]
+      summary: List steps for a blueprint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of steps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BlueprintStep"
+    post:
+      operationId: createBlueprintStep
+      tags: [blueprint-steps]
+      summary: Add a step to a blueprint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlueprintStepInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlueprintStep"
+
+  /blueprint-steps/{id}:
+    patch:
+      operationId: updateBlueprintStep
+      tags: [blueprint-steps]
+      summary: Update a blueprint step
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlueprintStepUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlueprintStep"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteBlueprintStep
+      tags: [blueprint-steps]
+      summary: Delete a blueprint step
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Tool Categories ───────────────────────────────────────────────────────
+  /tool-categories:
+    get:
+      operationId: listToolCategories
+      tags: [tool-categories]
+      summary: List all tool categories
+      responses:
+        "200":
+          description: List of tool categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ToolCategory"
+    post:
+      operationId: createToolCategory
+      tags: [tool-categories]
+      summary: Create a tool category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToolCategoryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolCategory"
+
+  /tool-categories/{id}:
+    patch:
+      operationId: updateToolCategory
+      tags: [tool-categories]
+      summary: Update a tool category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToolCategoryUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolCategory"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteToolCategory
+      tags: [tool-categories]
+      summary: Delete a tool category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Tools ─────────────────────────────────────────────────────────────────
+  /tools:
+    get:
+      operationId: listTools
+      tags: [tools]
+      summary: List all tools
+      parameters:
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: activeOnly
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of tools
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tool"
+    post:
+      operationId: createTool
+      tags: [tools]
+      summary: Create a tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToolInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tool"
+
+  /tools/{id}:
+    get:
+      operationId: getTool
+      tags: [tools]
+      summary: Get a tool
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Tool
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tool"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateTool
+      tags: [tools]
+      summary: Update a tool
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToolUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tool"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteTool
+      tags: [tools]
+      summary: Delete a tool
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Affiliate Links ───────────────────────────────────────────────────────
+  /affiliate-links:
+    get:
+      operationId: listAffiliateLinks
+      tags: [affiliate-links]
+      summary: List all affiliate links
+      parameters:
+        - name: toolId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of affiliate links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AffiliateLink"
+    post:
+      operationId: createAffiliateLink
+      tags: [affiliate-links]
+      summary: Create an affiliate link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AffiliateLinkInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffiliateLink"
+
+  /affiliate-links/{id}:
+    patch:
+      operationId: updateAffiliateLink
+      tags: [affiliate-links]
+      summary: Update an affiliate link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AffiliateLinkUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffiliateLink"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAffiliateLink
+      tags: [affiliate-links]
+      summary: Delete an affiliate link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /affiliate-links/{id}/click:
+    post:
+      operationId: trackAffiliateLinkClick
+      tags: [affiliate-links]
+      summary: Track an affiliate link click
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Click tracked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffiliateLink"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Users ─────────────────────────────────────────────────────────────────
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── System Instances ──────────────────────────────────────────────────────
+  /system-instances:
+    get:
+      operationId: listSystemInstances
+      tags: [system-instances]
+      summary: List system instances
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: integer
+        - name: blueprintId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of system instances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SystemInstance"
+    post:
+      operationId: createSystemInstance
+      tags: [system-instances]
+      summary: Create a system instance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SystemInstanceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemInstance"
+
+  /system-instances/{id}:
+    get:
+      operationId: getSystemInstance
+      tags: [system-instances]
+      summary: Get a system instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: System instance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemInstance"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateSystemInstance
+      tags: [system-instances]
+      summary: Update a system instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SystemInstanceUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemInstance"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSystemInstance
+      tags: [system-instances]
+      summary: Delete a system instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Build Sessions ────────────────────────────────────────────────────────
+  /build-sessions:
+    get:
+      operationId: listBuildSessions
+      tags: [build-sessions]
+      summary: List build sessions
+      parameters:
+        - name: systemInstanceId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of build sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BuildSession"
+    post:
+      operationId: createBuildSession
+      tags: [build-sessions]
+      summary: Create a build session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuildSessionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildSession"
+
+  /build-sessions/{id}:
+    get:
+      operationId: getBuildSession
+      tags: [build-sessions]
+      summary: Get a build session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Build session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildSession"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateBuildSession
+      tags: [build-sessions]
+      summary: Update a build session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuildSessionUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildSession"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Build Progress ────────────────────────────────────────────────────────
+  /build-progress:
+    get:
+      operationId: listBuildProgress
+      tags: [build-progress]
+      summary: List build progress records
+      parameters:
+        - name: buildSessionId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of build progress records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BuildProgressRecord"
+    post:
+      operationId: createBuildProgress
+      tags: [build-progress]
+      summary: Create a build progress record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuildProgressInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildProgressRecord"
+
+  /build-progress/{id}:
+    patch:
+      operationId: updateBuildProgress
+      tags: [build-progress]
+      summary: Update a build progress record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuildProgressUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildProgressRecord"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Build Outputs ─────────────────────────────────────────────────────────
+  /build-outputs:
+    get:
+      operationId: listBuildOutputs
+      tags: [build-outputs]
+      summary: List build outputs
+      parameters:
+        - name: buildSessionId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of build outputs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BuildOutput"
+    post:
+      operationId: createBuildOutput
+      tags: [build-outputs]
+      summary: Create a build output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuildOutputInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildOutput"
+
+  # ── User Memory ───────────────────────────────────────────────────────────
+  /user-memory:
+    get:
+      operationId: listUserMemory
+      tags: [user-memory]
+      summary: List user memory records
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: systemInstanceId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of memory records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserMemoryRecord"
+    post:
+      operationId: upsertUserMemory
+      tags: [user-memory]
+      summary: Upsert a user memory record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserMemoryInput"
+      responses:
+        "200":
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserMemoryRecord"
+
+  /user-memory/{id}:
+    delete:
+      operationId: deleteUserMemory
+      tags: [user-memory]
+      summary: Delete a user memory record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── User Credentials ──────────────────────────────────────────────────────
+  /user-credentials:
+    get:
+      operationId: listUserCredentials
+      tags: [user-credentials]
+      summary: List user credentials (keys only, no values)
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of credential records (values redacted)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserCredentialSafe"
+    post:
+      operationId: storeUserCredential
+      tags: [user-credentials]
+      summary: Store a user credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCredentialInput"
+      responses:
+        "201":
+          description: Stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserCredentialSafe"
+
+  /user-credentials/{id}:
+    delete:
+      operationId: deleteUserCredential
+      tags: [user-credentials]
+      summary: Delete a user credential
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── OpenRouter ────────────────────────────────────────────────────────────
+  /openrouter/complete:
+    post:
+      operationId: openrouterComplete
+      tags: [openrouter]
+      summary: Send a completion request to OpenRouter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenrouterRequest"
+      responses:
+        "200":
+          description: Completion response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenrouterResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /openrouter/usage:
+    get:
+      operationId: listOpenrouterUsage
+      tags: [openrouter]
+      summary: List OpenRouter usage records
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: integer
+        - name: systemInstanceId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of usage records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OpenrouterUsageRecord"
+
+  /openrouter/usage/summary:
+    get:
+      operationId: getOpenrouterUsageSummary
+      tags: [openrouter]
+      summary: Get aggregated OpenRouter usage summary
+      responses:
+        "200":
+          description: Usage summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenrouterUsageSummary"
+
+  # ── Admin ─────────────────────────────────────────────────────────────────
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      summary: List admin users
+      responses:
+        "200":
+          description: List of admin users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+    post:
+      operationId: createAdminUser
+      tags: [admin]
+      summary: Create an admin user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+
+  /admin/activity:
+    get:
+      operationId: listAdminActivity
+      tags: [admin]
+      summary: List admin activity logs
+      parameters:
+        - name: adminId
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of activity records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminActivity"
+    post:
+      operationId: createAdminActivity
+      tags: [admin]
+      summary: Log an admin activity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminActivityInput"
+      responses:
+        "201":
+          description: Logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminActivity"
+
+  /admin/system-health:
+    get:
+      operationId: listSystemHealth
+      tags: [admin]
+      summary: List system health records
+      responses:
+        "200":
+          description: List of health records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SystemHealthRecord"
+    post:
+      operationId: recordSystemHealth
+      tags: [admin]
+      summary: Record a system health check
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SystemHealthInput"
+      responses:
+        "201":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemHealthRecord"
+
+  /admin/dashboard:
+    get:
+      operationId: getAdminDashboard
+      tags: [admin]
+      summary: Get admin dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDashboard"
+
+  # ── Notifications ─────────────────────────────────────────────────────────
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: integer
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+    post:
+      operationId: createNotification
+      tags: [notifications]
+      summary: Create a notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +1422,871 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    # ── Blueprint Categories ────────────────────────────────────────────────
+    BlueprintCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, createdAt, updatedAt]
+
+    BlueprintCategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+      required: [name]
+
+    BlueprintCategoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+
+    # ── Blueprints ──────────────────────────────────────────────────────────
+    Blueprint:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        categoryId:
+          type: ["integer", "null"]
+        description:
+          type: ["string", "null"]
+        difficulty:
+          type: string
+        estimatedCost:
+          type: ["string", "null"]
+        estimatedTime:
+          type: ["string", "null"]
+        status:
+          type: string
+        version:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, slug, name, difficulty, status, version, createdAt, updatedAt]
+
+    BlueprintInput:
+      type: object
+      properties:
+        slug:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+        categoryId:
+          type: integer
+        description:
+          type: string
+        difficulty:
+          type: string
+        estimatedCost:
+          type: string
+        estimatedTime:
+          type: string
+        status:
+          type: string
+        version:
+          type: string
+      required: [slug, name]
+
+    BlueprintUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        categoryId:
+          type: integer
+        description:
+          type: string
+        difficulty:
+          type: string
+        estimatedCost:
+          type: string
+        estimatedTime:
+          type: string
+        status:
+          type: string
+        version:
+          type: string
+
+    # ── Blueprint Steps ─────────────────────────────────────────────────────
+    BlueprintStep:
+      type: object
+      properties:
+        id:
+          type: integer
+        blueprintId:
+          type: integer
+        stepNumber:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        actionType:
+          type: string
+        config:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, blueprintId, stepNumber, title, actionType, createdAt, updatedAt]
+
+    BlueprintStepInput:
+      type: object
+      properties:
+        stepNumber:
+          type: integer
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        actionType:
+          type: string
+        config:
+          type: string
+      required: [stepNumber, title]
+
+    BlueprintStepUpdate:
+      type: object
+      properties:
+        stepNumber:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        actionType:
+          type: string
+        config:
+          type: string
+
+    # ── Tool Categories ─────────────────────────────────────────────────────
+    ToolCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, createdAt, updatedAt]
+
+    ToolCategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+      required: [name]
+
+    ToolCategoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+
+    # ── Tools ───────────────────────────────────────────────────────────────
+    Tool:
+      type: object
+      properties:
+        id:
+          type: integer
+        categoryId:
+          type: ["integer", "null"]
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        affiliateLink:
+          type: ["string", "null"]
+        signupUrl:
+          type: ["string", "null"]
+        pricing:
+          type: ["string", "null"]
+        requiredCredentials:
+          type: ["array", "null"]
+          items:
+            type: string
+        oauthRequired:
+          type: boolean
+        activeStatus:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, oauthRequired, activeStatus, createdAt, updatedAt]
+
+    ToolInput:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        affiliateLink:
+          type: string
+        signupUrl:
+          type: string
+        pricing:
+          type: string
+        requiredCredentials:
+          type: array
+          items:
+            type: string
+        oauthRequired:
+          type: boolean
+        activeStatus:
+          type: boolean
+      required: [name]
+
+    ToolUpdate:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        affiliateLink:
+          type: string
+        signupUrl:
+          type: string
+        pricing:
+          type: string
+        requiredCredentials:
+          type: array
+          items:
+            type: string
+        oauthRequired:
+          type: boolean
+        activeStatus:
+          type: boolean
+
+    # ── Affiliate Links ─────────────────────────────────────────────────────
+    AffiliateLink:
+      type: object
+      properties:
+        id:
+          type: integer
+        toolId:
+          type: ["integer", "null"]
+        url:
+          type: string
+        campaign:
+          type: ["string", "null"]
+        clickCount:
+          type: integer
+        active:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, url, clickCount, active, createdAt, updatedAt]
+
+    AffiliateLinkInput:
+      type: object
+      properties:
+        toolId:
+          type: integer
+        url:
+          type: string
+          minLength: 1
+        campaign:
+          type: string
+        active:
+          type: boolean
+      required: [url]
+
+    AffiliateLinkUpdate:
+      type: object
+      properties:
+        url:
+          type: string
+        campaign:
+          type: string
+        active:
+          type: boolean
+
+    # ── Users ───────────────────────────────────────────────────────────────
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        externalId:
+          type: ["string", "null"]
+        email:
+          type: string
+        name:
+          type: ["string", "null"]
+        membershipStatus:
+          type: string
+        membershipTier:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, email, membershipStatus, active, createdAt, updatedAt]
+
+    UserInput:
+      type: object
+      properties:
+        externalId:
+          type: string
+        email:
+          type: string
+          minLength: 1
+        name:
+          type: string
+        membershipStatus:
+          type: string
+        membershipTier:
+          type: string
+        active:
+          type: boolean
+      required: [email]
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        membershipStatus:
+          type: string
+        membershipTier:
+          type: string
+        active:
+          type: boolean
+
+    # ── System Instances ────────────────────────────────────────────────────
+    SystemInstance:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        blueprintId:
+          type: integer
+        name:
+          type: string
+        buildStatus:
+          type: string
+        healthStatus:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, userId, blueprintId, name, buildStatus, healthStatus, createdAt, updatedAt]
+
+    SystemInstanceInput:
+      type: object
+      properties:
+        userId:
+          type: integer
+        blueprintId:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+        buildStatus:
+          type: string
+        healthStatus:
+          type: string
+      required: [userId, blueprintId, name]
+
+    SystemInstanceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        buildStatus:
+          type: string
+        healthStatus:
+          type: string
+
+    # ── Build Sessions ──────────────────────────────────────────────────────
+    BuildSession:
+      type: object
+      properties:
+        id:
+          type: integer
+        systemInstanceId:
+          type: integer
+        status:
+          type: string
+        currentStepNumber:
+          type: integer
+        startedAt:
+          type: string
+        completedAt:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+      required: [id, systemInstanceId, status, currentStepNumber, startedAt, updatedAt]
+
+    BuildSessionInput:
+      type: object
+      properties:
+        systemInstanceId:
+          type: integer
+        status:
+          type: string
+        currentStepNumber:
+          type: integer
+        completedAt:
+          type: string
+      required: [systemInstanceId]
+
+    BuildSessionUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+        currentStepNumber:
+          type: integer
+        completedAt:
+          type: string
+
+    # ── Build Progress ──────────────────────────────────────────────────────
+    BuildProgressRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        buildSessionId:
+          type: integer
+        stepId:
+          type: ["integer", "null"]
+        stepNumber:
+          type: integer
+        status:
+          type: string
+        notes:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, buildSessionId, stepNumber, status, createdAt, updatedAt]
+
+    BuildProgressInput:
+      type: object
+      properties:
+        buildSessionId:
+          type: integer
+        stepId:
+          type: integer
+        stepNumber:
+          type: integer
+        status:
+          type: string
+        notes:
+          type: string
+        completedAt:
+          type: string
+      required: [buildSessionId, stepNumber]
+
+    BuildProgressUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+        notes:
+          type: string
+        completedAt:
+          type: string
+
+    # ── Build Outputs ───────────────────────────────────────────────────────
+    BuildOutput:
+      type: object
+      properties:
+        id:
+          type: integer
+        buildSessionId:
+          type: integer
+        outputType:
+          type: string
+        title:
+          type: string
+        content:
+          type: ["string", "null"]
+        url:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required: [id, buildSessionId, outputType, title, createdAt]
+
+    BuildOutputInput:
+      type: object
+      properties:
+        buildSessionId:
+          type: integer
+        outputType:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+        url:
+          type: string
+      required: [buildSessionId, outputType, title]
+
+    # ── User Memory ─────────────────────────────────────────────────────────
+    UserMemoryRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        systemInstanceId:
+          type: ["integer", "null"]
+        memoryKey:
+          type: string
+        memoryValue:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, userId, memoryKey, memoryValue, createdAt, updatedAt]
+
+    UserMemoryInput:
+      type: object
+      properties:
+        userId:
+          type: integer
+        systemInstanceId:
+          type: integer
+        memoryKey:
+          type: string
+          minLength: 1
+        memoryValue:
+          type: string
+      required: [userId, memoryKey, memoryValue]
+
+    # ── User Credentials ────────────────────────────────────────────────────
+    UserCredentialSafe:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        toolId:
+          type: ["integer", "null"]
+        credentialKey:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, userId, credentialKey, createdAt, updatedAt]
+
+    UserCredentialInput:
+      type: object
+      properties:
+        userId:
+          type: integer
+        toolId:
+          type: integer
+        credentialKey:
+          type: string
+          minLength: 1
+        encryptedValue:
+          type: string
+          minLength: 1
+      required: [userId, credentialKey, encryptedValue]
+
+    # ── OpenRouter ──────────────────────────────────────────────────────────
+    OpenrouterRequest:
+      type: object
+      properties:
+        model:
+          type: string
+        prompt:
+          type: string
+          minLength: 1
+        systemPrompt:
+          type: string
+        userId:
+          type: integer
+        systemInstanceId:
+          type: integer
+      required: [prompt]
+
+    OpenrouterResponse:
+      type: object
+      properties:
+        content:
+          type: string
+        model:
+          type: string
+        promptTokens:
+          type: integer
+        completionTokens:
+          type: integer
+        totalTokens:
+          type: integer
+        estimatedCost:
+          type: ["string", "null"]
+      required: [content, model, promptTokens, completionTokens, totalTokens]
+
+    OpenrouterUsageRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        systemInstanceId:
+          type: ["integer", "null"]
+        model:
+          type: string
+        promptTokens:
+          type: integer
+        completionTokens:
+          type: integer
+        totalTokens:
+          type: integer
+        estimatedCost:
+          type: ["string", "null"]
+        success:
+          type: string
+        errorMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required: [id, model, promptTokens, completionTokens, totalTokens, success, createdAt]
+
+    OpenrouterUsageSummary:
+      type: object
+      properties:
+        totalRequests:
+          type: integer
+        totalTokens:
+          type: integer
+        successfulRequests:
+          type: integer
+        failedRequests:
+          type: integer
+        totalEstimatedCost:
+          type: string
+      required: [totalRequests, totalTokens, successfulRequests, failedRequests, totalEstimatedCost]
+
+    # ── Admin ───────────────────────────────────────────────────────────────
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        active:
+          type: boolean
+        lastLoginAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, email, name, role, active, createdAt, updatedAt]
+
+    AdminUserInput:
+      type: object
+      properties:
+        email:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+        role:
+          type: string
+        active:
+          type: boolean
+      required: [email, name]
+
+    AdminActivity:
+      type: object
+      properties:
+        id:
+          type: integer
+        adminId:
+          type: ["integer", "null"]
+        action:
+          type: string
+        resourceType:
+          type: ["string", "null"]
+        resourceId:
+          type: ["string", "null"]
+        details:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required: [id, action, createdAt]
+
+    AdminActivityInput:
+      type: object
+      properties:
+        adminId:
+          type: integer
+        action:
+          type: string
+          minLength: 1
+        resourceType:
+          type: string
+        resourceId:
+          type: string
+        details:
+          type: string
+      required: [action]
+
+    SystemHealthRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        service:
+          type: string
+        status:
+          type: string
+        message:
+          type: ["string", "null"]
+        checkedAt:
+          type: string
+      required: [id, service, status, checkedAt]
+
+    SystemHealthInput:
+      type: object
+      properties:
+        service:
+          type: string
+          minLength: 1
+        status:
+          type: string
+        message:
+          type: string
+      required: [service]
+
+    AdminDashboard:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        totalBlueprints:
+          type: integer
+        totalTools:
+          type: integer
+        totalSystemInstances:
+          type: integer
+        activeSystemInstances:
+          type: integer
+        totalAffiliateClicks:
+          type: integer
+        openrouterTotalTokens:
+          type: integer
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminActivity"
+      required: [totalUsers, totalBlueprints, totalTools, totalSystemInstances, activeSystemInstances, totalAffiliateClicks, openrouterTotalTokens, recentActivity]
+
+    # ── Notifications ───────────────────────────────────────────────────────
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        title:
+          type: string
+        message:
+          type: string
+        notificationType:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, title, message, notificationType, read, createdAt]
+
+    NotificationInput:
+      type: object
+      properties:
+        userId:
+          type: integer
+        title:
+          type: string
+          minLength: 1
+        message:
+          type: string
+          minLength: 1
+        notificationType:
+          type: string
+        read:
+          type: boolean
+      required: [title, message]

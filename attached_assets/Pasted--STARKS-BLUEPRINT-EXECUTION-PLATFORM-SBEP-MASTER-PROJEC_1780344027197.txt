@@ -1,0 +1,577 @@
+# STARKS BLUEPRINT EXECUTION PLATFORM (SBEP)
+
+# MASTER PROJECT VISION DOCUMENT
+
+## READ THIS ENTIRE DOCUMENT BEFORE BUILDING ANYTHING
+
+This document explains the complete system from beginning to end.
+
+This is NOT a Phase build document.
+
+This is the master architecture vision.
+
+The purpose is to ensure every future phase is built correctly and supports the final product.
+
+---
+
+# PROJECT OVERVIEW
+
+Starksglobalgroup.net already exists inside Hostinger Horizons.
+
+The website already contains:
+
+* Marketplace
+* Blueprint Library
+* Membership Area
+* User Dashboard
+* Marketing Pages
+* Affiliate Tool Listings
+* Product Pages
+
+The website remains inside Horizons.
+
+The AI Brain will be built inside Replit.
+
+The Replit project becomes the intelligence layer powering the entire platform.
+
+---
+
+# FINAL ARCHITECTURE
+
+HOSTINGER HORIZONS
+
+Frontend Platform
+
+Responsibilities:
+
+* Website
+* Landing Pages
+* Membership Pages
+* Marketplace
+* Blueprint Library
+* User Dashboard Interface
+* Customer Experience
+* Billing
+* Subscription Management
+
+Horizons is the presentation layer.
+
+It displays information.
+
+It does not contain the AI Brain.
+
+---
+
+REPLIT
+
+AI Brain Platform
+
+Responsibilities:
+
+* Blueprint Intelligence
+* OpenRouter
+* User Memory
+* System Orchestration
+* Blueprint Execution
+* Build Tracking
+* Tool Registry
+* Affiliate Registry
+* Admin Control Center
+* Database
+* User Build Storage
+* Credential Storage
+* Build Progress
+* API Layer
+
+Replit becomes the operating system behind the platform.
+
+---
+
+# THE CORE BUSINESS MODEL
+
+The platform makes money through two systems:
+
+System 1:
+
+Monthly Memberships
+
+Users subscribe to access:
+
+* Blueprints
+* AI Builder
+* Dashboard
+* System Tracking
+
+System 2:
+
+Affiliate Tool Revenue
+
+Users purchase AI tools through affiliate links.
+
+The AI Agent recommends tools required to build the selected blueprint.
+
+The user signs up.
+
+The platform earns commissions.
+
+---
+
+# WHAT USERS ACTUALLY EXPERIENCE
+
+User logs in.
+
+User enters dashboard.
+
+User clicks:
+
+BUILD NEW SYSTEM
+
+The AI asks:
+
+"What system would you like to build?"
+
+User selects:
+
+* AI Affiliate Engine
+* AI YouTube Engine
+* AI Lead Generation Engine
+* AI Content Agency Engine
+* AI Marketing Engine
+* AI Ecommerce Engine
+* AI Local Business Engine
+
+and all future blueprint systems.
+
+---
+
+# TOOL STACK DISCOVERY PHASE
+
+Before the build starts:
+
+The AI analyzes the blueprint.
+
+The AI determines:
+
+Required Tool Categories.
+
+Example:
+
+Video Generation
+
+Automation
+
+Email Marketing
+
+AI Layer
+
+CRM
+
+Landing Pages
+
+Analytics
+
+The AI loads approved tools from the database.
+
+Example:
+
+VIDEO GENERATION
+
+* Pictory
+* InVideo
+* Fliki
+* HeyGen
+* Runway
+
+AUTOMATION
+
+* Make
+* Zapier
+* n8n
+
+EMAIL
+
+* ConvertKit
+* GetResponse
+* ActiveCampaign
+
+The AI presents all available options.
+
+Every tool contains:
+
+* Description
+* Affiliate Link
+* Pricing
+* Credential Requirements
+
+The user chooses.
+
+The user signs up.
+
+---
+
+# CREDENTIAL COLLECTION PHASE
+
+Once tools are selected:
+
+The AI determines:
+
+What credentials are required.
+
+Examples:
+
+OpenRouter API Key
+
+Make API Key
+
+Webhook URL
+
+Google OAuth
+
+Meta OAuth
+
+CRM Credentials
+
+Email Provider Credentials
+
+The AI requests required information.
+
+The user provides authorization.
+
+The AI stores credentials securely.
+
+---
+
+# BLUEPRINT EXECUTION PHASE
+
+After credentials exist:
+
+The AI begins orchestration.
+
+The AI:
+
+* Loads blueprint
+* Loads workflow
+* Loads selected tools
+* Loads user credentials
+
+The AI then executes blueprint steps.
+
+Examples:
+
+Create workflows
+
+Create prompts
+
+Create automations
+
+Create campaign structures
+
+Create content plans
+
+Create databases
+
+Create spreadsheets
+
+Create reporting systems
+
+Create dashboards
+
+Create integrations
+
+The AI performs orchestration.
+
+The user only authorizes external services when necessary.
+
+---
+
+# SYSTEM INSTANCE MODEL
+
+Every completed blueprint becomes a System Instance.
+
+Example:
+
+Blueprint:
+
+AI YouTube Engine
+
+User Builds:
+
+YouTube Engine #1
+
+YouTube Engine #2
+
+YouTube Engine #3
+
+Each system instance is unique.
+
+The user can have unlimited system instances.
+
+---
+
+# USER SYSTEM DASHBOARD
+
+The dashboard eventually displays:
+
+MY SYSTEMS
+
+System Name
+
+Status
+
+Health
+
+Connected Tools
+
+Build Progress
+
+Performance Metrics
+
+Recommendations
+
+Activity Logs
+
+Outputs
+
+Users can:
+
+Pause
+
+Resume
+
+View
+
+Manage
+
+Delete
+
+Their systems.
+
+---
+
+# ADMIN CONTROL CENTER
+
+Admin lives entirely inside Replit.
+
+NOT inside Horizons.
+
+Admin controls:
+
+Users
+
+Blueprints
+
+Blueprint Categories
+
+Tools
+
+Tool Categories
+
+Affiliate Links
+
+System Instances
+
+OpenRouter Usage
+
+Notifications
+
+Logs
+
+Build Activity
+
+System Health
+
+Everything is managed from Replit.
+
+No code changes required.
+
+Everything database driven.
+
+---
+
+# DATABASE PHILOSOPHY
+
+Nothing is hardcoded.
+
+Everything comes from the database.
+
+Blueprints:
+
+Database.
+
+Tools:
+
+Database.
+
+Affiliate Links:
+
+Database.
+
+Categories:
+
+Database.
+
+Credentials:
+
+Database.
+
+User Builds:
+
+Database.
+
+Memory:
+
+Database.
+
+System Instances:
+
+Database.
+
+Admin Controls:
+
+Database.
+
+---
+
+# OPENROUTER STRATEGY
+
+OpenRouter becomes the AI layer.
+
+Responsibilities:
+
+* Model Routing
+* Prompt Execution
+* Blueprint Logic
+* Workflow Planning
+* Output Generation
+
+Track:
+
+Usage
+
+Tokens
+
+Costs
+
+Errors
+
+Activity
+
+Everything logged.
+
+---
+
+# MEMORY SYSTEM
+
+The AI remembers:
+
+Current Build
+
+Selected Blueprint
+
+Selected Tools
+
+Credentials
+
+Completed Steps
+
+Pending Steps
+
+Generated Outputs
+
+Build State
+
+If user returns:
+
+1 day later
+
+10 days later
+
+60 days later
+
+The AI resumes exactly where it stopped.
+
+---
+
+# HORIZONS CONNECTION STRATEGY
+
+The system must be built from day one with API connectivity.
+
+Every major service must expose APIs.
+
+Future Horizons integration should require minimal changes.
+
+Horizons should simply call Replit APIs.
+
+Examples:
+
+Get Blueprints
+
+Get Tools
+
+Create Build
+
+Get Build Status
+
+Get Build Output
+
+Get System Instance
+
+Get User Progress
+
+Get Recommendations
+
+Admin Reporting
+
+The API layer is critical.
+
+---
+
+# DEVELOPMENT STRATEGY
+
+Build slowly.
+
+Build in phases.
+
+Validate after every phase.
+
+Never build giant systems at once.
+
+Never perform large rewrites.
+
+Never create placeholder functionality.
+
+Never create fake data.
+
+Every phase must produce production-ready components.
+
+---
+
+# FINAL END STATE
+
+When complete:
+
+User enters Horizons.
+
+User selects blueprint.
+
+AI generates required tool stack.
+
+User signs up using affiliate links.
+
+User provides credentials.
+
+AI orchestrates the build.
+
+Completed system appears inside dashboard.
+
+System can be managed forever.
+
+Admin controls entire ecosystem from Replit.
+
+OpenRouter powers intelligence.
+
+Horizons powers customer experience.
+
+Replit powers execution.
+
+This is the final destination every future phase must support.

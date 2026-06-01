@@ -1,0 +1,562 @@
+# STARKS BLUEPRINT EXECUTION PLATFORM (SBEP)
+
+# PHASE 1 — FOUNDATION ARCHITECTURE
+
+## READ THIS ENTIRE DOCUMENT BEFORE BUILDING
+
+This is a brand-new Replit project.
+
+The Hostinger Horizons website already exists.
+
+The Horizons website already contains:
+
+* Marketplace
+* Blueprint Library
+* Membership System
+* User Dashboard
+* Marketing Pages
+* Product Pages
+
+DO NOT BUILD ANY OF THOSE THINGS INSIDE REPLIT.
+
+Replit is being built as the AI Brain and System Control Center.
+
+The Replit platform will eventually connect to Horizons.
+
+This phase builds the foundation only.
+
+DO NOT BUILD THE AI AGENT YET.
+
+DO NOT BUILD BLUEPRINT EXECUTION YET.
+
+DO NOT BUILD INDIVIDUAL BLUEPRINTS YET.
+
+DO NOT BUILD HORIZONS INTEGRATION YET.
+
+Build the foundation first.
+
+---
+
+# PHASE 1 OBJECTIVE
+
+Build the entire backend foundation required for:
+
+* Blueprint Storage
+* Tool Storage
+* Affiliate Tool Management
+* User Build Tracking
+* User Progress Tracking
+* OpenRouter Integration
+* System Memory
+* Credential Storage
+* Admin Management
+* API Infrastructure
+
+The goal is to create the platform architecture that all future blueprint systems will run on.
+
+---
+
+# DEVELOPMENT RULES
+
+Work in chunks.
+
+After each chunk:
+
+1. Validate functionality.
+2. Produce validation report.
+3. Stop.
+4. Wait for approval.
+
+Do NOT continue automatically.
+
+No placeholders.
+
+No mock data.
+
+No fake records.
+
+No demo systems.
+
+Everything must be production-ready.
+
+---
+
+# TECH STACK
+
+Backend:
+
+* FastAPI
+
+Database:
+
+* Replit Database
+
+AI Layer:
+
+* OpenRouter
+
+Documentation:
+
+* FastAPI Swagger Docs
+
+Logging:
+
+* Structured Logging
+
+Authentication:
+
+* JWT Ready
+
+Environment Driven:
+
+* All configuration via environment variables
+
+No hardcoded secrets.
+
+---
+
+# CHUNK 1 — PROJECT FOUNDATION
+
+Build:
+
+FastAPI application foundation.
+
+Create:
+
+* App structure
+* Environment loader
+* Configuration service
+* Logging service
+* Error middleware
+* Health monitoring
+
+Required Endpoint:
+
+GET /health
+
+Response:
+
+{
+"status": "online",
+"service": "SBEP"
+}
+
+Validation:
+
+* FastAPI starts successfully
+* Environment variables load
+* Logging works
+* Health endpoint responds
+
+Then STOP.
+
+---
+
+# CHUNK 2 — DATABASE FOUNDATION
+
+Build database architecture.
+
+Create collections/tables for:
+
+USERS
+
+SYSTEM_INSTANCES
+
+BLUEPRINTS
+
+BLUEPRINT_CATEGORIES
+
+BLUEPRINT_STEPS
+
+TOOL_CATEGORIES
+
+TOOLS
+
+TOOL_CREDENTIAL_REQUIREMENTS
+
+USER_TOOL_SELECTIONS
+
+USER_CREDENTIALS
+
+BUILD_SESSIONS
+
+BUILD_PROGRESS
+
+BUILD_OUTPUTS
+
+OPENROUTER_USAGE
+
+AFFILIATE_LINKS
+
+ADMIN_USERS
+
+ADMIN_ACTIVITY
+
+SYSTEM_HEALTH
+
+NOTIFICATIONS
+
+Requirements:
+
+No hardcoded values.
+
+Everything database-driven.
+
+Validation:
+
+Create records.
+
+Update records.
+
+Delete records.
+
+Query records.
+
+Show evidence.
+
+Then STOP.
+
+---
+
+# CHUNK 3 — BLUEPRINT REGISTRY
+
+Purpose:
+
+Store every blueprint available on Starksglobalgroup.net.
+
+Requirements:
+
+Blueprints must be dynamic.
+
+Support:
+
+* 20+ current blueprints
+* Unlimited future blueprints
+
+Blueprint fields:
+
+* id
+* slug
+* name
+* category
+* description
+* difficulty
+* estimated_cost
+* estimated_time
+* status
+* version
+* created_at
+* updated_at
+
+Build:
+
+Blueprint Registry Service
+
+Capabilities:
+
+* Create Blueprint
+* Edit Blueprint
+* Disable Blueprint
+* Delete Blueprint
+* Search Blueprint
+* Load Blueprint
+
+Validation required.
+
+Then STOP.
+
+---
+
+# CHUNK 4 — TOOL REGISTRY
+
+Purpose:
+
+Store every tool sold or recommended by Starksglobalgroup.net.
+
+Current support:
+
+* 49+ tools
+
+Future support:
+
+* Unlimited tools
+
+Tool Categories Examples:
+
+* Video Generation
+* AI Writing
+* Automation
+* Email Marketing
+* CRM
+* Landing Pages
+* Research
+* Design
+* Voice Generation
+* Analytics
+* Chatbots
+
+Tool Fields:
+
+* id
+* category
+* name
+* description
+* affiliate_link
+* signup_url
+* required_credentials
+* oauth_required
+* active_status
+
+Build:
+
+Tool Registry Service
+
+Capabilities:
+
+* Add Tool
+* Edit Tool
+* Remove Tool
+* Search Tool
+* Load Tool By Category
+
+Validation required.
+
+Then STOP.
+
+---
+
+# CHUNK 5 — AFFILIATE LINK SYSTEM
+
+Purpose:
+
+Every tool recommendation must be monetized.
+
+The AI must always pull affiliate links from the database.
+
+Never hardcode links.
+
+Capabilities:
+
+* Store affiliate links
+* Update affiliate links
+* Disable affiliate links
+* Track clicks
+* Track usage
+
+Validation required.
+
+Then STOP.
+
+---
+
+# CHUNK 6 — SYSTEM INSTANCE ENGINE
+
+Purpose:
+
+Track every blueprint built by every user.
+
+Example:
+
+Blueprint:
+
+AI YouTube Shorts Engine
+
+User Builds:
+
+YouTube Engine #1
+
+YouTube Engine #2
+
+YouTube Engine #3
+
+Each build becomes a unique System Instance.
+
+Fields:
+
+* instance_id
+* user_id
+* blueprint_id
+* build_status
+* created_at
+* updated_at
+
+Validation required.
+
+Then STOP.
+
+---
+
+# CHUNK 7 — USER MEMORY ENGINE
+
+Purpose:
+
+Store build state.
+
+Remember:
+
+* Blueprint selected
+* Tools selected
+* Credentials supplied
+* Current build stage
+* Completed actions
+* Remaining actions
+
+If user leaves and returns later:
+
+Resume exactly where they stopped.
+
+Validation required.
+
+Then STOP.
+
+---
+
+# CHUNK 8 — OPENROUTER FOUNDATION
+
+Build:
+
+OpenRouter Integration Layer
+
+Requirements:
+
+* API key loading
+* Model routing
+* Token tracking
+* Usage tracking
+* Logging
+* Error handling
+
+Run live test.
+
+Show evidence.
+
+Validation required.
+
+Then STOP.
+
+---
+
+# CHUNK 9 — ADMIN CONTROL CENTER FOUNDATION
+
+IMPORTANT:
+
+Admin Control Center lives inside Replit.
+
+NOT Horizons.
+
+The admin must control everything from Replit.
+
+Build:
+
+Admin Dashboard Backend Foundation
+
+Capabilities:
+
+Manage:
+
+* Blueprints
+* Blueprint Categories
+* Tools
+* Tool Categories
+* Affiliate Links
+* Users
+* System Instances
+* OpenRouter Usage
+* Logs
+* Notifications
+* System Health
+
+No code changes required.
+
+Everything database-driven.
+
+Validation required.
+
+Then STOP.
+
+---
+
+# CHUNK 10 — API FOUNDATION
+
+Build all APIs required for future Horizons integration.
+
+Prepare endpoints for:
+
+Blueprints
+
+Tools
+
+Affiliate Links
+
+System Instances
+
+Build Sessions
+
+Build Progress
+
+User Memory
+
+Admin Controls
+
+OpenRouter Usage
+
+Do NOT connect Horizons yet.
+
+Prepare the API layer only.
+
+Validation required.
+
+Then STOP.
+
+---
+
+# PHASE 1 SUCCESS CRITERIA
+
+At completion we have:
+
+✓ Replit Database operational
+
+✓ Blueprint Registry operational
+
+✓ Tool Registry operational
+
+✓ Affiliate Registry operational
+
+✓ User Memory operational
+
+✓ System Instance architecture operational
+
+✓ OpenRouter operational
+
+✓ Admin Control Center operational
+
+✓ API layer operational
+
+✓ Architecture ready for Phase 2
+
+WITHOUT:
+
+✗ AI Agent
+
+✗ Blueprint Execution
+
+✗ Blueprint Builders
+
+✗ Horizons Integration
+
+✗ Placeholder Data
+
+✗ Hardcoded Tools
+
+✗ Hardcoded Affiliate Links
+
+✗ Hardcoded Blueprints
+
+When Phase 1 is complete, stop and provide a full architecture report showing:
+
+* Database structure
+* API structure
+* Admin structure
+* OpenRouter status
+* What is complete
+* What remains for Phase 2

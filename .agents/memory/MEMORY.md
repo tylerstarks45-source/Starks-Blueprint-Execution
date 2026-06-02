@@ -5,3 +5,4 @@
 - [Stripe Integration](stripe-integration.md) — Replit connector pattern, not env var; price IDs set as STRIPE_PRICE_* shared env vars; products already created in Stripe sandbox
 - [Affiliate link fields](affiliate-link-fields.md) — config uses cta_link/affiliate_link, API uses camelCase affiliateLink; mixing them drops links to "#"
 - [Credit enforcement](credit-enforcement.md) — bill the JWT user not body userId; usage may go transiently negative by design; Stripe webhook idempotent + prod-signed
+- [system_instances status fields](system-instances-fields.md) — API exposes buildStatus/healthStatus, NOT `status`; several dashboard cards wrongly read sys.status and silently show a fallback

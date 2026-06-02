@@ -16,19 +16,19 @@ const TIER_CONFIG = {
   builder: {
     label: 'Builder',
     badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    features: ['AI Build Agent (5/mo)', '50,000 tokens/mo', '5 active systems', 'Email support'],
+    features: ['AI Build Agent', '500 credits/mo', '5 active systems', 'Email support'],
     locked: ['Unlimited builds'],
   },
   operator: {
     label: 'Operator',
     badge: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
-    features: ['Unlimited AI builds', '200,000 tokens/mo', '15 active systems', 'Priority support'],
+    features: ['Unlimited AI builds', '2,000 credits/mo', '15 active systems', 'Priority support'],
     locked: [],
   },
   empire: {
     label: 'Empire',
     badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    features: ['Everything unlimited', '1M tokens/mo', 'Dedicated support', 'API access'],
+    features: ['Everything unlimited', '10,000 credits/mo', 'Dedicated support', 'API access'],
     locked: [],
   },
 };

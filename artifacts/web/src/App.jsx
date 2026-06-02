@@ -33,6 +33,8 @@ import AffiliateDisclosure from '@/pages/AffiliateDisclosure.jsx';
 import EarningsDisclaimer from '@/pages/EarningsDisclaimer.jsx';
 import SystemBuilderPage from '@/pages/SystemBuilderPage.jsx';
 import SavedSystemsPage from '@/pages/SavedSystemsPage.jsx';
+import BuildPage from '@/pages/BuildPage.jsx';
+import PricingPage from '@/pages/PricingPage.jsx';
 import ToolDetailPage from '@/pages/ToolDetailPage.jsx';
 import MyStackPage from '@/pages/MyStackPage.jsx';
 import UpdatesPage from '@/pages/UpdatesPage.jsx';
@@ -114,6 +116,12 @@ const App = () => {
               <MyStackPage />
             </ProtectedRoute>
           } />
+          <Route path="/build/:systemInstanceId" element={
+            <ProtectedRoute>
+              <BuildPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/pricing" element={<PricingPage />} />
           
           {/* Protected Admin Routes */}
           <Route path="/admin/*" element={

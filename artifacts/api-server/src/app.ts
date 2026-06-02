@@ -26,6 +26,18 @@ app.use(
   }),
 );
 app.use(cors());
+
+// Capture raw body for Stripe webhook signature verification
+app.use((req, _res, next) => {
+  if (req.path === "/api/stripe/webhook") {
+    let data = Buffer.alloc(0);
+    req.on("data", (chunk: Buffer) => { data = Buffer.concat([data, chunk]); });
+    req.on("end", () => { (req as any).rawBody = data; next(); });
+  } else {
+    next();
+  }
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

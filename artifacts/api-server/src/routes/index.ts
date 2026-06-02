@@ -18,6 +18,8 @@ import adminRouter from "./admin";
 import notificationsRouter from "./notifications";
 import contactRouter from "./contact";
 import userToolSelectionsRouter from "./user-tool-selections";
+import buildEngineRouter from "./build-engine";
+import subscriptionsRouter from "./subscriptions";
 
 const router: IRouter = Router();
 
@@ -40,5 +42,7 @@ router.use(openrouterRouter);
 router.use(adminRouter);
 router.use(notificationsRouter);
 router.use(userToolSelectionsRouter);
+router.use(buildEngineRouter);
+router.use(subscriptionsRouter);
 
 export default router;

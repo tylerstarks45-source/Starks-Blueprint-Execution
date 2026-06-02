@@ -56,14 +56,15 @@ const BlueprintDetailPage = () => {
       return;
     }
     try {
-      await pb.collection('saved_systems').create({
+      const instance = await pb.collection('saved_systems').create({
         userId: currentUser.id,
         blueprintId: blueprint.id,
+        name: blueprint.name,
         status: 'Not Started',
         progress: 0
       }, { $autoCancel: false });
-      toast.success("Blueprint saved to operations center");
-      navigate(`/system-setup/${blueprint.id}`);
+      toast.success("Blueprint saved — launching AI Build Agent");
+      navigate(`/build/${instance.id}`);
     } catch (err) {
       toast.error("Failed to save system.");
     }

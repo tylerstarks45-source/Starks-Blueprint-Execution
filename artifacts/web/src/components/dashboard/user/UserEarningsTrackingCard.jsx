@@ -12,11 +12,11 @@ const UserEarningsTrackingCard = () => {
       </CardHeader>
       <CardContent className="flex-1 flex flex-col justify-center py-6">
         <div className="text-center mb-6">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-2">Estimated This Month</p>
-          <p className="text-4xl font-bold font-mono text-foreground">$1,240.00</p>
-          <div className="flex items-center justify-center gap-1 mt-2 text-emerald-500">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-2">Revenue Tracking</p>
+          <p className="text-4xl font-bold font-mono text-foreground">$—</p>
+          <div className="flex items-center justify-center gap-1 mt-2 text-muted-foreground">
             <TrendingUp className="w-4 h-4" />
-            <span className="text-xs font-medium">+14.5% vs last month</span>
+            <span className="text-xs font-medium">Build a system to start tracking</span>
           </div>
         </div>
       </CardContent>

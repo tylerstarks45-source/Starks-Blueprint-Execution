@@ -1226,6 +1226,79 @@ paths:
               schema:
                 $ref: "#/components/schemas/OpenrouterUsageSummary"
 
+  # ── Credits ───────────────────────────────────────────────────────────────
+  /credits/me:
+    get:
+      operationId: getMyCredits
+      tags: [credits]
+      summary: Get the authenticated user's AI credit balance
+      responses:
+        "200":
+          description: Credit balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditBalance"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /credits/transactions:
+    get:
+      operationId: listMyCreditTransactions
+      tags: [credits]
+      summary: List the authenticated user's credit transactions
+      responses:
+        "200":
+          description: List of credit transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CreditTransaction"
+
+  /credits/config:
+    get:
+      operationId: getCreditConfig
+      tags: [credits]
+      summary: Get tier allotments and purchasable credit packs
+      responses:
+        "200":
+          description: Credit configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditConfig"
+
+  /credits/checkout:
+    post:
+      operationId: createCreditCheckout
+      tags: [credits]
+      summary: Create a Stripe checkout session to buy a credit pack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreditPackPurchase"
+      responses:
+        "200":
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditCheckoutSession"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ── Admin ─────────────────────────────────────────────────────────────────
   /admin/users:
     get:
@@ -1772,6 +1845,8 @@ components:
           type: string
         membershipTier:
           type: ["string", "null"]
+        creditsBalance:
+          type: integer
         active:
           type: boolean
         createdAt:
@@ -2131,6 +2206,97 @@ components:
         totalEstimatedCost:
           type: string
       required: [totalRequests, totalTokens, successfulRequests, failedRequests, totalEstimatedCost]
+
+    # ── Credits ─────────────────────────────────────────────────────────────
+    CreditBalance:
+      type: object
+      properties:
+        balance:
+          type: integer
+        tier:
+          type: ["string", "null"]
+        tierAllotment:
+          type: integer
+      required: [balance, tierAllotment]
+
+    CreditTransaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        amount:
+          type: integer
+        balanceAfter:
+          type: integer
+        type:
+          type: string
+        reason:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+        tokens:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+      required: [id, userId, amount, balanceAfter, type, createdAt]
+
+    CreditTierConfig:
+      type: object
+      properties:
+        tier:
+          type: string
+        name:
+          type: string
+        allotment:
+          type: integer
+        monthlyPrice:
+          type: integer
+      required: [tier, name, allotment, monthlyPrice]
+
+    CreditPackConfig:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        credits:
+          type: integer
+        priceCents:
+          type: integer
+      required: [id, name, credits, priceCents]
+
+    CreditConfig:
+      type: object
+      properties:
+        tiers:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreditTierConfig"
+        packs:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreditPackConfig"
+      required: [tiers, packs]
+
+    CreditPackPurchase:
+      type: object
+      properties:
+        pack:
+          type: string
+          minLength: 1
+      required: [pack]
+
+    CreditCheckoutSession:
+      type: object
+      properties:
+        url:
+          type: ["string", "null"]
+        sessionId:
+          type: string
+      required: [sessionId]
 
     # ── Admin ───────────────────────────────────────────────────────────────
     AdminUser:

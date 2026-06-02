@@ -45,6 +45,11 @@ import type {
   BuildSession,
   BuildSessionInput,
   BuildSessionUpdate,
+  CreditBalance,
+  CreditCheckoutSession,
+  CreditConfig,
+  CreditPackPurchase,
+  CreditTransaction,
   ErrorResponse,
   HealthStatus,
   ListAdminActivityParams,
@@ -4276,6 +4281,308 @@ export function useGetOpenrouterUsageSummary<TData = Awaited<ReturnType<typeof g
 
 
 
+
+export const getGetMyCreditsUrl = () => {
+
+
+
+
+  return `/api/credits/me`
+}
+
+/**
+ * @summary Get the authenticated user's AI credit balance
+ */
+export const getMyCredits = async ( options?: RequestInit): Promise<CreditBalance> => {
+
+  return customFetch<CreditBalance>(getGetMyCreditsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyCreditsQueryKey = () => {
+    return [
+    `/api/credits/me`
+    ] as const;
+    }
+
+
+export const getGetMyCreditsQueryOptions = <TData = Awaited<ReturnType<typeof getMyCredits>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyCredits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyCreditsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyCredits>>> = ({ signal }) => getMyCredits({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyCredits>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyCreditsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyCredits>>>
+export type GetMyCreditsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get the authenticated user's AI credit balance
+ */
+
+export function useGetMyCredits<TData = Awaited<ReturnType<typeof getMyCredits>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyCredits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyCreditsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListMyCreditTransactionsUrl = () => {
+
+
+
+
+  return `/api/credits/transactions`
+}
+
+/**
+ * @summary List the authenticated user's credit transactions
+ */
+export const listMyCreditTransactions = async ( options?: RequestInit): Promise<CreditTransaction[]> => {
+
+  return customFetch<CreditTransaction[]>(getListMyCreditTransactionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyCreditTransactionsQueryKey = () => {
+    return [
+    `/api/credits/transactions`
+    ] as const;
+    }
+
+
+export const getListMyCreditTransactionsQueryOptions = <TData = Awaited<ReturnType<typeof listMyCreditTransactions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyCreditTransactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyCreditTransactionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyCreditTransactions>>> = ({ signal }) => listMyCreditTransactions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyCreditTransactions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyCreditTransactionsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyCreditTransactions>>>
+export type ListMyCreditTransactionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the authenticated user's credit transactions
+ */
+
+export function useListMyCreditTransactions<TData = Awaited<ReturnType<typeof listMyCreditTransactions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyCreditTransactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyCreditTransactionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetCreditConfigUrl = () => {
+
+
+
+
+  return `/api/credits/config`
+}
+
+/**
+ * @summary Get tier allotments and purchasable credit packs
+ */
+export const getCreditConfig = async ( options?: RequestInit): Promise<CreditConfig> => {
+
+  return customFetch<CreditConfig>(getGetCreditConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCreditConfigQueryKey = () => {
+    return [
+    `/api/credits/config`
+    ] as const;
+    }
+
+
+export const getGetCreditConfigQueryOptions = <TData = Awaited<ReturnType<typeof getCreditConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCreditConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCreditConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCreditConfig>>> = ({ signal }) => getCreditConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCreditConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCreditConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getCreditConfig>>>
+export type GetCreditConfigQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get tier allotments and purchasable credit packs
+ */
+
+export function useGetCreditConfig<TData = Awaited<ReturnType<typeof getCreditConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCreditConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCreditConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateCreditCheckoutUrl = () => {
+
+
+
+
+  return `/api/credits/checkout`
+}
+
+/**
+ * @summary Create a Stripe checkout session to buy a credit pack
+ */
+export const createCreditCheckout = async (creditPackPurchase: CreditPackPurchase, options?: RequestInit): Promise<CreditCheckoutSession> => {
+
+  return customFetch<CreditCheckoutSession>(getCreateCreditCheckoutUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      creditPackPurchase,)
+  }
+);}
+
+
+
+
+export const getCreateCreditCheckoutMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCreditCheckout>>, TError,{data: BodyType<CreditPackPurchase>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCreditCheckout>>, TError,{data: BodyType<CreditPackPurchase>}, TContext> => {
+
+const mutationKey = ['createCreditCheckout'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCreditCheckout>>, {data: BodyType<CreditPackPurchase>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCreditCheckout(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCreditCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof createCreditCheckout>>>
+    export type CreateCreditCheckoutMutationBody = BodyType<CreditPackPurchase>
+    export type CreateCreditCheckoutMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a Stripe checkout session to buy a credit pack
+ */
+export const useCreateCreditCheckout = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCreditCheckout>>, TError,{data: BodyType<CreditPackPurchase>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCreditCheckout>>,
+        TError,
+        {data: BodyType<CreditPackPurchase>},
+        TContext
+      > => {
+      return useMutation(getCreateCreditCheckoutMutationOptions(options));
+    }
 
 export const getListAdminUsersUrl = () => {
 

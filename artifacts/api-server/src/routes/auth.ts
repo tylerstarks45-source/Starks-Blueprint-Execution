@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
+import { adjustCredits, SIGNUP_GRANT } from "../lib/credits";
 
 const router: IRouter = Router();
 
@@ -38,6 +39,7 @@ function userResponse(user: typeof usersTable.$inferSelect) {
     role: user.role ?? "USER",
     membershipStatus: user.membershipStatus,
     membershipTier: user.membershipTier,
+    creditsBalance: user.creditsBalance ?? 0,
     createdAt: user.createdAt,
   };
 }
@@ -66,9 +68,13 @@ router.post("/auth/register", async (req, res) => {
     membershipStatus: "inactive",
   }).returning();
 
+  const balance = await adjustCredits(newUser.id, SIGNUP_GRANT, "signup_grant", {
+    reason: "Welcome credits",
+  });
+
   const token = signToken(newUser.id, newUser.email, newUser.role ?? "USER");
 
-  return res.status(201).json({ token, user: userResponse(newUser) });
+  return res.status(201).json({ token, user: userResponse({ ...newUser, creditsBalance: balance }) });
 });
 
 // POST /api/auth/login

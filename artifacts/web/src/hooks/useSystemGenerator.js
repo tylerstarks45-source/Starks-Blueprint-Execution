@@ -39,7 +39,12 @@ export const useSystemGenerator = () => {
       try {
         const response = await fetch('/api/openrouter/complete', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(localStorage.getItem('sbep_auth_token')
+              ? { Authorization: `Bearer ${localStorage.getItem('sbep_auth_token')}` }
+              : {}),
+          },
           body: JSON.stringify({
             systemPrompt: `You are SBEP's AI architect. Given a user's business goal, select the 1-3 MOST RELEVANT blueprints from the list below. 
 Return ONLY a JSON array of blueprint IDs like: [1, 5, 3]

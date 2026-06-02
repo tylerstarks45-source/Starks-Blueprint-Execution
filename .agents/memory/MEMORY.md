@@ -4,3 +4,4 @@
 - [Auth Architecture](auth-arch.md) — JWT via SESSION_SECRET, bcryptjs+jsonwebtoken, 7-day expiry, token in localStorage as sbep_auth_token
 - [Stripe Integration](stripe-integration.md) — Replit connector pattern, not env var; price IDs set as STRIPE_PRICE_* shared env vars; products already created in Stripe sandbox
 - [Affiliate link fields](affiliate-link-fields.md) — config uses cta_link/affiliate_link, API uses camelCase affiliateLink; mixing them drops links to "#"
+- [Credit enforcement](credit-enforcement.md) — bill the JWT user not body userId; usage may go transiently negative by design; Stripe webhook idempotent + prod-signed

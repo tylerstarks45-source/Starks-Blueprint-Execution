@@ -1,6 +1,7 @@
 import { logger } from "./logger";
 import { db } from "@workspace/db";
 import { openrouterUsageTable } from "@workspace/db";
+import { getBalance, deductForUsage, OutOfCreditsError } from "./credits";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const DEFAULT_MODEL = "openai/gpt-4o-mini";
@@ -35,6 +36,15 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
     messages.push({ role: "system", content: request.systemPrompt });
   }
   messages.push({ role: "user", content: request.prompt });
+
+  // Enforce credit balance before spending tokens (only for attributed user calls)
+  if (request.userId != null) {
+    const balance = await getBalance(request.userId);
+    if (balance <= 0) {
+      logger.warn({ userId: request.userId }, "Blocked OpenRouter call: out of credits");
+      throw new OutOfCreditsError();
+    }
+  }
 
   logger.info({ model, userId: request.userId }, "Sending OpenRouter completion request");
 
@@ -78,6 +88,29 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
     };
 
     logger.info({ model: result.model, totalTokens: result.totalTokens }, "OpenRouter completion succeeded");
+
+    // Deduct credits for successful usage (failures already threw above).
+    // deductForUsage retries internally; if it still fails we deliberately do NOT
+    // fail the response (the AI call already succeeded and cost real money), but we
+    // emit a CREDIT_DEDUCTION_FAILED alert marker carrying everything needed to reconcile.
+    if (request.userId != null) {
+      try {
+        await deductForUsage(request.userId, result.totalTokens, result.model);
+      } catch (deductErr) {
+        logger.error(
+          {
+            alert: "CREDIT_DEDUCTION_FAILED",
+            err: deductErr,
+            userId: request.userId,
+            tokens: result.totalTokens,
+            model: result.model,
+            systemInstanceId: request.systemInstanceId ?? null,
+          },
+          "Credit deduction failed after AI usage — unbilled usage requires reconciliation",
+        );
+      }
+    }
+
     return result;
   } catch (err) {
     success = false;

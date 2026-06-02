@@ -19,3 +19,5 @@ export * from "./admin_activity";
 export * from "./system_health";
 export * from "./notifications";
 export * from "./subscriptions";
+export * from "./credit_transactions";
+export * from "./processed_stripe_events";

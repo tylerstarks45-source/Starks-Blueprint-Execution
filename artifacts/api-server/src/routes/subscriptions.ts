@@ -1,21 +1,11 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq } from "drizzle-orm";
-import { db, subscriptionsTable, usersTable } from "@workspace/db";
+import { db, subscriptionsTable, usersTable, processedStripeEventsTable } from "@workspace/db";
 import { z } from "zod";
-import jwt from "jsonwebtoken";
 import { getUncachableStripeClient } from "../lib/stripe";
-
-const JWT_SECRET = process.env["SESSION_SECRET"] || "sbep-fallback-secret-change-in-prod";
-
-const requireAuth = (req: any, res: any): number | null => {
-  const header = req.headers["authorization"] as string | undefined;
-  if (!header?.startsWith("Bearer ")) { res.status(401).json({ error: "Unauthorized" }); return null; }
-  try {
-    const payload = jwt.verify(header.slice(7), JWT_SECRET) as jwt.JwtPayload;
-    return Number(payload.sub);
-  } catch { res.status(401).json({ error: "Invalid token" }); return null; }
-};
+import { adjustCredits, tierAllotment } from "../lib/credits";
+import { requireAuth } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -114,10 +104,17 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
   try {
     const stripe = await getUncachableStripeClient();
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const isProduction = process.env.REPLIT_DEPLOYMENT === "1" || process.env.NODE_ENV === "production";
 
     if (!webhookSecret) {
+      if (isProduction) {
+        // Refuse to process unverified webhooks in production — they could be forged to mint credits.
+        req.log.error("STRIPE_WEBHOOK_SECRET not set in production; rejecting unverified webhook");
+        res.status(503).json({ error: "Webhook signature verification not configured" });
+        return;
+      }
       // No webhook secret configured yet — accept and process without verification (dev only)
-      req.log.warn("STRIPE_WEBHOOK_SECRET not set, skipping signature verification");
+      req.log.warn("STRIPE_WEBHOOK_SECRET not set, skipping signature verification (dev only)");
     }
 
     let event: any;
@@ -128,6 +125,20 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
       event = req.body;
     }
 
+    // Idempotency guard — Stripe retries/replays the same event id; apply each only once.
+    if (event.id) {
+      const [inserted] = await db
+        .insert(processedStripeEventsTable)
+        .values({ eventId: String(event.id) })
+        .onConflictDoNothing()
+        .returning();
+      if (!inserted) {
+        req.log.info({ eventId: event.id }, "Duplicate Stripe event ignored");
+        res.json({ received: true, duplicate: true });
+        return;
+      }
+    }
+
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as any;
       const userId = Number(session.metadata?.userId);
@@ -135,7 +146,13 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
       const customerId = session.customer as string;
       const subscriptionId = session.subscription as string;
 
-      if (userId && tier) {
+      if (session.metadata?.kind === "credit_pack") {
+        const credits = Number(session.metadata?.credits);
+        if (userId && credits > 0) {
+          await adjustCredits(userId, credits, "purchase", { reason: `Purchased ${credits} credits` });
+          req.log.info({ userId, credits }, "Credit pack purchased");
+        }
+      } else if (userId && tier) {
         const priceId = getPriceId(tier);
         const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
         if (sub) {
@@ -151,6 +168,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
         await db.update(usersTable)
           .set({ membershipTier: tier, membershipStatus: "active" })
           .where(eq(usersTable.id, userId));
+        await adjustCredits(userId, tierAllotment(tier), "tier_grant", { reason: `${tier} plan credits` });
         req.log.info({ userId, tier }, "Subscription activated via checkout");
       }
     }

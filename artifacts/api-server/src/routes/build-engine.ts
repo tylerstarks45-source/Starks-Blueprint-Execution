@@ -11,21 +11,45 @@ import {
   buildProgressTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
+import { hasCredits } from "../lib/credits";
+import { requireAuth } from "../lib/auth";
 import { z } from "zod";
 
 const router: IRouter = Router();
 
+// Returns true if the caller owns the instance (or it has no owner). Sends 403 otherwise.
+const ensureOwner = (
+  instance: { userId: number | null },
+  userId: number,
+  res: import("express").Response,
+): boolean => {
+  if (instance.userId != null && instance.userId !== userId) {
+    res.status(403).json({ error: "Forbidden" });
+    return false;
+  }
+  return true;
+};
+
 // POST /api/build-engine/analyze
 router.post("/build-engine/analyze", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (userId === null) return;
+
   const schema = z.object({ systemInstanceId: z.number().int() });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const [instance] = await db.select().from(systemInstancesTable).where(eq(systemInstancesTable.id, parsed.data.systemInstanceId));
   if (!instance) { res.status(404).json({ error: "System instance not found" }); return; }
+  if (!ensureOwner(instance, userId, res)) return;
 
   const [blueprint] = await db.select().from(blueprintsTable).where(eq(blueprintsTable.id, instance.blueprintId));
   if (!blueprint) { res.status(404).json({ error: "Blueprint not found" }); return; }
+
+  if (instance.userId != null && !(await hasCredits(instance.userId))) {
+    res.status(402).json({ error: "You're out of AI credits. Top up to continue building.", code: "out_of_credits" });
+    return;
+  }
 
   const allCategories = await db.select().from(toolCategoriesTable);
   const allTools = await db.select().from(toolsTable).where(eq(toolsTable.activeStatus, true));
@@ -44,6 +68,8 @@ Return ONLY this JSON format, nothing else:
 {"categoryIds":[1,3],"buildPlan":["Step 1: ...","Step 2: ...","Step 3: ...","Step 4: ...","Step 5: ..."]}`,
       prompt: `Blueprint: ${blueprint.name}\nDescription: ${blueprint.description || ""}\nDifficulty: ${blueprint.difficulty}`,
       model: "openai/gpt-4o-mini",
+      userId: instance.userId ?? undefined,
+      systemInstanceId: instance.id,
     });
 
     const jsonMatch = analysisResult.content.match(/\{[\s\S]*\}/);
@@ -86,6 +112,9 @@ Return ONLY this JSON format, nothing else:
 
 // POST /api/build-engine/start
 router.post("/build-engine/start", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (userId === null) return;
+
   const schema = z.object({
     systemInstanceId: z.number().int(),
     buildPlan: z.array(z.string()),
@@ -95,6 +124,7 @@ router.post("/build-engine/start", async (req, res): Promise<void> => {
 
   const [instance] = await db.select().from(systemInstancesTable).where(eq(systemInstancesTable.id, parsed.data.systemInstanceId));
   if (!instance) { res.status(404).json({ error: "System instance not found" }); return; }
+  if (!ensureOwner(instance, userId, res)) return;
 
   // Create build session
   const [session] = await db.insert(buildSessionsTable).values({
@@ -125,6 +155,9 @@ router.post("/build-engine/start", async (req, res): Promise<void> => {
 
 // POST /api/build-engine/execute-step
 router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (userId === null) return;
+
   const schema = z.object({
     stepId: z.number().int(),
     stepDescription: z.string(),
@@ -137,12 +170,23 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
+  const [instance] = await db.select().from(systemInstancesTable).where(eq(systemInstancesTable.id, parsed.data.systemInstanceId));
+  if (!instance) { res.status(404).json({ error: "System instance not found" }); return; }
+  if (!ensureOwner(instance, userId, res)) return;
+
+  if (instance.userId != null && !(await hasCredits(instance.userId))) {
+    res.status(402).json({ error: "You're out of AI credits. Top up to continue building.", code: "out_of_credits" });
+    return;
+  }
+
   let output = "";
   try {
     const result = await complete({
       systemPrompt: `You are SBEP's AI Build Agent. Briefly describe what you're doing for this step in 2-3 sentences. Be technical but clear.`,
       prompt: `Blueprint: ${parsed.data.blueprintName}\nStep ${parsed.data.stepNumber}/${parsed.data.totalSteps}: ${parsed.data.stepDescription}\nDescribe what you're executing now.`,
       model: "openai/gpt-4o-mini",
+      userId: instance.userId ?? undefined,
+      systemInstanceId: instance.id,
     });
     output = result.content;
   } catch {

@@ -212,6 +212,7 @@ export interface User {
   membershipStatus: string;
   /** @nullable */
   membershipTier?: string | null;
+  creditsBalance?: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -417,6 +418,58 @@ export interface OpenrouterUsageSummary {
   successfulRequests: number;
   failedRequests: number;
   totalEstimatedCost: string;
+}
+
+export interface CreditBalance {
+  balance: number;
+  /** @nullable */
+  tier?: string | null;
+  tierAllotment: number;
+}
+
+export interface CreditTransaction {
+  id: number;
+  userId: number;
+  amount: number;
+  balanceAfter: number;
+  type: string;
+  /** @nullable */
+  reason?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  tokens?: number | null;
+  createdAt: string;
+}
+
+export interface CreditTierConfig {
+  tier: string;
+  name: string;
+  allotment: number;
+  monthlyPrice: number;
+}
+
+export interface CreditPackConfig {
+  id: string;
+  name: string;
+  credits: number;
+  priceCents: number;
+}
+
+export interface CreditConfig {
+  tiers: CreditTierConfig[];
+  packs: CreditPackConfig[];
+}
+
+export interface CreditPackPurchase {
+  /** @minLength 1 */
+  pack: string;
+}
+
+export interface CreditCheckoutSession {
+  /** @nullable */
+  url?: string | null;
+  sessionId: string;
 }
 
 export interface AdminUser {

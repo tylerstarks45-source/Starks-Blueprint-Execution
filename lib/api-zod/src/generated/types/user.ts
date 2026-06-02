@@ -16,6 +16,7 @@ export interface User {
   membershipStatus: string;
   /** @nullable */
   membershipTier?: string | null;
+  creditsBalance?: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;

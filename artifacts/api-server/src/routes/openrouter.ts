@@ -3,6 +3,7 @@ import { serialize } from "../lib/serialize";
 import { desc, sql } from "drizzle-orm";
 import { db, openrouterUsageTable } from "@workspace/db";
 import { complete } from "../lib/openrouter";
+import { requireAuth } from "../lib/auth";
 import {
   OpenrouterCompleteBody,
   ListOpenrouterUsageResponse,
@@ -12,6 +13,9 @@ import {
 const router: IRouter = Router();
 
 router.post("/openrouter/complete", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (userId === null) return;
+
   const parsed = OpenrouterCompleteBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -19,10 +23,15 @@ router.post("/openrouter/complete", async (req, res): Promise<void> => {
   }
 
   try {
-    const result = await complete(parsed.data);
+    // Authoritative user id from the JWT — never trust a client-supplied userId for billing.
+    const result = await complete({ ...parsed.data, userId });
     res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "OpenRouter request failed";
+    if ((err as { code?: string })?.code === "out_of_credits") {
+      res.status(402).json({ error: message, code: "out_of_credits" });
+      return;
+    }
     res.status(400).json({ error: message });
   }
 });

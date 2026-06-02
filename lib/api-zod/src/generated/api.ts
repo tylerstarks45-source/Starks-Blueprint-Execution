@@ -538,6 +538,7 @@ export const ListUsersResponseItem = zod.object({
   "name": zod.string().nullish(),
   "membershipStatus": zod.string(),
   "membershipTier": zod.string().nullish(),
+  "creditsBalance": zod.number().optional(),
   "active": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
@@ -575,6 +576,7 @@ export const GetUserResponse = zod.object({
   "name": zod.string().nullish(),
   "membershipStatus": zod.string(),
   "membershipTier": zod.string().nullish(),
+  "creditsBalance": zod.number().optional(),
   "active": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
@@ -602,6 +604,7 @@ export const UpdateUserResponse = zod.object({
   "name": zod.string().nullish(),
   "membershipStatus": zod.string(),
   "membershipTier": zod.string().nullish(),
+  "creditsBalance": zod.number().optional(),
   "active": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
@@ -1013,6 +1016,68 @@ export const GetOpenrouterUsageSummaryResponse = zod.object({
   "successfulRequests": zod.number(),
   "failedRequests": zod.number(),
   "totalEstimatedCost": zod.string()
+})
+
+
+/**
+ * @summary Get the authenticated user's AI credit balance
+ */
+export const GetMyCreditsResponse = zod.object({
+  "balance": zod.number(),
+  "tier": zod.string().nullish(),
+  "tierAllotment": zod.number()
+})
+
+
+/**
+ * @summary List the authenticated user's credit transactions
+ */
+export const ListMyCreditTransactionsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "amount": zod.number(),
+  "balanceAfter": zod.number(),
+  "type": zod.string(),
+  "reason": zod.string().nullish(),
+  "model": zod.string().nullish(),
+  "tokens": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+export const ListMyCreditTransactionsResponse = zod.array(ListMyCreditTransactionsResponseItem)
+
+
+/**
+ * @summary Get tier allotments and purchasable credit packs
+ */
+export const GetCreditConfigResponse = zod.object({
+  "tiers": zod.array(zod.object({
+  "tier": zod.string(),
+  "name": zod.string(),
+  "allotment": zod.number(),
+  "monthlyPrice": zod.number()
+})),
+  "packs": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "credits": zod.number(),
+  "priceCents": zod.number()
+}))
+})
+
+
+/**
+ * @summary Create a Stripe checkout session to buy a credit pack
+ */
+
+
+
+export const CreateCreditCheckoutBody = zod.object({
+  "pack": zod.string().min(1)
+})
+
+export const CreateCreditCheckoutResponse = zod.object({
+  "url": zod.string().nullish(),
+  "sessionId": zod.string()
 })
 
 

@@ -161,6 +161,10 @@ class SBEPCollection {
     return apiRequest(this._endpoint, { method: 'POST', body: JSON.stringify(data) });
   }
 
+  async authWithOAuth2(_opts = {}) {
+    throw Object.assign(new Error('Google login is not yet available. Please use email and password.'), { status: 400 });
+  }
+
   async requestPasswordReset(email, _opts = {}) {
     try { await apiRequest('/api/auth/request-reset', { method: 'POST', body: JSON.stringify({ email }) }); } catch { /* swallow */ }
     return true;

@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
+import crypto from "crypto";
 import { adjustCredits, SIGNUP_GRANT } from "../lib/credits";
 
 const router: IRouter = Router();
@@ -148,8 +149,64 @@ router.post("/auth/request-reset", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid email." });
   }
-  // TODO: send reset email. For now, silently succeed.
-  return res.json({ success: true, message: "If an account exists, a reset link will be sent." });
+
+  const users = await db.select().from(usersTable).where(eq(usersTable.email, parsed.data.email)).limit(1);
+  if (users.length === 0) {
+    // Don't reveal whether the account exists
+    return res.json({ success: true, message: "If an account exists, a reset link will be sent." });
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await db.update(usersTable)
+    .set({ resetToken: token, resetTokenExpiry: expiry })
+    .where(eq(usersTable.email, parsed.data.email));
+
+  const domain = process.env.REPLIT_DOMAINS?.split(",")[0];
+  const baseUrl = domain ? `https://${domain}` : "http://localhost:80";
+  const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+
+  req.log.info({ email: parsed.data.email, resetUrl }, "Password reset token generated");
+
+  return res.json({
+    success: true,
+    message: "If an account exists, a reset link will be sent.",
+    resetUrl, // visible in dev so admin can forward it; remove after email is wired
+  });
+});
+
+// POST /api/auth/reset-password
+const ResetPasswordInput = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+router.post("/auth/reset-password", async (req, res) => {
+  const parsed = ResetPasswordInput.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid input." });
+  }
+
+  const users = await db.select().from(usersTable)
+    .where(eq(usersTable.resetToken, parsed.data.token)).limit(1);
+
+  if (users.length === 0) {
+    return res.status(400).json({ error: "Invalid or expired reset link. Please request a new one." });
+  }
+
+  const user = users[0];
+  if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+    return res.status(400).json({ error: "This reset link has expired. Please request a new one." });
+  }
+
+  const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+  await db.update(usersTable)
+    .set({ passwordHash, resetToken: null, resetTokenExpiry: null })
+    .where(eq(usersTable.id, user.id));
+
+  req.log.info({ userId: user.id }, "Password reset completed");
+  return res.json({ success: true, message: "Password updated. You can now log in." });
 });
 
 export default router;

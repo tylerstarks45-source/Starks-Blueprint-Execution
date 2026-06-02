@@ -25,6 +25,20 @@ export function getUserId(req: Request): number | null {
   }
 }
 
+// Returns full token payload (id, email, role) without a DB round-trip, or null if absent/invalid.
+export function getTokenPayload(req: Request): { id: number; email: string; role: string } | null {
+  const header = req.headers["authorization"];
+  if (!header?.startsWith("Bearer ")) return null;
+  try {
+    const payload = jwt.verify(header.slice(7), JWT_SECRET) as jwt.JwtPayload;
+    const id = Number(payload.sub);
+    if (!Number.isFinite(id)) return null;
+    return { id, email: String(payload.email ?? ""), role: String(payload.role ?? "USER") };
+  } catch {
+    return null;
+  }
+}
+
 // Derives the authenticated user id or sends a 401 and returns null.
 export function requireAuth(req: Request, res: Response): number | null {
   const id = getUserId(req);

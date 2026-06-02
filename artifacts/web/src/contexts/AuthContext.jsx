@@ -97,11 +97,16 @@ export const AuthProvider = ({ children }) => {
 
   const resetPassword = useCallback(async (email) => {
     try {
-      await pb.collection('users').requestPasswordReset(email, { $autoCancel: false });
-      return { success: true };
+      const res = await fetch('/api/auth/request-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.error || 'Failed to send reset link.' };
+      return { success: true, resetUrl: data.resetUrl };
     } catch (error) {
-      console.error("Reset Password Error:", error);
-      return { success: false, error: error.message || "Failed to send reset link." };
+      return { success: false, error: 'Network error. Please try again.' };
     }
   }, []);
 

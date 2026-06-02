@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Mail, MessageSquare, Wrench, HeartHandshake as Handshake, ArrowRight, Building2, Clock, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import pb from '@/lib/pocketbaseClient.js';
 
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -49,12 +48,22 @@ const ContactPage = () => {
 
     setIsSubmitting(true);
     try {
-      await pb.collection('contact_submissions').create(formData, { $autoCancel: false });
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.fullName,
+          email: formData.email,
+          subject: formData.subject,
+          message: formData.message,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send message.');
       toast.success("Inquiry submitted successfully! Typical response time: 24–48 hours.");
       setFormData({ fullName: '', email: '', subject: '', message: '' });
     } catch (error) {
-      console.error('Contact submission error:', error);
-      toast.error('Failed to send message. Please try again later.');
+      toast.error(error.message || 'Failed to send message. Please try again later.');
     } finally {
       setIsSubmitting(false);
     }

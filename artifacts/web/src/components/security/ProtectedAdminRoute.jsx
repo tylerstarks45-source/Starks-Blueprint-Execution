@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin'];
+
 const ProtectedAdminRoute = ({ children }) => {
   const { currentUser, currentUserRole, isLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -17,7 +19,7 @@ const ProtectedAdminRoute = ({ children }) => {
         return;
       }
 
-      if (currentUserRole !== 'SUPER_ADMIN') {
+      if (!ADMIN_ROLES.includes(currentUserRole)) {
         toast.error('Access denied. Admin privileges required.');
         navigate('/user-dashboard', { replace: true });
       }
@@ -33,7 +35,7 @@ const ProtectedAdminRoute = ({ children }) => {
     );
   }
 
-  if (!isAuthenticated || !currentUser || currentUserRole !== 'SUPER_ADMIN') {
+  if (!isAuthenticated || !currentUser || !ADMIN_ROLES.includes(currentUserRole)) {
     return null; // Will redirect in useEffect
   }
 

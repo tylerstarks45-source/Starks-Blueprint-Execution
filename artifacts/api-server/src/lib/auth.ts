@@ -1,5 +1,7 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response } from "express";
+import { eq } from "drizzle-orm";
+import { db, usersTable } from "@workspace/db";
 
 const isProduction = process.env.REPLIT_DEPLOYMENT === "1" || process.env.NODE_ENV === "production";
 
@@ -31,4 +33,30 @@ export function requireAuth(req: Request, res: Response): number | null {
     return null;
   }
   return id;
+}
+
+// Roles permitted to access admin-only endpoints.
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "admin"]);
+
+// Verifies the caller is authenticated AND has an admin role.
+// Sends 401 (no/invalid token) or 403 (authenticated but not admin) and returns null on failure.
+export async function requireAdmin(
+  req: Request,
+  res: Response,
+): Promise<{ id: number; role: string } | null> {
+  const id = getUserId(req);
+  if (id === null) {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
+  const [user] = await db
+    .select({ role: usersTable.role })
+    .from(usersTable)
+    .where(eq(usersTable.id, id));
+  const role = user?.role ?? "USER";
+  if (!ADMIN_ROLES.has(role)) {
+    res.status(403).json({ error: "Admin privileges required" });
+    return null;
+  }
+  return { id, role };
 }

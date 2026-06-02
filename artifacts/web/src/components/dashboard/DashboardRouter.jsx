@@ -11,7 +11,7 @@ const DashboardRouter = () => {
 
   useEffect(() => {
     // Allow standard roles. PocketBase often uses 'admin' for superusers.
-    const validRoles = ['admin', 'SUPER_ADMIN', 'USER'];
+    const validRoles = ['admin', 'ADMIN', 'SUPER_ADMIN', 'USER'];
     
     if (!isLoading && role && !validRoles.includes(role)) {
       console.warn(`Invalid role detected: ${role}. Redirecting to login.`);
@@ -28,8 +28,8 @@ const DashboardRouter = () => {
     );
   }
 
-  // Render Admin layout for both 'admin' and 'SUPER_ADMIN' roles
-  if (role === 'SUPER_ADMIN' || role === 'admin') {
+  // Render Admin layout for all admin roles ('admin', 'ADMIN', 'SUPER_ADMIN')
+  if (role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'admin') {
     return <AdminDashboardLayout />;
   }
 

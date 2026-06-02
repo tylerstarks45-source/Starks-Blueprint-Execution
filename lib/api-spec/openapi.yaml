@@ -1418,6 +1418,161 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminDashboard"
 
+  /admin/analytics:
+    get:
+      operationId: getAdminAnalytics
+      tags: [admin]
+      summary: Comprehensive platform analytics (admin only)
+      responses:
+        "200":
+          description: Platform analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnalytics"
+
+  /admin/health:
+    get:
+      operationId: getAdminHealth
+      tags: [admin]
+      summary: Live service + runtime health (admin only)
+      responses:
+        "200":
+          description: Health snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminHealth"
+
+  /admin/usage/by-user:
+    get:
+      operationId: getAdminUsageByUser
+      tags: [admin]
+      summary: AI usage aggregated per user (admin only)
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Per-user usage
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUserUsage"
+
+  /admin/openrouter/test:
+    post:
+      operationId: testAdminOpenRouter
+      tags: [admin]
+      summary: Live OpenRouter connection test (admin only)
+      responses:
+        "200":
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOpenRouterTest"
+
+  /admin/platform-users:
+    get:
+      operationId: listPlatformUsers
+      tags: [admin]
+      summary: List platform users with search/filter (admin only)
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: role
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: perPage
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paged user list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPlatformUserList"
+
+  /admin/platform-users/{id}:
+    patch:
+      operationId: updatePlatformUser
+      tags: [admin]
+      summary: Update a user's role, status, or details (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/platform-users/{id}/credits:
+    post:
+      operationId: adjustPlatformUserCredits
+      tags: [admin]
+      summary: Grant or adjust a user's AI credits (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCreditAdjust"
+      responses:
+        "200":
+          description: Adjustment result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCreditAdjustResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ── Notifications ─────────────────────────────────────────────────────────
   /notifications:
     get:
@@ -1844,6 +1999,8 @@ components:
         membershipStatus:
           type: string
         membershipTier:
+          type: ["string", "null"]
+        role:
           type: ["string", "null"]
         creditsBalance:
           type: integer
@@ -2419,6 +2576,191 @@ components:
           items:
             $ref: "#/components/schemas/AdminActivity"
       required: [totalUsers, totalBlueprints, totalTools, totalSystemInstances, activeSystemInstances, totalAffiliateClicks, openrouterTotalTokens, recentActivity]
+
+    AdminPlatformStats:
+      type: object
+      properties:
+        totalUsers: { type: integer }
+        activeUsers: { type: integer }
+        suspendedUsers: { type: integer }
+        newUsersToday: { type: integer }
+        newUsersThisWeek: { type: integer }
+        paidSubscribers: { type: integer }
+        activeMembers: { type: integer }
+        mrrCents: { type: integer }
+        totalSystemInstances: { type: integer }
+        activeSystemInstances: { type: integer }
+        buildingSystemInstances: { type: integer }
+        totalAffiliateClicks: { type: integer }
+      required: [totalUsers, activeUsers, suspendedUsers, newUsersToday, newUsersThisWeek, paidSubscribers, activeMembers, mrrCents, totalSystemInstances, activeSystemInstances, buildingSystemInstances, totalAffiliateClicks]
+
+    AdminAiStats:
+      type: object
+      properties:
+        totalTokens: { type: integer }
+        totalPromptTokens: { type: integer }
+        totalCompletionTokens: { type: integer }
+        totalRequests: { type: integer }
+        successfulRequests: { type: integer }
+        failedRequests: { type: integer }
+        successRate: { type: number }
+        totalCostUsd: { type: number }
+        tokensLastHour: { type: integer }
+        requestsLast24h: { type: integer }
+      required: [totalTokens, totalPromptTokens, totalCompletionTokens, totalRequests, successfulRequests, failedRequests, successRate, totalCostUsd, tokensLastHour, requestsLast24h]
+
+    AdminCreditStats:
+      type: object
+      properties:
+        totalConsumed: { type: integer }
+        totalGranted: { type: integer }
+        totalPurchased: { type: integer }
+        outstandingBalance: { type: integer }
+      required: [totalConsumed, totalGranted, totalPurchased, outstandingBalance]
+
+    AdminModelUsage:
+      type: object
+      properties:
+        model: { type: string }
+        requests: { type: integer }
+        tokens: { type: integer }
+        promptTokens: { type: integer }
+        completionTokens: { type: integer }
+        costUsd: { type: number }
+        successCount: { type: integer }
+        failureCount: { type: integer }
+      required: [model, requests, tokens, promptTokens, completionTokens, costUsd, successCount, failureCount]
+
+    AdminTierCount:
+      type: object
+      properties:
+        tier: { type: string }
+        count: { type: integer }
+      required: [tier, count]
+
+    AdminGrowthPoint:
+      type: object
+      properties:
+        date: { type: string }
+        count: { type: integer }
+      required: [date, count]
+
+    AdminUsageError:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: ["integer", "null"] }
+        model: { type: string }
+        errorMessage: { type: ["string", "null"] }
+        createdAt: { type: string }
+      required: [id, model, createdAt]
+
+    AdminAnalytics:
+      type: object
+      properties:
+        platform: { $ref: "#/components/schemas/AdminPlatformStats" }
+        ai: { $ref: "#/components/schemas/AdminAiStats" }
+        credits: { $ref: "#/components/schemas/AdminCreditStats" }
+        models:
+          type: array
+          items: { $ref: "#/components/schemas/AdminModelUsage" }
+        subscriptions:
+          type: array
+          items: { $ref: "#/components/schemas/AdminTierCount" }
+        growth:
+          type: array
+          items: { $ref: "#/components/schemas/AdminGrowthPoint" }
+        recentActivity:
+          type: array
+          items: { $ref: "#/components/schemas/AdminActivity" }
+        recentErrors:
+          type: array
+          items: { $ref: "#/components/schemas/AdminUsageError" }
+      required: [platform, ai, credits, models, subscriptions, growth, recentActivity, recentErrors]
+
+    AdminHealthService:
+      type: object
+      properties:
+        name: { type: string }
+        status: { type: string }
+        latencyMs: { type: ["number", "null"] }
+        message: { type: ["string", "null"] }
+      required: [name, status]
+
+    AdminRuntime:
+      type: object
+      properties:
+        uptimeSeconds: { type: number }
+        memoryUsedMb: { type: number }
+        memoryTotalMb: { type: number }
+        cpuLoad: { type: number }
+        nodeVersion: { type: string }
+      required: [uptimeSeconds, memoryUsedMb, memoryTotalMb, cpuLoad, nodeVersion]
+
+    AdminHealth:
+      type: object
+      properties:
+        services:
+          type: array
+          items: { $ref: "#/components/schemas/AdminHealthService" }
+        runtime: { $ref: "#/components/schemas/AdminRuntime" }
+      required: [services, runtime]
+
+    AdminUserUsage:
+      type: object
+      properties:
+        userId: { type: integer }
+        email: { type: string }
+        name: { type: ["string", "null"] }
+        requests: { type: integer }
+        tokens: { type: integer }
+        costUsd: { type: number }
+        creditsBalance: { type: integer }
+      required: [userId, email, requests, tokens, costUsd, creditsBalance]
+
+    AdminOpenRouterTest:
+      type: object
+      properties:
+        ok: { type: boolean }
+        latencyMs: { type: ["number", "null"] }
+        modelsOnline: { type: ["integer", "null"] }
+        message: { type: string }
+      required: [ok, message]
+
+    AdminPlatformUserList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/User" }
+        total: { type: integer }
+        page: { type: integer }
+        perPage: { type: integer }
+      required: [items, total, page, perPage]
+
+    AdminUserUpdate:
+      type: object
+      properties:
+        role: { type: string }
+        active: { type: boolean }
+        name: { type: ["string", "null"] }
+        membershipTier: { type: ["string", "null"] }
+        membershipStatus: { type: string }
+
+    AdminCreditAdjust:
+      type: object
+      properties:
+        delta: { type: integer }
+        reason: { type: string }
+      required: [delta]
+
+    AdminCreditAdjustResult:
+      type: object
+      properties:
+        userId: { type: integer }
+        balance: { type: integer }
+        delta: { type: integer }
+      required: [userId, balance, delta]
 
     # ── Notifications ───────────────────────────────────────────────────────
     Notification:

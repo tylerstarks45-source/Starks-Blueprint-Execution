@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { AdminDataProvider } from '@/contexts/AdminDataContext.jsx';
 import AdminPlatformMetricsCard from './AdminPlatformMetricsCard.jsx';
 import AdminAIUsageAnalyticsCard from './AdminAIUsageAnalyticsCard.jsx';
 import AdminOpenRouterHealthCard from './AdminOpenRouterHealthCard.jsx';
@@ -25,6 +26,7 @@ import MonthlyConsumptionCard from '@/components/admin/MonthlyConsumptionCard.js
 
 const AdminDashboardLayout = () => {
   return (
+    <AdminDataProvider>
     <div className="space-y-6 animate-in fade-in duration-500 relative z-10">
       <AdminPlatformMetricsCard />
       
@@ -79,6 +81,7 @@ const AdminDashboardLayout = () => {
         <AdminGlobalActivityFeedPanel />
       </div>
     </div>
+    </AdminDataProvider>
   );
 };
 

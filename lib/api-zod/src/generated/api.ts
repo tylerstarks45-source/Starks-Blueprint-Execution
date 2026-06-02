@@ -538,6 +538,7 @@ export const ListUsersResponseItem = zod.object({
   "name": zod.string().nullish(),
   "membershipStatus": zod.string(),
   "membershipTier": zod.string().nullish(),
+  "role": zod.string().nullish(),
   "creditsBalance": zod.number().optional(),
   "active": zod.boolean(),
   "createdAt": zod.string(),
@@ -576,6 +577,7 @@ export const GetUserResponse = zod.object({
   "name": zod.string().nullish(),
   "membershipStatus": zod.string(),
   "membershipTier": zod.string().nullish(),
+  "role": zod.string().nullish(),
   "creditsBalance": zod.number().optional(),
   "active": zod.boolean(),
   "createdAt": zod.string(),
@@ -604,6 +606,7 @@ export const UpdateUserResponse = zod.object({
   "name": zod.string().nullish(),
   "membershipStatus": zod.string(),
   "membershipTier": zod.string().nullish(),
+  "role": zod.string().nullish(),
   "creditsBalance": zod.number().optional(),
   "active": zod.boolean(),
   "createdAt": zod.string(),
@@ -1193,6 +1196,209 @@ export const GetAdminDashboardResponse = zod.object({
   "details": zod.string().nullish(),
   "createdAt": zod.string()
 }))
+})
+
+
+/**
+ * @summary Comprehensive platform analytics (admin only)
+ */
+export const GetAdminAnalyticsResponse = zod.object({
+  "platform": zod.object({
+  "totalUsers": zod.number(),
+  "activeUsers": zod.number(),
+  "suspendedUsers": zod.number(),
+  "newUsersToday": zod.number(),
+  "newUsersThisWeek": zod.number(),
+  "paidSubscribers": zod.number(),
+  "activeMembers": zod.number(),
+  "mrrCents": zod.number(),
+  "totalSystemInstances": zod.number(),
+  "activeSystemInstances": zod.number(),
+  "buildingSystemInstances": zod.number(),
+  "totalAffiliateClicks": zod.number()
+}),
+  "ai": zod.object({
+  "totalTokens": zod.number(),
+  "totalPromptTokens": zod.number(),
+  "totalCompletionTokens": zod.number(),
+  "totalRequests": zod.number(),
+  "successfulRequests": zod.number(),
+  "failedRequests": zod.number(),
+  "successRate": zod.number(),
+  "totalCostUsd": zod.number(),
+  "tokensLastHour": zod.number(),
+  "requestsLast24h": zod.number()
+}),
+  "credits": zod.object({
+  "totalConsumed": zod.number(),
+  "totalGranted": zod.number(),
+  "totalPurchased": zod.number(),
+  "outstandingBalance": zod.number()
+}),
+  "models": zod.array(zod.object({
+  "model": zod.string(),
+  "requests": zod.number(),
+  "tokens": zod.number(),
+  "promptTokens": zod.number(),
+  "completionTokens": zod.number(),
+  "costUsd": zod.number(),
+  "successCount": zod.number(),
+  "failureCount": zod.number()
+})),
+  "subscriptions": zod.array(zod.object({
+  "tier": zod.string(),
+  "count": zod.number()
+})),
+  "growth": zod.array(zod.object({
+  "date": zod.string(),
+  "count": zod.number()
+})),
+  "recentActivity": zod.array(zod.object({
+  "id": zod.number(),
+  "adminId": zod.number().nullish(),
+  "action": zod.string(),
+  "resourceType": zod.string().nullish(),
+  "resourceId": zod.string().nullish(),
+  "details": zod.string().nullish(),
+  "createdAt": zod.string()
+})),
+  "recentErrors": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number().nullish(),
+  "model": zod.string(),
+  "errorMessage": zod.string().nullish(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Live service + runtime health (admin only)
+ */
+export const GetAdminHealthResponse = zod.object({
+  "services": zod.array(zod.object({
+  "name": zod.string(),
+  "status": zod.string(),
+  "latencyMs": zod.number().nullish(),
+  "message": zod.string().nullish()
+})),
+  "runtime": zod.object({
+  "uptimeSeconds": zod.number(),
+  "memoryUsedMb": zod.number(),
+  "memoryTotalMb": zod.number(),
+  "cpuLoad": zod.number(),
+  "nodeVersion": zod.string()
+})
+})
+
+
+/**
+ * @summary AI usage aggregated per user (admin only)
+ */
+export const GetAdminUsageByUserQueryParams = zod.object({
+  "limit": zod.coerce.number().optional()
+})
+
+export const GetAdminUsageByUserResponseItem = zod.object({
+  "userId": zod.number(),
+  "email": zod.string(),
+  "name": zod.string().nullish(),
+  "requests": zod.number(),
+  "tokens": zod.number(),
+  "costUsd": zod.number(),
+  "creditsBalance": zod.number()
+})
+export const GetAdminUsageByUserResponse = zod.array(GetAdminUsageByUserResponseItem)
+
+
+/**
+ * @summary Live OpenRouter connection test (admin only)
+ */
+export const TestAdminOpenRouterResponse = zod.object({
+  "ok": zod.boolean(),
+  "latencyMs": zod.number().nullish(),
+  "modelsOnline": zod.number().nullish(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary List platform users with search/filter (admin only)
+ */
+export const ListPlatformUsersQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "role": zod.coerce.string().optional(),
+  "status": zod.coerce.string().optional(),
+  "page": zod.coerce.number().optional(),
+  "perPage": zod.coerce.number().optional()
+})
+
+export const ListPlatformUsersResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "externalId": zod.string().nullish(),
+  "email": zod.string(),
+  "name": zod.string().nullish(),
+  "membershipStatus": zod.string(),
+  "membershipTier": zod.string().nullish(),
+  "role": zod.string().nullish(),
+  "creditsBalance": zod.number().optional(),
+  "active": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "perPage": zod.number()
+})
+
+
+/**
+ * @summary Update a user's role, status, or details (admin only)
+ */
+export const UpdatePlatformUserParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePlatformUserBody = zod.object({
+  "role": zod.string().optional(),
+  "active": zod.boolean().optional(),
+  "name": zod.string().nullish(),
+  "membershipTier": zod.string().nullish(),
+  "membershipStatus": zod.string().optional()
+})
+
+export const UpdatePlatformUserResponse = zod.object({
+  "id": zod.number(),
+  "externalId": zod.string().nullish(),
+  "email": zod.string(),
+  "name": zod.string().nullish(),
+  "membershipStatus": zod.string(),
+  "membershipTier": zod.string().nullish(),
+  "role": zod.string().nullish(),
+  "creditsBalance": zod.number().optional(),
+  "active": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Grant or adjust a user's AI credits (admin only)
+ */
+export const AdjustPlatformUserCreditsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdjustPlatformUserCreditsBody = zod.object({
+  "delta": zod.number(),
+  "reason": zod.string().optional()
+})
+
+export const AdjustPlatformUserCreditsResponse = zod.object({
+  "userId": zod.number(),
+  "balance": zod.number(),
+  "delta": zod.number()
 })
 
 

@@ -212,6 +212,8 @@ export interface User {
   membershipStatus: string;
   /** @nullable */
   membershipTier?: string | null;
+  /** @nullable */
+  role?: string | null;
   creditsBalance?: number;
   active: boolean;
   createdAt: string;
@@ -543,6 +545,153 @@ export interface AdminDashboard {
   recentActivity: AdminActivity[];
 }
 
+export interface AdminPlatformStats {
+  totalUsers: number;
+  activeUsers: number;
+  suspendedUsers: number;
+  newUsersToday: number;
+  newUsersThisWeek: number;
+  paidSubscribers: number;
+  activeMembers: number;
+  mrrCents: number;
+  totalSystemInstances: number;
+  activeSystemInstances: number;
+  buildingSystemInstances: number;
+  totalAffiliateClicks: number;
+}
+
+export interface AdminAiStats {
+  totalTokens: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  successRate: number;
+  totalCostUsd: number;
+  tokensLastHour: number;
+  requestsLast24h: number;
+}
+
+export interface AdminCreditStats {
+  totalConsumed: number;
+  totalGranted: number;
+  totalPurchased: number;
+  outstandingBalance: number;
+}
+
+export interface AdminModelUsage {
+  model: string;
+  requests: number;
+  tokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  costUsd: number;
+  successCount: number;
+  failureCount: number;
+}
+
+export interface AdminTierCount {
+  tier: string;
+  count: number;
+}
+
+export interface AdminGrowthPoint {
+  date: string;
+  count: number;
+}
+
+export interface AdminUsageError {
+  id: number;
+  /** @nullable */
+  userId?: number | null;
+  model: string;
+  /** @nullable */
+  errorMessage?: string | null;
+  createdAt: string;
+}
+
+export interface AdminAnalytics {
+  platform: AdminPlatformStats;
+  ai: AdminAiStats;
+  credits: AdminCreditStats;
+  models: AdminModelUsage[];
+  subscriptions: AdminTierCount[];
+  growth: AdminGrowthPoint[];
+  recentActivity: AdminActivity[];
+  recentErrors: AdminUsageError[];
+}
+
+export interface AdminHealthService {
+  name: string;
+  status: string;
+  /** @nullable */
+  latencyMs?: number | null;
+  /** @nullable */
+  message?: string | null;
+}
+
+export interface AdminRuntime {
+  uptimeSeconds: number;
+  memoryUsedMb: number;
+  memoryTotalMb: number;
+  cpuLoad: number;
+  nodeVersion: string;
+}
+
+export interface AdminHealth {
+  services: AdminHealthService[];
+  runtime: AdminRuntime;
+}
+
+export interface AdminUserUsage {
+  userId: number;
+  email: string;
+  /** @nullable */
+  name?: string | null;
+  requests: number;
+  tokens: number;
+  costUsd: number;
+  creditsBalance: number;
+}
+
+export interface AdminOpenRouterTest {
+  ok: boolean;
+  /** @nullable */
+  latencyMs?: number | null;
+  /** @nullable */
+  modelsOnline?: number | null;
+  message: string;
+}
+
+export interface AdminPlatformUserList {
+  items: User[];
+  total: number;
+  page: number;
+  perPage: number;
+}
+
+export interface AdminUserUpdate {
+  role?: string;
+  active?: boolean;
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  membershipTier?: string | null;
+  membershipStatus?: string;
+}
+
+export interface AdminCreditAdjust {
+  delta: number;
+  reason?: string;
+}
+
+export interface AdminCreditAdjustResult {
+  userId: number;
+  balance: number;
+  delta: number;
+}
+
 export interface Notification {
   id: number;
   /** @nullable */
@@ -614,6 +763,18 @@ systemInstanceId?: number;
 export type ListAdminActivityParams = {
 adminId?: number;
 limit?: number;
+};
+
+export type GetAdminUsageByUserParams = {
+limit?: number;
+};
+
+export type ListPlatformUsersParams = {
+search?: string;
+role?: string;
+status?: string;
+page?: number;
+perPage?: number;
 };
 
 export type ListNotificationsParams = {

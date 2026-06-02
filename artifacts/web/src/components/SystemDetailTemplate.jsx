@@ -70,7 +70,7 @@ const SystemDetailTemplate = ({
       name: configMatch ? configMatch.name : rawTool.name,
       purpose: configMatch ? configMatch.category : (rawTool.category || rawTool.purpose),
       explanation: configMatch ? configMatch.description : (rawTool.description || rawTool.explanation || 'Core system component.'),
-      affiliate_link: configMatch ? configMatch.affiliateLink : rawTool.affiliate_link,
+      affiliate_link: configMatch ? (configMatch.affiliate_link || configMatch.cta_link) : (rawTool.affiliateLink || rawTool.affiliate_link),
       image: null
     };
   };

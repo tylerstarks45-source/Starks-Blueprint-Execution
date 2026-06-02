@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { productsData } from '@/data/ProductsData.js';
+import { getAffiliateLink } from '@/config/toolAffiliateLinks.js';
 import pb from '@/lib/pocketbaseClient.js';
 import VideoBackground from '@/components/VideoBackground.jsx';
 
@@ -34,7 +35,7 @@ const ProductDetailPage = () => {
               description: pbTool.description,
               full_description: pbTool.full_description,
               image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
-              cta_link: pbTool.affiliate_link || "#",
+              cta_link: pbTool.affiliateLink || pbTool.affiliate_link || getAffiliateLink(pbTool.name) || "#",
               features: pbTool.full_description ? [pbTool.full_description] : [],
               use_cases: pbTool.core_problem ? [pbTool.core_problem] : [],
               social_proof: ["4.8/5 ⭐", "Verified Users"],

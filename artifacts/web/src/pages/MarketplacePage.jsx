@@ -58,29 +58,35 @@ const MarketplacePage = () => {
   const fetchTools = async () => {
     setIsLoading(true);
     try {
-      const pbTools = await pb.collection('tools').getFullList({
-        filter: 'status="ACTIVE"',
+      const dbTools = await pb.collection('tools').getFullList({
+        filter: 'activeOnly=true',
         $autoCancel: false
       }).catch(() => []);
 
-      const mappedPbTools = pbTools.map((tool) => ({
-        id: tool.id,
-        name: tool.name,
-        category: tool.category,
-        description: tool.description,
-        image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
-        cta_link: tool.affiliate_link || "#",
-        features: tool.full_description ? [tool.full_description] : [],
-        use_cases: tool.core_problem ? [tool.core_problem] : [],
-        social_proof: ["4.8/5 ⭐", "Verified Users"],
-        badges: tool.verified_use_case ? ["✅ Verified"] : [],
-        customCTA: "Access Tool"
-      }));
+      // Presentation source: rich card content keyed by tool name
+      const cardByName = {};
+      productsData.forEach((p) => { cardByName[p.name.toLowerCase()] = p; });
 
-      const pbToolNames = new Set(mappedPbTools.map(t => t.name.toLowerCase()));
-      const staticToolsToAdd = productsData.filter(t => !pbToolNames.has(t.name.toLowerCase()));
+      // DB is authoritative for existence + affiliate link; enrich presentation from config
+      const mappedDbTools = dbTools.map((tool) => {
+        const card = cardByName[tool.name.toLowerCase()] || {};
+        return {
+          ...card,
+          id: tool.id,
+          name: tool.name,
+          category: card.category || "AI Tools",
+          description: tool.description || card.description || "",
+          cta_link: tool.affiliateLink || card.cta_link || "#",
+          customCTA: card.customCTA || "Access Tool",
+        };
+      });
 
-      setTools([...mappedPbTools, ...staticToolsToAdd]);
+      // Safety net: include any config tools not yet persisted in the DB
+      const dbNames = new Set(mappedDbTools.map((t) => t.name.toLowerCase()));
+      const missingFromDb = productsData.filter((t) => !dbNames.has(t.name.toLowerCase()));
+
+      const all = [...mappedDbTools, ...missingFromDb].filter((t) => t.cta_link && t.cta_link !== "#");
+      setTools(all.length ? all : productsData);
     } catch (err) {
       console.error("Error fetching tools:", err);
       setTools(productsData);

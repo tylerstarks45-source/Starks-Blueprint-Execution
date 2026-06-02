@@ -365,7 +365,7 @@ export const toolAffiliateLinks = {
   marblism: {
     name: "Marblism",
     category: "Business Systems",
-    cta_link: "https://marblism.com/?via=starks",
+    cta_link: "https://marblism.com?via=tyler-1yco",
     description: "Generate full-stack web applications from a single prompt",
     features: ["Full-Stack Generation", "Database Setup", "API Integration"],
     use_cases: ["SaaS MVPs", "Internal Tools", "Rapid Prototyping"],
@@ -376,7 +376,7 @@ export const toolAffiliateLinks = {
   kispeedBusiness: {
     name: "Kispeed Business",
     category: "Business Systems",
-    cta_link: "https://www.digistore24.com/redir/607228/tylerstarks77dca4/CAMPAIGNKEY",
+    cta_link: "https://www.kispeedbusiness.com/partnerprogramm/",
     description: "All-in-one business management and acceleration suite",
     features: ["Workflow Automation", "Client Portal", "Invoicing"],
     use_cases: ["Agency Management", "Freelance Operations", "Service Businesses"],
@@ -387,7 +387,7 @@ export const toolAffiliateLinks = {
   myLottoChamp: {
     name: "MyLottoChamp",
     category: "Business Systems",
-    cta_link: "https://mylottochamp.com/?via=starks",
+    cta_link: "https://mylottochamp24.com/text.php",
     description: "Advanced statistical analysis system for lottery probability",
     features: ["Pattern Recognition", "Historical Data", "Probability Scoring"],
     use_cases: ["Statistical Analysis", "Number Generation", "Data Tracking"],
@@ -398,7 +398,7 @@ export const toolAffiliateLinks = {
   army2026: {
     name: "Army2026",
     category: "Business Systems",
-    cta_link: "https://army2026.com/?via=starks",
+    cta_link: "https://army2026.com/order/",
     description: "Strategic planning and operational readiness framework",
     features: ["Strategic Roadmaps", "Resource Allocation", "Readiness Tracking"],
     use_cases: ["Corporate Strategy", "Long-term Planning", "Operational Scaling"],
@@ -409,13 +409,90 @@ export const toolAffiliateLinks = {
   millionairePartnership: {
     name: "Millionaire Partnership",
     category: "Business Systems",
-    cta_link: "https://millionairepartnership.com/?via=starks",
+    cta_link: "https://millionairepartnership.com/webclass-d24-new",
     description: "High-ticket affiliate and joint venture networking platform",
     features: ["JV Networking", "High-Ticket Offers", "Partner Matching"],
     use_cases: ["Affiliate Marketing", "Joint Ventures", "Network Expansion"],
     social_proof: ["4.8/5 ⭐", "Elite Network"],
     badges: ["🔥 Popular"],
     customCTA: "Join Network"
+  },
+  adTurbo: {
+    name: "AdTurbo AI",
+    category: "Funnels / Marketing",
+    cta_link: "https://adturbo.ai/?red=starks",
+    description: "Launch and optimize high-ROI ad campaigns with AI automation",
+    features: ["AI Ad Copy & Creative", "Automated Bid Optimization", "Multi-Platform Campaigns"],
+    use_cases: ["Paid Traffic Scaling", "Lead Generation", "E-commerce Ads"],
+    social_proof: ["4.8/5 ⭐", "Performance Marketers"],
+    badges: ["🚀 Trending"],
+    customCTA: "Launch AI Ads"
+  },
+  convert: {
+    name: "Convert.com",
+    category: "SEO / Traffic",
+    cta_link: "https://www.convert.com/free-trial/?red=starks",
+    description: "Boost conversions with advanced A/B testing and experimentation",
+    features: ["A/B & Multivariate Testing", "Personalization Engine", "Privacy-First Analytics"],
+    use_cases: ["Conversion Rate Optimization", "Landing Page Testing", "Funnel Optimization"],
+    social_proof: ["4.9/5 ⭐", "2k+ Optimizers"],
+    badges: ["💎 Premium"],
+    customCTA: "Start Free Trial"
+  },
+  grapeLeads: {
+    name: "GrapeLeads",
+    category: "Funnels / Marketing",
+    cta_link: "https://grapeleads.com/?gr_pk=5RDz",
+    description: "Monetize your traffic with a high-paying affiliate CPA network",
+    features: ["Exclusive CPA Offers", "Real-Time Tracking", "Fast Payouts"],
+    use_cases: ["Affiliate Monetization", "Lead Gen Campaigns", "Traffic Arbitrage"],
+    social_proof: ["4.7/5 ⭐", "Trusted Network"],
+    badges: ["⭐ Best Value"],
+    customCTA: "Start Earning"
+  },
+  reditus: {
+    name: "Reditus",
+    category: "Business Systems",
+    cta_link: "https://www.getreditus.com/?red=starks",
+    description: "Grow recurring revenue with a powerful B2B SaaS affiliate program",
+    features: ["Affiliate Program Management", "Automated Payouts", "Marketplace Listing"],
+    use_cases: ["SaaS Growth", "Partner Programs", "Recurring Commissions"],
+    social_proof: ["4.8/5 ⭐", "SaaS Founders"],
+    badges: ["🆕 New"],
+    customCTA: "Grow With Partners"
+  },
+  audiorista: {
+    name: "Audiorista",
+    category: "Content Creation",
+    cta_link: "https://www.audiorista.com/?red=starks",
+    description: "Create and sell premium audio courses and learning experiences",
+    features: ["Audio Course Builder", "Mobile Learning App", "Subscription Monetization"],
+    use_cases: ["Audio Courses", "Membership Content", "Podcasts Monetization"],
+    social_proof: ["4.7/5 ⭐", "Creators & Coaches"],
+    badges: ["🆕 New"],
+    customCTA: "Build Audio Courses"
+  },
+  buzzAi: {
+    name: "Buzz.ai",
+    category: "AI Tools",
+    cta_link: "https://buzz.ai/?red=starks",
+    description: "All-in-one AI sales engagement and outreach automation platform",
+    features: ["Multi-Channel Sequences", "AI Personalization", "Unified Inbox"],
+    use_cases: ["Cold Outreach", "Sales Engagement", "Pipeline Building"],
+    social_proof: ["4.8/5 ⭐", "Sales Teams"],
+    badges: ["🚀 Trending"],
+    customCTA: "Automate Outreach"
+  },
+  leaderNet: {
+    name: "Leader.net",
+    category: "Business Systems",
+    cta_link: "https://leader.net/?red=starks",
+    description: "Build and scale your network marketing business with smart tools",
+    features: ["Team Management", "Lead Capture", "Performance Tracking"],
+    use_cases: ["Network Marketing", "Team Building", "Downline Growth"],
+    social_proof: ["4.6/5 ⭐", "Network Builders"],
+    badges: ["✅ Verified"],
+    customCTA: "Scale Your Network"
   }
 };
 

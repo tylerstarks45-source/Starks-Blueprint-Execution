@@ -68,7 +68,7 @@ router.post("/auth/register", async (req, res) => {
 
   const token = signToken(newUser.id, newUser.email, newUser.role ?? "USER");
 
-  res.status(201).json({ token, user: userResponse(newUser) });
+  return res.status(201).json({ token, user: userResponse(newUser) });
 });
 
 // POST /api/auth/login
@@ -102,7 +102,7 @@ router.post("/auth/login", async (req, res) => {
 
   const token = signToken(user.id, user.email, user.role ?? "USER");
 
-  res.json({ token, user: userResponse(user) });
+  return res.json({ token, user: userResponse(user) });
 });
 
 // GET /api/auth/me
@@ -128,7 +128,7 @@ router.get("/auth/me", async (req, res) => {
     return res.status(404).json({ error: "User not found." });
   }
 
-  res.json({ user: userResponse(users[0]) });
+  return res.json({ user: userResponse(users[0]) });
 });
 
 // POST /api/auth/logout  (client-side — just confirm)
@@ -143,7 +143,7 @@ router.post("/auth/request-reset", async (req, res) => {
     return res.status(400).json({ error: "Invalid email." });
   }
   // TODO: send reset email. For now, silently succeed.
-  res.json({ success: true, message: "If an account exists, a reset link will be sent." });
+  return res.json({ success: true, message: "If an account exists, a reset link will be sent." });
 });
 
 export default router;

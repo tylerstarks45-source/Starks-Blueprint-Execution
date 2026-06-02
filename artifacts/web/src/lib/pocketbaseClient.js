@@ -100,6 +100,7 @@ function parseFilter(filter) {
   const cat = m(/category\s*=\s*["']([^"']+)["']/);         if (cat)      params.category = cat;
   const status = m(/status\s*=\s*["']([^"']+)["']/);        if (status)   params.status = status;
   const id = m(/\bid\s*=\s*["']([^"']+)["']/);              if (id)       params.id = id;
+  const activeOnly = m(/activeOnly\s*=\s*["']?(true|false)["']?/); if (activeOnly) params.activeOnly = activeOnly;
   return params;
 }
 

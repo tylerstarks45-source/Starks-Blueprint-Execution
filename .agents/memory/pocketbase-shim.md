@@ -27,3 +27,5 @@ Rather than rewriting every file, `artifacts/web/src/lib/pocketbaseClient.js` pr
 **Why:** Preserves the exact Horizons design/logic with zero JSX rewrites.
 
 **How to apply:** When adding new API endpoints, always add a mapping to ENDPOINT_MAP in pocketbaseClient.js. Field names in the API are camelCase; the shim does NOT auto-convert them — if a page uses snake_case field access, map it explicitly in the collection's create/getList methods.
+
+**PB-style filter strings:** Pages pass filters like `filter: 'activeOnly=true'` to `getList/getFullList`. These only reach the API if `parseFilter()` in the shim has a regex for that key — add a new line there for any new filter param, otherwise it is silently dropped.

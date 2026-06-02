@@ -117,7 +117,7 @@ const SystemDetailPage = () => {
       if (match) {
         return {
           ...t,
-          affiliate_link: match.affiliateLink,
+          affiliate_link: match.affiliate_link || match.cta_link,
           description: match.description || t.description
         };
       }

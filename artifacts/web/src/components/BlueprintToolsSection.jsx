@@ -26,7 +26,7 @@ const BlueprintToolsSection = ({ blueprintId, systemName }) => {
       if (configMatch) {
         return {
           ...t,
-          affiliate_link: configMatch.affiliateLink,
+          affiliate_link: configMatch.affiliate_link || configMatch.cta_link,
           description: configMatch.description || t.description,
           category: configMatch.category || t.category
         };

@@ -21,7 +21,7 @@ router.post("/contact", async (req, res) => {
   // TODO: wire up email notification service
   req.log.info({ contact: parsed.data }, "Contact form submission received");
 
-  res.status(201).json({ success: true, message: "Thank you! We'll be in touch soon." });
+  return res.status(201).json({ success: true, message: "Thank you! We'll be in touch soon." });
 });
 
 export default router;

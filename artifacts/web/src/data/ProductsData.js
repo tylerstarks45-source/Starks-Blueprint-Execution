@@ -14,13 +14,8 @@ const images = [
   "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=800&q=80"
 ];
 
-// Identify tools that are maintained strictly in PocketBase to prevent duplication in fallbacks
-const dynamicPocketBaseProducts = ['Convert Experiences', 'AdTurbo AI'];
-
 // Single source of truth: Generate product data from the affiliate config
-// Filters out products that are handled entirely via the PocketBase 'tools' collection
 export const productsData = Object.entries(toolAffiliateLinks)
-  .filter(([id, tool]) => !dynamicPocketBaseProducts.includes(tool.name))
   .map(([id, tool], index) => ({
     id,
     name: tool.name,

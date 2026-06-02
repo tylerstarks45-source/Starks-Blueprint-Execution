@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { desc, sql } from "drizzle-orm";
 import { db, openrouterUsageTable } from "@workspace/db";
 import { complete } from "../lib/openrouter";
@@ -32,7 +33,7 @@ router.get("/openrouter/usage", async (req, res): Promise<void> => {
     .from(openrouterUsageTable)
     .orderBy(desc(openrouterUsageTable.createdAt))
     .limit(200);
-  res.json(ListOpenrouterUsageResponse.parse(rows));
+  res.json(ListOpenrouterUsageResponse.parse(serialize(rows)));
 });
 
 router.get("/openrouter/usage/summary", async (req, res): Promise<void> => {
@@ -46,7 +47,7 @@ router.get("/openrouter/usage/summary", async (req, res): Promise<void> => {
     })
     .from(openrouterUsageTable);
 
-  res.json(GetOpenrouterUsageSummaryResponse.parse(summary));
+  res.json(GetOpenrouterUsageSummaryResponse.parse(serialize(summary)));
 });
 
 export default router;

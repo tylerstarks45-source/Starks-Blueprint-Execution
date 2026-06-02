@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { eq } from "drizzle-orm";
 import { db, buildProgressTable } from "@workspace/db";
 import {
@@ -15,7 +16,7 @@ router.get("/build-progress", async (req, res): Promise<void> => {
   const rows = req.query.buildSessionId
     ? await db.select().from(buildProgressTable).where(eq(buildProgressTable.buildSessionId, Number(req.query.buildSessionId))).orderBy(buildProgressTable.stepNumber)
     : await db.select().from(buildProgressTable).orderBy(buildProgressTable.stepNumber);
-  res.json(ListBuildProgressResponse.parse(rows));
+  res.json(ListBuildProgressResponse.parse(serialize(rows)));
 });
 
 router.post("/build-progress", async (req, res): Promise<void> => {
@@ -30,7 +31,7 @@ router.post("/build-progress", async (req, res): Promise<void> => {
     ...(completedAt != null ? { completedAt: new Date(completedAt) } : {}),
   };
   const [row] = await db.insert(buildProgressTable).values(insertData).returning();
-  res.status(201).json(UpdateBuildProgressResponse.parse(row));
+  res.status(201).json(UpdateBuildProgressResponse.parse(serialize(row)));
 });
 
 router.patch("/build-progress/:id", async (req, res): Promise<void> => {
@@ -54,7 +55,7 @@ router.patch("/build-progress/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Build progress record not found" });
     return;
   }
-  res.json(UpdateBuildProgressResponse.parse(row));
+  res.json(UpdateBuildProgressResponse.parse(serialize(row)));
 });
 
 export default router;

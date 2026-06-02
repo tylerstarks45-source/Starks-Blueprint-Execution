@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { eq, and } from "drizzle-orm";
 import { db, notificationsTable } from "@workspace/db";
 import {
@@ -19,7 +20,7 @@ router.get("/notifications", async (req, res): Promise<void> => {
     ? await db.select().from(notificationsTable).where(and(...conditions)).orderBy(notificationsTable.createdAt)
     : await db.select().from(notificationsTable).orderBy(notificationsTable.createdAt);
 
-  res.json(ListNotificationsResponse.parse(rows));
+  res.json(ListNotificationsResponse.parse(serialize(rows)));
 });
 
 router.post("/notifications", async (req, res): Promise<void> => {
@@ -43,7 +44,7 @@ router.patch("/notifications/:id/read", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Notification not found" });
     return;
   }
-  res.json(MarkNotificationReadResponse.parse(row));
+  res.json(MarkNotificationReadResponse.parse(serialize(row)));
 });
 
 export default router;

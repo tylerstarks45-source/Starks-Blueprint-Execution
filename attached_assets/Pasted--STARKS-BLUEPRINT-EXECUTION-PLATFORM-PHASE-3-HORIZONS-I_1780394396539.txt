@@ -1,0 +1,495 @@
+# STARKS BLUEPRINT EXECUTION PLATFORM
+
+# PHASE 3 — HORIZONS INTEGRATION LAYER
+
+IMPORTANT
+
+This phase begins only after:
+
+✓ Phase 1 Complete
+
+✓ Phase 2 Complete
+
+✓ Horizons Audit Complete
+
+At this point:
+
+The AI understands blueprints.
+
+The AI understands tool stacks.
+
+The AI understands credentials.
+
+The AI understands execution plans.
+
+Now we must connect the Brain to Starksglobalgroup.net.
+
+This phase is NOT blueprint execution.
+
+This phase is NOT automation deployment.
+
+This phase is NOT workflow creation.
+
+This phase is connection architecture.
+
+The goal is:
+
+One Platform.
+
+One User.
+
+One Login.
+
+One Subscription.
+
+One Dashboard Experience.
+
+---
+
+# PHASE OBJECTIVE
+
+Create the communication layer between:
+
+HOSTINGER HORIZONS
+
+and
+
+REPLIT AI BRAIN
+
+The user should never know two systems exist.
+
+The experience must feel like:
+
+One platform.
+
+One dashboard.
+
+One account.
+
+One system.
+
+---
+
+# CHUNK 1
+
+IDENTITY ARCHITECTURE
+
+Determine:
+
+Source of truth for users.
+
+Requirements:
+
+Horizons remains primary user system.
+
+Replit does not create duplicate users.
+
+Replit stores:
+
+User Reference ID
+
+Subscription Reference ID
+
+System Instance Data
+
+Build Data
+
+Memory Data
+
+Requirements:
+
+No duplicate accounts.
+
+No duplicate passwords.
+
+No duplicate sessions.
+
+Validation Required.
+
+STOP.
+
+---
+
+# CHUNK 2
+
+AUTHENTICATION BRIDGE
+
+Build:
+
+User Authentication Sync
+
+Requirements:
+
+Horizons user logs in.
+
+Replit recognizes user.
+
+User session remains valid.
+
+User does not log in twice.
+
+Requirements:
+
+Secure token validation.
+
+Session verification.
+
+User lookup.
+
+Validation Required.
+
+STOP.
+
+---
+
+# CHUNK 3
+
+SUBSCRIPTION BRIDGE
+
+Requirements:
+
+Subscription source remains Horizons.
+
+Replit receives:
+
+Plan
+
+Tier
+
+Entitlements
+
+Limits
+
+Permissions
+
+Examples:
+
+Starter
+
+Pro
+
+Enterprise
+
+Requirements:
+
+Replit must respect plan limits.
+
+No duplicate subscription systems.
+
+Validation Required.
+
+STOP.
+
+---
+
+# CHUNK 4
+
+BLUEPRINT ACCESS BRIDGE
+
+Requirements:
+
+Horizons controls blueprint access.
+
+Replit checks access before execution.
+
+Examples:
+
+User owns:
+
+AI YouTube Engine
+
+AI Lead Generation Engine
+
+User does NOT own:
+
+Enterprise Agency Blueprint
+
+Replit must enforce access.
+
+Validation Required.
+
+STOP.
+
+---
+
+# CHUNK 5
+
+MARKETPLACE TOOL BRIDGE
+
+Requirements:
+
+Marketplace remains in Horizons.
+
+Tool Registry remains in Replit.
+
+Build synchronization model.
+
+Requirements:
+
+Affiliate links remain current.
+
+Tool categories remain synced.
+
+Tool descriptions remain synced.
+
+Validation Required.
+
+STOP.
+
+---
+
+# CHUNK 6
+
+BUILD REQUEST API
+
+Build API endpoint.
+
+Flow:
+
+User clicks:
+
+BUILD SYSTEM
+
+inside Horizons.
+
+Horizons sends request.
+
+Replit receives request.
+
+Creates:
+
+Build Session
+
+System Instance
+
+Execution Plan
+
+Returns:
+
+Build ID
+
+Status
+
+Validation Required.
+
+STOP.
+
+---
+
+# CHUNK 7
+
+BUILD STATUS API
+
+Build API endpoints:
+
+Get Build Status
+
+Get Build Progress
+
+Get Current Stage
+
+Get Remaining Stages
+
+Get Estimated Completion
+
+Requirements:
+
+Horizons dashboard can display:
+
+Progress
+
+Status
+
+Health
+
+Validation Required.
+
+STOP.
+
+---
+
+# CHUNK 8
+
+USER MEMORY BRIDGE
+
+Requirements:
+
+Horizons requests memory.
+
+Replit returns:
+
+Current Build
+
+Selected Tools
+
+Credentials Collected
+
+Current Stage
+
+Recommendations
+
+Outputs
+
+Requirements:
+
+Perfect continuity.
+
+Validation Required.
+
+STOP.
+
+---
+
+# CHUNK 9
+
+SYSTEM INSTANCE API
+
+Build API:
+
+List Systems
+
+Get System
+
+Create System
+
+Archive System
+
+Delete System
+
+Requirements:
+
+Horizons dashboard can display:
+
+My Systems
+
+System Health
+
+Build Status
+
+Connected Tools
+
+Outputs
+
+Validation Required.
+
+STOP.
+
+---
+
+# CHUNK 10
+
+ADMIN REPORTING API
+
+Build APIs for:
+
+Users
+
+System Instances
+
+Blueprint Usage
+
+Tool Usage
+
+OpenRouter Usage
+
+Costs
+
+Affiliate Activity
+
+Build Activity
+
+System Health
+
+Requirements:
+
+Admin dashboard eventually receives all reporting from Replit.
+
+Validation Required.
+
+STOP.
+
+---
+
+# CHUNK 11
+
+SECURITY VALIDATION
+
+Audit:
+
+Authentication
+
+Authorization
+
+Permissions
+
+Subscriptions
+
+System Access
+
+User Isolation
+
+Requirements:
+
+No user can access another user's systems.
+
+No user can bypass subscription requirements.
+
+No user can access locked blueprints.
+
+Validation Required.
+
+STOP.
+
+---
+
+# PHASE 3 SUCCESS CRITERIA
+
+At completion:
+
+✓ Horizons and Replit communicate
+
+✓ Users synchronized
+
+✓ Subscriptions synchronized
+
+✓ Blueprint access synchronized
+
+✓ Marketplace synchronized
+
+✓ Build requests operational
+
+✓ Build status operational
+
+✓ User memory operational
+
+✓ System instance APIs operational
+
+✓ Admin reporting operational
+
+✓ Security validated
+
+WITHOUT:
+
+✗ Live blueprint execution
+
+✗ Automation deployment
+
+✗ Workflow creation
+
+✗ Tool configuration
+
+✗ System building
+
+At completion:
+
+Provide:
+
+* API Architecture Diagram
+* Authentication Diagram
+* User Flow Diagram
+* Horizons ↔ Replit Communication Map
+* Security Validation Report
+
+Then STOP.
+
+Wait for Phase 4.

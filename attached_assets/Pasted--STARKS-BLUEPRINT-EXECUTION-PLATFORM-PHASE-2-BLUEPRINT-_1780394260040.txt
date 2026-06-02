@@ -1,0 +1,445 @@
+# STARKS BLUEPRINT EXECUTION PLATFORM
+
+# PHASE 2 — BLUEPRINT INTELLIGENCE ENGINE
+
+IMPORTANT
+
+This phase begins AFTER:
+
+✓ Phase 1 completed
+
+✓ Database completed
+
+✓ OpenRouter completed
+
+✓ Tool Registry completed
+
+✓ Blueprint Registry completed
+
+✓ User Memory completed
+
+✓ Admin Control Center completed
+
+✓ Horizons Audit completed
+
+DO NOT BUILD HORIZONS CONNECTIONS YET.
+
+DO NOT BUILD BLUEPRINT EXECUTION YET.
+
+DO NOT BUILD LIVE AUTOMATIONS YET.
+
+This phase builds the intelligence layer.
+
+The goal is to teach the AI how to understand blueprints.
+
+---
+
+# PHASE 2 OBJECTIVE
+
+Build the Blueprint Intelligence Engine.
+
+The Blueprint Intelligence Engine is responsible for:
+
+* Understanding blueprint structures
+* Understanding required tools
+* Understanding required credentials
+* Understanding required integrations
+* Building execution plans
+* Building system maps
+* Generating tool stacks
+
+This phase teaches the AI HOW to think.
+
+It does not yet teach it HOW to build.
+
+---
+
+# CHUNK 1
+
+BLUEPRINT KNOWLEDGE MODEL
+
+Build:
+
+Blueprint Intelligence Service
+
+Purpose:
+
+Allow the AI to understand every blueprint.
+
+Every blueprint must contain:
+
+* Name
+* Description
+* Category
+* Required Tool Categories
+* Required Credentials
+* Required Integrations
+* Required Outputs
+* Estimated Cost
+* Estimated Build Time
+* Execution Stages
+
+The AI must be able to load any blueprint and understand its structure.
+
+Validation:
+
+Load blueprint.
+
+Analyze blueprint.
+
+Generate summary.
+
+STOP.
+
+---
+
+# CHUNK 2
+
+TOOL STACK ENGINE
+
+Purpose:
+
+Determine tools required before building.
+
+Example:
+
+User selects:
+
+AI YouTube Shorts Engine
+
+The AI identifies:
+
+VIDEO GENERATION
+
+VOICE GENERATION
+
+AUTOMATION
+
+AI MODELS
+
+ANALYTICS
+
+The AI then loads approved tools from Tool Registry.
+
+Example:
+
+Video Generation:
+
+* Pictory
+* InVideo
+* Fliki
+* HeyGen
+
+Voice Generation:
+
+* ElevenLabs
+* PlayHT
+
+Automation:
+
+* Make
+* Zapier
+
+Requirements:
+
+NO hardcoded tools.
+
+Everything loaded from Tool Registry.
+
+Validation required.
+
+STOP.
+
+---
+
+# CHUNK 3
+
+AFFILIATE RECOMMENDATION ENGINE
+
+Purpose:
+
+Present approved marketplace tools.
+
+Requirements:
+
+Load tools from database.
+
+Display:
+
+Tool Name
+
+Description
+
+Affiliate Link
+
+Signup URL
+
+Credential Requirements
+
+The AI must always prioritize approved tools.
+
+If no approved tool exists:
+
+Allow fallback recommendation.
+
+Validation required.
+
+STOP.
+
+---
+
+# CHUNK 4
+
+CREDENTIAL DISCOVERY ENGINE
+
+Purpose:
+
+Determine what information is required.
+
+Examples:
+
+OpenRouter API Key
+
+Google OAuth
+
+Meta OAuth
+
+Webhook URLs
+
+Make API Key
+
+CRM Credentials
+
+Requirements:
+
+AI automatically generates required credential list.
+
+Validation required.
+
+STOP.
+
+---
+
+# CHUNK 5
+
+BUILD PLANNING ENGINE
+
+Purpose:
+
+Generate complete execution plan.
+
+Example:
+
+Step 1
+
+Acquire Tools
+
+Step 2
+
+Collect Credentials
+
+Step 3
+
+Configure Integrations
+
+Step 4
+
+Generate Assets
+
+Step 5
+
+Deploy System
+
+Step 6
+
+Launch
+
+Requirements:
+
+Generate complete roadmap.
+
+Store roadmap.
+
+Validation required.
+
+STOP.
+
+---
+
+# CHUNK 6
+
+SYSTEM INSTANCE PLANNER
+
+Purpose:
+
+Create future build records.
+
+When user chooses blueprint:
+
+Create:
+
+System Instance
+
+Store:
+
+Blueprint
+
+Selected Tools
+
+Selected Credentials
+
+Build Roadmap
+
+Progress State
+
+Status
+
+Validation required.
+
+STOP.
+
+---
+
+# CHUNK 7
+
+USER MEMORY EXPANSION
+
+Expand memory system.
+
+Store:
+
+Selected Blueprint
+
+Selected Tools
+
+Affiliate Links Presented
+
+Credentials Requested
+
+Credentials Received
+
+Current Build Stage
+
+Future Build Stages
+
+Recommendations
+
+Build Notes
+
+Requirements:
+
+Resume perfectly.
+
+Validation required.
+
+STOP.
+
+---
+
+# CHUNK 8
+
+OPENROUTER INTELLIGENCE LAYER
+
+Build:
+
+Blueprint Analysis Models
+
+Tool Recommendation Models
+
+Execution Planning Models
+
+Cost Estimation Models
+
+Requirements:
+
+Track:
+
+Tokens
+
+Cost
+
+Usage
+
+Errors
+
+Everything logged.
+
+Validation required.
+
+STOP.
+
+---
+
+# CHUNK 9
+
+ADMIN INTELLIGENCE CONTROL
+
+Admin must manage:
+
+Blueprint Intelligence
+
+Tool Recommendations
+
+Tool Categories
+
+Blueprint Categories
+
+Execution Rules
+
+AI Behavior Settings
+
+Recommendation Rules
+
+Validation required.
+
+STOP.
+
+---
+
+# PHASE 2 SUCCESS CRITERIA
+
+At completion:
+
+✓ AI understands blueprints
+
+✓ AI understands tool stacks
+
+✓ AI understands credentials
+
+✓ AI understands integrations
+
+✓ AI understands execution plans
+
+✓ AI can generate build roadmaps
+
+✓ AI can generate tool recommendations
+
+✓ AI can create system instances
+
+✓ AI remembers build state
+
+WITHOUT:
+
+✗ Live blueprint execution
+
+✗ Live automation deployment
+
+✗ Live system creation
+
+✗ Horizons integration
+
+✗ Placeholder logic
+
+✗ Hardcoded recommendations
+
+When complete:
+
+Generate full Blueprint Intelligence Engine report.
+
+Show database additions.
+
+Show APIs created.
+
+Show validation evidence.
+
+Then STOP and wait for Phase 3.

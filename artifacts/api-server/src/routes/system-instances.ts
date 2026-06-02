@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { eq, and } from "drizzle-orm";
 import { db, systemInstancesTable } from "@workspace/db";
 import {
@@ -22,7 +23,7 @@ router.get("/system-instances", async (req, res): Promise<void> => {
     ? await db.select().from(systemInstancesTable).where(and(...conditions)).orderBy(systemInstancesTable.createdAt)
     : await db.select().from(systemInstancesTable).orderBy(systemInstancesTable.createdAt);
 
-  res.json(ListSystemInstancesResponse.parse(rows));
+  res.json(ListSystemInstancesResponse.parse(serialize(rows)));
 });
 
 router.post("/system-instances", async (req, res): Promise<void> => {
@@ -32,7 +33,7 @@ router.post("/system-instances", async (req, res): Promise<void> => {
     return;
   }
   const [row] = await db.insert(systemInstancesTable).values(parsed.data).returning();
-  res.status(201).json(GetSystemInstanceResponse.parse(row));
+  res.status(201).json(GetSystemInstanceResponse.parse(serialize(row)));
 });
 
 router.get("/system-instances/:id", async (req, res): Promise<void> => {
@@ -46,7 +47,7 @@ router.get("/system-instances/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "System instance not found" });
     return;
   }
-  res.json(GetSystemInstanceResponse.parse(row));
+  res.json(GetSystemInstanceResponse.parse(serialize(row)));
 });
 
 router.patch("/system-instances/:id", async (req, res): Promise<void> => {
@@ -65,7 +66,7 @@ router.patch("/system-instances/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "System instance not found" });
     return;
   }
-  res.json(GetSystemInstanceResponse.parse(row));
+  res.json(GetSystemInstanceResponse.parse(serialize(row)));
 });
 
 router.delete("/system-instances/:id", async (req, res): Promise<void> => {

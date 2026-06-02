@@ -1,0 +1,4 @@
+- [PocketBase Shim](pocketbase-shim.md) — all 300+ frontend files use `pb.collection('x')` API; a shim replaces it, never touch pocketbase SDK
+- [Date Serialization](date-serialization.md) — Drizzle returns Date objects; Zod schemas expect strings; must use serialize() before every .parse()
+- [Tailwind v3 Lock](tailwind-v3.md) — frontend pinned to tailwindcss@^3.4.17, do NOT upgrade to v4 without full migration
+- [Auth Architecture](auth-arch.md) — JWT via SESSION_SECRET, bcryptjs+jsonwebtoken, 7-day expiry, token in localStorage as sbep_auth_token

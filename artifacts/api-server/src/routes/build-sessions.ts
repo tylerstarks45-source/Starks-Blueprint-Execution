@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { eq } from "drizzle-orm";
 import { db, buildSessionsTable } from "@workspace/db";
 import {
@@ -16,7 +17,7 @@ router.get("/build-sessions", async (req, res): Promise<void> => {
   const rows = req.query.systemInstanceId
     ? await db.select().from(buildSessionsTable).where(eq(buildSessionsTable.systemInstanceId, Number(req.query.systemInstanceId))).orderBy(buildSessionsTable.startedAt)
     : await db.select().from(buildSessionsTable).orderBy(buildSessionsTable.startedAt);
-  res.json(ListBuildSessionsResponse.parse(rows));
+  res.json(ListBuildSessionsResponse.parse(serialize(rows)));
 });
 
 router.post("/build-sessions", async (req, res): Promise<void> => {
@@ -31,7 +32,7 @@ router.post("/build-sessions", async (req, res): Promise<void> => {
     ...(completedAt != null ? { completedAt: new Date(completedAt) } : {}),
   };
   const [row] = await db.insert(buildSessionsTable).values(insertData).returning();
-  res.status(201).json(GetBuildSessionResponse.parse(row));
+  res.status(201).json(GetBuildSessionResponse.parse(serialize(row)));
 });
 
 router.get("/build-sessions/:id", async (req, res): Promise<void> => {
@@ -45,7 +46,7 @@ router.get("/build-sessions/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Build session not found" });
     return;
   }
-  res.json(GetBuildSessionResponse.parse(row));
+  res.json(GetBuildSessionResponse.parse(serialize(row)));
 });
 
 router.patch("/build-sessions/:id", async (req, res): Promise<void> => {
@@ -69,7 +70,7 @@ router.patch("/build-sessions/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Build session not found" });
     return;
   }
-  res.json(GetBuildSessionResponse.parse(row));
+  res.json(GetBuildSessionResponse.parse(serialize(row)));
 });
 
 export default router;

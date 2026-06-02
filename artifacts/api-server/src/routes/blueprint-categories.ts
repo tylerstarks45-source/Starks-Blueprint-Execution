@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { eq } from "drizzle-orm";
 import { db, blueprintCategoriesTable } from "@workspace/db";
 import {
@@ -15,7 +16,7 @@ const router: IRouter = Router();
 
 router.get("/blueprint-categories", async (req, res): Promise<void> => {
   const rows = await db.select().from(blueprintCategoriesTable).orderBy(blueprintCategoriesTable.name);
-  res.json(ListBlueprintCategoriesResponse.parse(rows));
+  res.json(ListBlueprintCategoriesResponse.parse(serialize(rows)));
 });
 
 router.post("/blueprint-categories", async (req, res): Promise<void> => {
@@ -25,7 +26,7 @@ router.post("/blueprint-categories", async (req, res): Promise<void> => {
     return;
   }
   const [row] = await db.insert(blueprintCategoriesTable).values(parsed.data).returning();
-  res.status(201).json(GetBlueprintCategoryResponse.parse(row));
+  res.status(201).json(GetBlueprintCategoryResponse.parse(serialize(row)));
 });
 
 router.get("/blueprint-categories/:id", async (req, res): Promise<void> => {
@@ -39,7 +40,7 @@ router.get("/blueprint-categories/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Blueprint category not found" });
     return;
   }
-  res.json(GetBlueprintCategoryResponse.parse(row));
+  res.json(GetBlueprintCategoryResponse.parse(serialize(row)));
 });
 
 router.patch("/blueprint-categories/:id", async (req, res): Promise<void> => {
@@ -58,7 +59,7 @@ router.patch("/blueprint-categories/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Blueprint category not found" });
     return;
   }
-  res.json(GetBlueprintCategoryResponse.parse(row));
+  res.json(GetBlueprintCategoryResponse.parse(serialize(row)));
 });
 
 router.delete("/blueprint-categories/:id", async (req, res): Promise<void> => {

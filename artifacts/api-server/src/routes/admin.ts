@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { desc, sql, eq } from "drizzle-orm";
 import {
   db,
@@ -26,7 +27,7 @@ const router: IRouter = Router();
 
 router.get("/admin/users", async (req, res): Promise<void> => {
   const rows = await db.select().from(adminUsersTable).orderBy(adminUsersTable.createdAt);
-  res.json(ListAdminUsersResponse.parse(rows));
+  res.json(ListAdminUsersResponse.parse(serialize(rows)));
 });
 
 router.post("/admin/users", async (req, res): Promise<void> => {
@@ -53,7 +54,7 @@ router.get("/admin/activity", async (req, res): Promise<void> => {
   }
 
   const rows = await query;
-  res.json(ListAdminActivityResponse.parse(rows));
+  res.json(ListAdminActivityResponse.parse(serialize(rows)));
 });
 
 router.post("/admin/activity", async (req, res): Promise<void> => {
@@ -68,7 +69,7 @@ router.post("/admin/activity", async (req, res): Promise<void> => {
 
 router.get("/admin/system-health", async (req, res): Promise<void> => {
   const rows = await db.select().from(systemHealthTable).orderBy(desc(systemHealthTable.checkedAt)).limit(100);
-  res.json(ListSystemHealthResponse.parse(rows));
+  res.json(ListSystemHealthResponse.parse(serialize(rows)));
 });
 
 router.post("/admin/system-health", async (req, res): Promise<void> => {

@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { eq, sql } from "drizzle-orm";
 import { db, affiliateLinksTable } from "@workspace/db";
 import {
@@ -18,7 +19,7 @@ router.get("/affiliate-links", async (req, res): Promise<void> => {
   const rows = req.query.toolId
     ? await db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.toolId, Number(req.query.toolId))).orderBy(affiliateLinksTable.id)
     : await db.select().from(affiliateLinksTable).orderBy(affiliateLinksTable.id);
-  res.json(ListAffiliateLinksResponse.parse(rows));
+  res.json(ListAffiliateLinksResponse.parse(serialize(rows)));
 });
 
 router.post("/affiliate-links", async (req, res): Promise<void> => {
@@ -28,7 +29,7 @@ router.post("/affiliate-links", async (req, res): Promise<void> => {
     return;
   }
   const [row] = await db.insert(affiliateLinksTable).values(parsed.data).returning();
-  res.status(201).json(UpdateAffiliateLinkResponse.parse(row));
+  res.status(201).json(UpdateAffiliateLinkResponse.parse(serialize(row)));
 });
 
 router.patch("/affiliate-links/:id", async (req, res): Promise<void> => {
@@ -47,7 +48,7 @@ router.patch("/affiliate-links/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Affiliate link not found" });
     return;
   }
-  res.json(UpdateAffiliateLinkResponse.parse(row));
+  res.json(UpdateAffiliateLinkResponse.parse(serialize(row)));
 });
 
 router.delete("/affiliate-links/:id", async (req, res): Promise<void> => {
@@ -75,7 +76,7 @@ router.post("/affiliate-links/:id/click", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Affiliate link not found" });
     return;
   }
-  res.json(TrackAffiliateLinkClickResponse.parse(row));
+  res.json(TrackAffiliateLinkClickResponse.parse(serialize(row)));
 });
 
 export default router;

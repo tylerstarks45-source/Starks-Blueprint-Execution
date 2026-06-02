@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { eq } from "drizzle-orm";
 import { db, buildOutputsTable } from "@workspace/db";
 import {
@@ -12,7 +13,7 @@ router.get("/build-outputs", async (req, res): Promise<void> => {
   const rows = req.query.buildSessionId
     ? await db.select().from(buildOutputsTable).where(eq(buildOutputsTable.buildSessionId, Number(req.query.buildSessionId))).orderBy(buildOutputsTable.createdAt)
     : await db.select().from(buildOutputsTable).orderBy(buildOutputsTable.createdAt);
-  res.json(ListBuildOutputsResponse.parse(rows));
+  res.json(ListBuildOutputsResponse.parse(serialize(rows)));
 });
 
 router.post("/build-outputs", async (req, res): Promise<void> => {

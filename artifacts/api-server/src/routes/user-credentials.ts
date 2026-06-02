@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { eq } from "drizzle-orm";
 import { db, userCredentialsTable } from "@workspace/db";
 import {
@@ -26,7 +27,7 @@ router.get("/user-credentials", async (req, res): Promise<void> => {
     .from(userCredentialsTable)
     .where(eq(userCredentialsTable.userId, Number(req.query.userId)))
     .orderBy(userCredentialsTable.credentialKey);
-  res.json(ListUserCredentialsResponse.parse(rows));
+  res.json(ListUserCredentialsResponse.parse(serialize(rows)));
 });
 
 router.post("/user-credentials", async (req, res): Promise<void> => {

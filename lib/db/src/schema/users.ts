@@ -7,6 +7,8 @@ export const usersTable = pgTable("users", {
   externalId: text("external_id").unique(),
   email: text("email").notNull().unique(),
   name: text("name"),
+  passwordHash: text("password_hash"),
+  role: text("role").default("USER"),
   membershipStatus: text("membership_status").notNull().default("inactive"),
   membershipTier: text("membership_tier"),
   active: boolean("active").notNull().default(true),

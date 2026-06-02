@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { eq, ilike, and } from "drizzle-orm";
 import { db, toolsTable } from "@workspace/db";
 import {
@@ -23,7 +24,7 @@ router.get("/tools", async (req, res): Promise<void> => {
     ? await db.select().from(toolsTable).where(and(...conditions)).orderBy(toolsTable.name)
     : await db.select().from(toolsTable).orderBy(toolsTable.name);
 
-  res.json(ListToolsResponse.parse(rows));
+  res.json(ListToolsResponse.parse(serialize(rows)));
 });
 
 router.post("/tools", async (req, res): Promise<void> => {
@@ -33,7 +34,7 @@ router.post("/tools", async (req, res): Promise<void> => {
     return;
   }
   const [row] = await db.insert(toolsTable).values(parsed.data).returning();
-  res.status(201).json(GetToolResponse.parse(row));
+  res.status(201).json(GetToolResponse.parse(serialize(row)));
 });
 
 router.get("/tools/:id", async (req, res): Promise<void> => {
@@ -47,7 +48,7 @@ router.get("/tools/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Tool not found" });
     return;
   }
-  res.json(GetToolResponse.parse(row));
+  res.json(GetToolResponse.parse(serialize(row)));
 });
 
 router.patch("/tools/:id", async (req, res): Promise<void> => {
@@ -66,7 +67,7 @@ router.patch("/tools/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Tool not found" });
     return;
   }
-  res.json(GetToolResponse.parse(row));
+  res.json(GetToolResponse.parse(serialize(row)));
 });
 
 router.delete("/tools/:id", async (req, res): Promise<void> => {

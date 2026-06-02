@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import {
@@ -14,7 +15,7 @@ const router: IRouter = Router();
 
 router.get("/users", async (req, res): Promise<void> => {
   const rows = await db.select().from(usersTable).orderBy(usersTable.createdAt);
-  res.json(ListUsersResponse.parse(rows));
+  res.json(ListUsersResponse.parse(serialize(rows)));
 });
 
 router.post("/users", async (req, res): Promise<void> => {
@@ -24,7 +25,7 @@ router.post("/users", async (req, res): Promise<void> => {
     return;
   }
   const [row] = await db.insert(usersTable).values(parsed.data).returning();
-  res.status(201).json(GetUserResponse.parse(row));
+  res.status(201).json(GetUserResponse.parse(serialize(row)));
 });
 
 router.get("/users/:id", async (req, res): Promise<void> => {
@@ -38,7 +39,7 @@ router.get("/users/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "User not found" });
     return;
   }
-  res.json(GetUserResponse.parse(row));
+  res.json(GetUserResponse.parse(serialize(row)));
 });
 
 router.patch("/users/:id", async (req, res): Promise<void> => {
@@ -57,7 +58,7 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "User not found" });
     return;
   }
-  res.json(GetUserResponse.parse(row));
+  res.json(GetUserResponse.parse(serialize(row)));
 });
 
 export default router;

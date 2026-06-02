@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import authRouter from "./auth";
 import blueprintCategoriesRouter from "./blueprint-categories";
 import blueprintsRouter from "./blueprints";
 import toolCategoriesRouter from "./tool-categories";
@@ -15,10 +16,14 @@ import userCredentialsRouter from "./user-credentials";
 import openrouterRouter from "./openrouter";
 import adminRouter from "./admin";
 import notificationsRouter from "./notifications";
+import contactRouter from "./contact";
+import userToolSelectionsRouter from "./user-tool-selections";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(authRouter);
+router.use(contactRouter);
 router.use(blueprintCategoriesRouter);
 router.use(blueprintsRouter);
 router.use(toolCategoriesRouter);
@@ -34,5 +39,6 @@ router.use(userCredentialsRouter);
 router.use(openrouterRouter);
 router.use(adminRouter);
 router.use(notificationsRouter);
+router.use(userToolSelectionsRouter);
 
 export default router;

@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serialize } from "../lib/serialize";
 import { eq, and } from "drizzle-orm";
 import { db, userMemoryTable } from "@workspace/db";
 import {
@@ -19,7 +20,7 @@ router.get("/user-memory", async (req, res): Promise<void> => {
   if (req.query.systemInstanceId) conditions.push(eq(userMemoryTable.systemInstanceId, Number(req.query.systemInstanceId)));
 
   const rows = await db.select().from(userMemoryTable).where(and(...conditions)).orderBy(userMemoryTable.memoryKey);
-  res.json(ListUserMemoryResponse.parse(rows));
+  res.json(ListUserMemoryResponse.parse(serialize(rows)));
 });
 
 router.post("/user-memory", async (req, res): Promise<void> => {
@@ -43,7 +44,7 @@ router.post("/user-memory", async (req, res): Promise<void> => {
     [row] = await db.insert(userMemoryTable).values(parsed.data).returning();
   }
 
-  res.json(UpsertUserMemoryResponse.parse(row));
+  res.json(UpsertUserMemoryResponse.parse(serialize(row)));
 });
 
 router.delete("/user-memory/:id", async (req, res): Promise<void> => {

@@ -150,30 +150,30 @@ router.post("/auth/request-reset", async (req, res) => {
     return res.status(400).json({ error: "Invalid email." });
   }
 
+  const GENERIC = { success: true, message: "If an account exists, a reset link will be sent." };
+
   const users = await db.select().from(usersTable).where(eq(usersTable.email, parsed.data.email)).limit(1);
   if (users.length === 0) {
-    // Don't reveal whether the account exists
-    return res.json({ success: true, message: "If an account exists, a reset link will be sent." });
+    // Always return the same response to prevent account-existence enumeration.
+    return res.json(GENERIC);
   }
 
-  const token = crypto.randomBytes(32).toString("hex");
+  // Generate a random token; store only its SHA-256 hash in the DB so that
+  // a database read alone cannot be used to reset any account.
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
   const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
   await db.update(usersTable)
-    .set({ resetToken: token, resetTokenExpiry: expiry })
+    .set({ resetToken: tokenHash, resetTokenExpiry: expiry })
     .where(eq(usersTable.email, parsed.data.email));
 
-  const domain = process.env.REPLIT_DOMAINS?.split(",")[0];
-  const baseUrl = domain ? `https://${domain}` : "http://localhost:80";
-  const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+  // Log only safe metadata — never log the raw token or the full reset URL.
+  req.log.info({ email: parsed.data.email, tokenExpiry: expiry.toISOString() }, "Password reset requested");
 
-  req.log.info({ email: parsed.data.email, resetUrl }, "Password reset token generated");
-
-  return res.json({
-    success: true,
-    message: "If an account exists, a reset link will be sent.",
-    resetUrl, // visible in dev so admin can forward it; remove after email is wired
-  });
+  // TODO: send rawToken via email (e.g. /reset-password?token=<rawToken>).
+  // Until email delivery is wired, the raw token is NOT returned to the caller.
+  return res.json(GENERIC);
 });
 
 // POST /api/auth/reset-password
@@ -188,8 +188,10 @@ router.post("/auth/reset-password", async (req, res) => {
     return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid input." });
   }
 
+  // Hash the incoming raw token and look up the stored hash — never compare plaintext tokens.
+  const tokenHash = crypto.createHash("sha256").update(parsed.data.token).digest("hex");
   const users = await db.select().from(usersTable)
-    .where(eq(usersTable.resetToken, parsed.data.token)).limit(1);
+    .where(eq(usersTable.resetToken, tokenHash)).limit(1);
 
   if (users.length === 0) {
     return res.status(400).json({ error: "Invalid or expired reset link. Please request a new one." });

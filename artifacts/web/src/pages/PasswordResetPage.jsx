@@ -17,7 +17,6 @@ const PasswordResetPage = () => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
-  const [devLink, setDevLink] = useState('');
 
   const handleRequestReset = async (e) => {
     e.preventDefault();
@@ -26,8 +25,7 @@ const PasswordResetPage = () => {
     const result = await resetPassword(email);
     if (result.success) {
       setIsSent(true);
-      if (result.resetUrl) setDevLink(result.resetUrl);
-      toast.success('Reset link generated.');
+      toast.success('If that email is registered, a reset link is on its way.');
     } else {
       toast.error(result.error);
     }
@@ -157,23 +155,12 @@ const PasswordResetPage = () => {
                 <div className="text-center">
                   <div className="bg-secondary/50 p-6 border border-border mb-4">
                     <p className="text-sm text-foreground mb-2">
-                      A reset link was generated for <strong>{email}</strong>.
+                      Check your inbox for <strong>{email}</strong>.
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Check your email for the link, or ask your admin to retrieve it from server logs.
+                      If that address is registered, a password reset link has been sent. It expires in 1 hour.
                     </p>
                   </div>
-                  {devLink && (
-                    <div className="bg-amber-500/10 border border-amber-500/30 rounded p-3 mb-4 text-left">
-                      <p className="text-xs font-semibold text-amber-500 mb-1">Dev Mode — Reset Link:</p>
-                      <a
-                        href={devLink}
-                        className="text-xs text-primary break-all hover:underline"
-                      >
-                        {devLink}
-                      </a>
-                    </div>
-                  )}
                   <Link to="/login" className="text-primary text-sm font-medium hover:underline flex items-center justify-center gap-2 mt-2">
                     <ArrowLeft className="w-4 h-4" /> Back to Login
                   </Link>

@@ -104,7 +104,7 @@ export const AuthProvider = ({ children }) => {
       });
       const data = await res.json();
       if (!res.ok) return { success: false, error: data.error || 'Failed to send reset link.' };
-      return { success: true, resetUrl: data.resetUrl };
+      return { success: true };
     } catch (error) {
       return { success: false, error: 'Network error. Please try again.' };
     }

@@ -25,7 +25,7 @@ const EarningsDisclaimer = () => {
             </div>
 
             <h1 className="text-4xl md:text-5xl font-extrabold text-foreground mb-4 tracking-tight text-shadow-sm">Earnings Disclaimer</h1>
-            <p className="text-sm font-mono text-zinc-300 mb-12 uppercase font-bold text-shadow-sm">Last Updated: April 11, 2026</p>
+            <p className="text-sm font-mono text-zinc-300 mb-12 uppercase font-bold text-shadow-sm">Last Updated: June 3, 2026</p>
 
             <div className="prose prose-invert max-w-none text-zinc-200 font-medium space-y-8">
               

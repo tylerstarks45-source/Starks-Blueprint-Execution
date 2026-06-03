@@ -4,7 +4,8 @@ import pb from '@/lib/pocketbaseClient.js';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import FeedPost from '@/components/FeedPost.jsx';
-import { Zap, Bell, Box } from 'lucide-react';
+import { HARDCODED_POSTS } from '@/components/AIFeedCentralFeed.jsx';
+import { Zap, Bell, Box, BookOpen, Wrench } from 'lucide-react';
 
 const AIFeedPage = () => {
   const [posts, setPosts] = useState([]);
@@ -20,8 +21,8 @@ const AIFeedPage = () => {
           $autoCancel: false
         });
         setPosts(records.items);
-      } catch (err) {
-        console.error("Error fetching feed:", err);
+      } catch {
+        // silently fallback to hardcoded posts
       } finally {
         setIsLoading(false);
       }
@@ -41,21 +42,28 @@ const AIFeedPage = () => {
           <div className="hidden lg:block lg:col-span-3 space-y-6">
             <div className="cinematic-card p-5 sticky top-28">
               <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4 border-b border-border/50 pb-2 flex items-center gap-2">
-                <Bell className="w-4 h-4" /> System Alerts
+                <Bell className="w-4 h-4" /> Platform Pulse
               </h3>
               <div className="space-y-4">
                 <div className="flex gap-3">
                   <div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-emerald-400 shrink-0"></div>
                   <div>
-                    <p className="text-xs font-bold text-foreground mb-0.5">Deployment Success</p>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">Content engine v2.0 is live and routing traffic.</p>
+                    <p className="text-xs font-bold text-foreground mb-0.5">Platform Live</p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">All systems operational. AI agent routing active.</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-blue-400 shrink-0"></div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground mb-0.5">8 Blueprints Available</p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">Pick a blueprint and start building your automated income system.</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
                   <div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-amber-400 shrink-0"></div>
                   <div>
-                    <p className="text-xs font-bold text-foreground mb-0.5">Integration Update</p>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">OpenRouter added new Claude 3 models. Update config.</p>
+                    <p className="text-xs font-bold text-foreground mb-0.5">New Tools Added</p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">17 tools now in the marketplace across 8 categories.</p>
                   </div>
                 </div>
               </div>
@@ -73,13 +81,9 @@ const AIFeedPage = () => {
               <div className="py-20 flex justify-center">
                 <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
               </div>
-            ) : posts.length === 0 ? (
-              <div className="cinematic-card p-12 text-center text-muted-foreground">
-                No intel available at the moment.
-              </div>
             ) : (
               <div className="space-y-6">
-                {posts.map(post => (
+                {(posts.length > 0 ? posts : HARDCODED_POSTS).map(post => (
                   <FeedPost key={post.id} post={post} />
                 ))}
               </div>
@@ -107,18 +111,21 @@ const AIFeedPage = () => {
             
             <div className="cinematic-card p-5">
               <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4 border-b border-border/50 pb-2 flex items-center gap-2">
-                <Box className="w-4 h-4" /> Stack Recommendations
+                <Box className="w-4 h-4" /> Quick Links
               </h3>
-              <p className="text-xs text-muted-foreground mb-4">Based on your saved systems, consider adding:</p>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="font-bold">Pictory AI</span>
-                  <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded border border-secondary/20">Video Sync</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="font-bold">Make.com</span>
-                  <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20">Webhooks</span>
-                </div>
+              <div className="space-y-2">
+                <a href="/blueprints" className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors p-2 rounded-lg hover:bg-primary/5">
+                  <BookOpen className="w-4 h-4 text-primary shrink-0" />
+                  <span className="font-medium">Browse Blueprints</span>
+                </a>
+                <a href="/marketplace" className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors p-2 rounded-lg hover:bg-primary/5">
+                  <Wrench className="w-4 h-4 text-secondary shrink-0" />
+                  <span className="font-medium">Tool Marketplace</span>
+                </a>
+                <a href="/dashboard" className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors p-2 rounded-lg hover:bg-primary/5">
+                  <Zap className="w-4 h-4 text-accent shrink-0" />
+                  <span className="font-medium">My Dashboard</span>
+                </a>
               </div>
             </div>
           </div>

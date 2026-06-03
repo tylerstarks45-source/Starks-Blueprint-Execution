@@ -505,7 +505,7 @@ router.patch("/admin/platform-users/:id", async (req, res): Promise<void> => {
   }
 
   await db.insert(adminActivityTable).values({
-    adminId: null,
+    adminId: admin.id,
     action: "update_user",
     resourceType: "user",
     resourceId: String(params.data.id),
@@ -540,7 +540,7 @@ router.post("/admin/platform-users/:id/credits", async (req, res): Promise<void>
   });
 
   await db.insert(adminActivityTable).values({
-    adminId: null,
+    adminId: admin.id,
     action: "adjust_credits",
     resourceType: "user",
     resourceId: String(params.data.id),

@@ -1,137 +1,108 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Heart, MessageSquare, CornerDownRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import pb from '@/lib/pocketbaseClient.js';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Bell } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import { Link } from 'react-router-dom';
+
+const authH = () => { const t = localStorage.getItem('sbep_auth_token'); return t ? { Authorization: `Bearer ${t}` } : {}; };
+
+const fmtDate = (d) => {
+  if (!d) return '';
+  const diff = Date.now() - new Date(d).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h}h ago` : new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
 
 const NotificationBell = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const ref = useRef(null);
+
+  const unreadCount = notifications.filter(n => !n.read && !n.isRead).length;
+
+  const fetchNotifications = useCallback(async () => {
+    if (!currentUser?.id) return;
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/notifications?userId=${currentUser.id}`, { headers: authH() });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(Array.isArray(data) ? data.slice(0, 12) : []);
+      }
+    } catch { /* silently ignore */ } finally {
+      setIsLoading(false);
+    }
+  }, [currentUser?.id]);
 
   useEffect(() => {
-    if (!currentUser) return;
-
-    const fetchNotifications = async () => {
-      try {
-        // Fetch posts by current user to match against
-        const userPosts = await pb.collection('ai_feed_posts').getFullList({
-          filter: `author_id="${currentUser.id}"`,
-          $autoCancel: false
-        });
-
-        if (userPosts.length === 0) return;
-        const postIds = userPosts.map(p => `"${p.id}"`).join(',');
-
-        // Fetch recent likes on these posts
-        const likes = await pb.collection('ai_feed_likes').getList(1, 10, {
-          filter: `post_id ?= [${postIds}] && user_id != "${currentUser.id}"`,
-          sort: '-created_at',
-          $autoCancel: false
-        });
-
-        // Fetch recent comments on these posts
-        const comments = await pb.collection('ai_feed_comments').getList(1, 10, {
-          filter: `post_id ?= [${postIds}] && author_id != "${currentUser.id}"`,
-          sort: '-created_at',
-          $autoCancel: false
-        });
-
-        const allNotifications = [
-          ...likes.items.map(l => ({ ...l, type: 'like', date: new Date(l.created_at) })),
-          ...comments.items.map(c => ({ ...c, type: 'comment', date: new Date(c.created_at) }))
-        ].sort((a, b) => b.date - a.date).slice(0, 15);
-
-        setNotifications(allNotifications);
-        setUnreadCount(allNotifications.length); // Simple unread logic for demo
-      } catch (err) {
-        console.error("Failed to fetch notifications:", err);
-      }
-    };
-
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
-    return () => clearInterval(interval);
-  }, [currentUser]);
+    if (isAuthenticated) { fetchNotifications(); }
+  }, [fetchNotifications, isAuthenticated]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setIsOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const toggleDropdown = () => {
-    setIsOpen(!isOpen);
-    if (!isOpen) setUnreadCount(0); // Mark as read when opening
+  const markRead = async (id) => {
+    try {
+      await fetch(`/api/notifications/${id}/read`, { method: 'PATCH', headers: authH() });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true, isRead: true } : n));
+    } catch { /* silently ignore */ }
   };
 
+  const markAllRead = () => notifications.filter(n => !n.read && !n.isRead).forEach(n => markRead(n.id));
+
+  if (!isAuthenticated) return null;
+
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button 
-        onClick={toggleDropdown}
-        className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-foreground focus:outline-none"
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => { setIsOpen(v => !v); if (!isOpen) fetchNotifications(); }}
+        className="relative flex items-center justify-center w-9 h-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-colors"
+        aria-label="Notifications"
       >
-        <Bell className="w-6 h-6" />
+        <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-destructive rounded-full border border-background shadow-[0_0_8px_hsl(var(--destructive)/0.8)]">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 flex items-center justify-center bg-blue-500 text-white text-[9px] font-bold rounded-full px-1">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="absolute right-0 mt-3 w-80 sm:w-96 glass-panel rounded-2xl overflow-hidden z-50 border-white/10 shadow-2xl"
-          >
-            <div className="p-4 border-b border-white/5 bg-muted/30">
-              <h3 className="font-bold text-foreground">Notifications</h3>
-            </div>
-            <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-              {notifications.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground text-sm font-medium">
-                  No recent activity on your posts.
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
+            <p className="text-sm font-bold text-foreground">Notifications</p>
+            {unreadCount > 0 && <button onClick={markAllRead} className="text-xs text-primary hover:underline">Mark all read</button>}
+          </div>
+          <div className="max-h-72 overflow-y-auto">
+            {isLoading ? (
+              <div className="py-8 text-center"><div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"/></div>
+            ) : notifications.length === 0 ? (
+              <div className="py-10 text-center">
+                <Bell className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2"/>
+                <p className="text-sm text-muted-foreground">No notifications yet</p>
+              </div>
+            ) : notifications.map(n => (
+              <button key={n.id} onClick={() => markRead(n.id)}
+                className={`w-full text-left px-4 py-3 border-b border-border/40 hover:bg-muted/20 transition-colors ${!n.read && !n.isRead ? 'bg-primary/5' : ''}`}>
+                <div className="flex items-start gap-2">
+                  {!n.read && !n.isRead && <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"/>}
+                  <div className={!n.read && !n.isRead ? '' : 'ml-3.5'}>
+                    <p className="text-sm font-medium text-foreground leading-snug">{n.title || n.message}</p>
+                    {n.title && n.message && <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>}
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">{fmtDate(n.createdAt)}</p>
+                  </div>
                 </div>
-              ) : (
-                <div className="divide-y divide-white/5">
-                  {notifications.map((notif) => (
-                    <Link 
-                      key={notif.id} 
-                      to={`/dashboard/ai-feed/${notif.post_id}`} // Simple routing, assuming slug isn't strictly required if we adjust router, or we need to map id to slug. Assuming ID works.
-                      onClick={() => setIsOpen(false)}
-                      className="flex items-start gap-3 p-4 hover:bg-white/5 transition-colors"
-                    >
-                      <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${notif.type === 'like' ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'}`}>
-                        {notif.type === 'like' ? <Heart className="w-4 h-4 fill-current" /> : <MessageSquare className="w-4 h-4" />}
-                      </div>
-                      <div>
-                        <p className="text-sm text-foreground">
-                          <span className="font-bold">Someone</span> 
-                          {notif.type === 'like' ? ' liked your post.' : ' commented on your post.'}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {notif.date.toLocaleDateString()} at {notif.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

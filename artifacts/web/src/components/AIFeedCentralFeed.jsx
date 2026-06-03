@@ -5,7 +5,7 @@ import PinnedPostCard from './PinnedPostCard.jsx';
 import FeedPost from './FeedPost.jsx';
 
 // Hardcoded seed data as requested
-const HARDCODED_POSTS = [
+export const HARDCODED_POSTS = [
   {
     id: 'post_01',
     title: '🚀 AI Affiliate Content Engine Released',

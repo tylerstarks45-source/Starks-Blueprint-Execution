@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronDown, LogOut, User, Settings, Activity, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import NotificationBell from '@/components/NotificationBell.jsx';
 
 const Header = () => {
   const location = useLocation();
@@ -84,6 +85,7 @@ const Header = () => {
           </nav>
 
           <div className="hidden lg:flex items-center space-x-4 shrink-0">
+            {isAuthenticated && <NotificationBell />}
             {isAuthenticated ? (
               <div className="relative">
                 <button 

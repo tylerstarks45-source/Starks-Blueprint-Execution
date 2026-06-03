@@ -28,7 +28,7 @@ const DashboardHeaderInner = () => {
             </span>
           ) : (
             <span className="px-2.5 py-1 bg-amber-400/20 text-amber-400 border border-amber-400/30 rounded-md text-xs font-bold tracking-wider uppercase flex items-center backdrop-blur-sm">
-              <Crown className="w-3 h-3 mr-1.5" /> Operator Tier
+              <Crown className="w-3 h-3 mr-1.5" /> {currentUser?.membershipTier ? currentUser.membershipTier.charAt(0).toUpperCase() + currentUser.membershipTier.slice(1) + ' Tier' : 'Starter Tier'}
             </span>
           )}
         </div>

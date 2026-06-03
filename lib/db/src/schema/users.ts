@@ -15,6 +15,9 @@ export const usersTable = pgTable("users", {
   active: boolean("active").notNull().default(true),
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry", { withTimezone: true }),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  emailVerifyToken: text("email_verify_token"),
+  emailVerifyExpiry: timestamp("email_verify_expiry", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

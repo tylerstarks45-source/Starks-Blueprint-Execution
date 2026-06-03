@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
@@ -7,6 +8,27 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import crypto from "crypto";
 import { adjustCredits, SIGNUP_GRANT } from "../lib/credits";
+import {
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  sendWelcomeEmail,
+} from "../lib/email";
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Please try again in 15 minutes." },
+});
+
+const resetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many password reset requests. Please try again later." },
+});
 
 const router: IRouter = Router();
 
@@ -46,7 +68,7 @@ function userResponse(user: typeof usersTable.$inferSelect) {
 }
 
 // POST /api/auth/register
-router.post("/auth/register", async (req, res) => {
+router.post("/auth/register", authLimiter, async (req, res) => {
   const parsed = RegisterInput.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
@@ -73,13 +95,25 @@ router.post("/auth/register", async (req, res) => {
     reason: "Welcome credits",
   });
 
+  // Generate email verification token
+  const verifyRaw = crypto.randomBytes(32).toString("hex");
+  const verifyHash = crypto.createHash("sha256").update(verifyRaw).digest("hex");
+  const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  await db.update(usersTable)
+    .set({ emailVerifyToken: verifyHash, emailVerifyExpiry: verifyExpiry })
+    .where(eq(usersTable.id, newUser.id));
+
+  // Send emails fire-and-forget (never block the response)
+  sendEmailVerification(newUser.email, verifyRaw).catch(() => {});
+  sendWelcomeEmail(newUser.email, name || "").catch(() => {});
+
   const token = signToken(newUser.id, newUser.email, newUser.role ?? "USER");
 
   return res.status(201).json({ token, user: userResponse({ ...newUser, creditsBalance: balance }) });
 });
 
 // POST /api/auth/login
-router.post("/auth/login", async (req, res) => {
+router.post("/auth/login", authLimiter, async (req, res) => {
   const parsed = LoginInput.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid credentials." });
@@ -144,7 +178,7 @@ router.post("/auth/logout", (_req, res) => {
 });
 
 // POST /api/auth/request-reset
-router.post("/auth/request-reset", async (req, res) => {
+router.post("/auth/request-reset", resetLimiter, async (req, res) => {
   const parsed = ResetRequestInput.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid email." });
@@ -171,8 +205,8 @@ router.post("/auth/request-reset", async (req, res) => {
   // Log only safe metadata — never log the raw token or the full reset URL.
   req.log.info({ email: parsed.data.email, tokenExpiry: expiry.toISOString() }, "Password reset requested");
 
-  // TODO: send rawToken via email (e.g. /reset-password?token=<rawToken>).
-  // Until email delivery is wired, the raw token is NOT returned to the caller.
+  // Send password reset email — fire-and-forget so response is always fast
+  sendPasswordResetEmail(parsed.data.email, rawToken).catch(() => {});
   return res.json(GENERIC);
 });
 
@@ -209,6 +243,54 @@ router.post("/auth/reset-password", async (req, res) => {
 
   req.log.info({ userId: user.id }, "Password reset completed");
   return res.json({ success: true, message: "Password updated. You can now log in." });
+});
+
+// GET /api/auth/verify-email?token=X
+router.get("/auth/verify-email", async (req, res) => {
+  const token = req.query["token"] as string | undefined;
+  if (!token) return res.status(400).json({ error: "Missing verification token." });
+
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const users = await db.select().from(usersTable)
+    .where(eq(usersTable.emailVerifyToken, tokenHash)).limit(1);
+
+  if (users.length === 0) {
+    return res.status(400).json({ error: "Invalid or already-used verification link." });
+  }
+
+  const user = users[0];
+  if (!user.emailVerifyExpiry || user.emailVerifyExpiry < new Date()) {
+    return res.status(400).json({ error: "Verification link has expired. Please sign up again or contact support." });
+  }
+
+  await db.update(usersTable)
+    .set({ emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null })
+    .where(eq(usersTable.id, user.id));
+
+  req.log.info({ userId: user.id }, "Email verified");
+  return res.json({ success: true, message: "Email verified successfully. You can now log in." });
+});
+
+// POST /api/auth/resend-verification
+router.post("/auth/resend-verification", resetLimiter, async (req, res) => {
+  const parsed = ResetRequestInput.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid email." });
+
+  const GENERIC = { success: true, message: "If an unverified account exists, a new link will be sent." };
+
+  const users = await db.select().from(usersTable)
+    .where(eq(usersTable.email, parsed.data.email)).limit(1);
+  if (users.length === 0 || users[0].emailVerified) return res.json(GENERIC);
+
+  const verifyRaw = crypto.randomBytes(32).toString("hex");
+  const verifyHash = crypto.createHash("sha256").update(verifyRaw).digest("hex");
+  const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await db.update(usersTable)
+    .set({ emailVerifyToken: verifyHash, emailVerifyExpiry: verifyExpiry })
+    .where(eq(usersTable.id, users[0].id));
+
+  sendEmailVerification(parsed.data.email, verifyRaw).catch(() => {});
+  return res.json(GENERIC);
 });
 
 export default router;

@@ -1,1 +1,2 @@
 - [Admin dashboard contract & roles](admin-dashboard.md) — real admin UI is AdminDashboardLayout (not the page); Zod strips fields absent from openapi.yaml; admin roles kept in lockstep.
+- [DB schema change workflow](db-schema-workflow.md) — adding columns requires: push → typecheck:libs → api-server typecheck, in that order.

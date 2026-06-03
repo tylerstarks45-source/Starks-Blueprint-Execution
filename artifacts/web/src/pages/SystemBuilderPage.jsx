@@ -60,7 +60,7 @@ const SystemBuilderPage = () => {
           setSavedTools(tools);
         }
       } catch (err) {
-        console.error("Error fetching user data:", err);
+        // silently handle fetch errors — card renders empty state
       }
     };
     fetchUserData();

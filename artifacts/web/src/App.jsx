@@ -39,6 +39,7 @@ import ToolDetailPage from '@/pages/ToolDetailPage.jsx';
 import MyStackPage from '@/pages/MyStackPage.jsx';
 import UpdatesPage from '@/pages/UpdatesPage.jsx';
 import PasswordResetPage from '@/pages/PasswordResetPage.jsx';
+import VerifyEmailPage from '@/pages/VerifyEmailPage.jsx';
 
 const NotFoundPage = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 text-center">
@@ -72,6 +73,7 @@ const App = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/reset-password" element={<PasswordResetPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />

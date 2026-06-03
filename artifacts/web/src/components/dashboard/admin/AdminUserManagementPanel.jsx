@@ -15,13 +15,16 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
-import { Users, MoreHorizontal, Search, ShieldCheck, Ban, CheckCircle2, Coins, Loader2 } from 'lucide-react';
+import { Users, MoreHorizontal, Search, ShieldCheck, Ban, CheckCircle2, Coins, Loader2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import adminApi from '@/lib/adminApi.js';
 import { useAdminData } from '@/contexts/AdminDataContext.jsx';
 import { num, compact, usd } from '@/lib/adminFormat.js';
 
 const ROLE_OPTIONS = ['USER', 'ADMIN', 'SUPER_ADMIN'];
+const TIER_OPTIONS = ['starter', 'builder', 'operator', 'empire'];
+const STATUS_OPTIONS = ['inactive', 'active', 'cancelled'];
+const NO_TIER = '__none__';
 
 const AdminUserManagementPanel = () => {
   const { reloadAnalytics } = useAdminData();
@@ -41,6 +44,12 @@ const AdminUserManagementPanel = () => {
   const [creditDelta, setCreditDelta] = useState('');
   const [creditReason, setCreditReason] = useState('');
   const [creditSaving, setCreditSaving] = useState(false);
+
+  const [editUser, setEditUser] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editMembershipTier, setEditMembershipTier] = useState('');
+  const [editMembershipStatus, setEditMembershipStatus] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +115,34 @@ const AdminUserManagementPanel = () => {
       toast.error(e.message || 'Failed to update user');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const openEditDialog = (user) => {
+    setEditUser(user);
+    setEditName(user.name || '');
+    setEditMembershipTier(user.membershipTier || NO_TIER);
+    setEditMembershipStatus(user.membershipStatus || 'inactive');
+  };
+
+  const submitEdit = async () => {
+    setEditSaving(true);
+    try {
+      const body = {};
+      if (editName.trim() !== (editUser.name || '')) body.name = editName.trim() || null;
+      const tierVal = editMembershipTier === NO_TIER ? null : editMembershipTier;
+      if (tierVal !== (editUser.membershipTier ?? null)) body.membershipTier = tierVal;
+      if (editMembershipStatus !== (editUser.membershipStatus || '')) body.membershipStatus = editMembershipStatus || null;
+      if (Object.keys(body).length === 0) { toast.info('No changes to save.'); setEditUser(null); return; }
+      await adminApi.updateUser(editUser.id, body);
+      toast.success('User details updated.');
+      setEditUser(null);
+      load();
+      reloadAnalytics();
+    } catch (e) {
+      toast.error(e.message || 'Failed to update user');
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -248,6 +285,9 @@ const AdminUserManagementPanel = () => {
                               </DropdownMenuItem>
                             ))}
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openEditDialog(user)}>
+                              <Pencil className="w-4 h-4 mr-2" /> Edit Details
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => { setCreditUser(user); setCreditDelta(''); setCreditReason(''); }}>
                               <Coins className="w-4 h-4 mr-2" /> Adjust Credits
                             </DropdownMenuItem>
@@ -306,6 +346,56 @@ const AdminUserManagementPanel = () => {
             <Button variant="outline" onClick={() => setCreditUser(null)} disabled={creditSaving}>Cancel</Button>
             <Button onClick={submitCredits} disabled={creditSaving}>
               {creditSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving…</> : 'Apply'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editUser} onOpenChange={(open) => !open && setEditUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User Details</DialogTitle>
+            <DialogDescription>
+              {editUser ? `${editUser.email}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Display Name</label>
+              <Input
+                placeholder="e.g. Jane Smith"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Membership Tier</label>
+              <Select value={editMembershipTier} onValueChange={setEditMembershipTier}>
+                <SelectTrigger><SelectValue placeholder="No tier" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_TIER}>No Tier</SelectItem>
+                  {TIER_OPTIONS.map((t) => (
+                    <SelectItem key={t} value={t} className="capitalize">{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Membership Status</label>
+              <Select value={editMembershipStatus} onValueChange={setEditMembershipStatus}>
+                <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((s) => (
+                    <SelectItem key={s} value={s} className="capitalize">{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditUser(null)} disabled={editSaving}>Cancel</Button>
+            <Button onClick={submitEdit} disabled={editSaving}>
+              {editSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving…</> : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>

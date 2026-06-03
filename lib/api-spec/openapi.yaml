@@ -2629,7 +2629,8 @@ components:
         costUsd: { type: number }
         successCount: { type: integer }
         failureCount: { type: integer }
-      required: [model, requests, tokens, promptTokens, completionTokens, costUsd, successCount, failureCount]
+        creditsConsumed: { type: integer }
+      required: [model, requests, tokens, promptTokens, completionTokens, costUsd, successCount, failureCount, creditsConsumed]
 
     AdminTierCount:
       type: object

@@ -278,6 +278,7 @@ router.get("/admin/analytics", async (req, res): Promise<void> => {
         costUsd: sql<number>`coalesce(sum(${openrouterUsageTable.estimatedCost}), 0)::float`,
         successCount: sql<number>`coalesce(sum(case when ${openrouterUsageTable.success} = 'true' then 1 else 0 end), 0)::int`,
         failureCount: sql<number>`coalesce(sum(case when ${openrouterUsageTable.success} <> 'true' then 1 else 0 end), 0)::int`,
+        creditsConsumed: sql<number>`coalesce((select -sum(ct.amount) from credit_transactions ct where ct.model = ${openrouterUsageTable.model} and ct.amount < 0), 0)::int`,
       })
       .from(openrouterUsageTable)
       .groupBy(openrouterUsageTable.model)

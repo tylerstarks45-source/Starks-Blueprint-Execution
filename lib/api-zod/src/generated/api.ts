@@ -1243,7 +1243,8 @@ export const GetAdminAnalyticsResponse = zod.object({
   "completionTokens": zod.number(),
   "costUsd": zod.number(),
   "successCount": zod.number(),
-  "failureCount": zod.number()
+  "failureCount": zod.number(),
+  "creditsConsumed": zod.number()
 })),
   "subscriptions": zod.array(zod.object({
   "tier": zod.string(),

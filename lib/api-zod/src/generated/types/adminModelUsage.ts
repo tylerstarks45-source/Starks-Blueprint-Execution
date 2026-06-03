@@ -15,4 +15,5 @@ export interface AdminModelUsage {
   costUsd: number;
   successCount: number;
   failureCount: number;
+  creditsConsumed: number;
 }

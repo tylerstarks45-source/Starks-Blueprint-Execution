@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and } from "drizzle-orm";
 import { db, systemInstancesTable } from "@workspace/db";
-import { getTokenPayload, requireAuth } from "../lib/auth";
+import { getActiveCallerPayload, requireAuthActive } from "../lib/auth";
 import {
   ListSystemInstancesResponse,
   GetSystemInstanceResponse,
@@ -18,8 +18,8 @@ const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "admin"]);
 const router: IRouter = Router();
 
 router.get("/system-instances", async (req, res): Promise<void> => {
-  const caller = getTokenPayload(req);
-  if (!caller) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
 
   const isAdmin = ADMIN_ROLES.has(caller.role);
   const conditions = [];
@@ -44,7 +44,7 @@ router.get("/system-instances", async (req, res): Promise<void> => {
 });
 
 router.post("/system-instances", async (req, res): Promise<void> => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
   const parsed = CreateSystemInstanceBody.safeParse(req.body);
@@ -60,8 +60,8 @@ router.post("/system-instances", async (req, res): Promise<void> => {
 });
 
 router.get("/system-instances/:id", async (req, res): Promise<void> => {
-  const caller = getTokenPayload(req);
-  if (!caller) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
 
   const params = GetSystemInstanceParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
@@ -82,8 +82,8 @@ router.get("/system-instances/:id", async (req, res): Promise<void> => {
 });
 
 router.patch("/system-instances/:id", async (req, res): Promise<void> => {
-  const caller = getTokenPayload(req);
-  if (!caller) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
 
   const params = UpdateSystemInstanceParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
@@ -112,8 +112,8 @@ router.patch("/system-instances/:id", async (req, res): Promise<void> => {
 });
 
 router.delete("/system-instances/:id", async (req, res): Promise<void> => {
-  const caller = getTokenPayload(req);
-  if (!caller) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
 
   const params = DeleteSystemInstanceParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }

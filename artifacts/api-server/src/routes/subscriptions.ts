@@ -5,7 +5,7 @@ import { db, subscriptionsTable, usersTable, processedStripeEventsTable } from "
 import { z } from "zod";
 import { getUncachableStripeClient } from "../lib/stripe";
 import { adjustCredits, tierAllotment } from "../lib/credits";
-import { requireAuth } from "../lib/auth";
+import { requireAuthActive } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -29,7 +29,7 @@ function getPriceId(tier: string): string | null {
 
 // GET /api/subscriptions/me
 router.get("/subscriptions/me", async (req, res): Promise<void> => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
   res.json({ subscription: sub ? serialize(sub) : null });
@@ -37,7 +37,7 @@ router.get("/subscriptions/me", async (req, res): Promise<void> => {
 
 // POST /api/subscriptions/checkout
 router.post("/subscriptions/checkout", async (req, res): Promise<void> => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
   const schema = z.object({ tier: z.enum(["builder", "operator", "empire"]) });

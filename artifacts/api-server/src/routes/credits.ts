@@ -3,7 +3,7 @@ import { serialize } from "../lib/serialize";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { getUncachableStripeClient } from "../lib/stripe";
-import { requireAuth } from "../lib/auth";
+import { requireAuthActive } from "../lib/auth";
 import {
   TIER_ALLOTMENTS,
   TIER_NAMES,
@@ -25,7 +25,7 @@ const router: IRouter = Router();
 
 // GET /api/credits/me
 router.get("/credits/me", async (req, res): Promise<void> => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
@@ -41,7 +41,7 @@ router.get("/credits/me", async (req, res): Promise<void> => {
 
 // GET /api/credits/transactions
 router.get("/credits/transactions", async (req, res): Promise<void> => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
   const rows = await listTransactions(userId, 100);
@@ -67,7 +67,7 @@ router.get("/credits/config", async (_req, res): Promise<void> => {
 
 // POST /api/credits/checkout — one-time Stripe checkout for a credit pack
 router.post("/credits/checkout", async (req, res): Promise<void> => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
   const parsed = CreateCreditCheckoutBody.safeParse(req.body);

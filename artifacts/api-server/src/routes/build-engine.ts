@@ -12,7 +12,7 @@ import {
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { hasCredits } from "../lib/credits";
-import { requireAuth } from "../lib/auth";
+import { requireAuthActive } from "../lib/auth";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -32,7 +32,7 @@ const ensureOwner = (
 
 // POST /api/build-engine/analyze
 router.post("/build-engine/analyze", async (req, res): Promise<void> => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
   const schema = z.object({ systemInstanceId: z.number().int() });
@@ -112,7 +112,7 @@ Return ONLY this JSON format, nothing else:
 
 // POST /api/build-engine/start
 router.post("/build-engine/start", async (req, res): Promise<void> => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
   const schema = z.object({
@@ -155,7 +155,7 @@ router.post("/build-engine/start", async (req, res): Promise<void> => {
 
 // POST /api/build-engine/execute-step
 router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
   const schema = z.object({

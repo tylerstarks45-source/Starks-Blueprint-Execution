@@ -3,7 +3,7 @@ import { serialize } from "../lib/serialize";
 import { desc, sql } from "drizzle-orm";
 import { db, openrouterUsageTable } from "@workspace/db";
 import { complete } from "../lib/openrouter";
-import { requireAuth } from "../lib/auth";
+import { requireAuthActive } from "../lib/auth";
 import {
   OpenrouterCompleteBody,
   ListOpenrouterUsageResponse,
@@ -13,7 +13,7 @@ import {
 const router: IRouter = Router();
 
 router.post("/openrouter/complete", async (req, res): Promise<void> => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
   const parsed = OpenrouterCompleteBody.safeParse(req.body);

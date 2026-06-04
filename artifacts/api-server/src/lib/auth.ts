@@ -97,7 +97,9 @@ export async function getActiveCallerPayload(
       res.status(403).json({ error: "Account suspended" });
       return null;
     }
-    return { id, email: String(payload.email ?? ""), role: String(payload.role ?? "USER") };
+    // Return role from DB — not from JWT — so demotions take effect immediately
+    // without waiting for the token to expire.
+    return { id, email: String(payload.email ?? ""), role: String(user.role ?? "USER") };
   } catch {
     res.status(401).json({ error: "Unauthorized" });
     return null;

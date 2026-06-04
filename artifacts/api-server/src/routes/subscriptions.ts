@@ -27,6 +27,19 @@ function getPriceId(tier: string): string | null {
   return envMap[tier] || null;
 }
 
+// Reverse-map a Stripe price ID back to an internal tier name.
+// Returns null when the price ID is unrecognised (e.g. a legacy or one-off price).
+function getTierFromPriceId(priceId: string): string | null {
+  const reverseMap: Record<string, string> = {};
+  const builder  = process.env.STRIPE_PRICE_BUILDER;
+  const operator = process.env.STRIPE_PRICE_OPERATOR;
+  const empire   = process.env.STRIPE_PRICE_EMPIRE;
+  if (builder)  reverseMap[builder]  = "builder";
+  if (operator) reverseMap[operator] = "operator";
+  if (empire)   reverseMap[empire]   = "empire";
+  return reverseMap[priceId] ?? null;
+}
+
 // GET /api/subscriptions/me
 router.get("/subscriptions/me", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
@@ -189,6 +202,68 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
       if (userId) {
         await db.update(subscriptionsTable).set({ status: "active" }).where(eq(subscriptionsTable.userId, userId));
         await db.update(usersTable).set({ membershipStatus: "active" }).where(eq(usersTable.id, userId));
+      }
+    }
+
+    if (event.type === "customer.subscription.updated") {
+      const stripeSub = event.data.object as any;
+      const customerId = stripeSub.customer as string;
+      const stripeStatus: string = stripeSub.status ?? "active";
+
+      // Resolve the new price ID from the first subscription item.
+      const newPriceId: string | undefined = stripeSub.items?.data?.[0]?.price?.id;
+      const newTier = newPriceId ? getTierFromPriceId(newPriceId) : null;
+
+      // Map Stripe subscription status to our internal status.
+      //   active / trialing          → "active"
+      //   past_due / unpaid          → "past_due"  (keep access; billing team follows up)
+      //   canceled / incomplete_expired / paused → "inactive"
+      //   incomplete                 → skip (checkout not finished yet)
+      if (stripeStatus === "incomplete") {
+        res.json({ received: true });
+        return;
+      }
+      const dbStatus =
+        ["active", "trialing"].includes(stripeStatus)        ? "active"   :
+        ["past_due", "unpaid"].includes(stripeStatus)        ? "past_due" :
+                                                               "inactive";
+
+      // Look up the subscription record by Stripe customer ID — this is
+      // more reliable than subscription metadata because the session metadata
+      // is set on checkout.session, not on the subscription object itself.
+      const [existingSub] = await db
+        .select()
+        .from(subscriptionsTable)
+        .where(eq(subscriptionsTable.stripeCustomerId, customerId));
+
+      if (existingSub) {
+        const userId = existingSub.userId!;
+
+        // Always sync status. Only change tier when the price maps to a known
+        // tier (ignore plan changes to unrecognised prices, e.g. grandfathered).
+        const subPatch: Record<string, string | null> = { status: dbStatus };
+        const userPatch: Record<string, string> = {
+          membershipStatus: dbStatus === "active" ? "active" : "inactive",
+        };
+
+        if (newTier && newTier !== existingSub.tier) {
+          subPatch.tier        = newTier;
+          subPatch.stripePriceId = newPriceId ?? null;
+          userPatch.membershipTier = newTier;
+          req.log.info({ userId, from: existingSub.tier, to: newTier, stripeStatus },
+            "Subscription tier changed");
+        }
+
+        await db.update(subscriptionsTable)
+          .set(subPatch)
+          .where(eq(subscriptionsTable.userId, userId));
+        await db.update(usersTable)
+          .set(userPatch)
+          .where(eq(usersTable.id, userId));
+
+        req.log.info({ userId, stripeStatus, dbStatus, newTier }, "Subscription updated");
+      } else {
+        req.log.warn({ customerId }, "customer.subscription.updated: no matching subscription record found");
       }
     }
 

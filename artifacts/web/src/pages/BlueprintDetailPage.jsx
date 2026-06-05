@@ -84,7 +84,7 @@ const BlueprintDetailPage = () => {
       const resp = await fetch('/api/system-instances', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ blueprintId: blueprint.id, name: blueprint.name }),
+        body: JSON.stringify({ blueprintId: blueprint.id, name: blueprint.name, userId: currentUser.id }),
       });
 
       if (!resp.ok) {

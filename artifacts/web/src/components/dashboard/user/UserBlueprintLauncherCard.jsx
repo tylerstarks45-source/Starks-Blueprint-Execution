@@ -48,7 +48,7 @@ const UserBlueprintLauncherCard = () => {
       const resp = await fetch('/api/system-instances', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ blueprintId: blueprint.id, name: blueprint.name }),
+        body: JSON.stringify({ blueprintId: blueprint.id, name: blueprint.name, userId: currentUser.id }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));

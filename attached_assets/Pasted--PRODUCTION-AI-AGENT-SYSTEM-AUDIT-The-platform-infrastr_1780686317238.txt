@@ -1,0 +1,129 @@
+# PRODUCTION AI AGENT SYSTEM AUDIT
+
+The platform infrastructure, Stripe billing stack, webhooks, pricing, domain configuration, email delivery, and deployment have been audited and appear production-ready.
+
+Your task now is to perform a COMPLETE AI AGENT SYSTEM AUDIT across the entire Starks Blueprint Platform and verify that every AI-powered feature is fully connected, functional, and production-ready.
+
+## Audit Requirements
+
+Review every AI workflow, agent, model connection, API integration, credit deduction flow, prompt pipeline, response pipeline, database write operation, and frontend-to-backend communication path.
+
+Do not assume anything is working simply because the UI loads.
+
+Actually trace and verify every connection.
+
+---
+
+## Verify OpenRouter Integration
+
+Audit all AI endpoints and verify:
+
+* OpenRouter API key is loading correctly
+* Requests are reaching OpenRouter successfully
+* Responses are being returned successfully
+* Proper model routing is occurring
+* No fallback or broken model references exist
+* No deprecated model IDs remain
+* No hidden API errors are being swallowed
+* Timeouts are handled correctly
+* Rate limits are handled correctly
+
+Identify every AI endpoint and confirm which model is being used.
+
+---
+
+## Verify Dashboard AI Agents
+
+For every AI agent available inside the dashboard:
+
+* Confirm the frontend connects to the correct API endpoint
+* Confirm the API endpoint executes successfully
+* Confirm prompts are generated correctly
+* Confirm model responses are returned correctly
+* Confirm results display correctly in the UI
+* Confirm failures are logged correctly
+* Confirm no placeholder or mock responses exist
+
+Provide a list of every AI agent and its current operational status.
+
+---
+
+## Verify Blueprint Generation System
+
+Audit the blueprint generation engine.
+
+Verify:
+
+* Blueprint matching works correctly
+* User requests reach the AI engine
+* AI-generated blueprints are returned successfully
+* Generated results are saved correctly if persistence exists
+* No broken prompt templates exist
+* No missing variables exist
+* No failed response parsing exists
+
+Run test generations and confirm successful outputs.
+
+---
+
+## Verify Credit System Integration
+
+For every AI action:
+
+* Confirm credits are deducted correctly
+* Confirm credits cannot go negative
+* Confirm failed AI requests do not deduct credits
+* Confirm successful AI requests do deduct credits
+* Confirm transactions are recorded correctly
+* Confirm usage tracking is accurate
+
+Provide a report of all AI actions that consume credits.
+
+---
+
+## Verify Agent Permissions
+
+Confirm:
+
+* Starter users receive only Starter-level access
+* Builder users receive Builder-level access
+* Operator users receive Operator-level access
+* Empire users receive Empire-level access
+* Unauthorized users cannot access restricted AI features
+
+Test actual permission enforcement.
+
+---
+
+## Verify Production Readiness
+
+Identify:
+
+* Broken AI routes
+* Dead AI features
+* Placeholder logic
+* Mock data
+* Unused AI endpoints
+* Orphaned prompt templates
+* Missing environment variables
+* AI features that appear functional but are not actually connected
+
+---
+
+## Deliverables
+
+Provide:
+
+1. Full list of all AI agents.
+2. Full list of AI endpoints.
+3. Models used by each agent.
+4. Credit consumption mapping.
+5. Operational status of each AI feature.
+6. Any failures discovered.
+7. Any production risks discovered.
+8. Any recommended fixes.
+9. Final AI Readiness Score out of 100.
+
+Do not make assumptions.
+
+Perform a real end-to-end audit and testing pass and provide evidence-based findings only.

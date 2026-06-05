@@ -37,6 +37,8 @@ router.post("/openrouter/complete", async (req, res): Promise<void> => {
 });
 
 router.get("/openrouter/usage", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
   const rows = await db
     .select()
     .from(openrouterUsageTable)
@@ -46,6 +48,8 @@ router.get("/openrouter/usage", async (req, res): Promise<void> => {
 });
 
 router.get("/openrouter/usage/summary", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
   const [summary] = await db
     .select({
       totalRequests: sql<number>`count(*)::int`,

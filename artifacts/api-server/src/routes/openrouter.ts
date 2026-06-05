@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { desc, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db, openrouterUsageTable } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { requireAuthActive } from "../lib/auth";
@@ -36,17 +36,21 @@ router.post("/openrouter/complete", async (req, res): Promise<void> => {
   }
 });
 
+// Returns only the authenticated user's own usage rows — never platform-wide data.
 router.get("/openrouter/usage", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   const rows = await db
     .select()
     .from(openrouterUsageTable)
+    .where(eq(openrouterUsageTable.userId, userId))
     .orderBy(desc(openrouterUsageTable.createdAt))
     .limit(200);
   res.json(ListOpenrouterUsageResponse.parse(serialize(rows)));
 });
 
+// Returns aggregated stats scoped to the authenticated user only.
+// Platform-wide aggregates are available via GET /api/ai/openrouter/usage (admin-only).
 router.get("/openrouter/usage/summary", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
@@ -58,7 +62,8 @@ router.get("/openrouter/usage/summary", async (req, res): Promise<void> => {
       failedRequests: sql<number>`count(*) filter (where ${openrouterUsageTable.success} = 'false')::int`,
       totalEstimatedCost: sql<string>`coalesce(sum(${openrouterUsageTable.estimatedCost}::numeric), 0)::text`,
     })
-    .from(openrouterUsageTable);
+    .from(openrouterUsageTable)
+    .where(eq(openrouterUsageTable.userId, userId));
 
   res.json(GetOpenrouterUsageSummaryResponse.parse(serialize(summary)));
 });

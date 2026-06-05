@@ -48,7 +48,7 @@ const AffiliateDisclosure = () => {
 
               <div className="bg-card/80 backdrop-blur-xl p-8 rounded-2xl border border-white/10 mt-12 shadow-lg">
                 <p className="mb-2 text-foreground font-bold">If you have any questions regarding this disclosure, please contact us at:</p>
-                <p className="font-mono text-primary font-bold text-shadow-sm">contact@starksglobalgroup.com</p>
+                <p className="font-mono text-primary font-bold text-shadow-sm">contact@starksglobalgroup.net</p>
               </div>
             </div>
           </div>

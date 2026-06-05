@@ -97,9 +97,6 @@ const AIFeedPage = () => {
                 <Zap className="w-5 h-5 text-accent" />
               </div>
               <h3 className="font-bold text-foreground text-lg mb-2 font-mono">AI Build Agent</h3>
-              <div className="inline-block px-2 py-0.5 bg-accent/10 text-accent text-[10px] uppercase font-bold tracking-wider rounded border border-accent/20 mb-3">
-                Coming Soon
-              </div>
               <p className="text-xs text-muted-foreground leading-relaxed mb-4">
                 The next evolution of Starks Global Group. Command your systems via conversational AI. Ask the agent to build pipelines, route data, and monitor health automatically.
               </p>

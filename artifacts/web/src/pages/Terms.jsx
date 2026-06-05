@@ -90,7 +90,7 @@ const Terms = () => {
 
               <div className="bg-secondary/30 p-8 rounded-xl border border-border mt-12">
                 <p className="mb-2">For legal inquiries regarding these terms, contact us at:</p>
-                <p className="font-mono text-primary">contact@starksglobalgroup.com</p>
+                <p className="font-mono text-primary">contact@starksglobalgroup.net</p>
               </div>
             </div>
           </div>

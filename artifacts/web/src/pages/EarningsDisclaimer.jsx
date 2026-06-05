@@ -46,7 +46,7 @@ const EarningsDisclaimer = () => {
               <div className="bg-card/80 backdrop-blur-xl p-8 rounded-2xl border border-white/10 mt-12 shadow-lg">
                 <p className="mb-2 text-foreground font-bold">We provide the blueprints, the research, and the guidance, but your ultimate results depend entirely on your execution.</p>
                 <p className="text-sm mt-4">If you have questions regarding this disclaimer, please contact us at:</p>
-                <p className="font-mono text-primary font-bold text-shadow-sm">contact@starksglobalgroup.com</p>
+                <p className="font-mono text-primary font-bold text-shadow-sm">contact@starksglobalgroup.net</p>
               </div>
             </div>
           </div>

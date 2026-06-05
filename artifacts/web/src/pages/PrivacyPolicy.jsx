@@ -99,7 +99,7 @@ const PrivacyPolicy = () => {
               <div className="bg-primary/10 backdrop-blur-md p-8 rounded-2xl border border-primary/20 mt-12 shadow-inner">
                 <h2 className="text-xl font-bold text-foreground mb-4 text-shadow-sm">Contact for Privacy Concerns</h2>
                 <p className="mb-2">If you have questions or comments about this Privacy Policy, please contact us at:</p>
-                <p className="font-mono text-primary font-bold text-shadow-sm">contact@starksglobalgroup.com</p>
+                <p className="font-mono text-primary font-bold text-shadow-sm">contact@starksglobalgroup.net</p>
               </div>
             </div>
           </div>

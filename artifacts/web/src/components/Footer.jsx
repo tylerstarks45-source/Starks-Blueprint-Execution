@@ -23,8 +23,8 @@ const Footer = () => {
             </p>
             
             <div className="space-y-3">
-              <a href="mailto:contact@starksglobalgroup.com" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors font-medium">
-                <Mail className="w-4 h-4" /> contact@starksglobalgroup.com
+              <a href="mailto:contact@starksglobalgroup.net" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors font-medium">
+                <Mail className="w-4 h-4" /> contact@starksglobalgroup.net
               </a>
               <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
                 <MapPin className="w-4 h-4" /> 101 Primm Rd, Many, Louisiana

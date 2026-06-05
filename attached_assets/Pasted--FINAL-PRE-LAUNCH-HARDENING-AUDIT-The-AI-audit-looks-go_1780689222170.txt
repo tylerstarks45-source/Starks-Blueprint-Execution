@@ -1,0 +1,113 @@
+# FINAL PRE-LAUNCH HARDENING AUDIT
+
+The AI audit looks good, but before I consider the platform launch-ready I want one final production hardening pass.
+
+Please perform the following verification and fix pass.
+
+## 1. Monthly Credit Renewal Verification (Highest Priority)
+
+Your audit states:
+
+"invoice.payment_succeeded currently only re-activates status; monthly renewal doesn't re-grant the tier allotment."
+
+I need a definitive answer:
+
+* Do Builder users receive a fresh 500 credits every billing cycle?
+* Do Operator users receive a fresh 2,000 credits every billing cycle?
+* Do Empire users receive a fresh 10,000 credits every billing cycle?
+
+If not, implement the correct monthly credit renewal behavior.
+
+Then test it end-to-end and provide evidence.
+
+---
+
+## 2. Full Customer Journey Simulation
+
+Perform a complete simulation of:
+
+Starter → Builder → Operator → Empire
+
+Verify:
+
+* Tier updates correctly
+* Credits update correctly
+* Stripe events process correctly
+* Database records update correctly
+* Customer portal changes sync correctly
+* Downgrades sync correctly
+* Renewals sync correctly
+
+Provide results.
+
+---
+
+## 3. AI Agent Functional Verification
+
+Do not verify only endpoints.
+
+Verify actual user outcomes.
+
+For every AI feature:
+
+* Generate a real result
+* Confirm output appears in UI
+* Confirm credits deduct correctly
+* Confirm usage logs record correctly
+* Confirm errors are handled correctly
+
+Provide screenshots, logs, or evidence.
+
+---
+
+## 4. Production Error Scan
+
+Scan for:
+
+* Console errors
+* Failed API requests
+* Unhandled promise rejections
+* Missing environment variables
+* Broken routes
+* 404s
+* 500s
+* Database query failures
+
+Fix anything discovered.
+
+---
+
+## 5. Launch Risk Review
+
+Identify any remaining issue that could cause:
+
+* Lost revenue
+* Failed subscriptions
+* Failed AI generation
+* Incorrect credit balances
+* Account lockouts
+* Customer support issues
+
+I want a brutally honest report.
+
+---
+
+## 6. Final Launch Score
+
+After all fixes:
+
+Provide:
+
+* Launch Readiness Score
+* Revenue System Score
+* AI System Score
+* Security Score
+* Customer Experience Score
+
+Then answer one question only:
+
+"Would you personally launch this platform to paying customers today?"
+
+If the answer is no, explain exactly why.
+
+If the answer is yes, explain what gives you confidence.

@@ -6,6 +6,10 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Replit routes through a reverse proxy — trust the X-Forwarded-For header so
+// rate limiters and IP-based logic see the real client IP instead of the proxy.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,

@@ -198,10 +198,33 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
 
     if (event.type === "invoice.payment_succeeded") {
       const invoice = event.data.object as any;
+      const billingReason: string = invoice.billing_reason ?? "";
+
+      // subscription_create is handled by checkout.session.completed — skip to avoid double credit grant.
+      // subscription_update tier changes are handled by customer.subscription.updated.
+      // Only grant fresh credits on subscription_cycle (monthly/annual renewals).
+      const isRenewal = billingReason === "subscription_cycle";
+
       const userId = Number(invoice.subscription_details?.metadata?.userId);
       if (userId) {
         await db.update(subscriptionsTable).set({ status: "active" }).where(eq(subscriptionsTable.userId, userId));
         await db.update(usersTable).set({ membershipStatus: "active" }).where(eq(usersTable.id, userId));
+
+        if (isRenewal) {
+          // Look up the user's current tier from the subscriptions table — most authoritative source.
+          const [sub] = await db
+            .select({ tier: subscriptionsTable.tier })
+            .from(subscriptionsTable)
+            .where(eq(subscriptionsTable.userId, userId));
+          const currentTier = sub?.tier ?? "starter";
+          const allotment = tierAllotment(currentTier);
+          await adjustCredits(userId, allotment, "tier_grant", {
+            reason: `Monthly renewal — ${currentTier} plan (${allotment} credits)`,
+          });
+          req.log.info({ userId, tier: currentTier, allotment, billingReason }, "Monthly credit renewal granted");
+        } else {
+          req.log.info({ userId, billingReason }, "Invoice paid — status re-activated (credits not re-granted)");
+        }
       }
     }
 

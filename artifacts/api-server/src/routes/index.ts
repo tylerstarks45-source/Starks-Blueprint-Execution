@@ -22,6 +22,7 @@ import buildEngineRouter from "./build-engine";
 import subscriptionsRouter from "./subscriptions";
 import creditsRouter from "./credits";
 import adminAiRouter from "./admin-ai";
+import dashboardRouter from "./dashboard";
 
 const router: IRouter = Router();
 
@@ -48,5 +49,6 @@ router.use(buildEngineRouter);
 router.use(subscriptionsRouter);
 router.use(creditsRouter);
 router.use(adminAiRouter);
+router.use(dashboardRouter);
 
 export default router;

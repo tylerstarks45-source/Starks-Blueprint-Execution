@@ -1,0 +1,30 @@
+[RUNTIME_ERROR]{"type":"runtime-error","timestamp":1780687955804,"name":"Error","message":"Failed to connect to MetaMask","stack":"    at Object.connect (chrome-extension://ejbalbakoplchlghecdalmeeeajnimhm/scripts/inpage.js:1:63510)\n    at async s (chrome-extension://ejbalbakoplchlghecdalmeeeajnimhm/scripts/inpage.js:1:61013)"}
+8:01:09 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserMySystemsPanel.jsx
+8:02:08 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserAIBuildAgentCard.jsx
+8:02:26 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserEarningsTrackingCard.jsx
+8:02:40 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserDashboardLayout.jsx
+8:04:32 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserMySystemsPanel.jsx
+8:04:33 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserBlueprintHealthCard.jsx
+8:04:39 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserAIBuildAgentCard.jsx
+8:29:44 PM [vite] (client) hmr update /src/pages/SystemBuilderPage.jsx, /src/index.css
+8:29:58 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserAutomationStatusCard.jsx
+8:30:11 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserMarketplaceToolsCard.jsx
+8:30:40 PM [vite] (client) hmr update /src/pages/LoginPage.jsx, /src/index.css
+8:31:39 PM [vite] (client) hmr update /src/pages/BlueprintDetailPage.jsx, /src/index.css
+8:32:10 PM [vite] (client) hmr update /src/pages/SystemBuilderPage.jsx, /src/index.css
+8:33:20 PM [vite] (client) hmr update /src/pages/BuildPage.jsx, /src/index.css
+8:34:41 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserDashboardLayout.jsx
+8:35:12 PM [vite] (client) hmr update /src/contexts/DashboardContext.jsx, /src/index.css
+8:35:12 PM [vite] (client) hmr invalidate /src/contexts/DashboardContext.jsx Could not Fast Refresh ("useDashboard" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+8:35:12 PM [vite] (client) hmr update /src/pages/DashboardPage.jsx, /src/components/dashboard/DashboardRouter.jsx
+8:35:26 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserActiveSystemsCard.jsx
+8:41:18 PM [vite] (client) hmr update /src/pages/BlueprintDetailPage.jsx, /src/index.css
+8:41:18 PM [vite] (client) hmr update /src/pages/SystemBuilderPage.jsx, /src/index.css
+8:41:19 PM [vite] (client) hmr update /src/components/dashboard/user/UserBlueprintLauncherCard.jsx, /src/index.css
+8:50:17 PM [vite] (client) hmr update /src/index.css, /src/components/dashboard/user/UserAIChatCard.jsx
+8:51:17 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
+8:51:19 PM [vite] (client) hmr update /src/App.jsx, /src/index.css (x2)
+8:51:35 PM [vite] (client) hmr update /src/pages/DashboardPage.jsx, /src/index.css
+8:51:39 PM [vite] (client) hmr update /src/pages/DashboardPage.jsx, /src/index.css (x2)
+8:51:48 PM [vite] (client) hmr update /src/components/dashboard/user/UserDashboardHeader.jsx, /src/index.css
+8:51:52 PM [vite] (client) hmr update /src/components/dashboard/user/UserDashboardHeader.jsx, /src/index.css (x2)

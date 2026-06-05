@@ -8,15 +8,19 @@ import {
   toolsTable,
   toolCategoriesTable,
   systemInstancesTable,
+  userCredentialsTable,
+  buildSessionsTable,
+  buildProgressTable,
   openrouterUsageTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
+import { hasCredits } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
 import { z } from "zod";
 
 const router: IRouter = Router();
 
-// ─── Knowledge Base Builder ─────────────────────────────────────────────────
+// ─── Platform Knowledge Base ─────────────────────────────────────────────────
 
 async function buildPlatformKnowledge() {
   const [blueprints, tools, toolCategories, blueprintCategories] = await Promise.all([
@@ -30,24 +34,32 @@ async function buildPlatformKnowledge() {
   const bpCatMap = Object.fromEntries(blueprintCategories.map((c) => [c.id, c.name]));
 
   const blueprintKB = blueprints.map((b) =>
-    `BLUEPRINT: ${b.name} (slug: ${b.slug})\n  Category: ${b.categoryId ? (bpCatMap[b.categoryId] ?? "General") : "General"}\n  Description: ${b.description ?? "AI automation system"}\n  Difficulty: ${b.difficulty}\n  Cost: ${b.estimatedCost ?? "Varies"}/mo\n  Setup Time: ${b.estimatedTime ?? "2-4 hours"}`
+    `BLUEPRINT: ${b.name} (slug: ${b.slug})
+  Category: ${b.categoryId ? (bpCatMap[b.categoryId] ?? "General") : "General"}
+  Description: ${b.description ?? "AI automation system"}
+  Difficulty: ${b.difficulty} | Cost: ${b.estimatedCost ?? "Varies"}/mo | Setup: ${b.estimatedTime ?? "2-4 hours"}`
   ).join("\n\n");
 
   const toolKB = tools.map((t) =>
-    `TOOL: ${t.name}\n  Category: ${t.categoryId ? (catMap[t.categoryId] ?? "General") : "General"}\n  Description: ${t.description ?? ""}\n  Pricing: ${t.pricing ?? "See site"}\n  Credentials: ${t.requiredCredentials?.join(", ") ?? "API Key"}`
+    `TOOL: ${t.name}
+  Category: ${t.categoryId ? (catMap[t.categoryId] ?? "General") : "General"}
+  Purpose: ${t.description ?? ""}
+  Credentials Needed: ${t.requiredCredentials?.join(", ") ?? "API Key"}`
   ).join("\n\n");
 
   return { blueprints, tools, toolCategories, blueprintKB, toolKB };
 }
 
-// ─── STARK Orchestrator System Prompt ───────────────────────────────────────
+// ─── STARK Autonomous Builder System Prompt ──────────────────────────────────
 
 function buildSystemPrompt(blueprintKB: string, toolKB: string) {
-  return `You are STARK — the AI Orchestrator powering the Starks Blueprint Execution Platform (SBEP).
+  return `You are STARK — the Autonomous System Builder for the Starks Blueprint Execution Platform.
 
-You are NOT a chatbot. You are the operating system that powers automated income systems for users.
+YOU ARE NOT A CHATBOT. YOU ARE AN EXECUTION ENGINE.
 
-Your mission: analyze user goals → match blueprints → define tool stacks → guide step-by-step builds.
+Your role: When a user states an income goal, you select the optimal blueprint, identify the minimum required credentials, and build the system automatically. The user does nothing except provide their goal and credentials. You do everything else.
+
+NEVER say "you need to set up X" or "here's how to do Y". Say "I'm building X for you" and "I need your Y credential to proceed."
 
 === PLATFORM KNOWLEDGE BASE ===
 
@@ -57,43 +69,72 @@ ${blueprintKB}
 --- TOOL STACK ---
 ${toolKB}
 
-=== RESPONSE RULES ===
-1. Always analyze the user's goal and recommend the BEST matching blueprint from the list above
-2. Always include a <SBEP_DATA> block with structured JSON so the UI can render action cards
-3. Be direct, confident, and enterprise-grade — no fluff
-4. Recommend concrete next steps and specific tools with their credential requirements
-5. Match income goals to blueprints using the descriptions above
+=== EXECUTION PROTOCOL ===
 
-=== STRUCTURED OUTPUT FORMAT ===
-Wrap JSON in <SBEP_DATA>...</SBEP_DATA> at the end of every response:
+STEP 1 — When user states a goal:
+- Instantly select the best matching blueprint
+- Determine which tools are required for that blueprint
+- Identify the minimum credentials needed (only what is truly required)
+- Return action: "collect_credentials" with exactly those credentials listed
+
+STEP 2 — When user confirms credentials are provided:
+- Do NOT ask for anything else
+- Return action: "start_build" immediately
+
+STEP 3 — For general questions (not a build goal):
+- Answer briefly
+- Return action: "general"
+
+=== CREDENTIAL REFERENCE ===
+Common credentials by tool type:
+- AI tools (OpenRouter, etc): API key from provider dashboard
+- Email tools (Resend, SendGrid): API key
+- Automation (Make.com, Zapier): API key or webhook URL
+- Social (TikTok, YouTube, Meta): Account cookie or OAuth token
+- Commerce (Shopify, Stripe): API key + secret
+- Analytics (Google): Service account JSON or API key
+
+=== RESPONSE FORMAT ===
+Write 1-2 confident sentences then close with a <SBEP_DATA> block.
 
 <SBEP_DATA>
 {
-  "type": "recommendation",
-  "recommendation": {
-    "blueprintSlug": "exact-slug-from-above",
-    "blueprintName": "Blueprint Name",
-    "matchScore": 92,
-    "reasoning": "Why this blueprint fits the goal",
-    "estimatedCost": "$47/mo",
-    "estimatedTime": "3 hours setup"
-  },
-  "requiredTools": [
-    { "name": "Tool Name", "purpose": "What it does in this system", "credentialRequired": "API Key" }
-  ],
-  "nextSteps": [
-    "Step 1: Connect OpenRouter API",
-    "Step 2: Set up Make.com account",
-    "Step 3: Launch automation"
-  ],
-  "cta": {
-    "label": "Build This Blueprint",
-    "blueprintSlug": "exact-slug-from-above"
-  }
+  "action": "collect_credentials",
+  "blueprint": { "slug": "exact-slug-from-blueprints-above", "name": "Blueprint Name" },
+  "systemName": "Descriptive name for this user's system",
+  "requiredCredentials": [
+    {
+      "key": "UNIQUE_ENV_KEY",
+      "label": "Human Readable Label",
+      "description": "Where to get this credential and why it's needed",
+      "credentialType": "api_key",
+      "toolName": "Tool Name"
+    }
+  ]
 }
 </SBEP_DATA>
 
-If the user is asking a general question (not about a specific goal), set "type": "general" and omit "recommendation" and "cta".`;
+For general responses:
+<SBEP_DATA>
+{ "action": "general" }
+</SBEP_DATA>
+
+For confirming build start (after credentials submitted):
+<SBEP_DATA>
+{ "action": "start_build", "blueprint": { "slug": "...", "name": "..." }, "systemName": "..." }
+</SBEP_DATA>
+
+IMPORTANT: Only request credentials that are strictly necessary for the selected blueprint's core functionality. Never request more than 4 credentials. Less is better.`;
+}
+
+function defaultBuildPlan(blueprintName: string): string[] {
+  return [
+    `Initialize ${blueprintName} core infrastructure and validate service connections`,
+    `Configure AI engine and content generation pipeline`,
+    `Build automation workflows and scheduling triggers`,
+    `Test full pipeline end-to-end and validate outputs`,
+    `Deploy live system and activate monitoring`,
+  ];
 }
 
 // ─── POST /api/ai-orchestrator/chat ─────────────────────────────────────────
@@ -121,7 +162,7 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     const { blueprintKB, toolKB } = await buildPlatformKnowledge();
 
     const historyCtx = parsed.data.history.length > 0
-      ? "\n\n--- CONVERSATION HISTORY ---\n" +
+      ? "\n\nConversation so far:\n" +
         parsed.data.history.map((h) => `${h.role === "user" ? "User" : "STARK"}: ${h.content}`).join("\n")
       : "";
 
@@ -139,16 +180,12 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     const displayContent = raw.replace(/<SBEP_DATA>[\s\S]*?<\/SBEP_DATA>/g, "").trim();
 
     if (dataMatch) {
-      try {
-        structuredData = JSON.parse(dataMatch[1].trim());
-      } catch {
-        // structured parse failed — UI will just show plain text
-      }
+      try { structuredData = JSON.parse(dataMatch[1].trim()); } catch { /* ignored */ }
     }
 
     res.json({ content: displayContent, structuredData, tokens: result.totalTokens });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Orchestrator request failed";
+    const message = err instanceof Error ? err.message : "STARK request failed";
     if ((err as { code?: string })?.code === "out_of_credits") {
       res.status(402).json({ error: message, code: "out_of_credits" });
       return;
@@ -158,62 +195,130 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
   }
 });
 
-// ─── POST /api/ai-orchestrator/recommend ────────────────────────────────────
+// ─── POST /api/ai-orchestrator/execute ──────────────────────────────────────
+// Creates system instance, stores credentials, generates build plan, creates session/steps.
+// Returns everything the frontend needs to auto-execute each build step.
 
-router.post("/ai-orchestrator/recommend", async (req, res): Promise<void> => {
+router.post("/ai-orchestrator/execute", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
-  const schema = z.object({ goal: z.string().min(1).max(1000) });
+  const schema = z.object({
+    blueprintSlug: z.string().min(1),
+    systemName: z.string().min(1).optional(),
+    credentials: z.array(z.object({
+      key: z.string().min(1),
+      value: z.string().min(1),
+      toolName: z.string().optional(),
+    })).default([]),
+  });
+
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
 
-  try {
-    const { blueprintKB, toolKB, blueprints } = await buildPlatformKnowledge();
-
-    const result = await complete({
-      systemPrompt: `You are SBEP's recommendation engine. Return ONLY valid JSON — no prose, no markdown.
-
-Platform blueprints:
-${blueprintKB}
-
-Platform tools:
-${toolKB}`,
-      prompt: `User goal: "${parsed.data.goal}"
-
-Return JSON matching this schema exactly:
-{
-  "blueprintSlug": "exact-slug",
-  "blueprintName": "name",
-  "matchScore": 0-100,
-  "reasoning": "one sentence why this fits",
-  "requiredTools": [{"name":"...","purpose":"...","credentialRequired":"..."}],
-  "buildSteps": ["Step 1: ...","Step 2: ...","Step 3: ...","Step 4: ...","Step 5: ..."],
-  "estimatedCost": "$/mo",
-  "estimatedSetupTime": "X hours",
-  "expectedOutcome": "concrete result"
-}`,
-      model: "openai/gpt-4o-mini",
-      userId,
-    });
-
-    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      res.status(500).json({ error: "AI returned unparseable response" });
-      return;
-    }
-
-    const recommendation = JSON.parse(jsonMatch[0]);
-    const matchedBlueprint = blueprints.find((b) => b.slug === recommendation.blueprintSlug);
-
-    res.json({ ...recommendation, blueprint: matchedBlueprint ? serialize(matchedBlueprint) : null });
-  } catch (err) {
-    req.log.error({ err }, "AI orchestrator recommend error");
-    res.status(500).json({ error: err instanceof Error ? err.message : "Recommendation failed" });
+  // 1. Resolve blueprint
+  const [blueprint] = await db.select().from(blueprintsTable)
+    .where(eq(blueprintsTable.slug, parsed.data.blueprintSlug));
+  if (!blueprint) {
+    res.status(404).json({ error: `Blueprint "${parsed.data.blueprintSlug}" not found` });
+    return;
   }
+
+  // 2. Create system instance
+  const [instance] = await db.insert(systemInstancesTable).values({
+    userId,
+    blueprintId: blueprint.id,
+    name: parsed.data.systemName ?? `My ${blueprint.name}`,
+    buildStatus: "building",
+  }).returning();
+
+  // 3. Persist credentials (base64 stored in encryptedValue field)
+  if (parsed.data.credentials.length > 0) {
+    await Promise.all(
+      parsed.data.credentials.map((cred) =>
+        db.insert(userCredentialsTable).values({
+          userId,
+          credentialKey: cred.key,
+          encryptedValue: Buffer.from(cred.value).toString("base64"),
+        })
+      )
+    );
+  }
+
+  // 4. Generate build plan via AI (fall back to defaults if out of credits)
+  const allCategories = await db.select().from(toolCategoriesTable);
+  const allTools = await db.select().from(toolsTable).where(eq(toolsTable.activeStatus, true));
+  const categoryList = allCategories.map((c) => `ID:${c.id} NAME:${c.name}`).join("\n");
+
+  let buildPlan: string[] = [];
+  let selectedCategoryIds: number[] = [];
+
+  const creditsOk = await hasCredits(userId);
+  if (creditsOk) {
+    try {
+      const planResult = await complete({
+        systemPrompt: `You are SBEP's build planner. Return ONLY valid JSON — no prose.
+Available tool categories:
+${categoryList}
+Return: {"categoryIds":[1,3],"buildPlan":["Step 1: ...","Step 2: ...","Step 3: ...","Step 4: ...","Step 5: ..."]}`,
+        prompt: `Blueprint: ${blueprint.name}\nDescription: ${blueprint.description ?? ""}\nDifficulty: ${blueprint.difficulty}\nGenerate a specific 5-step autonomous build plan.`,
+        model: "openai/gpt-4o-mini",
+        userId,
+        systemInstanceId: instance.id,
+      });
+
+      const jm = planResult.content.match(/\{[\s\S]*\}/);
+      if (jm) {
+        const d = JSON.parse(jm[0]);
+        selectedCategoryIds = Array.isArray(d.categoryIds) ? d.categoryIds.map(Number).filter(Boolean) : [];
+        buildPlan = Array.isArray(d.buildPlan) ? d.buildPlan : [];
+      }
+    } catch { /* fall through to defaults */ }
+  }
+
+  if (buildPlan.length === 0) buildPlan = defaultBuildPlan(blueprint.name);
+
+  // 5. Determine required tools
+  const categoryMap = Object.fromEntries(allCategories.map((c) => [c.id, c.name]));
+  const requiredTools = selectedCategoryIds.length > 0
+    ? allTools.filter((t) => t.categoryId != null && selectedCategoryIds.includes(t.categoryId!))
+    : allTools.filter((t) => t.affiliateLink).slice(0, 6);
+  const toolsWithCategory = requiredTools.map((t) => ({
+    ...t,
+    categoryName: t.categoryId ? (categoryMap[t.categoryId] ?? "General") : "General",
+  }));
+
+  // 6. Create build session + progress steps
+  const [session] = await db.insert(buildSessionsTable).values({
+    systemInstanceId: instance.id,
+    status: "active",
+    currentStepNumber: 1,
+  }).returning();
+
+  const steps = await Promise.all(
+    buildPlan.map((stepText, idx) =>
+      db.insert(buildProgressTable).values({
+        buildSessionId: session.id,
+        stepNumber: idx + 1,
+        status: idx === 0 ? "in_progress" : "pending",
+        notes: stepText,
+      }).returning().then(([row]) => row)
+    )
+  );
+
+  req.log.info({ userId, instanceId: instance.id, blueprint: blueprint.slug }, "Autonomous build initiated");
+
+  res.status(201).json({
+    instanceId: instance.id,
+    sessionId: session.id,
+    steps: serialize(steps),
+    blueprint: serialize(blueprint),
+    requiredTools: serialize(toolsWithCategory),
+    buildPlan,
+  });
 });
 
 // ─── GET /api/ai-orchestrator/readiness ─────────────────────────────────────
@@ -238,7 +343,7 @@ router.get("/ai-orchestrator/readiness", async (req, res): Promise<void> => {
   };
 
   const missing: string[] = [];
-  if (!caps.openrouterConnected) missing.push("OpenRouter API Key — required for all AI features");
+  if (!caps.openrouterConnected) missing.push("OpenRouter API Key");
 
   res.json({
     capabilities: caps,
@@ -283,18 +388,12 @@ router.get("/ai-orchestrator/platform-stats", async (req, res): Promise<void> =>
     openrouter: {
       name: "OpenRouter AI",
       status: process.env.OPENROUTER_API_KEY ? "operational" : "degraded",
-      description: "AI completion & orchestration engine",
+      description: "AI completion & autonomous build engine",
     },
-    database: {
-      name: "Database",
-      status: "operational",
-      description: "PostgreSQL — all tables healthy",
-    },
+    database: { name: "Database", status: "operational", description: "PostgreSQL — all tables healthy" },
     stripe: {
       name: "Stripe",
-      status: (process.env.STRIPE_SECRET_KEY ?? process.env.STRIPE_PUBLISHABLE_KEY)
-        ? "operational"
-        : "not_configured",
+      status: (process.env.STRIPE_SECRET_KEY ?? process.env.STRIPE_PUBLISHABLE_KEY) ? "operational" : "not_configured",
       description: "Payments & subscription management",
     },
   };

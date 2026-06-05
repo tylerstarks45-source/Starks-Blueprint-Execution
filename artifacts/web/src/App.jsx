@@ -40,6 +40,7 @@ import MyStackPage from '@/pages/MyStackPage.jsx';
 import UpdatesPage from '@/pages/UpdatesPage.jsx';
 import PasswordResetPage from '@/pages/PasswordResetPage.jsx';
 import VerifyEmailPage from '@/pages/VerifyEmailPage.jsx';
+import SystemCommandCenterPage from '@/pages/SystemCommandCenterPage.jsx';
 
 const NotFoundPage = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 text-center">
@@ -121,6 +122,11 @@ const App = () => {
           <Route path="/build/:systemInstanceId" element={
             <ProtectedRoute>
               <BuildPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/system-stats" element={
+            <ProtectedRoute>
+              <DashboardPage commandCenter />
             </ProtectedRoute>
           } />
           <Route path="/pricing" element={<PricingPage />} />

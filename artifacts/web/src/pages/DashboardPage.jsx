@@ -7,6 +7,7 @@ import DashboardRouter from '@/components/dashboard/DashboardRouter.jsx';
 import { DashboardProvider } from '@/contexts/DashboardContext.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Crown, ShieldCheck } from 'lucide-react';
+import SystemCommandCenterPage from '@/pages/SystemCommandCenterPage.jsx';
 import VideoBackground from '@/components/VideoBackground.jsx';
 
 const DashboardHeaderInner = () => {
@@ -42,18 +43,18 @@ const DashboardHeaderInner = () => {
   );
 };
 
-const DashboardPage = () => {
+const DashboardPage = ({ commandCenter = false }) => {
   return (
     <DashboardProvider>
       <VideoBackground>
-        <Helmet><title>Command Center | Starks Global Group</title></Helmet>
+        <Helmet><title>{commandCenter ? 'System Command Center' : 'Command Center'} | Starks Global Group</title></Helmet>
         <Header />
         
         <main className="flex-grow pt-8 pb-24 px-4 sm:px-6 lg:px-8 container mx-auto max-w-[1400px]">
           <DashboardHeaderInner />
           
           <section className="pt-2">
-            <DashboardRouter />
+            {commandCenter ? <SystemCommandCenterPage /> : <DashboardRouter />}
           </section>
         </main>
         

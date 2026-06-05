@@ -23,6 +23,7 @@ import subscriptionsRouter from "./subscriptions";
 import creditsRouter from "./credits";
 import adminAiRouter from "./admin-ai";
 import dashboardRouter from "./dashboard";
+import aiOrchestratorRouter from "./ai-orchestrator";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use(subscriptionsRouter);
 router.use(creditsRouter);
 router.use(adminAiRouter);
 router.use(dashboardRouter);
+router.use(aiOrchestratorRouter);
 
 export default router;

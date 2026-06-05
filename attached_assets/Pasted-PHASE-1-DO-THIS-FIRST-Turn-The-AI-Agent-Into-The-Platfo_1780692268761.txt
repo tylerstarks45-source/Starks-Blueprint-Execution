@@ -1,0 +1,293 @@
+PHASE 1 (DO THIS FIRST)
+Turn The AI Agent Into The Platform Brain
+
+Send this to Replit AI:
+
+STARKS PLATFORM — AI ORCHESTRATOR UPGRADE
+
+Before any additional UI work is performed, conduct a full audit of the AI Agent architecture.
+
+The AI Agent must become the central orchestrator of the entire platform.
+
+Do NOT treat the AI Agent as a chatbot.
+
+Treat it as the operating system that powers the entire platform.
+
+Required AI Agent Knowledge Base
+
+The AI Agent must have access to:
+
+Marketplace Products
+
+Every product in the marketplace.
+
+For each product it must understand:
+
+Product name
+Category
+Purpose
+Income model
+Required tools
+Required accounts
+Setup process
+Monthly costs
+Skill level
+Automation level
+Expected outcomes
+Blueprints
+
+The AI must know:
+
+Every blueprint
+Every workflow
+Every setup requirement
+Every external account required
+Every API required
+Every automation required
+Every traffic source required
+Tool Stack Database
+
+The AI must know every tool used by every blueprint.
+
+Examples:
+
+OpenRouter
+Stripe
+Resend
+Make.com
+Zapier
+Cloudflare
+Shopify
+TikTok
+Meta
+YouTube
+Google Workspace
+Domains
+Hosting
+
+For every tool it must know:
+
+What it does
+Why it is needed
+How it connects
+Required credentials
+Setup order
+AI Recommendation Engine
+
+When a user enters:
+
+"I want to make money with affiliate marketing"
+
+The AI should automatically:
+
+Analyze goals
+Match blueprints
+Match tool stack
+Match marketplace products
+Build implementation plan
+
+Return:
+
+Recommended Blueprint
+
+Required Tools
+
+Estimated Cost
+
+Estimated Setup Time
+
+Expected Outcome
+
+AI Guided Build Mode
+
+When a user selects a blueprint:
+
+The AI should automatically generate:
+
+Required Tool Stack
+
+Example:
+
+TikTok Affiliate Engine
+
+Required:
+
+OpenRouter
+Make.com
+Google Sheets
+TikTok Account
+Pictory
+Required Credentials
+
+Example:
+
+OpenRouter API Key
+
+Status:
+Connected / Missing
+
+TikTok Account
+
+Status:
+Connected / Missing
+
+Connection Checklist
+
+Show:
+
+Connected
+
+Missing
+
+Pending
+
+Needs Verification
+
+Guided Setup Wizard
+
+The AI should guide the user step-by-step.
+
+Example:
+
+Step 1:
+Connect OpenRouter
+
+Step 2:
+Connect TikTok
+
+Step 3:
+Connect Make.com
+
+Step 4:
+Generate Content Engine
+
+Step 5:
+Launch System
+
+AI Memory
+
+The AI must remember:
+
+User goals
+Active systems
+Connected tools
+Previous builds
+Marketplace purchases
+Blueprint history
+AI Readiness Audit
+
+Generate a report showing:
+
+Current AI capabilities
+Missing connections
+Missing marketplace integrations
+Missing blueprint knowledge
+Missing tool-stack knowledge
+Missing credential management
+
+Then implement everything necessary to make the AI Agent the central orchestrator of the platform.
+
+PHASE 2 (AFTER AI IS COMPLETE)
+
+Once the AI Orchestrator is fully operational:
+
+Build a new authenticated page:
+
+System Command Center
+
+Route:
+
+/dashboard/system-stats
+
+This page should show:
+
+Revenue Metrics
+Total Revenue
+Revenue Today
+Revenue This Month
+Revenue Per System
+Revenue By Blueprint
+System Performance
+Active Systems
+Systems Building
+Systems Running
+Systems Paused
+Failed Systems
+AI Activity
+AI Actions
+AI Recommendations
+Builds Generated
+Credits Used
+Credits Remaining
+Tool Health
+Stripe
+OpenRouter
+Resend
+Cloudflare
+Database
+Storage
+Automation Engine
+
+Green / Yellow / Red status.
+
+Connection Hub
+
+Display all connected services.
+
+Examples:
+
+Stripe
+OpenRouter
+Resend
+Cloudflare
+TikTok
+Meta
+YouTube
+Shopify
+Blueprint Analytics
+
+For every deployed blueprint show:
+
+Status
+Revenue
+Traffic
+Conversions
+Connected tools
+Last activity
+Design Requirements
+
+The page must feel like:
+
+OpenAI
+Linear
+Vercel
+Stripe
+
+combined together.
+
+Professional.
+
+Minimal.
+
+Enterprise.
+
+No placeholder cards.
+
+No fake data.
+
+No empty widgets.
+
+Everything must be powered by real platform data.
+
+This sequence is important:
+
+1. AI Orchestrator
+→ Make the AI truly understand the platform.
+
+2. Guided Build System
+→ Make it walk users through tool connections.
+
+3. System Command Center
+→ Show users what their systems are doing and earning.
+
+That creates a platform where users can discover a blueprint, connect tools, build the system, manage the system, and monitor performance all from inside the dashboard.

@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import pb from '@/lib/pocketbaseClient';
 
 export const useSystemGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -19,32 +18,27 @@ export const useSystemGenerator = () => {
     setAiSuggestion(null);
 
     try {
-      // Fetch all published blueprints from our API
-      const blueprints = await pb.collection('blueprints').getFullList({
-        $autoCancel: false
-      });
+      const bpRes = await fetch('/api/blueprints');
+      const blueprints = bpRes.ok ? await bpRes.json() : [];
 
       if (!blueprints || blueprints.length === 0) {
         setResults([]);
         return;
       }
 
-      // Build a compact blueprint list for the AI prompt
       const bpList = blueprints.map(bp =>
         `ID:${bp.id} | SLUG:${bp.slug} | NAME:${bp.name} | DIFFICULTY:${bp.difficulty} | DESC:${bp.description}`
       ).join('\n');
 
-      // Ask OpenRouter to pick the best matching blueprints
       let aiMatches = null;
       try {
+        const token = localStorage.getItem('sbep_auth_token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         const response = await fetch('/api/openrouter/complete', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(localStorage.getItem('sbep_auth_token')
-              ? { Authorization: `Bearer ${localStorage.getItem('sbep_auth_token')}` }
-              : {}),
-          },
+          headers,
           body: JSON.stringify({
             systemPrompt: `You are SBEP's AI architect. Given a user's business goal, select the 1-3 MOST RELEVANT blueprints from the list below. 
 Return ONLY a JSON array of blueprint IDs like: [1, 5, 3]
@@ -62,7 +56,6 @@ Return ONLY the JSON array of matching blueprint IDs (e.g. [2, 7]).`,
         if (response.ok) {
           const data = await response.json();
           const content = data.content || '';
-          // Extract JSON array from response
           const match = content.match(/\[[\d,\s]+\]/);
           if (match) {
             const ids = JSON.parse(match[0]);
@@ -71,13 +64,12 @@ Return ONLY the JSON array of matching blueprint IDs (e.g. [2, 7]).`,
           }
         }
       } catch (aiErr) {
-        console.warn('AI matching unavailable, falling back to keyword search:', aiErr.message);
+        console.warn('AI matching unavailable, falling back to keyword search');
       }
 
       if (aiMatches && aiMatches.length > 0) {
         setResults(aiMatches);
       } else {
-        // Fallback: keyword matching
         const keywords = query.toLowerCase().split(' ').filter(w => w.length > 2);
         const matched = blueprints.filter(bp => {
           const text = `${bp.name} ${bp.description} ${bp.slug}`.toLowerCase();
@@ -86,18 +78,11 @@ Return ONLY the JSON array of matching blueprint IDs (e.g. [2, 7]).`,
         setResults(matched.length > 0 ? matched : blueprints.slice(0, 3));
       }
     } catch (err) {
-      console.error('Error generating system:', err);
       setError('Failed to generate system. Please try again.');
     } finally {
       setIsGenerating(false);
     }
   }, []);
 
-  return {
-    generateSystem,
-    isGenerating,
-    results,
-    aiSuggestion,
-    error,
-  };
+  return { generateSystem, isGenerating, results, aiSuggestion, error };
 };

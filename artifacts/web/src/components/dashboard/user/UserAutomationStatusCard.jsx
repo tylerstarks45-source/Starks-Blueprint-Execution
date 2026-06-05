@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, CheckCircle2, Clock, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import pb from '@/lib/pocketbaseClient.js';
+
+const authHeaders = () => {
+  const token = localStorage.getItem('sbep_auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 const STATUS_ICON = {
   completed: <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />,
@@ -19,18 +23,14 @@ const UserAutomationStatusCard = () => {
     if (!currentUser?.id) return;
     const load = async () => {
       try {
-        // Get user's system instances, then find latest build session steps
-        const systems = await pb.collection('system_instances').getList(1, 5, {
-          filter: `userId="${currentUser.id}"`,
-          sort: '-createdAt',
-        });
-        const ids = (systems.items || []).map(s => s.id);
+        const siRes = await fetch('/api/system-instances', { headers: authHeaders() });
+        const systems = siRes.ok ? await siRes.json() : [];
+        const ids = (Array.isArray(systems) ? systems : []).map(s => s.id);
+
         if (ids.length === 0) { setIsLoading(false); return; }
 
-        // Fetch build sessions for these instances
-        const token = localStorage.getItem('sbep_auth_token');
         const promises = ids.slice(0, 2).map(id =>
-          fetch(`/api/build-engine/${id}/status`, { headers: { Authorization: `Bearer ${token}` } })
+          fetch(`/api/build-engine/${id}/status`, { headers: authHeaders() })
             .then(r => r.ok ? r.json() : null)
         );
         const results = (await Promise.all(promises)).filter(Boolean);
@@ -73,6 +73,7 @@ const UserAutomationStatusCard = () => {
           <div className="flex flex-col items-center justify-center h-full text-center py-6">
             <Activity className="w-8 h-8 text-muted-foreground/30 mb-3" />
             <p className="text-sm text-muted-foreground">No build activity yet.</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Start building a blueprint to see activity here.</p>
           </div>
         ) : (
           <div className="space-y-4">

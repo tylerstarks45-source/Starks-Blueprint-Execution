@@ -1,39 +1,42 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import pb from '@/lib/pocketbaseClient';
 
 const DashboardContext = createContext();
 
 export const useDashboard = () => useContext(DashboardContext);
 
 export const DashboardProvider = ({ children }) => {
-  // Initialize synchronously to prevent blocking the initial render
-  const initialRole = pb.authStore.model?.role || localStorage.getItem('userRole') || 'USER';
-  
-  const [isLoading, setIsLoading] = useState(false); // Default to false so UI renders immediately
+  const initialRole = localStorage.getItem('userRole') || 'USER';
+
+  const [isLoading, setIsLoading] = useState(false);
   const [role, setRole] = useState(initialRole);
   const hasInitialized = useRef(false);
 
   useEffect(() => {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
-    
-    console.log('DashboardContext: Initialized once on mount');
-    
-    // Double check role on mount in case it changed
-    const currentRole = pb.authStore.model?.role || localStorage.getItem('userRole') || 'USER';
-    if (currentRole !== role) {
-      setRole(currentRole);
-    }
-  }, [role]);
 
-  const updateDashboardState = useCallback((newState) => {
-    console.log('Dashboard state updated', newState);
+    const token = localStorage.getItem('sbep_auth_token');
+    if (!token) return;
+
+    fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(user => {
+        if (user?.role) {
+          setRole(user.role);
+          localStorage.setItem('userRole', user.role);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const updateDashboardState = useCallback(() => {}, []);
 
   const value = useMemo(() => ({
     role,
     isLoading,
-    updateDashboardState
+    updateDashboardState,
   }), [role, isLoading, updateDashboardState]);
 
   return (

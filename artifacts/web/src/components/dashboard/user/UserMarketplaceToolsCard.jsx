@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ShoppingBag, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import pb from '@/lib/pocketbaseClient.js';
 
 const initials = (name) =>
   (name || '?')
@@ -27,10 +26,13 @@ const UserMarketplaceToolsCard = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [cats, tools] = await Promise.all([
-          pb.collection('tool_categories').getFullList({ $autoCancel: false }).catch(() => []),
-          pb.collection('tools').getFullList({ $autoCancel: false }).catch(() => []),
+        const [catsRes, toolsRes] = await Promise.all([
+          fetch('/api/tool-categories').catch(() => null),
+          fetch('/api/tools').catch(() => null),
         ]);
+
+        const cats = catsRes?.ok ? await catsRes.json() : [];
+        const tools = toolsRes?.ok ? await toolsRes.json() : [];
 
         const counts = {};
         (Array.isArray(tools) ? tools : []).forEach((t) => {
@@ -71,7 +73,7 @@ const UserMarketplaceToolsCard = () => {
             categories.map((cat, i) => (
               <Link
                 key={cat.id}
-                to={`/marketplace?category=${encodeURIComponent(cat.name)}`}
+                to={`/marketplace`}
                 className="p-3 rounded-lg border border-border/50 bg-muted/5 flex items-center gap-3 hover:bg-muted/20 transition-colors"
               >
                 <div className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 ${ACCENTS[i % ACCENTS.length]}`}>

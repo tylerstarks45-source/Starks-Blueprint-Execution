@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Layers, ArrowRight, RefreshCw, Zap, Clock, AlertTriangle,
   CheckCircle2, Pause, RotateCcw, Search, SlidersHorizontal,
-  Server, Plus,
+  Server, Plus, MoreVertical, Pencil, Play, Trash2, X, Check,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -59,7 +59,74 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const SystemRow = ({ system, onView, onRebuild }) => {
+const OverflowMenu = ({ system, onRename, onTogglePause, onDelete, busy }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const isPaused = (system.buildStatus || '').toLowerCase() === 'paused';
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const act = (fn) => { setOpen(false); fn(); };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        disabled={busy}
+        className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all disabled:opacity-40"
+        aria-label="System actions"
+      >
+        <MoreVertical className="w-3.5 h-3.5" />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+            transition={{ duration: 0.1 }}
+            className="absolute right-0 top-full mt-1.5 z-50 min-w-[160px] rounded-xl bg-zinc-900 border border-white/10 shadow-xl shadow-black/40 overflow-hidden"
+          >
+            <button
+              onClick={() => act(onRename)}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-white/6 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+              Rename
+            </button>
+            <button
+              onClick={() => act(onTogglePause)}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-white/6 transition-colors"
+            >
+              {isPaused
+                ? <><Play className="w-3.5 h-3.5 text-emerald-400" />Resume</>
+                : <><Pause className="w-3.5 h-3.5 text-amber-400" />Pause</>
+              }
+            </button>
+            <div className="mx-3 my-1 h-px bg-white/8" />
+            <button
+              onClick={() => act(onDelete)}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-rose-400 hover:bg-rose-400/8 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const SystemRow = ({ system, onView, onRebuild, onRename, onTogglePause, onDelete, busy }) => {
   const canRebuild = REBUILD_STATUSES.has((system.buildStatus || '').toLowerCase());
   const updatedAt = system.updatedAt || system.createdAt;
 
@@ -67,7 +134,7 @@ const SystemRow = ({ system, onView, onRebuild }) => {
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 px-5 py-4 rounded-xl border border-white/8 bg-black/40 backdrop-blur-md hover:bg-white/3 hover:border-white/15 transition-all"
+      className="group grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-4 rounded-xl border border-white/8 bg-black/40 backdrop-blur-md hover:bg-white/3 hover:border-white/15 transition-all"
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
@@ -104,7 +171,163 @@ const SystemRow = ({ system, onView, onRebuild }) => {
         View
         <ArrowRight className="w-3 h-3" />
       </button>
+
+      <OverflowMenu
+        system={system}
+        onRename={() => onRename(system)}
+        onTogglePause={() => onTogglePause(system)}
+        onDelete={() => onDelete(system)}
+        busy={busy}
+      />
     </motion.div>
+  );
+};
+
+const RenameModal = ({ system, onClose, onSave }) => {
+  const [value, setValue] = useState(system.systemName || system.name || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => { inputRef.current?.focus(); inputRef.current?.select(); }, []);
+
+  const handleSave = async () => {
+    const trimmed = value.trim();
+    if (!trimmed) { setError('Name cannot be empty'); return; }
+    if (trimmed === (system.systemName || system.name || '')) { onClose(); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/system-instances/${system.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ systemName: trimmed }),
+      });
+      if (!res.ok) throw new Error('Failed to rename');
+      const updated = await res.json();
+      onSave(updated);
+    } catch (e) {
+      setError(e.message || 'Could not rename system');
+      setSaving(false);
+    }
+  };
+
+  const handleKey = (e) => {
+    if (e.key === 'Enter') handleSave();
+    if (e.key === 'Escape') onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        className="relative w-full max-w-sm rounded-2xl bg-zinc-900 border border-white/10 p-6 shadow-2xl shadow-black/60"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-bold font-mono text-foreground">Rename System</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={e => { setValue(e.target.value); setError(''); }}
+          onKeyDown={handleKey}
+          maxLength={100}
+          placeholder="System name…"
+          className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/40 focus:bg-white/8 transition-all mb-3"
+        />
+        {error && <p className="text-xs text-rose-400 font-mono mb-3">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-muted-foreground hover:text-foreground transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-all"
+          >
+            {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            Save
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const DeleteConfirmModal = ({ system, onClose, onConfirm }) => {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/system-instances/${system.id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      if (!res.ok && res.status !== 204) throw new Error('Failed to delete');
+      onConfirm(system.id);
+    } catch (e) {
+      setError(e.message || 'Could not delete system');
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        className="relative w-full max-w-sm rounded-2xl bg-zinc-900 border border-white/10 p-6 shadow-2xl shadow-black/60"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-rose-400/10 border border-rose-400/20 flex items-center justify-center shrink-0">
+            <Trash2 className="w-5 h-5 text-rose-400" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold font-mono text-foreground">Delete System</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">This action cannot be undone.</p>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground mb-5">
+          Are you sure you want to delete{' '}
+          <span className="text-foreground font-semibold">
+            {system.systemName || system.name || 'this system'}
+          </span>
+          ? All activity and data for this system will be permanently removed.
+        </p>
+        {error && <p className="text-xs text-rose-400 font-mono mb-3">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-muted-foreground hover:text-foreground transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 disabled:opacity-50 transition-all"
+          >
+            {deleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            Delete
+          </button>
+        </div>
+      </motion.div>
+    </div>
   );
 };
 
@@ -124,6 +347,10 @@ const SystemsListPage = () => {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [busyId, setBusyId] = useState(null);
+
+  const [renameTarget, setRenameTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -155,6 +382,35 @@ const SystemsListPage = () => {
   const handleRebuild = (system) => {
     const params = system.blueprintId ? `?blueprintId=${system.blueprintId}` : '';
     navigate(`/builder${params}`);
+  };
+
+  const handleTogglePause = async (system) => {
+    const isPaused = (system.buildStatus || '').toLowerCase() === 'paused';
+    const newStatus = isPaused ? 'active' : 'paused';
+    setBusyId(system.id);
+    try {
+      const res = await fetch(`/api/system-instances/${system.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ buildStatus: newStatus }),
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      const updated = await res.json();
+      setSystems(prev => prev.map(s => s.id === system.id ? { ...s, ...updated } : s));
+    } catch {
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleRenameSave = (updated) => {
+    setSystems(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s));
+    setRenameTarget(null);
+  };
+
+  const handleDeleteConfirm = (deletedId) => {
+    setSystems(prev => prev.filter(s => s.id !== deletedId));
+    setDeleteTarget(null);
   };
 
   const totalActive = systems.filter(s => ['active', 'building', 'running', 'completed'].includes((s.buildStatus || '').toLowerCase())).length;
@@ -296,11 +552,12 @@ const SystemsListPage = () => {
         ) : (
           <div className="space-y-2">
             {/* Table header */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 px-5 py-2">
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-2">
               <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40">System</span>
               <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40">Status</span>
               <span className="hidden sm:block text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40">Updated</span>
               <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 w-[76px]"></span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40"></span>
               <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40"></span>
             </div>
 
@@ -315,6 +572,10 @@ const SystemsListPage = () => {
                   system={system}
                   onView={handleView}
                   onRebuild={handleRebuild}
+                  onRename={setRenameTarget}
+                  onTogglePause={handleTogglePause}
+                  onDelete={setDeleteTarget}
+                  busy={busyId === system.id}
                 />
               </motion.div>
             ))}
@@ -326,6 +587,26 @@ const SystemsListPage = () => {
         )}
       </main>
       <Footer />
+
+      {/* Modals */}
+      <AnimatePresence>
+        {renameTarget && (
+          <RenameModal
+            key="rename"
+            system={renameTarget}
+            onClose={() => setRenameTarget(null)}
+            onSave={handleRenameSave}
+          />
+        )}
+        {deleteTarget && (
+          <DeleteConfirmModal
+            key="delete"
+            system={deleteTarget}
+            onClose={() => setDeleteTarget(null)}
+            onConfirm={handleDeleteConfirm}
+          />
+        )}
+      </AnimatePresence>
     </VideoBackground>
   );
 };

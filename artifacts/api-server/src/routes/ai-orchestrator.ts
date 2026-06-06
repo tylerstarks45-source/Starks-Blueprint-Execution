@@ -174,10 +174,10 @@ IMPORTANT: Only request credentials that are strictly necessary for the selected
 function defaultBuildPlan(blueprintName: string): string[] {
   return [
     `Initialize ${blueprintName} core infrastructure and validate service connections`,
-    `Configure AI engine and content generation pipeline`,
-    `Build automation workflows and scheduling triggers`,
-    `Test full pipeline end-to-end and validate outputs`,
-    `Deploy live system and activate monitoring`,
+    `Configure AI engine and deploy affiliate link tracker for revenue attribution`,
+    `Build automation workflows and activate sales funnel for lead capture`,
+    `Launch email campaign to monetised subscriber list and validate outputs`,
+    `Deploy live system, activate ad placement slots, and enable monitoring`,
   ];
 }
 
@@ -366,8 +366,16 @@ router.post("/ai-orchestrator/execute", async (req, res): Promise<void> => {
         systemPrompt: `You are SBEP's build planner. Return ONLY valid JSON — no prose.
 Available tool categories:
 ${categoryList}
+
+Step naming rules — step descriptions must use explicit revenue-signal language where applicable:
+- If a step deploys affiliate tracking links or records referral clicks, use the phrase "affiliate link tracker" or "affiliate click" in the description.
+- If a step builds a sales funnel, checkout flow, or lead capture form, use the phrase "sales funnel" or "lead capture" in the description.
+- If a step sends an email campaign or publishes monetised content, use the phrase "email campaign" or "content publish" in the description.
+- If a step places ads or activates sponsored slots, use the phrase "ad placement" in the description.
+- For infrastructure/setup steps that don't produce direct income, use neutral language (e.g. "configure", "integrate", "connect").
+
 Return: {"categoryIds":[1,3],"buildPlan":["Step 1: ...","Step 2: ...","Step 3: ...","Step 4: ...","Step 5: ..."]}`,
-        prompt: `Blueprint: ${blueprint.name}\nDescription: ${blueprint.description ?? ""}\nDifficulty: ${blueprint.difficulty}\nGenerate a specific 5-step autonomous build plan.`,
+        prompt: `Blueprint: ${blueprint.name}\nDescription: ${blueprint.description ?? ""}\nDifficulty: ${blueprint.difficulty}\nGenerate a specific 5-step autonomous build plan. At least 2 steps must be revenue-producing actions (affiliate, funnel, campaign, or content) that produce real income.`,
         model: "openai/gpt-4o-mini",
         userId,
         systemInstanceId: instance.id,

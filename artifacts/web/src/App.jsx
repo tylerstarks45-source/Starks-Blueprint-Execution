@@ -40,8 +40,6 @@ import MyStackPage from '@/pages/MyStackPage.jsx';
 import UpdatesPage from '@/pages/UpdatesPage.jsx';
 import PasswordResetPage from '@/pages/PasswordResetPage.jsx';
 import VerifyEmailPage from '@/pages/VerifyEmailPage.jsx';
-import SystemCommandCenterPage from '@/pages/SystemCommandCenterPage.jsx';
-
 const NotFoundPage = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 text-center">
     <h1 className="text-7xl font-extrabold text-primary mb-4">404</h1>
@@ -124,9 +122,10 @@ const App = () => {
               <BuildPage />
             </ProtectedRoute>
           } />
-          <Route path="/dashboard/system-stats" element={
+          {/* /builder — placeholder until Task #8 builder page is built */}
+          <Route path="/builder" element={
             <ProtectedRoute>
-              <DashboardPage commandCenter />
+              <DashboardPage />
             </ProtectedRoute>
           } />
           <Route path="/pricing" element={<PricingPage />} />

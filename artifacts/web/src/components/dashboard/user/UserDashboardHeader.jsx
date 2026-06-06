@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Layers, Server, Coins, Crown, Zap, ArrowRight, Cpu } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Layers, Server, Coins, Crown, Zap, ArrowRight, KeyRound } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 
 const authHeaders = () => {
@@ -10,10 +10,10 @@ const authHeaders = () => {
 };
 
 const TIER_COLORS = {
-  starter:  { badge: 'bg-zinc-700/60 text-zinc-300 border-zinc-600/40', glow: 'shadow-zinc-900/30' },
-  builder:  { badge: 'bg-blue-500/15 text-blue-300 border-blue-500/30', glow: 'shadow-blue-900/30' },
-  operator: { badge: 'bg-violet-500/15 text-violet-300 border-violet-500/30', glow: 'shadow-violet-900/30' },
-  empire:   { badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30', glow: 'shadow-amber-900/30' },
+  starter:  { badge: 'bg-zinc-700/60 text-zinc-300 border-zinc-600/40' },
+  builder:  { badge: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
+  operator: { badge: 'bg-violet-500/15 text-violet-300 border-violet-500/30' },
+  empire:   { badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
 };
 
 const TIER_ICON = {
@@ -59,7 +59,6 @@ const UserDashboardHeader = () => {
       animate={{ opacity: 1, y: 0 }}
       className="relative overflow-hidden rounded-2xl border border-white/8 bg-gradient-to-br from-black/70 via-black/50 to-primary/5 backdrop-blur-lg p-6 md:p-8"
     >
-      {/* Ambient glow */}
       <div className="absolute -top-16 -right-16 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-secondary/5 rounded-full blur-2xl pointer-events-none" />
 
@@ -79,11 +78,11 @@ const UserDashboardHeader = () => {
             {greeting}, {name}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Your automation infrastructure is ready. What will you build today?
+            Command Center — monitor and manage all your automated systems.
           </p>
         </div>
 
-        {/* Right: stat pills */}
+        {/* Right: stat pills + actions */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/4 border border-white/8 backdrop-blur-sm">
             <Layers className="w-4 h-4 text-primary shrink-0" />
@@ -108,14 +107,14 @@ const UserDashboardHeader = () => {
           </div>
 
           <button
-            onClick={() => navigate('/dashboard/system-stats')}
+            onClick={() => navigate('/connections')}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/6 border border-white/10 text-foreground font-semibold text-sm hover:bg-white/10 active:scale-[0.97] transition-all whitespace-nowrap"
           >
-            <Cpu className="w-4 h-4 text-primary" />
-            Command Center
+            <KeyRound className="w-4 h-4 text-primary" />
+            Connections
           </button>
           <button
-            onClick={() => navigate('/blueprints')}
+            onClick={() => navigate('/builder')}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 active:scale-[0.97] transition-all shadow-lg shadow-primary/20 whitespace-nowrap"
           >
             <Zap className="w-4 h-4" />

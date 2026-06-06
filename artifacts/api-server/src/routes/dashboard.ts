@@ -176,6 +176,20 @@ If a tool has no affiliate link in the catalog, say "Available on marketplace" i
   }
 });
 
+// GET /api/dashboard/revenue-summary — placeholder revenue data (ready for Stripe hookup)
+router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  res.json({
+    today: 0,
+    thisWeek: 0,
+    thisMonth: 0,
+    lifetime: 0,
+    currency: "USD",
+    note: "Revenue tracking activates when Stripe billing is connected",
+  });
+});
+
 // GET /api/dashboard/blueprints — all published blueprints (no auth required)
 router.get("/dashboard/blueprints", async (_req, res): Promise<void> => {
   const blueprints = await db

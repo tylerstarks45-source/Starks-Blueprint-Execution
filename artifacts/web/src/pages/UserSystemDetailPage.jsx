@@ -372,6 +372,15 @@ function RevenueSection({ instanceId, buildStatus }) {
   const [activity, setActivity] = useState([]);
   const [loadingRevenue, setLoadingRevenue] = useState(true);
 
+  const fetchActivity = useCallback(async () => {
+    try {
+      const actRes = await fetch(`/api/system-instances/${instanceId}/activity`, { headers: authHeaders() });
+      if (actRes.ok) setActivity(await actRes.json());
+    } catch {
+      // silently ignore
+    }
+  }, [instanceId]);
+
   const fetchRevenue = useCallback(async () => {
     try {
       const [revRes, actRes] = await Promise.all([
@@ -391,13 +400,21 @@ function RevenueSection({ instanceId, buildStatus }) {
     fetchRevenue();
   }, [fetchRevenue]);
 
-  // Poll every 8 seconds while the system is building or active so the
-  // activity feed and revenue cards reflect events written by the build engine.
+  // While building, poll both revenue and activity every 8 seconds so the
+  // build engine's events appear promptly.
   useEffect(() => {
-    if (buildStatus !== 'building' && buildStatus !== 'active') return;
+    if (buildStatus !== 'building') return;
     const interval = setInterval(fetchRevenue, 8000);
     return () => clearInterval(interval);
   }, [fetchRevenue, buildStatus]);
+
+  // While active, poll only the activity endpoint every 8 seconds so the
+  // live feed stays current without fetching revenue unnecessarily.
+  useEffect(() => {
+    if (buildStatus !== 'active') return;
+    const interval = setInterval(fetchActivity, 8000);
+    return () => clearInterval(interval);
+  }, [fetchActivity, buildStatus]);
 
   const revenueCards = [
     { label: 'Today',      value: revenue ? centsToDisplay(revenue.todayCents)    : '$0', accent: 'emerald' },

@@ -744,6 +744,36 @@ export interface AdminCreditAdjustResult {
   delta: number;
 }
 
+export interface AdminRevenueStats {
+  todayCents: number;
+  weekCents: number;
+  monthCents: number;
+  allTimeCents: number;
+  eventCount: number;
+}
+
+export interface AdminBlueprintRevenue {
+  blueprintId: number;
+  blueprintName: string;
+  totalCents: number;
+  eventCount: number;
+}
+
+export interface AdminRevenueEvent {
+  id: number;
+  systemInstanceId: number;
+  blueprintName: string;
+  amountCents: number;
+  description: string;
+  createdAt: string;
+}
+
+export interface AdminRevenueActivity {
+  stats: AdminRevenueStats;
+  byBlueprint: AdminBlueprintRevenue[];
+  recentEvents: AdminRevenueEvent[];
+}
+
 export interface Notification {
   id: number;
   /** @nullable */

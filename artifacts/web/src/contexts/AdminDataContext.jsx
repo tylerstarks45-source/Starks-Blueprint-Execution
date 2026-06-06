@@ -24,6 +24,10 @@ export const AdminDataProvider = ({ children }) => {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState(null);
 
+  const [revenue, setRevenue] = useState(null);
+  const [revenueLoading, setRevenueLoading] = useState(true);
+  const [revenueError, setRevenueError] = useState(null);
+
   const loadAnalytics = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -60,13 +64,26 @@ export const AdminDataProvider = ({ children }) => {
     }
   }, []);
 
+  const loadRevenue = useCallback(async () => {
+    setRevenueLoading(true);
+    setRevenueError(null);
+    try {
+      setRevenue(await adminApi.getRevenueActivity());
+    } catch (e) {
+      setRevenueError(e.message || 'Failed to load revenue activity');
+    } finally {
+      setRevenueLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadAnalytics();
     loadHealth();
     loadDashboard();
+    loadRevenue();
     const id = setInterval(loadHealth, 30000);
     return () => clearInterval(id);
-  }, [loadAnalytics, loadHealth, loadDashboard]);
+  }, [loadAnalytics, loadHealth, loadDashboard, loadRevenue]);
 
   const value = {
     analytics,
@@ -81,6 +98,10 @@ export const AdminDataProvider = ({ children }) => {
     dashboardLoading,
     dashboardError,
     reloadDashboard: loadDashboard,
+    revenue,
+    revenueLoading,
+    revenueError,
+    reloadRevenue: loadRevenue,
   };
 
   return <AdminDataContext.Provider value={value}>{children}</AdminDataContext.Provider>;

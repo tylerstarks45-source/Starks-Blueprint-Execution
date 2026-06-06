@@ -20,6 +20,7 @@ import AdminAPIMonitoringCard from './AdminAPIMonitoringCard.jsx';
 import AdminUserGrowthAnalyticsCard from './AdminUserGrowthAnalyticsCard.jsx';
 import AdminSystemHealthOverviewCard from './AdminSystemHealthOverviewCard.jsx';
 import AdminEncryptionKeyWarningCard from './AdminEncryptionKeyWarningCard.jsx';
+import AdminRevenueActivityPanel from './AdminRevenueActivityPanel.jsx';
 
 import CreditBalanceCard from '@/components/admin/CreditBalanceCard.jsx';
 import UsageOverviewCard from '@/components/admin/UsageOverviewCard.jsx';
@@ -82,6 +83,10 @@ const AdminDashboardLayout = () => {
         <CreditBalanceCard />
         <UsageOverviewCard />
         <MonthlyConsumptionCard />
+      </div>
+
+      <div className="grid grid-cols-1">
+        <AdminRevenueActivityPanel />
       </div>
 
       <div className="grid grid-cols-1">

@@ -14,6 +14,7 @@ import {
   affiliateLinksTable,
   openrouterUsageTable,
   creditTransactionsTable,
+  systemActivityEventsTable,
 } from "@workspace/db";
 import { requireAdmin } from "../lib/auth";
 import { adjustCredits, TIER_PRICES } from "../lib/credits";
@@ -29,6 +30,7 @@ import {
   GetAdminAnalyticsResponse,
   GetAdminHealthResponse,
   GetAdminUsageByUserResponse,
+  GetAdminRevenueResponse,
   TestAdminOpenRouterResponse,
   ListPlatformUsersResponse,
   ListPlatformUsersQueryParams,
@@ -430,6 +432,79 @@ router.get("/admin/usage/by-user", async (req, res): Promise<void> => {
     .orderBy(desc(sql`coalesce(sum(${openrouterUsageTable.totalTokens}), 0)`))
     .limit(limit);
   res.json(GetAdminUsageByUserResponse.parse(serialize(rows)));
+});
+
+// ── Platform-wide revenue activity ───────────────────────────────────────────
+router.get("/admin/revenue", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const [statsRows, byBlueprintRows, recentEventsRows] = await Promise.all([
+    // Aggregate revenue stats across all time windows
+    db
+      .select({
+        allTimeCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
+        todayCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= date_trunc('day', now()) then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
+        weekCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '7 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
+        monthCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '30 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
+        eventCount: sql<number>`count(*)::int`,
+      })
+      .from(systemActivityEventsTable)
+      .where(sql`${systemActivityEventsTable.amountCents} is not null and ${systemActivityEventsTable.amountCents} > 0`),
+
+    // Per-blueprint revenue breakdown
+    db
+      .select({
+        blueprintId: blueprintsTable.id,
+        blueprintName: blueprintsTable.name,
+        totalCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
+        eventCount: sql<number>`count(*)::int`,
+      })
+      .from(systemActivityEventsTable)
+      .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
+      .innerJoin(blueprintsTable, eq(blueprintsTable.id, systemInstancesTable.blueprintId))
+      .where(sql`${systemActivityEventsTable.amountCents} is not null and ${systemActivityEventsTable.amountCents} > 0`)
+      .groupBy(blueprintsTable.id, blueprintsTable.name)
+      .orderBy(desc(sql`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`))
+      .limit(10),
+
+    // Recent revenue events (across all systems)
+    db
+      .select({
+        id: systemActivityEventsTable.id,
+        systemInstanceId: systemActivityEventsTable.systemInstanceId,
+        blueprintName: blueprintsTable.name,
+        amountCents: systemActivityEventsTable.amountCents,
+        description: systemActivityEventsTable.description,
+        createdAt: systemActivityEventsTable.createdAt,
+      })
+      .from(systemActivityEventsTable)
+      .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
+      .innerJoin(blueprintsTable, eq(blueprintsTable.id, systemInstancesTable.blueprintId))
+      .where(sql`${systemActivityEventsTable.amountCents} is not null and ${systemActivityEventsTable.amountCents} > 0`)
+      .orderBy(desc(systemActivityEventsTable.createdAt))
+      .limit(25),
+  ]);
+
+  const [statsRow] = statsRows;
+
+  res.json(
+    GetAdminRevenueResponse.parse(
+      serialize({
+        stats: {
+          todayCents: statsRow?.todayCents ?? 0,
+          weekCents: statsRow?.weekCents ?? 0,
+          monthCents: statsRow?.monthCents ?? 0,
+          allTimeCents: statsRow?.allTimeCents ?? 0,
+          eventCount: statsRow?.eventCount ?? 0,
+        },
+        byBlueprint: byBlueprintRows,
+        recentEvents: recentEventsRows.map((e) => ({
+          ...e,
+          amountCents: e.amountCents ?? 0,
+        })),
+      }),
+    ),
+  );
 });
 
 // ── Live OpenRouter connection test ──────────────────────────────────────────

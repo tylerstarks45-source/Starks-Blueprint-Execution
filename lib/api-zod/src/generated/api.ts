@@ -1386,6 +1386,34 @@ export const TestAdminOpenRouterResponse = zod.object({
 
 
 /**
+ * @summary Platform-wide revenue activity across all user systems (admin only)
+ */
+export const GetAdminRevenueResponse = zod.object({
+  "stats": zod.object({
+  "todayCents": zod.number(),
+  "weekCents": zod.number(),
+  "monthCents": zod.number(),
+  "allTimeCents": zod.number(),
+  "eventCount": zod.number()
+}),
+  "byBlueprint": zod.array(zod.object({
+  "blueprintId": zod.number(),
+  "blueprintName": zod.string(),
+  "totalCents": zod.number(),
+  "eventCount": zod.number()
+})),
+  "recentEvents": zod.array(zod.object({
+  "id": zod.number(),
+  "systemInstanceId": zod.number(),
+  "blueprintName": zod.string(),
+  "amountCents": zod.number(),
+  "description": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
  * @summary List platform users with search/filter (admin only)
  */
 export const ListPlatformUsersQueryParams = zod.object({

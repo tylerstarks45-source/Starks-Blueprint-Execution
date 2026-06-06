@@ -29,6 +29,7 @@ import type {
   AdminHealth,
   AdminOpenRouterTest,
   AdminPlatformUserList,
+  AdminRevenueActivity,
   AdminUser,
   AdminUserInput,
   AdminUserUpdate,
@@ -5658,6 +5659,83 @@ export const useTestAdminOpenRouter = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getTestAdminOpenRouterMutationOptions(options));
     }
+
+export const getGetAdminRevenueUrl = () => {
+
+
+
+
+  return `/api/admin/revenue`
+}
+
+/**
+ * @summary Platform-wide revenue activity across all user systems (admin only)
+ */
+export const getAdminRevenue = async ( options?: RequestInit): Promise<AdminRevenueActivity> => {
+
+  return customFetch<AdminRevenueActivity>(getGetAdminRevenueUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminRevenueQueryKey = () => {
+    return [
+    `/api/admin/revenue`
+    ] as const;
+    }
+
+
+export const getGetAdminRevenueQueryOptions = <TData = Awaited<ReturnType<typeof getAdminRevenue>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminRevenue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminRevenueQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminRevenue>>> = ({ signal }) => getAdminRevenue({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminRevenue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminRevenueQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminRevenue>>>
+export type GetAdminRevenueQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Platform-wide revenue activity across all user systems (admin only)
+ */
+
+export function useGetAdminRevenue<TData = Awaited<ReturnType<typeof getAdminRevenue>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminRevenue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminRevenueQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListPlatformUsersUrl = (params?: ListPlatformUsersParams,) => {
   const normalizedParams = new URLSearchParams();

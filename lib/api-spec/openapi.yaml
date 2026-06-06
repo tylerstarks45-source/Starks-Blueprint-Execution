@@ -1540,6 +1540,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminOpenRouterTest"
 
+  /admin/revenue:
+    get:
+      operationId: getAdminRevenue
+      tags: [admin]
+      summary: Platform-wide revenue activity across all user systems (admin only)
+      responses:
+        "200":
+          description: Revenue activity data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRevenueActivity"
+
   /admin/platform-users:
     get:
       operationId: listPlatformUsers
@@ -2904,6 +2917,51 @@ components:
         balance: { type: integer }
         delta: { type: integer }
       required: [userId, balance, delta]
+
+    AdminRevenueStats:
+      type: object
+      properties:
+        todayCents: { type: integer }
+        weekCents: { type: integer }
+        monthCents: { type: integer }
+        allTimeCents: { type: integer }
+        eventCount: { type: integer }
+      required: [todayCents, weekCents, monthCents, allTimeCents, eventCount]
+
+    AdminBlueprintRevenue:
+      type: object
+      properties:
+        blueprintId: { type: integer }
+        blueprintName: { type: string }
+        totalCents: { type: integer }
+        eventCount: { type: integer }
+      required: [blueprintId, blueprintName, totalCents, eventCount]
+
+    AdminRevenueEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        systemInstanceId: { type: integer }
+        blueprintName: { type: string }
+        amountCents: { type: integer }
+        description: { type: string }
+        createdAt: { type: string }
+      required: [id, systemInstanceId, blueprintName, amountCents, description, createdAt]
+
+    AdminRevenueActivity:
+      type: object
+      properties:
+        stats:
+          $ref: "#/components/schemas/AdminRevenueStats"
+        byBlueprint:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminBlueprintRevenue"
+        recentEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminRevenueEvent"
+      required: [stats, byBlueprint, recentEvents]
 
     # ── Notifications ───────────────────────────────────────────────────────
     Notification:

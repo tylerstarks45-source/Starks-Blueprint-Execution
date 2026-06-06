@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { TrendingUp, DollarSign, Activity, Filter, X } from 'lucide-react';
+import { TrendingUp, DollarSign, Activity, Filter, X, RefreshCw } from 'lucide-react';
 import { useAdminData } from '@/contexts/AdminDataContext.jsx';
 import adminApi from '@/lib/adminApi.js';
 import { usdFromCents, num, relativeTime } from '@/lib/adminFormat.js';
@@ -102,8 +102,34 @@ const RevenueTrendChart = ({ data, loading }) => {
   );
 };
 
+const LastUpdatedBadge = ({ timestamp, loading }) => {
+  const [display, setDisplay] = useState('');
+
+  useEffect(() => {
+    if (!timestamp) return;
+    const update = () => {
+      const diff = Math.floor((Date.now() - timestamp.getTime()) / 1000);
+      if (diff < 5) setDisplay('just now');
+      else if (diff < 60) setDisplay(`${diff}s ago`);
+      else setDisplay(`${Math.floor(diff / 60)}m ago`);
+    };
+    update();
+    const id = setInterval(update, 5000);
+    return () => clearInterval(id);
+  }, [timestamp]);
+
+  if (!timestamp) return null;
+
+  return (
+    <span className="flex items-center gap-1 text-xs text-muted-foreground/70 font-mono">
+      <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+      {loading ? 'Refreshing…' : `Updated ${display}`}
+    </span>
+  );
+};
+
 const AdminRevenueActivityPanel = () => {
-  const { revenue: contextRevenue, revenueLoading: contextLoading, revenueError: contextError } = useAdminData();
+  const { revenue: contextRevenue, revenueLoading: contextLoading, revenueRefreshing: contextRefreshing, revenueError: contextError, revenueLastUpdated } = useAdminData();
 
   const [users, setUsers] = useState([]);
   const [filterUserId, setFilterUserId] = useState('');
@@ -174,9 +200,14 @@ const AdminRevenueActivityPanel = () => {
     <Card className="shadow-sm border-border/50 bg-card/50 backdrop-blur">
       <CardHeader className="pb-3 border-b border-border/30">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <CardTitle className="text-lg font-medium flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-emerald-500" /> Revenue Activity
-          </CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-lg font-medium flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-500" /> Revenue Activity
+            </CardTitle>
+            {!isFiltered && (
+              <LastUpdatedBadge timestamp={revenueLastUpdated} loading={contextRefreshing} />
+            )}
+          </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import adminApi from '@/lib/adminApi.js';
 
 const AdminDataContext = createContext(undefined);
@@ -26,7 +26,10 @@ export const AdminDataProvider = ({ children }) => {
 
   const [revenue, setRevenue] = useState(null);
   const [revenueLoading, setRevenueLoading] = useState(true);
+  const [revenueRefreshing, setRevenueRefreshing] = useState(false);
   const [revenueError, setRevenueError] = useState(null);
+  const [revenueLastUpdated, setRevenueLastUpdated] = useState(null);
+  const revenueLoadedRef = useRef(false);
 
   const loadAnalytics = useCallback(async () => {
     setLoading(true);
@@ -65,14 +68,21 @@ export const AdminDataProvider = ({ children }) => {
   }, []);
 
   const loadRevenue = useCallback(async () => {
-    setRevenueLoading(true);
+    if (revenueLoadedRef.current) {
+      setRevenueRefreshing(true);
+    } else {
+      setRevenueLoading(true);
+    }
     setRevenueError(null);
     try {
       setRevenue(await adminApi.getRevenueActivity());
+      setRevenueLastUpdated(new Date());
+      revenueLoadedRef.current = true;
     } catch (e) {
       setRevenueError(e.message || 'Failed to load revenue activity');
     } finally {
       setRevenueLoading(false);
+      setRevenueRefreshing(false);
     }
   }, []);
 
@@ -81,8 +91,12 @@ export const AdminDataProvider = ({ children }) => {
     loadHealth();
     loadDashboard();
     loadRevenue();
-    const id = setInterval(loadHealth, 30000);
-    return () => clearInterval(id);
+    const healthId = setInterval(loadHealth, 30000);
+    const revenueId = setInterval(loadRevenue, 60000);
+    return () => {
+      clearInterval(healthId);
+      clearInterval(revenueId);
+    };
   }, [loadAnalytics, loadHealth, loadDashboard, loadRevenue]);
 
   const value = {
@@ -100,7 +114,9 @@ export const AdminDataProvider = ({ children }) => {
     reloadDashboard: loadDashboard,
     revenue,
     revenueLoading,
+    revenueRefreshing,
     revenueError,
+    revenueLastUpdated,
     reloadRevenue: loadRevenue,
   };
 

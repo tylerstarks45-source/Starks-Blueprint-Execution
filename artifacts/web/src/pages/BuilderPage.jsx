@@ -6,7 +6,7 @@ import {
   Cpu, Play, ExternalLink, ArrowLeft, Grid3x3,
   MessageSquare, Sparkles, Clock, DollarSign,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -475,6 +475,7 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
 // ─── Builder Page ─────────────────────────────────────────────────────────────
 const BuilderPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { currentUser } = useAuth();
 
   // Mode: 'blueprint' | 'custom'
@@ -530,6 +531,17 @@ const BuilderPage = () => {
       setCategories(Array.isArray(cats) ? cats : []);
     }).catch(() => {}).finally(() => setBpLoading(false));
   }, []);
+
+  // Pre-select blueprint from ?blueprintId= query param (Rebuild flow)
+  useEffect(() => {
+    const preId = searchParams.get('blueprintId');
+    if (!preId || blueprints.length === 0) return;
+    const match = blueprints.find(b => String(b.id) === String(preId));
+    if (match) {
+      setSelectedBp(match);
+      setMode('blueprint');
+    }
+  }, [blueprints, searchParams]);
 
   // Load stored credential keys for prefill hints
   useEffect(() => {

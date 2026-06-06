@@ -43,6 +43,7 @@ import MyStackPage from '@/pages/MyStackPage.jsx';
 import UpdatesPage from '@/pages/UpdatesPage.jsx';
 import PasswordResetPage from '@/pages/PasswordResetPage.jsx';
 import VerifyEmailPage from '@/pages/VerifyEmailPage.jsx';
+import SystemsListPage from '@/pages/SystemsListPage.jsx';
 // Redirect /build/:id → /systems/:id (param-based, preserves the id)
 const BuildRedirect = () => {
   const { systemInstanceId } = useParams();
@@ -140,6 +141,11 @@ const App = () => {
           <Route path="/connections" element={
             <ProtectedRoute>
               <CredentialVaultPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/systems" element={
+            <ProtectedRoute>
+              <SystemsListPage />
             </ProtectedRoute>
           } />
           <Route path="/builder" element={

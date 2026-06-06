@@ -1,0 +1,424 @@
+# STARKS GLOBAL GROUP — PLATFORM RESTRUCTURE & AI ORCHESTRATOR BUILD
+
+## CRITICAL DIRECTIVE
+
+This is not a UI polish task.
+
+This is a platform architecture upgrade.
+
+The current dashboard mixes together:
+
+* Dashboard functions
+* AI Builder functions
+* Blueprint functions
+* System monitoring functions
+
+This creates confusion.
+
+The platform must be restructured into separate operational areas.
+
+---
+
+# PHASE 1 — DASHBOARD BECOMES COMMAND CENTER
+
+The current AI Builder section must be removed from the dashboard.
+
+The dashboard should no longer be where users build systems.
+
+The dashboard becomes:
+
+## SYSTEM COMMAND CENTER
+
+Purpose:
+
+Allow users to monitor every system they have built and deployed.
+
+Think:
+
+OpenAI + Vercel + Stripe + Datadog
+
+combined into one control center.
+
+---
+
+## Dashboard Widgets
+
+### System Overview
+
+Display:
+
+* Total Systems
+* Running Systems
+* Building Systems
+* Paused Systems
+* Failed Systems
+
+---
+
+### Revenue Center
+
+Display:
+
+* Revenue Today
+* Revenue This Week
+* Revenue This Month
+* Revenue Lifetime
+
+---
+
+### System Health
+
+For every deployed system show:
+
+* System Name
+* System Type
+* Status
+* Health %
+* Uptime
+* Downtime
+* Last Activity
+
+---
+
+### AI Tool Stack Monitor
+
+For every deployed system show:
+
+Connected Tools
+
+Examples:
+
+* OpenRouter
+* Stripe
+* Resend
+* Cloudflare
+* TikTok
+* Meta
+* YouTube
+* Shopify
+* Gmail
+* Google Sheets
+
+Display:
+
+Connected
+
+Disconnected
+
+Needs Attention
+
+---
+
+### Activity Feed
+
+Show:
+
+* System Created
+* Build Started
+* Build Completed
+* API Connected
+* Revenue Generated
+* Errors Detected
+* AI Recommendations
+
+---
+
+### AI Operations Feed
+
+Display:
+
+* AI Actions
+* AI Optimizations
+* AI Recommendations
+* AI Alerts
+
+---
+
+### System Control Panel
+
+Every system should have:
+
+* Open
+* Pause
+* Resume
+* Restart
+* Rebuild
+* Delete
+
+---
+
+# PHASE 2 — CREATE NEW BUILDER PAGE
+
+Create a completely separate page.
+
+Route:
+
+/builder
+
+This page becomes the new home for system creation.
+
+---
+
+# AI ORCHESTRATOR
+
+The AI Agent is no longer a chatbot.
+
+The AI Agent becomes:
+
+STARK AI ORCHESTRATOR
+
+Purpose:
+
+Design
+
+Build
+
+Connect
+
+Deploy
+
+Launch
+
+Manage
+
+Monitor
+
+Entire systems.
+
+---
+
+# USER EXPERIENCE
+
+User enters:
+
+"I want an automated TikTok affiliate business."
+
+The AI should:
+
+1. Analyze request
+2. Design system architecture
+3. Select marketplace products
+4. Select tool stack
+5. Determine required integrations
+6. Request only missing credentials
+7. Build system automatically
+8. Deploy system automatically
+9. Launch system automatically
+
+---
+
+# IMPORTANT
+
+The AI should NOT guide the user through setup steps.
+
+The AI should perform setup itself.
+
+The user should only provide:
+
+* Credentials
+* API Keys
+* Account Access
+* Business Preferences
+
+Everything else is handled by the AI.
+
+---
+
+# TOOL CONNECTION ENGINE
+
+Build a universal connection layer.
+
+The AI must be capable of connecting:
+
+* OpenRouter
+* Stripe
+* Resend
+* Cloudflare
+* Gmail
+* Google Sheets
+* TikTok
+* Meta
+* YouTube
+* Shopify
+
+and future integrations.
+
+---
+
+# CONNECTION WORKFLOW
+
+Example:
+
+User requests:
+
+TikTok Affiliate System
+
+AI determines:
+
+Required:
+
+* TikTok
+* OpenRouter
+* Content Engine
+* Analytics Engine
+
+Missing:
+
+* TikTok Account
+
+Prompt user only for missing information.
+
+Once received:
+
+AI automatically completes all remaining setup.
+
+---
+
+# MARKETPLACE INTEGRATION
+
+The AI must fully understand every product in the marketplace.
+
+For every marketplace item store:
+
+* Name
+* Category
+* Purpose
+* Requirements
+* Inputs
+* Outputs
+* Monthly Cost
+* Dependencies
+
+The AI uses marketplace products as building blocks.
+
+---
+
+# BLUEPRINT EVOLUTION
+
+The AI must support:
+
+## Mode A
+
+Marketplace Blueprints
+
+Prebuilt proven systems.
+
+---
+
+## Mode B
+
+Custom Systems
+
+User describes any business idea.
+
+AI designs a new blueprint.
+
+AI builds it.
+
+AI deploys it.
+
+AI launches it.
+
+---
+
+# SYSTEM STORAGE
+
+Every generated system must be stored in the platform database.
+
+Create tables for:
+
+* systems
+* system_runs
+* system_health
+* system_logs
+* system_connections
+* system_revenue
+* system_metrics
+
+The platform owns the systems.
+
+Systems are not dependent on external builders.
+
+---
+
+# SYSTEM DETAIL PAGE
+
+Every deployed system gets its own page.
+
+Example:
+
+/systems/{system_id}
+
+Display:
+
+* Revenue
+* Traffic
+* Conversions
+* Health
+* Uptime
+* Logs
+* Connected Tools
+* AI Recommendations
+* Activity Timeline
+
+---
+
+# BUILD EXECUTION VIEW
+
+When a system is building:
+
+Show live execution.
+
+Example:
+
+Analyzing Request
+
+Connecting APIs
+
+Creating Databases
+
+Creating Automations
+
+Creating AI Prompts
+
+Testing Connections
+
+Deploying
+
+Launching
+
+Complete
+
+Users should see progress but should not manually perform tasks.
+
+---
+
+# FINAL GOAL
+
+The platform should function as:
+
+An AI Business Operating System.
+
+Users describe a business or automation.
+
+The AI designs it.
+
+The AI builds it.
+
+The AI deploys it.
+
+The AI manages it.
+
+The AI monitors it.
+
+The user manages everything from the Starks dashboard.
+
+Audit the current architecture.
+
+Design the required database changes.
+
+Design the required backend services.
+
+Design the AI orchestration layer.
+
+Then implement the complete system end-to-end.

@@ -1,0 +1,321 @@
+# ARCHITECTURE CORRECTION — DASHBOARD VS BUILDER
+
+## CRITICAL PLATFORM RULE
+
+The Dashboard and Builder are two separate products inside the platform.
+
+Do NOT mix them together.
+
+The current dashboard contains builder functionality that should not live there.
+
+This must be refactored.
+
+---
+
+# DASHBOARD = COMMAND CENTER
+
+Route:
+
+/dashboard
+
+Purpose:
+
+Monitor and manage systems that already exist.
+
+The Dashboard should NEVER be the place where users build systems.
+
+The Dashboard is where users see:
+
+* Revenue
+* Analytics
+* System Health
+* Uptime
+* Downtime
+* Activity
+* Alerts
+* Connected Tools
+* Running Systems
+* Failed Systems
+* AI Recommendations
+
+Think:
+
+Mission Control
+
+Operations Center
+
+Command Center
+
+---
+
+## Dashboard Widgets
+
+### Revenue Overview
+
+* Revenue Today
+* Revenue This Week
+* Revenue This Month
+* Lifetime Revenue
+
+---
+
+### Systems Overview
+
+* Total Systems
+* Running
+* Building
+* Paused
+* Failed
+
+---
+
+### System Health
+
+Per System:
+
+* Health Score
+* Uptime
+* Downtime
+* Last Activity
+
+---
+
+### Tool Stack Monitor
+
+Per System:
+
+* OpenRouter
+* Stripe
+* Resend
+* Cloudflare
+* TikTok
+* Meta
+* YouTube
+* Shopify
+
+Connection status:
+
+* Connected
+* Warning
+* Offline
+
+---
+
+### AI Operations Feed
+
+Display:
+
+* AI Actions
+* AI Optimizations
+* AI Alerts
+* AI Recommendations
+
+---
+
+### System Revenue
+
+Per System:
+
+* Revenue
+* Traffic
+* Leads
+* Conversions
+
+---
+
+### System Controls
+
+* Open
+* Pause
+* Resume
+* Restart
+* Rebuild
+* Delete
+
+---
+
+# BUILDER PAGE
+
+Create a completely separate page.
+
+Route:
+
+/builder
+
+This page becomes the dedicated system creation workspace.
+
+---
+
+# BUILDER PURPOSE
+
+The Builder Page is where users create systems.
+
+The Dashboard is where users manage systems.
+
+Never combine these responsibilities.
+
+---
+
+# BUILDER PAGE FEATURES
+
+## STARK AI ORCHESTRATOR
+
+The AI Agent lives here.
+
+Not on the Dashboard.
+
+The AI Agent should:
+
+* Design systems
+* Design automations
+* Design workflows
+* Design businesses
+* Design blueprints
+* Design custom systems
+
+---
+
+## BUILD REQUEST
+
+User enters:
+
+Build me a YouTube automation business.
+
+Build me a lead generation agency.
+
+Build me an affiliate marketing system.
+
+Build me a CRM automation.
+
+Build me an AI consulting business.
+
+Build me a custom SaaS.
+
+Build me a local marketing system.
+
+Build me anything.
+
+---
+
+# AI RESPONSE
+
+The AI determines:
+
+Required Marketplace Products
+
+Required Tool Stack
+
+Required Integrations
+
+Required Credentials
+
+Estimated Cost
+
+Estimated Build Time
+
+Expected Outcome
+
+---
+
+# BUILD EXECUTION
+
+User clicks:
+
+BUILD SYSTEM
+
+The AI:
+
+* Requests missing credentials
+* Stores credentials securely
+* Connects services
+* Creates workflows
+* Creates automations
+* Creates prompts
+* Creates databases
+* Creates configurations
+* Deploys system
+* Launches system
+
+---
+
+# SYSTEM COMPLETION
+
+After build completion:
+
+The system is automatically added to:
+
+/dashboard
+
+and
+
+/systems/{system_id}
+
+for monitoring.
+
+---
+
+# USER FLOW
+
+Step 1
+
+User logs in.
+
+Step 2
+
+User opens:
+
+/builder
+
+Step 3
+
+AI designs and builds the system.
+
+Step 4
+
+System deploys.
+
+Step 5
+
+System appears on:
+
+/dashboard
+
+for monitoring and management.
+
+---
+
+# FINAL PLATFORM STRUCTURE
+
+Public Website
+
+* Home
+* Marketplace
+* Blueprints
+* Pricing
+* Blog
+
+Authenticated Platform
+
+/dashboard
+(Command Center)
+
+/builder
+(AI System Builder)
+
+/systems
+(User Systems)
+
+/systems/{id}
+(System Detail Page)
+
+/connections
+(Credential Vault)
+
+/marketplace
+(Marketplace Products)
+
+The Builder creates systems.
+
+The Dashboard manages systems.
+
+Keep these separated permanently.

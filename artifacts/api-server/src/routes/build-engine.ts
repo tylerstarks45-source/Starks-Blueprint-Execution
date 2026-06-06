@@ -226,11 +226,15 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
 
 // GET /api/build-engine/:systemInstanceId/status
 router.get("/build-engine/:systemInstanceId/status", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
   const id = Number(req.params.systemInstanceId);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [instance] = await db.select().from(systemInstancesTable).where(eq(systemInstancesTable.id, id));
   if (!instance) { res.status(404).json({ error: "Not found" }); return; }
+  if (!ensureOwner(instance, userId, res)) return;
 
   const sessions = await db.select().from(buildSessionsTable).where(eq(buildSessionsTable.systemInstanceId, id));
   const latestSession = sessions.sort((a, b) => b.id - a.id)[0] ?? null;

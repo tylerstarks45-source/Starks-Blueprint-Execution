@@ -947,7 +947,7 @@ export const ListUserCredentialsResponse = zod.array(ListUserCredentialsResponse
 
 
 export const StoreUserCredentialBody = zod.object({
-  "userId": zod.number(),
+  "userId": zod.number().optional(),
   "toolId": zod.number().optional(),
   "credentialKey": zod.string().min(1),
   "encryptedValue": zod.string().min(1)

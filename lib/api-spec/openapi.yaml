@@ -2286,7 +2286,7 @@ components:
         encryptedValue:
           type: string
           minLength: 1
-      required: [userId, credentialKey, encryptedValue]
+      required: [credentialKey, encryptedValue]
 
     # ── OpenRouter ──────────────────────────────────────────────────────────
     OpenrouterRequest:

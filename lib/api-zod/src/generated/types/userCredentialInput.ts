@@ -7,7 +7,7 @@
  */
 
 export interface UserCredentialInput {
-  userId: number;
+  userId?: number;
   toolId?: number;
   /** @minLength 1 */
   credentialKey: string;

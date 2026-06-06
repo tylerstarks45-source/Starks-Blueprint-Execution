@@ -6,6 +6,7 @@ import {
   Cpu, Play, ExternalLink, ArrowLeft, Grid3x3,
   MessageSquare, Sparkles, Clock, DollarSign,
 } from 'lucide-react';
+import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -505,6 +506,9 @@ const BuilderPage = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Skill Engine
+  const [activatedSkills, setActivatedSkills] = useState([]);
+
   // Credential collection
   const [pendingCreds, setPendingCreds] = useState([]);
   const [executeLoading, setExecuteLoading] = useState(false);
@@ -695,6 +699,15 @@ const BuilderPage = () => {
         content: data.content,
         ts: Date.now(),
       }]);
+
+      // Skill Engine — merge newly activated skills (deduplicate by slug)
+      if (Array.isArray(data.activatedSkills) && data.activatedSkills.length > 0) {
+        setActivatedSkills(prev => {
+          const slugs = new Set(prev.map(s => s.slug));
+          const fresh = data.activatedSkills.filter(s => !slugs.has(s.slug));
+          return [...prev, ...fresh];
+        });
+      }
 
       const sd = data.structuredData;
       const action = sd?.action;
@@ -919,6 +932,7 @@ const BuilderPage = () => {
           {mode === 'custom' && (
             <div className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10">
+                <SkillActivationPanel activatedSkills={activatedSkills} />
                 {messages.map(m => <MessageBubble key={m.id} msg={m} />)}
 
                 {/* Credential collection */}

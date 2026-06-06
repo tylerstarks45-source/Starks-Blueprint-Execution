@@ -13,6 +13,8 @@ import {
   buildProgressTable,
   openrouterUsageTable,
   systemActivityEventsTable,
+  skillsTable,
+  skillActivationsTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { hasCredits } from "../lib/credits";
@@ -21,6 +23,46 @@ import { encrypt, decrypt } from "../lib/crypto";
 import { z } from "zod";
 
 const router: IRouter = Router();
+
+// ─── Skill Engine ─────────────────────────────────────────────────────────────
+
+async function detectAndActivateSkills(
+  userMessage: string,
+  userId: number,
+  systemInstanceId?: number
+): Promise<Array<{ slug: string; name: string; category: string; icon: string; systemPromptAddition: string | null }>> {
+  const allSkills = await db
+    .select()
+    .from(skillsTable)
+    .where(eq(skillsTable.activeStatus, true));
+
+  const msgLower = userMessage.toLowerCase();
+
+  const matched = allSkills.filter((skill) => {
+    const keywords: string[] = Array.isArray(skill.keywords) ? skill.keywords as string[] : [];
+    return keywords.some((kw) => msgLower.includes(kw.toLowerCase()));
+  });
+
+  if (matched.length > 0) {
+    await Promise.all(
+      matched.map((skill) =>
+        db.insert(skillActivationsTable).values({
+          skillId: skill.id,
+          userId,
+          systemInstanceId: systemInstanceId ?? null,
+        })
+      )
+    );
+  }
+
+  return matched.map((s) => ({
+    slug: s.slug,
+    name: s.name,
+    category: s.category,
+    icon: s.icon,
+    systemPromptAddition: s.systemPromptAddition,
+  }));
+}
 
 // ─── Platform Knowledge Base ─────────────────────────────────────────────────
 
@@ -161,11 +203,12 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
   }
 
   try {
-    const [{ blueprintKB, toolKB }, storedCreds] = await Promise.all([
+    const [{ blueprintKB, toolKB }, storedCreds, activatedSkills] = await Promise.all([
       buildPlatformKnowledge(),
       db.select({ credentialKey: userCredentialsTable.credentialKey })
         .from(userCredentialsTable)
         .where(eq(userCredentialsTable.userId, userId)),
+      detectAndActivateSkills(parsed.data.message, userId, parsed.data.systemInstanceId),
     ]);
 
     const storedKeys = storedCreds.map((c) => c.credentialKey);
@@ -173,13 +216,19 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       ? `\n\n=== USER'S STORED CREDENTIALS (ALREADY ON FILE — DO NOT REQUEST THESE) ===\n${storedKeys.join(", ")}\nIf the blueprint you select requires any of these keys, skip them from requiredCredentials. The system will use the stored values automatically.`
       : "";
 
+    // Inject activated skill additions into the system prompt
+    const skillAdditions = activatedSkills
+      .filter((s) => s.systemPromptAddition)
+      .map((s) => `\n\n=== ACTIVATED SKILL: ${s.name.toUpperCase()} ===\n${s.systemPromptAddition}`)
+      .join("");
+
     const historyCtx = parsed.data.history.length > 0
       ? "\n\nConversation so far:\n" +
         parsed.data.history.map((h) => `${h.role === "user" ? "User" : "STARK"}: ${h.content}`).join("\n")
       : "";
 
     const result = await complete({
-      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote,
+      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + skillAdditions,
       prompt: `${historyCtx}\n\nUser: ${parsed.data.message}`,
       model: "openai/gpt-4o-mini",
       userId,
@@ -204,7 +253,7 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       } catch { /* ignored */ }
     }
 
-    res.json({ content: displayContent, structuredData, tokens: result.totalTokens });
+    res.json({ content: displayContent, structuredData, tokens: result.totalTokens, activatedSkills });
   } catch (err) {
     const message = err instanceof Error ? err.message : "STARK request failed";
     if ((err as { code?: string })?.code === "out_of_credits") {

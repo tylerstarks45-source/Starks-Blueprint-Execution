@@ -24,6 +24,7 @@ import creditsRouter from "./credits";
 import adminAiRouter from "./admin-ai";
 import dashboardRouter from "./dashboard";
 import aiOrchestratorRouter from "./ai-orchestrator";
+import skillsRouter from "./skills";
 
 const router: IRouter = Router();
 
@@ -52,5 +53,6 @@ router.use(creditsRouter);
 router.use(adminAiRouter);
 router.use(dashboardRouter);
 router.use(aiOrchestratorRouter);
+router.use(skillsRouter);
 
 export default router;

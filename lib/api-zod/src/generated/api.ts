@@ -1445,6 +1445,25 @@ export const GetAdminRevenueResponse = zod.object({
 
 
 /**
+ * @summary Re-encrypt all credential rows with a new key (admin only)
+ */
+export const rotateCredentialKeyBodyNewKeyHexMin = 64;
+export const rotateCredentialKeyBodyNewKeyHexMax = 64;
+
+
+
+export const RotateCredentialKeyBody = zod.object({
+  "newKeyHex": zod.string().min(rotateCredentialKeyBodyNewKeyHexMin).max(rotateCredentialKeyBodyNewKeyHexMax).describe('New 64-character hex-encoded 32-byte AES key')
+})
+
+export const RotateCredentialKeyResponse = zod.object({
+  "rotatedCount": zod.number().describe('Number of credential rows re-encrypted with the new key'),
+  "skippedCount": zod.number().describe('Number of rows already encrypted with the new key (skipped)'),
+  "rotatedAt": zod.string().describe('ISO-8601 timestamp of when the rotation completed')
+})
+
+
+/**
  * @summary List platform users with search/filter (admin only)
  */
 export const ListPlatformUsersQueryParams = zod.object({

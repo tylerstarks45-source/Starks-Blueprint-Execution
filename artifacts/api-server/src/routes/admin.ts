@@ -16,10 +16,11 @@ import {
   creditTransactionsTable,
   systemActivityEventsTable,
   userCredentialsTable,
+  platformSettingsTable,
 } from "@workspace/db";
 import { requireAdmin } from "../lib/auth";
 import { adjustCredits, TIER_PRICES } from "../lib/credits";
-import { getKeyRotationStatus } from "../lib/crypto";
+import { getKeyRotationStatus, setKeyRotatedAt, setActiveKey, encryptWithKey, decryptWithKeyHex } from "../lib/crypto";
 import {
   ListAdminUsersResponse,
   CreateAdminUserBody,
@@ -41,6 +42,8 @@ import {
   AdjustPlatformUserCreditsParams,
   AdjustPlatformUserCreditsBody,
   AdjustPlatformUserCreditsResponse,
+  RotateCredentialKeyBody,
+  RotateCredentialKeyResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -519,6 +522,109 @@ router.post("/admin/openrouter/test", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
   const result = await pingOpenRouter();
   res.json(TestAdminOpenRouterResponse.parse(result));
+});
+
+// ── Credential key rotation ───────────────────────────────────────────────────
+router.post("/admin/credentials/rotate-key", async (req, res): Promise<void> => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+
+  const parsed = RotateCredentialKeyBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { newKeyHex } = parsed.data;
+
+  // Strict hex validation (OpenAPI schema only enforces length).
+  if (!/^[0-9a-fA-F]{64}$/.test(newKeyHex)) {
+    res.status(400).json({ error: "newKeyHex must be exactly 64 hexadecimal characters (0-9, a-f)." });
+    return;
+  }
+
+  // Reject if the new key is the same as the current active key.
+  const currentKeyHex = process.env.CREDENTIAL_ENCRYPTION_KEY;
+  if (!currentKeyHex || currentKeyHex.length !== 64) {
+    res.status(400).json({ error: "CREDENTIAL_ENCRYPTION_KEY is not configured on the server." });
+    return;
+  }
+  if (newKeyHex === currentKeyHex) {
+    res.status(400).json({ error: "The new key must be different from the current active key." });
+    return;
+  }
+
+  const rows = await db
+    .select({ id: userCredentialsTable.id, encryptedValue: userCredentialsTable.encryptedValue })
+    .from(userCredentialsTable);
+
+  const toRotate: Array<{ id: number; plaintext: string }> = [];
+  let skippedCount = 0;
+  const newKeyBuf = Buffer.from(newKeyHex, "hex");
+
+  for (const row of rows) {
+    // Try the new key first — if it works the row is already rotated.
+    try {
+      decryptWithKeyHex(row.encryptedValue, newKeyHex);
+      skippedCount++;
+      continue;
+    } catch {
+      // Expected: row was not encrypted with the new key yet.
+    }
+
+    // Decrypt with the current (old) key.
+    try {
+      const plaintext = decryptWithKeyHex(row.encryptedValue, currentKeyHex);
+      toRotate.push({ id: row.id, plaintext });
+    } catch (err) {
+      req.log.error({ err, credentialId: row.id }, "rotate-key: failed to decrypt row with current key");
+      res.status(400).json({
+        error: `Credential row id=${row.id} could not be decrypted with the current key. Rotation aborted.`,
+      });
+      return;
+    }
+  }
+
+  // Execute all re-encryptions in a single atomic transaction.
+  if (toRotate.length > 0) {
+    await db.transaction(async (tx) => {
+      for (const { id, plaintext } of toRotate) {
+        const newValue = encryptWithKey(plaintext, newKeyBuf);
+        await tx
+          .update(userCredentialsTable)
+          .set({ encryptedValue: newValue, updatedAt: new Date() })
+          .where(eq(userCredentialsTable.id, id));
+      }
+    });
+  }
+
+  const rotatedAt = new Date().toISOString();
+
+  // 1. Switch the active key in-process so subsequent decrypt/encrypt uses the new key immediately.
+  setActiveKey(newKeyHex);
+
+  // 2. Persist the rotation timestamp to the DB so it survives server restarts.
+  await db
+    .insert(platformSettingsTable)
+    .values({ key: "credential_key_rotated_at", value: rotatedAt, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: platformSettingsTable.key,
+      set: { value: rotatedAt, updatedAt: new Date() },
+    });
+
+  // 3. Update the in-process timestamp override so getKeyRotationStatus() reflects the new date.
+  setKeyRotatedAt(rotatedAt);
+
+  await db.insert(adminActivityTable).values({
+    action: "rotate_credential_key",
+    resourceType: "credentials",
+    resourceId: "user_credentials",
+    details: JSON.stringify({ rotatedCount: toRotate.length, skippedCount, byUserId: admin.id }),
+  });
+
+  res.json(
+    RotateCredentialKeyResponse.parse({ rotatedCount: toRotate.length, skippedCount, rotatedAt }),
+  );
 });
 
 // ── Platform user management ─────────────────────────────────────────────────

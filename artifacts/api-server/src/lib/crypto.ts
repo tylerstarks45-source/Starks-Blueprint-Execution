@@ -123,11 +123,36 @@ export function getStoredVersion(stored: string): string | null {
 }
 
 /**
+ * In-process override for the key rotation timestamp.
+ * Set by rotateCredentialKey() so the warning clears immediately after a
+ * successful rotation without requiring a process restart.
+ * (Persists only for the lifetime of the current server process.)
+ */
+let _rotatedAtOverride: string | null = null;
+
+/**
+ * Set the in-process rotation timestamp.  Call this after a successful key
+ * rotation so getKeyRotationStatus() reflects the new date immediately.
+ */
+export function setKeyRotatedAt(iso: string): void {
+  _rotatedAtOverride = iso;
+}
+
+/**
+ * Switch the active encryption key in-process.
+ * Called immediately after a successful key rotation so that all subsequent
+ * encrypt() / decrypt() calls use the new key without requiring a restart.
+ */
+export function setActiveKey(hex: string): void {
+  process.env.CREDENTIAL_ENCRYPTION_KEY = hex;
+}
+
+/**
  * Returns an object describing the encryption key rotation status.
  *
- * Reads CREDENTIAL_KEY_ROTATED_AT (ISO-8601 string) from the environment.
- * If not set: daysSinceRotation is null (unknown).
- * Admins should set this variable to the current date after every rotation.
+ * Priority: in-process override (set after live rotation) → env var
+ * CREDENTIAL_KEY_ROTATED_AT (ISO-8601 string).
+ * If neither is set: daysSinceRotation is null (unknown).
  *
  * Example: CREDENTIAL_KEY_ROTATED_AT=2024-03-15T00:00:00Z
  */
@@ -137,7 +162,7 @@ export function getKeyRotationStatus(): {
   warningThresholdDays: number;
   needsRotation: boolean;
 } {
-  const raw = process.env.CREDENTIAL_KEY_ROTATED_AT ?? null;
+  const raw = _rotatedAtOverride ?? process.env.CREDENTIAL_KEY_ROTATED_AT ?? null;
   const THRESHOLD = 90;
 
   if (!raw) {

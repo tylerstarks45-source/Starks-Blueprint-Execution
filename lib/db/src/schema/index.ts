@@ -23,3 +23,4 @@ export * from "./credit_transactions";
 export * from "./processed_stripe_events";
 export * from "./system_activity_events";
 export * from "./skills";
+export * from "./platform_settings";

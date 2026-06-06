@@ -597,6 +597,24 @@ export interface EncryptionKeyRotationStatus {
   needsRotation: boolean;
 }
 
+export interface RotateKeyBody {
+  /**
+     * New 64-character hex-encoded 32-byte AES key
+     * @minLength 64
+     * @maxLength 64
+     */
+  newKeyHex: string;
+}
+
+export interface RotateKeyResult {
+  /** Number of credential rows re-encrypted with the new key */
+  rotatedCount: number;
+  /** Number of rows already encrypted with the new key (skipped) */
+  skippedCount: number;
+  /** ISO-8601 timestamp of when the rotation completed */
+  rotatedAt: string;
+}
+
 export interface AdminDashboard {
   totalUsers: number;
   totalBlueprints: number;

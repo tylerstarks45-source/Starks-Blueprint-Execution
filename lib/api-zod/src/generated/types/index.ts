@@ -84,6 +84,8 @@ export * from './openrouterRequest';
 export * from './openrouterResponse';
 export * from './openrouterUsageRecord';
 export * from './openrouterUsageSummary';
+export * from './rotateKeyBody';
+export * from './rotateKeyResult';
 export * from './systemActivityEvent';
 export * from './systemActivityEventInput';
 export * from './systemHealthInput';

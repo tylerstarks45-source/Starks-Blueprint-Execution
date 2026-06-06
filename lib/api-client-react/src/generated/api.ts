@@ -81,6 +81,8 @@ import type {
   OpenrouterResponse,
   OpenrouterUsageRecord,
   OpenrouterUsageSummary,
+  RotateKeyBody,
+  RotateKeyResult,
   SystemActivityEvent,
   SystemActivityEventInput,
   SystemHealthInput,
@@ -5809,6 +5811,77 @@ export function useGetAdminRevenue<TData = Awaited<ReturnType<typeof getAdminRev
 
 
 
+
+export const getRotateCredentialKeyUrl = () => {
+
+
+
+
+  return `/api/admin/credentials/rotate-key`
+}
+
+/**
+ * @summary Re-encrypt all credential rows with a new key (admin only)
+ */
+export const rotateCredentialKey = async (rotateKeyBody: RotateKeyBody, options?: RequestInit): Promise<RotateKeyResult> => {
+
+  return customFetch<RotateKeyResult>(getRotateCredentialKeyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      rotateKeyBody,)
+  }
+);}
+
+
+
+
+export const getRotateCredentialKeyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rotateCredentialKey>>, TError,{data: BodyType<RotateKeyBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rotateCredentialKey>>, TError,{data: BodyType<RotateKeyBody>}, TContext> => {
+
+const mutationKey = ['rotateCredentialKey'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rotateCredentialKey>>, {data: BodyType<RotateKeyBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  rotateCredentialKey(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RotateCredentialKeyMutationResult = NonNullable<Awaited<ReturnType<typeof rotateCredentialKey>>>
+    export type RotateCredentialKeyMutationBody = BodyType<RotateKeyBody>
+    export type RotateCredentialKeyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Re-encrypt all credential rows with a new key (admin only)
+ */
+export const useRotateCredentialKey = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rotateCredentialKey>>, TError,{data: BodyType<RotateKeyBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rotateCredentialKey>>,
+        TError,
+        {data: BodyType<RotateKeyBody>},
+        TContext
+      > => {
+      return useMutation(getRotateCredentialKeyMutationOptions(options));
+    }
 
 export const getListPlatformUsersUrl = (params?: ListPlatformUsersParams,) => {
   const normalizedParams = new URLSearchParams();

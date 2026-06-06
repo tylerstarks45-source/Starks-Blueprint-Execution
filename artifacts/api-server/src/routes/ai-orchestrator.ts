@@ -16,6 +16,7 @@ import {
 import { complete } from "../lib/openrouter";
 import { hasCredits } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
+import { encrypt, decrypt } from "../lib/crypto";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -267,21 +268,37 @@ router.post("/ai-orchestrator/execute", async (req, res): Promise<void> => {
   if (parsed.data.credentials.length > 0) {
     await Promise.all(
       parsed.data.credentials.map(async (cred) => {
-        const encoded = Buffer.from(cred.value).toString("base64");
+        const encryptedValue = encrypt(cred.value);
         const existing = storedKeyMap[cred.key];
         if (existing) {
           await db.update(userCredentialsTable)
-            .set({ encryptedValue: encoded, updatedAt: new Date() })
+            .set({ encryptedValue, updatedAt: new Date() })
             .where(eq(userCredentialsTable.id, existing.id));
         } else {
           await db.insert(userCredentialsTable).values({
             userId,
             credentialKey: cred.key,
-            encryptedValue: encoded,
+            encryptedValue,
           });
         }
       })
     );
+  }
+
+  // 3b. Decrypt all stored credentials for this user (including pre-stored vault keys) so the
+  //     AI build context can reference the decrypted values when orchestrating live integrations.
+  const allStoredCreds = await db
+    .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue })
+    .from(userCredentialsTable)
+    .where(eq(userCredentialsTable.userId, userId));
+
+  const decryptedCredMap: Record<string, string> = {};
+  for (const c of allStoredCreds) {
+    try {
+      decryptedCredMap[c.credentialKey] = decrypt(c.encryptedValue);
+    } catch {
+      // If decryption fails for a row, skip it rather than aborting the build
+    }
   }
 
   // 4. Generate build plan via AI (fall back to defaults if out of credits)
@@ -354,6 +371,7 @@ Return: {"categoryIds":[1,3],"buildPlan":["Step 1: ...","Step 2: ...","Step 3: .
     blueprint: serialize(blueprint),
     requiredTools: serialize(toolsWithCategory),
     buildPlan,
+    credentialKeys: Object.keys(decryptedCredMap),
   });
 });
 

@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
+import { encrypt } from "../lib/crypto";
 import { eq, and, inArray } from "drizzle-orm";
 import {
   db,
@@ -157,17 +158,22 @@ router.post("/user-credentials", async (req, res): Promise<void> => {
     updatedAt: userCredentialsTable.updatedAt,
   };
 
+  // The CredentialVaultPage frontend sends encryptedValue as btoa(rawSecret).
+  // Decode that base64 back to the raw secret, then encrypt with AES-256-GCM.
+  const rawSecret = Buffer.from(safeData.encryptedValue, "base64").toString("utf8");
+  const encryptedValue = encrypt(rawSecret);
+
   if (existing) {
     const [row] = await db
       .update(userCredentialsTable)
-      .set({ encryptedValue: safeData.encryptedValue, updatedAt: new Date() })
+      .set({ encryptedValue, updatedAt: new Date() })
       .where(eq(userCredentialsTable.id, existing.id))
       .returning(responseShape);
     res.json(ListUserCredentialsResponseItem.parse(serialize(row)));
   } else {
     const [row] = await db
       .insert(userCredentialsTable)
-      .values(safeData)
+      .values({ ...safeData, encryptedValue })
       .returning(responseShape);
     res.status(201).json(ListUserCredentialsResponseItem.parse(serialize(row)));
   }

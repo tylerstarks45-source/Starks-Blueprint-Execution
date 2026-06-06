@@ -1,0 +1,402 @@
+# STARKS GLOBAL GROUP — MASTER PLATFORM REALITY AUDIT
+
+## STOP ALL NEW DEVELOPMENT
+
+Before any additional features are built, perform a complete reality audit of the entire Starks Global Group platform.
+
+Do not assume anything.
+
+Do not use architecture plans.
+
+Do not use intended functionality.
+
+Review only what currently exists in the codebase, database, APIs, pages, components, services, routes, integrations, and infrastructure.
+
+I want a complete reality audit compared against the actual product vision.
+
+---
+
+# THE ACTUAL PRODUCT VISION
+
+Starks Global Group is not simply a blueprint library.
+
+Starks Global Group is an AI-powered Business Operating System.
+
+The platform has two primary revenue models:
+
+## Revenue Model 1
+
+Affiliate commissions from AI tools and software sold through the marketplace.
+
+Examples:
+
+* AI Video Tools
+* AI Content Tools
+* AI Automation Tools
+* AI Research Tools
+* AI Marketing Tools
+* AI CRM Tools
+* AI Sales Tools
+* AI Analytics Tools
+
+The AI Agent should use these marketplace tools whenever possible when building systems.
+
+---
+
+## Revenue Model 2
+
+Subscription revenue.
+
+Users subscribe to the AI Agent.
+
+Subscription tiers:
+
+Starter
+
+Builder
+
+Operator
+
+Empire
+
+The AI Agent uses credits and subscription limits.
+
+---
+
+# PLATFORM GOAL
+
+A user should be able to:
+
+Describe a business.
+
+Describe an automation.
+
+Describe a workflow.
+
+Describe an income system.
+
+Describe an online business.
+
+Describe a content engine.
+
+Describe a lead generation system.
+
+Describe a SaaS concept.
+
+Describe a custom blueprint.
+
+Then:
+
+The AI designs it.
+
+The AI determines required tools.
+
+The AI requests credentials.
+
+The AI connects services.
+
+The AI builds the system.
+
+The AI deploys the system.
+
+The AI launches the system.
+
+The AI monitors the system.
+
+The AI reports performance.
+
+The user manages everything from the dashboard.
+
+---
+
+# AUDIT REQUIREMENTS
+
+Review every page.
+
+Review every route.
+
+Review every API.
+
+Review every service.
+
+Review every AI endpoint.
+
+Review every database table.
+
+Review every integration.
+
+Review every workflow.
+
+Review every admin function.
+
+Review every subscription function.
+
+Review every credit function.
+
+Review every marketplace function.
+
+Review every blueprint function.
+
+Review every AI function.
+
+---
+
+# SECTION 1
+
+CURRENTLY COMPLETE
+
+Provide a list of:
+
+Features that are fully operational.
+
+Include evidence.
+
+Examples:
+
+* Authentication
+* Stripe Billing
+* Credits
+* Marketplace
+* Blueprints
+* AI Agent
+* Dashboard
+* Admin Panel
+* Email System
+* OpenRouter
+
+Provide completion percentage.
+
+---
+
+# SECTION 2
+
+PARTIALLY COMPLETE
+
+List:
+
+Features that exist but are incomplete.
+
+Examples:
+
+* Dashboard
+* AI Agent
+* Marketplace Integration
+* Blueprint Builder
+* Runtime Engine
+* Credential Vault
+
+Provide completion percentage.
+
+---
+
+# SECTION 3
+
+NOT BUILT
+
+List every major platform feature that does not yet exist.
+
+Examples:
+
+* Builder Page
+* System Runtime Layer
+* Credential Vault
+* System Hosting
+* System Monitoring
+* Connection Hub
+* AI Orchestrator
+* Revenue Tracking Per System
+
+Provide completion percentage.
+
+---
+
+# SECTION 4
+
+AI AGENT AUDIT
+
+Determine:
+
+Can the AI currently:
+
+* Build systems?
+* Connect services?
+* Store credentials?
+* Launch systems?
+* Host systems?
+* Monitor systems?
+* Operate systems?
+
+For each capability:
+
+Answer:
+
+YES
+
+PARTIAL
+
+NO
+
+Provide evidence.
+
+---
+
+# SECTION 5
+
+MARKETPLACE AUDIT
+
+Determine:
+
+Does the AI currently understand marketplace products?
+
+Can the AI recommend marketplace products?
+
+Can the AI automatically use marketplace products when building systems?
+
+Can the AI prioritize affiliate products over outside tools?
+
+Provide evidence.
+
+---
+
+# SECTION 6
+
+BLUEPRINT AUDIT
+
+Determine:
+
+Can the AI currently build:
+
+Only existing blueprints?
+
+Or
+
+Any custom blueprint?
+
+Provide evidence.
+
+---
+
+# SECTION 7
+
+HOSTING AUDIT
+
+Determine:
+
+Where are user systems stored?
+
+Where are user files stored?
+
+Where are prompts stored?
+
+Where are workflows stored?
+
+Where are assets stored?
+
+Can systems currently run inside the Starks platform?
+
+Or do they only exist as generated outputs?
+
+Provide evidence.
+
+---
+
+# SECTION 8
+
+DASHBOARD AUDIT
+
+Determine:
+
+Is the dashboard currently functioning as:
+
+A command center?
+
+Or
+
+A builder page?
+
+Provide recommendations.
+
+---
+
+# SECTION 9
+
+FINAL GAP ANALYSIS
+
+Compare:
+
+Current Platform
+
+vs
+
+Target Platform
+
+List every missing phase required to reach the vision.
+
+Prioritize:
+
+Critical
+
+High
+
+Medium
+
+Low
+
+---
+
+# SECTION 10
+
+MASTER ROADMAP
+
+Create the exact build order required to reach:
+
+An AI Business Operating System where users can:
+
+Describe any system.
+
+Provide credentials.
+
+Click Build.
+
+Have the AI:
+
+Design
+
+Build
+
+Connect
+
+Deploy
+
+Launch
+
+Monitor
+
+Operate
+
+the system entirely from the Starks platform.
+
+---
+
+# DELIVERABLES
+
+Provide:
+
+1. Current completion percentage.
+2. Missing systems.
+3. Broken systems.
+4. Partially complete systems.
+5. AI Agent readiness score.
+6. Marketplace readiness score.
+7. Hosting readiness score.
+8. Dashboard readiness score.
+9. Exact remaining build phases.
+10. Recommended next phase.
+
+Do not build anything.
+
+Do not modify code.
+
+Audit only.
+
+Use evidence from the actual codebase and infrastructure.

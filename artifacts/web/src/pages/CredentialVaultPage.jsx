@@ -396,7 +396,7 @@ export default function CredentialVaultPage() {
           <div>
             <p className="text-xs font-semibold text-blue-300">Vault Security</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              All credentials are base64-encoded at rest and never returned in plain text via API. Values are write-only — you can update but not retrieve them.
+              All credentials are encrypted at rest with AES-256-GCM and never returned in plain text via API. Values are write-only — you can update but not retrieve them.
             </p>
           </div>
         </div>

@@ -617,9 +617,25 @@ export const UpdateUserResponse = zod.object({
 /**
  * @summary List system instances
  */
+export const listSystemInstancesQuerySortDefault = `updatedAt`;
+export const listSystemInstancesQueryOrderDefault = `desc`;
+export const listSystemInstancesQueryLimitDefault = 20;
+export const listSystemInstancesQueryLimitMax = 100;
+
+export const listSystemInstancesQueryOffsetDefault = 0;
+export const listSystemInstancesQueryOffsetMin = 0;
+
+
+
 export const ListSystemInstancesQueryParams = zod.object({
   "userId": zod.coerce.number().optional(),
-  "blueprintId": zod.coerce.number().optional()
+  "blueprintId": zod.coerce.number().optional(),
+  "search": zod.coerce.string().optional().describe('Case-insensitive substring match on system name'),
+  "status": zod.coerce.string().optional().describe('Filter by buildStatus value'),
+  "sort": zod.enum(['name', 'buildStatus', 'updatedAt', 'createdAt']).default(listSystemInstancesQuerySortDefault).describe('Column to sort by'),
+  "order": zod.enum(['asc', 'desc']).default(listSystemInstancesQueryOrderDefault).describe('Sort direction'),
+  "limit": zod.coerce.number().min(1).max(listSystemInstancesQueryLimitMax).default(listSystemInstancesQueryLimitDefault).describe('Page size (max 100)'),
+  "offset": zod.coerce.number().min(listSystemInstancesQueryOffsetMin).default(listSystemInstancesQueryOffsetDefault).describe('Number of rows to skip')
 })
 
 export const ListSystemInstancesResponseItem = zod.object({

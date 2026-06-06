@@ -5,6 +5,7 @@ import {
   Layers, ArrowRight, RefreshCw, Zap, Clock, AlertTriangle,
   CheckCircle2, Pause, RotateCcw, Search, SlidersHorizontal,
   Server, Plus, MoreVertical, Pencil, Play, Trash2, X, Check,
+  ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -340,14 +341,20 @@ const FILTER_OPTIONS = [
   { value: 'completed',label: 'Live' },
 ];
 
+const PAGE_SIZE = 20;
+
 const SystemsListPage = () => {
   const navigate = useNavigate();
   const [systems, setSystems] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [busyId, setBusyId] = useState(null);
+  const [sortCol, setSortCol] = useState('updatedAt');
+  const [sortDir, setSortDir] = useState('desc');
+  const [page, setPage] = useState(0);
 
   const [renameTarget, setRenameTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -356,27 +363,41 @@ const SystemsListPage = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/system-instances', { headers: authHeaders() });
+      const params = new URLSearchParams({
+        sort: sortCol,
+        order: sortDir,
+        limit: String(PAGE_SIZE),
+        offset: String(page * PAGE_SIZE),
+      });
+      if (search.trim()) params.set('search', search.trim());
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+
+      const res = await fetch(`/api/system-instances?${params}`, { headers: authHeaders() });
       if (!res.ok) throw new Error('Failed to load systems');
       const data = await res.json();
+      const headerTotal = parseInt(res.headers.get('X-Total-Count') || '0', 10);
       setSystems(Array.isArray(data) ? data : []);
+      setTotal(headerTotal || (Array.isArray(data) ? data.length : 0));
     } catch (e) {
       setError(e.message || 'Could not load systems');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sortCol, sortDir, page, search, statusFilter]);
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = systems.filter(s => {
-    const matchSearch = !search || (
-      (s.systemName || s.name || '').toLowerCase().includes(search.toLowerCase()) ||
-      (s.blueprintName || '').toLowerCase().includes(search.toLowerCase())
-    );
-    const matchStatus = statusFilter === 'all' || (s.buildStatus || '').toLowerCase() === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const handleSort = (col) => {
+    if (col === sortCol) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortCol(col);
+      setSortDir('desc');
+    }
+    setPage(0);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const handleView = (system) => navigate(`/systems/${system.id}`);
   const handleRebuild = (system) => {
@@ -413,7 +434,12 @@ const SystemsListPage = () => {
     setDeleteTarget(null);
   };
 
-  const totalActive = systems.filter(s => ['active', 'building', 'running', 'completed'].includes((s.buildStatus || '').toLowerCase())).length;
+  const SortIcon = ({ col }) => {
+    if (col !== sortCol) return <ChevronsUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    return sortDir === 'asc'
+      ? <ChevronUp className="w-3 h-3 ml-1 text-primary" />
+      : <ChevronDown className="w-3 h-3 ml-1 text-primary" />;
+  };
 
   return (
     <VideoBackground>
@@ -443,12 +469,14 @@ const SystemsListPage = () => {
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/4 border border-white/8">
                 <Server className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span className="text-lg font-bold font-mono text-emerald-400">{totalActive}</span>
-                <span className="text-xs text-muted-foreground">active</span>
+                <span className="text-lg font-bold font-mono text-emerald-400">
+                  {systems.filter(s => ['active', 'building', 'running', 'completed'].includes((s.buildStatus || '').toLowerCase())).length}
+                </span>
+                <span className="text-xs text-muted-foreground">active (page)</span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/4 border border-white/8">
                 <Layers className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-lg font-bold font-mono text-foreground">{systems.length}</span>
+                <span className="text-lg font-bold font-mono text-foreground">{total}</span>
                 <span className="text-xs text-muted-foreground">total</span>
               </div>
               <Button
@@ -468,7 +496,7 @@ const SystemsListPage = () => {
               <input
                 type="text"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => { setSearch(e.target.value); setPage(0); }}
                 placeholder="Search by name or blueprint…"
                 className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/4 border border-white/10 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/40 focus:bg-white/6 transition-all"
               />
@@ -477,7 +505,7 @@ const SystemsListPage = () => {
               {FILTER_OPTIONS.map(opt => (
                 <button
                   key={opt.value}
-                  onClick={() => setStatusFilter(opt.value)}
+                  onClick={() => { setStatusFilter(opt.value); setPage(0); }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${
                     statusFilter === opt.value
                       ? 'bg-primary text-primary-foreground shadow-sm'
@@ -514,7 +542,7 @@ const SystemsListPage = () => {
             <p className="text-sm text-muted-foreground">{error}</p>
             <Button variant="outline" onClick={load}>Try again</Button>
           </motion.div>
-        ) : systems.length === 0 ? (
+        ) : systems.length === 0 && !search && statusFilter === 'all' ? (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -534,7 +562,7 @@ const SystemsListPage = () => {
               Build Your First System
             </Button>
           </motion.div>
-        ) : filtered.length === 0 ? (
+        ) : systems.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -543,7 +571,7 @@ const SystemsListPage = () => {
             <Search className="w-8 h-8 text-muted-foreground/30" />
             <p className="text-sm text-muted-foreground">No systems match your filters.</p>
             <button
-              onClick={() => { setSearch(''); setStatusFilter('all'); }}
+              onClick={() => { setSearch(''); setStatusFilter('all'); setPage(0); }}
               className="text-xs text-primary font-mono hover:underline"
             >
               Clear filters
@@ -553,15 +581,30 @@ const SystemsListPage = () => {
           <div className="space-y-2">
             {/* Table header */}
             <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-2">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40">System</span>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40">Status</span>
-              <span className="hidden sm:block text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40">Updated</span>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 w-[76px]"></span>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40"></span>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40"></span>
+              <button
+                onClick={() => handleSort('name')}
+                className="flex items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 hover:text-muted-foreground transition-colors select-none"
+              >
+                System<SortIcon col="name" />
+              </button>
+              <button
+                onClick={() => handleSort('buildStatus')}
+                className="flex items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 hover:text-muted-foreground transition-colors select-none"
+              >
+                Status<SortIcon col="buildStatus" />
+              </button>
+              <button
+                onClick={() => handleSort('updatedAt')}
+                className="hidden sm:flex items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 hover:text-muted-foreground transition-colors select-none"
+              >
+                Updated<SortIcon col="updatedAt" />
+              </button>
+              <span className="w-[76px]" />
+              <span />
+              <span />
             </div>
 
-            {filtered.map((system, i) => (
+            {systems.map((system, i) => (
               <motion.div
                 key={system.id}
                 initial={{ opacity: 0, y: 8 }}
@@ -580,9 +623,37 @@ const SystemsListPage = () => {
               </motion.div>
             ))}
 
-            <p className="text-center text-xs text-muted-foreground/30 font-mono pt-4">
-              {filtered.length} of {systems.length} system{systems.length !== 1 ? 's' : ''}
-            </p>
+            {/* Pagination controls */}
+            <div className="flex items-center justify-between pt-4 px-1">
+              <p className="text-xs text-muted-foreground/40 font-mono">
+                {total > 0
+                  ? `${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, total)} of ${total} system${total !== 1 ? 's' : ''}`
+                  : `${systems.length} system${systems.length !== 1 ? 's' : ''}`}
+              </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/4 border border-white/8 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-white/8 disabled:opacity-30 disabled:pointer-events-none transition-all"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    Prev
+                  </button>
+                  <span className="text-xs font-mono text-muted-foreground/50 px-1">
+                    {page + 1} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                    disabled={page >= totalPages - 1}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/4 border border-white/8 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-white/8 disabled:opacity-30 disabled:pointer-events-none transition-all"
+                  >
+                    Next
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>

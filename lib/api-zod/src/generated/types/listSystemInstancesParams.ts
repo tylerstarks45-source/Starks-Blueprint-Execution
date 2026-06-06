@@ -5,8 +5,37 @@
  * SBEP — Starks Blueprint Execution Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { ListSystemInstancesOrder } from './listSystemInstancesOrder';
+import type { ListSystemInstancesSort } from './listSystemInstancesSort';
 
 export type ListSystemInstancesParams = {
 userId?: number;
 blueprintId?: number;
+/**
+ * Case-insensitive substring match on system name
+ */
+search?: string;
+/**
+ * Filter by buildStatus value
+ */
+status?: string;
+/**
+ * Column to sort by
+ */
+sort?: ListSystemInstancesSort;
+/**
+ * Sort direction
+ */
+order?: ListSystemInstancesOrder;
+/**
+ * Page size (max 100)
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+/**
+ * Number of rows to skip
+ * @minimum 0
+ */
+offset?: number;
 };

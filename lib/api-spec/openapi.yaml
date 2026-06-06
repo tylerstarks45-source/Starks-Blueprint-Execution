@@ -758,9 +758,53 @@ paths:
           in: query
           schema:
             type: integer
+        - name: search
+          in: query
+          description: Case-insensitive substring match on system name
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter by buildStatus value
+          schema:
+            type: string
+        - name: sort
+          in: query
+          description: Column to sort by
+          schema:
+            type: string
+            enum: [name, buildStatus, updatedAt, createdAt]
+            default: updatedAt
+        - name: order
+          in: query
+          description: Sort direction
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: limit
+          in: query
+          description: Page size (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of rows to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
       responses:
         "200":
           description: List of system instances
+          headers:
+            X-Total-Count:
+              description: Total number of matching system instances (before pagination)
+              schema:
+                type: integer
           content:
             application/json:
               schema:

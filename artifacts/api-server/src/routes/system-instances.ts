@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, desc, gte, sql } from "drizzle-orm";
+import { eq, and, desc, asc, gte, sql, count, ilike } from "drizzle-orm";
 import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable } from "@workspace/db";
 import { getActiveCallerPayload, requireAuthActive } from "../lib/auth";
 import {
@@ -23,6 +23,13 @@ const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "admin"]);
 
 const router: IRouter = Router();
 
+const SORT_COLUMNS = {
+  name:        systemInstancesTable.name,
+  buildStatus: systemInstancesTable.buildStatus,
+  updatedAt:   systemInstancesTable.updatedAt,
+  createdAt:   systemInstancesTable.createdAt,
+} as const;
+
 router.get("/system-instances", async (req, res): Promise<void> => {
   const caller = await getActiveCallerPayload(req, res);
   if (!caller) return;
@@ -40,12 +47,39 @@ router.get("/system-instances", async (req, res): Promise<void> => {
     conditions.push(eq(systemInstancesTable.blueprintId, Number(req.query.blueprintId)));
   }
 
-  const rows = await db
-    .select()
-    .from(systemInstancesTable)
-    .where(and(...conditions))
-    .orderBy(systemInstancesTable.createdAt);
+  if (req.query.search) {
+    conditions.push(ilike(systemInstancesTable.name, `%${req.query.search}%`));
+  }
 
+  if (req.query.status && req.query.status !== "all") {
+    conditions.push(eq(systemInstancesTable.buildStatus, String(req.query.status)));
+  }
+
+  const sortKey = (req.query.sort as string) in SORT_COLUMNS
+    ? (req.query.sort as keyof typeof SORT_COLUMNS)
+    : "updatedAt";
+  const orderDir = req.query.order === "asc" ? "asc" : "desc";
+  const sortCol = SORT_COLUMNS[sortKey];
+  const orderExpr = orderDir === "asc" ? asc(sortCol) : desc(sortCol);
+
+  const limitVal  = Math.min(Math.max(Number(req.query.limit)  || 20, 1), 100);
+  const offsetVal = Math.max(Number(req.query.offset) || 0, 0);
+
+  const where = and(...conditions);
+
+  const [countResult, rows] = await Promise.all([
+    db.select({ total: count() }).from(systemInstancesTable).where(where),
+    db
+      .select()
+      .from(systemInstancesTable)
+      .where(where)
+      .orderBy(orderExpr)
+      .limit(limitVal)
+      .offset(offsetVal),
+  ]);
+
+  const total = countResult[0]?.total ?? 0;
+  res.setHeader("X-Total-Count", String(total));
   res.json(ListSystemInstancesResponse.parse(serialize(rows)));
 });
 

@@ -814,7 +814,52 @@ toolId?: number;
 export type ListSystemInstancesParams = {
 userId?: number;
 blueprintId?: number;
+/**
+ * Case-insensitive substring match on system name
+ */
+search?: string;
+/**
+ * Filter by buildStatus value
+ */
+status?: string;
+/**
+ * Column to sort by
+ */
+sort?: ListSystemInstancesSort;
+/**
+ * Sort direction
+ */
+order?: ListSystemInstancesOrder;
+/**
+ * Page size (max 100)
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+/**
+ * Number of rows to skip
+ * @minimum 0
+ */
+offset?: number;
 };
+
+export type ListSystemInstancesSort = typeof ListSystemInstancesSort[keyof typeof ListSystemInstancesSort];
+
+
+export const ListSystemInstancesSort = {
+  name: 'name',
+  buildStatus: 'buildStatus',
+  updatedAt: 'updatedAt',
+  createdAt: 'createdAt',
+} as const;
+
+export type ListSystemInstancesOrder = typeof ListSystemInstancesOrder[keyof typeof ListSystemInstancesOrder];
+
+
+export const ListSystemInstancesOrder = {
+  asc: 'asc',
+  desc: 'desc',
+} as const;
 
 export type ListBuildSessionsParams = {
 systemInstanceId?: number;

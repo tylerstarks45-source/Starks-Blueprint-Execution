@@ -21,3 +21,4 @@ export * from "./notifications";
 export * from "./subscriptions";
 export * from "./credit_transactions";
 export * from "./processed_stripe_events";
+export * from "./system_activity_events";

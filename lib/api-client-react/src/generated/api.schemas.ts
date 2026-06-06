@@ -263,6 +263,39 @@ export interface SystemInstanceUpdate {
   healthStatus?: string;
 }
 
+export interface SystemActivityEvent {
+  id: number;
+  systemInstanceId: number;
+  eventType: string;
+  /** @nullable */
+  amountCents?: number | null;
+  description: string;
+  /** @nullable */
+  metadata?: string | null;
+  createdAt: string;
+}
+
+export interface SystemActivityEventInput {
+  eventType?: string;
+  amountCents?: number;
+  /** @minLength 1 */
+  description: string;
+  metadata?: string;
+}
+
+export interface SystemRevenueTrendPoint {
+  date: string;
+  amountCents: number;
+}
+
+export interface SystemRevenueStats {
+  todayCents: number;
+  weekCents: number;
+  monthCents: number;
+  lifetimeCents: number;
+  trend: SystemRevenueTrendPoint[];
+}
+
 export interface BuildSession {
   id: number;
   systemInstanceId: number;

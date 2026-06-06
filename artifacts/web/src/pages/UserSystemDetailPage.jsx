@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 const authHeaders = () => {
   const token = localStorage.getItem('sbep_auth_token');
@@ -35,6 +43,13 @@ const STEP_STATUS_META = {
   skipped:    { icon: '–', color: 'text-gray-600' },
 };
 
+const EVENT_TYPE_META = {
+  revenue:  { icon: '💰', color: 'text-emerald-400', label: 'Revenue' },
+  action:   { icon: '⚡', color: 'text-blue-400',    label: 'Action' },
+  info:     { icon: '📋', color: 'text-gray-400',    label: 'Info' },
+  error:    { icon: '⚠',  color: 'text-red-400',     label: 'Error' },
+};
+
 function formatDate(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -51,6 +66,14 @@ function timeAgo(iso) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function centsToDisplay(cents) {
+  if (cents === 0) return '$0';
+  const dollars = cents / 100;
+  if (dollars < 1) return `$${(dollars).toFixed(2)}`;
+  if (dollars >= 1000) return `$${(dollars / 1000).toFixed(1)}k`;
+  return `$${dollars.toFixed(2)}`;
+}
+
 function uptimePercent(createdAt, buildStatus) {
   if (buildStatus === 'active') return '99.9%';
   if (buildStatus === 'paused') return '—';
@@ -59,15 +82,12 @@ function uptimePercent(createdAt, buildStatus) {
 }
 
 // ─── HEALTH SPARKLINE ─────────────────────────────────────────────────────────
-// Per-system 24h health view derived from build session history.
-// Each bar represents one session: completed=green, failed=red, active/building=blue.
 
 function HealthSparkline({ sessions }) {
   if (!sessions || sessions.length === 0) {
     return <span className="text-xs font-mono text-gray-600">No history</span>;
   }
 
-  // Show the last 10 sessions, oldest left → newest right
   const bars = [...sessions].sort(
     (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
   ).slice(-10);
@@ -93,6 +113,49 @@ function HealthSparkline({ sessions }) {
           />
         );
       })}
+    </div>
+  );
+}
+
+// ─── REVENUE SPARKLINE ────────────────────────────────────────────────────────
+
+function RevenueSparkline({ trend }) {
+  if (!trend || trend.length === 0) return null;
+  const hasData = trend.some((t) => t.amountCents > 0);
+
+  const data = trend.map((t) => ({
+    date: t.date.slice(5),
+    value: t.amountCents / 100,
+  }));
+
+  return (
+    <div className="h-16 w-full mt-2">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 2, right: 2, bottom: 0, left: 2 }}>
+          <defs>
+            <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <XAxis dataKey="date" hide />
+          <YAxis hide domain={[0, 'auto']} />
+          <Tooltip
+            contentStyle={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 10, fontFamily: 'monospace' }}
+            itemStyle={{ color: '#34d399' }}
+            formatter={(v) => [`$${v.toFixed(2)}`, 'Revenue']}
+          />
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke={hasData ? '#34d399' : '#1f2937'}
+            strokeWidth={1.5}
+            fill="url(#revenueGrad)"
+            dot={false}
+            activeDot={{ r: 3, fill: '#34d399', strokeWidth: 0 }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }
@@ -302,6 +365,119 @@ function DeleteModal({ systemName, onConfirm, onCancel, loading }) {
   );
 }
 
+// ─── REVENUE SECTION ──────────────────────────────────────────────────────────
+
+function RevenueSection({ instanceId }) {
+  const [revenue, setRevenue] = useState(null);
+  const [activity, setActivity] = useState([]);
+  const [loadingRevenue, setLoadingRevenue] = useState(true);
+
+  const fetchRevenue = useCallback(async () => {
+    try {
+      const [revRes, actRes] = await Promise.all([
+        fetch(`/api/system-instances/${instanceId}/revenue`, { headers: authHeaders() }),
+        fetch(`/api/system-instances/${instanceId}/activity`, { headers: authHeaders() }),
+      ]);
+      if (revRes.ok) setRevenue(await revRes.json());
+      if (actRes.ok) setActivity(await actRes.json());
+    } catch {
+      // silently ignore
+    } finally {
+      setLoadingRevenue(false);
+    }
+  }, [instanceId]);
+
+  useEffect(() => {
+    fetchRevenue();
+  }, [fetchRevenue]);
+
+  const revenueCards = [
+    { label: 'Today',      value: revenue ? centsToDisplay(revenue.todayCents)    : '$0', accent: 'emerald' },
+    { label: 'This Week',  value: revenue ? centsToDisplay(revenue.weekCents)     : '$0', accent: 'emerald' },
+    { label: 'This Month', value: revenue ? centsToDisplay(revenue.monthCents)    : '$0', accent: 'emerald' },
+    { label: 'Lifetime',   value: revenue ? centsToDisplay(revenue.lifetimeCents) : '$0', accent: 'emerald' },
+  ];
+
+  return (
+    <>
+      {/* ── Revenue Tracking ── */}
+      <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+        <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Revenue Tracking</span>
+          {loadingRevenue && (
+            <span className="ml-auto w-3 h-3 border border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+          )}
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {revenueCards.map(({ label, value }) => (
+              <div key={label} className="rounded-lg bg-white/3 border border-white/5 p-3 text-center">
+                <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono mb-1">{label}</p>
+                <p className={`text-xl font-bold font-mono ${revenue && (label === 'Today' ? revenue.todayCents : label === 'This Week' ? revenue.weekCents : label === 'This Month' ? revenue.monthCents : revenue.lifetimeCents) > 0 ? 'text-emerald-400' : 'text-white'}`}>
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {revenue && revenue.trend && (
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono mb-1">7-day revenue trend</p>
+              <div className="rounded-lg bg-white/3 border border-white/5 p-3">
+                <RevenueSparkline trend={revenue.trend} />
+                <div className="flex justify-between mt-1">
+                  {revenue.trend.map((t) => (
+                    <span key={t.date} className="text-[9px] text-gray-700 font-mono">{t.date.slice(5)}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Live Activity Feed ── */}
+      <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+        <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+          <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Live Activity</span>
+          <span className="ml-auto text-xs text-gray-600">{activity.length} event{activity.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div className="divide-y divide-white/5 max-h-80 overflow-y-auto">
+          {activity.length === 0 ? (
+            <div className="p-6 text-center">
+              <p className="text-xs font-mono text-gray-600">No activity recorded yet.</p>
+              <p className="text-[10px] text-gray-700 mt-1">Events will appear here as your system runs.</p>
+            </div>
+          ) : (
+            activity.map((evt) => {
+              const meta = EVENT_TYPE_META[evt.eventType] ?? EVENT_TYPE_META.action;
+              return (
+                <div key={evt.id} className="flex items-start gap-3 px-4 py-3 hover:bg-white/2 transition-colors">
+                  <span className="text-base shrink-0 mt-0.5">{meta.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-200 leading-snug">{evt.description}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-[10px] font-mono uppercase ${meta.color}`}>{meta.label}</span>
+                      {evt.amountCents != null && evt.amountCents > 0 && (
+                        <span className="text-[10px] font-mono text-emerald-400">+{centsToDisplay(evt.amountCents)}</span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-gray-600 shrink-0 font-mono whitespace-nowrap mt-0.5">
+                    {timeAgo(evt.createdAt)}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function UserSystemDetailPage() {
@@ -323,7 +499,6 @@ export default function UserSystemDetailPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      // Parallel fetches: build-engine status + all sessions + vault creds
       const [statusRes, sessionsRes, credsRes] = await Promise.all([
         fetch(`/api/build-engine/${id}/status`, { headers: authHeaders() }),
         fetch(`/api/build-sessions?systemInstanceId=${id}`, { headers: authHeaders() }),
@@ -346,7 +521,6 @@ export default function UserSystemDetailPage() {
         setStoredCredKeys(Array.isArray(credsData) ? credsData.map((c) => c.credentialKey) : []);
       }
 
-      // Fetch blueprint info
       if (statusData.instance?.blueprintId) {
         const bpRes = await fetch(`/api/blueprints/${statusData.instance.blueprintId}`, { headers: authHeaders() });
         if (bpRes.ok) {
@@ -355,7 +529,6 @@ export default function UserSystemDetailPage() {
         }
       }
 
-      // Fetch build outputs if session exists
       if (statusData.session?.id) {
         const outRes = await fetch(`/api/build-outputs?buildSessionId=${statusData.session.id}`, { headers: authHeaders() });
         if (outRes.ok) {
@@ -372,7 +545,6 @@ export default function UserSystemDetailPage() {
 
   useEffect(() => {
     fetchData();
-    // Poll if building
     const interval = setInterval(() => {
       if (instance?.buildStatus === 'building') fetchData();
     }, 5000);
@@ -415,7 +587,6 @@ export default function UserSystemDetailPage() {
     }
   };
 
-  // ── Loading ──
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -706,7 +877,6 @@ export default function UserSystemDetailPage() {
             <span className="ml-auto text-xs text-gray-600">{allSessions.length} session{allSessions.length !== 1 ? 's' : ''}</span>
           </div>
           <div className="p-4 space-y-0 max-h-80 overflow-y-auto">
-            {/* Sessions, newest first */}
             {allSessions.length > 0 && [...allSessions].reverse().map((sess, sessIdx) => {
                 const sessSteps = sess.id === session?.id ? steps : [];
                 const sessStatus = sess.status ?? 'active';
@@ -739,7 +909,6 @@ export default function UserSystemDetailPage() {
                           Started {formatDate(sess.startedAt)}
                           {sess.completedAt && ` · Completed ${timeAgo(sess.completedAt)}`}
                         </p>
-                        {/* Show steps for current session only */}
                         {sessSteps.length > 0 && (
                           <div className="mt-2 space-y-1 pl-3 border-l border-white/5">
                             {sessSteps.slice(-4).map((step) => {
@@ -770,22 +939,8 @@ export default function UserSystemDetailPage() {
           </div>
         </div>
 
-        {/* ── Revenue Placeholder ── */}
-        <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
-          <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Revenue Tracking</span>
-            <span className="ml-auto px-2 py-0.5 rounded bg-yellow-400/10 border border-yellow-400/20 text-xs text-yellow-400 font-mono">Coming Soon</span>
-          </div>
-          <div className="p-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {['Today', 'This Week', 'This Month', 'Lifetime'].map((label) => (
-              <div key={label} className="rounded-lg bg-white/3 border border-white/5 p-3 text-center">
-                <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono mb-1">{label}</p>
-                <p className="text-xl font-bold text-white font-mono">$0</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* ── Revenue + Live Activity ── */}
+        <RevenueSection instanceId={id} />
 
       </div>
     </div>

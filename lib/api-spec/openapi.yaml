@@ -852,6 +852,69 @@ paths:
         "204":
           description: Deleted
 
+  /system-instances/{id}/activity:
+    get:
+      operationId: listSystemActivityEvents
+      tags: [system-instances]
+      summary: List activity events for a system instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of activity events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SystemActivityEvent"
+    post:
+      operationId: createSystemActivityEvent
+      tags: [system-instances]
+      summary: Create an activity event for a system instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SystemActivityEventInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemActivityEvent"
+
+  /system-instances/{id}/revenue:
+    get:
+      operationId: getSystemRevenue
+      tags: [system-instances]
+      summary: Get revenue stats and 7-day trend for a system instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Revenue stats and trend
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemRevenueStats"
+
   # ── Build Sessions ────────────────────────────────────────────────────────
   /build-sessions:
     get:
@@ -2089,6 +2152,66 @@ components:
           type: string
         healthStatus:
           type: string
+
+    # ── System Activity Events ──────────────────────────────────────────────
+    SystemActivityEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        systemInstanceId:
+          type: integer
+        eventType:
+          type: string
+        amountCents:
+          type: ["integer", "null"]
+        description:
+          type: string
+        metadata:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required: [id, systemInstanceId, eventType, description, createdAt]
+
+    SystemActivityEventInput:
+      type: object
+      properties:
+        eventType:
+          type: string
+        amountCents:
+          type: integer
+        description:
+          type: string
+          minLength: 1
+        metadata:
+          type: string
+      required: [description]
+
+    SystemRevenueTrendPoint:
+      type: object
+      properties:
+        date:
+          type: string
+        amountCents:
+          type: integer
+      required: [date, amountCents]
+
+    SystemRevenueStats:
+      type: object
+      properties:
+        todayCents:
+          type: integer
+        weekCents:
+          type: integer
+        monthCents:
+          type: integer
+        lifetimeCents:
+          type: integer
+        trend:
+          type: array
+          items:
+            $ref: "#/components/schemas/SystemRevenueTrendPoint"
+      required: [todayCents, weekCents, monthCents, lifetimeCents, trend]
 
     # ── Build Sessions ──────────────────────────────────────────────────────
     BuildSession:

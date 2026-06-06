@@ -80,11 +80,14 @@ import type {
   OpenrouterResponse,
   OpenrouterUsageRecord,
   OpenrouterUsageSummary,
+  SystemActivityEvent,
+  SystemActivityEventInput,
   SystemHealthInput,
   SystemHealthRecord,
   SystemInstance,
   SystemInstanceInput,
   SystemInstanceUpdate,
+  SystemRevenueStats,
   Tool,
   ToolCategory,
   ToolCategoryInput,
@@ -2923,6 +2926,232 @@ export const useDeleteSystemInstance = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getDeleteSystemInstanceMutationOptions(options));
     }
+
+export const getListSystemActivityEventsUrl = (id: number,) => {
+
+
+
+
+  return `/api/system-instances/${id}/activity`
+}
+
+/**
+ * @summary List activity events for a system instance
+ */
+export const listSystemActivityEvents = async (id: number, options?: RequestInit): Promise<SystemActivityEvent[]> => {
+
+  return customFetch<SystemActivityEvent[]>(getListSystemActivityEventsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSystemActivityEventsQueryKey = (id: number,) => {
+    return [
+    `/api/system-instances/${id}/activity`
+    ] as const;
+    }
+
+
+export const getListSystemActivityEventsQueryOptions = <TData = Awaited<ReturnType<typeof listSystemActivityEvents>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSystemActivityEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSystemActivityEventsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSystemActivityEvents>>> = ({ signal }) => listSystemActivityEvents(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSystemActivityEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSystemActivityEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listSystemActivityEvents>>>
+export type ListSystemActivityEventsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List activity events for a system instance
+ */
+
+export function useListSystemActivityEvents<TData = Awaited<ReturnType<typeof listSystemActivityEvents>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSystemActivityEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSystemActivityEventsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateSystemActivityEventUrl = (id: number,) => {
+
+
+
+
+  return `/api/system-instances/${id}/activity`
+}
+
+/**
+ * @summary Create an activity event for a system instance
+ */
+export const createSystemActivityEvent = async (id: number,
+    systemActivityEventInput: SystemActivityEventInput, options?: RequestInit): Promise<SystemActivityEvent> => {
+
+  return customFetch<SystemActivityEvent>(getCreateSystemActivityEventUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      systemActivityEventInput,)
+  }
+);}
+
+
+
+
+export const getCreateSystemActivityEventMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSystemActivityEvent>>, TError,{id: number;data: BodyType<SystemActivityEventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSystemActivityEvent>>, TError,{id: number;data: BodyType<SystemActivityEventInput>}, TContext> => {
+
+const mutationKey = ['createSystemActivityEvent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSystemActivityEvent>>, {id: number;data: BodyType<SystemActivityEventInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createSystemActivityEvent(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSystemActivityEventMutationResult = NonNullable<Awaited<ReturnType<typeof createSystemActivityEvent>>>
+    export type CreateSystemActivityEventMutationBody = BodyType<SystemActivityEventInput>
+    export type CreateSystemActivityEventMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create an activity event for a system instance
+ */
+export const useCreateSystemActivityEvent = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSystemActivityEvent>>, TError,{id: number;data: BodyType<SystemActivityEventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSystemActivityEvent>>,
+        TError,
+        {id: number;data: BodyType<SystemActivityEventInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSystemActivityEventMutationOptions(options));
+    }
+
+export const getGetSystemRevenueUrl = (id: number,) => {
+
+
+
+
+  return `/api/system-instances/${id}/revenue`
+}
+
+/**
+ * @summary Get revenue stats and 7-day trend for a system instance
+ */
+export const getSystemRevenue = async (id: number, options?: RequestInit): Promise<SystemRevenueStats> => {
+
+  return customFetch<SystemRevenueStats>(getGetSystemRevenueUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSystemRevenueQueryKey = (id: number,) => {
+    return [
+    `/api/system-instances/${id}/revenue`
+    ] as const;
+    }
+
+
+export const getGetSystemRevenueQueryOptions = <TData = Awaited<ReturnType<typeof getSystemRevenue>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemRevenue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSystemRevenueQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSystemRevenue>>> = ({ signal }) => getSystemRevenue(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSystemRevenue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSystemRevenueQueryResult = NonNullable<Awaited<ReturnType<typeof getSystemRevenue>>>
+export type GetSystemRevenueQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get revenue stats and 7-day trend for a system instance
+ */
+
+export function useGetSystemRevenue<TData = Awaited<ReturnType<typeof getSystemRevenue>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemRevenue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSystemRevenueQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListBuildSessionsUrl = (params?: ListBuildSessionsParams,) => {
   const normalizedParams = new URLSearchParams();

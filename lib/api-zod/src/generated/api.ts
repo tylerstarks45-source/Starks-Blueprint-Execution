@@ -703,6 +703,62 @@ export const DeleteSystemInstanceParams = zod.object({
 
 
 /**
+ * @summary List activity events for a system instance
+ */
+export const ListSystemActivityEventsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListSystemActivityEventsResponseItem = zod.object({
+  "id": zod.number(),
+  "systemInstanceId": zod.number(),
+  "eventType": zod.string(),
+  "amountCents": zod.number().nullish(),
+  "description": zod.string(),
+  "metadata": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListSystemActivityEventsResponse = zod.array(ListSystemActivityEventsResponseItem)
+
+
+/**
+ * @summary Create an activity event for a system instance
+ */
+export const CreateSystemActivityEventParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const CreateSystemActivityEventBody = zod.object({
+  "eventType": zod.string().optional(),
+  "amountCents": zod.number().optional(),
+  "description": zod.string().min(1),
+  "metadata": zod.string().optional()
+})
+
+
+/**
+ * @summary Get revenue stats and 7-day trend for a system instance
+ */
+export const GetSystemRevenueParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetSystemRevenueResponse = zod.object({
+  "todayCents": zod.number(),
+  "weekCents": zod.number(),
+  "monthCents": zod.number(),
+  "lifetimeCents": zod.number(),
+  "trend": zod.array(zod.object({
+  "date": zod.string(),
+  "amountCents": zod.number()
+}))
+})
+
+
+/**
  * @summary List build sessions
  */
 export const ListBuildSessionsQueryParams = zod.object({

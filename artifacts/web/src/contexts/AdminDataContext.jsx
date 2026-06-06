@@ -20,6 +20,10 @@ export const AdminDataProvider = ({ children }) => {
   const [healthLoading, setHealthLoading] = useState(true);
   const [healthError, setHealthError] = useState(null);
 
+  const [dashboard, setDashboard] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState(null);
+
   const loadAnalytics = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -44,12 +48,25 @@ export const AdminDataProvider = ({ children }) => {
     }
   }, []);
 
+  const loadDashboard = useCallback(async () => {
+    setDashboardLoading(true);
+    setDashboardError(null);
+    try {
+      setDashboard(await adminApi.getDashboard());
+    } catch (e) {
+      setDashboardError(e.message || 'Failed to load dashboard');
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadAnalytics();
     loadHealth();
+    loadDashboard();
     const id = setInterval(loadHealth, 30000);
     return () => clearInterval(id);
-  }, [loadAnalytics, loadHealth]);
+  }, [loadAnalytics, loadHealth, loadDashboard]);
 
   const value = {
     analytics,
@@ -60,6 +77,10 @@ export const AdminDataProvider = ({ children }) => {
     healthLoading,
     healthError,
     reloadHealth: loadHealth,
+    dashboard,
+    dashboardLoading,
+    dashboardError,
+    reloadDashboard: loadDashboard,
   };
 
   return <AdminDataContext.Provider value={value}>{children}</AdminDataContext.Provider>;

@@ -1251,7 +1251,13 @@ export const GetAdminDashboardResponse = zod.object({
   "resourceId": zod.string().nullish(),
   "details": zod.string().nullish(),
   "createdAt": zod.string()
-}))
+})),
+  "encryptionKeyStatus": zod.object({
+  "lastRotatedAt": zod.string().nullish().describe('ISO-8601 datetime of last key rotation, or null if unknown'),
+  "daysSinceRotation": zod.number().nullish().describe('Days elapsed since last rotation, or null if unknown'),
+  "warningThresholdDays": zod.number().describe('Number of days after which a rotation warning is raised'),
+  "needsRotation": zod.boolean().describe('True if the key is overdue for rotation (age unknown or >= threshold)')
+})
 })
 
 

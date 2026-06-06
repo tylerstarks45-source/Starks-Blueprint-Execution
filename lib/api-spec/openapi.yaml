@@ -2677,6 +2677,23 @@ components:
           type: string
       required: [service]
 
+    EncryptionKeyRotationStatus:
+      type: object
+      properties:
+        lastRotatedAt:
+          type: ["string", "null"]
+          description: ISO-8601 datetime of last key rotation, or null if unknown
+        daysSinceRotation:
+          type: ["integer", "null"]
+          description: Days elapsed since last rotation, or null if unknown
+        warningThresholdDays:
+          type: integer
+          description: Number of days after which a rotation warning is raised
+        needsRotation:
+          type: boolean
+          description: True if the key is overdue for rotation (age unknown or >= threshold)
+      required: [warningThresholdDays, needsRotation]
+
     AdminDashboard:
       type: object
       properties:
@@ -2698,7 +2715,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AdminActivity"
-      required: [totalUsers, totalBlueprints, totalTools, totalSystemInstances, activeSystemInstances, totalAffiliateClicks, openrouterTotalTokens, recentActivity]
+        encryptionKeyStatus:
+          $ref: "#/components/schemas/EncryptionKeyRotationStatus"
+      required: [totalUsers, totalBlueprints, totalTools, totalSystemInstances, activeSystemInstances, totalAffiliateClicks, openrouterTotalTokens, recentActivity, encryptionKeyStatus]
 
     AdminPlatformStats:
       type: object

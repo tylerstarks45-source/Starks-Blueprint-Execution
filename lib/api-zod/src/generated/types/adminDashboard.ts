@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AdminActivity } from './adminActivity';
+import type { EncryptionKeyRotationStatus } from './encryptionKeyRotationStatus';
 
 export interface AdminDashboard {
   totalUsers: number;
@@ -16,4 +17,5 @@ export interface AdminDashboard {
   totalAffiliateClicks: number;
   openrouterTotalTokens: number;
   recentActivity: AdminActivity[];
+  encryptionKeyStatus: EncryptionKeyRotationStatus;
 }

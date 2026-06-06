@@ -19,6 +19,7 @@ import AdminPlatformHealthCard from './AdminPlatformHealthCard.jsx';
 import AdminAPIMonitoringCard from './AdminAPIMonitoringCard.jsx';
 import AdminUserGrowthAnalyticsCard from './AdminUserGrowthAnalyticsCard.jsx';
 import AdminSystemHealthOverviewCard from './AdminSystemHealthOverviewCard.jsx';
+import AdminEncryptionKeyWarningCard from './AdminEncryptionKeyWarningCard.jsx';
 
 import CreditBalanceCard from '@/components/admin/CreditBalanceCard.jsx';
 import UsageOverviewCard from '@/components/admin/UsageOverviewCard.jsx';
@@ -36,6 +37,12 @@ const AdminDashboardLayout = () => {
         </div>
         <AdminPlatformRequestVolumeCard />
         <AdminPlatformHealthCard />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="col-span-1">
+          <AdminEncryptionKeyWarningCard />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

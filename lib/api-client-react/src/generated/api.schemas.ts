@@ -567,6 +567,23 @@ export interface SystemHealthInput {
   message?: string;
 }
 
+export interface EncryptionKeyRotationStatus {
+  /**
+     * ISO-8601 datetime of last key rotation, or null if unknown
+     * @nullable
+     */
+  lastRotatedAt?: string | null;
+  /**
+     * Days elapsed since last rotation, or null if unknown
+     * @nullable
+     */
+  daysSinceRotation?: number | null;
+  /** Number of days after which a rotation warning is raised */
+  warningThresholdDays: number;
+  /** True if the key is overdue for rotation (age unknown or >= threshold) */
+  needsRotation: boolean;
+}
+
 export interface AdminDashboard {
   totalUsers: number;
   totalBlueprints: number;
@@ -576,6 +593,7 @@ export interface AdminDashboard {
   totalAffiliateClicks: number;
   openrouterTotalTokens: number;
   recentActivity: AdminActivity[];
+  encryptionKeyStatus: EncryptionKeyRotationStatus;
 }
 
 export interface AdminPlatformStats {

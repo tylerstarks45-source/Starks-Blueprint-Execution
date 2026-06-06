@@ -54,6 +54,7 @@ function toQuery(params = {}) {
 }
 
 export const adminApi = {
+  getDashboard: () => request('/admin/dashboard'),
   getAnalytics: () => request('/admin/analytics'),
   getHealth: () => request('/admin/health'),
   getUsageByUser: (limit = 50) => request(`/admin/usage/by-user${toQuery({ limit })}`),

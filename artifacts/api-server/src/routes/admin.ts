@@ -17,6 +17,7 @@ import {
 } from "@workspace/db";
 import { requireAdmin } from "../lib/auth";
 import { adjustCredits, TIER_PRICES } from "../lib/credits";
+import { getKeyRotationStatus } from "../lib/crypto";
 import {
   ListAdminUsersResponse,
   CreateAdminUserBody,
@@ -181,6 +182,7 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
         totalAffiliateClicks: clickSum.total,
         openrouterTotalTokens: tokenSum.total,
         recentActivity,
+        encryptionKeyStatus: getKeyRotationStatus(),
       }),
     ),
   );

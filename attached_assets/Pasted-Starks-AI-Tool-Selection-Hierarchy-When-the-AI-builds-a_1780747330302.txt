@@ -1,0 +1,215 @@
+Starks AI Tool Selection Hierarchy
+
+When the AI builds a system:
+
+Step 1
+Search the Starks Marketplace first.
+
+Step 2
+Build the tool stack using Starks Marketplace tools whenever possible.
+
+Step 3
+Display ONLY the Starks affiliate links for those tools.
+
+Step 4
+Track which affiliate tools were recommended.
+
+Step 5
+Track which affiliate tools were purchased.
+
+Step 6
+Use external tools only if no marketplace equivalent exists.
+
+That means if somebody wants:
+
+AI Content System
+Lead Generation System
+YouTube Automation System
+Affiliate Marketing System
+Email Marketing System
+Funnel System
+CRM System
+
+The AI should first attempt to build the entire stack using tools from YOUR marketplace.
+
+Example:
+
+User says:
+
+Build me a YouTube automation business
+
+Instead of:
+
+Use:
+Tool A
+Tool B
+Tool C
+
+The AI says:
+
+Required Tool Stack
+
+1. Pictory
+[Your Affiliate Link]
+
+2. ElevenLabs
+[Your Affiliate Link]
+
+3. OpenRouter
+[Your Affiliate Link]
+
+4. Repurpose.io
+[Your Affiliate Link]
+
+Then:
+
+Purchase these tools.
+
+Once complete click Continue.
+
+Then:
+
+Give me:
+
+Pictory API Key
+ElevenLabs API Key
+OpenRouter API Key
+Repurpose.io API Key
+
+Then:
+
+AI builds system
+AI deploys system
+AI launches system
+
+Only if a required tool doesn't exist in your marketplace should it do this:
+
+No marketplace tool available.
+
+Recommended External Tool:
+Tool XYZ
+
+I would add this entire section to the Replit build message:
+
+MARKETPLACE-FIRST TOOL SELECTION ENGINE
+
+This is a mandatory platform rule.
+
+Before recommending any tool, the AI must search the Starks Marketplace.
+
+Tool Selection Priority
+
+Priority 1:
+Marketplace affiliate tools
+
+Priority 2:
+Approved partner tools
+
+Priority 3:
+External tools
+
+The AI should always attempt to build the entire system using marketplace tools whenever possible.
+
+AFFILIATE REVENUE ENGINE
+
+Every marketplace tool record must contain:
+
+Tool Name
+Category
+Description
+Affiliate Link
+Credentials Required
+Setup Requirements
+API Availability
+Monthly Cost
+Tags
+
+The AI must use the affiliate link stored in the marketplace database.
+
+The AI must never display direct vendor URLs if an affiliate URL exists.
+
+TOOL STACK GENERATOR
+
+Before any build begins:
+
+Generate:
+
+Required Tool Stack
+
+For each tool display:
+
+Tool Name
+Purpose
+Marketplace Link
+Affiliate Link
+Estimated Cost
+Credentials Required
+
+Example:
+
+Tool:
+OpenRouter
+
+Purpose:
+AI Inference Layer
+
+Marketplace Link:
+Marketplace Record
+
+Affiliate Link:
+Stored Affiliate URL
+
+Required Credentials:
+API Key
+
+Status:
+Waiting for User
+
+AFFILIATE-FIRST BUILD LOGIC
+
+Build logic:
+
+User requests system.
+AI determines required components.
+AI searches marketplace.
+AI creates tool stack.
+AI displays affiliate tools.
+User purchases tools.
+User submits credentials.
+Credentials stored in encrypted vault.
+AI connects tools.
+AI builds system.
+AI deploys system.
+AI launches system.
+AI monitors system.
+Dashboard tracks system health, uptime, activity, and revenue.
+EXTERNAL TOOL FALLBACK
+
+Only use external tools if:
+
+No marketplace alternative exists.
+
+When external tools are used:
+
+Explain why.
+Store tool in recommendations database.
+Flag it for future marketplace addition.
+
+This allows marketplace expansion based on real user demand.
+
+BUSINESS GOAL
+
+The AI Builder should function as:
+
+System Architect
+Tool Recommender
+Tool Integrator
+System Builder
+System Launcher
+System Monitor
+
+while maximizing marketplace affiliate revenue whenever possible.
+
+Marketplace tools are always the preferred choice.
+
+That addition turns the AI from simply being a builder into a revenue-generating sales engine for your marketplace, because every build starts with recommending your affiliate tool stack before it builds anything.

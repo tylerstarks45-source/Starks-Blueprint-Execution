@@ -1,0 +1,222 @@
+# STARKS AI BRAIN — UNIVERSAL SKILL ENGINE IMPLEMENTATION
+
+## OBJECTIVE
+
+Build a complete Skill Engine inside the Starks AI Builder that functions similarly to Replit Agent Skills but is fully owned and operated by the Starks Global Group platform.
+
+The end goal is for users to interact with a single AI Builder that can dynamically activate specialist skills and build virtually any online business, automation system, content system, SaaS, funnel, agency, or income-generating workflow.
+
+DO NOT create a dependency on Replit Agent.
+
+DO NOT create a Replit-only implementation.
+
+Everything must run inside Starksglobalgroup.net for our paying users.
+
+---
+
+## BUILD A SKILL ENGINE
+
+Create:
+
+* Skill Registry
+* Skill Loader
+* Skill Activation Engine
+* Skill Management Dashboard
+* Skill Memory Layer
+* Skill Analytics
+
+The AI must be able to activate one skill or multiple skills automatically based on user requests.
+
+---
+
+## INITIAL SKILL CATALOG
+
+Implement support for all of the following capability categories:
+
+### Sales & Marketing
+
+* Ad Creative
+* AI SDR
+* SEO Auditor
+* Programmatic SEO
+* GEO
+* Content Machine
+* Storyboard
+
+### Research
+
+* Deep Research
+* Competitive Analysis
+* Supplier Research
+* Market Research
+
+### Business
+
+* Product Manager
+* Business Architect
+* Analytics
+* Operations Planning
+
+### Creative
+
+* Branding Generator
+* Podcast Generator
+* Podcast Marketing
+* Video Production
+* Content Creation
+
+### Productivity
+
+* AI Secretary
+* Workflow Builder
+* Automation Designer
+
+### Documents
+
+* Legal Contract Generator
+* Invoice Generator
+* SOP Generator
+* Proposal Generator
+
+---
+
+## STARKS EXCLUSIVE SKILLS
+
+Add platform-specific skills:
+
+* Affiliate System Builder
+* YouTube Automation Builder
+* TikTok Automation Builder
+* Facebook Automation Builder
+* Instagram Automation Builder
+* AI Funnel Builder
+* AI SaaS Builder
+* AI Agency Builder
+* AI Recruiting Builder
+* AI Ecommerce Builder
+* AI Lead Generation Builder
+* AI Course Builder
+* AI Membership Builder
+* AI Newsletter Builder
+* AI Community Builder
+* AI Brand Builder
+* AI Revenue System Builder
+* AI Automation Architect
+
+---
+
+## SKILL ACTIVATION
+
+When a user requests a system:
+
+Analyze request.
+
+Determine required skills.
+
+Load required skills automatically.
+
+Use multiple skills simultaneously if needed.
+
+The user should never need to manually select skills.
+
+---
+
+## TOOL STACK ENGINE
+
+The AI must:
+
+1. Determine required tools.
+2. Prioritize marketplace affiliate tools first.
+3. Recommend external tools only when necessary.
+4. Generate a complete stack before building begins.
+
+---
+
+## CREDENTIAL COLLECTION ENGINE
+
+For every required tool:
+
+Generate credential requirements.
+
+Examples:
+
+* API Keys
+* OAuth Authorization
+* SMTP Credentials
+* Access Tokens
+* Webhook URLs
+* Login Credentials
+
+The AI must clearly explain what is needed.
+
+---
+
+## SECURE VAULT
+
+Build a secure encrypted user vault.
+
+Users provide credentials once.
+
+Credentials are securely stored.
+
+Future systems can reuse stored credentials.
+
+The AI must be able to access authorized credentials during builds.
+
+---
+
+## UNIVERSAL BUILDER MODE
+
+The AI Builder is no longer limited to marketplace blueprints.
+
+The AI must be capable of:
+
+* Building marketplace blueprints
+* Building custom systems
+* Building hybrid systems
+* Building user-requested automations
+* Building complete business infrastructures
+
+The Builder should operate similarly to an AI software architect and autonomous system builder.
+
+---
+
+## FINAL GOAL
+
+Transform Starks AI Builder into a platform where a user can:
+
+Describe a business idea
+
+↓
+
+AI selects skills
+
+↓
+
+AI selects tools
+
+↓
+
+AI requests credentials
+
+↓
+
+AI builds system
+
+↓
+
+AI deploys system
+
+↓
+
+AI hosts system
+
+↓
+
+AI monitors system
+
+↓
+
+Dashboard tracks performance, health, activity, and revenue
+
+Audit the current codebase first and provide a detailed implementation report showing what already exists, what can be reused, and what must be built.

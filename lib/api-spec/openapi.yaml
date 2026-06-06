@@ -3127,6 +3127,15 @@ components:
         createdAt: { type: string }
       required: [id, systemInstanceId, blueprintName, amountCents, description, createdAt]
 
+    AdminDailyRevenue:
+      type: object
+      properties:
+        date:
+          type: string
+        amountCents:
+          type: integer
+      required: [date, amountCents]
+
     AdminRevenueActivity:
       type: object
       properties:
@@ -3140,7 +3149,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AdminRevenueEvent"
-      required: [stats, byBlueprint, recentEvents]
+        dailyRevenue:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminDailyRevenue"
+      required: [stats, byBlueprint, recentEvents, dailyRevenue]
 
     # ── Notifications ───────────────────────────────────────────────────────
     Notification:

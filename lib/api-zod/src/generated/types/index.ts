@@ -14,6 +14,7 @@ export * from './adminBlueprintRevenue';
 export * from './adminCreditAdjust';
 export * from './adminCreditAdjustResult';
 export * from './adminCreditStats';
+export * from './adminDailyRevenue';
 export * from './adminDashboard';
 export * from './adminGrowthPoint';
 export * from './adminHealth';

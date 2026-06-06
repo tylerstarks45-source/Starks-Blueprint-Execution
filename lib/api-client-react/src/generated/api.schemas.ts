@@ -814,10 +814,16 @@ export interface AdminRevenueEvent {
   createdAt: string;
 }
 
+export interface AdminDailyRevenue {
+  date: string;
+  amountCents: number;
+}
+
 export interface AdminRevenueActivity {
   stats: AdminRevenueStats;
   byBlueprint: AdminBlueprintRevenue[];
   recentEvents: AdminRevenueEvent[];
+  dailyRevenue: AdminDailyRevenue[];
 }
 
 export interface Notification {

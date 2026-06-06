@@ -1461,6 +1461,10 @@ export const GetAdminRevenueResponse = zod.object({
   "amountCents": zod.number(),
   "description": zod.string(),
   "createdAt": zod.string()
+})),
+  "dailyRevenue": zod.array(zod.object({
+  "date": zod.string(),
+  "amountCents": zod.number()
 }))
 })
 

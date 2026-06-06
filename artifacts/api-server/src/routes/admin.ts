@@ -513,7 +513,7 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
         .from(systemActivityEventsTable)
         .where(buildWhere());
 
-  const [statsRows, byBlueprintRows, recentEventsRows] = await Promise.all([
+  const [statsRows, byBlueprintRows, recentEventsRows, dailyRevenueRows] = await Promise.all([
     statsQuery,
 
     // Per-blueprint revenue breakdown
@@ -548,6 +548,38 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
       .where(buildWhere())
       .orderBy(desc(systemActivityEventsTable.createdAt))
       .limit(25),
+
+    // 30-day daily revenue trend (joined to instances only when filtering by user)
+    (filterUserId !== null || filterSystemInstanceId !== null
+      ? db
+          .select({
+            date: sql<string>`to_char(date_trunc('day', ${systemActivityEventsTable.createdAt}), 'YYYY-MM-DD')`,
+            amountCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
+          })
+          .from(systemActivityEventsTable)
+          .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
+          .where(
+            and(
+              buildWhere(),
+              gte(systemActivityEventsTable.createdAt, sql`now() - interval '30 days'`),
+            ),
+          )
+          .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)
+      : db
+          .select({
+            date: sql<string>`to_char(date_trunc('day', ${systemActivityEventsTable.createdAt}), 'YYYY-MM-DD')`,
+            amountCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
+          })
+          .from(systemActivityEventsTable)
+          .where(
+            and(
+              buildWhere(),
+              gte(systemActivityEventsTable.createdAt, sql`now() - interval '30 days'`),
+            ),
+          )
+          .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)),
   ]);
 
   const [statsRow] = statsRows;
@@ -567,6 +599,7 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
           ...e,
           amountCents: e.amountCents ?? 0,
         })),
+        dailyRevenue: dailyRevenueRows,
       }),
     ),
   );

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AdminBlueprintRevenue } from './adminBlueprintRevenue';
+import type { AdminDailyRevenue } from './adminDailyRevenue';
 import type { AdminRevenueEvent } from './adminRevenueEvent';
 import type { AdminRevenueStats } from './adminRevenueStats';
 
@@ -13,4 +14,5 @@ export interface AdminRevenueActivity {
   stats: AdminRevenueStats;
   byBlueprint: AdminBlueprintRevenue[];
   recentEvents: AdminRevenueEvent[];
+  dailyRevenue: AdminDailyRevenue[];
 }

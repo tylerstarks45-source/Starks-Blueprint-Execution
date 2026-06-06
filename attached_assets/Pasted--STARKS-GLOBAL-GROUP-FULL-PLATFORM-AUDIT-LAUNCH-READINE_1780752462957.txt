@@ -1,0 +1,443 @@
+# STARKS GLOBAL GROUP — FULL PLATFORM AUDIT & LAUNCH READINESS REVIEW
+
+## OBJECTIVE
+
+Perform a COMPLETE platform-wide audit of Starksglobalgroup.net.
+
+Do NOT perform a partial review.
+
+Do NOT assume anything works because code exists.
+
+Do NOT provide a high-level summary.
+
+I want a full engineering, product, infrastructure, security, AI, database, billing, marketplace, and user-experience audit.
+
+Your task is to inspect, test, validate, and report on EVERY major system in the platform.
+
+---
+
+# AUDIT SCOPE
+
+Review:
+
+* Every page
+* Every route
+* Every API endpoint
+* Every database table
+* Every database relationship
+* Every AI workflow
+* Every subscription flow
+* Every payment flow
+* Every authentication flow
+* Every admin function
+* Every marketplace function
+* Every blueprint function
+* Every dashboard function
+* Every AI Builder function
+* Every system deployment function
+* Every file upload function
+* Every credential storage function
+* Every webhook
+* Every cron job
+* Every automation
+* Every integration
+* Every environment variable
+* Every secret
+* Every service connection
+
+I want nothing skipped.
+
+---
+
+# CODEBASE INSPECTION
+
+Inspect:
+
+* Every frontend page
+* Every React component
+* Every backend route
+* Every controller
+* Every service
+* Every helper
+* Every middleware
+* Every utility
+* Every schema
+* Every migration
+* Every database query
+
+Identify:
+
+* Dead code
+* Unused files
+* Duplicate logic
+* Broken imports
+* Broken exports
+* Missing validation
+* Missing error handling
+* Security risks
+* Performance issues
+* Architecture issues
+
+Provide exact file paths.
+
+---
+
+# FRONTEND AUDIT
+
+Test every page.
+
+Verify:
+
+* Page loads
+* Navigation works
+* Buttons work
+* Forms submit
+* Search works
+* Filters work
+* Modals work
+* Mobile responsiveness
+* Tablet responsiveness
+* Desktop responsiveness
+* Broken layouts
+* Missing data
+* Missing states
+* Empty states
+* Loading states
+* Error states
+
+Check every visible UI element.
+
+List all issues found.
+
+---
+
+# AUTHENTICATION AUDIT
+
+Verify:
+
+* Signup
+* Login
+* Logout
+* Password reset
+* Session management
+* User roles
+* Protected routes
+* Admin routes
+* Suspended users
+* Unauthorized access attempts
+
+Attempt to bypass permissions.
+
+Report vulnerabilities.
+
+---
+
+# SUBSCRIPTION AUDIT
+
+Verify:
+
+Starter
+
+Builder
+
+Operator
+
+Empire
+
+Test:
+
+* Purchase flow
+* Upgrade flow
+* Downgrade flow
+* Cancellation flow
+* Reactivation flow
+* Stripe Customer Portal
+* Credit allocation
+* Credit deductions
+* Credit restoration
+* Billing status updates
+
+Confirm all tiers behave correctly.
+
+---
+
+# STRIPE AUDIT
+
+Verify:
+
+* Webhooks
+* Price IDs
+* Customer creation
+* Subscription creation
+* Subscription updates
+* Subscription cancellations
+* Invoice renewals
+* Payment failures
+* Retry behavior
+* Idempotency
+
+Confirm production readiness.
+
+---
+
+# RESEND EMAIL AUDIT
+
+Verify:
+
+* Welcome emails
+* Password reset emails
+* Contact forms
+* Notifications
+* Support messages
+* Email templates
+* Sender configuration
+* Domain verification
+
+Confirm actual delivery paths.
+
+---
+
+# DATABASE AUDIT
+
+Inspect all tables.
+
+Verify:
+
+* Foreign keys
+* Relationships
+* Constraints
+* Indexes
+* Cascades
+* Data consistency
+
+Identify:
+
+* Orphaned records
+* Duplicate records
+* Missing indexes
+* Slow queries
+
+Provide recommendations.
+
+---
+
+# MARKETPLACE AUDIT
+
+Verify:
+
+* Marketplace pages
+* Product listings
+* Categories
+* Affiliate links
+* Search
+* Filtering
+* Tool recommendations
+
+Confirm marketplace data is connected correctly.
+
+---
+
+# AI BUILDER AUDIT
+
+This is the highest priority section.
+
+Verify:
+
+* AI Agent connectivity
+* OpenRouter integration
+* Prompt pipelines
+* Model routing
+* Memory systems
+* Blueprint selection
+* Tool recommendations
+* Credential collection
+* Build workflows
+* Error handling
+* Fallback handling
+
+Determine exactly what the AI can currently do.
+
+Determine exactly what it cannot currently do.
+
+Determine what is partially implemented.
+
+Determine what is missing entirely.
+
+---
+
+# FUTURE AI BUILDER READINESS
+
+Compare current implementation against the intended vision:
+
+User describes system
+
+↓
+
+AI selects skills
+
+↓
+
+AI selects marketplace tools
+
+↓
+
+AI provides affiliate links
+
+↓
+
+AI collects credentials
+
+↓
+
+AI stores credentials securely
+
+↓
+
+AI builds system
+
+↓
+
+AI deploys system
+
+↓
+
+AI launches system
+
+↓
+
+AI monitors system
+
+↓
+
+Dashboard reports revenue and health
+
+For each step report:
+
+* Complete
+* Partially Complete
+* Missing
+
+Provide exact percentages.
+
+---
+
+# SYSTEM HOSTING AUDIT
+
+Determine:
+
+Can user-created systems currently be:
+
+* Stored
+* Hosted
+* Launched
+* Managed
+* Monitored
+
+inside Starksglobalgroup.net?
+
+If not:
+
+Explain exactly what infrastructure is missing.
+
+---
+
+# DASHBOARD AUDIT
+
+Verify:
+
+* User Dashboard
+* Admin Dashboard
+* Metrics
+* Credits
+* Revenue displays
+* Activity displays
+* Blueprint displays
+* System displays
+
+Identify all missing metrics.
+
+Recommend Command Center architecture.
+
+---
+
+# SECURITY AUDIT
+
+Review:
+
+* Credential storage
+* Secrets
+* Environment variables
+* API protection
+* SQL injection risks
+* XSS risks
+* Permission escalation risks
+* Admin vulnerabilities
+
+Provide a risk score.
+
+---
+
+# PERFORMANCE AUDIT
+
+Identify:
+
+* Slow routes
+* Slow queries
+* Large bundles
+* Excessive API calls
+* Memory leaks
+* Rendering issues
+
+Provide optimization recommendations.
+
+---
+
+# FINAL REPORT FORMAT
+
+Return a report containing:
+
+SECTION 1:
+What works correctly
+
+SECTION 2:
+What is partially implemented
+
+SECTION 3:
+What is broken
+
+SECTION 4:
+What is missing
+
+SECTION 5:
+Launch blockers
+
+SECTION 6:
+Security concerns
+
+SECTION 7:
+Architecture concerns
+
+SECTION 8:
+AI Builder readiness score
+
+SECTION 9:
+Marketplace readiness score
+
+SECTION 10:
+Subscription readiness score
+
+SECTION 11:
+Overall platform readiness score
+
+SECTION 12:
+Exact next tasks in priority order
+
+Do not write code first.
+
+Audit first.
+
+Inspect first.
+
+Test first.
+
+Then provide the complete report with file paths, routes, database tables, and implementation status for every major system.

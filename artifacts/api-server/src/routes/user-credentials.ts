@@ -119,23 +119,27 @@ router.get("/user-credentials", async (req, res): Promise<void> => {
     .orderBy(userCredentialsTable.credentialKey);
 
   // Silently re-encrypt any rows still in legacy base64 format.
+  // All updates run inside a single transaction to avoid N separate round-trips.
   const legacyRows = rows.filter((r) => !isEncrypted(r.encryptedValue));
   if (legacyRows.length > 0) {
-    await Promise.all(
-      legacyRows.map((r) => {
-        try {
-          const plaintext = decrypt(r.encryptedValue);
-          const reEncrypted = encrypt(plaintext);
-          return db
-            .update(userCredentialsTable)
-            .set({ encryptedValue: reEncrypted, updatedAt: new Date() })
-            .where(eq(userCredentialsTable.id, r.id));
-        } catch (err) {
-          req.log.warn({ credentialId: r.id, err }, "Failed to re-encrypt legacy credential");
-          return Promise.resolve();
+    try {
+      await db.transaction(async (tx) => {
+        for (const r of legacyRows) {
+          try {
+            const plaintext = decrypt(r.encryptedValue);
+            const reEncrypted = encrypt(plaintext);
+            await tx
+              .update(userCredentialsTable)
+              .set({ encryptedValue: reEncrypted, updatedAt: new Date() })
+              .where(eq(userCredentialsTable.id, r.id));
+          } catch (err) {
+            req.log.warn({ credentialId: r.id, err }, "Failed to re-encrypt legacy credential");
+          }
         }
-      }),
-    );
+      });
+    } catch (err) {
+      req.log.warn({ err }, "Re-encryption transaction failed; skipping upgrade pass");
+    }
   }
 
   // Strip the encryptedValue before returning — callers only get metadata.

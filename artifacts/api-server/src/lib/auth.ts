@@ -3,14 +3,17 @@ import type { Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 
-const isProduction = process.env.REPLIT_DEPLOYMENT === "1" || process.env.NODE_ENV === "production";
-
-// Fail closed in production: a fallback secret would let anyone forge tokens (auth/billing bypass).
-if (isProduction && !process.env["SESSION_SECRET"]) {
-  throw new Error("SESSION_SECRET must be set in production");
+// Hard fail if SESSION_SECRET is not set — in ANY environment.
+// A missing secret means all tokens would be signed with a known public string,
+// allowing anyone to forge admin tokens. There is no safe fallback.
+if (!process.env["SESSION_SECRET"]) {
+  throw new Error(
+    "SESSION_SECRET environment variable must be set. " +
+    "Generate a cryptographically random 32+ character string and add it to your Replit secrets.",
+  );
 }
 
-const JWT_SECRET = process.env["SESSION_SECRET"] || "sbep-fallback-secret-change-in-prod";
+const JWT_SECRET = process.env["SESSION_SECRET"];
 
 // Returns the authenticated user id from a valid Bearer token, or null if absent/invalid.
 export function getUserId(req: Request): number | null {
@@ -51,6 +54,10 @@ export function requireAuth(req: Request, res: Response): number | null {
 
 // Roles permitted to access admin-only endpoints.
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "admin"]);
+
+export function isAdminRole(role: string): boolean {
+  return ADMIN_ROLES.has(role);
+}
 
 // Async version of requireAuth that also verifies users.active.
 // Sends 401 (no/invalid token) or 403 (suspended) and returns null on failure.

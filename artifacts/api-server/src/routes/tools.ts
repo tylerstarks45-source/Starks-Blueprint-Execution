@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, ilike, and } from "drizzle-orm";
 import { db, toolsTable } from "@workspace/db";
+import { requireAdmin } from "../lib/auth";
 import {
   ListToolsResponse,
   GetToolResponse,
@@ -14,6 +15,8 @@ import {
 
 const router: IRouter = Router();
 
+// ── GET /api/tools ──────────────────────────────────────────────────────────
+// Public read — marketplace tools are visible to all users.
 router.get("/tools", async (req, res): Promise<void> => {
   const conditions = [];
   if (req.query.categoryId) conditions.push(eq(toolsTable.categoryId, Number(req.query.categoryId)));
@@ -27,7 +30,9 @@ router.get("/tools", async (req, res): Promise<void> => {
   res.json(ListToolsResponse.parse(serialize(rows)));
 });
 
+// ── POST /api/tools — ADMIN ONLY ───────────────────────────────────────────
 router.post("/tools", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const parsed = CreateToolBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -37,6 +42,8 @@ router.post("/tools", async (req, res): Promise<void> => {
   res.status(201).json(GetToolResponse.parse(serialize(row)));
 });
 
+// ── GET /api/tools/:id ──────────────────────────────────────────────────────
+// Public read.
 router.get("/tools/:id", async (req, res): Promise<void> => {
   const params = GetToolParams.safeParse(req.params);
   if (!params.success) {
@@ -51,7 +58,9 @@ router.get("/tools/:id", async (req, res): Promise<void> => {
   res.json(GetToolResponse.parse(serialize(row)));
 });
 
+// ── PATCH /api/tools/:id — ADMIN ONLY ──────────────────────────────────────
 router.patch("/tools/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const params = UpdateToolParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -70,7 +79,9 @@ router.patch("/tools/:id", async (req, res): Promise<void> => {
   res.json(GetToolResponse.parse(serialize(row)));
 });
 
+// ── DELETE /api/tools/:id — ADMIN ONLY ─────────────────────────────────────
 router.delete("/tools/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const params = DeleteToolParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

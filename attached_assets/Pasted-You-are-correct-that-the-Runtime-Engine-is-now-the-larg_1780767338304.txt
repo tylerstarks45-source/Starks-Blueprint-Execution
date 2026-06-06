@@ -1,0 +1,183 @@
+You are correct that the Runtime Engine is now the largest missing component, but I want to make sure we execute this roadmap in the correct order and do not stop halfway through.
+
+Proceed with Phase 1 Security Lockdown immediately and complete every item before moving to any additional UI work.
+
+PHASE 1 REQUIREMENTS
+
+1. Lock down all user routes.
+2. Remove all privilege escalation paths.
+3. Protect all blueprint, marketplace, affiliate, and admin CRUD endpoints.
+4. Remove fallback JWT secrets.
+5. Verify every production environment variable.
+6. Verify all Stripe billing flows.
+7. Verify all credential vault permissions and encryption.
+
+When Phase 1 is complete, provide a detailed report showing:
+
+* Every vulnerability fixed
+* Every file changed
+* Every route secured
+* Every middleware added
+* Every test performed
+
+Do not simply tell me it is complete. Show proof.
+
+---
+
+PHASE 2
+
+Complete all database integrity work.
+
+Add all missing indexes.
+
+Verify foreign keys.
+
+Verify cascade behavior.
+
+Verify system ownership relationships.
+
+Verify user-to-system relationships.
+
+Verify credential ownership relationships.
+
+Run database integrity testing and provide results.
+
+---
+
+PHASE 3
+
+Builder Architecture Review.
+
+Before building anything else, perform a complete inspection of the AI Builder architecture and answer these questions:
+
+1. Can the AI currently build real systems?
+2. Can the AI currently connect real third-party APIs?
+3. Can the AI currently store credentials and reuse them?
+4. Can the AI currently deploy a system?
+5. Can the AI currently launch a system?
+6. Can the AI currently host a system?
+7. Can the AI currently monitor a running system?
+8. Can the AI currently restart a failed system?
+9. Can the AI currently execute background jobs?
+10. Can the AI currently manage multiple systems per user?
+
+Provide a pass/fail report for each item.
+
+---
+
+PHASE 4
+
+Runtime Architecture Design.
+
+Before writing implementation code, design the complete Runtime Layer.
+
+I want a written architecture document showing:
+
+* Runtime Manager
+* Job Queue
+* Worker Pool
+* Task Scheduler
+* Deployment Engine
+* Connector Framework
+* Health Monitor
+* Activity Logger
+* Revenue Tracker
+* System State Manager
+
+Show how every component communicates.
+
+Show database tables required.
+
+Show API endpoints required.
+
+Show worker lifecycle.
+
+Show deployment lifecycle.
+
+Show system lifecycle.
+
+Do not start implementation until this architecture is reviewed.
+
+---
+
+PHASE 5
+
+Connector Framework.
+
+Design connectors for:
+
+* OpenRouter
+* Stripe
+* Resend
+* Gmail
+* Google Sheets
+* TikTok
+* Meta
+* YouTube
+* Shopify
+* Cloudflare
+
+For each connector show:
+
+* Required credentials
+* OAuth requirements
+* API requirements
+* Storage requirements
+* Status monitoring
+* Error handling
+
+---
+
+PHASE 6
+
+AI Builder Intelligence Audit.
+
+Review the AI Builder and determine exactly what it knows today.
+
+I want a report showing:
+
+* Blueprint knowledge
+* Marketplace knowledge
+* Tool recommendation logic
+* Credential collection logic
+* Build planning logic
+* Deployment logic
+* Skill activation logic
+
+Then provide recommendations for upgrading it into a true AI Business Operating System.
+
+---
+
+PHASE 7
+
+Marketplace Integration Review.
+
+The Builder must prioritize marketplace tools first.
+
+Audit the current system and determine:
+
+* Can the Builder read marketplace tools?
+* Can the Builder read affiliate links?
+* Can the Builder recommend affiliate tools automatically?
+* Can the Builder track marketplace conversions?
+* Can the Builder fall back to external tools when necessary?
+
+Provide a pass/fail report.
+
+---
+
+DO NOT BUILD NEW UI FEATURES UNTIL THESE AUDITS AND FOUNDATIONAL SYSTEMS ARE COMPLETE.
+
+The goal is not a prettier platform.
+
+The goal is a platform that can truly:
+
+1. Recommend tools
+2. Collect credentials
+3. Build systems
+4. Deploy systems
+5. Launch systems
+6. Monitor systems
+7. Manage systems
+
+Report findings after each phase before proceeding.

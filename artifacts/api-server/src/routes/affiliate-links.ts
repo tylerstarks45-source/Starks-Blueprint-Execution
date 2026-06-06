@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, sql } from "drizzle-orm";
 import { db, affiliateLinksTable } from "@workspace/db";
+import { requireAdmin } from "../lib/auth";
 import {
   ListAffiliateLinksResponse,
   UpdateAffiliateLinkResponse,
@@ -15,6 +16,8 @@ import {
 
 const router: IRouter = Router();
 
+// ── GET /api/affiliate-links ────────────────────────────────────────────────
+// Public read — affiliate links are embedded in marketplace pages visible to all.
 router.get("/affiliate-links", async (req, res): Promise<void> => {
   const rows = req.query.toolId
     ? await db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.toolId, Number(req.query.toolId))).orderBy(affiliateLinksTable.id)
@@ -22,7 +25,9 @@ router.get("/affiliate-links", async (req, res): Promise<void> => {
   res.json(ListAffiliateLinksResponse.parse(serialize(rows)));
 });
 
+// ── POST /api/affiliate-links — ADMIN ONLY ─────────────────────────────────
 router.post("/affiliate-links", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const parsed = CreateAffiliateLinkBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -32,7 +37,9 @@ router.post("/affiliate-links", async (req, res): Promise<void> => {
   res.status(201).json(UpdateAffiliateLinkResponse.parse(serialize(row)));
 });
 
+// ── PATCH /api/affiliate-links/:id — ADMIN ONLY ────────────────────────────
 router.patch("/affiliate-links/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const params = UpdateAffiliateLinkParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -51,7 +58,9 @@ router.patch("/affiliate-links/:id", async (req, res): Promise<void> => {
   res.json(UpdateAffiliateLinkResponse.parse(serialize(row)));
 });
 
+// ── DELETE /api/affiliate-links/:id — ADMIN ONLY ───────────────────────────
 router.delete("/affiliate-links/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const params = DeleteAffiliateLinkParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -61,6 +70,9 @@ router.delete("/affiliate-links/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
+// ── POST /api/affiliate-links/:id/click ────────────────────────────────────
+// Public: click tracking is unauthenticated by design — it's an atomic counter
+// increment triggered by user navigation, not a data mutation requiring auth.
 router.post("/affiliate-links/:id/click", async (req, res): Promise<void> => {
   const params = TrackAffiliateLinkClickParams.safeParse(req.params);
   if (!params.success) {

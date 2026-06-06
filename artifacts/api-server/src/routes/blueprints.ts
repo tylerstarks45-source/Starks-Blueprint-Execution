@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, ilike, and } from "drizzle-orm";
 import { db, blueprintsTable, blueprintStepsTable } from "@workspace/db";
+import { requireAdmin } from "../lib/auth";
 import {
   ListBlueprintsResponse,
   GetBlueprintResponse,
@@ -22,6 +23,8 @@ import {
 
 const router: IRouter = Router();
 
+// ── GET /api/blueprints ─────────────────────────────────────────────────────
+// Public read — all authenticated and unauthenticated callers may list blueprints.
 router.get("/blueprints", async (req, res): Promise<void> => {
   const conditions = [];
   if (req.query.status) conditions.push(eq(blueprintsTable.status, String(req.query.status)));
@@ -36,7 +39,9 @@ router.get("/blueprints", async (req, res): Promise<void> => {
   res.json(ListBlueprintsResponse.parse(serialize(rows)));
 });
 
+// ── POST /api/blueprints — ADMIN ONLY ──────────────────────────────────────
 router.post("/blueprints", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const parsed = CreateBlueprintBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -46,6 +51,8 @@ router.post("/blueprints", async (req, res): Promise<void> => {
   res.status(201).json(GetBlueprintResponse.parse(serialize(row)));
 });
 
+// ── GET /api/blueprints/:id ─────────────────────────────────────────────────
+// Public read.
 router.get("/blueprints/:id", async (req, res): Promise<void> => {
   const params = GetBlueprintParams.safeParse(req.params);
   if (!params.success) {
@@ -60,7 +67,9 @@ router.get("/blueprints/:id", async (req, res): Promise<void> => {
   res.json(GetBlueprintResponse.parse(serialize(row)));
 });
 
+// ── PATCH /api/blueprints/:id — ADMIN ONLY ─────────────────────────────────
 router.patch("/blueprints/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const params = UpdateBlueprintParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -79,7 +88,9 @@ router.patch("/blueprints/:id", async (req, res): Promise<void> => {
   res.json(UpdateBlueprintResponse.parse(serialize(row)));
 });
 
+// ── DELETE /api/blueprints/:id — ADMIN ONLY ────────────────────────────────
 router.delete("/blueprints/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const params = DeleteBlueprintParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -89,6 +100,8 @@ router.delete("/blueprints/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
+// ── GET /api/blueprints/:id/steps ───────────────────────────────────────────
+// Public read.
 router.get("/blueprints/:id/steps", async (req, res): Promise<void> => {
   const params = GetBlueprintParams.safeParse(req.params);
   if (!params.success) {
@@ -99,7 +112,9 @@ router.get("/blueprints/:id/steps", async (req, res): Promise<void> => {
   res.json(ListBlueprintStepsResponse.parse(serialize(rows)));
 });
 
+// ── POST /api/blueprints/:id/steps — ADMIN ONLY ────────────────────────────
 router.post("/blueprints/:id/steps", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const params = CreateBlueprintStepParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -114,7 +129,9 @@ router.post("/blueprints/:id/steps", async (req, res): Promise<void> => {
   res.status(201).json(UpdateBlueprintStepResponse.parse(serialize(row)));
 });
 
+// ── PATCH /api/blueprint-steps/:id — ADMIN ONLY ────────────────────────────
 router.patch("/blueprint-steps/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const params = UpdateBlueprintStepParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -133,7 +150,9 @@ router.patch("/blueprint-steps/:id", async (req, res): Promise<void> => {
   res.json(UpdateBlueprintStepResponse.parse(serialize(row)));
 });
 
+// ── DELETE /api/blueprint-steps/:id — ADMIN ONLY ───────────────────────────
 router.delete("/blueprint-steps/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const params = DeleteBlueprintStepParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

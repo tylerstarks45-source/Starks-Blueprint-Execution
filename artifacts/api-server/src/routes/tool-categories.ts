@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq } from "drizzle-orm";
 import { db, toolCategoriesTable } from "@workspace/db";
+import { requireAdmin } from "../lib/auth";
 import {
   ListToolCategoriesResponse,
   UpdateToolCategoryResponse,
@@ -13,12 +14,16 @@ import {
 
 const router: IRouter = Router();
 
+// ── GET /api/tool-categories ────────────────────────────────────────────────
+// Public read — needed for marketplace UI.
 router.get("/tool-categories", async (req, res): Promise<void> => {
   const rows = await db.select().from(toolCategoriesTable).orderBy(toolCategoriesTable.name);
   res.json(ListToolCategoriesResponse.parse(serialize(rows)));
 });
 
+// ── POST /api/tool-categories — ADMIN ONLY ─────────────────────────────────
 router.post("/tool-categories", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const parsed = CreateToolCategoryBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -28,7 +33,9 @@ router.post("/tool-categories", async (req, res): Promise<void> => {
   res.status(201).json(UpdateToolCategoryResponse.parse(serialize(row)));
 });
 
+// ── PATCH /api/tool-categories/:id — ADMIN ONLY ────────────────────────────
 router.patch("/tool-categories/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const params = UpdateToolCategoryParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -47,7 +54,9 @@ router.patch("/tool-categories/:id", async (req, res): Promise<void> => {
   res.json(UpdateToolCategoryResponse.parse(serialize(row)));
 });
 
+// ── DELETE /api/tool-categories/:id — ADMIN ONLY ───────────────────────────
 router.delete("/tool-categories/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
   const params = DeleteToolCategoryParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

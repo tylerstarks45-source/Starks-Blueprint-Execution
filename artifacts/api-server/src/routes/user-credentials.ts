@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { encrypt } from "../lib/crypto";
+import { encrypt, decrypt, isEncrypted } from "../lib/crypto";
 import { eq, and, inArray } from "drizzle-orm";
 import {
   db,
@@ -110,13 +110,37 @@ router.get("/user-credentials", async (req, res): Promise<void> => {
       userId: userCredentialsTable.userId,
       toolId: userCredentialsTable.toolId,
       credentialKey: userCredentialsTable.credentialKey,
+      encryptedValue: userCredentialsTable.encryptedValue,
       createdAt: userCredentialsTable.createdAt,
       updatedAt: userCredentialsTable.updatedAt,
     })
     .from(userCredentialsTable)
     .where(eq(userCredentialsTable.userId, targetUserId))
     .orderBy(userCredentialsTable.credentialKey);
-  res.json(ListUserCredentialsResponse.parse(serialize(rows)));
+
+  // Silently re-encrypt any rows still in legacy base64 format.
+  const legacyRows = rows.filter((r) => !isEncrypted(r.encryptedValue));
+  if (legacyRows.length > 0) {
+    await Promise.all(
+      legacyRows.map((r) => {
+        try {
+          const plaintext = decrypt(r.encryptedValue);
+          const reEncrypted = encrypt(plaintext);
+          return db
+            .update(userCredentialsTable)
+            .set({ encryptedValue: reEncrypted, updatedAt: new Date() })
+            .where(eq(userCredentialsTable.id, r.id));
+        } catch (err) {
+          req.log.warn({ credentialId: r.id, err }, "Failed to re-encrypt legacy credential");
+          return Promise.resolve();
+        }
+      }),
+    );
+  }
+
+  // Strip the encryptedValue before returning — callers only get metadata.
+  const safeRows = rows.map(({ encryptedValue: _omit, ...rest }) => rest);
+  res.json(ListUserCredentialsResponse.parse(serialize(safeRows)));
 });
 
 // ─── POST /api/user-credentials ──────────────────────────────────────────────

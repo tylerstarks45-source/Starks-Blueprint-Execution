@@ -474,6 +474,49 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
   const filterUserId = req.query.userId ? Number(req.query.userId) : null;
   const filterSystemInstanceId = req.query.systemInstanceId ? Number(req.query.systemInstanceId) : null;
 
+  // Resolve date-range window for the trend chart and scoped queries.
+  // Priority: from/to (custom range) > days > default 30.
+  const fromParam = typeof req.query.from === "string" ? req.query.from : null;
+  const toParam = typeof req.query.to === "string" ? req.query.to : null;
+  const daysParam = req.query.days ? Number(req.query.days) : null;
+
+  // Validate date params — reject anything that isn't YYYY-MM-DD to prevent injection.
+  const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  if (fromParam !== null && !ISO_DATE_RE.test(fromParam)) {
+    res.status(400).json({ error: "from must be a date in YYYY-MM-DD format" });
+    return;
+  }
+  if (toParam !== null && !ISO_DATE_RE.test(toParam)) {
+    res.status(400).json({ error: "to must be a date in YYYY-MM-DD format" });
+    return;
+  }
+  if (daysParam !== null && (!Number.isInteger(daysParam) || daysParam < 1 || daysParam > 3650)) {
+    res.status(400).json({ error: "days must be an integer between 1 and 3650" });
+    return;
+  }
+
+  // Build Date bounds — used as bound SQL parameters (no sql.raw).
+  let rangeStartDate: Date;
+  let rangeEndDate: Date;
+  if (fromParam && toParam) {
+    rangeStartDate = new Date(`${fromParam}T00:00:00.000Z`);
+    rangeEndDate = new Date(`${toParam}T23:59:59.999Z`);
+    if (isNaN(rangeStartDate.getTime()) || isNaN(rangeEndDate.getTime())) {
+      res.status(400).json({ error: "Invalid date values for from or to" });
+      return;
+    }
+    if (rangeStartDate > rangeEndDate) {
+      res.status(400).json({ error: "from must not be later than to" });
+      return;
+    }
+  } else {
+    const days = daysParam ?? 30;
+    rangeStartDate = new Date(Date.now() - days * 86_400_000);
+    rangeEndDate = new Date();
+  }
+
+  const needsInstanceJoin = filterUserId !== null || filterSystemInstanceId !== null;
+
   // Build a base WHERE condition for revenue events.
   // Always require amountCents > 0. Optionally scope to a user or system instance.
   function buildWhere() {
@@ -489,14 +532,34 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
     return conditions.length === 1 ? conditions[0] : and(...conditions);
   }
 
-  // Stats query needs the instances join when filtering by userId
-  const statsQuery = (filterUserId !== null || filterSystemInstanceId !== null)
+  // WHERE that also restricts to the selected date range (for chart, byBlueprint, recentEvents).
+  // rangeStartDate / rangeEndDate are JS Date objects — Drizzle binds them as parameters.
+  function buildWhereInRange() {
+    const conditions = [
+      sql`${systemActivityEventsTable.amountCents} is not null and ${systemActivityEventsTable.amountCents} > 0`,
+      sql`${systemActivityEventsTable.createdAt} >= ${rangeStartDate}`,
+      sql`${systemActivityEventsTable.createdAt} <= ${rangeEndDate}`,
+    ];
+    if (filterSystemInstanceId !== null) {
+      conditions.push(sql`${systemActivityEventsTable.systemInstanceId} = ${filterSystemInstanceId}`);
+    }
+    if (filterUserId !== null) {
+      conditions.push(sql`${systemInstancesTable.userId} = ${filterUserId}`);
+    }
+    return and(...conditions);
+  }
+
+  // Stats query needs the instances join when filtering by userId.
+  // Stats tiles (today / week / month / all-time) are always absolute-period snapshots;
+  // we also include rangeCents = total within the selected window.
+  const statsQuery = needsInstanceJoin
     ? db
         .select({
           allTimeCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
           todayCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= date_trunc('day', now()) then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
           weekCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '7 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
           monthCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '30 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
+          rangeCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= ${rangeStartDate} and ${systemActivityEventsTable.createdAt} <= ${rangeEndDate} then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
           eventCount: sql<number>`count(*)::int`,
         })
         .from(systemActivityEventsTable)
@@ -508,6 +571,7 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
           todayCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= date_trunc('day', now()) then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
           weekCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '7 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
           monthCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '30 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
+          rangeCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= ${rangeStartDate} and ${systemActivityEventsTable.createdAt} <= ${rangeEndDate} then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
           eventCount: sql<number>`count(*)::int`,
         })
         .from(systemActivityEventsTable)
@@ -516,7 +580,7 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
   const [statsRows, byBlueprintRows, recentEventsRows, dailyRevenueRows] = await Promise.all([
     statsQuery,
 
-    // Per-blueprint revenue breakdown
+    // Per-blueprint revenue breakdown — scoped to selected date range
     db
       .select({
         blueprintId: blueprintsTable.id,
@@ -527,12 +591,12 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
       .from(systemActivityEventsTable)
       .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
       .innerJoin(blueprintsTable, eq(blueprintsTable.id, systemInstancesTable.blueprintId))
-      .where(buildWhere())
+      .where(buildWhereInRange())
       .groupBy(blueprintsTable.id, blueprintsTable.name)
       .orderBy(desc(sql`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`))
       .limit(10),
 
-    // Recent revenue events
+    // Recent revenue events — scoped to selected date range
     db
       .select({
         id: systemActivityEventsTable.id,
@@ -549,12 +613,12 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
       .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
       .innerJoin(blueprintsTable, eq(blueprintsTable.id, systemInstancesTable.blueprintId))
       .innerJoin(usersTable, eq(usersTable.id, systemInstancesTable.userId))
-      .where(buildWhere())
+      .where(buildWhereInRange())
       .orderBy(desc(systemActivityEventsTable.createdAt))
       .limit(25),
 
-    // 30-day daily revenue trend (joined to instances only when filtering by user)
-    (filterUserId !== null || filterSystemInstanceId !== null
+    // Daily revenue trend — window driven by range params; join instances when needed
+    needsInstanceJoin
       ? db
           .select({
             date: sql<string>`to_char(date_trunc('day', ${systemActivityEventsTable.createdAt}), 'YYYY-MM-DD')`,
@@ -562,12 +626,7 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
           })
           .from(systemActivityEventsTable)
           .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
-          .where(
-            and(
-              buildWhere(),
-              gte(systemActivityEventsTable.createdAt, sql`now() - interval '30 days'`),
-            ),
-          )
+          .where(buildWhereInRange())
           .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)
           .orderBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)
       : db
@@ -576,14 +635,9 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
             amountCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
           })
           .from(systemActivityEventsTable)
-          .where(
-            and(
-              buildWhere(),
-              gte(systemActivityEventsTable.createdAt, sql`now() - interval '30 days'`),
-            ),
-          )
+          .where(buildWhereInRange())
           .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)
-          .orderBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)),
+          .orderBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`),
   ]);
 
   const [statsRow] = statsRows;
@@ -596,6 +650,7 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
           weekCents: statsRow?.weekCents ?? 0,
           monthCents: statsRow?.monthCents ?? 0,
           allTimeCents: statsRow?.allTimeCents ?? 0,
+          rangeCents: statsRow?.rangeCents ?? 0,
           eventCount: statsRow?.eventCount ?? 0,
         },
         byBlueprint: byBlueprintRows,

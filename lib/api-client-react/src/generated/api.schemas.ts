@@ -795,6 +795,7 @@ export interface AdminRevenueStats {
   weekCents: number;
   monthCents: number;
   allTimeCents: number;
+  rangeCents: number;
   eventCount: number;
 }
 
@@ -960,6 +961,18 @@ userId?: number;
  * Filter revenue to a specific system instance
  */
 systemInstanceId?: number;
+/**
+ * Number of days to include in the trend chart window (default 30)
+ */
+days?: number;
+/**
+ * Inclusive start date for a custom range (YYYY-MM-DD); overrides days
+ */
+from?: string;
+/**
+ * Inclusive end date for a custom range (YYYY-MM-DD); overrides days
+ */
+to?: string;
 };
 
 export type ListPlatformUsersParams = {

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { TrendingUp, DollarSign, Activity, Filter, X, RefreshCw } from 'lucide-react';
+import { TrendingUp, DollarSign, Activity, Filter, X, RefreshCw, Calendar } from 'lucide-react';
 import { useAdminData } from '@/contexts/AdminDataContext.jsx';
 import adminApi from '@/lib/adminApi.js';
 import { usdFromCents, num, relativeTime } from '@/lib/adminFormat.js';
@@ -17,6 +17,12 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
+
+const PRESETS = [
+  { label: '7D', days: 7 },
+  { label: '30D', days: 30 },
+  { label: '90D', days: 90 },
+];
 
 const StatTile = ({ label, value, loading }) => (
   <div className="flex flex-col gap-1">
@@ -39,7 +45,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-const RevenueTrendChart = ({ data, loading }) => {
+const RevenueTrendChart = ({ data, loading, rangeLabel }) => {
   if (loading) {
     return <Skeleton className="h-40 w-full" />;
   }
@@ -47,7 +53,7 @@ const RevenueTrendChart = ({ data, loading }) => {
   if (!data || data.length === 0) {
     return (
       <p className="text-sm text-muted-foreground italic flex items-center justify-center h-40">
-        No daily revenue data for the past 30 days.
+        No revenue data for the selected period.
       </p>
     );
   }
@@ -137,6 +143,20 @@ const AdminRevenueActivityPanel = () => {
   const filterUserId = searchParams.get('revenueUserId') ?? '';
   const filterSystemInstanceId = searchParams.get('revenueSystemId') ?? '';
 
+  // Range params from URL
+  const revenueDaysParam = searchParams.get('revenueDays');
+  const revenueFrom = searchParams.get('revenueFrom') ?? '';
+  const revenueTo = searchParams.get('revenueTo') ?? '';
+
+  const selectedDays = revenueDaysParam ? Number(revenueDaysParam) : 30;
+  const isCustomRange = revenueFrom !== '' && revenueTo !== '';
+  const isNonDefaultRange = isCustomRange || selectedDays !== 30;
+
+  // Local state for custom date inputs (not committed to URL until both are filled)
+  const [showCustomPicker, setShowCustomPicker] = useState(isCustomRange);
+  const [customFromInput, setCustomFromInput] = useState(revenueFrom);
+  const [customToInput, setCustomToInput] = useState(revenueTo);
+
   const [users, setUsers] = useState([]);
   const [systemInstanceInput, setSystemInstanceInput] = useState(filterSystemInstanceId);
 
@@ -144,7 +164,8 @@ const AdminRevenueActivityPanel = () => {
   const [filteredLoading, setFilteredLoading] = useState(false);
   const [filteredError, setFilteredError] = useState(null);
 
-  const isFiltered = filterUserId !== '' || filterSystemInstanceId !== '';
+  // Any active filter (user, system, or non-default range) triggers a custom fetch
+  const isFiltered = filterUserId !== '' || filterSystemInstanceId !== '' || isNonDefaultRange;
 
   const revenue = isFiltered ? filteredRevenue : contextRevenue;
   const revenueLoading = isFiltered ? filteredLoading : contextLoading;
@@ -165,13 +186,26 @@ const AdminRevenueActivityPanel = () => {
     setSystemInstanceInput(filterSystemInstanceId);
   }, [filterSystemInstanceId]);
 
-  const fetchFiltered = useCallback(async (userId, systemInstanceId) => {
+  // Keep local custom inputs in sync when URL changes externally
+  useEffect(() => {
+    setCustomFromInput(revenueFrom);
+    setCustomToInput(revenueTo);
+    if (revenueFrom && revenueTo) setShowCustomPicker(true);
+  }, [revenueFrom, revenueTo]);
+
+  const fetchFiltered = useCallback(async (userId, systemInstanceId, days, from, to) => {
     setFilteredLoading(true);
     setFilteredError(null);
     try {
       const params = {};
       if (userId) params.userId = userId;
       if (systemInstanceId) params.systemInstanceId = systemInstanceId;
+      if (from && to) {
+        params.from = from;
+        params.to = to;
+      } else {
+        params.days = days;
+      }
       const data = await adminApi.getRevenueActivity(params);
       setFilteredRevenue(data);
     } catch (e) {
@@ -183,12 +217,18 @@ const AdminRevenueActivityPanel = () => {
 
   useEffect(() => {
     if (isFiltered) {
-      fetchFiltered(filterUserId, filterSystemInstanceId);
+      fetchFiltered(
+        filterUserId,
+        filterSystemInstanceId,
+        selectedDays,
+        revenueFrom,
+        revenueTo,
+      );
     } else {
       setFilteredRevenue(null);
       setFilteredError(null);
     }
-  }, [filterUserId, filterSystemInstanceId, isFiltered, fetchFiltered]);
+  }, [filterUserId, filterSystemInstanceId, selectedDays, revenueFrom, revenueTo, isFiltered, fetchFiltered]);
 
   function setFilterUser(userId) {
     setSearchParams((prev) => {
@@ -219,19 +259,67 @@ const AdminRevenueActivityPanel = () => {
     }, { replace: true });
   }
 
+  function selectPreset(days) {
+    setShowCustomPicker(false);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('revenueDays', String(days));
+      next.delete('revenueFrom');
+      next.delete('revenueTo');
+      return next;
+    }, { replace: true });
+  }
+
+  function applyCustomRange() {
+    const from = customFromInput.trim();
+    const to = customToInput.trim();
+    if (!from || !to) return;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('revenueFrom', from);
+      next.set('revenueTo', to);
+      next.delete('revenueDays');
+      return next;
+    }, { replace: true });
+  }
+
   function clearFilters() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('revenueUserId');
       next.delete('revenueSystemId');
+      next.delete('revenueDays');
+      next.delete('revenueFrom');
+      next.delete('revenueTo');
       return next;
     }, { replace: true });
     setSystemInstanceInput('');
+    setCustomFromInput('');
+    setCustomToInput('');
+    setShowCustomPicker(false);
     setFilteredRevenue(null);
     setFilteredError(null);
   }
 
   const selectedUser = users.find((u) => String(u.id) === String(filterUserId));
+
+  // Build a human-readable range label for the chart title
+  const rangeLabel = isCustomRange
+    ? `${revenueFrom} – ${revenueTo}`
+    : `${selectedDays}-Day`;
+
+  // 4th stat tile adapts to the selected range
+  const rangeStatLabel = isCustomRange
+    ? 'In Range'
+    : selectedDays === 30
+      ? 'This Month'
+      : `${selectedDays}d Total`;
+
+  const rangeStatValue = isCustomRange || selectedDays !== 30
+    ? usdFromCents(stats?.rangeCents)
+    : usdFromCents(stats?.monthCents);
+
+  const hasAnyFilter = isFiltered;
 
   return (
     <Card id="admin-revenue-panel" className="shadow-sm border-border/50 bg-card/50 backdrop-blur">
@@ -280,7 +368,7 @@ const AdminRevenueActivityPanel = () => {
               </Button>
             </div>
 
-            {isFiltered && (
+            {hasAnyFilter && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -293,7 +381,7 @@ const AdminRevenueActivityPanel = () => {
           </div>
         </div>
 
-        {isFiltered && (
+        {(filterUserId || filterSystemInstanceId) && (
           <p className="text-xs text-muted-foreground mt-2">
             Showing revenue for{' '}
             {filterUserId && (
@@ -317,15 +405,76 @@ const AdminRevenueActivityPanel = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-4 border-b border-border/30">
               <StatTile label="Today" value={usdFromCents(stats?.todayCents)} loading={revenueLoading} />
               <StatTile label="This Week" value={usdFromCents(stats?.weekCents)} loading={revenueLoading} />
-              <StatTile label="This Month" value={usdFromCents(stats?.monthCents)} loading={revenueLoading} />
+              <StatTile label={rangeStatLabel} value={rangeStatValue} loading={revenueLoading} />
               <StatTile label="All Time" value={usdFromCents(stats?.allTimeCents)} loading={revenueLoading} />
             </div>
 
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5" /> 30-Day Revenue Trend
-              </p>
-              <RevenueTrendChart data={dailyRevenue} loading={revenueLoading} />
+              {/* Range selector */}
+              <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5" /> {rangeLabel} Revenue Trend
+                </p>
+                <div className="flex items-center gap-1.5">
+                  {PRESETS.map((p) => (
+                    <button
+                      key={p.days}
+                      type="button"
+                      onClick={() => selectPreset(p.days)}
+                      className={`h-6 px-2 rounded text-xs font-mono transition-colors ${
+                        !isCustomRange && selectedDays === p.days
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                          : 'text-muted-foreground hover:text-foreground border border-border/40 hover:border-border'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomPicker((v) => !v)}
+                    className={`h-6 px-2 rounded text-xs flex items-center gap-1 transition-colors ${
+                      isCustomRange || showCustomPicker
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        : 'text-muted-foreground hover:text-foreground border border-border/40 hover:border-border'
+                    }`}
+                  >
+                    <Calendar className="w-3 h-3" /> Custom
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom date inputs */}
+              {showCustomPicker && (
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  <Input
+                    type="date"
+                    className="h-7 w-36 text-xs"
+                    value={customFromInput}
+                    max={customToInput || undefined}
+                    onChange={(e) => setCustomFromInput(e.target.value)}
+                  />
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <Input
+                    type="date"
+                    className="h-7 w-36 text-xs"
+                    value={customToInput}
+                    min={customFromInput || undefined}
+                    onChange={(e) => setCustomToInput(e.target.value)}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-3 text-xs"
+                    onClick={applyCustomRange}
+                    disabled={!customFromInput || !customToInput}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              )}
+
+              <RevenueTrendChart data={dailyRevenue} loading={revenueLoading} rangeLabel={rangeLabel} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2 border-t border-border/30">
@@ -340,7 +489,7 @@ const AdminRevenueActivityPanel = () => {
                     <Skeleton className="h-5 w-3/4" />
                   </div>
                 ) : byBlueprint.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">No blueprint revenue yet.</p>
+                  <p className="text-sm text-muted-foreground italic">No blueprint revenue in this period.</p>
                 ) : (
                   <div className="space-y-2">
                     {byBlueprint.map((b) => (
@@ -372,7 +521,7 @@ const AdminRevenueActivityPanel = () => {
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : recentEvents.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">No revenue events yet.</p>
+                  <p className="text-sm text-muted-foreground italic">No revenue events in this period.</p>
                 ) : (
                   <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
                     {recentEvents.map((e) => (

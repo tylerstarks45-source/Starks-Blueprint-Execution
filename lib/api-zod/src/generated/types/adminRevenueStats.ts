@@ -11,5 +11,6 @@ export interface AdminRevenueStats {
   weekCents: number;
   monthCents: number;
   allTimeCents: number;
+  rangeCents: number;
   eventCount: number;
 }

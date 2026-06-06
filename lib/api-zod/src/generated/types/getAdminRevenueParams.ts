@@ -15,4 +15,16 @@ userId?: number;
  * Filter revenue to a specific system instance
  */
 systemInstanceId?: number;
+/**
+ * Number of days to include in the trend chart window (default 30)
+ */
+days?: number;
+/**
+ * Inclusive start date for a custom range (YYYY-MM-DD); overrides days
+ */
+from?: Date;
+/**
+ * Inclusive end date for a custom range (YYYY-MM-DD); overrides days
+ */
+to?: Date;
 };

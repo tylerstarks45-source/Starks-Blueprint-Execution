@@ -1437,7 +1437,10 @@ export const TestAdminOpenRouterResponse = zod.object({
  */
 export const GetAdminRevenueQueryParams = zod.object({
   "userId": zod.coerce.number().optional().describe('Filter revenue to a specific platform user'),
-  "systemInstanceId": zod.coerce.number().optional().describe('Filter revenue to a specific system instance')
+  "systemInstanceId": zod.coerce.number().optional().describe('Filter revenue to a specific system instance'),
+  "days": zod.coerce.number().optional().describe('Number of days to include in the trend chart window (default 30)'),
+  "from": zod.date().optional().describe('Inclusive start date for a custom range (YYYY-MM-DD); overrides days'),
+  "to": zod.date().optional().describe('Inclusive end date for a custom range (YYYY-MM-DD); overrides days')
 })
 
 export const GetAdminRevenueResponse = zod.object({
@@ -1446,6 +1449,7 @@ export const GetAdminRevenueResponse = zod.object({
   "weekCents": zod.number(),
   "monthCents": zod.number(),
   "allTimeCents": zod.number(),
+  "rangeCents": zod.number(),
   "eventCount": zod.number()
 }),
   "byBlueprint": zod.array(zod.object({

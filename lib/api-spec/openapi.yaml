@@ -1634,6 +1634,23 @@ paths:
           schema:
             type: integer
           description: Filter revenue to a specific system instance
+        - name: days
+          in: query
+          schema:
+            type: integer
+          description: Number of days to include in the trend chart window (default 30)
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Inclusive start date for a custom range (YYYY-MM-DD); overrides days
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Inclusive end date for a custom range (YYYY-MM-DD); overrides days
       responses:
         "200":
           description: Revenue activity data
@@ -3104,8 +3121,9 @@ components:
         weekCents: { type: integer }
         monthCents: { type: integer }
         allTimeCents: { type: integer }
+        rangeCents: { type: integer }
         eventCount: { type: integer }
-      required: [todayCents, weekCents, monthCents, allTimeCents, eventCount]
+      required: [todayCents, weekCents, monthCents, allTimeCents, rangeCents, eventCount]
 
     AdminBlueprintRevenue:
       type: object

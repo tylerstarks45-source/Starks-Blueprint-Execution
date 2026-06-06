@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, desc, asc, gte, sql, count, ilike, inArray } from "drizzle-orm";
-import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable } from "@workspace/db";
+import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable, usersTable } from "@workspace/db";
+import { tierSystemLimit } from "../lib/credits";
 import { z } from "zod/v4";
 import { getActiveCallerPayload, requireAuthActive } from "../lib/auth";
 import {
@@ -94,6 +95,29 @@ router.post("/system-instances", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  // Enforce per-tier system limits
+  const [userRow] = await db
+    .select({ membershipTier: usersTable.membershipTier })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  const limit = tierSystemLimit(userRow?.membershipTier);
+
+  const [{ systemCount }] = await db
+    .select({ systemCount: sql<number>`count(*)::int` })
+    .from(systemInstancesTable)
+    .where(eq(systemInstancesTable.userId, userId));
+
+  if (systemCount >= limit) {
+    res.status(403).json({
+      error: `Your plan allows a maximum of ${limit} system${limit === 1 ? "" : "s"}. Upgrade your plan to create more.`,
+      code: "system_limit_reached",
+      limit,
+      current: systemCount,
+    });
+    return;
+  }
+
   const [row] = await db
     .insert(systemInstancesTable)
     .values({ ...parsed.data, userId })

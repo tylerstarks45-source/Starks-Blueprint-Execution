@@ -2,32 +2,42 @@ import { sql, eq, desc } from "drizzle-orm";
 import { db, usersTable, creditTransactionsTable } from "@workspace/db";
 
 export const TIER_ALLOTMENTS: Record<string, number> = {
-  starter: 50,
-  builder: 500,
-  operator: 2000,
+  starter: 500,
+  builder: 500,   // legacy alias — same as starter
+  operator: 2500,
   empire: 10000,
 };
 
 export const TIER_NAMES: Record<string, string> = {
   starter: "Starter",
-  builder: "Builder",
+  builder: "Starter",   // legacy alias
   operator: "Operator",
   empire: "Empire",
 };
 
 export const TIER_PRICES: Record<string, number> = {
-  starter: 0,
-  builder: 2900,
-  operator: 9900,
-  empire: 49900,
+  starter: 2900,    // $29/mo
+  builder: 2900,    // legacy alias
+  operator: 9900,   // $99/mo
+  empire: 29900,    // $299/mo
 };
 
-export const SIGNUP_GRANT = TIER_ALLOTMENTS.starter;
+// Maximum number of systems a user on each tier can own simultaneously.
+// builder is a legacy alias mapping to the starter limit.
+export const TIER_SYSTEM_LIMITS: Record<string, number> = {
+  starter: 3,
+  builder: 3,
+  operator: 15,
+  empire: 999999,  // effectively unlimited
+};
+
+export const SIGNUP_GRANT = 50; // free-trial buffer granted on signup
 
 export const CREDIT_PACKS: Record<string, { id: string; name: string; credits: number; priceCents: number }> = {
-  small: { id: "small", name: "100 Credits", credits: 100, priceCents: 1000 },
-  medium: { id: "medium", name: "500 Credits", credits: 500, priceCents: 4000 },
-  large: { id: "large", name: "2,000 Credits", credits: 2000, priceCents: 12000 },
+  small:  { id: "small",  name: "Small Pack",  credits: 100,  priceCents: 1000  }, // $10
+  medium: { id: "medium", name: "Medium Pack", credits: 300,  priceCents: 2500  }, // $25
+  large:  { id: "large",  name: "Large Pack",  credits: 700,  priceCents: 5000  }, // $50
+  xl:     { id: "xl",     name: "XL Pack",     credits: 1500, priceCents: 10000 }, // $100
 };
 
 export type CreditTxType = "signup_grant" | "tier_grant" | "purchase" | "usage" | "admin_adjust";
@@ -38,6 +48,10 @@ export function creditsForTokens(tokens: number): number {
 
 export function tierAllotment(tier: string | null | undefined): number {
   return TIER_ALLOTMENTS[tier ?? "starter"] ?? TIER_ALLOTMENTS.starter;
+}
+
+export function tierSystemLimit(tier: string | null | undefined): number {
+  return TIER_SYSTEM_LIMITS[tier ?? "starter"] ?? TIER_SYSTEM_LIMITS.starter;
 }
 
 export async function getBalance(userId: number): Promise<number> {
@@ -110,5 +124,15 @@ export class OutOfCreditsError extends Error {
   constructor(message = "You have run out of AI credits. Please top up to continue.") {
     super(message);
     this.name = "OutOfCreditsError";
+  }
+}
+
+export class SystemLimitError extends Error {
+  code = "system_limit_reached" as const;
+  limit: number;
+  constructor(limit: number) {
+    super(`Your plan allows a maximum of ${limit} system${limit === 1 ? "" : "s"}. Upgrade to create more.`);
+    this.name = "SystemLimitError";
+    this.limit = limit;
   }
 }

@@ -910,4 +910,97 @@ router.post("/admin/platform-users/:id/credits", async (req, res): Promise<void>
   );
 });
 
+// ── AI cost analytics (dedicated endpoint for the AI Analytics tab) ──────────
+router.get("/admin/ai-analytics", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const days = req.query.days ? Math.min(Math.max(Number(req.query.days), 1), 365) : 30;
+
+  const [dailyResult, [totals], [monthCost], [todayCost], modelRows, tierRows] = await Promise.all([
+    // Daily AI usage with generate_series so zero-request days appear
+    db.execute(sql`
+      SELECT
+        to_char(d.day, 'YYYY-MM-DD')               AS date,
+        coalesce(count(u.id)::int,      0)          AS requests,
+        coalesce(sum(u.total_tokens)::int, 0)       AS tokens,
+        coalesce(sum(u.estimated_cost)::float, 0)   AS cost_usd
+      FROM generate_series(
+        date_trunc('day', now()) - ((${days}::int - 1) * interval '1 day'),
+        date_trunc('day', now()),
+        interval '1 day'
+      ) AS d(day)
+      LEFT JOIN openrouter_usage u
+             ON date_trunc('day', u.created_at) = d.day
+      GROUP BY d.day
+      ORDER BY d.day
+    `),
+    // All-time totals
+    db.select({
+      totalRequests:     sql<number>`count(*)::int`,
+      totalTokens:       sql<number>`coalesce(sum(${openrouterUsageTable.totalTokens}), 0)::int`,
+      totalCostUsd:      sql<number>`coalesce(sum(${openrouterUsageTable.estimatedCost}), 0)::float`,
+      successfulRequests: sql<number>`coalesce(sum(case when ${openrouterUsageTable.success} = 'true' then 1 else 0 end), 0)::int`,
+      failedRequests:    sql<number>`coalesce(sum(case when ${openrouterUsageTable.success} <> 'true' then 1 else 0 end), 0)::int`,
+    }).from(openrouterUsageTable),
+    // This month
+    db.select({
+      costUsd: sql<number>`coalesce(sum(${openrouterUsageTable.estimatedCost}), 0)::float`,
+      requests: sql<number>`count(*)::int`,
+      tokens:   sql<number>`coalesce(sum(${openrouterUsageTable.totalTokens}), 0)::int`,
+    }).from(openrouterUsageTable)
+      .where(gte(openrouterUsageTable.createdAt, sql`date_trunc('month', now())`)),
+    // Today
+    db.select({
+      costUsd:  sql<number>`coalesce(sum(${openrouterUsageTable.estimatedCost}), 0)::float`,
+      requests: sql<number>`count(*)::int`,
+      tokens:   sql<number>`coalesce(sum(${openrouterUsageTable.totalTokens}), 0)::int`,
+    }).from(openrouterUsageTable)
+      .where(gte(openrouterUsageTable.createdAt, sql`date_trunc('day', now())`)),
+    // Per-model breakdown with cost
+    db.select({
+      model:        openrouterUsageTable.model,
+      requests:     sql<number>`count(*)::int`,
+      tokens:       sql<number>`coalesce(sum(${openrouterUsageTable.totalTokens}), 0)::int`,
+      promptTokens: sql<number>`coalesce(sum(${openrouterUsageTable.promptTokens}), 0)::int`,
+      completionTokens: sql<number>`coalesce(sum(${openrouterUsageTable.completionTokens}), 0)::int`,
+      costUsd:      sql<number>`coalesce(sum(${openrouterUsageTable.estimatedCost}), 0)::float`,
+      successCount: sql<number>`coalesce(sum(case when ${openrouterUsageTable.success} = 'true' then 1 else 0 end), 0)::int`,
+      failureCount: sql<number>`coalesce(sum(case when ${openrouterUsageTable.success} <> 'true' then 1 else 0 end), 0)::int`,
+    }).from(openrouterUsageTable)
+      .groupBy(openrouterUsageTable.model)
+      .orderBy(desc(sql`coalesce(sum(${openrouterUsageTable.estimatedCost}), 0)`)),
+    // AI usage broken down by user membership tier
+    db.select({
+      tier:    usersTable.membershipTier,
+      requests: sql<number>`count(${openrouterUsageTable.id})::int`,
+      tokens:   sql<number>`coalesce(sum(${openrouterUsageTable.totalTokens}), 0)::int`,
+      costUsd:  sql<number>`coalesce(sum(${openrouterUsageTable.estimatedCost}), 0)::float`,
+    }).from(openrouterUsageTable)
+      .innerJoin(usersTable, eq(openrouterUsageTable.userId, usersTable.id))
+      .groupBy(usersTable.membershipTier)
+      .orderBy(desc(sql`coalesce(sum(${openrouterUsageTable.estimatedCost}), 0)`)),
+  ]);
+
+  res.json({
+    daily: (dailyResult.rows as any[]).map((r) => ({
+      date:     r.date as string,
+      requests: Number(r.requests),
+      tokens:   Number(r.tokens),
+      costUsd:  Number(r.cost_usd),
+    })),
+    totals: {
+      totalRequests:     totals.totalRequests,
+      totalTokens:       totals.totalTokens,
+      totalCostUsd:      totals.totalCostUsd,
+      successfulRequests: totals.successfulRequests,
+      failedRequests:    totals.failedRequests,
+    },
+    thisMonth: { costUsd: monthCost.costUsd, requests: monthCost.requests, tokens: monthCost.tokens },
+    today:     { costUsd: todayCost.costUsd, requests: todayCost.requests, tokens: todayCost.tokens },
+    models:    modelRows,
+    byTier:    tierRows,
+    days,
+  });
+});
+
 export default router;

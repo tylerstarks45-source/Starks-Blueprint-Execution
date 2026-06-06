@@ -1,0 +1,336 @@
+# STARKS GLOBAL GROUP — SUBSCRIPTION ARCHITECTURE & ADMIN ANALYTICS SYSTEM
+
+## OBJECTIVE
+
+Redesign the subscription system to maximize customer value, customer retention, platform profitability, and long-term scalability.
+
+The goal is for every tier to feel like a good deal while creating a natural upgrade path.
+
+Do NOT build plans based only on credits.
+
+Build plans around capabilities.
+
+---
+
+# STARTER PLAN
+
+Price:
+$29/month
+
+Target User:
+Beginners and first-time builders.
+
+Included:
+
+* Access to AI Builder
+* Access to Marketplace
+* Access to Blueprint Library
+* Build up to 3 active systems
+* 500 AI Credits per month
+* Credential Vault
+* System Health Monitoring
+* Revenue Tracking
+* Basic Analytics
+* Email Support
+
+Restrictions:
+
+* Maximum 3 active systems
+* No advanced automation orchestration
+* No priority AI queue
+
+Purpose:
+
+Allow users to launch their first online business or automation system.
+
+---
+
+# OPERATOR PLAN
+
+Price:
+$99/month
+
+Target User:
+Business owners and marketers operating multiple systems.
+
+Included:
+
+Everything in Starter plus:
+
+* Up to 15 active systems
+* 2,500 AI Credits per month
+* Priority AI Processing
+* Advanced System Builder
+* Multi-System Dashboard
+* Advanced Revenue Tracking
+* Tool Stack Optimization
+* AI Recommendations Engine
+* System Performance Reports
+* Faster Build Queue
+* Priority Support
+
+Purpose:
+
+Users managing multiple businesses, funnels, automations, content systems, and lead-generation systems.
+
+---
+
+# EMPIRE PLAN
+
+Price:
+$299/month
+
+Target User:
+Power users, agencies, entrepreneurs, and operators running entire business ecosystems.
+
+Included:
+
+Everything in Operator plus:
+
+* Unlimited Systems
+* 10,000 AI Credits per month
+* Highest Priority Queue
+* Full AI Skill Engine
+* Enterprise Automation Builder
+* Advanced Revenue Intelligence
+* Advanced Analytics Dashboard
+* Team Support
+* Future White-Label Eligibility
+* Future Agency Features
+* Future API Access
+* Future Team Management
+
+Purpose:
+
+Users building entire automated business ecosystems.
+
+---
+
+# PAY-AS-YOU-GO CREDITS
+
+After monthly credits are exhausted:
+
+Credit Packs:
+
+Small:
+$10
+
+Medium:
+$25
+
+Large:
+$50
+
+XL:
+$100
+
+Credits should never expire.
+
+Users should be able to continue operating without upgrading plans.
+
+---
+
+# SYSTEM LIMITS
+
+Starter:
+3 Active Systems
+
+Operator:
+15 Active Systems
+
+Empire:
+Unlimited Systems
+
+A system is considered active if:
+
+* Deployed
+* Running
+* Monitoring enabled
+
+---
+
+# ADMIN REVENUE COMMAND CENTER
+
+Build a dedicated Admin Revenue Dashboard.
+
+Route:
+
+/admin/revenue
+
+Only accessible by admins.
+
+---
+
+# PLATFORM REVENUE METRICS
+
+Track:
+
+* Total Revenue
+* Monthly Revenue
+* Daily Revenue
+* Yearly Revenue
+* Lifetime Revenue
+* Subscription Revenue
+* Credit Pack Revenue
+* Refunds
+* Net Revenue
+
+Display:
+
+* KPI Cards
+* Trend Charts
+* Revenue Tables
+
+---
+
+# SUBSCRIPTION ANALYTICS
+
+Track:
+
+* Starter Subscribers
+* Operator Subscribers
+* Empire Subscribers
+
+Display:
+
+* Growth Trend
+* Upgrade Trend
+* Downgrade Trend
+* Churn Rate
+* Conversion Rate
+
+---
+
+# OPENROUTER COST ANALYTICS
+
+Track every AI request.
+
+Store:
+
+* User ID
+* Timestamp
+* Model Used
+* Tokens Input
+* Tokens Output
+* Total Tokens
+* Cost
+* Request Type
+* System ID
+
+Build dedicated tables if needed.
+
+---
+
+# OPENROUTER ADMIN DASHBOARD
+
+Create:
+
+/admin/ai-analytics
+
+Display:
+
+* Total AI Spend
+* Daily AI Spend
+* Monthly AI Spend
+* Cost By Model
+* Tokens By Model
+* Requests By Model
+* Most Used Models
+* Most Expensive Models
+
+---
+
+# OPENROUTER CHARTS
+
+Build charts showing:
+
+Daily Usage
+
+* Date
+* Requests
+* Tokens
+* Cost
+
+Model Usage
+
+* GPT Models
+* Claude Models
+* Gemini Models
+* DeepSeek Models
+* Other Models
+
+Subscription Usage
+
+* Starter Usage
+* Operator Usage
+* Empire Usage
+
+---
+
+# PROFITABILITY DASHBOARD
+
+Display:
+
+Revenue
+
+minus
+
+AI Costs
+
+minus
+
+Email Costs
+
+minus
+
+Infrastructure Costs
+
+equals
+
+Net Platform Profit
+
+Show:
+
+* Daily Profit
+* Monthly Profit
+* Yearly Profit
+* Lifetime Profit
+
+---
+
+# SYSTEM MONITORING DASHBOARD
+
+Track:
+
+* Total Systems Built
+* Active Systems
+* Failed Systems
+* Running Systems
+* Average Uptime
+* Average Revenue Generated
+* Revenue Per System Type
+
+Charts:
+
+* Revenue By System
+* Revenue By User
+* Revenue By Category
+
+---
+
+# FINAL GOAL
+
+When an admin logs in they should immediately see:
+
+1. Total Platform Revenue
+2. Monthly Revenue
+3. Active Subscribers
+4. Subscription Breakdown
+5. AI Usage
+6. AI Costs
+7. Net Profit
+8. Systems Running
+9. Systems Built
+10. Platform Health
+
+The admin dashboard should function like the operating system of the entire business and provide complete visibility into platform performance, customer activity, revenue generation, AI costs, and overall profitability.

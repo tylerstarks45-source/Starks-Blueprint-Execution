@@ -9,18 +9,20 @@ import { requireAuthActive } from "../lib/auth";
 
 const router: IRouter = Router();
 
-// Tier config — price IDs are created in your Stripe dashboard
-// Set STRIPE_PRICE_BUILDER, STRIPE_PRICE_OPERATOR, STRIPE_PRICE_EMPIRE env vars
-// once you've created the products/prices in Stripe
+// Tier config — price IDs are created in your Stripe dashboard.
+// Set STRIPE_PRICE_STARTER, STRIPE_PRICE_OPERATOR, STRIPE_PRICE_EMPIRE env vars
+// once you've created the products/prices in Stripe.
+// Note: STRIPE_PRICE_BUILDER is kept as a legacy alias for STARTER to preserve
+// existing integrations. Use STRIPE_PRICE_STARTER for new Stripe price setups.
 const TIER_CONFIG: Record<string, { tier: string; name: string; amount: number }> = {
-  builder:  { tier: "builder",  name: "Builder",  amount: 2900  },
-  operator: { tier: "operator", name: "Operator", amount: 9900  },
-  empire:   { tier: "empire",   name: "Empire",   amount: 49900 },
+  starter:  { tier: "starter",  name: "Starter",  amount: 2900  }, // $29/mo
+  operator: { tier: "operator", name: "Operator", amount: 9900  }, // $99/mo
+  empire:   { tier: "empire",   name: "Empire",   amount: 29900 }, // $299/mo
 };
 
 function getPriceId(tier: string): string | null {
   const envMap: Record<string, string | undefined> = {
-    builder:  process.env.STRIPE_PRICE_BUILDER,
+    starter:  process.env.STRIPE_PRICE_STARTER ?? process.env.STRIPE_PRICE_BUILDER,
     operator: process.env.STRIPE_PRICE_OPERATOR,
     empire:   process.env.STRIPE_PRICE_EMPIRE,
   };
@@ -31,10 +33,10 @@ function getPriceId(tier: string): string | null {
 // Returns null when the price ID is unrecognised (e.g. a legacy or one-off price).
 function getTierFromPriceId(priceId: string): string | null {
   const reverseMap: Record<string, string> = {};
-  const builder  = process.env.STRIPE_PRICE_BUILDER;
+  const starter  = process.env.STRIPE_PRICE_STARTER ?? process.env.STRIPE_PRICE_BUILDER;
   const operator = process.env.STRIPE_PRICE_OPERATOR;
   const empire   = process.env.STRIPE_PRICE_EMPIRE;
-  if (builder)  reverseMap[builder]  = "builder";
+  if (starter)  reverseMap[starter]  = "starter";
   if (operator) reverseMap[operator] = "operator";
   if (empire)   reverseMap[empire]   = "empire";
   return reverseMap[priceId] ?? null;
@@ -53,7 +55,7 @@ router.post("/subscriptions/checkout", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
-  const schema = z.object({ tier: z.enum(["builder", "operator", "empire"]) });
+  const schema = z.object({ tier: z.enum(["starter", "operator", "empire"]) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid tier" }); return; }
 

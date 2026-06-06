@@ -1,6 +1,9 @@
 
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AdminDataProvider } from '@/contexts/AdminDataContext.jsx';
+import { LayoutDashboard, DollarSign, BrainCircuit, Server, TrendingUp } from 'lucide-react';
+
 import AdminPlatformMetricsCard from './AdminPlatformMetricsCard.jsx';
 import AdminAIUsageAnalyticsCard from './AdminAIUsageAnalyticsCard.jsx';
 import AdminOpenRouterHealthCard from './AdminOpenRouterHealthCard.jsx';
@@ -21,83 +24,147 @@ import AdminUserGrowthAnalyticsCard from './AdminUserGrowthAnalyticsCard.jsx';
 import AdminSystemHealthOverviewCard from './AdminSystemHealthOverviewCard.jsx';
 import AdminEncryptionKeyWarningCard from './AdminEncryptionKeyWarningCard.jsx';
 import AdminRevenueActivityPanel from './AdminRevenueActivityPanel.jsx';
+import AdminAIAnalyticsDashboard from './AdminAIAnalyticsDashboard.jsx';
+import AdminProfitabilityPanel from './AdminProfitabilityPanel.jsx';
+import AdminSystemMonitoringPanel from './AdminSystemMonitoringPanel.jsx';
 import AdminSkillEnginePanel from '@/components/admin/AdminSkillEnginePanel.jsx';
 
 import CreditBalanceCard from '@/components/admin/CreditBalanceCard.jsx';
 import UsageOverviewCard from '@/components/admin/UsageOverviewCard.jsx';
 import MonthlyConsumptionCard from '@/components/admin/MonthlyConsumptionCard.jsx';
 
+const TABS = [
+  { key: 'overview',      label: 'Overview',     icon: LayoutDashboard, path: '/admin' },
+  { key: 'revenue',       label: 'Revenue',      icon: DollarSign,      path: '/admin/revenue' },
+  { key: 'ai-analytics',  label: 'AI Analytics', icon: BrainCircuit,    path: '/admin/ai-analytics' },
+  { key: 'profitability', label: 'Profitability',icon: TrendingUp,      path: '/admin/profitability' },
+  { key: 'systems',       label: 'Systems',      icon: Server,          path: '/admin/systems' },
+];
+
+function useActiveTab() {
+  const { pathname } = useLocation();
+  const seg = pathname.replace(/^\/admin\/?/, '').split('/')[0] || 'overview';
+  if (TABS.find((t) => t.key === seg)) return seg;
+  return 'overview';
+}
+
 const AdminDashboardLayout = () => {
+  const navigate = useNavigate();
+  const activeTab = useActiveTab();
+
   return (
     <AdminDataProvider>
-    <div className="space-y-6 animate-in fade-in duration-500 relative z-10">
-      <AdminPlatformMetricsCard />
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="col-span-1 lg:col-span-2">
-          <AdminGlobalTokenUsageCard />
+      <div className="space-y-6 animate-in fade-in duration-500 relative z-10">
+
+        {/* Tab navigation */}
+        <div className="flex gap-1 p-1 bg-muted/20 rounded-xl border border-border/40 w-fit overflow-x-auto">
+          {TABS.map(({ key, label, icon: Icon, path }) => (
+            <button
+              key={key}
+              onClick={() => navigate(path)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                activeTab === key
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
         </div>
-        <AdminPlatformRequestVolumeCard />
-        <AdminPlatformHealthCard />
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="col-span-1">
-          <AdminEncryptionKeyWarningCard />
-        </div>
-      </div>
+        {/* Overview tab */}
+        {activeTab === 'overview' && (
+          <>
+            <AdminPlatformMetricsCard />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <AdminAIUsageAnalyticsCard />
-        <AdminOpenRouterHealthCard />
-        <AdminComputeUsageMetricsCard />
-      </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="col-span-1 lg:col-span-2">
+                <AdminGlobalTokenUsageCard />
+              </div>
+              <AdminPlatformRequestVolumeCard />
+              <AdminPlatformHealthCard />
+            </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="col-span-1 lg:col-span-3">
-          <AdminUserManagementPanel />
-        </div>
-        <div className="space-y-6">
-          <AdminUserGrowthAnalyticsCard />
-          <AdminSubscriptionAnalyticsCard />
-        </div>
-      </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="col-span-1">
+                <AdminEncryptionKeyWarningCard />
+              </div>
+            </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <AdminPlatformErrorLogsPanel />
-        </div>
-        <div className="space-y-6">
-          <AdminSystemDiagnosticsPanel />
-          <AdminSystemHealthOverviewCard />
-        </div>
-      </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <AdminAIUsageAnalyticsCard />
+              <AdminOpenRouterHealthCard />
+              <AdminComputeUsageMetricsCard />
+            </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <AdminAIInfrastructureMonitoringCard />
-        <AdminAIRuntimeMonitoringCard />
-        <AdminAPIMonitoringCard />
-        <AdminBlueprintDeploymentMonitoringCard />
-      </div>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <div className="col-span-1 lg:col-span-3">
+                <AdminUserManagementPanel />
+              </div>
+              <div className="space-y-6">
+                <AdminUserGrowthAnalyticsCard />
+                <AdminSubscriptionAnalyticsCard />
+              </div>
+            </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <CreditBalanceCard />
-        <UsageOverviewCard />
-        <MonthlyConsumptionCard />
-      </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <AdminPlatformErrorLogsPanel />
+              </div>
+              <div className="space-y-6">
+                <AdminSystemDiagnosticsPanel />
+                <AdminSystemHealthOverviewCard />
+              </div>
+            </div>
 
-      <div className="grid grid-cols-1">
-        <AdminRevenueActivityPanel />
-      </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <AdminAIInfrastructureMonitoringCard />
+              <AdminAIRuntimeMonitoringCard />
+              <AdminAPIMonitoringCard />
+              <AdminBlueprintDeploymentMonitoringCard />
+            </div>
 
-      <div className="grid grid-cols-1">
-        <AdminSkillEnginePanel />
-      </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <CreditBalanceCard />
+              <UsageOverviewCard />
+              <MonthlyConsumptionCard />
+            </div>
 
-      <div className="grid grid-cols-1">
-        <AdminGlobalActivityFeedPanel />
+            <div className="grid grid-cols-1">
+              <AdminSkillEnginePanel />
+            </div>
+
+            <div className="grid grid-cols-1">
+              <AdminGlobalActivityFeedPanel />
+            </div>
+          </>
+        )}
+
+        {/* Revenue tab */}
+        {activeTab === 'revenue' && (
+          <div className="space-y-6">
+            <AdminRevenueActivityPanel />
+          </div>
+        )}
+
+        {/* AI Analytics tab */}
+        {activeTab === 'ai-analytics' && (
+          <AdminAIAnalyticsDashboard />
+        )}
+
+        {/* Profitability tab */}
+        {activeTab === 'profitability' && (
+          <AdminProfitabilityPanel />
+        )}
+
+        {/* Systems tab */}
+        {activeTab === 'systems' && (
+          <AdminSystemMonitoringPanel />
+        )}
+
       </div>
-    </div>
     </AdminDataProvider>
   );
 };

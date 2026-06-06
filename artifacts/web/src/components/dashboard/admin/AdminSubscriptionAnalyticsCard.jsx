@@ -7,7 +7,7 @@ import { num } from '@/lib/adminFormat.js';
 
 const TIER_LABELS = {
   starter: 'Starter',
-  builder: 'Builder',
+  builder: 'Starter (legacy)',
   operator: 'Operator',
   empire: 'Empire',
   none: 'No Tier',

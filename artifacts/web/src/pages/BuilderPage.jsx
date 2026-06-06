@@ -80,8 +80,8 @@ const TypedText = ({ text, onDone, speed = 8 }) => {
 const PhaseBar = ({ phase }) => {
   const phases = [
     { id: 'idle', label: 'GOAL' },
-    { id: 'collecting', label: 'CREDENTIALS' },
-    { id: 'building', label: 'BUILDING' },
+    { id: 'collecting', label: 'PLAN' },
+    { id: 'building', label: 'BUILD' },
     { id: 'complete', label: 'LIVE' },
   ];
   const activeIdx = phases.findIndex(p => p.id === phase);
@@ -160,7 +160,7 @@ const BlueprintCard = ({ bp, selected, onSelect }) => {
 };
 
 // ─── Credential Form ──────────────────────────────────────────────────────────
-const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill }) => {
+const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, onValuesChange }) => {
   const [values, setValues] = useState(() => {
     const init = {};
     credentials.forEach(c => {
@@ -220,7 +220,11 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill })
                 <input
                   type={revealed[cred.key] ? 'text' : 'password'}
                   value={values[cred.key] || ''}
-                  onChange={e => setValues(v => ({ ...v, [cred.key]: e.target.value }))}
+                  onChange={e => setValues(v => {
+                    const next = { ...v, [cred.key]: e.target.value };
+                    onValuesChange?.(next);
+                    return next;
+                  })}
                   placeholder={`Enter ${cred.label}`}
                   className={`w-full text-sm bg-white/5 border rounded-lg px-3 py-2 pr-9 text-foreground placeholder:text-muted-foreground/30 focus:outline-none transition-all font-mono ${
                     showError
@@ -512,6 +516,7 @@ const BuilderPage = () => {
   // Credential collection
   const [pendingCreds, setPendingCreds] = useState([]);
   const [executeLoading, setExecuteLoading] = useState(false);
+  const [liftedCredValues, setLiftedCredValues] = useState({});
 
   // Build execution
   const [buildData, setBuildData] = useState(null);
@@ -909,18 +914,18 @@ const BuilderPage = () => {
                 )}
               </div>
 
-              <div className="p-4 border-t border-white/8 shrink-0">
+              <div className="p-4 border-t border-white/8 shrink-0 space-y-2">
                 <Button
                   className="w-full h-11 gap-2 font-semibold"
                   disabled={!selectedBp || phase === 'building' || phase === 'complete' || chatLoading}
                   onClick={handleBlueprintLaunch}
                 >
                   {chatLoading || executeLoading
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Initializing…</>
-                    : <><Zap className="w-4 h-4" /> Launch {selectedBp?.name ?? 'Blueprint'} <ChevronRight className="w-4 h-4" /></>}
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Planning…</>
+                    : <><Sparkles className="w-4 h-4" /> Plan This System <ChevronRight className="w-4 h-4" /></>}
                 </Button>
                 {!selectedBp && (
-                  <p className="text-[10px] text-muted-foreground/30 text-center mt-2">
+                  <p className="text-[10px] text-muted-foreground/30 text-center">
                     Select a blueprint above to continue
                   </p>
                 )}
@@ -943,6 +948,7 @@ const BuilderPage = () => {
                     onExecute={handleCredentialSubmit}
                     loading={executeLoading}
                     prefill={storedCredKeys}
+                    onValuesChange={setLiftedCredValues}
                   />
                 )}
 
@@ -1001,6 +1007,18 @@ const BuilderPage = () => {
                   </div>
                 ) : (
                   <>
+                    {phase === 'idle' && input.trim() && (
+                      <Button
+                        className="w-full h-9 gap-2 font-semibold mb-2 text-xs bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30"
+                        onClick={() => sendMessage()}
+                        disabled={chatLoading}
+                      >
+                        {chatLoading
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Sparkles className="w-3.5 h-3.5" />}
+                        Plan My System
+                      </Button>
+                    )}
                     <div className="flex gap-2">
                       <textarea
                         ref={inputRef}
@@ -1043,14 +1061,37 @@ const BuilderPage = () => {
         </div>
 
         {/* ── Right Pane: Terminal ────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 p-4">
-          <BuildTerminal
-            steps={buildData?.steps ?? []}
-            outputs={stepOutputs}
-            currentIdx={currentStepIdx}
-            instanceId={buildData?.instanceId}
-            phase={phase}
-          />
+        <div className="flex-1 min-w-0 p-4 flex flex-col gap-3">
+          {phase === 'collecting' && (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-emerald-400">Plan Ready — Enter credentials, then execute</p>
+                <p className="text-[10px] text-muted-foreground/50">Fill the credential form in the sidebar to unlock build</p>
+              </div>
+              <Button
+                className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0 border-0"
+                onClick={() => handleCredentialSubmit(liftedCredValues)}
+                disabled={executeLoading || pendingCreds.some(c => c.required !== false && !(liftedCredValues[c.key] || '').trim())}
+              >
+                {executeLoading
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Play className="w-3.5 h-3.5" />}
+                Execute Build
+              </Button>
+            </div>
+          )}
+          <div className="flex-1 min-h-0">
+            <BuildTerminal
+              steps={buildData?.steps ?? []}
+              outputs={stepOutputs}
+              currentIdx={currentStepIdx}
+              instanceId={buildData?.instanceId}
+              phase={phase}
+            />
+          </div>
         </div>
       </div>
     </div>

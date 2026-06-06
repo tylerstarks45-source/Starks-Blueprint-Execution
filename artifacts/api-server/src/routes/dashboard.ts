@@ -188,8 +188,18 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
     .from(systemInstancesTable)
     .where(eq(systemInstancesTable.userId, userId));
 
+  const makeEmptyDaily = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - (6 - i));
+      return { date: d.toISOString().slice(0, 10), cents: 0 };
+    });
+  };
+
   if (userSystems.length === 0) {
-    res.json({ todayCents: 0, weekCents: 0, monthCents: 0, lifetimeCents: 0, systemCount: 0, currency: "USD" });
+    res.json({ todayCents: 0, weekCents: 0, monthCents: 0, lifetimeCents: 0, systemCount: 0, currency: "USD", daily: makeEmptyDaily() });
     return;
   }
 
@@ -206,7 +216,10 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
     eq(systemActivityEventsTable.eventType, "revenue"),
   );
 
-  const [todayRows, weekRows, monthRows, lifetimeRows] = await Promise.all([
+  const sevenDaysAgo = new Date(startOfToday);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
+  const [todayRows, weekRows, monthRows, lifetimeRows, dailyRaw] = await Promise.all([
     db
       .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
       .from(systemActivityEventsTable)
@@ -223,7 +236,24 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
       .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
       .from(systemActivityEventsTable)
       .where(revenueBase),
+    db
+      .select({
+        date: sql<string>`to_char(date_trunc('day', ${systemActivityEventsTable.createdAt}), 'YYYY-MM-DD')`,
+        cents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`,
+      })
+      .from(systemActivityEventsTable)
+      .where(and(revenueBase, gte(systemActivityEventsTable.createdAt, sevenDaysAgo)))
+      .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`),
   ]);
+
+  const daily: Array<{ date: string; cents: number }> = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(startOfToday);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const row = dailyRaw.find((r) => r.date === key);
+    daily.push({ date: key, cents: row ? Number(row.cents) : 0 });
+  }
 
   res.json({
     todayCents: Number(todayRows[0]?.total ?? 0),
@@ -232,6 +262,7 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
     lifetimeCents: Number(lifetimeRows[0]?.total ?? 0),
     systemCount: systemIds.length,
     currency: "USD",
+    daily,
   });
 });
 

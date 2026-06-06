@@ -2,12 +2,13 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity, Zap, CheckCircle2, AlertTriangle, Clock, Server,
-  Brain, Cpu, Database, CreditCard, RefreshCw,
-  TrendingUp, BarChart3, Settings2, Play, Pause, RotateCcw,
-  Trash2, Wrench, DollarSign, Calendar, ExternalLink,
-  KeyRound, Globe, ShoppingCart, Mail, Video, Radio,
-  MoreHorizontal, Plus, XCircle, Coins, Wifi, WifiOff, Package
+  Brain, Cpu, CreditCard, RefreshCw, TrendingUp,
+  Play, Pause, RotateCcw, Trash2, DollarSign,
+  ExternalLink, Plus, XCircle, Coins, Wifi, WifiOff,
 } from 'lucide-react';
+import {
+  LineChart, Line, AreaChart, Area, ResponsiveContainer, Tooltip,
+} from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -16,51 +17,67 @@ const authHeaders = () => {
   return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : {};
 };
 
-// ─── Primitives ───────────────────────────────────────────────────────────────
+const fmt = (cents) =>
+  '$' + (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const StatusDot = ({ status }) => {
-  const map = {
-    operational: 'bg-emerald-500', connected: 'bg-emerald-500',
-    degraded: 'bg-amber-400', warning: 'bg-amber-400',
-    not_configured: 'bg-zinc-600', disconnected: 'bg-zinc-600',
-    offline: 'bg-rose-500',
-  };
-  const pulse = status === 'operational' || status === 'connected';
+const buildDailyData = (daily) => {
+  const result = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+    const found = (daily || []).find(r => r.date === key);
+    result.push({ day: dayLabel, date: key, cents: found ? Number(found.cents) : 0 });
+  }
+  return result;
+};
+
+const buildWeeklyData = (weekCents) => [
+  { week: '4w ago', cents: 0 },
+  { week: '3w ago', cents: 0 },
+  { week: '2w ago', cents: 0 },
+  { week: 'This week', cents: weekCents ?? 0 },
+];
+
+const buildAISparkData = (aiActivity) => {
+  const total = aiActivity?.totalRequests ?? 0;
+  return [0, 0, 0, 0, 0, 0, total].map((v, i) => ({ i, val: v }));
+};
+
+const buildSystemSparkData = (systemStats) => {
+  const total = systemStats?.total ?? 0;
+  return [0, 0, 0, 0, 0, 0, total].map((v, i) => ({ i, val: v }));
+};
+
+const RevenueTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
   return (
-    <span className="relative flex h-2.5 w-2.5 shrink-0">
-      {pulse && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />}
-      <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${map[status] ?? 'bg-zinc-600'}`} />
-    </span>
+    <div className="bg-black/95 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl">
+      <p className="text-muted-foreground mb-0.5">{label}</p>
+      <p className="text-foreground font-mono font-bold">{fmt(payload[0]?.value ?? 0)}</p>
+    </div>
   );
 };
 
-const StatCard = ({ icon: Icon, label, value, sub, color = 'text-primary', accent = 'bg-primary/10' }) => (
-  <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md p-5 flex items-start gap-4">
-    <div className={`w-10 h-10 rounded-xl ${accent} flex items-center justify-center shrink-0`}>
-      <Icon className={`w-5 h-5 ${color}`} />
+const PulseChip = ({ icon: Icon, label, value, color }) => {
+  const colorMap = {
+    emerald: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    blue:    'text-blue-400 bg-blue-500/10 border-blue-500/20',
+    amber:   'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    rose:    'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    zinc:    'text-zinc-400 bg-zinc-500/10 border-zinc-600/30',
+    violet:  'text-violet-400 bg-violet-500/10 border-violet-500/20',
+  };
+  return (
+    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-mono font-semibold ${colorMap[color] ?? colorMap.zinc}`}>
+      <Icon className="w-3 h-3" />
+      <span className="text-foreground tabular-nums">{value}</span>
+      <span className="text-muted-foreground/50">{label}</span>
     </div>
-    <div className="min-w-0">
-      <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest mb-0.5">{label}</p>
-      <p className={`text-2xl font-bold leading-none font-mono ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
-    </div>
-  </div>
-);
-
-const SectionHeader = ({ icon: Icon, title, sub, action }) => (
-  <div className="flex items-center justify-between mb-4">
-    <div className="flex items-center gap-3">
-      <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-        <Icon className="w-4 h-4 text-muted-foreground" />
-      </div>
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-      </div>
-    </div>
-    {action}
-  </div>
-);
+  );
+};
 
 const BuildBadge = ({ buildStatus, healthStatus }) => {
   if (buildStatus === 'active' || healthStatus === 'healthy') return <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/20 text-[10px]">Active</Badge>;
@@ -71,7 +88,6 @@ const BuildBadge = ({ buildStatus, healthStatus }) => {
   return <Badge className="bg-zinc-500/15 text-zinc-400 border-zinc-500/20 text-[10px]">Pending</Badge>;
 };
 
-// Derive numeric health percentage from status strings
 const healthPercent = (buildStatus, healthStatus) => {
   if (healthStatus === 'healthy' || buildStatus === 'active' || buildStatus === 'completed') return 100;
   if (buildStatus === 'building') return 55;
@@ -80,7 +96,6 @@ const healthPercent = (buildStatus, healthStatus) => {
   return 25;
 };
 
-// Derive uptime string from createdAt + buildStatus
 const uptimeLabel = (createdAt, buildStatus) => {
   if (!['active', 'completed', 'building'].includes(buildStatus)) return '—';
   if (!createdAt) return '—';
@@ -92,13 +107,6 @@ const uptimeLabel = (createdAt, buildStatus) => {
   return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 };
 
-const fmtDate = (ts) => {
-  if (!ts) return '—';
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
-
-// ─── ACTIVITY FEED HELPERS ───────────────────────────────────────────────────
-
 const NOTIF_TYPE_MAP = {
   error:   { color: 'text-rose-400',    icon: XCircle,       label: 'Error' },
   warning: { color: 'text-amber-400',   icon: AlertTriangle, label: 'Warning' },
@@ -109,34 +117,20 @@ const NOTIF_TYPE_MAP = {
 
 function buildActivityFeed(systems, notifications) {
   const events = [];
-
   systems.forEach(s => {
-    if (s.createdAt) events.push({ id: `created-${s.id}`, type: 'system_created', label: 'System Created', detail: s.name, ts: new Date(s.createdAt), color: 'text-blue-400', icon: Plus });
-    if (s.buildStatus === 'building') events.push({ id: `building-${s.id}`, type: 'build_started', label: 'Build Started', detail: s.name, ts: new Date(s.updatedAt || s.createdAt), color: 'text-primary', icon: Zap });
-    if (s.buildStatus === 'completed' || s.healthStatus === 'healthy') events.push({ id: `complete-${s.id}`, type: 'build_complete', label: 'Build Completed', detail: s.name, ts: new Date(s.updatedAt || s.createdAt), color: 'text-emerald-400', icon: CheckCircle2 });
-    if (s.healthStatus === 'unhealthy') events.push({ id: `error-${s.id}`, type: 'error', label: 'Error Detected', detail: s.name, ts: new Date(s.updatedAt || s.createdAt), color: 'text-rose-400', icon: XCircle });
+    if (s.createdAt) events.push({ id: `created-${s.id}`, label: 'System Created', detail: s.name, ts: new Date(s.createdAt), color: 'text-blue-400', icon: Plus });
+    if (s.buildStatus === 'building') events.push({ id: `building-${s.id}`, label: 'Build Started', detail: s.name, ts: new Date(s.updatedAt || s.createdAt), color: 'text-primary', icon: Zap });
+    if (s.buildStatus === 'completed' || s.healthStatus === 'healthy') events.push({ id: `complete-${s.id}`, label: 'Build Completed', detail: s.name, ts: new Date(s.updatedAt || s.createdAt), color: 'text-emerald-400', icon: CheckCircle2 });
+    if (s.healthStatus === 'unhealthy') events.push({ id: `error-${s.id}`, label: 'Error Detected', detail: s.name, ts: new Date(s.updatedAt || s.createdAt), color: 'text-rose-400', icon: XCircle });
   });
-
   (notifications || []).forEach(n => {
     const typeKey = (n.notificationType || 'info').toLowerCase();
     const cfg = NOTIF_TYPE_MAP[typeKey] || NOTIF_TYPE_MAP.info;
-    events.push({
-      id: `notif-${n.id}`,
-      type: typeKey,
-      label: (cfg.label !== 'Info') ? cfg.label : (n.title || 'Notification'),
-      detail: n.message || n.title || '',
-      ts: new Date(n.createdAt),
-      color: cfg.color,
-      icon: cfg.icon,
-    });
+    events.push({ id: `notif-${n.id}`, label: cfg.label !== 'Info' ? cfg.label : (n.title || 'Notification'), detail: n.message || n.title || '', ts: new Date(n.createdAt), color: cfg.color, icon: cfg.icon });
   });
-
   return events.sort((a, b) => b.ts - a.ts).slice(0, 15);
 }
 
-// ─── PER-SYSTEM TOOL MONITOR ─────────────────────────────────────────────────
-
-// Map tool names (from API) to connection keys stored in user_credentials
 const TOOL_KEY_HINTS = {
   openrouter: ['OPENROUTER_API_KEY', 'openrouter_api_key'],
   stripe: ['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'stripe_secret_key'],
@@ -174,8 +168,6 @@ const ToolPill = ({ name, status }) => {
   );
 };
 
-// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
-
 const SystemCommandCenterPage = () => {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
@@ -183,7 +175,7 @@ const SystemCommandCenterPage = () => {
   const [credits, setCredits] = useState(null);
   const [storedKeys, setStoredKeys] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [toolsBySystem, setToolsBySystem] = useState({});   // systemId → Tool[]
+  const [toolsBySystem, setToolsBySystem] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastRefresh, setLastRefresh] = useState(null);
@@ -215,16 +207,12 @@ const SystemCommandCenterPage = () => {
         selectionsRes.ok ? selectionsRes.json() : [],
         toolsRes.ok ? toolsRes.json() : [],
       ]);
-
       setData(statsData);
       setRevenue(revData);
       setCredits(credData);
       setNotifications(Array.isArray(notifsData) ? notifsData : []);
-
       const keys = Array.isArray(credsData) ? credsData.map(c => c.credentialKey?.toLowerCase()) : [];
       setStoredKeys(keys);
-
-      // Build per-system tool map from tool selections
       const toolMap = {};
       const allTools = Array.isArray(toolsData?.items ?? toolsData) ? (toolsData?.items ?? toolsData) : [];
       const selArr = Array.isArray(selectionsData?.items ?? selectionsData) ? (selectionsData?.items ?? selectionsData) : [];
@@ -236,7 +224,6 @@ const SystemCommandCenterPage = () => {
         toolMap[sel.systemInstanceId].push(tool);
       });
       setToolsBySystem(toolMap);
-
       setLastRefresh(new Date());
     } catch (err) {
       setError(err.message || 'Failed to load data');
@@ -250,9 +237,7 @@ const SystemCommandCenterPage = () => {
   const patchSystem = useCallback(async (id, body) => {
     setControlLoading(prev => ({ ...prev, [id]: true }));
     try {
-      const resp = await fetch(`/api/system-instances/${id}`, {
-        method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body),
-      });
+      const resp = await fetch(`/api/system-instances/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
       if (resp.ok) await load();
     } finally {
       setControlLoading(prev => ({ ...prev, [id]: false }));
@@ -297,139 +282,220 @@ const SystemCommandCenterPage = () => {
   const orStatus = toolHealth?.openrouter?.status;
   const activity = buildActivityFeed(systems, notifications);
 
-  // Count connected tools across all systems
-  const allSystemTools = Object.values(toolsBySystem).flat();
-  const connectedSystemTools = allSystemTools.filter(t => toolConnectionStatus(t.name, storedKeys, orStatus) === 'connected').length;
+  const todayCents    = revenue?.todayCents    ?? 0;
+  const weekCents     = revenue?.weekCents     ?? 0;
+  const monthCents    = revenue?.monthCents    ?? 0;
+  const lifetimeCents = revenue?.lifetimeCents ?? 0;
+
+  const dailyData   = buildDailyData(revenue?.daily);
+  const weeklyData  = buildWeeklyData(weekCents);
+  const aiSparkData = buildAISparkData(aiActivity);
+  const buildSparkData = buildSystemSparkData(systemStats);
+
+  const alertNotifs = notifications.filter(n => ['error', 'warning'].includes((n.notificationType || '').toLowerCase()));
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-10 animate-in fade-in duration-500 pb-10">
 
-      {/* ── Command Center Header ────────────────────────────────────────── */}
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/20 flex items-center justify-center">
               <Cpu className="w-4 h-4 text-primary" />
             </div>
-            <h2 className="text-xl font-bold text-foreground font-mono">System Command Center</h2>
+            <h2 className="text-xl font-bold text-foreground font-mono">Command Center</h2>
             <Badge variant="outline" className="text-[9px] border-primary/30 text-primary bg-primary/5 font-mono">LIVE</Badge>
           </div>
-          <p className="text-sm text-muted-foreground ml-11">
-            Monitor and manage all deployed automation systems
-          </p>
+          <p className="text-sm text-muted-foreground ml-10">Monitor and manage all deployed automation systems</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
           {lastRefresh && (
-            <span className="text-[11px] text-muted-foreground/50 font-mono">
+            <span className="text-[11px] text-muted-foreground/40 font-mono">
               {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
           <Button size="sm" variant="outline" onClick={load} className="h-8 text-xs border-white/10 gap-1.5">
-            <RefreshCw className="w-3.5 h-3.5" />Refresh
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </Button>
           <Button size="sm" onClick={() => navigate('/builder')} className="h-8 text-xs gap-1.5">
-            <Zap className="w-3.5 h-3.5" />Build New System
+            <Zap className="w-3.5 h-3.5" /> Build New System
           </Button>
         </div>
       </div>
 
-      {/* ── Systems Overview Stats ───────────────────────────────────────── */}
+      {/* ── Revenue Spotlight ───────────────────────────────────────────────── */}
       <section>
-        <SectionHeader icon={Activity} title="Systems Overview" sub="All your automation systems at a glance" />
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <StatCard icon={Server} label="Total" value={systemStats?.total ?? 0} sub="All systems" color="text-foreground" accent="bg-white/5" />
-          <StatCard icon={CheckCircle2} label="Running" value={systemStats?.active ?? 0} sub="Healthy & live" color="text-emerald-400" accent="bg-emerald-500/10" />
-          <StatCard icon={Zap} label="Building" value={systemStats?.building ?? 0} sub="Deploying now" color="text-blue-400" accent="bg-blue-500/10" />
-          <StatCard icon={Clock} label="Paused" value={systemStats?.paused ?? 0} sub="Awaiting resume" color="text-amber-400" accent="bg-amber-500/10" />
-          <StatCard icon={AlertTriangle} label="Failed" value={systemStats?.failed ?? 0} sub="Need attention" color="text-rose-400" accent="bg-rose-500/10" />
-        </div>
-      </section>
-
-      {/* ── Revenue Center ───────────────────────────────────────────────── */}
-      <section>
-        {(() => {
-          const todayCents   = revenue?.todayCents   ?? 0;
-          const weekCents    = revenue?.weekCents    ?? 0;
-          const monthCents   = revenue?.monthCents   ?? 0;
-          const lifetimeCents = revenue?.lifetimeCents ?? 0;
-          const fmt = (cents) => (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          const hasEarnings = lifetimeCents > 0;
-          const summaryLine = hasEarnings
-            ? `Your systems earned $${fmt(weekCents)} this week`
-            : 'Revenue events from your running systems appear here';
-          const cards = [
-            { label: 'Today',      cents: todayCents,    icon: Calendar,   color: 'text-foreground',  accent: 'bg-white/5' },
-            { label: 'This Week',  cents: weekCents,     icon: TrendingUp, color: 'text-primary',     accent: 'bg-primary/10' },
-            { label: 'This Month', cents: monthCents,    icon: BarChart3,  color: 'text-violet-400',  accent: 'bg-violet-500/10' },
-            { label: 'Lifetime',   cents: lifetimeCents, icon: DollarSign, color: 'text-emerald-400', accent: 'bg-emerald-500/10' },
-          ];
-          return (
-            <>
-              <SectionHeader
-                icon={DollarSign}
-                title="Revenue Center"
-                sub={summaryLine}
-                action={
-                  hasEarnings
-                    ? <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400 bg-emerald-500/5 font-mono">LIVE</Badge>
-                    : <Badge variant="outline" className="text-[9px] border-white/20 text-muted-foreground bg-white/3 font-mono">TRACKING</Badge>
-                }
-              />
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {cards.map(({ label, cents, icon: Icon, color, accent }) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => systems.length === 1 ? navigate(`/systems/${systems[0].id}`) : navigate('/systems')}
-                    className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md p-5 flex items-start gap-4 text-left hover:bg-white/5 hover:border-white/20 transition-all group cursor-pointer w-full"
-                  >
-                    <div className={`w-10 h-10 rounded-xl ${accent} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
-                      <Icon className={`w-5 h-5 ${color}`} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest mb-0.5">{label}</p>
-                      <p className={`text-2xl font-bold leading-none font-mono ${color}`}>${fmt(cents)}</p>
-                      <p className="text-[10px] text-muted-foreground/40 mt-1 group-hover:text-muted-foreground/60 transition-colors">
-                        {cents > 0 ? 'Click to see breakdown' : 'No events yet'}
-                      </p>
-                    </div>
-                  </button>
-                ))}
+        <div className="relative overflow-hidden rounded-2xl border border-white/8 bg-black/60 backdrop-blur-xl p-8">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,hsla(180,100%,50%,0.06),transparent_60%)] pointer-events-none" />
+          <div className="relative">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-8">
+              <div>
+                <p className="text-[11px] text-muted-foreground font-mono uppercase tracking-widest mb-2">Today's Revenue</p>
+                <p className="text-5xl sm:text-6xl font-bold font-mono text-foreground leading-none tabular-nums">
+                  {fmt(todayCents)}
+                </p>
+                <div className="flex items-center gap-2 mt-3">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-sm font-semibold text-emerald-400">{fmt(weekCents)}</span>
+                  <span className="text-sm text-muted-foreground/60">this week</span>
+                </div>
               </div>
-            </>
-          );
-        })()}
-      </section>
+              <div className="flex gap-8 sm:gap-10">
+                <div>
+                  <p className="text-[10px] text-muted-foreground/50 font-mono uppercase tracking-widest mb-1">Monthly</p>
+                  <p className="text-2xl font-bold font-mono text-foreground tabular-nums">{fmt(monthCents)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground/50 font-mono uppercase tracking-widest mb-1">Lifetime</p>
+                  <p className="text-2xl font-bold font-mono text-emerald-400 tabular-nums">{fmt(lifetimeCents)}</p>
+                </div>
+              </div>
+            </div>
 
-      {/* ── AI Operations + Credits ──────────────────────────────────────── */}
-      <section>
-        <SectionHeader icon={Brain} title="AI Operations" sub="STARK orchestrator usage and performance" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard icon={Zap} label="AI Requests" value={aiActivity?.totalRequests ?? 0} sub="Total completions" />
-          <StatCard icon={BarChart3} label="Tokens Used" value={(aiActivity?.totalTokens ?? 0).toLocaleString()} sub="Across all builds" />
-          <StatCard icon={TrendingUp} label="Success Rate" value={`${aiActivity?.successRate ?? 100}%`} sub="Build reliability" color="text-emerald-400" accent="bg-emerald-500/10" />
-          <StatCard icon={CreditCard} label="Credits" value={credits?.balance ?? '—'} sub="Available balance" color="text-primary" accent="bg-primary/10" />
+            <div className="h-20">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailyData} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+                  <Tooltip content={<RevenueTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }} />
+                  <Line
+                    type="monotone"
+                    dataKey="cents"
+                    stroke="#06b6d4"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 3, fill: '#06b6d4', strokeWidth: 0 }}
+                    isAnimationActive
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-between mt-1 px-1">
+              {dailyData.map((d, i) => (
+                <span key={i} className="text-[9px] text-muted-foreground/25 font-mono">{d.day}</span>
+              ))}
+            </div>
+
+            {lifetimeCents === 0 && (
+              <p className="text-[10px] text-muted-foreground/30 text-center mt-3 font-mono">
+                Revenue events from running systems will appear here · <span className="text-primary/50">disclaimer: results not guaranteed</span>
+              </p>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* ── System Health + Controls ─────────────────────────────────────── */}
+      {/* ── System Pulse ────────────────────────────────────────────────────── */}
       <section>
-        <SectionHeader
-          icon={Server}
-          title="System Health"
-          sub="Live status, health score, uptime, and last activity for every deployed system"
-          action={
-            <Button size="sm" onClick={() => navigate('/builder')} className="h-7 text-xs gap-1.5 bg-primary/15 hover:bg-primary/25 text-primary border border-primary/25">
-              <Plus className="w-3 h-3" /> New System
-            </Button>
-          }
-        />
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-[10px] text-muted-foreground/40 font-mono uppercase tracking-widest shrink-0">System Pulse</span>
+          <div className="h-px flex-1 bg-white/6 min-w-4" />
+          <PulseChip icon={CheckCircle2} label="Running"  value={systemStats?.active   ?? 0} color="emerald" />
+          <PulseChip icon={Zap}          label="Building" value={systemStats?.building  ?? 0} color="blue"   />
+          <PulseChip icon={Clock}        label="Paused"   value={systemStats?.paused    ?? 0} color="amber"  />
+          <PulseChip icon={AlertTriangle} label="Failed"  value={systemStats?.failed    ?? 0} color="rose"   />
+          <div className="hidden sm:block h-4 w-px bg-white/10" />
+          <PulseChip icon={CreditCard}   label="Credits"  value={credits?.balance       ?? 0} color="zinc"   />
+          <PulseChip icon={Brain}        label="AI Req"   value={aiActivity?.totalRequests ?? 0} color="violet" />
+        </div>
+      </section>
+
+      {/* ── Charts Row ──────────────────────────────────────────────────────── */}
+      <section>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+          {/* Weekly Revenue AreaChart */}
+          <div className="lg:col-span-3 rounded-2xl border border-white/8 bg-black/40 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Weekly Revenue</h3>
+                <p className="text-xs text-muted-foreground/50 mt-0.5">4-week rolling</p>
+              </div>
+              <span className="text-xl font-bold font-mono text-emerald-400 tabular-nums">{fmt(weekCents)}</span>
+            </div>
+            <div className="h-[140px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={weeklyData} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+                  <Tooltip content={<RevenueTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.08)' }} />
+                  <Area
+                    type="monotone"
+                    dataKey="cents"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    fill="#10b981"
+                    fillOpacity={0.1}
+                    dot={false}
+                    isAnimationActive
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-between mt-2 px-1">
+              {weeklyData.map((d, i) => (
+                <span key={i} className="text-[9px] text-muted-foreground/25 font-mono">{d.week}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Mini charts — AI usage + Build activity */}
+          <div className="lg:col-span-2 flex flex-col gap-5">
+            <div className="flex-1 rounded-2xl border border-white/8 bg-black/40 p-5">
+              <div className="flex items-end justify-between mb-4">
+                <div>
+                  <p className="text-xs font-semibold text-foreground">AI Usage</p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">Tokens total</p>
+                </div>
+                <p className="text-2xl font-bold font-mono text-violet-400 tabular-nums">
+                  {(aiActivity?.totalTokens ?? 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="h-14">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={aiSparkData} margin={{ top: 2, right: 2, bottom: 0, left: 2 }}>
+                    <Line type="monotone" dataKey="val" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="3 2" dot={false} isAnimationActive />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="flex-1 rounded-2xl border border-white/8 bg-black/40 p-5">
+              <div className="flex items-end justify-between mb-4">
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Build Activity</p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">Systems total</p>
+                </div>
+                <p className="text-2xl font-bold font-mono text-amber-400 tabular-nums">
+                  {systemStats?.total ?? 0}
+                </p>
+              </div>
+              <div className="h-14">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={buildSparkData} margin={{ top: 2, right: 2, bottom: 0, left: 2 }}>
+                    <Line type="monotone" dataKey="val" stroke="#f59e0b" strokeWidth={1.5} dot={false} isAnimationActive />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Active Systems Table ─────────────────────────────────────────────── */}
+      <section>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Active Systems</h3>
+            <p className="text-xs text-muted-foreground/50 mt-0.5">All deployed automation systems</p>
+          </div>
+          <Button size="sm" onClick={() => navigate('/builder')} className="h-7 text-xs gap-1.5 bg-primary/15 hover:bg-primary/25 text-primary border border-primary/25">
+            <Plus className="w-3 h-3" /> New System
+          </Button>
+        </div>
 
         {systems.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-6 py-14 text-center">
+          <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 px-6 py-16 text-center">
             <Server className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
             <p className="text-sm font-medium text-muted-foreground mb-1">No systems deployed yet</p>
-            <p className="text-xs text-muted-foreground/50 mb-5">
+            <p className="text-xs text-muted-foreground/40 mb-5">
               Use STARK to build your first automated income system in minutes.
             </p>
             <Button size="sm" onClick={() => navigate('/builder')} className="gap-1.5">
@@ -437,77 +503,57 @@ const SystemCommandCenterPage = () => {
             </Button>
           </div>
         ) : (
-          <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md overflow-hidden">
-            {/* Table head — System | Type | Status | Health % | Uptime | Last Activity | Controls */}
-            <div className="hidden xl:grid xl:grid-cols-12 gap-2 px-5 py-3 border-b border-white/10 bg-white/2">
-              {[
-                ['System',        'col-span-2'],
-                ['Type',          'col-span-2'],
-                ['Status',        'col-span-1'],
-                ['Health %',      'col-span-2'],
-                ['Uptime',        'col-span-1'],
-                ['Last Activity', 'col-span-2'],
-                ['Controls',      'col-span-2 text-right'],
-              ].map(([h, cls]) => (
-                <div key={h} className={`${cls} text-[10px] uppercase tracking-widest text-muted-foreground font-medium`}>{h}</div>
+          <div className="rounded-2xl border border-white/8 bg-black/40 backdrop-blur-md overflow-hidden">
+            <div className="hidden xl:grid xl:grid-cols-12 gap-2 px-5 py-3 border-b border-white/6 bg-white/2">
+              {[['System', 'col-span-2'], ['Blueprint', 'col-span-2'], ['Status', 'col-span-1'], ['Tools', 'col-span-3'], ['Health', 'col-span-2'], ['Uptime', 'col-span-1'], ['Controls', 'col-span-1 text-right']].map(([h, cls]) => (
+                <div key={h} className={`${cls} text-[10px] uppercase tracking-widest text-muted-foreground/40 font-medium`}>{h}</div>
               ))}
             </div>
 
             {systems.map((system, i) => {
               const isLoading = controlLoading[system.id];
-              const isPaused = system.buildStatus === 'paused';
+              const isPaused  = system.buildStatus === 'paused';
               const isBuilding = system.buildStatus === 'building';
               const hp = healthPercent(system.buildStatus, system.healthStatus);
-              const uptime = uptimeLabel(system.createdAt, system.buildStatus);
-              const lastActivity = fmtDate(system.updatedAt);
-              const typeName = system.blueprint?.name ?? 'Custom System';
-              const typeCategory = system.blueprint?.category?.name ?? system.blueprint?.category ?? 'General';
               const hpColor = hp >= 80 ? 'bg-emerald-500' : hp >= 50 ? 'bg-amber-400' : hp >= 20 ? 'bg-orange-500' : 'bg-rose-500';
               const hpText  = hp >= 80 ? 'text-emerald-400' : hp >= 50 ? 'text-amber-400' : hp >= 20 ? 'text-orange-400' : 'text-rose-400';
+              const typeName = system.blueprint?.name ?? 'Custom System';
+              const systemTools = toolsBySystem[system.id] ?? [];
 
               return (
-                <div key={system.id} className={`px-5 py-4 hover:bg-white/3 transition-colors ${i < systems.length - 1 ? 'border-b border-white/8' : ''}`}>
+                <div key={system.id} className={`px-5 py-4 hover:bg-white/2 transition-colors ${i < systems.length - 1 ? 'border-b border-white/6' : ''}`}>
                   <div className="grid grid-cols-1 xl:grid-cols-12 gap-2 items-center">
-
-                    {/* System name */}
                     <div className="xl:col-span-2 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">{system.name}</p>
-                      <p className="text-[10px] text-muted-foreground/50 font-mono">#{system.id}</p>
+                      <p className="text-[10px] text-muted-foreground/35 font-mono">#{system.id}</p>
                     </div>
-
-                    {/* Type */}
                     <div className="xl:col-span-2 min-w-0">
-                      <p className="text-xs text-foreground/80 truncate">{typeName}</p>
-                      <p className="text-[10px] text-muted-foreground/50 truncate">{typeCategory}</p>
+                      <p className="text-xs text-foreground/70 truncate">{typeName}</p>
+                      <p className="text-[10px] text-muted-foreground/35 font-mono">{system.blueprint?.category?.name ?? '—'}</p>
                     </div>
-
-                    {/* Status badge */}
                     <div className="xl:col-span-1">
                       <BuildBadge buildStatus={system.buildStatus} healthStatus={system.healthStatus} />
                     </div>
-
-                    {/* Health % progress bar */}
+                    <div className="xl:col-span-3 flex flex-wrap gap-1">
+                      {systemTools.length > 0
+                        ? systemTools.slice(0, 3).map(tool => (
+                            <ToolPill key={tool.id} name={tool.name} status={toolConnectionStatus(tool.name, storedKeys, orStatus)} />
+                          ))
+                        : <span className="text-[10px] text-muted-foreground/25">No tools</span>
+                      }
+                    </div>
                     <div className="xl:col-span-2">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-white/8 rounded-full overflow-hidden">
+                        <div className="flex-1 h-1 bg-white/8 rounded-full overflow-hidden">
                           <div className={`h-full rounded-full transition-all duration-700 ${hpColor}`} style={{ width: `${hp}%` }} />
                         </div>
                         <span className={`text-xs font-mono font-semibold shrink-0 ${hpText}`}>{hp}%</span>
                       </div>
                     </div>
-
-                    {/* Uptime */}
                     <div className="xl:col-span-1">
-                      <span className="text-xs text-muted-foreground/60 font-mono">{uptime}</span>
+                      <span className="text-xs text-muted-foreground/50 font-mono">{uptimeLabel(system.createdAt, system.buildStatus)}</span>
                     </div>
-
-                    {/* Last Activity */}
-                    <div className="xl:col-span-2">
-                      <span className="text-xs text-muted-foreground/60 font-mono">{lastActivity}</span>
-                    </div>
-
-                    {/* Controls */}
-                    <div className="xl:col-span-2 flex items-center gap-1 flex-wrap xl:justify-end">
+                    <div className="xl:col-span-1 flex items-center gap-0.5 xl:justify-end">
                       <Button size="sm" variant="ghost" onClick={() => navigate(`/systems/${system.id}`)} disabled={isLoading} title="Open" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
                         <ExternalLink className="w-3.5 h-3.5" />
                       </Button>
@@ -523,17 +569,14 @@ const SystemCommandCenterPage = () => {
                       <Button size="sm" variant="ghost" onClick={() => patchSystem(system.id, { buildStatus: 'building' })} disabled={isLoading} title="Restart" className="h-7 w-7 p-0 text-blue-400/60 hover:text-blue-400 hover:bg-blue-500/10">
                         <RotateCcw className="w-3.5 h-3.5" />
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => navigate('/builder')} disabled={isLoading} title="Rebuild" className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-foreground">
-                        <Wrench className="w-3.5 h-3.5" />
-                      </Button>
                       {deleteConfirm === system.id ? (
-                        <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-rose-400">Sure?</span>
+                        <div className="flex items-center gap-0.5">
+                          <span className="text-[10px] text-rose-400 mr-1">Sure?</span>
                           <Button size="sm" variant="ghost" onClick={() => deleteSystem(system.id)} disabled={isLoading} className="h-6 text-[10px] px-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10">Y</Button>
                           <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm(null)} className="h-6 text-[10px] px-1.5 text-muted-foreground">N</Button>
                         </div>
                       ) : (
-                        <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm(system.id)} disabled={isLoading} title="Delete" className="h-7 w-7 p-0 text-rose-400/40 hover:text-rose-400 hover:bg-rose-500/10">
+                        <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm(system.id)} disabled={isLoading} title="Delete" className="h-7 w-7 p-0 text-rose-400/30 hover:text-rose-400 hover:bg-rose-500/10">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       )}
@@ -546,161 +589,48 @@ const SystemCommandCenterPage = () => {
         )}
       </section>
 
-      {/* ── Tool Stack Monitor — per system ──────────────────────────────── */}
-      <section>
-        <SectionHeader
-          icon={Settings2}
-          title="Tool Stack Monitor"
-          sub="Integration connection status per deployed system"
-          action={
-            <Button size="sm" variant="outline" onClick={() => navigate('/connections')} className="h-7 text-xs border-white/10 gap-1.5">
-              <KeyRound className="w-3 h-3" /> Manage Credentials
-            </Button>
-          }
-        />
-
-        {systems.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-6 py-8 text-center">
-            <Settings2 className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground/50">Deploy a system to see per-system tool status.</p>
+      {/* ── Alerts Strip ────────────────────────────────────────────────────── */}
+      {alertNotifs.length > 0 && (
+        <section>
+          <div className="flex items-start gap-3 px-5 py-4 rounded-xl border border-rose-500/20 bg-rose-500/5 flex-wrap gap-y-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <div className="flex-1 space-y-1">
+              <p className="text-xs font-semibold text-rose-400">System Alerts</p>
+              {alertNotifs.slice(0, 3).map(n => (
+                <p key={n.id} className="text-xs text-rose-300/70">{n.title || n.message}</p>
+              ))}
+            </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {systems.map(system => {
-              const systemTools = toolsBySystem[system.id] ?? [];
-              const hasTools = systemTools.length > 0;
-              const connectedCount = systemTools.filter(t => toolConnectionStatus(t.name, storedKeys, orStatus) === 'connected').length;
+        </section>
+      )}
 
-              return (
-                <div key={system.id} className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-sm p-4">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{system.name}</p>
-                      <p className="text-[10px] text-muted-foreground/60">{system.blueprint?.name ?? 'Custom System'}</p>
-                    </div>
-                    {hasTools && (
-                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-                        connectedCount === systemTools.length
-                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                          : connectedCount > 0
-                          ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                          : 'bg-zinc-800 border-zinc-700/40 text-zinc-500'
-                      }`}>
-                        {connectedCount}/{systemTools.length} connected
+      {/* ── Activity Feed ───────────────────────────────────────────────────── */}
+      {activity.length > 0 && (
+        <section>
+          <h3 className="text-sm font-semibold text-foreground mb-4">Recent Activity</h3>
+          <div className="rounded-2xl border border-white/8 bg-black/40 overflow-hidden">
+            <div className="divide-y divide-white/6 max-h-72 overflow-y-auto">
+              {activity.map(evt => (
+                <div key={evt.id} className="flex items-start gap-3 px-5 py-3">
+                  <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
+                    <evt.icon className={`w-3 h-3 ${evt.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-foreground truncate">{evt.label}</p>
+                      <span className="text-[10px] text-muted-foreground/35 shrink-0 font-mono">
+                        {evt.ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
-                    )}
-                  </div>
-
-                  {hasTools ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {systemTools.map(tool => (
-                        <ToolPill
-                          key={tool.id}
-                          name={tool.name}
-                          status={toolConnectionStatus(tool.name, storedKeys, orStatus)}
-                        />
-                      ))}
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground/50">
-                      <Package className="w-3.5 h-3.5" />
-                      <span>No tools selected for this system. <button onClick={() => navigate('/connections')} className="text-primary hover:underline">Add tools →</button></span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* ── AI Operations Feed + Activity Feed ──────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        {/* AI Operations */}
-        <section>
-          <SectionHeader icon={Brain} title="AI Operations Feed" sub="Recent STARK actions and optimizations" />
-          <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md overflow-hidden">
-            {(aiActivity?.totalRequests ?? 0) > 0 ? (
-              <div className="divide-y divide-white/8">
-                <div className="flex items-start gap-3 px-4 py-3.5">
-                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <Brain className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-foreground">{aiActivity.totalRequests} AI completions processed</p>
-                    <p className="text-[11px] text-muted-foreground/60">
-                      {(aiActivity.totalTokens || 0).toLocaleString()} tokens · {aiActivity.successRate ?? 100}% success
-                    </p>
+                    <p className="text-[11px] text-muted-foreground/50 truncate">{evt.detail}</p>
                   </div>
                 </div>
-                {systems.filter(s => s.buildStatus === 'building').map(s => (
-                  <div key={s.id} className="flex items-start gap-3 px-4 py-3.5">
-                    <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Zap className="w-3.5 h-3.5 text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-foreground">Building: {s.name}</p>
-                      <p className="text-[11px] text-muted-foreground/60">Autonomous build in progress</p>
-                    </div>
-                  </div>
-                ))}
-                <div className="flex items-start gap-3 px-4 py-3.5">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-foreground">STARK Orchestrator — Operational</p>
-                    <p className="text-[11px] text-muted-foreground/60">Ready to build any automated system</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="px-5 py-10 text-center">
-                <Brain className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground/50">No AI activity yet. Build a system to see STARK in action.</p>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         </section>
+      )}
 
-        {/* Activity Feed — system events + notifications (Revenue Generated, Errors, etc.) */}
-        <section>
-          <SectionHeader
-            icon={Activity}
-            title="Activity Feed"
-            sub="System Created · Build Started · Build Completed · Revenue Generated · Errors"
-          />
-          <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md overflow-hidden">
-            {activity.length > 0 ? (
-              <div className="divide-y divide-white/8 max-h-72 overflow-y-auto">
-                {activity.map(evt => (
-                  <div key={evt.id} className="flex items-start gap-3 px-4 py-3">
-                    <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
-                      <evt.icon className={`w-3 h-3 ${evt.color}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium text-foreground truncate">{evt.label}</p>
-                        <span className="text-[10px] text-muted-foreground/40 shrink-0 font-mono">
-                          {evt.ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground/60 truncate">{evt.detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="px-5 py-10 text-center">
-                <Activity className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground/50">No activity yet. Create a system to see events here.</p>
-              </div>
-            )}
-          </div>
-        </section>
-
-      </div>
     </div>
   );
 };

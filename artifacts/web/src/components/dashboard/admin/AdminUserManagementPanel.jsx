@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
-import { Users, MoreHorizontal, Search, ShieldCheck, Ban, CheckCircle2, Coins, Loader2, Pencil } from 'lucide-react';
+import { Users, MoreHorizontal, Search, ShieldCheck, Ban, CheckCircle2, Coins, Loader2, Pencil, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import adminApi from '@/lib/adminApi.js';
 import { useAdminData } from '@/contexts/AdminDataContext.jsx';
@@ -28,6 +29,7 @@ const NO_TIER = '__none__';
 
 const AdminUserManagementPanel = () => {
   const { reloadAnalytics } = useAdminData();
+  const [, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -171,6 +173,18 @@ const AdminUserManagementPanel = () => {
     }
   };
 
+  const viewRevenue = (user) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('revenueUserId', String(user.id));
+      next.delete('revenueSystemId');
+      return next;
+    }, { replace: true });
+    setTimeout(() => {
+      document.getElementById('admin-revenue-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
+
   const users = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / perPage));
@@ -243,8 +257,15 @@ const AdminUserManagementPanel = () => {
                 users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
-                      <div className="font-medium text-sm">{user.name || '—'}</div>
-                      <div className="text-xs text-muted-foreground">{user.email}</div>
+                      <button
+                        type="button"
+                        onClick={() => viewRevenue(user)}
+                        className="text-left group"
+                        title="View revenue for this user"
+                      >
+                        <div className="font-medium text-sm group-hover:text-emerald-400 transition-colors">{user.name || '—'}</div>
+                        <div className="text-xs text-muted-foreground group-hover:text-emerald-500/70 transition-colors">{user.email}</div>
+                      </button>
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className={user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? 'bg-primary/10 text-primary' : 'bg-muted'}>
@@ -285,6 +306,9 @@ const AdminUserManagementPanel = () => {
                               </DropdownMenuItem>
                             ))}
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => viewRevenue(user)}>
+                              <TrendingUp className="w-4 h-4 mr-2" /> View Revenue
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEditDialog(user)}>
                               <Pencil className="w-4 h-4 mr-2" /> Edit Details
                             </DropdownMenuItem>

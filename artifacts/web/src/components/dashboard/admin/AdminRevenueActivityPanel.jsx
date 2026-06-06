@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -131,10 +132,13 @@ const LastUpdatedBadge = ({ timestamp, loading }) => {
 const AdminRevenueActivityPanel = () => {
   const { revenue: contextRevenue, revenueLoading: contextLoading, revenueRefreshing: contextRefreshing, revenueError: contextError, revenueLastUpdated } = useAdminData();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const filterUserId = searchParams.get('revenueUserId') ?? '';
+  const filterSystemInstanceId = searchParams.get('revenueSystemId') ?? '';
+
   const [users, setUsers] = useState([]);
-  const [filterUserId, setFilterUserId] = useState('');
-  const [filterSystemInstanceId, setFilterSystemInstanceId] = useState('');
-  const [systemInstanceInput, setSystemInstanceInput] = useState('');
+  const [systemInstanceInput, setSystemInstanceInput] = useState(filterSystemInstanceId);
 
   const [filteredRevenue, setFilteredRevenue] = useState(null);
   const [filteredLoading, setFilteredLoading] = useState(false);
@@ -157,6 +161,10 @@ const AdminRevenueActivityPanel = () => {
     }).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    setSystemInstanceInput(filterSystemInstanceId);
+  }, [filterSystemInstanceId]);
+
   const fetchFiltered = useCallback(async (userId, systemInstanceId) => {
     setFilteredLoading(true);
     setFilteredError(null);
@@ -176,19 +184,48 @@ const AdminRevenueActivityPanel = () => {
   useEffect(() => {
     if (isFiltered) {
       fetchFiltered(filterUserId, filterSystemInstanceId);
+    } else {
+      setFilteredRevenue(null);
+      setFilteredError(null);
     }
   }, [filterUserId, filterSystemInstanceId, isFiltered, fetchFiltered]);
+
+  function setFilterUser(userId) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (userId) next.set('revenueUserId', userId);
+      else next.delete('revenueUserId');
+      return next;
+    }, { replace: true });
+  }
 
   function applySystemInstance() {
     const val = systemInstanceInput.trim();
     if (val === '' || /^\d+$/.test(val)) {
-      setFilterSystemInstanceId(val);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (val) next.set('revenueSystemId', val);
+        else next.delete('revenueSystemId');
+        return next;
+      }, { replace: true });
     }
   }
 
+  function filterBySystemInstance(id) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('revenueSystemId', String(id));
+      return next;
+    }, { replace: true });
+  }
+
   function clearFilters() {
-    setFilterUserId('');
-    setFilterSystemInstanceId('');
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('revenueUserId');
+      next.delete('revenueSystemId');
+      return next;
+    }, { replace: true });
     setSystemInstanceInput('');
     setFilteredRevenue(null);
     setFilteredError(null);
@@ -197,7 +234,7 @@ const AdminRevenueActivityPanel = () => {
   const selectedUser = users.find((u) => String(u.id) === String(filterUserId));
 
   return (
-    <Card className="shadow-sm border-border/50 bg-card/50 backdrop-blur">
+    <Card id="admin-revenue-panel" className="shadow-sm border-border/50 bg-card/50 backdrop-blur">
       <CardHeader className="pb-3 border-b border-border/30">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
@@ -215,7 +252,7 @@ const AdminRevenueActivityPanel = () => {
             <select
               className="h-8 rounded-md border border-border/50 bg-background/60 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring min-w-[130px]"
               value={filterUserId}
-              onChange={(e) => setFilterUserId(e.target.value)}
+              onChange={(e) => setFilterUser(e.target.value)}
             >
               <option value="">All users</option>
               {users.map((u) => (
@@ -348,8 +385,21 @@ const AdminRevenueActivityPanel = () => {
                               {usdFromCents(e.amountCents)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span className="text-xs text-muted-foreground">{e.blueprintName}</span>
+                            {e.systemInstanceId && (
+                              <>
+                                <span className="text-xs text-muted-foreground/50">·</span>
+                                <button
+                                  type="button"
+                                  onClick={() => filterBySystemInstance(e.systemInstanceId)}
+                                  className="text-xs text-emerald-500/80 hover:text-emerald-400 font-mono underline-offset-2 hover:underline transition-colors"
+                                  title="Filter revenue to this system"
+                                >
+                                  System #{e.systemInstanceId}
+                                </button>
+                              </>
+                            )}
                             <span className="text-xs text-muted-foreground/50">·</span>
                             <span className="text-xs text-muted-foreground font-mono">{relativeTime(e.createdAt)}</span>
                           </div>

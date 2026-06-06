@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Helmet } from 'react-helmet';
-import pb from '@/lib/pocketbaseClient.js';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import FeedPost from '@/components/FeedPost.jsx';
@@ -8,28 +7,6 @@ import { HARDCODED_POSTS } from '@/components/AIFeedCentralFeed.jsx';
 import { Zap, Bell, Box, BookOpen, Wrench } from 'lucide-react';
 
 const AIFeedPage = () => {
-  const [posts, setPosts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchFeed = async () => {
-      try {
-        const records = await pb.collection('ai_feed_posts').getList(1, 20, {
-          sort: '-created',
-          filter: 'is_published = true',
-          expand: 'created_by',
-          $autoCancel: false
-        });
-        setPosts(records.items);
-      } catch {
-        // silently fallback to hardcoded posts
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchFeed();
-  }, []);
-
   return (
     <div className="min-h-screen bg-background flex flex-col bg-grid-pattern selection:bg-primary/20">
       <Helmet><title>Intel Feed | Starks Global Group</title></Helmet>
@@ -77,20 +54,14 @@ const AIFeedPage = () => {
               <p className="text-muted-foreground text-sm mt-2">Latest tool drops, architecture updates, and automation insights.</p>
             </div>
 
-            {isLoading ? (
-              <div className="py-20 flex justify-center">
-                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {(posts.length > 0 ? posts : HARDCODED_POSTS).map(post => (
-                  <FeedPost key={post.id} post={post} />
-                ))}
-              </div>
-            )}
+            <div className="space-y-6">
+              {HARDCODED_POSTS.map(post => (
+                <FeedPost key={post.id} post={post} />
+              ))}
+            </div>
           </div>
 
-          {/* Right Sidebar: Build Agent Placeholder */}
+          {/* Right Sidebar */}
           <div className="lg:col-span-3 space-y-6">
             <div className="cinematic-card p-6 border-accent/20 bg-[radial-gradient(ellipse_at_top_right,hsla(180,100%,50%,0.08),transparent_50%)] sticky top-28">
               <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center mb-4 border border-accent/30 shadow-[0_0_15px_hsl(var(--accent)/0.2)]">

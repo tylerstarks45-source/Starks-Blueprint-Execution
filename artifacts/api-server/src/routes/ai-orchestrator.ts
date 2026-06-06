@@ -457,7 +457,7 @@ router.get("/ai-orchestrator/readiness", async (req, res): Promise<void> => {
     blueprintCount: bpCount?.count ?? 0,
     toolCount: toolCount?.count ?? 0,
     openrouterConnected: !!process.env.OPENROUTER_API_KEY,
-    stripeConnected: !!(process.env.STRIPE_SECRET_KEY ?? process.env.STRIPE_PUBLISHABLE_KEY),
+    stripeConnected: !!(process.env.STRIPE_SECRET_KEY ?? process.env.STRIPE_PUBLISHABLE_KEY ?? process.env.stripe_publishable_key),
     databaseConnected: true,
     aiRequestsMade: myUsage?.count ?? 0,
   };
@@ -513,7 +513,7 @@ router.get("/ai-orchestrator/platform-stats", async (req, res): Promise<void> =>
     database: { name: "Database", status: "operational", description: "PostgreSQL — all tables healthy" },
     stripe: {
       name: "Stripe",
-      status: (process.env.STRIPE_SECRET_KEY ?? process.env.STRIPE_PUBLISHABLE_KEY) ? "operational" : "not_configured",
+      status: (process.env.STRIPE_SECRET_KEY ?? process.env.STRIPE_PUBLISHABLE_KEY ?? process.env.stripe_publishable_key) ? "operational" : "not_configured",
       description: "Payments & subscription management",
     },
   };

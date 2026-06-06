@@ -1016,7 +1016,7 @@ export default function UserSystemDetailPage() {
                     )}
                     {blueprint.estimatedMonthlyRevenue && (
                       <div className="rounded-lg bg-white/3 border border-white/5 p-3">
-                        <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono">Est. Revenue</p>
+                        <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono">Est. Revenue*</p>
                         <p className="text-sm text-emerald-400 font-semibold mt-0.5">{blueprint.estimatedMonthlyRevenue}</p>
                       </div>
                     )}
@@ -1032,6 +1032,12 @@ export default function UserSystemDetailPage() {
                         ))}
                       </div>
                     </div>
+                  )}
+                  {blueprint.estimatedMonthlyRevenue && (
+                    <p className="text-[10px] text-gray-600 leading-relaxed pt-1">
+                      * Revenue figures are projections based on blueprint benchmarks — not guaranteed results. Individual outcomes vary.{' '}
+                      <a href="/earnings-disclaimer" className="underline hover:text-gray-400 transition-colors">Earnings Disclaimer</a>
+                    </p>
                   )}
                 </div>
               ) : (

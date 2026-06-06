@@ -40,4 +40,4 @@ export function isKnownConnector(id: string): boolean {
   return id in REGISTRY;
 }
 
-export { ConnectorMeta };
+export type { ConnectorMeta };

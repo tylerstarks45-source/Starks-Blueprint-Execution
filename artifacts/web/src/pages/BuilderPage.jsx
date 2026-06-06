@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bot, Send, Loader2, AlertCircle, Zap, CheckCircle2,
   Eye, EyeOff, ChevronRight, Terminal, Activity, Lock,
-  Cpu, Play, ExternalLink, ArrowLeft, Layers, Grid3x3,
+  Cpu, Play, ExternalLink, ArrowLeft, Grid3x3,
   MessageSquare, Sparkles, Clock, DollarSign,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext.jsx';
 
 const authHeaders = () => {
   const token = localStorage.getItem('sbep_auth_token');
@@ -32,6 +33,48 @@ const DIFFICULTY_COLOR = {
   advanced: 'text-rose-400 border-rose-400/30 bg-rose-400/8',
 };
 
+// ── Terminal output tag classification ──────────────────────────────────────
+const TAG_STYLES = {
+  INIT:   { label: '[INIT]',   cls: 'text-cyan-400' },
+  BUILD:  { label: '[BUILD]',  cls: 'text-blue-400' },
+  TEST:   { label: '[TEST]',   cls: 'text-amber-400' },
+  DEPLOY: { label: '[DEPLOY]', cls: 'text-emerald-400' },
+  WARN:   { label: '[WARN]',   cls: 'text-orange-400' },
+  ERROR:  { label: '[ERROR]',  cls: 'text-rose-400' },
+  SYS:    { label: '[SYS]',    cls: 'text-violet-400' },
+};
+
+function classifyStep(stepNumber, totalSteps) {
+  if (stepNumber === 1) return TAG_STYLES.INIT;
+  if (stepNumber >= totalSteps) return TAG_STYLES.DEPLOY;
+  if (stepNumber === totalSteps - 1) return TAG_STYLES.TEST;
+  return TAG_STYLES.BUILD;
+}
+
+// ── Typed text component ─────────────────────────────────────────────────────
+const TypedText = ({ text, onDone, speed = 8 }) => {
+  const [displayed, setDisplayed] = useState('');
+  const idxRef = useRef(0);
+
+  useEffect(() => {
+    idxRef.current = 0;
+    setDisplayed('');
+    const iv = setInterval(() => {
+      idxRef.current += speed;
+      if (idxRef.current >= text.length) {
+        setDisplayed(text);
+        clearInterval(iv);
+        onDone?.();
+      } else {
+        setDisplayed(text.slice(0, idxRef.current));
+      }
+    }, 16);
+    return () => clearInterval(iv);
+  }, [text]);
+
+  return <>{displayed}</>;
+};
+
 // ─── Phase Bar ────────────────────────────────────────────────────────────────
 const PhaseBar = ({ phase }) => {
   const phases = [
@@ -42,7 +85,7 @@ const PhaseBar = ({ phase }) => {
   ];
   const activeIdx = phases.findIndex(p => p.id === phase);
   return (
-    <div className="flex items-center gap-0 w-full">
+    <div className="flex items-center gap-0">
       {phases.map((p, i) => {
         const done = i < activeIdx;
         const active = i === activeIdx;
@@ -59,7 +102,7 @@ const PhaseBar = ({ phase }) => {
               {p.label}
             </div>
             {i < phases.length - 1 && (
-              <div className={`h-px flex-1 transition-colors ${done ? 'bg-emerald-400/40' : 'bg-white/8'}`} />
+              <div className={`h-px w-6 transition-colors ${done ? 'bg-emerald-400/40' : 'bg-white/8'}`} />
             )}
           </React.Fragment>
         );
@@ -116,10 +159,37 @@ const BlueprintCard = ({ bp, selected, onSelect }) => {
 };
 
 // ─── Credential Form ──────────────────────────────────────────────────────────
-const CredentialForm = ({ credentials, blueprint, onExecute, loading }) => {
-  const [values, setValues] = useState({});
+const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill }) => {
+  const [values, setValues] = useState(() => {
+    const init = {};
+    credentials.forEach(c => {
+      if (prefill?.[c.key]) init[c.key] = prefill[c.key];
+    });
+    return init;
+  });
   const [revealed, setRevealed] = useState({});
+  const [attempted, setAttempted] = useState(false);
+
+  // Re-init when prefill arrives
+  useEffect(() => {
+    if (!prefill) return;
+    setValues(prev => {
+      const next = { ...prev };
+      credentials.forEach(c => {
+        if (prefill[c.key] && !next[c.key]) next[c.key] = prefill[c.key];
+      });
+      return next;
+    });
+  }, [prefill]);
+
   const allFilled = credentials.every(c => (values[c.key] || '').trim().length > 0);
+
+  const handleSubmit = () => {
+    setAttempted(true);
+    if (!allFilled) return;
+    onExecute(values);
+  };
+
   return (
     <div className="rounded-xl border border-primary/25 bg-black/50 overflow-hidden mt-2">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-primary/15 bg-primary/8">
@@ -132,45 +202,59 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading }) => {
         </Badge>
       </div>
       <div className="p-4 space-y-3">
-        {credentials.map(cred => (
-          <div key={cred.key}>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-foreground">
-                {cred.label}
-                {cred.required !== false && <span className="text-rose-400 ml-1">*</span>}
-              </label>
-              <span className="text-[10px] text-muted-foreground/60 font-mono">{cred.toolName}</span>
+        {credentials.map(cred => {
+          const isEmpty = !(values[cred.key] || '').trim();
+          const isRequired = cred.required !== false;
+          const showError = attempted && isRequired && isEmpty;
+          return (
+            <div key={cred.key}>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-foreground">
+                  {cred.label}
+                  {isRequired && <span className="text-rose-400 ml-1">*</span>}
+                </label>
+                <span className="text-[10px] text-muted-foreground/60 font-mono">{cred.toolName}</span>
+              </div>
+              <div className="relative">
+                <input
+                  type={revealed[cred.key] ? 'text' : 'password'}
+                  value={values[cred.key] || ''}
+                  onChange={e => setValues(v => ({ ...v, [cred.key]: e.target.value }))}
+                  placeholder={`Enter ${cred.label}`}
+                  className={`w-full text-sm bg-white/5 border rounded-lg px-3 py-2 pr-9 text-foreground placeholder:text-muted-foreground/30 focus:outline-none transition-all font-mono ${
+                    showError
+                      ? 'border-rose-500/60 bg-rose-500/5 focus:border-rose-500'
+                      : 'border-white/10 focus:border-primary/50 focus:bg-white/8'
+                  }`}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+                <button
+                  type="button"
+                  onClick={() => setRevealed(r => ({ ...r, [cred.key]: !r[cred.key] }))}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                >
+                  {revealed[cred.key] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              {showError && (
+                <p className="text-[10px] text-rose-400 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-2.5 h-2.5" /> This field is required
+                </p>
+              )}
+              {cred.description && !showError && (
+                <p className="text-[11px] text-muted-foreground/50 mt-1">{cred.description}</p>
+              )}
             </div>
-            <div className="relative">
-              <input
-                type={revealed[cred.key] ? 'text' : 'password'}
-                value={values[cred.key] || ''}
-                onChange={e => setValues(v => ({ ...v, [cred.key]: e.target.value }))}
-                placeholder={`Enter ${cred.label}`}
-                className="w-full text-sm bg-white/5 border border-white/10 rounded-lg px-3 py-2 pr-9 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 focus:bg-white/8 transition-all font-mono"
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck={false}
-              />
-              <button
-                type="button"
-                onClick={() => setRevealed(r => ({ ...r, [cred.key]: !r[cred.key] }))}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-              >
-                {revealed[cred.key] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-            {cred.description && (
-              <p className="text-[11px] text-muted-foreground/50 mt-1">{cred.description}</p>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="px-4 pb-4">
         <Button
           className="w-full h-10 gap-2 font-semibold text-sm"
-          disabled={!allFilled || loading}
-          onClick={() => onExecute(values)}
+          disabled={loading}
+          onClick={handleSubmit}
         >
           {loading
             ? <><Loader2 className="w-4 h-4 animate-spin" /> Initializing Build…</>
@@ -214,31 +298,19 @@ const MessageBubble = ({ msg }) => {
   );
 };
 
-// ─── Build Terminal (right pane) ──────────────────────────────────────────────
+// ─── Build Terminal ───────────────────────────────────────────────────────────
 const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
   const bottomRef = useRef(null);
   const navigate = useNavigate();
-  const isComplete = currentIdx >= steps.length && steps.length > 0;
+  const isComplete = currentIdx >= steps.length && steps.length > 0 && phase === 'complete';
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [outputs, currentIdx]);
-
-  const terminalLines = [];
-  steps.forEach((step, i) => {
-    const isDone = i < currentIdx || outputs[step.id];
-    const isActive = i === currentIdx;
-    const isPending = i > currentIdx && !outputs[step.id];
-
-    terminalLines.push({ type: 'step', step, i, isDone, isActive, isPending });
-    if (outputs[step.id]) {
-      terminalLines.push({ type: 'output', stepId: step.id, text: outputs[step.id], i });
-    }
-  });
+  }, [outputs, currentIdx, isComplete]);
 
   return (
     <div className="flex flex-col h-full bg-black/90 rounded-xl border border-white/10 overflow-hidden font-mono">
-      {/* macOS window chrome */}
+      {/* macOS chrome */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-black/60 shrink-0">
         <div className="flex gap-1.5">
           <div className="w-3 h-3 rounded-full bg-rose-500/80" />
@@ -266,15 +338,15 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
         </div>
       </div>
 
-      {/* Main terminal area */}
       <div className="flex flex-1 min-h-0">
         {/* Step sidebar */}
         {steps.length > 0 && (
-          <div className="w-44 shrink-0 border-r border-white/8 bg-black/40 overflow-y-auto py-3 px-2 space-y-1">
-            <p className="text-[9px] text-muted-foreground/30 uppercase tracking-widest px-2 mb-2">Build Steps</p>
+          <div className="w-40 shrink-0 border-r border-white/8 bg-black/40 overflow-y-auto py-3 px-2 space-y-1">
+            <p className="text-[9px] text-muted-foreground/30 uppercase tracking-widest px-2 mb-2">Steps</p>
             {steps.map((step, i) => {
               const isDone = i < currentIdx;
               const isActive = i === currentIdx && phase === 'building';
+              const tag = classifyStep(step.stepNumber, steps.length);
               return (
                 <div
                   key={step.id}
@@ -289,8 +361,8 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
                   <span className="shrink-0 text-[10px]">
                     {isDone ? '✓' : isActive ? '▶' : String(i + 1).padStart(2, '0')}
                   </span>
-                  <span className="leading-tight line-clamp-2">
-                    Step {step.stepNumber}
+                  <span className={`leading-tight text-[9px] font-bold ${tag.cls} opacity-60`}>
+                    {tag.label}
                   </span>
                 </div>
               );
@@ -299,7 +371,8 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
         )}
 
         {/* Output area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 text-xs">
+        <div className="flex-1 overflow-y-auto p-4 space-y-1.5 text-xs">
+
           {/* Idle placeholder */}
           {phase === 'idle' && steps.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full gap-4 opacity-30">
@@ -315,53 +388,56 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
             </div>
           )}
 
-          {/* Build output lines */}
-          {terminalLines.map((item, lineIdx) => {
-            if (item.type === 'step') {
-              const { step, isDone, isActive, isPending } = item;
-              return (
+          {/* Per-step output lines */}
+          {steps.map((step, i) => {
+            const isDone = i < currentIdx;
+            const isActive = i === currentIdx && phase === 'building';
+            const isPending = i > currentIdx;
+            const tag = classifyStep(step.stepNumber, steps.length);
+
+            return (
+              <React.Fragment key={step.id}>
+                {/* Step header line */}
                 <motion.div
-                  key={`step-${step.id}`}
-                  initial={{ opacity: 0, x: -4 }}
-                  animate={{ opacity: isPending ? 0.25 : 1 }}
-                  className="flex items-start gap-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: isPending ? 0.2 : 1 }}
+                  className="flex items-start gap-2 py-0.5"
                 >
                   <span className={`shrink-0 w-4 text-center mt-0.5 ${
                     isDone ? 'text-emerald-400' : isActive ? 'text-primary' : 'text-muted-foreground/30'
                   }`}>
                     {isDone ? '✓' : isActive ? '▶' : '○'}
                   </span>
-                  <div className="flex-1">
-                    <span className={`font-semibold ${
-                      isDone ? 'text-emerald-400/80' : isActive ? 'text-foreground' : 'text-muted-foreground/30'
-                    }`}>
-                      <span className="text-muted-foreground/40">[{String(step.stepNumber).padStart(2, '0')}/{String(steps.length).padStart(2, '0')}]</span>{' '}
+                  <span>
+                    <span className="text-muted-foreground/30">[{String(step.stepNumber).padStart(2, '0')}/{String(steps.length).padStart(2, '0')}] </span>
+                    <span className={`font-semibold mr-1.5 ${tag.cls}`}>{tag.label}</span>
+                    <span className={isDone ? 'text-emerald-400/80' : isActive ? 'text-foreground' : 'text-muted-foreground/30'}>
                       {step.notes}
                     </span>
-                    {isActive && !outputs[step.id] && (
-                      <div className="flex items-center gap-1.5 mt-1 text-primary/60">
-                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                        <span className="text-[10px]">executing…</span>
-                        <span className="text-primary animate-pulse">█</span>
-                      </div>
-                    )}
+                  </span>
+                </motion.div>
+
+                {/* Active — spinning cursor */}
+                {isActive && !outputs[step.id] && (
+                  <div className="ml-6 flex items-center gap-1.5 text-primary/60 py-0.5">
+                    <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                    <span className="text-[10px]">executing</span>
+                    <span className="text-primary animate-pulse">█</span>
                   </div>
-                </motion.div>
-              );
-            }
-            if (item.type === 'output') {
-              return (
-                <motion.div
-                  key={`out-${item.stepId}-${lineIdx}`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="ml-6 pl-3 border-l-2 border-white/8 text-muted-foreground/60 leading-relaxed py-0.5"
-                >
-                  {item.text}
-                </motion.div>
-              );
-            }
-            return null;
+                )}
+
+                {/* Output with typing animation */}
+                {outputs[step.id] && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="ml-6 pl-3 border-l-2 border-white/8 text-muted-foreground/60 leading-relaxed py-0.5"
+                  >
+                    <TypedText text={outputs[step.id]} speed={12} />
+                  </motion.div>
+                )}
+              </React.Fragment>
+            );
           })}
 
           {/* SYSTEM DEPLOYED banner */}
@@ -372,7 +448,7 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
                 animate={{ opacity: 1, y: 0 }}
                 className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/8 p-4"
               >
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-1">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   <span className="text-emerald-400 font-bold tracking-widest text-sm">SYSTEM DEPLOYED</span>
                 </div>
@@ -380,7 +456,7 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
                   All {steps.length} build steps completed. Your system is live and running.
                 </p>
                 <button
-                  onClick={() => navigate(`/build/${instanceId}`)}
+                  onClick={() => navigate(`/systems/${instanceId}`)}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/30 transition-colors"
                 >
                   View System <ExternalLink className="w-3 h-3" />
@@ -399,6 +475,7 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
 // ─── Builder Page ─────────────────────────────────────────────────────────────
 const BuilderPage = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
 
   // Mode: 'blueprint' | 'custom'
   const [mode, setMode] = useState('custom');
@@ -409,6 +486,9 @@ const BuilderPage = () => {
   const [activeCatId, setActiveCatId] = useState(null);
   const [selectedBp, setSelectedBp] = useState(null);
   const [bpLoading, setBpLoading] = useState(false);
+
+  // Stored credential prefill map: { [credentialKey]: '•••' (masked placeholder) }
+  const [storedCredKeys, setStoredCredKeys] = useState({});
 
   // Phase machine
   const [phase, setPhase] = useState('idle');
@@ -426,8 +506,6 @@ const BuilderPage = () => {
 
   // Credential collection
   const [pendingCreds, setPendingCreds] = useState([]);
-  const [targetBlueprint, setTargetBlueprint] = useState(null);
-  const [systemName, setSystemName] = useState('');
   const [executeLoading, setExecuteLoading] = useState(false);
 
   // Build execution
@@ -453,6 +531,20 @@ const BuilderPage = () => {
     }).catch(() => {}).finally(() => setBpLoading(false));
   }, []);
 
+  // Load stored credential keys for prefill hints
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    fetch(`/api/user-credentials?userId=${currentUser.id}`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(rows => {
+        if (!Array.isArray(rows)) return;
+        const map = {};
+        rows.forEach(r => { map[r.credentialKey] = '••••••••'; });
+        setStoredCredKeys(map);
+      })
+      .catch(() => {});
+  }, [currentUser?.id]);
+
   // Scroll chat to bottom
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -463,8 +555,12 @@ const BuilderPage = () => {
     if (phase !== 'building' || !buildData || stepExecuting) return;
     if (currentStepIdx >= buildData.steps.length) {
       setPhase('complete');
-      toast.success('System deployed and live!', { description: `${buildData.blueprint?.name ?? 'Your system'} is ready.` });
-      return;
+      toast.success('System deployed and live!', {
+        description: `${buildData.blueprint?.name ?? 'Your system'} is ready.`,
+      });
+      // Auto-redirect after 3 seconds so user sees success banner
+      const timer = setTimeout(() => navigate(`/systems/${buildData.instanceId}`), 3000);
+      return () => clearTimeout(timer);
     }
 
     const step = buildData.steps[currentStepIdx];
@@ -506,6 +602,57 @@ const BuilderPage = () => {
     return () => clearTimeout(timer);
   }, [phase, buildData, currentStepIdx, stepExecuting]);
 
+  // ── Execute build — takes blueprint and systemName directly to avoid stale state ──
+  const executeBuild = useCallback(async (credValues, blueprint, sysName) => {
+    if (!blueprint?.slug) return;
+    setExecuteLoading(true);
+    setError('');
+
+    const credentials = Object.entries(credValues)
+      .filter(([, v]) => String(v).trim())
+      .map(([key, value]) => ({ key, value: String(value) }));
+
+    try {
+      const resp = await fetch('/api/ai-orchestrator/execute', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          blueprintSlug: blueprint.slug,
+          systemName: sysName || `My ${blueprint.name}`,
+          credentials,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || 'Build initialization failed');
+      }
+      const data = await resp.json();
+      setBuildData({
+        instanceId: data.instanceId,
+        sessionId: data.sessionId,
+        steps: data.steps ?? [],
+        blueprint: data.blueprint,
+      });
+      setCurrentStepIdx(0);
+      setStepOutputs({});
+      setPhase('building');
+      setMessages(prev => [...prev, {
+        id: Date.now() + 2,
+        role: 'assistant',
+        content: `Build initiated. Executing ${data.steps?.length ?? 5} autonomous steps for ${data.blueprint?.name ?? blueprint.name}. Watch the terminal →`,
+        ts: Date.now(),
+      }]);
+    } catch (err) {
+      setError(err.message || 'Failed to start build.');
+    } finally {
+      setExecuteLoading(false);
+    }
+  }, []);
+
+  // Refs to hold latest blueprint/systemName for the credential form submit
+  const pendingBlueprintRef = useRef(null);
+  const pendingSystemNameRef = useRef('');
+
   // ── Send message to STARK ──────────────────────────────────────────────────
   const sendMessage = useCallback(async (text) => {
     const msg = (text ?? input).trim();
@@ -537,16 +684,17 @@ const BuilderPage = () => {
         ts: Date.now(),
       }]);
 
-      const action = data.structuredData?.action;
-      if (action === 'collect_credentials' && data.structuredData?.requiredCredentials?.length > 0) {
-        setPendingCreds(data.structuredData.requiredCredentials);
-        setTargetBlueprint(data.structuredData.blueprint ?? null);
-        setSystemName(data.structuredData.systemName ?? '');
+      const sd = data.structuredData;
+      const action = sd?.action;
+
+      if (action === 'collect_credentials' && sd?.requiredCredentials?.length > 0) {
+        pendingBlueprintRef.current = sd.blueprint ?? null;
+        pendingSystemNameRef.current = sd.systemName ?? '';
+        setPendingCreds(sd.requiredCredentials);
         setPhase('collecting');
-      } else if (action === 'start_build' && data.structuredData?.blueprint) {
-        setTargetBlueprint(data.structuredData.blueprint);
-        setSystemName(data.structuredData.systemName ?? '');
-        await handleExecute({});
+      } else if (action === 'start_build' && sd?.blueprint) {
+        // No credentials needed — execute immediately, passing blueprint directly
+        await executeBuild({}, sd.blueprint, sd.systemName ?? '');
       }
     } catch {
       setError('STARK is temporarily unavailable. Please try again.');
@@ -554,20 +702,20 @@ const BuilderPage = () => {
       setChatLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [input, chatLoading, messages]);
+  }, [input, chatLoading, messages, executeBuild]);
 
   // ── Blueprint mode: launch selected blueprint ──────────────────────────────
   const handleBlueprintLaunch = useCallback(async () => {
     if (!selectedBp) return;
     const msg = `Build me a ${selectedBp.name} system`;
     setMode('custom');
-    setMessages(prev => [...prev, { id: Date.now(), role: 'user', content: msg, ts: Date.now() }]);
-    setChatLoading(true);
-    setError('');
-
     const history = messages
       .filter(m => m.id !== 'welcome')
       .map(m => ({ role: m.role, content: m.content }));
+
+    setMessages(prev => [...prev, { id: Date.now(), role: 'user', content: msg, ts: Date.now() }]);
+    setChatLoading(true);
+    setError('');
 
     try {
       const resp = await fetch('/api/ai-orchestrator/chat', {
@@ -580,72 +728,29 @@ const BuilderPage = () => {
       const data = await resp.json();
       setMessages(prev => [...prev, { id: Date.now() + 1, role: 'assistant', content: data.content, ts: Date.now() }]);
 
-      const action = data.structuredData?.action;
-      if (action === 'collect_credentials' && data.structuredData?.requiredCredentials?.length > 0) {
-        setPendingCreds(data.structuredData.requiredCredentials);
-        setTargetBlueprint(data.structuredData.blueprint ?? null);
-        setSystemName(data.structuredData.systemName ?? '');
+      const sd = data.structuredData;
+      const action = sd?.action;
+      if (action === 'collect_credentials' && sd?.requiredCredentials?.length > 0) {
+        pendingBlueprintRef.current = sd.blueprint ?? null;
+        pendingSystemNameRef.current = sd.systemName ?? '';
+        setPendingCreds(sd.requiredCredentials);
         setPhase('collecting');
-      } else if (action === 'start_build' && data.structuredData?.blueprint) {
-        setTargetBlueprint(data.structuredData.blueprint);
-        await handleExecute({});
+      } else if (action === 'start_build' && sd?.blueprint) {
+        await executeBuild({}, sd.blueprint, sd.systemName ?? '');
       }
     } catch {
       setError('STARK is temporarily unavailable.');
     } finally {
       setChatLoading(false);
     }
-  }, [selectedBp, messages]);
+  }, [selectedBp, messages, executeBuild]);
 
-  // ── Execute autonomous build ───────────────────────────────────────────────
-  const handleExecute = useCallback(async (credValues) => {
-    if (!targetBlueprint?.slug) return;
-    setExecuteLoading(true);
-    setError('');
-
-    const credentials = Object.entries(credValues)
-      .filter(([, v]) => String(v).trim())
-      .map(([key, value]) => {
-        const cred = pendingCreds.find(c => c.key === key);
-        return { key, value: String(value), toolName: cred?.toolName };
-      });
-
-    try {
-      const resp = await fetch('/api/ai-orchestrator/execute', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
-          blueprintSlug: targetBlueprint.slug,
-          systemName: systemName || `My ${targetBlueprint.name}`,
-          credentials,
-        }),
-      });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || 'Build initialization failed');
-      }
-      const data = await resp.json();
-      setBuildData({
-        instanceId: data.instanceId,
-        sessionId: data.sessionId,
-        steps: data.steps ?? [],
-        blueprint: data.blueprint,
-      });
-      setCurrentStepIdx(0);
-      setStepOutputs({});
-      setPhase('building');
-      setMessages(prev => [...prev, {
-        id: Date.now() + 2,
-        role: 'assistant',
-        content: `Build initiated. Executing ${data.steps?.length ?? 5} autonomous steps for ${data.blueprint?.name ?? targetBlueprint.name}. Watch the terminal →`,
-        ts: Date.now(),
-      }]);
-    } catch (err) {
-      setError(err.message || 'Failed to start build.');
-    } finally {
-      setExecuteLoading(false);
-    }
-  }, [targetBlueprint, systemName, pendingCreds]);
+  // ── Credential form submit (uses refs to avoid stale state) ───────────────
+  const handleCredentialSubmit = useCallback((credValues) => {
+    const bp = pendingBlueprintRef.current;
+    const sysName = pendingSystemNameRef.current;
+    executeBuild(credValues, bp, sysName);
+  }, [executeBuild]);
 
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -674,15 +779,13 @@ const BuilderPage = () => {
             Builder
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <PhaseBar phase={phase} />
-        </div>
+        <PhaseBar phase={phase} />
       </div>
 
       {/* Split pane */}
       <div className="flex flex-1 min-h-0">
 
-        {/* ── Left Pane ──────────────────────────────────────────────────────── */}
+        {/* ── Left Pane ──────────────────────────────────────────────────── */}
         <div className="w-[400px] shrink-0 flex flex-col border-r border-white/8 bg-black/40">
 
           {/* STARK header + mode toggle */}
@@ -734,7 +837,6 @@ const BuilderPage = () => {
           {/* Blueprint mode */}
           {mode === 'blueprint' && (
             <div className="flex flex-col flex-1 min-h-0">
-              {/* Category pills */}
               <div className="px-4 py-3 border-b border-white/6 shrink-0">
                 <div className="flex gap-1.5 flex-wrap">
                   <button
@@ -763,7 +865,6 @@ const BuilderPage = () => {
                 </div>
               </div>
 
-              {/* Blueprint grid */}
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
                 {bpLoading ? (
                   <div className="flex items-center justify-center py-8">
@@ -783,7 +884,6 @@ const BuilderPage = () => {
                 )}
               </div>
 
-              {/* Launch button */}
               <div className="p-4 border-t border-white/8 shrink-0">
                 <Button
                   className="w-full h-11 gap-2 font-semibold"
@@ -795,7 +895,9 @@ const BuilderPage = () => {
                     : <><Zap className="w-4 h-4" /> Launch {selectedBp?.name ?? 'Blueprint'} <ChevronRight className="w-4 h-4" /></>}
                 </Button>
                 {!selectedBp && (
-                  <p className="text-[10px] text-muted-foreground/30 text-center mt-2">Select a blueprint above to continue</p>
+                  <p className="text-[10px] text-muted-foreground/30 text-center mt-2">
+                    Select a blueprint above to continue
+                  </p>
                 )}
               </div>
             </div>
@@ -804,7 +906,6 @@ const BuilderPage = () => {
           {/* Custom / Chat mode */}
           {mode === 'custom' && (
             <div className="flex flex-col flex-1 min-h-0">
-              {/* Chat messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10">
                 {messages.map(m => <MessageBubble key={m.id} msg={m} />)}
 
@@ -812,13 +913,13 @@ const BuilderPage = () => {
                 {phase === 'collecting' && pendingCreds.length > 0 && (
                   <CredentialForm
                     credentials={pendingCreds}
-                    blueprint={targetBlueprint}
-                    onExecute={handleExecute}
+                    blueprint={pendingBlueprintRef.current}
+                    onExecute={handleCredentialSubmit}
                     loading={executeLoading}
+                    prefill={storedCredKeys}
                   />
                 )}
 
-                {/* STARK analyzing indicator */}
                 {chatLoading && (
                   <div className="flex items-start gap-2">
                     <div className="bg-white/6 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-2.5">
@@ -830,7 +931,6 @@ const BuilderPage = () => {
                   </div>
                 )}
 
-                {/* Error */}
                 {error && (
                   <div className="flex items-center gap-2 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -838,7 +938,6 @@ const BuilderPage = () => {
                   </div>
                 )}
 
-                {/* Starter prompts */}
                 {messages.length === 1 && phase === 'idle' && (
                   <div>
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground/40 font-medium mb-2">
@@ -867,12 +966,12 @@ const BuilderPage = () => {
                 {phase === 'building' ? (
                   <div className="flex items-center justify-center gap-2 py-1.5 text-xs text-muted-foreground/50">
                     <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                    <span className="font-mono">Building autonomously — {buildData?.steps?.length ?? 0} steps queued</span>
+                    <span className="font-mono">Building — {buildData?.steps?.length ?? 0} steps queued</span>
                   </div>
                 ) : phase === 'complete' ? (
                   <div className="flex items-center justify-center gap-2 py-1.5 text-xs text-emerald-400">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span className="font-mono">System deployed successfully</span>
+                    <span className="font-mono">System deployed — redirecting…</span>
                   </div>
                 ) : (
                   <>
@@ -917,7 +1016,7 @@ const BuilderPage = () => {
           )}
         </div>
 
-        {/* ── Right Pane: Terminal ────────────────────────────────────────────── */}
+        {/* ── Right Pane: Terminal ────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 p-4">
           <BuildTerminal
             steps={buildData?.steps ?? []}

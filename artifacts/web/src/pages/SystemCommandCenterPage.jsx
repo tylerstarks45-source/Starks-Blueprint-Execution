@@ -2,11 +2,11 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity, Zap, CheckCircle2, AlertTriangle, Clock, Server,
-  Brain, Cpu, Database, CreditCard, RefreshCw, ChevronRight,
-  TrendingUp, BarChart3, Settings2, Wifi, Play, Pause, RotateCcw,
-  Trash2, Wrench, DollarSign, Calendar, CircleDot, ExternalLink,
-  KeyRound, Globe, ShoppingCart, Mail, Video, Radio, Lock,
-  MoreHorizontal, Plus, XCircle, Coins
+  Brain, Cpu, Database, CreditCard, RefreshCw,
+  TrendingUp, BarChart3, Settings2, Play, Pause, RotateCcw,
+  Trash2, Wrench, DollarSign, Calendar, ExternalLink,
+  KeyRound, Globe, ShoppingCart, Mail, Video, Radio,
+  MoreHorizontal, Plus, XCircle, Coins, Wifi, WifiOff, Package
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,20 +32,6 @@ const StatusDot = ({ status }) => {
       <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${map[status] ?? 'bg-zinc-600'}`} />
     </span>
   );
-};
-
-const StatusLabel = ({ status }) => {
-  const map = {
-    operational: ['text-emerald-400', 'Connected'],
-    connected: ['text-emerald-400', 'Connected'],
-    degraded: ['text-amber-400', 'Degraded'],
-    warning: ['text-amber-400', 'Warning'],
-    not_configured: ['text-zinc-500', 'Not Set Up'],
-    disconnected: ['text-zinc-500', 'Not Set Up'],
-    offline: ['text-rose-400', 'Offline'],
-  };
-  const [cls, label] = map[status] ?? ['text-zinc-500', 'Unknown'];
-  return <span className={`text-xs font-medium ${cls}`}>{label}</span>;
 };
 
 const StatCard = ({ icon: Icon, label, value, sub, color = 'text-primary', accent = 'bg-primary/10' }) => (
@@ -91,13 +77,12 @@ const healthPercent = (buildStatus, healthStatus) => {
   if (buildStatus === 'building') return 55;
   if (buildStatus === 'paused') return 40;
   if (healthStatus === 'unhealthy') return 5;
-  return 25; // pending/unknown
+  return 25;
 };
 
 // Derive uptime string from createdAt + buildStatus
 const uptimeLabel = (createdAt, buildStatus) => {
-  const active = ['active', 'completed', 'building'];
-  if (!active.includes(buildStatus)) return '—';
+  if (!['active', 'completed', 'building'].includes(buildStatus)) return '—';
   if (!createdAt) return '—';
   const ms = Date.now() - new Date(createdAt).getTime();
   const days = Math.floor(ms / 86400000);
@@ -107,83 +92,38 @@ const uptimeLabel = (createdAt, buildStatus) => {
   return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 };
 
-// ─── KNOWN TOOL DEFINITIONS ──────────────────────────────────────────────────
-
-const KNOWN_TOOLS = [
-  { name: 'OpenRouter', keys: ['OPENROUTER_API_KEY', 'openrouter_api_key'], icon: Brain, desc: 'AI engine for all systems', category: 'AI' },
-  { name: 'Stripe', keys: ['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'stripe_secret_key'], icon: CreditCard, desc: 'Payments & subscriptions', category: 'Commerce' },
-  { name: 'Resend', keys: ['RESEND_API_KEY', 'resend_api_key'], icon: Mail, desc: 'Transactional email', category: 'Email' },
-  { name: 'TikTok', keys: ['TIKTOK_ACCESS_TOKEN', 'tiktok_cookie', 'TIKTOK_COOKIE'], icon: Video, desc: 'TikTok content & traffic', category: 'Social' },
-  { name: 'YouTube', keys: ['YOUTUBE_API_KEY', 'youtube_api_key', 'YOUTUBE_OAUTH_TOKEN'], icon: Video, desc: 'YouTube automation', category: 'Social' },
-  { name: 'Meta', keys: ['META_ACCESS_TOKEN', 'meta_access_token', 'FACEBOOK_ACCESS_TOKEN'], icon: Radio, desc: 'Facebook & Instagram', category: 'Social' },
-  { name: 'Shopify', keys: ['SHOPIFY_API_KEY', 'shopify_api_key', 'SHOPIFY_STORE_URL'], icon: ShoppingCart, desc: 'eCommerce automation', category: 'Commerce' },
-  { name: 'Gmail', keys: ['GMAIL_REFRESH_TOKEN', 'gmail_refresh_token', 'GMAIL_CLIENT_ID'], icon: Mail, desc: 'Gmail outreach', category: 'Email' },
-  { name: 'Cloudflare', keys: ['CLOUDFLARE_API_TOKEN', 'cloudflare_api_token'], icon: Globe, desc: 'DNS & edge deployment', category: 'Infra' },
-  { name: 'Make.com', keys: ['MAKE_API_KEY', 'make_api_key', 'MAKE_WEBHOOK_URL'], icon: Settings2, desc: 'Workflow automation', category: 'Automation' },
-  { name: 'Database', keys: ['DATABASE_URL'], icon: Database, desc: 'PostgreSQL storage', category: 'Infra' },
-];
+const fmtDate = (ts) => {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
 
 // ─── ACTIVITY FEED HELPERS ───────────────────────────────────────────────────
 
 const NOTIF_TYPE_MAP = {
-  error:   { color: 'text-rose-400',    icon: XCircle,      label: 'Error' },
+  error:   { color: 'text-rose-400',    icon: XCircle,       label: 'Error' },
   warning: { color: 'text-amber-400',   icon: AlertTriangle, label: 'Warning' },
-  success: { color: 'text-emerald-400', icon: CheckCircle2, label: 'Build Completed' },
-  revenue: { color: 'text-emerald-400', icon: Coins,        label: 'Revenue Generated' },
-  info:    { color: 'text-primary',     icon: Activity,     label: 'Info' },
+  success: { color: 'text-emerald-400', icon: CheckCircle2,  label: 'Build Completed' },
+  revenue: { color: 'text-emerald-400', icon: Coins,         label: 'Revenue Generated' },
+  info:    { color: 'text-primary',     icon: Activity,      label: 'Info' },
 };
 
 function buildActivityFeed(systems, notifications) {
   const events = [];
 
-  // Derive events from system lifecycle
   systems.forEach(s => {
-    if (s.createdAt) events.push({
-      id: `created-${s.id}`,
-      type: 'system_created',
-      label: 'System Created',
-      detail: s.name,
-      ts: new Date(s.createdAt),
-      color: 'text-blue-400',
-      icon: Plus,
-    });
-    if (s.buildStatus === 'building') events.push({
-      id: `building-${s.id}`,
-      type: 'build_started',
-      label: 'Build Started',
-      detail: s.name,
-      ts: new Date(s.updatedAt || s.createdAt),
-      color: 'text-primary',
-      icon: Zap,
-    });
-    if (s.buildStatus === 'completed' || s.healthStatus === 'healthy') events.push({
-      id: `complete-${s.id}`,
-      type: 'build_complete',
-      label: 'Build Completed',
-      detail: s.name,
-      ts: new Date(s.updatedAt || s.createdAt),
-      color: 'text-emerald-400',
-      icon: CheckCircle2,
-    });
-    if (s.healthStatus === 'unhealthy') events.push({
-      id: `error-${s.id}`,
-      type: 'error',
-      label: 'Error Detected',
-      detail: s.name,
-      ts: new Date(s.updatedAt || s.createdAt),
-      color: 'text-rose-400',
-      icon: XCircle,
-    });
+    if (s.createdAt) events.push({ id: `created-${s.id}`, type: 'system_created', label: 'System Created', detail: s.name, ts: new Date(s.createdAt), color: 'text-blue-400', icon: Plus });
+    if (s.buildStatus === 'building') events.push({ id: `building-${s.id}`, type: 'build_started', label: 'Build Started', detail: s.name, ts: new Date(s.updatedAt || s.createdAt), color: 'text-primary', icon: Zap });
+    if (s.buildStatus === 'completed' || s.healthStatus === 'healthy') events.push({ id: `complete-${s.id}`, type: 'build_complete', label: 'Build Completed', detail: s.name, ts: new Date(s.updatedAt || s.createdAt), color: 'text-emerald-400', icon: CheckCircle2 });
+    if (s.healthStatus === 'unhealthy') events.push({ id: `error-${s.id}`, type: 'error', label: 'Error Detected', detail: s.name, ts: new Date(s.updatedAt || s.createdAt), color: 'text-rose-400', icon: XCircle });
   });
 
-  // Merge real notification events (revenue, errors, build events, etc.)
   (notifications || []).forEach(n => {
     const typeKey = (n.notificationType || 'info').toLowerCase();
     const cfg = NOTIF_TYPE_MAP[typeKey] || NOTIF_TYPE_MAP.info;
     events.push({
       id: `notif-${n.id}`,
       type: typeKey,
-      label: cfg.label !== 'Info' ? cfg.label : (n.title || 'Notification'),
+      label: (cfg.label !== 'Info') ? cfg.label : (n.title || 'Notification'),
       detail: n.message || n.title || '',
       ts: new Date(n.createdAt),
       color: cfg.color,
@@ -194,6 +134,46 @@ function buildActivityFeed(systems, notifications) {
   return events.sort((a, b) => b.ts - a.ts).slice(0, 15);
 }
 
+// ─── PER-SYSTEM TOOL MONITOR ─────────────────────────────────────────────────
+
+// Map tool names (from API) to connection keys stored in user_credentials
+const TOOL_KEY_HINTS = {
+  openrouter: ['OPENROUTER_API_KEY', 'openrouter_api_key'],
+  stripe: ['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'stripe_secret_key'],
+  resend: ['RESEND_API_KEY', 'resend_api_key'],
+  tiktok: ['TIKTOK_ACCESS_TOKEN', 'tiktok_cookie', 'TIKTOK_COOKIE'],
+  youtube: ['YOUTUBE_API_KEY', 'youtube_api_key', 'YOUTUBE_OAUTH_TOKEN'],
+  meta: ['META_ACCESS_TOKEN', 'meta_access_token', 'FACEBOOK_ACCESS_TOKEN'],
+  shopify: ['SHOPIFY_API_KEY', 'shopify_api_key', 'SHOPIFY_STORE_URL'],
+  gmail: ['GMAIL_REFRESH_TOKEN', 'gmail_refresh_token', 'GMAIL_CLIENT_ID'],
+  cloudflare: ['CLOUDFLARE_API_TOKEN', 'cloudflare_api_token'],
+  'make.com': ['MAKE_API_KEY', 'make_api_key', 'MAKE_WEBHOOK_URL'],
+  database: ['DATABASE_URL'],
+};
+
+function toolConnectionStatus(toolName, storedKeys, orStatus) {
+  const key = toolName.toLowerCase();
+  if (key === 'openrouter') return orStatus === 'operational' ? 'connected' : orStatus === 'degraded' ? 'degraded' : 'not_configured';
+  if (key === 'database' || key === 'postgresql') return 'connected';
+  const hints = Object.entries(TOOL_KEY_HINTS).find(([k]) => key.includes(k))?.[1] ?? [];
+  return hints.some(h => storedKeys.includes(h.toLowerCase())) ? 'connected' : 'not_configured';
+}
+
+const ToolPill = ({ name, status }) => {
+  const connected = status === 'connected';
+  const degraded = status === 'degraded';
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+      connected ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+      degraded  ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
+                  'bg-zinc-800/60 border-zinc-700/40 text-zinc-500'
+    }`}>
+      {connected ? <Wifi className="w-2.5 h-2.5" /> : degraded ? <AlertTriangle className="w-2.5 h-2.5" /> : <WifiOff className="w-2.5 h-2.5" />}
+      {name}
+    </span>
+  );
+};
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
 const SystemCommandCenterPage = () => {
@@ -203,6 +183,7 @@ const SystemCommandCenterPage = () => {
   const [credits, setCredits] = useState(null);
   const [storedKeys, setStoredKeys] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [toolsBySystem, setToolsBySystem] = useState({});   // systemId → Tool[]
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastRefresh, setLastRefresh] = useState(null);
@@ -215,26 +196,47 @@ const SystemCommandCenterPage = () => {
     setLoading(true);
     setError('');
     try {
-      const [statsResp, revenueResp, creditsResp, credsResp, notifsResp] = await Promise.all([
+      const [statsRes, revRes, creditsRes, credsRes, notifsRes, selectionsRes, toolsRes] = await Promise.all([
         fetch('/api/ai-orchestrator/platform-stats', { headers: authHeaders() }),
         fetch('/api/dashboard/revenue-summary', { headers: authHeaders() }),
         fetch('/api/credits/me', { headers: authHeaders() }),
         fetch(`/api/user-credentials?userId=${user.id ?? ''}`, { headers: authHeaders() }),
         fetch('/api/notifications', { headers: authHeaders() }),
+        fetch('/api/user-tool-selections', { headers: authHeaders() }),
+        fetch('/api/tools', { headers: authHeaders() }),
       ]);
-      if (!statsResp.ok) throw new Error('Failed to load platform stats');
-      const [statsData, revData, credData, credsData, notifsData] = await Promise.all([
-        statsResp.json(),
-        revenueResp.ok ? revenueResp.json() : null,
-        creditsResp.ok ? creditsResp.json() : null,
-        credsResp.ok ? credsResp.json() : [],
-        notifsResp.ok ? notifsResp.json() : [],
+      if (!statsRes.ok) throw new Error('Failed to load platform stats');
+      const [statsData, revData, credData, credsData, notifsData, selectionsData, toolsData] = await Promise.all([
+        statsRes.json(),
+        revRes.ok ? revRes.json() : null,
+        creditsRes.ok ? creditsRes.json() : null,
+        credsRes.ok ? credsRes.json() : [],
+        notifsRes.ok ? notifsRes.json() : [],
+        selectionsRes.ok ? selectionsRes.json() : [],
+        toolsRes.ok ? toolsRes.json() : [],
       ]);
+
       setData(statsData);
       setRevenue(revData);
       setCredits(credData);
-      setStoredKeys(Array.isArray(credsData) ? credsData.map(c => c.credentialKey?.toLowerCase()) : []);
       setNotifications(Array.isArray(notifsData) ? notifsData : []);
+
+      const keys = Array.isArray(credsData) ? credsData.map(c => c.credentialKey?.toLowerCase()) : [];
+      setStoredKeys(keys);
+
+      // Build per-system tool map from tool selections
+      const toolMap = {};
+      const allTools = Array.isArray(toolsData?.items ?? toolsData) ? (toolsData?.items ?? toolsData) : [];
+      const selArr = Array.isArray(selectionsData?.items ?? selectionsData) ? (selectionsData?.items ?? selectionsData) : [];
+      selArr.forEach(sel => {
+        if (!sel?.systemInstanceId) return;
+        const tool = allTools.find(t => t.id === sel.toolId);
+        if (!tool) return;
+        if (!toolMap[sel.systemInstanceId]) toolMap[sel.systemInstanceId] = [];
+        toolMap[sel.systemInstanceId].push(tool);
+      });
+      setToolsBySystem(toolMap);
+
       setLastRefresh(new Date());
     } catch (err) {
       setError(err.message || 'Failed to load data');
@@ -268,19 +270,6 @@ const SystemCommandCenterPage = () => {
     }
   }, [load]);
 
-  // ── Tool connection status derived from stored credentials ────────────────
-  const toolStatus = KNOWN_TOOLS.map(tool => {
-    const isConnected = tool.keys.some(k => storedKeys.includes(k.toLowerCase()));
-    if (tool.name === 'OpenRouter') {
-      const srv = data?.toolHealth?.openrouter?.status;
-      return { ...tool, status: srv === 'operational' ? 'connected' : srv === 'degraded' ? 'degraded' : 'not_configured' };
-    }
-    if (tool.name === 'Database') return { ...tool, status: 'operational' };
-    return { ...tool, status: isConnected ? 'connected' : 'not_configured' };
-  });
-
-  const connectedCount = toolStatus.filter(t => t.status === 'connected' || t.status === 'operational').length;
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -305,7 +294,12 @@ const SystemCommandCenterPage = () => {
   }
 
   const { systemStats, systems = [], aiActivity, toolHealth } = data ?? {};
+  const orStatus = toolHealth?.openrouter?.status;
   const activity = buildActivityFeed(systems, notifications);
+
+  // Count connected tools across all systems
+  const allSystemTools = Object.values(toolsBySystem).flat();
+  const connectedSystemTools = allSystemTools.filter(t => toolConnectionStatus(t.name, storedKeys, orStatus) === 'connected').length;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -357,18 +351,14 @@ const SystemCommandCenterPage = () => {
           icon={DollarSign}
           title="Revenue Center"
           sub="Stripe billing integration activates live tracking"
-          action={
-            <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 bg-amber-500/5 font-mono">
-              STRIPE PENDING
-            </Badge>
-          }
+          action={<Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 bg-amber-500/5 font-mono">STRIPE PENDING</Badge>}
         />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Today', value: revenue?.today ?? 0, icon: Calendar, color: 'text-foreground', accent: 'bg-white/5' },
-            { label: 'This Week', value: revenue?.thisWeek ?? 0, icon: TrendingUp, color: 'text-primary', accent: 'bg-primary/10' },
-            { label: 'This Month', value: revenue?.thisMonth ?? 0, icon: BarChart3, color: 'text-violet-400', accent: 'bg-violet-500/10' },
-            { label: 'Lifetime', value: revenue?.lifetime ?? 0, icon: DollarSign, color: 'text-emerald-400', accent: 'bg-emerald-500/10' },
+            { label: 'Today',      value: revenue?.today     ?? 0, icon: Calendar,  color: 'text-foreground', accent: 'bg-white/5' },
+            { label: 'This Week',  value: revenue?.thisWeek  ?? 0, icon: TrendingUp, color: 'text-primary', accent: 'bg-primary/10' },
+            { label: 'This Month', value: revenue?.thisMonth ?? 0, icon: BarChart3,  color: 'text-violet-400', accent: 'bg-violet-500/10' },
+            { label: 'Lifetime',   value: revenue?.lifetime  ?? 0, icon: DollarSign, color: 'text-emerald-400', accent: 'bg-emerald-500/10' },
           ].map(({ label, value, icon: Icon, color, accent }) => (
             <div key={label} className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md p-5 flex items-start gap-4">
               <div className={`w-10 h-10 rounded-xl ${accent} flex items-center justify-center shrink-0`}>
@@ -376,9 +366,7 @@ const SystemCommandCenterPage = () => {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest mb-0.5">{label}</p>
-                <p className={`text-2xl font-bold leading-none font-mono ${color}`}>
-                  ${value.toLocaleString()}
-                </p>
+                <p className={`text-2xl font-bold leading-none font-mono ${color}`}>${value.toLocaleString()}</p>
                 <p className="text-[10px] text-muted-foreground/40 mt-1">Connect Stripe to track</p>
               </div>
             </div>
@@ -402,7 +390,7 @@ const SystemCommandCenterPage = () => {
         <SectionHeader
           icon={Server}
           title="System Health"
-          sub="Live status, health score, uptime, and controls for every deployed system"
+          sub="Live status, health score, uptime, and last activity for every deployed system"
           action={
             <Button size="sm" onClick={() => navigate('/builder')} className="h-7 text-xs gap-1.5 bg-primary/15 hover:bg-primary/25 text-primary border border-primary/25">
               <Plus className="w-3 h-3" /> New System
@@ -423,15 +411,16 @@ const SystemCommandCenterPage = () => {
           </div>
         ) : (
           <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md overflow-hidden">
-            {/* Table head — System | Type | Status | Health % | Uptime | Controls */}
-            <div className="hidden lg:grid lg:grid-cols-12 gap-3 px-5 py-3 border-b border-white/10 bg-white/2">
+            {/* Table head — System | Type | Status | Health % | Uptime | Last Activity | Controls */}
+            <div className="hidden xl:grid xl:grid-cols-12 gap-2 px-5 py-3 border-b border-white/10 bg-white/2">
               {[
-                ['System', 'col-span-2'],
-                ['Type', 'col-span-2'],
-                ['Status', 'col-span-2'],
-                ['Health %', 'col-span-3'],
-                ['Uptime', 'col-span-1'],
-                ['Controls', 'col-span-2 text-right'],
+                ['System',        'col-span-2'],
+                ['Type',          'col-span-2'],
+                ['Status',        'col-span-1'],
+                ['Health %',      'col-span-2'],
+                ['Uptime',        'col-span-1'],
+                ['Last Activity', 'col-span-2'],
+                ['Controls',      'col-span-2 text-right'],
               ].map(([h, cls]) => (
                 <div key={h} className={`${cls} text-[10px] uppercase tracking-widest text-muted-foreground font-medium`}>{h}</div>
               ))}
@@ -441,105 +430,83 @@ const SystemCommandCenterPage = () => {
               const isLoading = controlLoading[system.id];
               const isPaused = system.buildStatus === 'paused';
               const isBuilding = system.buildStatus === 'building';
-              const isActive = system.buildStatus === 'active' || system.healthStatus === 'healthy';
               const hp = healthPercent(system.buildStatus, system.healthStatus);
               const uptime = uptimeLabel(system.createdAt, system.buildStatus);
+              const lastActivity = fmtDate(system.updatedAt);
               const typeName = system.blueprint?.name ?? 'Custom System';
               const typeCategory = system.blueprint?.category?.name ?? system.blueprint?.category ?? 'General';
               const hpColor = hp >= 80 ? 'bg-emerald-500' : hp >= 50 ? 'bg-amber-400' : hp >= 20 ? 'bg-orange-500' : 'bg-rose-500';
-              const hpText = hp >= 80 ? 'text-emerald-400' : hp >= 50 ? 'text-amber-400' : hp >= 20 ? 'text-orange-400' : 'text-rose-400';
+              const hpText  = hp >= 80 ? 'text-emerald-400' : hp >= 50 ? 'text-amber-400' : hp >= 20 ? 'text-orange-400' : 'text-rose-400';
 
               return (
                 <div key={system.id} className={`px-5 py-4 hover:bg-white/3 transition-colors ${i < systems.length - 1 ? 'border-b border-white/8' : ''}`}>
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-2 items-center">
 
                     {/* System name */}
-                    <div className="lg:col-span-2 min-w-0">
+                    <div className="xl:col-span-2 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">{system.name}</p>
-                      <p className="text-xs text-muted-foreground/60 truncate font-mono text-[10px]">#{system.id}</p>
+                      <p className="text-[10px] text-muted-foreground/50 font-mono">#{system.id}</p>
                     </div>
 
-                    {/* Type (blueprint name) */}
-                    <div className="lg:col-span-2 min-w-0">
+                    {/* Type */}
+                    <div className="xl:col-span-2 min-w-0">
                       <p className="text-xs text-foreground/80 truncate">{typeName}</p>
                       <p className="text-[10px] text-muted-foreground/50 truncate">{typeCategory}</p>
                     </div>
 
                     {/* Status badge */}
-                    <div className="lg:col-span-2">
+                    <div className="xl:col-span-1">
                       <BuildBadge buildStatus={system.buildStatus} healthStatus={system.healthStatus} />
                     </div>
 
                     {/* Health % progress bar */}
-                    <div className="lg:col-span-3">
+                    <div className="xl:col-span-2">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 bg-white/8 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-700 ${hpColor}`}
-                            style={{ width: `${hp}%` }}
-                          />
+                          <div className={`h-full rounded-full transition-all duration-700 ${hpColor}`} style={{ width: `${hp}%` }} />
                         </div>
                         <span className={`text-xs font-mono font-semibold shrink-0 ${hpText}`}>{hp}%</span>
                       </div>
                     </div>
 
                     {/* Uptime */}
-                    <div className="lg:col-span-1">
+                    <div className="xl:col-span-1">
                       <span className="text-xs text-muted-foreground/60 font-mono">{uptime}</span>
                     </div>
 
+                    {/* Last Activity */}
+                    <div className="xl:col-span-2">
+                      <span className="text-xs text-muted-foreground/60 font-mono">{lastActivity}</span>
+                    </div>
+
                     {/* Controls */}
-                    <div className="lg:col-span-2 flex items-center gap-1 flex-wrap lg:justify-end">
-                      <Button
-                        size="sm" variant="ghost"
-                        onClick={() => navigate(`/build/${system.id}`)}
-                        disabled={isLoading}
-                        title="Open system detail"
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                      >
+                    <div className="xl:col-span-2 flex items-center gap-1 flex-wrap xl:justify-end">
+                      <Button size="sm" variant="ghost" onClick={() => navigate(`/build/${system.id}`)} disabled={isLoading} title="Open" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
                         <ExternalLink className="w-3.5 h-3.5" />
                       </Button>
                       {isPaused ? (
-                        <Button size="sm" variant="ghost"
-                          onClick={() => patchSystem(system.id, { buildStatus: 'active' })}
-                          disabled={isLoading} title="Resume"
-                          className="h-7 w-7 p-0 text-emerald-400/60 hover:text-emerald-400 hover:bg-emerald-500/10">
+                        <Button size="sm" variant="ghost" onClick={() => patchSystem(system.id, { buildStatus: 'active' })} disabled={isLoading} title="Resume" className="h-7 w-7 p-0 text-emerald-400/60 hover:text-emerald-400 hover:bg-emerald-500/10">
                           <Play className="w-3.5 h-3.5" />
                         </Button>
                       ) : (
-                        <Button size="sm" variant="ghost"
-                          onClick={() => patchSystem(system.id, { buildStatus: 'paused' })}
-                          disabled={isLoading || isBuilding} title="Pause"
-                          className="h-7 w-7 p-0 text-amber-400/60 hover:text-amber-400 hover:bg-amber-500/10">
+                        <Button size="sm" variant="ghost" onClick={() => patchSystem(system.id, { buildStatus: 'paused' })} disabled={isLoading || isBuilding} title="Pause" className="h-7 w-7 p-0 text-amber-400/60 hover:text-amber-400 hover:bg-amber-500/10">
                           <Pause className="w-3.5 h-3.5" />
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost"
-                        onClick={() => patchSystem(system.id, { buildStatus: 'building' })}
-                        disabled={isLoading} title="Restart"
-                        className="h-7 w-7 p-0 text-blue-400/60 hover:text-blue-400 hover:bg-blue-500/10">
+                      <Button size="sm" variant="ghost" onClick={() => patchSystem(system.id, { buildStatus: 'building' })} disabled={isLoading} title="Restart" className="h-7 w-7 p-0 text-blue-400/60 hover:text-blue-400 hover:bg-blue-500/10">
                         <RotateCcw className="w-3.5 h-3.5" />
                       </Button>
-                      <Button size="sm" variant="ghost"
-                        onClick={() => navigate('/builder')}
-                        disabled={isLoading} title="Rebuild"
-                        className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-foreground">
+                      <Button size="sm" variant="ghost" onClick={() => navigate('/builder')} disabled={isLoading} title="Rebuild" className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-foreground">
                         <Wrench className="w-3.5 h-3.5" />
                       </Button>
                       {deleteConfirm === system.id ? (
                         <div className="flex items-center gap-1">
                           <span className="text-[10px] text-rose-400">Sure?</span>
-                          <Button size="sm" variant="ghost"
-                            onClick={() => deleteSystem(system.id)} disabled={isLoading}
-                            className="h-6 text-[10px] px-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10">Y</Button>
-                          <Button size="sm" variant="ghost"
-                            onClick={() => setDeleteConfirm(null)}
-                            className="h-6 text-[10px] px-1.5 text-muted-foreground">N</Button>
+                          <Button size="sm" variant="ghost" onClick={() => deleteSystem(system.id)} disabled={isLoading} className="h-6 text-[10px] px-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10">Y</Button>
+                          <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm(null)} className="h-6 text-[10px] px-1.5 text-muted-foreground">N</Button>
                         </div>
                       ) : (
-                        <Button size="sm" variant="ghost"
-                          onClick={() => setDeleteConfirm(system.id)} disabled={isLoading} title="Delete"
-                          className="h-7 w-7 p-0 text-rose-400/40 hover:text-rose-400 hover:bg-rose-500/10">
+                        <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm(system.id)} disabled={isLoading} title="Delete" className="h-7 w-7 p-0 text-rose-400/40 hover:text-rose-400 hover:bg-rose-500/10">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       )}
@@ -552,38 +519,72 @@ const SystemCommandCenterPage = () => {
         )}
       </section>
 
-      {/* ── Tool Stack Monitor ───────────────────────────────────────────── */}
+      {/* ── Tool Stack Monitor — per system ──────────────────────────────── */}
       <section>
         <SectionHeader
           icon={Settings2}
           title="Tool Stack Monitor"
-          sub={`Platform-wide integration status · ${connectedCount} of ${KNOWN_TOOLS.length} configured`}
+          sub="Integration connection status per deployed system"
           action={
             <Button size="sm" variant="outline" onClick={() => navigate('/connections')} className="h-7 text-xs border-white/10 gap-1.5">
               <KeyRound className="w-3 h-3" /> Manage Credentials
             </Button>
           }
         />
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
-          {toolStatus.map((tool) => (
-            <div
-              key={tool.name}
-              className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-sm p-4 flex items-start gap-3 hover:bg-white/5 transition-colors"
-            >
-              <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                <tool.icon className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-foreground truncate">{tool.name}</p>
-                <p className="text-[10px] text-muted-foreground/60 truncate">{tool.category}</p>
-                <div className="flex items-center gap-1 mt-1.5">
-                  <StatusDot status={tool.status} />
-                  <StatusLabel status={tool.status} />
+
+        {systems.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-6 py-8 text-center">
+            <Settings2 className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground/50">Deploy a system to see per-system tool status.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {systems.map(system => {
+              const systemTools = toolsBySystem[system.id] ?? [];
+              const hasTools = systemTools.length > 0;
+              const connectedCount = systemTools.filter(t => toolConnectionStatus(t.name, storedKeys, orStatus) === 'connected').length;
+
+              return (
+                <div key={system.id} className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-sm p-4">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{system.name}</p>
+                      <p className="text-[10px] text-muted-foreground/60">{system.blueprint?.name ?? 'Custom System'}</p>
+                    </div>
+                    {hasTools && (
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                        connectedCount === systemTools.length
+                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                          : connectedCount > 0
+                          ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                          : 'bg-zinc-800 border-zinc-700/40 text-zinc-500'
+                      }`}>
+                        {connectedCount}/{systemTools.length} connected
+                      </span>
+                    )}
+                  </div>
+
+                  {hasTools ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {systemTools.map(tool => (
+                        <ToolPill
+                          key={tool.id}
+                          name={tool.name}
+                          status={toolConnectionStatus(tool.name, storedKeys, orStatus)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground/50">
+                      <Package className="w-3.5 h-3.5" />
+                      <span>No tools selected for this system. <button onClick={() => navigate('/connections')} className="text-primary hover:underline">Add tools →</button></span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* ── AI Operations Feed + Activity Feed ──────────────────────────── */}
@@ -636,12 +637,12 @@ const SystemCommandCenterPage = () => {
           </div>
         </section>
 
-        {/* Activity Feed — sourced from system events + notifications table */}
+        {/* Activity Feed — system events + notifications (Revenue Generated, Errors, etc.) */}
         <section>
           <SectionHeader
             icon={Activity}
             title="Activity Feed"
-            sub="System lifecycle · Builds · Revenue · Errors"
+            sub="System Created · Build Started · Build Completed · Revenue Generated · Errors"
           />
           <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md overflow-hidden">
             {activity.length > 0 ? (

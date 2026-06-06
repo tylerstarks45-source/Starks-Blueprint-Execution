@@ -8,18 +8,18 @@ import {
   CreateNotificationBody,
   MarkNotificationReadParams,
 } from "@workspace/api-zod";
+import { requireAuth } from "../lib/auth";
 
 const router: IRouter = Router();
 
 router.get("/notifications", async (req, res): Promise<void> => {
-  const conditions = [];
-  if (req.query.userId) conditions.push(eq(notificationsTable.userId, Number(req.query.userId)));
+  const userId = requireAuth(req, res);
+  if (userId === null) return;
+
+  const conditions = [eq(notificationsTable.userId, userId)];
   if (req.query.unreadOnly === "true") conditions.push(eq(notificationsTable.read, false));
 
-  const rows = conditions.length
-    ? await db.select().from(notificationsTable).where(and(...conditions)).orderBy(notificationsTable.createdAt)
-    : await db.select().from(notificationsTable).orderBy(notificationsTable.createdAt);
-
+  const rows = await db.select().from(notificationsTable).where(and(...conditions)).orderBy(notificationsTable.createdAt);
   res.json(ListNotificationsResponse.parse(serialize(rows)));
 });
 

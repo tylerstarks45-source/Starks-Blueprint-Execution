@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Toaster } from 'sonner';
 
@@ -122,10 +122,10 @@ const App = () => {
               <BuildPage />
             </ProtectedRoute>
           } />
-          {/* /builder — placeholder until Task #8 builder page is built */}
+          {/* /builder — redirects to existing system builder until Task #8 */}
           <Route path="/builder" element={
             <ProtectedRoute>
-              <DashboardPage />
+              <Navigate to="/system-builder" replace />
             </ProtectedRoute>
           } />
           <Route path="/pricing" element={<PricingPage />} />

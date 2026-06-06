@@ -6,7 +6,7 @@ import {
   TrendingUp, BarChart3, Settings2, Wifi, Play, Pause, RotateCcw,
   Trash2, Wrench, DollarSign, Calendar, CircleDot, ExternalLink,
   KeyRound, Globe, ShoppingCart, Mail, Video, Radio, Lock,
-  MoreHorizontal, Plus
+  MoreHorizontal, Plus, XCircle, Coins
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,11 +48,8 @@ const StatusLabel = ({ status }) => {
   return <span className={`text-xs font-medium ${cls}`}>{label}</span>;
 };
 
-const StatCard = ({ icon: Icon, label, value, sub, color = 'text-primary', accent = 'bg-primary/10', onClick }) => (
-  <div
-    onClick={onClick}
-    className={`rounded-xl border border-white/10 bg-black/40 backdrop-blur-md p-5 flex items-start gap-4 ${onClick ? 'cursor-pointer hover:bg-white/5 transition-colors' : ''}`}
-  >
+const StatCard = ({ icon: Icon, label, value, sub, color = 'text-primary', accent = 'bg-primary/10' }) => (
+  <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md p-5 flex items-start gap-4">
     <div className={`w-10 h-10 rounded-xl ${accent} flex items-center justify-center shrink-0`}>
       <Icon className={`w-5 h-5 ${color}`} />
     </div>
@@ -80,12 +77,34 @@ const SectionHeader = ({ icon: Icon, title, sub, action }) => (
 );
 
 const BuildBadge = ({ buildStatus, healthStatus }) => {
-  if (healthStatus === 'healthy' || buildStatus === 'active') return <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/20 text-[10px]">Active</Badge>;
+  if (buildStatus === 'active' || healthStatus === 'healthy') return <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/20 text-[10px]">Active</Badge>;
   if (buildStatus === 'building') return <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/20 text-[10px]">Building</Badge>;
   if (buildStatus === 'paused') return <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/20 text-[10px]">Paused</Badge>;
-  if (healthStatus === 'unhealthy') return <Badge className="bg-rose-500/15 text-rose-400 border-rose-500/20 text-[10px]">Failed</Badge>;
   if (buildStatus === 'completed') return <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/20 text-[10px]">Live</Badge>;
+  if (healthStatus === 'unhealthy') return <Badge className="bg-rose-500/15 text-rose-400 border-rose-500/20 text-[10px]">Failed</Badge>;
   return <Badge className="bg-zinc-500/15 text-zinc-400 border-zinc-500/20 text-[10px]">Pending</Badge>;
+};
+
+// Derive numeric health percentage from status strings
+const healthPercent = (buildStatus, healthStatus) => {
+  if (healthStatus === 'healthy' || buildStatus === 'active' || buildStatus === 'completed') return 100;
+  if (buildStatus === 'building') return 55;
+  if (buildStatus === 'paused') return 40;
+  if (healthStatus === 'unhealthy') return 5;
+  return 25; // pending/unknown
+};
+
+// Derive uptime string from createdAt + buildStatus
+const uptimeLabel = (createdAt, buildStatus) => {
+  const active = ['active', 'completed', 'building'];
+  if (!active.includes(buildStatus)) return '—';
+  if (!createdAt) return '—';
+  const ms = Date.now() - new Date(createdAt).getTime();
+  const days = Math.floor(ms / 86400000);
+  const hours = Math.floor((ms % 86400000) / 3600000);
+  if (days > 0) return `${days}d ${hours}h`;
+  const mins = Math.floor((ms % 3600000) / 60000);
+  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 };
 
 // ─── KNOWN TOOL DEFINITIONS ──────────────────────────────────────────────────
@@ -93,26 +112,36 @@ const BuildBadge = ({ buildStatus, healthStatus }) => {
 const KNOWN_TOOLS = [
   { name: 'OpenRouter', keys: ['OPENROUTER_API_KEY', 'openrouter_api_key'], icon: Brain, desc: 'AI engine for all systems', category: 'AI' },
   { name: 'Stripe', keys: ['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'stripe_secret_key'], icon: CreditCard, desc: 'Payments & subscriptions', category: 'Commerce' },
-  { name: 'Resend', keys: ['RESEND_API_KEY', 'resend_api_key'], icon: Mail, desc: 'Transactional email delivery', category: 'Email' },
+  { name: 'Resend', keys: ['RESEND_API_KEY', 'resend_api_key'], icon: Mail, desc: 'Transactional email', category: 'Email' },
   { name: 'TikTok', keys: ['TIKTOK_ACCESS_TOKEN', 'tiktok_cookie', 'TIKTOK_COOKIE'], icon: Video, desc: 'TikTok content & traffic', category: 'Social' },
   { name: 'YouTube', keys: ['YOUTUBE_API_KEY', 'youtube_api_key', 'YOUTUBE_OAUTH_TOKEN'], icon: Video, desc: 'YouTube automation', category: 'Social' },
   { name: 'Meta', keys: ['META_ACCESS_TOKEN', 'meta_access_token', 'FACEBOOK_ACCESS_TOKEN'], icon: Radio, desc: 'Facebook & Instagram', category: 'Social' },
   { name: 'Shopify', keys: ['SHOPIFY_API_KEY', 'shopify_api_key', 'SHOPIFY_STORE_URL'], icon: ShoppingCart, desc: 'eCommerce automation', category: 'Commerce' },
-  { name: 'Gmail', keys: ['GMAIL_REFRESH_TOKEN', 'gmail_refresh_token', 'GMAIL_CLIENT_ID'], icon: Mail, desc: 'Gmail outreach & automation', category: 'Email' },
-  { name: 'Cloudflare', keys: ['CLOUDFLARE_API_TOKEN', 'cloudflare_api_token'], icon: Globe, desc: 'DNS & edge deployment', category: 'Infrastructure' },
+  { name: 'Gmail', keys: ['GMAIL_REFRESH_TOKEN', 'gmail_refresh_token', 'GMAIL_CLIENT_ID'], icon: Mail, desc: 'Gmail outreach', category: 'Email' },
+  { name: 'Cloudflare', keys: ['CLOUDFLARE_API_TOKEN', 'cloudflare_api_token'], icon: Globe, desc: 'DNS & edge deployment', category: 'Infra' },
   { name: 'Make.com', keys: ['MAKE_API_KEY', 'make_api_key', 'MAKE_WEBHOOK_URL'], icon: Settings2, desc: 'Workflow automation', category: 'Automation' },
-  { name: 'Database', keys: ['DATABASE_URL'], icon: Database, desc: 'PostgreSQL data storage', category: 'Infrastructure' },
+  { name: 'Database', keys: ['DATABASE_URL'], icon: Database, desc: 'PostgreSQL storage', category: 'Infra' },
 ];
 
 // ─── ACTIVITY FEED HELPERS ───────────────────────────────────────────────────
 
-function deriveActivity(systems) {
+const NOTIF_TYPE_MAP = {
+  error:   { color: 'text-rose-400',    icon: XCircle,      label: 'Error' },
+  warning: { color: 'text-amber-400',   icon: AlertTriangle, label: 'Warning' },
+  success: { color: 'text-emerald-400', icon: CheckCircle2, label: 'Build Completed' },
+  revenue: { color: 'text-emerald-400', icon: Coins,        label: 'Revenue Generated' },
+  info:    { color: 'text-primary',     icon: Activity,     label: 'Info' },
+};
+
+function buildActivityFeed(systems, notifications) {
   const events = [];
+
+  // Derive events from system lifecycle
   systems.forEach(s => {
     if (s.createdAt) events.push({
       id: `created-${s.id}`,
       type: 'system_created',
-      label: 'System created',
+      label: 'System Created',
       detail: s.name,
       ts: new Date(s.createdAt),
       color: 'text-blue-400',
@@ -121,7 +150,7 @@ function deriveActivity(systems) {
     if (s.buildStatus === 'building') events.push({
       id: `building-${s.id}`,
       type: 'build_started',
-      label: 'Build started',
+      label: 'Build Started',
       detail: s.name,
       ts: new Date(s.updatedAt || s.createdAt),
       color: 'text-primary',
@@ -130,14 +159,39 @@ function deriveActivity(systems) {
     if (s.buildStatus === 'completed' || s.healthStatus === 'healthy') events.push({
       id: `complete-${s.id}`,
       type: 'build_complete',
-      label: 'System deployed',
+      label: 'Build Completed',
       detail: s.name,
       ts: new Date(s.updatedAt || s.createdAt),
       color: 'text-emerald-400',
       icon: CheckCircle2,
     });
+    if (s.healthStatus === 'unhealthy') events.push({
+      id: `error-${s.id}`,
+      type: 'error',
+      label: 'Error Detected',
+      detail: s.name,
+      ts: new Date(s.updatedAt || s.createdAt),
+      color: 'text-rose-400',
+      icon: XCircle,
+    });
   });
-  return events.sort((a, b) => b.ts - a.ts).slice(0, 12);
+
+  // Merge real notification events (revenue, errors, build events, etc.)
+  (notifications || []).forEach(n => {
+    const typeKey = (n.notificationType || 'info').toLowerCase();
+    const cfg = NOTIF_TYPE_MAP[typeKey] || NOTIF_TYPE_MAP.info;
+    events.push({
+      id: `notif-${n.id}`,
+      type: typeKey,
+      label: cfg.label !== 'Info' ? cfg.label : (n.title || 'Notification'),
+      detail: n.message || n.title || '',
+      ts: new Date(n.createdAt),
+      color: cfg.color,
+      icon: cfg.icon,
+    });
+  });
+
+  return events.sort((a, b) => b.ts - a.ts).slice(0, 15);
 }
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
@@ -148,6 +202,7 @@ const SystemCommandCenterPage = () => {
   const [revenue, setRevenue] = useState(null);
   const [credits, setCredits] = useState(null);
   const [storedKeys, setStoredKeys] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastRefresh, setLastRefresh] = useState(null);
@@ -160,23 +215,26 @@ const SystemCommandCenterPage = () => {
     setLoading(true);
     setError('');
     try {
-      const [statsResp, revenueResp, creditsResp, credsResp] = await Promise.all([
+      const [statsResp, revenueResp, creditsResp, credsResp, notifsResp] = await Promise.all([
         fetch('/api/ai-orchestrator/platform-stats', { headers: authHeaders() }),
         fetch('/api/dashboard/revenue-summary', { headers: authHeaders() }),
         fetch('/api/credits/me', { headers: authHeaders() }),
         fetch(`/api/user-credentials?userId=${user.id ?? ''}`, { headers: authHeaders() }),
+        fetch('/api/notifications', { headers: authHeaders() }),
       ]);
       if (!statsResp.ok) throw new Error('Failed to load platform stats');
-      const [statsData, revData, credData, credsData] = await Promise.all([
+      const [statsData, revData, credData, credsData, notifsData] = await Promise.all([
         statsResp.json(),
         revenueResp.ok ? revenueResp.json() : null,
         creditsResp.ok ? creditsResp.json() : null,
         credsResp.ok ? credsResp.json() : [],
+        notifsResp.ok ? notifsResp.json() : [],
       ]);
       setData(statsData);
       setRevenue(revData);
       setCredits(credData);
       setStoredKeys(Array.isArray(credsData) ? credsData.map(c => c.credentialKey?.toLowerCase()) : []);
+      setNotifications(Array.isArray(notifsData) ? notifsData : []);
       setLastRefresh(new Date());
     } catch (err) {
       setError(err.message || 'Failed to load data');
@@ -213,7 +271,6 @@ const SystemCommandCenterPage = () => {
   // ── Tool connection status derived from stored credentials ────────────────
   const toolStatus = KNOWN_TOOLS.map(tool => {
     const isConnected = tool.keys.some(k => storedKeys.includes(k.toLowerCase()));
-    // OpenRouter and Database are special: check server-side from toolHealth
     if (tool.name === 'OpenRouter') {
       const srv = data?.toolHealth?.openrouter?.status;
       return { ...tool, status: srv === 'operational' ? 'connected' : srv === 'degraded' ? 'degraded' : 'not_configured' };
@@ -248,7 +305,7 @@ const SystemCommandCenterPage = () => {
   }
 
   const { systemStats, systems = [], aiActivity, toolHealth } = data ?? {};
-  const activity = deriveActivity(systems);
+  const activity = buildActivityFeed(systems, notifications);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -345,7 +402,7 @@ const SystemCommandCenterPage = () => {
         <SectionHeader
           icon={Server}
           title="System Health"
-          sub="Live status, health, and controls for every deployed system"
+          sub="Live status, health score, uptime, and controls for every deployed system"
           action={
             <Button size="sm" onClick={() => navigate('/builder')} className="h-7 text-xs gap-1.5 bg-primary/15 hover:bg-primary/25 text-primary border border-primary/25">
               <Plus className="w-3 h-3" /> New System
@@ -366,84 +423,124 @@ const SystemCommandCenterPage = () => {
           </div>
         ) : (
           <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md overflow-hidden">
-            {/* Table head */}
-            <div className="hidden md:grid md:grid-cols-12 gap-4 px-5 py-3 border-b border-white/10 bg-white/2">
-              {['System / Blueprint', 'Status', 'Health', 'Last Activity', 'Controls'].map((h, i, a) => (
-                <div key={h} className={`${i === 0 ? 'col-span-3' : i === 4 ? 'col-span-3 text-right' : 'col-span-2'} text-[10px] uppercase tracking-widest text-muted-foreground font-medium`}>{h}</div>
+            {/* Table head — System | Type | Status | Health % | Uptime | Controls */}
+            <div className="hidden lg:grid lg:grid-cols-12 gap-3 px-5 py-3 border-b border-white/10 bg-white/2">
+              {[
+                ['System', 'col-span-2'],
+                ['Type', 'col-span-2'],
+                ['Status', 'col-span-2'],
+                ['Health %', 'col-span-3'],
+                ['Uptime', 'col-span-1'],
+                ['Controls', 'col-span-2 text-right'],
+              ].map(([h, cls]) => (
+                <div key={h} className={`${cls} text-[10px] uppercase tracking-widest text-muted-foreground font-medium`}>{h}</div>
               ))}
             </div>
+
             {systems.map((system, i) => {
               const isLoading = controlLoading[system.id];
               const isPaused = system.buildStatus === 'paused';
               const isBuilding = system.buildStatus === 'building';
               const isActive = system.buildStatus === 'active' || system.healthStatus === 'healthy';
-              const lastActivity = system.updatedAt ? new Date(system.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+              const hp = healthPercent(system.buildStatus, system.healthStatus);
+              const uptime = uptimeLabel(system.createdAt, system.buildStatus);
+              const typeName = system.blueprint?.name ?? 'Custom System';
+              const typeCategory = system.blueprint?.category?.name ?? system.blueprint?.category ?? 'General';
+              const hpColor = hp >= 80 ? 'bg-emerald-500' : hp >= 50 ? 'bg-amber-400' : hp >= 20 ? 'bg-orange-500' : 'bg-rose-500';
+              const hpText = hp >= 80 ? 'text-emerald-400' : hp >= 50 ? 'text-amber-400' : hp >= 20 ? 'text-orange-400' : 'text-rose-400';
 
               return (
                 <div key={system.id} className={`px-5 py-4 hover:bg-white/3 transition-colors ${i < systems.length - 1 ? 'border-b border-white/8' : ''}`}>
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-center">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+
                     {/* System name */}
-                    <div className="md:col-span-3 min-w-0">
+                    <div className="lg:col-span-2 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">{system.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{system.blueprint?.name ?? 'Custom System'}</p>
+                      <p className="text-xs text-muted-foreground/60 truncate font-mono text-[10px]">#{system.id}</p>
                     </div>
-                    {/* Status */}
-                    <div className="md:col-span-2">
+
+                    {/* Type (blueprint name) */}
+                    <div className="lg:col-span-2 min-w-0">
+                      <p className="text-xs text-foreground/80 truncate">{typeName}</p>
+                      <p className="text-[10px] text-muted-foreground/50 truncate">{typeCategory}</p>
+                    </div>
+
+                    {/* Status badge */}
+                    <div className="lg:col-span-2">
                       <BuildBadge buildStatus={system.buildStatus} healthStatus={system.healthStatus} />
                     </div>
-                    {/* Health */}
-                    <div className="md:col-span-2 flex items-center gap-1.5">
-                      <StatusDot status={system.healthStatus === 'unhealthy' ? 'offline' : isBuilding ? 'degraded' : isActive ? 'operational' : 'not_configured'} />
-                      <span className="text-xs text-muted-foreground">
-                        {isActive ? 'Healthy' : isBuilding ? 'Deploying…' : isPaused ? 'Paused' : system.healthStatus ?? 'Pending'}
-                      </span>
+
+                    {/* Health % progress bar */}
+                    <div className="lg:col-span-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-white/8 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${hpColor}`}
+                            style={{ width: `${hp}%` }}
+                          />
+                        </div>
+                        <span className={`text-xs font-mono font-semibold shrink-0 ${hpText}`}>{hp}%</span>
+                      </div>
                     </div>
-                    {/* Last activity */}
-                    <div className="md:col-span-2">
-                      <span className="text-xs text-muted-foreground/60 font-mono">{lastActivity}</span>
+
+                    {/* Uptime */}
+                    <div className="lg:col-span-1">
+                      <span className="text-xs text-muted-foreground/60 font-mono">{uptime}</span>
                     </div>
+
                     {/* Controls */}
-                    <div className="md:col-span-3 flex items-center gap-1.5 flex-wrap md:justify-end">
+                    <div className="lg:col-span-2 flex items-center gap-1 flex-wrap lg:justify-end">
                       <Button
-                        size="sm"
-                        variant="ghost"
+                        size="sm" variant="ghost"
                         onClick={() => navigate(`/build/${system.id}`)}
                         disabled={isLoading}
-                        className="h-7 text-xs px-2.5 gap-1 text-muted-foreground hover:text-foreground"
+                        title="Open system detail"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                       >
-                        <ExternalLink className="w-3 h-3" /> Open
+                        <ExternalLink className="w-3.5 h-3.5" />
                       </Button>
                       {isPaused ? (
-                        <Button size="sm" variant="ghost" onClick={() => patchSystem(system.id, { buildStatus: 'active' })} disabled={isLoading}
-                          className="h-7 text-xs px-2.5 gap-1 text-emerald-400/70 hover:text-emerald-400 hover:bg-emerald-500/10">
-                          <Play className="w-3 h-3" /> Resume
+                        <Button size="sm" variant="ghost"
+                          onClick={() => patchSystem(system.id, { buildStatus: 'active' })}
+                          disabled={isLoading} title="Resume"
+                          className="h-7 w-7 p-0 text-emerald-400/60 hover:text-emerald-400 hover:bg-emerald-500/10">
+                          <Play className="w-3.5 h-3.5" />
                         </Button>
                       ) : (
-                        <Button size="sm" variant="ghost" onClick={() => patchSystem(system.id, { buildStatus: 'paused' })} disabled={isLoading || isBuilding}
-                          className="h-7 text-xs px-2.5 gap-1 text-amber-400/70 hover:text-amber-400 hover:bg-amber-500/10">
-                          <Pause className="w-3 h-3" /> Pause
+                        <Button size="sm" variant="ghost"
+                          onClick={() => patchSystem(system.id, { buildStatus: 'paused' })}
+                          disabled={isLoading || isBuilding} title="Pause"
+                          className="h-7 w-7 p-0 text-amber-400/60 hover:text-amber-400 hover:bg-amber-500/10">
+                          <Pause className="w-3.5 h-3.5" />
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" onClick={() => patchSystem(system.id, { buildStatus: 'building' })} disabled={isLoading}
-                        className="h-7 text-xs px-2.5 gap-1 text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/10">
-                        <RotateCcw className="w-3 h-3" /> Restart
+                      <Button size="sm" variant="ghost"
+                        onClick={() => patchSystem(system.id, { buildStatus: 'building' })}
+                        disabled={isLoading} title="Restart"
+                        className="h-7 w-7 p-0 text-blue-400/60 hover:text-blue-400 hover:bg-blue-500/10">
+                        <RotateCcw className="w-3.5 h-3.5" />
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => navigate('/builder')} disabled={isLoading}
-                        className="h-7 text-xs px-2.5 gap-1 text-muted-foreground/60 hover:text-foreground">
-                        <Wrench className="w-3 h-3" /> Rebuild
+                      <Button size="sm" variant="ghost"
+                        onClick={() => navigate('/builder')}
+                        disabled={isLoading} title="Rebuild"
+                        className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-foreground">
+                        <Wrench className="w-3.5 h-3.5" />
                       </Button>
                       {deleteConfirm === system.id ? (
                         <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-rose-400">Confirm?</span>
-                          <Button size="sm" variant="ghost" onClick={() => deleteSystem(system.id)} disabled={isLoading}
-                            className="h-6 text-[10px] px-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10">Yes</Button>
-                          <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm(null)}
-                            className="h-6 text-[10px] px-2 text-muted-foreground">No</Button>
+                          <span className="text-[10px] text-rose-400">Sure?</span>
+                          <Button size="sm" variant="ghost"
+                            onClick={() => deleteSystem(system.id)} disabled={isLoading}
+                            className="h-6 text-[10px] px-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10">Y</Button>
+                          <Button size="sm" variant="ghost"
+                            onClick={() => setDeleteConfirm(null)}
+                            className="h-6 text-[10px] px-1.5 text-muted-foreground">N</Button>
                         </div>
                       ) : (
-                        <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm(system.id)} disabled={isLoading}
-                          className="h-7 text-xs px-2 text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10">
-                          <Trash2 className="w-3 h-3" />
+                        <Button size="sm" variant="ghost"
+                          onClick={() => setDeleteConfirm(system.id)} disabled={isLoading} title="Delete"
+                          className="h-7 w-7 p-0 text-rose-400/40 hover:text-rose-400 hover:bg-rose-500/10">
+                          <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       )}
                     </div>
@@ -460,7 +557,7 @@ const SystemCommandCenterPage = () => {
         <SectionHeader
           icon={Settings2}
           title="Tool Stack Monitor"
-          sub={`${connectedCount} of ${KNOWN_TOOLS.length} integrations configured`}
+          sub={`Platform-wide integration status · ${connectedCount} of ${KNOWN_TOOLS.length} configured`}
           action={
             <Button size="sm" variant="outline" onClick={() => navigate('/connections')} className="h-7 text-xs border-white/10 gap-1.5">
               <KeyRound className="w-3 h-3" /> Manage Credentials
@@ -496,7 +593,7 @@ const SystemCommandCenterPage = () => {
         <section>
           <SectionHeader icon={Brain} title="AI Operations Feed" sub="Recent STARK actions and optimizations" />
           <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md overflow-hidden">
-            {aiActivity?.totalRequests > 0 ? (
+            {(aiActivity?.totalRequests ?? 0) > 0 ? (
               <div className="divide-y divide-white/8">
                 <div className="flex items-start gap-3 px-4 py-3.5">
                   <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -504,7 +601,9 @@ const SystemCommandCenterPage = () => {
                   </div>
                   <div>
                     <p className="text-xs font-medium text-foreground">{aiActivity.totalRequests} AI completions processed</p>
-                    <p className="text-[11px] text-muted-foreground/60">{(aiActivity.totalTokens || 0).toLocaleString()} total tokens · {aiActivity.successRate ?? 100}% success rate</p>
+                    <p className="text-[11px] text-muted-foreground/60">
+                      {(aiActivity.totalTokens || 0).toLocaleString()} tokens · {aiActivity.successRate ?? 100}% success
+                    </p>
                   </div>
                 </div>
                 {systems.filter(s => s.buildStatus === 'building').map(s => (
@@ -537,15 +636,19 @@ const SystemCommandCenterPage = () => {
           </div>
         </section>
 
-        {/* Activity Feed */}
+        {/* Activity Feed — sourced from system events + notifications table */}
         <section>
-          <SectionHeader icon={Activity} title="Activity Feed" sub="Platform events and system lifecycle" />
+          <SectionHeader
+            icon={Activity}
+            title="Activity Feed"
+            sub="System lifecycle · Builds · Revenue · Errors"
+          />
           <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md overflow-hidden">
             {activity.length > 0 ? (
               <div className="divide-y divide-white/8 max-h-72 overflow-y-auto">
                 {activity.map(evt => (
                   <div key={evt.id} className="flex items-start gap-3 px-4 py-3">
-                    <div className={`w-6 h-6 rounded-md bg-white/5 flex items-center justify-center shrink-0 mt-0.5`}>
+                    <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
                       <evt.icon className={`w-3 h-3 ${evt.color}`} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -568,8 +671,8 @@ const SystemCommandCenterPage = () => {
             )}
           </div>
         </section>
-      </div>
 
+      </div>
     </div>
   );
 };

@@ -21,7 +21,7 @@
  * The stored format changes from gcm:<iv>:<tag>:<data>  (or gcm:v0:…)
  *                               to   gcm:v1:<iv>:<tag>:<data>
  */
-import { db, userCredentialsTable } from "@workspace/db";
+import { db, userCredentialsTable, encryptionKeyRotationsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { encryptWithKey, decryptWithKeyHex } from "./crypto-utils.js";
 
@@ -117,10 +117,21 @@ async function main() {
     }
   });
 
+  const rotatedAt = new Date();
+
+  // Record the rotation in the audit history table so the admin dashboard
+  // and any restarted server process can read the timestamp from DB.
+  await db.insert(encryptionKeyRotationsTable).values({
+    rotatedAt,
+    rotatedByAdminId: null,
+    notes: `CLI rotation script. Rotated ${toRotate.length} row(s).`,
+  });
+
   console.log(`\nRotation complete — ${toRotate.length} row(s) re-encrypted successfully.`);
   console.log(
-    "\nNext step: update the CREDENTIAL_KEY_ROTATED_AT environment variable to reset the admin warning:\n" +
-      `  CREDENTIAL_KEY_ROTATED_AT=${new Date().toISOString()}`
+    "Rotation timestamp saved to the encryption_key_rotations table — " +
+      "the admin dashboard will reflect the new date automatically.\n" +
+      `  rotatedAt=${rotatedAt.toISOString()}`
   );
 }
 

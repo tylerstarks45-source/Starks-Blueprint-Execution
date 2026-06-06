@@ -17,6 +17,7 @@ import {
   systemActivityEventsTable,
   userCredentialsTable,
   platformSettingsTable,
+  encryptionKeyRotationsTable,
 } from "@workspace/db";
 import { requireAdmin } from "../lib/auth";
 import { adjustCredits, TIER_PRICES } from "../lib/credits";
@@ -160,6 +161,7 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
     [tokenSum],
     recentActivity,
     [insecureCredRow],
+    latestRotations,
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)::int` }).from(usersTable),
     db.select({ count: sql<number>`count(*)::int` }).from(blueprintsTable),
@@ -180,7 +182,28 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
       .select({ count: sql<number>`count(*)::int` })
       .from(userCredentialsTable)
       .where(sql`${userCredentialsTable.encryptedValue} not like 'gcm:%'`),
+    db
+      .select({ rotatedAt: encryptionKeyRotationsTable.rotatedAt })
+      .from(encryptionKeyRotationsTable)
+      .orderBy(desc(encryptionKeyRotationsTable.rotatedAt))
+      .limit(1),
   ]);
+
+  // Prefer the latest DB record; fall back to in-process override / env var.
+  const latestDbRotation = latestRotations[0];
+  const encryptionKeyStatus = latestDbRotation
+    ? (() => {
+        const THRESHOLD = 90;
+        const rotatedAt = new Date(latestDbRotation.rotatedAt);
+        const daysSince = Math.floor((Date.now() - rotatedAt.getTime()) / 86_400_000);
+        return {
+          lastRotatedAt: rotatedAt.toISOString(),
+          daysSinceRotation: daysSince,
+          warningThresholdDays: THRESHOLD,
+          needsRotation: daysSince >= THRESHOLD,
+        };
+      })()
+    : getKeyRotationStatus();
 
   res.json(
     GetAdminDashboardResponse.parse(
@@ -193,7 +216,7 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
         totalAffiliateClicks: clickSum.total,
         openrouterTotalTokens: tokenSum.total,
         recentActivity,
-        encryptionKeyStatus: getKeyRotationStatus(),
+        encryptionKeyStatus,
         insecureCredentialsCount: insecureCredRow?.count ?? 0,
       }),
     ),
@@ -603,7 +626,15 @@ router.post("/admin/credentials/rotate-key", async (req, res): Promise<void> => 
   // 1. Switch the active key in-process so subsequent decrypt/encrypt uses the new key immediately.
   setActiveKey(newKeyHex);
 
-  // 2. Persist the rotation timestamp to the DB so it survives server restarts.
+  // 2. Insert an audit record into the dedicated rotation history table.
+  await db.insert(encryptionKeyRotationsTable).values({
+    rotatedAt: new Date(rotatedAt),
+    rotatedByAdminId: admin.id,
+    notes: `Admin-initiated rotation via API. Rotated ${toRotate.length} row(s), skipped ${skippedCount}.`,
+  });
+
+  // 3. Also persist to platform_settings as a backward-compatible fallback for any process that
+  //    has not yet been updated to read from encryption_key_rotations.
   await db
     .insert(platformSettingsTable)
     .values({ key: "credential_key_rotated_at", value: rotatedAt, updatedAt: new Date() })
@@ -612,7 +643,7 @@ router.post("/admin/credentials/rotate-key", async (req, res): Promise<void> => 
       set: { value: rotatedAt, updatedAt: new Date() },
     });
 
-  // 3. Update the in-process timestamp override so getKeyRotationStatus() reflects the new date.
+  // 4. Update the in-process timestamp override so getKeyRotationStatus() reflects the new date.
   setKeyRotatedAt(rotatedAt);
 
   await db.insert(adminActivityTable).values({

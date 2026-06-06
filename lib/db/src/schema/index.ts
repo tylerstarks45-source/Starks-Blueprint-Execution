@@ -24,3 +24,4 @@ export * from "./processed_stripe_events";
 export * from "./system_activity_events";
 export * from "./skills";
 export * from "./platform_settings";
+export * from "./encryption_key_rotations";

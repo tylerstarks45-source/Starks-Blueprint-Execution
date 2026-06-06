@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { db, platformSettingsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, platformSettingsTable, encryptionKeyRotationsTable } from "@workspace/db";
+import { desc, eq } from "drizzle-orm";
 import { setKeyRotatedAt } from "./lib/crypto";
 
 async function start() {
@@ -21,14 +21,29 @@ async function start() {
 
   // Load persisted rotation timestamp from DB so the key-age warning is
   // accurate immediately after a restart (not just while the process runs).
+  // Priority: encryption_key_rotations table (authoritative history) →
+  //           platform_settings fallback → env var CREDENTIAL_KEY_ROTATED_AT.
   try {
-    const [setting] = await db
-      .select()
-      .from(platformSettingsTable)
-      .where(eq(platformSettingsTable.key, "credential_key_rotated_at"));
-    if (setting) {
-      setKeyRotatedAt(setting.value);
-      logger.info({ rotatedAt: setting.value }, "Loaded key rotation timestamp from DB");
+    const [latestRotation] = await db
+      .select({ rotatedAt: encryptionKeyRotationsTable.rotatedAt })
+      .from(encryptionKeyRotationsTable)
+      .orderBy(desc(encryptionKeyRotationsTable.rotatedAt))
+      .limit(1);
+
+    if (latestRotation) {
+      const iso = latestRotation.rotatedAt.toISOString();
+      setKeyRotatedAt(iso);
+      logger.info({ rotatedAt: iso }, "Loaded key rotation timestamp from encryption_key_rotations");
+    } else {
+      // Fallback: legacy platform_settings entry written by older code versions.
+      const [setting] = await db
+        .select()
+        .from(platformSettingsTable)
+        .where(eq(platformSettingsTable.key, "credential_key_rotated_at"));
+      if (setting) {
+        setKeyRotatedAt(setting.value);
+        logger.info({ rotatedAt: setting.value }, "Loaded key rotation timestamp from platform_settings (fallback)");
+      }
     }
   } catch (err) {
     logger.warn({ err }, "Could not load key rotation timestamp from DB");

@@ -770,6 +770,22 @@ export const BatchGetSystemRevenueResponse = zod.record(zod.string(), zod.number
 
 
 /**
+ * @summary Latest 30 activity events across all of the authenticated user's systems
+ */
+export const ListCrossSystemActivityResponseItem = zod.object({
+  "id": zod.number(),
+  "systemInstanceId": zod.number(),
+  "systemName": zod.string(),
+  "eventType": zod.string(),
+  "amountCents": zod.number().nullish(),
+  "description": zod.string(),
+  "metadata": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListCrossSystemActivityResponse = zod.array(ListCrossSystemActivityResponseItem)
+
+
+/**
  * @summary Get revenue stats and 7-day trend for a system instance
  */
 export const GetSystemRevenueParams = zod.object({

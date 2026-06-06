@@ -14,6 +14,7 @@ import {
   DeleteSystemInstanceParams,
   ListSystemActivityEventsParams,
   ListSystemActivityEventsResponse,
+  ListCrossSystemActivityResponse,
   CreateSystemActivityEventParams,
   CreateSystemActivityEventBody,
   GetSystemRevenueParams,
@@ -98,6 +99,37 @@ router.post("/system-instances", async (req, res): Promise<void> => {
     .values({ ...parsed.data, userId })
     .returning();
   res.status(201).json(GetSystemInstanceResponse.parse(serialize(row)));
+});
+
+// ─── GET /api/system-instances/activity ──────────────────────────────────────
+// Returns the latest 30 activity events across all of the authenticated user's
+// systems, joined with the system name for display in the unified feed.
+
+router.get("/system-instances/activity", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const rows = await db
+    .select({
+      id: systemActivityEventsTable.id,
+      systemInstanceId: systemActivityEventsTable.systemInstanceId,
+      systemName: systemInstancesTable.name,
+      eventType: systemActivityEventsTable.eventType,
+      amountCents: systemActivityEventsTable.amountCents,
+      description: systemActivityEventsTable.description,
+      metadata: systemActivityEventsTable.metadata,
+      createdAt: systemActivityEventsTable.createdAt,
+    })
+    .from(systemActivityEventsTable)
+    .innerJoin(
+      systemInstancesTable,
+      eq(systemActivityEventsTable.systemInstanceId, systemInstancesTable.id),
+    )
+    .where(eq(systemInstancesTable.userId, caller.id))
+    .orderBy(desc(systemActivityEventsTable.createdAt))
+    .limit(30);
+
+  res.json(ListCrossSystemActivityResponse.parse(serialize(rows)));
 });
 
 router.get("/system-instances/:id", async (req, res): Promise<void> => {

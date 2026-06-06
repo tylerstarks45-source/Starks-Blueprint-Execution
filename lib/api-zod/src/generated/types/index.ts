@@ -59,6 +59,7 @@ export * from './creditPackConfig';
 export * from './creditPackPurchase';
 export * from './creditTierConfig';
 export * from './creditTransaction';
+export * from './crossSystemActivityEvent';
 export * from './encryptionKeyRotationStatus';
 export * from './errorResponse';
 export * from './getAdminUsageByUserParams';

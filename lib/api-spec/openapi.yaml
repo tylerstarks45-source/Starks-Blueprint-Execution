@@ -959,6 +959,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/SystemRevenueBatchResponse"
 
+  /system-instances/activity:
+    get:
+      operationId: listCrossSystemActivity
+      tags: [system-instances]
+      summary: Latest 30 activity events across all of the authenticated user's systems
+      responses:
+        "200":
+          description: List of activity events with system name
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrossSystemActivityEvent"
+
   /system-instances/{id}/revenue:
     get:
       operationId: getSystemRevenue
@@ -2287,6 +2302,27 @@ components:
         metadata:
           type: string
       required: [description]
+
+    CrossSystemActivityEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        systemInstanceId:
+          type: integer
+        systemName:
+          type: string
+        eventType:
+          type: string
+        amountCents:
+          type: ["integer", "null"]
+        description:
+          type: string
+        metadata:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required: [id, systemInstanceId, systemName, eventType, description, createdAt]
 
     SystemRevenueTrendPoint:
       type: object

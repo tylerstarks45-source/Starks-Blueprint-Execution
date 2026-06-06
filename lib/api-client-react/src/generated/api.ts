@@ -59,6 +59,7 @@ import type {
   CreditConfig,
   CreditPackPurchase,
   CreditTransaction,
+  CrossSystemActivityEvent,
   ErrorResponse,
   GetAdminUsageByUserParams,
   HealthStatus,
@@ -3151,6 +3152,83 @@ export const useBatchGetSystemRevenue = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getBatchGetSystemRevenueMutationOptions(options));
     }
+
+export const getListCrossSystemActivityUrl = () => {
+
+
+
+
+  return `/api/system-instances/activity`
+}
+
+/**
+ * @summary Latest 30 activity events across all of the authenticated user's systems
+ */
+export const listCrossSystemActivity = async ( options?: RequestInit): Promise<CrossSystemActivityEvent[]> => {
+
+  return customFetch<CrossSystemActivityEvent[]>(getListCrossSystemActivityUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCrossSystemActivityQueryKey = () => {
+    return [
+    `/api/system-instances/activity`
+    ] as const;
+    }
+
+
+export const getListCrossSystemActivityQueryOptions = <TData = Awaited<ReturnType<typeof listCrossSystemActivity>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCrossSystemActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCrossSystemActivityQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCrossSystemActivity>>> = ({ signal }) => listCrossSystemActivity({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCrossSystemActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCrossSystemActivityQueryResult = NonNullable<Awaited<ReturnType<typeof listCrossSystemActivity>>>
+export type ListCrossSystemActivityQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Latest 30 activity events across all of the authenticated user's systems
+ */
+
+export function useListCrossSystemActivity<TData = Awaited<ReturnType<typeof listCrossSystemActivity>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCrossSystemActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCrossSystemActivityQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetSystemRevenueUrl = (id: number,) => {
 

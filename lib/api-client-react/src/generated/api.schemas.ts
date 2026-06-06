@@ -283,6 +283,19 @@ export interface SystemActivityEventInput {
   metadata?: string;
 }
 
+export interface CrossSystemActivityEvent {
+  id: number;
+  systemInstanceId: number;
+  systemName: string;
+  eventType: string;
+  /** @nullable */
+  amountCents?: number | null;
+  description: string;
+  /** @nullable */
+  metadata?: string | null;
+  createdAt: string;
+}
+
 export interface SystemRevenueTrendPoint {
   date: string;
   amountCents: number;

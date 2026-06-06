@@ -1435,6 +1435,11 @@ export const TestAdminOpenRouterResponse = zod.object({
 /**
  * @summary Platform-wide revenue activity across all user systems (admin only)
  */
+export const GetAdminRevenueQueryParams = zod.object({
+  "userId": zod.coerce.number().optional().describe('Filter revenue to a specific platform user'),
+  "systemInstanceId": zod.coerce.number().optional().describe('Filter revenue to a specific system instance')
+})
+
 export const GetAdminRevenueResponse = zod.object({
   "stats": zod.object({
   "todayCents": zod.number(),

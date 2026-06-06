@@ -61,6 +61,7 @@ import type {
   CreditTransaction,
   CrossSystemActivityEvent,
   ErrorResponse,
+  GetAdminRevenueParams,
   GetAdminUsageByUserParams,
   HealthStatus,
   ListAdminActivityParams,
@@ -5813,20 +5814,27 @@ export const useTestAdminOpenRouter = <TError = ErrorType<unknown>,
       return useMutation(getTestAdminOpenRouterMutationOptions(options));
     }
 
-export const getGetAdminRevenueUrl = () => {
+export const getGetAdminRevenueUrl = (params?: GetAdminRevenueParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/admin/revenue`
+  return stringifiedParams.length > 0 ? `/api/admin/revenue?${stringifiedParams}` : `/api/admin/revenue`
 }
 
 /**
  * @summary Platform-wide revenue activity across all user systems (admin only)
  */
-export const getAdminRevenue = async ( options?: RequestInit): Promise<AdminRevenueActivity> => {
+export const getAdminRevenue = async (params?: GetAdminRevenueParams, options?: RequestInit): Promise<AdminRevenueActivity> => {
 
-  return customFetch<AdminRevenueActivity>(getGetAdminRevenueUrl(),
+  return customFetch<AdminRevenueActivity>(getGetAdminRevenueUrl(params),
   {
     ...options,
     method: 'GET'
@@ -5839,23 +5847,23 @@ export const getAdminRevenue = async ( options?: RequestInit): Promise<AdminReve
 
 
 
-export const getGetAdminRevenueQueryKey = () => {
+export const getGetAdminRevenueQueryKey = (params?: GetAdminRevenueParams,) => {
     return [
-    `/api/admin/revenue`
+    `/api/admin/revenue`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetAdminRevenueQueryOptions = <TData = Awaited<ReturnType<typeof getAdminRevenue>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminRevenue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAdminRevenueQueryOptions = <TData = Awaited<ReturnType<typeof getAdminRevenue>>, TError = ErrorType<unknown>>(params?: GetAdminRevenueParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminRevenue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetAdminRevenueQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminRevenueQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminRevenue>>> = ({ signal }) => getAdminRevenue({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminRevenue>>> = ({ signal }) => getAdminRevenue(params, { signal, ...requestOptions });
 
 
 
@@ -5873,11 +5881,11 @@ export type GetAdminRevenueQueryError = ErrorType<unknown>
  */
 
 export function useGetAdminRevenue<TData = Awaited<ReturnType<typeof getAdminRevenue>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminRevenue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetAdminRevenueParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminRevenue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetAdminRevenueQueryOptions(options)
+  const queryOptions = getGetAdminRevenueQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

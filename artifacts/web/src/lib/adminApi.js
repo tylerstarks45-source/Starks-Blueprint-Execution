@@ -58,7 +58,7 @@ export const adminApi = {
   getAnalytics: () => request('/admin/analytics'),
   getHealth: () => request('/admin/health'),
   getUsageByUser: (limit = 50) => request(`/admin/usage/by-user${toQuery({ limit })}`),
-  getRevenueActivity: () => request('/admin/revenue'),
+  getRevenueActivity: (params = {}) => request(`/admin/revenue${toQuery(params)}`),
   testOpenRouter: () => request('/admin/openrouter/test', { method: 'POST' }),
   listUsers: (params = {}) => request(`/admin/platform-users${toQuery(params)}`),
   updateUser: (id, body) =>

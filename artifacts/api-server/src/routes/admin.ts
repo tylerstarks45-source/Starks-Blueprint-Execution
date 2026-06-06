@@ -471,18 +471,50 @@ router.get("/admin/usage/by-user", async (req, res): Promise<void> => {
 router.get("/admin/revenue", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
 
+  const filterUserId = req.query.userId ? Number(req.query.userId) : null;
+  const filterSystemInstanceId = req.query.systemInstanceId ? Number(req.query.systemInstanceId) : null;
+
+  // Build a base WHERE condition for revenue events.
+  // Always require amountCents > 0. Optionally scope to a user or system instance.
+  function buildWhere() {
+    const conditions = [
+      sql`${systemActivityEventsTable.amountCents} is not null and ${systemActivityEventsTable.amountCents} > 0`,
+    ];
+    if (filterSystemInstanceId !== null) {
+      conditions.push(sql`${systemActivityEventsTable.systemInstanceId} = ${filterSystemInstanceId}`);
+    }
+    if (filterUserId !== null) {
+      conditions.push(sql`${systemInstancesTable.userId} = ${filterUserId}`);
+    }
+    return conditions.length === 1 ? conditions[0] : and(...conditions);
+  }
+
+  // Stats query needs the instances join when filtering by userId
+  const statsQuery = (filterUserId !== null || filterSystemInstanceId !== null)
+    ? db
+        .select({
+          allTimeCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
+          todayCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= date_trunc('day', now()) then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
+          weekCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '7 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
+          monthCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '30 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
+          eventCount: sql<number>`count(*)::int`,
+        })
+        .from(systemActivityEventsTable)
+        .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
+        .where(buildWhere())
+    : db
+        .select({
+          allTimeCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
+          todayCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= date_trunc('day', now()) then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
+          weekCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '7 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
+          monthCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '30 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
+          eventCount: sql<number>`count(*)::int`,
+        })
+        .from(systemActivityEventsTable)
+        .where(buildWhere());
+
   const [statsRows, byBlueprintRows, recentEventsRows] = await Promise.all([
-    // Aggregate revenue stats across all time windows
-    db
-      .select({
-        allTimeCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
-        todayCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= date_trunc('day', now()) then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
-        weekCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '7 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
-        monthCents: sql<number>`coalesce(sum(case when ${systemActivityEventsTable.createdAt} >= now() - interval '30 days' then ${systemActivityEventsTable.amountCents} else 0 end), 0)::int`,
-        eventCount: sql<number>`count(*)::int`,
-      })
-      .from(systemActivityEventsTable)
-      .where(sql`${systemActivityEventsTable.amountCents} is not null and ${systemActivityEventsTable.amountCents} > 0`),
+    statsQuery,
 
     // Per-blueprint revenue breakdown
     db
@@ -495,12 +527,12 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
       .from(systemActivityEventsTable)
       .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
       .innerJoin(blueprintsTable, eq(blueprintsTable.id, systemInstancesTable.blueprintId))
-      .where(sql`${systemActivityEventsTable.amountCents} is not null and ${systemActivityEventsTable.amountCents} > 0`)
+      .where(buildWhere())
       .groupBy(blueprintsTable.id, blueprintsTable.name)
       .orderBy(desc(sql`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`))
       .limit(10),
 
-    // Recent revenue events (across all systems)
+    // Recent revenue events
     db
       .select({
         id: systemActivityEventsTable.id,
@@ -513,7 +545,7 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
       .from(systemActivityEventsTable)
       .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
       .innerJoin(blueprintsTable, eq(blueprintsTable.id, systemInstancesTable.blueprintId))
-      .where(sql`${systemActivityEventsTable.amountCents} is not null and ${systemActivityEventsTable.amountCents} > 0`)
+      .where(buildWhere())
       .orderBy(desc(systemActivityEventsTable.createdAt))
       .limit(25),
   ]);

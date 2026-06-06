@@ -942,6 +942,17 @@ export type GetAdminUsageByUserParams = {
 limit?: number;
 };
 
+export type GetAdminRevenueParams = {
+/**
+ * Filter revenue to a specific platform user
+ */
+userId?: number;
+/**
+ * Filter revenue to a specific system instance
+ */
+systemInstanceId?: number;
+};
+
 export type ListPlatformUsersParams = {
 search?: string;
 role?: string;

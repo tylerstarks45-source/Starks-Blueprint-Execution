@@ -62,6 +62,7 @@ export * from './creditTransaction';
 export * from './crossSystemActivityEvent';
 export * from './encryptionKeyRotationStatus';
 export * from './errorResponse';
+export * from './getAdminRevenueParams';
 export * from './getAdminUsageByUserParams';
 export * from './healthStatus';
 export * from './listAdminActivityParams';

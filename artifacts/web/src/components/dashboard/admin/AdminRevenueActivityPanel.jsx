@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, DollarSign, Activity } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { TrendingUp, DollarSign, Activity, Filter, X } from 'lucide-react';
 import { useAdminData } from '@/contexts/AdminDataContext.jsx';
+import adminApi from '@/lib/adminApi.js';
 import { usdFromCents, num, relativeTime } from '@/lib/adminFormat.js';
 
 const StatTile = ({ label, value, loading }) => (
@@ -17,19 +20,143 @@ const StatTile = ({ label, value, loading }) => (
 );
 
 const AdminRevenueActivityPanel = () => {
-  const { revenue, revenueLoading, revenueError } = useAdminData();
+  const { revenue: contextRevenue, revenueLoading: contextLoading, revenueError: contextError } = useAdminData();
+
+  const [users, setUsers] = useState([]);
+  const [filterUserId, setFilterUserId] = useState('');
+  const [filterSystemInstanceId, setFilterSystemInstanceId] = useState('');
+  const [systemInstanceInput, setSystemInstanceInput] = useState('');
+
+  const [filteredRevenue, setFilteredRevenue] = useState(null);
+  const [filteredLoading, setFilteredLoading] = useState(false);
+  const [filteredError, setFilteredError] = useState(null);
+
+  const isFiltered = filterUserId !== '' || filterSystemInstanceId !== '';
+
+  const revenue = isFiltered ? filteredRevenue : contextRevenue;
+  const revenueLoading = isFiltered ? filteredLoading : contextLoading;
+  const revenueError = isFiltered ? filteredError : contextError;
 
   const stats = revenue?.stats;
   const byBlueprint = revenue?.byBlueprint ?? [];
   const recentEvents = revenue?.recentEvents ?? [];
 
+  useEffect(() => {
+    adminApi.listUsers({ limit: 200 }).then((res) => {
+      setUsers(res?.items ?? res ?? []);
+    }).catch(() => {});
+  }, []);
+
+  const fetchFiltered = useCallback(async (userId, systemInstanceId) => {
+    setFilteredLoading(true);
+    setFilteredError(null);
+    try {
+      const params = {};
+      if (userId) params.userId = userId;
+      if (systemInstanceId) params.systemInstanceId = systemInstanceId;
+      const data = await adminApi.getRevenueActivity(params);
+      setFilteredRevenue(data);
+    } catch (e) {
+      setFilteredError(e.message || 'Failed to load filtered revenue');
+    } finally {
+      setFilteredLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isFiltered) {
+      fetchFiltered(filterUserId, filterSystemInstanceId);
+    }
+  }, [filterUserId, filterSystemInstanceId, isFiltered, fetchFiltered]);
+
+  function applySystemInstance() {
+    const val = systemInstanceInput.trim();
+    if (val === '' || /^\d+$/.test(val)) {
+      setFilterSystemInstanceId(val);
+    }
+  }
+
+  function clearFilters() {
+    setFilterUserId('');
+    setFilterSystemInstanceId('');
+    setSystemInstanceInput('');
+    setFilteredRevenue(null);
+    setFilteredError(null);
+  }
+
+  const selectedUser = users.find((u) => String(u.id) === String(filterUserId));
+
   return (
     <Card className="shadow-sm border-border/50 bg-card/50 backdrop-blur">
       <CardHeader className="pb-3 border-b border-border/30">
-        <CardTitle className="text-lg font-medium flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-emerald-500" /> Revenue Activity
-        </CardTitle>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <CardTitle className="text-lg font-medium flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-emerald-500" /> Revenue Activity
+          </CardTitle>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+
+            <select
+              className="h-8 rounded-md border border-border/50 bg-background/60 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring min-w-[130px]"
+              value={filterUserId}
+              onChange={(e) => setFilterUserId(e.target.value)}
+            >
+              <option value="">All users</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.email ?? u.name ?? `User #${u.id}`}
+                </option>
+              ))}
+            </select>
+
+            <div className="flex items-center gap-1">
+              <Input
+                className="h-8 w-32 text-xs"
+                placeholder="System ID"
+                value={systemInstanceInput}
+                onChange={(e) => setSystemInstanceInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') applySystemInstance(); }}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 px-2 text-xs"
+                onClick={applySystemInstance}
+              >
+                Go
+              </Button>
+            </div>
+
+            {isFiltered && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                onClick={clearFilters}
+              >
+                <X className="w-3.5 h-3.5 mr-1" /> Clear
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {isFiltered && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Showing revenue for{' '}
+            {filterUserId && (
+              <span className="font-medium text-foreground">
+                {selectedUser ? (selectedUser.email ?? selectedUser.name ?? `User #${filterUserId}`) : `User #${filterUserId}`}
+              </span>
+            )}
+            {filterUserId && filterSystemInstanceId && ' · '}
+            {filterSystemInstanceId && (
+              <span className="font-medium text-foreground">System #{filterSystemInstanceId}</span>
+            )}
+          </p>
+        )}
       </CardHeader>
+
       <CardContent className="pt-5">
         {revenueError ? (
           <p className="text-sm text-destructive">Unable to load revenue data: {revenueError}</p>

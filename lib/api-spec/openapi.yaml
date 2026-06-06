@@ -2810,7 +2810,10 @@ components:
             $ref: "#/components/schemas/AdminActivity"
         encryptionKeyStatus:
           $ref: "#/components/schemas/EncryptionKeyRotationStatus"
-      required: [totalUsers, totalBlueprints, totalTools, totalSystemInstances, activeSystemInstances, totalAffiliateClicks, openrouterTotalTokens, recentActivity, encryptionKeyStatus]
+        insecureCredentialsCount:
+          type: integer
+          description: Number of user credentials still in legacy/unencrypted format (not yet or failed re-encryption)
+      required: [totalUsers, totalBlueprints, totalTools, totalSystemInstances, activeSystemInstances, totalAffiliateClicks, openrouterTotalTokens, recentActivity, encryptionKeyStatus, insecureCredentialsCount]
 
     AdminPlatformStats:
       type: object

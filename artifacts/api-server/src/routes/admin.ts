@@ -15,6 +15,7 @@ import {
   openrouterUsageTable,
   creditTransactionsTable,
   systemActivityEventsTable,
+  userCredentialsTable,
 } from "@workspace/db";
 import { requireAdmin } from "../lib/auth";
 import { adjustCredits, TIER_PRICES } from "../lib/credits";
@@ -155,6 +156,7 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
     [clickSum],
     [tokenSum],
     recentActivity,
+    [insecureCredRow],
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)::int` }).from(usersTable),
     db.select({ count: sql<number>`count(*)::int` }).from(blueprintsTable),
@@ -171,6 +173,10 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
       .select({ total: sql<number>`coalesce(sum(${openrouterUsageTable.totalTokens}), 0)::int` })
       .from(openrouterUsageTable),
     db.select().from(adminActivityTable).orderBy(desc(adminActivityTable.createdAt)).limit(10),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(userCredentialsTable)
+      .where(sql`${userCredentialsTable.encryptedValue} not like 'gcm:%'`),
   ]);
 
   res.json(
@@ -185,6 +191,7 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
         openrouterTotalTokens: tokenSum.total,
         recentActivity,
         encryptionKeyStatus: getKeyRotationStatus(),
+        insecureCredentialsCount: insecureCredRow?.count ?? 0,
       }),
     ),
   );

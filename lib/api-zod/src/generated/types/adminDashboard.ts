@@ -18,4 +18,6 @@ export interface AdminDashboard {
   openrouterTotalTokens: number;
   recentActivity: AdminActivity[];
   encryptionKeyStatus: EncryptionKeyRotationStatus;
+  /** Number of user credentials still in legacy/unencrypted format (not yet or failed re-encryption) */
+  insecureCredentialsCount: number;
 }

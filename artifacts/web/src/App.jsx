@@ -32,6 +32,7 @@ import TermsAndConditionsPage from '@/pages/TermsAndConditionsPage.jsx';
 import AffiliateDisclosure from '@/pages/AffiliateDisclosure.jsx';
 import EarningsDisclaimer from '@/pages/EarningsDisclaimer.jsx';
 import SystemBuilderPage from '@/pages/SystemBuilderPage.jsx';
+import BuilderPage from '@/pages/BuilderPage.jsx';
 import SavedSystemsPage from '@/pages/SavedSystemsPage.jsx';
 import BuildPage from '@/pages/BuildPage.jsx';
 import PricingPage from '@/pages/PricingPage.jsx';
@@ -122,10 +123,9 @@ const App = () => {
               <BuildPage />
             </ProtectedRoute>
           } />
-          {/* /builder — redirects to existing system builder until Task #8 */}
           <Route path="/builder" element={
             <ProtectedRoute>
-              <Navigate to="/system-builder" replace />
+              <BuilderPage />
             </ProtectedRoute>
           } />
           <Route path="/pricing" element={<PricingPage />} />

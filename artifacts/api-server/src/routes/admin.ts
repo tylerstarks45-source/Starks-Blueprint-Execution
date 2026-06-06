@@ -577,7 +577,7 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
         .from(systemActivityEventsTable)
         .where(buildWhere());
 
-  const [statsRows, byBlueprintRows, recentEventsRows, dailyRevenueRows] = await Promise.all([
+  const [statsRows, byBlueprintRows, recentEventsRows, dailyRevenueResult] = await Promise.all([
     statsQuery,
 
     // Per-blueprint revenue breakdown — scoped to selected date range
@@ -617,27 +617,40 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
       .orderBy(desc(systemActivityEventsTable.createdAt))
       .limit(25),
 
-    // Daily revenue trend — window driven by range params; join instances when needed
-    needsInstanceJoin
-      ? db
-          .select({
-            date: sql<string>`to_char(date_trunc('day', ${systemActivityEventsTable.createdAt}), 'YYYY-MM-DD')`,
-            amountCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
-          })
-          .from(systemActivityEventsTable)
-          .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
-          .where(buildWhereInRange())
-          .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)
-          .orderBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)
-      : db
-          .select({
-            date: sql<string>`to_char(date_trunc('day', ${systemActivityEventsTable.createdAt}), 'YYYY-MM-DD')`,
-            amountCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
-          })
-          .from(systemActivityEventsTable)
-          .where(buildWhereInRange())
-          .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)
-          .orderBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`),
+    // Daily revenue trend — full date spine via generate_series so zero-revenue
+    // days appear as 0 rather than being omitted, giving a continuous line.
+    // Optional filter fragments are built separately so both filterSystemInstanceId
+    // and filterUserId are applied independently and correctly in all combinations.
+    (() => {
+      const instanceCondition =
+        filterSystemInstanceId !== null
+          ? sql`AND sae.system_instance_id = ${filterSystemInstanceId}`
+          : sql``;
+      const userCondition =
+        filterUserId !== null
+          ? sql`AND sae.system_instance_id IN (SELECT id FROM system_instances WHERE user_id = ${filterUserId})`
+          : sql``;
+      return db.execute<{ date: string; amountCents: number }>(sql`
+        SELECT
+          to_char(d.day, 'YYYY-MM-DD') AS date,
+          coalesce(sum(sae.amount_cents), 0)::int AS "amountCents"
+        FROM generate_series(
+          ${rangeStartDate}::date,
+          ${rangeEndDate}::date,
+          '1 day'::interval
+        ) AS d(day)
+        LEFT JOIN system_activity_events sae
+          ON date_trunc('day', sae.created_at) = d.day
+          AND sae.amount_cents IS NOT NULL
+          AND sae.amount_cents > 0
+          AND sae.created_at >= ${rangeStartDate}
+          AND sae.created_at <= ${rangeEndDate}
+          ${instanceCondition}
+          ${userCondition}
+        GROUP BY d.day
+        ORDER BY d.day
+      `);
+    })(),
   ]);
 
   const [statsRow] = statsRows;
@@ -658,7 +671,7 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
           ...e,
           amountCents: e.amountCents ?? 0,
         })),
-        dailyRevenue: dailyRevenueRows,
+        dailyRevenue: dailyRevenueResult.rows,
       }),
     ),
   );

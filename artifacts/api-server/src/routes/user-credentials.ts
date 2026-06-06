@@ -1,7 +1,13 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and } from "drizzle-orm";
-import { db, userCredentialsTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
+import {
+  db,
+  userCredentialsTable,
+  toolCredentialRequirementsTable,
+  userToolSelectionsTable,
+  systemInstancesTable,
+} from "@workspace/db";
 import { requireAuthActive, getTokenPayload } from "../lib/auth";
 import {
   ListUserCredentialsResponse,
@@ -32,11 +38,42 @@ router.get("/user-credentials/summary", async (req, res): Promise<void> => {
     .where(eq(userCredentialsTable.userId, userId))
     .orderBy(userCredentialsTable.credentialKey);
 
-  // No direct per-credential → system linkage in the schema yet.
-  // Return 0 for all until proper usage tracking is added (see task #10).
+  // Compute per-credential usage count via:
+  //   tool_credential_requirements.credential_key → tool_id
+  //   → user_tool_selections.tool_id → system_instance_id
+  //   → system_instances.user_id = caller (ownership filter)
+  const usageMap = new Map<string, Set<number>>();
+  if (rows.length > 0) {
+    const credentialKeys = rows.map((r) => r.credentialKey);
+    const usageRows = await db
+      .select({
+        credentialKey: toolCredentialRequirementsTable.credentialKey,
+        systemInstanceId: userToolSelectionsTable.systemInstanceId,
+      })
+      .from(toolCredentialRequirementsTable)
+      .innerJoin(
+        userToolSelectionsTable,
+        eq(toolCredentialRequirementsTable.toolId, userToolSelectionsTable.toolId),
+      )
+      .innerJoin(
+        systemInstancesTable,
+        and(
+          eq(userToolSelectionsTable.systemInstanceId, systemInstancesTable.id),
+          eq(systemInstancesTable.userId, userId),
+        ),
+      )
+      .where(inArray(toolCredentialRequirementsTable.credentialKey, credentialKeys));
+
+    for (const row of usageRows) {
+      if (!usageMap.has(row.credentialKey)) usageMap.set(row.credentialKey, new Set());
+      usageMap.get(row.credentialKey)!.add(row.systemInstanceId);
+    }
+  }
+
   const summary = serialize(rows).map((r) => ({
     ...r,
-    usedBySystemsCount: 0,
+    usedBySystemsCount: usageMap.get(r.credentialKey)?.size ?? 0,
+    lastUsedAt: r.updatedAt, // updatedAt refreshes on every credential write/upsert
   }));
 
   res.json(summary);

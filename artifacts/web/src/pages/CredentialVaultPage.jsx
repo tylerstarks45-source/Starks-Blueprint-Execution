@@ -484,7 +484,10 @@ export default function CredentialVaultPage() {
                       <p className="text-sm font-mono text-white">{cred.credentialKey}</p>
                       <span className="text-xs text-emerald-400">● Connected</span>
                     </div>
-                    <p className="text-xs text-gray-600">Updated {timeAgo(cred.updatedAt)}</p>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <p className="text-xs text-gray-600">Last used {timeAgo(cred.updatedAt)}</p>
+                      <p className="text-xs text-gray-700">Added {timeAgo(cred.createdAt)}</p>
+                    </div>
                   </div>
                 ))}
               </div>

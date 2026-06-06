@@ -59,32 +59,31 @@ function uptimePercent(createdAt, buildStatus) {
 }
 
 // ─── HEALTH SPARKLINE ─────────────────────────────────────────────────────────
-// Renders a mini bar chart of the last N platform health check results.
-// Each bar is green (healthy), yellow (degraded), or red (down/unknown).
+// Per-system 24h health view derived from build session history.
+// Each bar represents one session: completed=green, failed=red, active/building=blue.
 
-function HealthSparkline({ checks }) {
-  if (!checks || checks.length === 0) {
-    return <span className="text-xs font-mono text-gray-600">No health data</span>;
+function HealthSparkline({ sessions }) {
+  if (!sessions || sessions.length === 0) {
+    return <span className="text-xs font-mono text-gray-600">No history</span>;
   }
 
+  // Show the last 10 sessions, oldest left → newest right
+  const bars = [...sessions].sort(
+    (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+  ).slice(-10);
+
   const colorMap = {
-    healthy:  '#34d399',
-    ok:       '#34d399',
-    degraded: '#fbbf24',
-    warning:  '#fbbf24',
-    down:     '#f87171',
-    error:    '#f87171',
-    unknown:  '#4b5563',
+    completed: '#34d399',
+    active:    '#60a5fa',
+    building:  '#60a5fa',
+    failed:    '#f87171',
   };
 
-  const bars = [...checks].reverse().slice(-10);
-
   return (
-    <div className="flex items-end gap-0.5 h-6" title="Platform health — last 10 checks">
-      {bars.map((c, i) => {
-        const key = (c.status || '').toLowerCase();
-        const color = colorMap[key] ?? colorMap.unknown;
-        const label = `${c.service}: ${c.status}`;
+    <div className="flex items-end gap-0.5 h-5" title="Build session health — last 10 sessions">
+      {bars.map((s, i) => {
+        const color = colorMap[(s.status || '').toLowerCase()] ?? '#4b5563';
+        const label = `Session #${s.id}: ${s.status}`;
         return (
           <div
             key={i}
@@ -118,10 +117,17 @@ function StatCard({ label, value, sub, accent = 'blue' }) {
 
 // ─── BUILD LOG PANEL ─────────────────────────────────────────────────────────
 
+const BUILD_LOG_PAGE_SIZE = 20;
+
 function BuildLogPanel({ steps, session }) {
+  const [showAll, setShowAll] = React.useState(false);
+
   const totalSteps = steps.length;
   const completedSteps = steps.filter((s) => s.status === 'completed').length;
   const progressPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+  const visibleSteps = showAll ? steps : steps.slice(-BUILD_LOG_PAGE_SIZE);
+  const hiddenCount = totalSteps - visibleSteps.length;
 
   return (
     <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm overflow-hidden">
@@ -146,33 +152,55 @@ function BuildLogPanel({ steps, session }) {
         </div>
       )}
 
-      <div className="p-4 space-y-1 max-h-80 overflow-y-auto font-mono text-xs">
+      <div className="p-4 space-y-1 max-h-96 overflow-y-auto font-mono text-xs">
         {steps.length === 0 ? (
           <p className="text-gray-600 text-center py-8">No build steps recorded yet.</p>
         ) : (
-          steps.map((step) => {
-            const meta = STEP_STATUS_META[step.status] ?? STEP_STATUS_META.pending;
-            return (
-              <div key={step.id} className="flex items-start gap-3 py-1 group hover:bg-white/2 rounded px-1">
-                <span className={`mt-0.5 shrink-0 ${meta.color}`}>{meta.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <span className="text-gray-300">
-                    Step {step.stepNumber}
-                    {step.notes && <span className="text-gray-500 ml-2">— {step.notes}</span>}
+          <>
+            {hiddenCount > 0 && (
+              <button
+                onClick={() => setShowAll(true)}
+                className="w-full text-center text-xs text-gray-600 hover:text-gray-400 py-1 mb-2 border border-white/5 rounded hover:border-white/10 transition-colors"
+              >
+                ↑ Show {hiddenCount} earlier step{hiddenCount !== 1 ? 's' : ''}
+              </button>
+            )}
+            {visibleSteps.map((step) => {
+              const meta = STEP_STATUS_META[step.status] ?? STEP_STATUS_META.pending;
+              return (
+                <div key={step.id} className="flex items-start gap-3 py-1 group hover:bg-white/2 rounded px-1">
+                  <span className={`mt-0.5 shrink-0 ${meta.color}`}>{meta.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-gray-300">
+                      Step {step.stepNumber}
+                      {step.title && <span className="text-gray-400 ml-1 font-sans not-italic">{step.title}</span>}
+                      {step.notes && <span className="text-gray-500 ml-2">— {step.notes}</span>}
+                    </span>
+                    {step.output && (
+                      <p className="text-gray-600 mt-0.5 truncate max-w-xs">{step.output}</p>
+                    )}
+                  </div>
+                  <span className="text-gray-600 shrink-0 whitespace-nowrap">
+                    {step.completedAt ? timeAgo(step.completedAt) : step.startedAt ? timeAgo(step.startedAt) : ''}
                   </span>
                 </div>
-                <span className="text-gray-600 shrink-0">
-                  {step.completedAt ? timeAgo(step.completedAt) : ''}
-                </span>
-              </div>
-            );
-          })
+              );
+            })}
+            {showAll && totalSteps > BUILD_LOG_PAGE_SIZE && (
+              <button
+                onClick={() => setShowAll(false)}
+                className="w-full text-center text-xs text-gray-600 hover:text-gray-400 py-1 mt-2 border border-white/5 rounded hover:border-white/10 transition-colors"
+              >
+                ↓ Show fewer
+              </button>
+            )}
+          </>
         )}
       </div>
 
       {session && (
         <div className="border-t border-white/5 px-4 py-2 flex items-center justify-between text-xs text-gray-600">
-          <span>Session #{session.id}</span>
+          <span>Session #{session.id} · {completedSteps}/{totalSteps} steps</span>
           <span>Started {timeAgo(session.startedAt)}</span>
         </div>
       )}
@@ -292,16 +320,14 @@ export default function UserSystemDetailPage() {
 
   const [allSessions, setAllSessions] = useState([]);
   const [storedCredKeys, setStoredCredKeys] = useState([]);
-  const [healthChecks, setHealthChecks] = useState([]);
 
   const fetchData = useCallback(async () => {
     try {
-      // Parallel fetches: build-engine status + all sessions + vault creds + platform health
-      const [statusRes, sessionsRes, credsRes, healthRes] = await Promise.all([
+      // Parallel fetches: build-engine status + all sessions + vault creds
+      const [statusRes, sessionsRes, credsRes] = await Promise.all([
         fetch(`/api/build-engine/${id}/status`, { headers: authHeaders() }),
         fetch(`/api/build-sessions?systemInstanceId=${id}`, { headers: authHeaders() }),
         fetch('/api/user-credentials/summary', { headers: authHeaders() }),
-        fetch('/api/system-health/recent', { headers: authHeaders() }),
       ]);
 
       if (!statusRes.ok) throw new Error('System not found');
@@ -318,11 +344,6 @@ export default function UserSystemDetailPage() {
       if (credsRes.ok) {
         const credsData = await credsRes.json();
         setStoredCredKeys(Array.isArray(credsData) ? credsData.map((c) => c.credentialKey) : []);
-      }
-
-      if (healthRes.ok) {
-        const healthData = await healthRes.json();
-        setHealthChecks(Array.isArray(healthData) ? healthData : []);
       }
 
       // Fetch blueprint info
@@ -474,8 +495,8 @@ export default function UserSystemDetailPage() {
               </span>
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] uppercase tracking-widest text-gray-600 font-mono">Platform</span>
-              <HealthSparkline checks={healthChecks} />
+              <span className="text-[10px] uppercase tracking-widest text-gray-600 font-mono">Build history</span>
+              <HealthSparkline sessions={allSessions} />
             </div>
             {blueprint && (
               <p className="text-sm text-gray-500">
@@ -678,15 +699,15 @@ export default function UserSystemDetailPage() {
         <OutputsPanel outputs={outputs} />
 
         {/* ── Activity Timeline ── */}
-        {allSessions.length > 0 && (
-          <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
-            <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-              <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Activity Timeline</span>
-              <span className="ml-auto text-xs text-gray-600">{allSessions.length} session{allSessions.length !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="p-4 space-y-0 max-h-80 overflow-y-auto">
-              {[...allSessions].reverse().map((sess, sessIdx) => {
+        <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+          <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+            <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Activity Timeline</span>
+            <span className="ml-auto text-xs text-gray-600">{allSessions.length} session{allSessions.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="p-4 space-y-0 max-h-80 overflow-y-auto">
+            {/* Sessions, newest first */}
+            {allSessions.length > 0 && [...allSessions].reverse().map((sess, sessIdx) => {
                 const sessSteps = sess.id === session?.id ? steps : [];
                 const sessStatus = sess.status ?? 'active';
                 const sessionStatusColors = {
@@ -746,9 +767,8 @@ export default function UserSystemDetailPage() {
                   </div>
                 );
               })}
-            </div>
           </div>
-        )}
+        </div>
 
         {/* ── Revenue Placeholder ── */}
         <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">

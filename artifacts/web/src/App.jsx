@@ -6,6 +6,8 @@ import { Toaster } from 'sonner';
 
 // Context Providers
 import { AuthProvider } from '@/contexts/AuthContext.jsx';
+import { CreditsModalProvider } from '@/contexts/CreditsModalContext.jsx';
+import OutOfCreditsModal from '@/components/OutOfCreditsModal.jsx';
 
 // Security Routes
 import ProtectedRoute from '@/components/security/ProtectedRoute.jsx';
@@ -44,6 +46,24 @@ import UpdatesPage from '@/pages/UpdatesPage.jsx';
 import PasswordResetPage from '@/pages/PasswordResetPage.jsx';
 import VerifyEmailPage from '@/pages/VerifyEmailPage.jsx';
 import SystemsListPage from '@/pages/SystemsListPage.jsx';
+
+// Global fetch interceptor — fires sbep:out-of-credits when any API call returns 402
+if (typeof window !== 'undefined') {
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const res = await _origFetch(...args);
+    if (res.status === 402) {
+      const clone = res.clone();
+      clone.json().then((data) => {
+        if (data?.code === 'out_of_credits') {
+          window.dispatchEvent(new CustomEvent('sbep:out-of-credits', { detail: data }));
+        }
+      }).catch(() => {});
+    }
+    return res;
+  };
+}
+
 // Redirect /build/:id → /systems/:id (param-based, preserves the id)
 const BuildRedirect = () => {
   const { systemInstanceId } = useParams();
@@ -67,112 +87,90 @@ const App = () => {
   return (
     <Router>
       <AuthProvider>
-        <Helmet>
-          <title>Starks Global Group</title>
-          <meta name="description" content="Premium AI Tools and Systems" />
-        </Helmet>
-        
-        <Routes>
-          {/* Public Pages */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/marketplace" element={<MarketplacePage />} />
-          <Route path="/marketplace/product/:productId" element={<ProductDetailPage />} />
-          <Route path="/tools/:id" element={<ToolDetailPage />} />
-          
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/reset-password" element={<PasswordResetPage />} />
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
-          
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/contact" element={<ContactPage />} />
-          <Route path="/blueprints" element={<BlueprintsPage />} />
-          <Route path="/blueprints/:slug" element={<BlueprintDetailPage />} />
-          <Route path="/how-it-works" element={<HowItWorksPage />} />
-          <Route path="/business-model" element={<BusinessModelPage />} />
-          <Route path="/research-lab" element={<ResearchLabPage />} />
-          <Route path="/why-trust-us" element={<WhyTrustUsPage />} />
-          <Route path="/updates" element={<UpdatesPage />} />
-          
-          {/* Legal Pages */}
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
-          <Route path="/affiliate-disclosure" element={<AffiliateDisclosure />} />
-          <Route path="/earnings-disclaimer" element={<EarningsDisclaimer />} />
+        <CreditsModalProvider>
+          <Helmet>
+            <title>Starks Global Group</title>
+            <meta name="description" content="Premium AI Tools and Systems" />
+          </Helmet>
 
-          {/* Protected User Routes */}
-          <Route path="/dashboard/*" element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          } />
-          {/* Alias: login redirects here */}
-          <Route path="/user-dashboard" element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/system-builder" element={
-            <ProtectedRoute>
-              <SystemBuilderPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/saved-systems" element={
-            <ProtectedRoute>
-              <SavedSystemsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/my-stack" element={
-            <ProtectedRoute>
-              <MyStackPage />
-            </ProtectedRoute>
-          } />
-          {/* /build/:id redirects to /systems/:id — param preserved */}
-          <Route path="/build/:systemInstanceId" element={
-            <ProtectedRoute>
-              <BuildRedirect />
-            </ProtectedRoute>
-          } />
-          <Route path="/systems/:id" element={
-            <ProtectedRoute>
-              <UserSystemDetailPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/connections" element={
-            <ProtectedRoute>
-              <CredentialVaultPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/systems" element={
-            <ProtectedRoute>
-              <SystemsListPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/builder" element={
-            <ProtectedRoute>
-              <BuilderPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/pricing" element={<PricingPage />} />
-          
-          {/* Protected Admin Routes */}
-          <Route path="/admin/*" element={
-            <ProtectedAdminRoute>
-              <AdminDashboard />
-            </ProtectedAdminRoute>
-          } />
-          {/* Alias: login redirects here */}
-          <Route path="/admin-dashboard" element={
-            <ProtectedAdminRoute>
-              <AdminDashboard />
-            </ProtectedAdminRoute>
-          } />
+          <Routes>
+            {/* Public Pages */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/marketplace" element={<MarketplacePage />} />
+            <Route path="/marketplace/product/:productId" element={<ProductDetailPage />} />
+            <Route path="/tools/:id" element={<ToolDetailPage />} />
 
-          {/* Catch-all Route */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-        
-        <Toaster position="bottom-right" />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/reset-password" element={<PasswordResetPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/blueprints" element={<BlueprintsPage />} />
+            <Route path="/blueprints/:slug" element={<BlueprintDetailPage />} />
+            <Route path="/how-it-works" element={<HowItWorksPage />} />
+            <Route path="/business-model" element={<BusinessModelPage />} />
+            <Route path="/research-lab" element={<ResearchLabPage />} />
+            <Route path="/why-trust-us" element={<WhyTrustUsPage />} />
+            <Route path="/updates" element={<UpdatesPage />} />
+
+            {/* Legal Pages */}
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
+            <Route path="/affiliate-disclosure" element={<AffiliateDisclosure />} />
+            <Route path="/earnings-disclaimer" element={<EarningsDisclaimer />} />
+
+            {/* Protected User Routes */}
+            <Route path="/dashboard/*" element={
+              <ProtectedRoute><DashboardPage /></ProtectedRoute>
+            } />
+            <Route path="/user-dashboard" element={
+              <ProtectedRoute><DashboardPage /></ProtectedRoute>
+            } />
+            <Route path="/system-builder" element={
+              <ProtectedRoute><SystemBuilderPage /></ProtectedRoute>
+            } />
+            <Route path="/saved-systems" element={
+              <ProtectedRoute><SavedSystemsPage /></ProtectedRoute>
+            } />
+            <Route path="/my-stack" element={
+              <ProtectedRoute><MyStackPage /></ProtectedRoute>
+            } />
+            <Route path="/build/:systemInstanceId" element={
+              <ProtectedRoute><BuildRedirect /></ProtectedRoute>
+            } />
+            <Route path="/systems/:id" element={
+              <ProtectedRoute><UserSystemDetailPage /></ProtectedRoute>
+            } />
+            <Route path="/connections" element={
+              <ProtectedRoute><CredentialVaultPage /></ProtectedRoute>
+            } />
+            <Route path="/systems" element={
+              <ProtectedRoute><SystemsListPage /></ProtectedRoute>
+            } />
+            <Route path="/builder" element={
+              <ProtectedRoute><BuilderPage /></ProtectedRoute>
+            } />
+            <Route path="/pricing" element={<PricingPage />} />
+
+            {/* Protected Admin Routes */}
+            <Route path="/admin/*" element={
+              <ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>
+            } />
+            <Route path="/admin-dashboard" element={
+              <ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>
+            } />
+
+            {/* Catch-all Route */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+
+          {/* Global credit exhaustion modal — listens for sbep:out-of-credits events */}
+          <OutOfCreditsModal />
+
+          <Toaster position="bottom-right" />
+        </CreditsModalProvider>
       </AuthProvider>
     </Router>
   );

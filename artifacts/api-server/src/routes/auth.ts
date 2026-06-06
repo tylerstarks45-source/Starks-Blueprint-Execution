@@ -32,7 +32,10 @@ const resetLimiter = rateLimit({
 
 const router: IRouter = Router();
 
-const JWT_SECRET = process.env["SESSION_SECRET"] || "sbep-fallback-secret-change-in-prod";
+if (!process.env["SESSION_SECRET"]) {
+  throw new Error("SESSION_SECRET environment variable must be set — refusing to start without a signing key.");
+}
+const JWT_SECRET = process.env["SESSION_SECRET"];
 const JWT_EXPIRY = "7d";
 
 const LoginInput = z.object({
@@ -88,7 +91,8 @@ router.post("/auth/register", authLimiter, async (req, res) => {
     passwordHash,
     name: name || null,
     role: "USER",
-    membershipStatus: "inactive",
+    membershipTier: "free",
+    membershipStatus: "active",
   }).returning();
 
   const balance = await adjustCredits(newUser.id, SIGNUP_GRANT, "signup_grant", {

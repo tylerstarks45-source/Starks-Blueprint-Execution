@@ -192,9 +192,9 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
       const sub = event.data.object as any;
       const userId = Number(sub.metadata?.userId);
       if (userId) {
-        await db.update(subscriptionsTable).set({ status: "inactive", tier: "starter" }).where(eq(subscriptionsTable.userId, userId));
-        await db.update(usersTable).set({ membershipTier: "starter", membershipStatus: "inactive" }).where(eq(usersTable.id, userId));
-        req.log.info({ userId }, "Subscription deactivated");
+        await db.update(subscriptionsTable).set({ status: "inactive", tier: "free" }).where(eq(subscriptionsTable.userId, userId));
+        await db.update(usersTable).set({ membershipTier: "free", membershipStatus: "active" }).where(eq(usersTable.id, userId));
+        req.log.info({ userId }, "Subscription cancelled — user downgraded to free tier");
       }
     }
 
@@ -218,7 +218,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
             .select({ tier: subscriptionsTable.tier })
             .from(subscriptionsTable)
             .where(eq(subscriptionsTable.userId, userId));
-          const currentTier = sub?.tier ?? "starter";
+          const currentTier = sub?.tier ?? "free";
           const allotment = tierAllotment(currentTier);
           await adjustCredits(userId, allotment, "tier_grant", {
             reason: `Monthly renewal — ${currentTier} plan (${allotment} credits)`,

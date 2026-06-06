@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { db, platformSettingsTable, encryptionKeyRotationsTable } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 import { setKeyRotatedAt } from "./lib/crypto";
+import { startWorker } from "./lib/runtime/worker";
 
 async function start() {
   const rawPort = process.env["PORT"];
@@ -56,6 +57,9 @@ async function start() {
     }
 
     logger.info({ port }, "Server listening");
+
+    // Start the runtime job worker loop (polls DB every 5s, no Redis required)
+    startWorker();
   });
 }
 

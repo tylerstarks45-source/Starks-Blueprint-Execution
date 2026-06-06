@@ -23,7 +23,7 @@ import { useAdminData } from '@/contexts/AdminDataContext.jsx';
 import { num, compact, usd } from '@/lib/adminFormat.js';
 
 const ROLE_OPTIONS = ['USER', 'ADMIN', 'SUPER_ADMIN'];
-const TIER_OPTIONS = ['starter', 'builder', 'operator', 'empire'];
+const TIER_OPTIONS = ['free', 'starter', 'builder', 'operator', 'empire'];
 const STATUS_OPTIONS = ['inactive', 'active', 'cancelled'];
 const NO_TIER = '__none__';
 

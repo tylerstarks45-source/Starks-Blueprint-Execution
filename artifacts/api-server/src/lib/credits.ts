@@ -2,13 +2,15 @@ import { sql, eq, desc } from "drizzle-orm";
 import { db, usersTable, creditTransactionsTable } from "@workspace/db";
 
 export const TIER_ALLOTMENTS: Record<string, number> = {
+  free: 50,         // free tier — matches the signup grant
   starter: 500,
-  builder: 500,   // legacy alias — same as starter
+  builder: 500,     // legacy alias — same as starter
   operator: 2500,
   empire: 10000,
 };
 
 export const TIER_NAMES: Record<string, string> = {
+  free: "Free",
   starter: "Starter",
   builder: "Starter",   // legacy alias
   operator: "Operator",
@@ -16,6 +18,7 @@ export const TIER_NAMES: Record<string, string> = {
 };
 
 export const TIER_PRICES: Record<string, number> = {
+  free: 0,          // $0/mo
   starter: 2900,    // $29/mo
   builder: 2900,    // legacy alias
   operator: 9900,   // $99/mo
@@ -23,15 +26,15 @@ export const TIER_PRICES: Record<string, number> = {
 };
 
 // Maximum number of systems a user on each tier can own simultaneously.
-// builder is a legacy alias mapping to the starter limit.
 export const TIER_SYSTEM_LIMITS: Record<string, number> = {
+  free: 1,          // 1 system on free tier
   starter: 3,
-  builder: 3,
+  builder: 3,       // legacy alias
   operator: 15,
-  empire: 999999,  // effectively unlimited
+  empire: 999999,   // effectively unlimited
 };
 
-export const SIGNUP_GRANT = 50; // free-trial buffer granted on signup
+export const SIGNUP_GRANT = 50; // free-trial credits granted on signup (matches free tier allotment)
 
 export const CREDIT_PACKS: Record<string, { id: string; name: string; credits: number; priceCents: number }> = {
   small:  { id: "small",  name: "Small Pack",  credits: 100,  priceCents: 1000  }, // $10

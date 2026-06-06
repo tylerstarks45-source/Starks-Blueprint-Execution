@@ -29,7 +29,8 @@ export const AuthProvider = ({ children }) => {
         email: model.email,
         name: model.name || model.email?.split('@')[0] || '',
         role: role,
-        membershipTier: model.membershipTier || model.membership_tier || 'starter',
+        membershipTier: model.membershipTier || model.membership_tier || 'free',
+        creditsBalance: model.creditsBalance ?? 0,
       });
       setCurrentUserRole(role);
       setIsAuthenticated(true);

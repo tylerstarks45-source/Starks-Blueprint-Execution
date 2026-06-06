@@ -2,3 +2,4 @@
 - [DB schema change workflow](db-schema-workflow.md) — adding columns requires: push → typecheck:libs → api-server typecheck, in that order.
 - [System instance creation body](system-instance-body.md) — POST /api/system-instances requires userId (non-optional in Zod schema); always pass currentUser.id explicitly even though server also injects it from JWT.
 - [PocketBase shim auth](pocketbase-shim-auth.md) — AuthContext correctly works through the pb shim; shim routes authWithPassword → /api/auth/login and authStore persists to localStorage. Do not rewrite AuthContext.
+- [Runtime job worker raw SQL](runtime-job-worker.md) — pool.query() returns snake_case columns; always mapRow() snake→camelCase. complete() takes {prompt,model?,systemPrompt?} not a messages array. Startup must call resetOrphanedJobs() before polling.

@@ -7,11 +7,17 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 
 const TIER_CONFIG = {
+  free: {
+    label: 'Free',
+    badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    features: ['50 one-time AI credits', '1 active system', 'Blueprint library access', 'Full marketplace access'],
+    locked: ['Monthly credit allotment', 'Multiple systems'],
+  },
   starter: {
     label: 'Starter',
     badge: 'bg-muted/30 text-muted-foreground border-border/30',
-    features: ['Access to all blueprints', 'Marketplace access', 'Affiliate tool links'],
-    locked: ['AI Build Agent', 'System automation'],
+    features: ['500 credits/month', 'Up to 3 active systems', 'Marketplace access', 'Affiliate tool links'],
+    locked: [],
   },
   builder: {
     label: 'Builder',
@@ -35,8 +41,8 @@ const TIER_CONFIG = {
 
 const UserSubscriptionCard = () => {
   const { currentUser } = useAuth();
-  const tier = (currentUser?.membershipTier || 'starter').toLowerCase();
-  const config = TIER_CONFIG[tier] || TIER_CONFIG.starter;
+  const tier = (currentUser?.membershipTier || 'free').toLowerCase();
+  const config = TIER_CONFIG[tier] || TIER_CONFIG.free;
   const isTopTier = tier === 'empire';
 
   return (

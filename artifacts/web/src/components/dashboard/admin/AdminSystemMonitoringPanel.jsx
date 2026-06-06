@@ -42,7 +42,7 @@ const AdminSystemMonitoringPanel = () => {
 
   // Subscription distribution for system context
   const subscriptions = analytics?.subscriptions ?? [];
-  const tierOrder = ['empire', 'operator', 'starter', 'builder', 'none'];
+  const tierOrder = ['empire', 'operator', 'starter', 'builder', 'free', 'none'];
   const sortedTiers = [...subscriptions].sort((a, b) => tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier));
 
   const TIER_COLORS = {

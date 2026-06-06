@@ -22,16 +22,24 @@ const authHeaders = () => {
 const BUILD_STATUS_META = {
   pending:    { label: 'Pending',    color: 'text-yellow-400',  bg: 'bg-yellow-400/10', ring: 'ring-yellow-400/30', dot: 'bg-yellow-400' },
   building:   { label: 'Building',   color: 'text-blue-400',    bg: 'bg-blue-400/10',   ring: 'ring-blue-400/30',   dot: 'bg-blue-400', pulse: true },
+  built:      { label: 'Built',      color: 'text-cyan-400',    bg: 'bg-cyan-400/10',   ring: 'ring-cyan-400/30',   dot: 'bg-cyan-400' },
+  deploying:  { label: 'Deploying',  color: 'text-violet-400',  bg: 'bg-violet-400/10', ring: 'ring-violet-400/30', dot: 'bg-violet-400', pulse: true },
+  running:    { label: 'Running',    color: 'text-emerald-400', bg: 'bg-emerald-400/10',ring: 'ring-emerald-400/30',dot: 'bg-emerald-400', pulse: true },
   active:     { label: 'Active',     color: 'text-emerald-400', bg: 'bg-emerald-400/10',ring: 'ring-emerald-400/30',dot: 'bg-emerald-400', pulse: true },
+  degraded:   { label: 'Degraded',   color: 'text-yellow-400',  bg: 'bg-yellow-400/10', ring: 'ring-yellow-400/30', dot: 'bg-yellow-400', pulse: true },
   paused:     { label: 'Paused',     color: 'text-gray-400',    bg: 'bg-gray-400/10',   ring: 'ring-gray-400/30',   dot: 'bg-gray-400' },
   failed:     { label: 'Failed',     color: 'text-red-400',     bg: 'bg-red-400/10',    ring: 'ring-red-400/30',    dot: 'bg-red-400' },
   completed:  { label: 'Completed',  color: 'text-purple-400',  bg: 'bg-purple-400/10', ring: 'ring-purple-400/30', dot: 'bg-purple-400' },
+  archived:   { label: 'Archived',   color: 'text-gray-600',    bg: 'bg-gray-600/10',   ring: 'ring-gray-600/30',   dot: 'bg-gray-600' },
 };
 
 const HEALTH_META = {
   healthy:  { label: 'Healthy',   color: 'text-emerald-400', icon: '✓' },
   degraded: { label: 'Degraded',  color: 'text-yellow-400',  icon: '⚠' },
   down:     { label: 'Down',      color: 'text-red-400',     icon: '✗' },
+  paused:   { label: 'Paused',    color: 'text-gray-400',    icon: '⏸' },
+  starting: { label: 'Starting',  color: 'text-violet-400',  icon: '◉' },
+  offline:  { label: 'Offline',   color: 'text-gray-600',    icon: '○' },
   unknown:  { label: 'Unknown',   color: 'text-gray-400',    icon: '?' },
 };
 
@@ -521,6 +529,8 @@ export default function UserSystemDetailPage() {
 
   const [allSessions, setAllSessions] = useState([]);
   const [storedCredKeys, setStoredCredKeys] = useState([]);
+  const [runtimeConnectors, setRuntimeConnectors] = useState([]);
+  const [runtimeJobs, setRuntimeJobs] = useState([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -561,6 +571,20 @@ export default function UserSystemDetailPage() {
           setOutputs(Array.isArray(outData) ? outData : (outData.items ?? []));
         }
       }
+
+      // Fetch runtime status (connectors + recent jobs)
+      const [connRes, jobsRes] = await Promise.all([
+        fetch(`/api/runtime/systems/${id}/connectors`, { headers: authHeaders() }),
+        fetch(`/api/runtime/systems/${id}/jobs`, { headers: authHeaders() }),
+      ]);
+      if (connRes.ok) {
+        const connData = await connRes.json();
+        setRuntimeConnectors(Array.isArray(connData) ? connData : []);
+      }
+      if (jobsRes.ok) {
+        const jobsData = await jobsRes.json();
+        setRuntimeJobs(Array.isArray(jobsData) ? jobsData.slice(0, 20) : []);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -570,8 +594,9 @@ export default function UserSystemDetailPage() {
 
   useEffect(() => {
     fetchData();
+    const LIVE_STATES = ['building', 'deploying', 'running', 'degraded'];
     const interval = setInterval(() => {
-      if (instance?.buildStatus === 'building') fetchData();
+      if (LIVE_STATES.includes(instance?.buildStatus)) fetchData();
     }, 5000);
     return () => clearInterval(interval);
   }, [fetchData, instance?.buildStatus]);
@@ -588,6 +613,25 @@ export default function UserSystemDetailPage() {
       const updated = await res.json();
       setInstance(updated);
       toast.success(`System ${buildStatus}`);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const runtimeAction = async (action) => {
+    setActionLoading(true);
+    const METHOD_MAP = { deploy: 'POST', pause: 'POST', restart: 'POST' };
+    try {
+      const res = await fetch(`/api/runtime/systems/${id}/${action}`, {
+        method: METHOD_MAP[action] ?? 'POST',
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `Failed to ${action}`);
+      toast.success(data.message ?? `System ${action} initiated`);
+      setTimeout(fetchData, 800);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -707,22 +751,21 @@ export default function UserSystemDetailPage() {
 
           {/* Control Buttons */}
           <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {/* Runtime engine controls */}
+            {instance.buildStatus === 'built' && (
+              <ControlBtn label="Deploy" icon="▶" variant="emerald" onClick={() => runtimeAction('deploy')} disabled={actionLoading} />
+            )}
+            {(instance.buildStatus === 'running' || instance.buildStatus === 'degraded') && (
+              <ControlBtn label="Pause" icon="⏸" variant="amber" onClick={() => runtimeAction('pause')} disabled={actionLoading} />
+            )}
+            {(instance.buildStatus === 'paused' || instance.buildStatus === 'failed') && (
+              <ControlBtn label="Restart" icon="⟳" variant="blue" onClick={() => runtimeAction('restart')} disabled={actionLoading} />
+            )}
+            {/* Legacy active/paused shim for older instances */}
             {instance.buildStatus === 'active' && (
               <ControlBtn label="Pause" icon="⏸" variant="amber" onClick={() => patchStatus('paused')} disabled={actionLoading} />
             )}
-            {instance.buildStatus === 'paused' && (
-              <ControlBtn label="Resume" icon="▶" variant="emerald" onClick={() => patchStatus('active')} disabled={actionLoading} />
-            )}
             {(instance.buildStatus === 'failed' || instance.buildStatus === 'completed') && (
-              <ControlBtn
-                label="Restart"
-                icon="⟳"
-                variant="blue"
-                onClick={() => patchStatus('building')}
-                disabled={actionLoading}
-              />
-            )}
-            {(instance.buildStatus === 'failed' || instance.buildStatus === 'paused' || instance.buildStatus === 'completed') && (
               <ControlBtn
                 label="Rebuild"
                 icon="↻"
@@ -824,6 +867,116 @@ export default function UserSystemDetailPage() {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Runtime Engine Panel ── */}
+        {(runtimeConnectors.length > 0 || runtimeJobs.length > 0 || ['deploying','running','degraded','paused'].includes(instance.buildStatus)) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Connector Status */}
+            <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+              <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-violet-400"></span>
+                  <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Connector Status</span>
+                </div>
+                <span className="text-xs text-gray-600 font-mono">{runtimeConnectors.length} connector{runtimeConnectors.length !== 1 ? 's' : ''}</span>
+              </div>
+              {runtimeConnectors.length === 0 ? (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-xs text-gray-600 font-mono">No connectors tested yet</p>
+                  <p className="text-[10px] text-gray-700 mt-1">Deploy this system to run connector health checks</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {runtimeConnectors.map((conn) => {
+                    const statusColors = {
+                      connected: 'text-emerald-400',
+                      testing:   'text-violet-400',
+                      degraded:  'text-yellow-400',
+                      error:     'text-red-400',
+                      unconfigured: 'text-gray-500',
+                    };
+                    const statusIcons = {
+                      connected: '●',
+                      testing:   '◉',
+                      degraded:  '⚠',
+                      error:     '✗',
+                      unconfigured: '○',
+                    };
+                    const col = statusColors[conn.status] ?? 'text-gray-500';
+                    const ico = statusIcons[conn.status] ?? '?';
+                    return (
+                      <div key={conn.id} className="px-4 py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`text-sm shrink-0 ${col} ${conn.status === 'testing' ? 'animate-pulse' : ''}`}>{ico}</span>
+                          <span className="text-xs font-mono text-gray-200 truncate">{conn.connector}</span>
+                        </div>
+                        <div className="text-right shrink-0 ml-3">
+                          <span className={`text-[10px] font-mono uppercase ${col}`}>{conn.status}</span>
+                          {conn.lastTestedAt && (
+                            <p className="text-[9px] text-gray-700 mt-0.5">{timeAgo(conn.lastTestedAt)}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Job Feed */}
+            <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+              <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                  <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Job Queue</span>
+                </div>
+                <span className="text-xs text-gray-600 font-mono">{runtimeJobs.length} recent</span>
+              </div>
+              {runtimeJobs.length === 0 ? (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-xs text-gray-600 font-mono">No jobs yet</p>
+                  <p className="text-[10px] text-gray-700 mt-1">Jobs appear here when the system is deployed</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-white/5 max-h-64 overflow-y-auto">
+                  {runtimeJobs.map((job) => {
+                    const jobColors = {
+                      completed: 'text-emerald-400',
+                      active:    'text-blue-400',
+                      queued:    'text-gray-400',
+                      retrying:  'text-yellow-400',
+                      failed:    'text-red-400',
+                      cancelled: 'text-gray-600',
+                    };
+                    const jobIcons = {
+                      completed: '✓',
+                      active:    '◉',
+                      queued:    '○',
+                      retrying:  '↻',
+                      failed:    '✗',
+                      cancelled: '–',
+                    };
+                    const jCol = jobColors[job.status] ?? 'text-gray-500';
+                    const jIco = jobIcons[job.status] ?? '?';
+                    return (
+                      <div key={job.id} className="px-4 py-2.5 flex items-center gap-3">
+                        <span className={`text-xs shrink-0 ${jCol} ${job.status === 'active' ? 'animate-pulse' : ''}`}>{jIco}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-mono text-gray-300 truncate">{job.jobType}</p>
+                          {job.error && <p className="text-[9px] text-red-400 truncate">{job.error}</p>}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className={`text-[9px] font-mono uppercase ${jCol}`}>{job.status}</span>
+                          <p className="text-[9px] text-gray-700">{timeAgo(job.queuedAt)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

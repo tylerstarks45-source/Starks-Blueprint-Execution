@@ -10,6 +10,7 @@ const authHeaders = () => {
 };
 
 const TIER_COLORS = {
+  free:     { badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
   starter:  { badge: 'bg-zinc-700/60 text-zinc-300 border-zinc-600/40' },
   builder:  { badge: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
   operator: { badge: 'bg-violet-500/15 text-violet-300 border-violet-500/30' },
@@ -17,6 +18,7 @@ const TIER_COLORS = {
 };
 
 const TIER_ICON = {
+  free: null,
   starter: null,
   builder: <Zap className="w-3 h-3" />,
   operator: <Crown className="w-3 h-3" />,
@@ -28,8 +30,8 @@ const UserDashboardHeader = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState({ balance: 0, total: 0, active: 0 });
 
-  const tier = (currentUser?.membershipTier || 'starter').toLowerCase();
-  const tierCfg = TIER_COLORS[tier] || TIER_COLORS.starter;
+  const tier = (currentUser?.membershipTier || 'free').toLowerCase();
+  const tierCfg = TIER_COLORS[tier] || TIER_COLORS.free;
   const name = currentUser?.name || currentUser?.email?.split('@')[0] || 'Commander';
   const hours = new Date().getHours();
   const greeting = hours < 12 ? 'Good morning' : hours < 18 ? 'Good afternoon' : 'Good evening';

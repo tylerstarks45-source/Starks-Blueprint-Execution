@@ -1,0 +1,32 @@
+import { pgTable, serial, text, integer, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+import { systemInstancesTable } from "./system_instances";
+
+export const runtimeJobsTable = pgTable("runtime_jobs", {
+  id: serial("id").primaryKey(),
+  jobId: text("job_id").notNull().unique(),
+  systemInstanceId: integer("system_instance_id")
+    .references(() => systemInstancesTable.id, { onDelete: "cascade" }),
+  jobType: text("job_type").notNull(),
+  status: text("status").notNull().default("queued"),
+  priority: integer("priority").notNull().default(10),
+  payload: jsonb("payload"),
+  result: jsonb("result"),
+  attempt: integer("attempt").notNull().default(0),
+  maxAttempts: integer("max_attempts").notNull().default(3),
+  error: text("error"),
+  runAfter: timestamp("run_after", { withTimezone: true }).notNull().defaultNow(),
+  queuedAt: timestamp("queued_at", { withTimezone: true }).notNull().defaultNow(),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (t) => [
+  index("runtime_jobs_status_run_after_idx").on(t.status, t.runAfter),
+  index("runtime_jobs_instance_id_idx").on(t.systemInstanceId),
+]);
+
+export const insertRuntimeJobSchema = createInsertSchema(runtimeJobsTable).omit({
+  id: true, queuedAt: true,
+});
+export type InsertRuntimeJob = z.infer<typeof insertRuntimeJobSchema>;
+export type RuntimeJob = typeof runtimeJobsTable.$inferSelect;

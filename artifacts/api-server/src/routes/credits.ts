@@ -31,7 +31,7 @@ router.get("/credits/me", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  const tier = user.membershipTier ?? "starter";
+  const tier = user.membershipTier ?? "free";
   res.json(GetMyCreditsResponse.parse({
     balance: user.creditsBalance ?? 0,
     tier,

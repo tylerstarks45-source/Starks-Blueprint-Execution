@@ -1,14 +1,35 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Check, Zap, Crown, Building2, Loader2, Package } from 'lucide-react';
+import { Check, Zap, Crown, Building2, Loader2, Package, Gift } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { toast } from 'sonner';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 
-const PLANS = [
+const FREE_PLAN = {
+  key: 'free',
+  name: 'Free',
+  price: '$0',
+  period: '/mo',
+  icon: Gift,
+  color: 'text-emerald-400',
+  border: 'border-emerald-500/30',
+  description: 'Try SBEP with no commitment.',
+  features: [
+    '50 AI credits (one-time)',
+    '1 active system',
+    'Blueprint library access',
+    'Full marketplace access',
+    'AI tool directory',
+    'Credential vault',
+  ],
+  cta: 'Get Started Free',
+  ctaStyle: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20',
+};
+
+const PAID_PLANS = [
   {
     key: 'starter',
     name: 'Starter',
@@ -88,25 +109,22 @@ const PLANS = [
 ];
 
 const CREDIT_PACKS = [
-  { id: 'small',  name: 'Small',  credits: '100',  price: '$10',  sub: '≈ 100K tokens' },
-  { id: 'medium', name: 'Medium', credits: '300',  price: '$25',  sub: '≈ 300K tokens' },
-  { id: 'large',  name: 'Large',  credits: '700',  price: '$50',  sub: '≈ 700K tokens' },
+  { id: 'small',  name: 'Small',  credits: '100',   price: '$10',  sub: '≈ 100K tokens' },
+  { id: 'medium', name: 'Medium', credits: '300',   price: '$25',  sub: '≈ 300K tokens' },
+  { id: 'large',  name: 'Large',  credits: '700',   price: '$50',  sub: '≈ 700K tokens' },
   { id: 'xl',     name: 'XL',     credits: '1,500', price: '$100', sub: '≈ 1.5M tokens' },
 ];
 
 const PricingPage = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const userTier = currentUser?.membershipTier || 'starter';
+  const userTier = currentUser?.membershipTier || 'free';
 
   const [loadingTier, setLoadingTier] = React.useState(null);
+  const [loadingPack, setLoadingPack] = React.useState(null);
 
   const handleUpgrade = async (plan) => {
-    if (!currentUser) {
-      navigate('/signup');
-      return;
-    }
-    if (plan.disabled) return;
+    if (!currentUser) { navigate('/signup'); return; }
     setLoadingTier(plan.key);
     try {
       const resp = await fetch('/api/subscriptions/checkout', {
@@ -134,6 +152,31 @@ const PricingPage = () => {
     }
   };
 
+  const handleBuyPack = async (pack) => {
+    if (!currentUser) { navigate('/signup'); return; }
+    setLoadingPack(pack.id);
+    try {
+      const resp = await fetch('/api/credits/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('sbep_auth_token')}`,
+        },
+        body: JSON.stringify({ pack: pack.id }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        toast.error(data.error || 'Failed to start checkout');
+        return;
+      }
+      if (data.url) window.location.href = data.url;
+    } catch {
+      toast.error('Could not connect to payment system. Please try again.');
+    } finally {
+      setLoadingPack(null);
+    }
+  };
+
   // Handle Stripe return
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -145,6 +188,8 @@ const PricingPage = () => {
       window.history.replaceState({}, '', '/pricing');
     }
   }, []);
+
+  const isCurrentPlan = (key) => userTier === key || (key === 'starter' && userTier === 'builder');
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -158,7 +203,7 @@ const PricingPage = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-16"
+            className="text-center mb-14"
           >
             <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded-full mb-6">
               <Crown className="w-3.5 h-3.5" /> Subscription Plans
@@ -167,21 +212,71 @@ const PricingPage = () => {
               Build AI Income Systems
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Choose the plan that matches your goals. Upgrade anytime as your systems grow.
+              Start free. Upgrade anytime as your systems grow. Pay-as-you-go credits available on every plan.
             </p>
           </motion.div>
 
-          {/* Plans grid — 3 columns */}
+          {/* Free Tier Banner */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className={`relative rounded-2xl border ${FREE_PLAN.border} bg-emerald-500/5 backdrop-blur-sm p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4`}
+          >
+            {isCurrentPlan('free') && (
+              <div className="absolute -top-3 right-4 px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-full">
+                Active
+              </div>
+            )}
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <Gift className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold font-mono text-foreground">Free Plan</h2>
+                  <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">$0/mo</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  50 one-time AI credits · 1 active system · Full marketplace access · No credit card required
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              {FREE_PLAN.features.slice(0, 3).map((f, i) => (
+                <div key={i} className="hidden lg:flex items-center gap-1 text-xs text-muted-foreground">
+                  <Check className="w-3 h-3 text-emerald-400" />
+                  {f}
+                </div>
+              ))}
+              {!currentUser ? (
+                <button
+                  onClick={() => navigate('/signup')}
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all whitespace-nowrap"
+                >
+                  Get Started Free
+                </button>
+              ) : isCurrentPlan('free') ? (
+                <span className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-500/20 text-emerald-400 whitespace-nowrap">
+                  ✓ Current Plan
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">Included with account</span>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Paid Plans grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
-            {PLANS.map((plan, idx) => {
+            {PAID_PLANS.map((plan, idx) => {
               const Icon = plan.icon;
-              const isCurrentPlan = userTier === plan.key;
+              const active = isCurrentPlan(plan.key);
               return (
                 <motion.div
                   key={plan.key}
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.08 }}
+                  transition={{ delay: 0.1 + idx * 0.08 }}
                   className={`relative flex flex-col rounded-2xl border ${plan.border} bg-card/60 backdrop-blur-sm p-6 ${plan.badge === 'Most Popular' ? 'shadow-lg shadow-blue-500/10' : plan.badge === 'Max Power' ? 'shadow-lg shadow-amber-500/10' : ''}`}
                 >
                   {plan.badge && (
@@ -189,7 +284,7 @@ const PricingPage = () => {
                       {plan.badge}
                     </div>
                   )}
-                  {isCurrentPlan && (
+                  {active && (
                     <div className="absolute -top-3 right-4 px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-full">
                       Active
                     </div>
@@ -217,12 +312,12 @@ const PricingPage = () => {
 
                   <button
                     onClick={() => handleUpgrade(plan)}
-                    disabled={isCurrentPlan || loadingTier === plan.key}
-                    className={`w-full py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${isCurrentPlan ? 'bg-emerald-500/20 text-emerald-400 cursor-default' : plan.ctaStyle}`}
+                    disabled={active || loadingTier === plan.key}
+                    className={`w-full py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${active ? 'bg-emerald-500/20 text-emerald-400 cursor-default' : plan.ctaStyle}`}
                   >
                     {loadingTier === plan.key ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting...</>
-                    ) : isCurrentPlan ? '✓ Current Plan' : plan.cta}
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting…</>
+                    ) : active ? '✓ Current Plan' : plan.cta}
                   </button>
                 </motion.div>
               );
@@ -233,7 +328,7 @@ const PricingPage = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.35 }}
             className="mb-16"
           >
             <div className="text-center mb-10">
@@ -242,7 +337,7 @@ const PricingPage = () => {
               </div>
               <h2 className="text-2xl font-bold font-mono mb-2">Need More Credits?</h2>
               <p className="text-muted-foreground max-w-xl mx-auto">
-                Top up anytime. Credits never expire and stack with your monthly allotment.
+                Top up anytime on any plan — including Free. Credits never expire and stack with your monthly allotment.
               </p>
             </div>
 
@@ -252,7 +347,7 @@ const PricingPage = () => {
                   key={pack.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.35 + idx * 0.05 }}
+                  transition={{ delay: 0.4 + idx * 0.05 }}
                   className="rounded-xl border border-border/50 bg-card/40 backdrop-blur-sm p-5 flex flex-col items-center text-center hover:border-emerald-500/40 hover:bg-card/60 transition-all"
                 >
                   <span className="text-2xl font-bold font-mono text-emerald-400">{pack.price}</span>
@@ -260,20 +355,20 @@ const PricingPage = () => {
                   <span className="text-lg font-bold font-mono mb-1">{pack.credits} credits</span>
                   <span className="text-xs text-muted-foreground">{pack.sub}</span>
                   <button
-                    onClick={() => {
-                      if (!currentUser) { navigate('/signup'); return; }
-                      toast.info('Credit pack checkout coming soon. Contact support to purchase.');
-                    }}
-                    className="mt-4 w-full py-2 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors border border-emerald-500/20"
+                    onClick={() => handleBuyPack(pack)}
+                    disabled={!!loadingPack}
+                    className="mt-4 w-full py-2 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors border border-emerald-500/20 disabled:opacity-60 flex items-center justify-center gap-1"
                   >
-                    Buy {pack.name}
+                    {loadingPack === pack.id ? (
+                      <><Loader2 className="w-3 h-3 animate-spin" /> Loading…</>
+                    ) : `Buy ${pack.name}`}
                   </button>
                 </motion.div>
               ))}
             </div>
 
             <p className="text-center text-xs text-muted-foreground mt-6">
-              Credits are valid indefinitely and never reset. Use them anytime, any month.
+              Credits are valid indefinitely and never reset. Available on all plans including Free.
             </p>
           </motion.div>
 
@@ -281,28 +376,28 @@ const PricingPage = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
+            transition={{ delay: 0.5 }}
             className="rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm p-8 mb-10"
           >
-            <h3 className="text-lg font-bold font-mono mb-6 text-center">System Limits by Plan</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <h3 className="text-lg font-bold font-mono mb-6 text-center">Plan Comparison</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { tier: 'Starter', systems: '3', credits: '500/mo', price: '$29' },
-                { tier: 'Operator', systems: '15', credits: '2,500/mo', price: '$99' },
-                { tier: 'Empire', systems: 'Unlimited', credits: '10,000/mo', price: '$299' },
+                { tier: 'Free',     systems: '1',         credits: '50 one-time', price: '$0' },
+                { tier: 'Starter',  systems: '3',         credits: '500/mo',      price: '$29' },
+                { tier: 'Operator', systems: '15',        credits: '2,500/mo',    price: '$99' },
+                { tier: 'Empire',   systems: 'Unlimited', credits: '10,000/mo',   price: '$299' },
               ].map((row) => (
                 <div key={row.tier} className="text-center">
                   <div className="text-sm font-mono text-muted-foreground mb-2">{row.tier}</div>
                   <div className="text-3xl font-bold font-mono text-primary mb-1">{row.systems}</div>
                   <div className="text-xs text-muted-foreground">active systems</div>
-                  <div className="text-sm font-medium mt-2">{row.credits} credits</div>
+                  <div className="text-sm font-medium mt-2">{row.credits}</div>
                   <div className="text-xs text-muted-foreground">{row.price}/mo</div>
                 </div>
               ))}
             </div>
             <p className="text-center text-xs text-muted-foreground mt-6">
-              A system is considered active when deployed, running, or monitoring is enabled.
-              Delete a system to free up a slot.
+              All plans include marketplace access. Pay-as-you-go credit packs available on every plan.
             </p>
           </motion.div>
 

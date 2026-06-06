@@ -25,6 +25,8 @@ import adminAiRouter from "./admin-ai";
 import dashboardRouter from "./dashboard";
 import aiOrchestratorRouter from "./ai-orchestrator";
 import skillsRouter from "./skills";
+import connectorsRouter from "./connectors";
+import runtimeRouter from "./runtime";
 
 const router: IRouter = Router();
 
@@ -54,5 +56,7 @@ router.use(adminAiRouter);
 router.use(dashboardRouter);
 router.use(aiOrchestratorRouter);
 router.use(skillsRouter);
+router.use(connectorsRouter);
+router.use(runtimeRouter);
 
 export default router;

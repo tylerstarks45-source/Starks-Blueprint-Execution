@@ -25,3 +25,5 @@ export * from "./system_activity_events";
 export * from "./skills";
 export * from "./platform_settings";
 export * from "./encryption_key_rotations";
+export * from "./system_connectors";
+export * from "./runtime_jobs";

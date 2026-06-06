@@ -541,10 +541,14 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
         amountCents: systemActivityEventsTable.amountCents,
         description: systemActivityEventsTable.description,
         createdAt: systemActivityEventsTable.createdAt,
+        userEmail: usersTable.email,
+        userName: usersTable.name,
+        systemInstanceName: systemInstancesTable.name,
       })
       .from(systemActivityEventsTable)
       .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
       .innerJoin(blueprintsTable, eq(blueprintsTable.id, systemInstancesTable.blueprintId))
+      .innerJoin(usersTable, eq(usersTable.id, systemInstancesTable.userId))
       .where(buildWhere())
       .orderBy(desc(systemActivityEventsTable.createdAt))
       .limit(25),

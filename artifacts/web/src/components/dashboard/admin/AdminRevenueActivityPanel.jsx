@@ -385,21 +385,27 @@ const AdminRevenueActivityPanel = () => {
                               {usdFromCents(e.amountCents)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <span className="text-xs text-muted-foreground">{e.blueprintName}</span>
-                            {e.systemInstanceId && (
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {e.userEmail && (
+                              <span className="text-xs text-sky-400/80 font-mono truncate max-w-[140px]" title={e.userEmail}>
+                                {e.userEmail}
+                              </span>
+                            )}
+                            {e.systemInstanceName && (
                               <>
                                 <span className="text-xs text-muted-foreground/50">·</span>
                                 <button
                                   type="button"
                                   onClick={() => filterBySystemInstance(e.systemInstanceId)}
-                                  className="text-xs text-emerald-500/80 hover:text-emerald-400 font-mono underline-offset-2 hover:underline transition-colors"
-                                  title="Filter revenue to this system"
+                                  className="text-xs text-emerald-500/80 hover:text-emerald-400 underline-offset-2 hover:underline transition-colors truncate max-w-[120px]"
+                                  title={`${e.systemInstanceName} — filter to this system`}
                                 >
-                                  System #{e.systemInstanceId}
+                                  {e.systemInstanceName}
                                 </button>
                               </>
                             )}
+                            <span className="text-xs text-muted-foreground/50">·</span>
+                            <span className="text-xs text-muted-foreground">{e.blueprintName}</span>
                             <span className="text-xs text-muted-foreground/50">·</span>
                             <span className="text-xs text-muted-foreground font-mono">{relativeTime(e.createdAt)}</span>
                           </div>

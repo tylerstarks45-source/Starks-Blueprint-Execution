@@ -13,4 +13,7 @@ export interface AdminRevenueEvent {
   amountCents: number;
   description: string;
   createdAt: string;
+  userEmail: string;
+  userName?: string | null;
+  systemInstanceName: string;
 }

@@ -1460,7 +1460,10 @@ export const GetAdminRevenueResponse = zod.object({
   "blueprintName": zod.string(),
   "amountCents": zod.number(),
   "description": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "userEmail": zod.string(),
+  "userName": zod.string().nullish(),
+  "systemInstanceName": zod.string()
 })),
   "dailyRevenue": zod.array(zod.object({
   "date": zod.string(),

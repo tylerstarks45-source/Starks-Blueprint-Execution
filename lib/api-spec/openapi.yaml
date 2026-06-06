@@ -3125,7 +3125,10 @@ components:
         amountCents: { type: integer }
         description: { type: string }
         createdAt: { type: string }
-      required: [id, systemInstanceId, blueprintName, amountCents, description, createdAt]
+        userEmail: { type: string }
+        userName: { type: string, nullable: true }
+        systemInstanceName: { type: string }
+      required: [id, systemInstanceId, blueprintName, amountCents, description, createdAt, userEmail, systemInstanceName]
 
     AdminDailyRevenue:
       type: object

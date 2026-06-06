@@ -1,0 +1,735 @@
+# STARKS GLOBAL GROUP — MASTER LAUNCH EXECUTION PLAN
+
+## CRITICAL DIRECTIVE
+
+STOP ALL NON-ESSENTIAL UI WORK.
+
+Do not build additional pages, widgets, charts, animations, landing pages, or cosmetic upgrades until the platform is secure, operational, and capable of executing real systems.
+
+The recent audit has confirmed that the intelligence layer is ahead of the execution layer.
+
+The platform currently plans systems very well.
+
+The platform does not yet execute, deploy, host, run, and manage systems.
+
+The next phases must focus on execution infrastructure.
+
+---
+
+# TARGET VISION
+
+Starks Global Group is NOT:
+
+* A blueprint marketplace
+* A chatbot
+* A course platform
+* A workflow builder
+
+Starks Global Group IS:
+
+An AI Business Operating System.
+
+Users should be able to:
+
+1. Describe any online business or automation system.
+2. Receive a recommended tool stack.
+3. Purchase the recommended tools through affiliate links.
+4. Provide credentials.
+5. Click Build.
+6. Have the AI build the system.
+7. Have the AI deploy the system.
+8. Have the AI launch the system.
+9. Have the AI monitor the system.
+10. Manage everything from the dashboard.
+
+---
+
+# PHASE 1 — SECURITY LOCKDOWN
+
+COMPLETE BEFORE ANY PUBLIC LAUNCH.
+
+Fix every launch blocker identified in the audit.
+
+### Protect User Routes
+
+Secure:
+
+* GET /api/users
+* GET /api/users/:id
+* PATCH /api/users/:id
+
+Requirements:
+
+* Require authentication
+* Require ownership checks
+* Require admin privileges for role changes
+* Remove role modifications from non-admin updates
+
+### Protect Admin Resources
+
+Add requireAdmin middleware to:
+
+* Blueprints
+* Tools
+* Tool Categories
+* Blueprint Categories
+* Affiliate Links
+
+All create, update, and delete actions must be admin-only.
+
+### Remove JWT Fallback Secret
+
+Remove:
+
+sbep-fallback-secret-change-in-prod
+
+Platform must fail startup if SESSION_SECRET is missing.
+
+### Verify Stripe Secrets
+
+Verify:
+
+* STRIPE_PRICE_BUILDER
+* STRIPE_PRICE_OPERATOR
+* STRIPE_PRICE_EMPIRE
+* STRIPE_WEBHOOK_SECRET
+
+---
+
+# PHASE 2 — PLATFORM STABILIZATION
+
+### Resend Verification
+
+Verify:
+
+* Resend domain
+* Welcome emails
+* Password resets
+* Contact forms
+
+Add:
+
+* Success logging
+* Failure logging
+* Delivery confirmation tracking
+
+### Database Integrity
+
+Add indexes:
+
+* system_activity_events(system_instance_id)
+* openrouter_usage(user_id)
+* credit_transactions(user_id)
+* build_progress(build_session_id)
+* notifications(user_id)
+* system_instances(user_id)
+
+### Add Missing Foreign Keys
+
+Implement:
+
+* Cascades
+* Referential integrity
+* Cleanup of orphaned records
+
+---
+
+# PHASE 3 — DASHBOARD RESTRUCTURE
+
+## Dashboard Becomes Command Center
+
+Route:
+
+/dashboard
+
+Purpose:
+
+Monitor systems.
+
+Do NOT build systems here.
+
+Dashboard displays:
+
+### Revenue
+
+* Today
+* Week
+* Month
+* Lifetime
+
+### Systems
+
+* Running
+* Paused
+* Building
+* Failed
+
+### Health
+
+* Uptime
+* Downtime
+* Status
+* Alerts
+
+### Tool Stack Status
+
+* OpenRouter
+* Stripe
+* Resend
+* TikTok
+* Meta
+* YouTube
+* Shopify
+
+### AI Activity
+
+* Recommendations
+* Actions
+* Alerts
+
+### Revenue By System
+
+### System Controls
+
+* Pause
+* Resume
+* Restart
+* Rebuild
+* Delete
+
+---
+
+# PHASE 4 — CREATE BUILDER PAGE
+
+Route:
+
+/builder
+
+This becomes the creation workspace.
+
+The AI Builder lives here.
+
+The Dashboard no longer contains build functionality.
+
+---
+
+# PHASE 5 — MARKETPLACE-FIRST TOOL ENGINE
+
+This is a mandatory business rule.
+
+Before recommending any tool:
+
+Search Starks Marketplace first.
+
+Priority:
+
+1. Marketplace affiliate tools
+2. Approved partner tools
+3. External tools
+
+### Tool Stack Generator
+
+Before any build:
+
+Generate:
+
+Required Tool Stack
+
+Display:
+
+* Tool Name
+* Purpose
+* Cost
+* Affiliate Link
+* Credentials Required
+
+Use affiliate links stored in the marketplace database.
+
+Never bypass affiliate links if one exists.
+
+### External Tool Fallback
+
+Only recommend external tools when:
+
+No marketplace equivalent exists.
+
+Track every external recommendation.
+
+Use this data to expand the marketplace.
+
+---
+
+# PHASE 6 — CREDENTIAL VAULT
+
+Build secure encrypted credential storage.
+
+Store:
+
+* API Keys
+* OAuth Tokens
+* Access Tokens
+* SMTP Credentials
+* Webhooks
+* Login Credentials
+
+Requirements:
+
+* AES-256-GCM encryption
+* User ownership
+* Credential reuse
+* Access logging
+
+### Credential Workflow
+
+User requests build.
+
+AI determines required credentials.
+
+User supplies credentials.
+
+Credentials automatically saved.
+
+Future builds reuse stored credentials.
+
+Do not request credentials repeatedly.
+
+---
+
+# PHASE 7 — STARK SKILL ENGINE
+
+Build a capability system inspired by Replit Agent Skills.
+
+Do NOT depend on Replit.
+
+Everything must run inside Starks.
+
+### Core Skills
+
+Sales:
+
+* AI SDR
+* Ad Creative
+
+Marketing:
+
+* SEO Auditor
+* Programmatic SEO
+* GEO
+
+Research:
+
+* Deep Research
+* Competitive Analysis
+* Supplier Research
+
+Business:
+
+* Product Manager
+* Analytics
+
+Creative:
+
+* Branding
+* Storyboard
+* Video Editing
+* Podcast Systems
+
+Operations:
+
+* AI Secretary
+* Workflow Builder
+
+Documents:
+
+* Contracts
+* Proposals
+* SOPs
+
+### Starks Exclusive Skills
+
+* Affiliate System Builder
+* YouTube Automation Builder
+* TikTok Automation Builder
+* Agency Builder
+* SaaS Builder
+* Funnel Builder
+* Lead Generation Builder
+* AI Revenue Builder
+* Ecommerce Builder
+* Course Builder
+* Membership Builder
+* Community Builder
+
+### Skill Activation
+
+User describes goal.
+
+AI activates required skills automatically.
+
+Users never manually select skills.
+
+---
+
+# PHASE 8 — AI ORCHESTRATOR
+
+The AI Builder becomes:
+
+Architect
+
+Engineer
+
+Integrator
+
+Deployment Manager
+
+Operator
+
+The AI must:
+
+* Analyze goals
+* Select skills
+* Select marketplace tools
+* Request credentials
+* Build systems
+* Deploy systems
+* Launch systems
+* Monitor systems
+
+---
+
+# PHASE 9 — RUNTIME ENGINE
+
+This is the largest missing component.
+
+Build:
+
+### Job Queue
+
+### Worker System
+
+### Task Scheduler
+
+### Executor Framework
+
+### Health Monitor
+
+### Deployment Manager
+
+### Runtime Manager
+
+The Runtime Layer executes systems after deployment.
+
+Without this layer the AI only generates plans.
+
+---
+
+# PHASE 10 — CONNECTOR FRAMEWORK
+
+Build reusable connectors for:
+
+* OpenRouter
+* Stripe
+* Resend
+* Cloudflare
+* Gmail
+* Google Sheets
+* TikTok
+* Meta
+* YouTube
+* Shopify
+
+Requirements:
+
+* Credential validation
+* Connection testing
+* Status monitoring
+* Error reporting
+
+---
+
+# PHASE 11 — BLUEPRINT EXECUTORS
+
+Every blueprint must have a real executor.
+
+Example:
+
+YouTube Automation System
+
+Current State:
+
+AI describes actions.
+
+Target State:
+
+AI actually:
+
+* Generates content
+* Creates assets
+* Uploads videos
+* Tracks performance
+
+The same principle applies to every blueprint.
+
+---
+
+# PHASE 12 — SYSTEM HOSTING LAYER
+
+Every user build becomes a real system instance.
+
+Store:
+
+* Configuration
+* Workflows
+* Credentials
+* Files
+* Assets
+* Logs
+* Analytics
+
+Tables:
+
+* systems
+* system_files
+* system_assets
+* system_logs
+* system_metrics
+* system_revenue
+
+The system must exist inside Starks.
+
+Not as text.
+
+Not as a plan.
+
+As a live operational asset.
+
+---
+
+# PHASE 13 — SYSTEM COMMAND CENTERS
+
+Every deployed system receives:
+
+/systems/{id}
+
+Display:
+
+* Revenue
+* Traffic
+* Conversions
+* Health
+* Logs
+* Connected Tools
+* Activity Feed
+* AI Recommendations
+
+---
+
+# PHASE 14 — SUBSCRIPTION ARCHITECTURE
+
+### Builder
+
+$29/month
+
+* 3 Active Systems
+* 500 Credits
+
+### Operator
+
+$99/month
+
+* 15 Active Systems
+* 2,500 Credits
+
+### Empire
+
+$299/month
+
+* Unlimited Systems
+* 10,000 Credits
+
+### Credit Packs
+
+* $10
+* $25
+* $50
+* $100
+
+Credits never expire.
+
+---
+
+# PHASE 15 — ADMIN COMMAND CENTER
+
+Track:
+
+### Revenue
+
+* Daily
+* Weekly
+* Monthly
+* Lifetime
+
+### Subscribers
+
+* Builder
+* Operator
+* Empire
+
+### AI Usage
+
+Track:
+
+* Model
+* Tokens
+* Cost
+* User
+* Date
+* Time
+
+### OpenRouter Analytics
+
+Charts:
+
+* Usage by model
+* Usage by subscription tier
+* Cost by model
+* Daily AI spend
+* Monthly AI spend
+
+### Profit Dashboard
+
+Revenue
+
+Minus
+
+AI Costs
+
+Minus
+
+Infrastructure Costs
+
+Equals
+
+Net Profit
+
+---
+
+# PHASE 16 — FINAL LAUNCH TESTING
+
+Test:
+
+### Authentication
+
+* Signup
+* Login
+* Logout
+* Password Reset
+
+### Stripe
+
+* Purchase
+* Upgrade
+* Downgrade
+* Cancellation
+
+### Marketplace
+
+* Tool Discovery
+* Affiliate Tracking
+* Tool Links
+
+### AI Builder
+
+* Skill Selection
+* Tool Recommendations
+* Credential Collection
+* Build Process
+
+### Runtime Layer
+
+* Job Execution
+* Scheduling
+* Monitoring
+
+### Dashboard
+
+* Revenue
+* Health
+* Activity
+* Analytics
+
+### Mobile
+
+* Phone
+* Tablet
+* Desktop
+
+---
+
+# SUCCESS CRITERIA
+
+The platform is launch-ready when:
+
+A user can:
+
+Describe a business idea
+
+↓
+
+AI selects skills
+
+↓
+
+AI selects marketplace tools
+
+↓
+
+AI presents affiliate links
+
+↓
+
+User purchases tools
+
+↓
+
+User provides credentials
+
+↓
+
+Credentials stored securely
+
+↓
+
+AI builds system
+
+↓
+
+AI deploys system
+
+↓
+
+AI launches system
+
+↓
+
+System appears in dashboard
+
+↓
+
+Dashboard monitors system
+
+↓
+
+System generates measurable results
+
+All of this must happen entirely inside Starksglobalgroup.net.
+
+No placeholder functionality.
+
+No simulated execution.
+
+No fake revenue.
+
+No manual workflow building.
+
+The AI must function as a true Business Operating System.

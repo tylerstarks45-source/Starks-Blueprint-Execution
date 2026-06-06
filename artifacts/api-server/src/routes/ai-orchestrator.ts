@@ -159,7 +159,17 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
   }
 
   try {
-    const { blueprintKB, toolKB } = await buildPlatformKnowledge();
+    const [{ blueprintKB, toolKB }, storedCreds] = await Promise.all([
+      buildPlatformKnowledge(),
+      db.select({ credentialKey: userCredentialsTable.credentialKey })
+        .from(userCredentialsTable)
+        .where(eq(userCredentialsTable.userId, userId)),
+    ]);
+
+    const storedKeys = storedCreds.map((c) => c.credentialKey);
+    const storedCredNote = storedKeys.length > 0
+      ? `\n\n=== USER'S STORED CREDENTIALS (ALREADY ON FILE — DO NOT REQUEST THESE) ===\n${storedKeys.join(", ")}\nIf the blueprint you select requires any of these keys, skip them from requiredCredentials. The system will use the stored values automatically.`
+      : "";
 
     const historyCtx = parsed.data.history.length > 0
       ? "\n\nConversation so far:\n" +
@@ -167,7 +177,7 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       : "";
 
     const result = await complete({
-      systemPrompt: buildSystemPrompt(blueprintKB, toolKB),
+      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote,
       prompt: `${historyCtx}\n\nUser: ${parsed.data.message}`,
       model: "openai/gpt-4o-mini",
       userId,
@@ -235,16 +245,33 @@ router.post("/ai-orchestrator/execute", async (req, res): Promise<void> => {
     buildStatus: "building",
   }).returning();
 
-  // 3. Persist credentials (base64 stored in encryptedValue field)
+  // 3. Persist credentials + merge with stored vault credentials
+  // Fetch already-stored credentials for this user
+  const storedVaultCreds = await db
+    .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue, id: userCredentialsTable.id })
+    .from(userCredentialsTable)
+    .where(eq(userCredentialsTable.userId, userId));
+
+  const storedKeyMap = Object.fromEntries(storedVaultCreds.map((c) => [c.credentialKey, c]));
+
+  // Upsert each credential from the request
   if (parsed.data.credentials.length > 0) {
     await Promise.all(
-      parsed.data.credentials.map((cred) =>
-        db.insert(userCredentialsTable).values({
-          userId,
-          credentialKey: cred.key,
-          encryptedValue: Buffer.from(cred.value).toString("base64"),
-        })
-      )
+      parsed.data.credentials.map(async (cred) => {
+        const encoded = Buffer.from(cred.value).toString("base64");
+        const existing = storedKeyMap[cred.key];
+        if (existing) {
+          await db.update(userCredentialsTable)
+            .set({ encryptedValue: encoded, updatedAt: new Date() })
+            .where(eq(userCredentialsTable.id, existing.id));
+        } else {
+          await db.insert(userCredentialsTable).values({
+            userId,
+            credentialKey: cred.key,
+            encryptedValue: encoded,
+          });
+        }
+      })
     );
   }
 

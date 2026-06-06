@@ -35,6 +35,8 @@ import SystemBuilderPage from '@/pages/SystemBuilderPage.jsx';
 import BuilderPage from '@/pages/BuilderPage.jsx';
 import SavedSystemsPage from '@/pages/SavedSystemsPage.jsx';
 import BuildPage from '@/pages/BuildPage.jsx';
+import UserSystemDetailPage from '@/pages/UserSystemDetailPage.jsx';
+import CredentialVaultPage from '@/pages/CredentialVaultPage.jsx';
 import PricingPage from '@/pages/PricingPage.jsx';
 import ToolDetailPage from '@/pages/ToolDetailPage.jsx';
 import MyStackPage from '@/pages/MyStackPage.jsx';
@@ -121,6 +123,18 @@ const App = () => {
           <Route path="/build/:systemInstanceId" element={
             <ProtectedRoute>
               <BuildPage />
+            </ProtectedRoute>
+          } />
+          {/* Redirect legacy /build/:id → /systems/:id */}
+          <Route path="/build/:id" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/systems/:id" element={
+            <ProtectedRoute>
+              <UserSystemDetailPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/connections" element={
+            <ProtectedRoute>
+              <CredentialVaultPage />
             </ProtectedRoute>
           } />
           <Route path="/builder" element={

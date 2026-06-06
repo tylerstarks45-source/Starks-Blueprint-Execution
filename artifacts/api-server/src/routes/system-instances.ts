@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and } from "drizzle-orm";
-import { db, systemInstancesTable } from "@workspace/db";
+import { eq, and, desc } from "drizzle-orm";
+import { db, systemInstancesTable, systemHealthTable } from "@workspace/db";
 import { getActiveCallerPayload, requireAuthActive } from "../lib/auth";
 import {
   ListSystemInstancesResponse,
@@ -109,6 +109,29 @@ router.patch("/system-instances/:id", async (req, res): Promise<void> => {
     .where(eq(systemInstancesTable.id, params.data.id))
     .returning();
   res.json(GetSystemInstanceResponse.parse(serialize(row)));
+});
+
+// ─── GET /api/system-health/recent ───────────────────────────────────────────
+// Auth-protected. Returns the last 10 platform service health check records,
+// used as a proxy health sparkline in the system detail page.
+
+router.get("/system-health/recent", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const rows = await db
+    .select({
+      id: systemHealthTable.id,
+      service: systemHealthTable.service,
+      status: systemHealthTable.status,
+      message: systemHealthTable.message,
+      checkedAt: systemHealthTable.checkedAt,
+    })
+    .from(systemHealthTable)
+    .orderBy(desc(systemHealthTable.checkedAt))
+    .limit(10);
+
+  res.json(serialize(rows));
 });
 
 router.delete("/system-instances/:id", async (req, res): Promise<void> => {

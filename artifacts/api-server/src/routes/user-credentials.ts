@@ -20,23 +20,17 @@ router.get("/user-credentials/summary", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
-  const [rows, [sysCount]] = await Promise.all([
-    db
-      .select({
-        id: userCredentialsTable.id,
-        credentialKey: userCredentialsTable.credentialKey,
-        toolId: userCredentialsTable.toolId,
-        createdAt: userCredentialsTable.createdAt,
-        updatedAt: userCredentialsTable.updatedAt,
-      })
-      .from(userCredentialsTable)
-      .where(eq(userCredentialsTable.userId, userId))
-      .orderBy(userCredentialsTable.credentialKey),
-    db
-      .select({ count: count() })
-      .from(systemInstancesTable)
-      .where(eq(systemInstancesTable.userId, userId)),
-  ]);
+  const rows = await db
+    .select({
+      id: userCredentialsTable.id,
+      credentialKey: userCredentialsTable.credentialKey,
+      toolId: userCredentialsTable.toolId,
+      createdAt: userCredentialsTable.createdAt,
+      updatedAt: userCredentialsTable.updatedAt,
+    })
+    .from(userCredentialsTable)
+    .where(eq(userCredentialsTable.userId, userId))
+    .orderBy(userCredentialsTable.credentialKey);
 
   // No direct per-credential → system linkage in the schema yet.
   // Return 0 for all until proper usage tracking is added (see task #10).

@@ -58,6 +58,46 @@ function uptimePercent(createdAt, buildStatus) {
   return '—';
 }
 
+// ─── HEALTH SPARKLINE ─────────────────────────────────────────────────────────
+// Renders a mini bar chart of the last N platform health check results.
+// Each bar is green (healthy), yellow (degraded), or red (down/unknown).
+
+function HealthSparkline({ checks }) {
+  if (!checks || checks.length === 0) {
+    return <span className="text-xs font-mono text-gray-600">No health data</span>;
+  }
+
+  const colorMap = {
+    healthy:  '#34d399',
+    ok:       '#34d399',
+    degraded: '#fbbf24',
+    warning:  '#fbbf24',
+    down:     '#f87171',
+    error:    '#f87171',
+    unknown:  '#4b5563',
+  };
+
+  const bars = [...checks].reverse().slice(-10);
+
+  return (
+    <div className="flex items-end gap-0.5 h-6" title="Platform health — last 10 checks">
+      {bars.map((c, i) => {
+        const key = (c.status || '').toLowerCase();
+        const color = colorMap[key] ?? colorMap.unknown;
+        const label = `${c.service}: ${c.status}`;
+        return (
+          <div
+            key={i}
+            title={label}
+            className="w-1.5 rounded-sm transition-all"
+            style={{ height: '100%', backgroundColor: color, opacity: 0.85 }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── STAT CARD ────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, accent = 'blue' }) {
@@ -252,14 +292,16 @@ export default function UserSystemDetailPage() {
 
   const [allSessions, setAllSessions] = useState([]);
   const [storedCredKeys, setStoredCredKeys] = useState([]);
+  const [healthChecks, setHealthChecks] = useState([]);
 
   const fetchData = useCallback(async () => {
     try {
-      // Parallel fetches: build-engine status + all sessions + vault creds
-      const [statusRes, sessionsRes, credsRes] = await Promise.all([
+      // Parallel fetches: build-engine status + all sessions + vault creds + platform health
+      const [statusRes, sessionsRes, credsRes, healthRes] = await Promise.all([
         fetch(`/api/build-engine/${id}/status`, { headers: authHeaders() }),
         fetch(`/api/build-sessions?systemInstanceId=${id}`, { headers: authHeaders() }),
         fetch('/api/user-credentials/summary', { headers: authHeaders() }),
+        fetch('/api/system-health/recent', { headers: authHeaders() }),
       ]);
 
       if (!statusRes.ok) throw new Error('System not found');
@@ -276,6 +318,11 @@ export default function UserSystemDetailPage() {
       if (credsRes.ok) {
         const credsData = await credsRes.json();
         setStoredCredKeys(Array.isArray(credsData) ? credsData.map((c) => c.credentialKey) : []);
+      }
+
+      if (healthRes.ok) {
+        const healthData = await healthRes.json();
+        setHealthChecks(Array.isArray(healthData) ? healthData : []);
       }
 
       // Fetch blueprint info
@@ -426,6 +473,10 @@ export default function UserSystemDetailPage() {
                 {healthMeta.icon} {healthMeta.label}
               </span>
             </div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] uppercase tracking-widest text-gray-600 font-mono">Platform</span>
+              <HealthSparkline checks={healthChecks} />
+            </div>
             {blueprint && (
               <p className="text-sm text-gray-500">
                 Blueprint: <span className="text-gray-300">{blueprint.name}</span>
@@ -445,11 +496,26 @@ export default function UserSystemDetailPage() {
             {instance.buildStatus === 'paused' && (
               <ControlBtn label="Resume" icon="▶" variant="emerald" onClick={() => patchStatus('active')} disabled={actionLoading} />
             )}
-            {(instance.buildStatus === 'failed' || instance.buildStatus === 'paused') && (
-              <ControlBtn label="Rebuild" icon="↻" variant="blue" onClick={() => navigate('/builder')} disabled={actionLoading} />
+            {(instance.buildStatus === 'failed' || instance.buildStatus === 'completed') && (
+              <ControlBtn
+                label="Restart"
+                icon="⟳"
+                variant="blue"
+                onClick={() => patchStatus('building')}
+                disabled={actionLoading}
+              />
             )}
-            {instance.buildStatus === 'active' && (
-              <ControlBtn label="Restart Build" icon="⟳" variant="blue" onClick={() => navigate('/builder')} disabled={actionLoading} />
+            {(instance.buildStatus === 'failed' || instance.buildStatus === 'paused' || instance.buildStatus === 'completed') && (
+              <ControlBtn
+                label="Rebuild"
+                icon="↻"
+                variant="blue"
+                onClick={async () => {
+                  await patchStatus('pending');
+                  navigate('/builder');
+                }}
+                disabled={actionLoading}
+              />
             )}
             <ControlBtn label="Refresh" icon="⟳" variant="ghost" onClick={fetchData} disabled={loading} />
             <ControlBtn label="Delete" icon="✕" variant="red" onClick={() => setShowDelete(true)} disabled={actionLoading} />

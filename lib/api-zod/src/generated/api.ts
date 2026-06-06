@@ -756,6 +756,20 @@ export const CreateSystemActivityEventBody = zod.object({
 
 
 /**
+ * @summary Get lifetime revenue cents for multiple system instances in one request
+ */
+export const batchGetSystemRevenueBodyIdsMax = 100;
+
+
+
+export const BatchGetSystemRevenueBody = zod.object({
+  "ids": zod.array(zod.number()).min(1).max(batchGetSystemRevenueBodyIdsMax)
+})
+
+export const BatchGetSystemRevenueResponse = zod.record(zod.string(), zod.number()).describe('Map of systemInstanceId (string key) to lifetimeCents')
+
+
+/**
  * @summary Get revenue stats and 7-day trend for a system instance
  */
 export const GetSystemRevenueParams = zod.object({

@@ -296,6 +296,19 @@ export interface SystemRevenueStats {
   trend: SystemRevenueTrendPoint[];
 }
 
+export interface SystemRevenueBatchRequest {
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  ids: number[];
+}
+
+/**
+ * Map of systemInstanceId (string key) to lifetimeCents
+ */
+export interface SystemRevenueBatchResponse {[key: string]: number}
+
 export interface BuildSession {
   id: number;
   systemInstanceId: number;

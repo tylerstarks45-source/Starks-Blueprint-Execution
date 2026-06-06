@@ -6,6 +6,7 @@ import {
   CheckCircle2, Pause, RotateCcw, Search, SlidersHorizontal,
   Server, Plus, MoreVertical, Pencil, Play, Trash2, X, Check,
   ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight,
+  DollarSign,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,14 @@ function formatUpdated(iso) {
   const days = Math.floor(hrs / 24);
   if (days < 30) return `${days}d ago`;
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatRevenueCents(cents) {
+  if (!cents || cents <= 0) return null;
+  const dollars = cents / 100;
+  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (dollars >= 1_000) return `$${(dollars / 1_000).toFixed(1).replace(/\.0$/, '')}k`;
+  return `$${dollars.toFixed(dollars < 1 ? 2 : 0)}`;
 }
 
 const StatusBadge = ({ status }) => {
@@ -127,15 +136,16 @@ const OverflowMenu = ({ system, onRename, onTogglePause, onDelete, busy }) => {
   );
 };
 
-const SystemRow = ({ system, onView, onRebuild, onRename, onTogglePause, onDelete, busy }) => {
+const SystemRow = ({ system, lifetimeCents, onView, onRebuild, onRename, onTogglePause, onDelete, busy }) => {
   const canRebuild = REBUILD_STATUSES.has((system.buildStatus || '').toLowerCase());
   const updatedAt = system.updatedAt || system.createdAt;
+  const revenueDisplay = formatRevenueCents(lifetimeCents);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-4 rounded-xl border border-white/8 bg-black/40 backdrop-blur-md hover:bg-white/3 hover:border-white/15 transition-all"
+      className="group grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-4 rounded-xl border border-white/8 bg-black/40 backdrop-blur-md hover:bg-white/3 hover:border-white/15 transition-all"
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
@@ -151,6 +161,16 @@ const SystemRow = ({ system, onView, onRebuild, onRename, onTogglePause, onDelet
       <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground/50 font-mono whitespace-nowrap">
         <Clock className="w-3 h-3 shrink-0" />
         {formatUpdated(updatedAt)}
+      </div>
+
+      <div className="hidden md:flex items-center justify-end min-w-[64px]">
+        {lifetimeCents === undefined ? (
+          <span className="text-xs font-mono text-muted-foreground/30">…</span>
+        ) : revenueDisplay ? (
+          <span className="text-xs font-mono font-semibold text-emerald-400">{revenueDisplay}</span>
+        ) : (
+          <span className="text-xs font-mono text-muted-foreground/30">—</span>
+        )}
       </div>
 
       {canRebuild ? (
@@ -355,6 +375,7 @@ const SystemsListPage = () => {
   const [sortCol, setSortCol] = useState('updatedAt');
   const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(0);
+  const [revenues, setRevenues] = useState({});
 
   const [renameTarget, setRenameTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -386,6 +407,38 @@ const SystemsListPage = () => {
   }, [sortCol, sortDir, page, search, statusFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (systems.length === 0) return;
+    const ids = systems.map(s => s.id);
+    // Mark all as loading (undefined = pending)
+    setRevenues(prev => {
+      const next = { ...prev };
+      ids.forEach(id => { if (!(id in next)) next[id] = undefined; });
+      return next;
+    });
+    // Single batch request — one DB round-trip for all systems on the page
+    fetch('/api/system-instances/revenue-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ ids }),
+    })
+      .then(r => r.ok ? r.json() : {})
+      .then(map => {
+        setRevenues(prev => {
+          const next = { ...prev };
+          ids.forEach(id => { next[id] = map[String(id)] ?? 0; });
+          return next;
+        });
+      })
+      .catch(() => {
+        setRevenues(prev => {
+          const next = { ...prev };
+          ids.forEach(id => { next[id] = 0; });
+          return next;
+        });
+      });
+  }, [systems]);
 
   const handleSort = (col) => {
     if (col === sortCol) {
@@ -580,7 +633,7 @@ const SystemsListPage = () => {
         ) : (
           <div className="space-y-2">
             {/* Table header */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-2">
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-2">
               <button
                 onClick={() => handleSort('name')}
                 className="flex items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 hover:text-muted-foreground transition-colors select-none"
@@ -599,6 +652,9 @@ const SystemsListPage = () => {
               >
                 Updated<SortIcon col="updatedAt" />
               </button>
+              <span className="hidden md:flex items-center justify-end text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 gap-1 min-w-[64px]">
+                <DollarSign className="w-3 h-3" />Revenue
+              </span>
               <span className="w-[76px]" />
               <span />
               <span />
@@ -613,6 +669,7 @@ const SystemsListPage = () => {
               >
                 <SystemRow
                   system={system}
+                  lifetimeCents={revenues[system.id]}
                   onView={handleView}
                   onRebuild={handleRebuild}
                   onRename={setRenameTarget}

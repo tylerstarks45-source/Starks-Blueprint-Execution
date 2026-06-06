@@ -91,6 +91,8 @@ export * from './systemHealthRecord';
 export * from './systemInstance';
 export * from './systemInstanceInput';
 export * from './systemInstanceUpdate';
+export * from './systemRevenueBatchRequest';
+export * from './systemRevenueBatchResponse';
 export * from './systemRevenueStats';
 export * from './systemRevenueTrendPoint';
 export * from './tool';

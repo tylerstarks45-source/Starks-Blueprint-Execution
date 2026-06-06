@@ -88,6 +88,8 @@ import type {
   SystemInstance,
   SystemInstanceInput,
   SystemInstanceUpdate,
+  SystemRevenueBatchRequest,
+  SystemRevenueBatchResponse,
   SystemRevenueStats,
   Tool,
   ToolCategory,
@@ -3075,6 +3077,77 @@ export const useCreateSystemActivityEvent = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateSystemActivityEventMutationOptions(options));
+    }
+
+export const getBatchGetSystemRevenueUrl = () => {
+
+
+
+
+  return `/api/system-instances/revenue-batch`
+}
+
+/**
+ * @summary Get lifetime revenue cents for multiple system instances in one request
+ */
+export const batchGetSystemRevenue = async (systemRevenueBatchRequest: SystemRevenueBatchRequest, options?: RequestInit): Promise<SystemRevenueBatchResponse> => {
+
+  return customFetch<SystemRevenueBatchResponse>(getBatchGetSystemRevenueUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      systemRevenueBatchRequest,)
+  }
+);}
+
+
+
+
+export const getBatchGetSystemRevenueMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof batchGetSystemRevenue>>, TError,{data: BodyType<SystemRevenueBatchRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof batchGetSystemRevenue>>, TError,{data: BodyType<SystemRevenueBatchRequest>}, TContext> => {
+
+const mutationKey = ['batchGetSystemRevenue'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof batchGetSystemRevenue>>, {data: BodyType<SystemRevenueBatchRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  batchGetSystemRevenue(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BatchGetSystemRevenueMutationResult = NonNullable<Awaited<ReturnType<typeof batchGetSystemRevenue>>>
+    export type BatchGetSystemRevenueMutationBody = BodyType<SystemRevenueBatchRequest>
+    export type BatchGetSystemRevenueMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Get lifetime revenue cents for multiple system instances in one request
+ */
+export const useBatchGetSystemRevenue = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof batchGetSystemRevenue>>, TError,{data: BodyType<SystemRevenueBatchRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof batchGetSystemRevenue>>,
+        TError,
+        {data: BodyType<SystemRevenueBatchRequest>},
+        TContext
+      > => {
+      return useMutation(getBatchGetSystemRevenueMutationOptions(options));
     }
 
 export const getGetSystemRevenueUrl = (id: number,) => {

@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, desc, asc, gte, sql, count, ilike } from "drizzle-orm";
+import { eq, and, desc, asc, gte, sql, count, ilike, inArray } from "drizzle-orm";
 import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable } from "@workspace/db";
+import { z } from "zod/v4";
 import { getActiveCallerPayload, requireAuthActive } from "../lib/auth";
 import {
   ListSystemInstancesResponse,
@@ -266,6 +267,67 @@ router.post("/system-instances/:id/activity", async (req, res): Promise<void> =>
     .returning();
 
   res.status(201).json(serialize(row));
+});
+
+// ─── POST /api/system-instances/revenue-batch ────────────────────────────────
+// Returns lifetime revenue cents for multiple system instances in one DB query.
+
+const RevenueBatchBody = z.object({
+  ids: z.array(z.number().int().positive()).min(1).max(100),
+});
+
+router.post("/system-instances/revenue-batch", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const body = RevenueBatchBody.safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.message }); return; }
+
+  const { ids } = body.data;
+  const isAdmin = ADMIN_ROLES.has(caller.role);
+
+  // Verify ownership: fetch userId for each requested ID in one query
+  const ownerRows = await db
+    .select({ id: systemInstancesTable.id, userId: systemInstancesTable.userId })
+    .from(systemInstancesTable)
+    .where(inArray(systemInstancesTable.id, ids));
+
+  const allowedIds = ownerRows
+    .filter(r => isAdmin || r.userId === caller.id)
+    .map(r => r.id);
+
+  if (allowedIds.length === 0) {
+    res.json({});
+    return;
+  }
+
+  // Single GROUP BY query to get lifetime revenue for all allowed IDs
+  const rows = await db
+    .select({
+      systemInstanceId: systemActivityEventsTable.systemInstanceId,
+      lifetimeCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`,
+    })
+    .from(systemActivityEventsTable)
+    .where(
+      and(
+        inArray(systemActivityEventsTable.systemInstanceId, allowedIds),
+        eq(systemActivityEventsTable.eventType, "revenue"),
+      )
+    )
+    .groupBy(systemActivityEventsTable.systemInstanceId);
+
+  // Build response map (include zeros for systems with no revenue events)
+  const result: Record<string, number> = {};
+  for (const id of allowedIds) {
+    result[String(id)] = 0;
+  }
+  for (const row of rows) {
+    if (row.systemInstanceId !== null) {
+      result[String(row.systemInstanceId)] = Number(row.lifetimeCents);
+    }
+  }
+
+  res.json(result);
 });
 
 // ─── GET /api/system-instances/:id/revenue ───────────────────────────────────

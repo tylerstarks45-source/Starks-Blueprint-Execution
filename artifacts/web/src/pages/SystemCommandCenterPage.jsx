@@ -347,31 +347,58 @@ const SystemCommandCenterPage = () => {
 
       {/* ── Revenue Center ───────────────────────────────────────────────── */}
       <section>
-        <SectionHeader
-          icon={DollarSign}
-          title="Revenue Center"
-          sub="Stripe billing integration activates live tracking"
-          action={<Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 bg-amber-500/5 font-mono">STRIPE PENDING</Badge>}
-        />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Today',      value: revenue?.today     ?? 0, icon: Calendar,  color: 'text-foreground', accent: 'bg-white/5' },
-            { label: 'This Week',  value: revenue?.thisWeek  ?? 0, icon: TrendingUp, color: 'text-primary', accent: 'bg-primary/10' },
-            { label: 'This Month', value: revenue?.thisMonth ?? 0, icon: BarChart3,  color: 'text-violet-400', accent: 'bg-violet-500/10' },
-            { label: 'Lifetime',   value: revenue?.lifetime  ?? 0, icon: DollarSign, color: 'text-emerald-400', accent: 'bg-emerald-500/10' },
-          ].map(({ label, value, icon: Icon, color, accent }) => (
-            <div key={label} className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md p-5 flex items-start gap-4">
-              <div className={`w-10 h-10 rounded-xl ${accent} flex items-center justify-center shrink-0`}>
-                <Icon className={`w-5 h-5 ${color}`} />
+        {(() => {
+          const todayCents   = revenue?.todayCents   ?? 0;
+          const weekCents    = revenue?.weekCents    ?? 0;
+          const monthCents   = revenue?.monthCents   ?? 0;
+          const lifetimeCents = revenue?.lifetimeCents ?? 0;
+          const fmt = (cents) => (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const hasEarnings = lifetimeCents > 0;
+          const summaryLine = hasEarnings
+            ? `Your systems earned $${fmt(weekCents)} this week`
+            : 'Revenue events from your running systems appear here';
+          const cards = [
+            { label: 'Today',      cents: todayCents,    icon: Calendar,   color: 'text-foreground',  accent: 'bg-white/5' },
+            { label: 'This Week',  cents: weekCents,     icon: TrendingUp, color: 'text-primary',     accent: 'bg-primary/10' },
+            { label: 'This Month', cents: monthCents,    icon: BarChart3,  color: 'text-violet-400',  accent: 'bg-violet-500/10' },
+            { label: 'Lifetime',   cents: lifetimeCents, icon: DollarSign, color: 'text-emerald-400', accent: 'bg-emerald-500/10' },
+          ];
+          return (
+            <>
+              <SectionHeader
+                icon={DollarSign}
+                title="Revenue Center"
+                sub={summaryLine}
+                action={
+                  hasEarnings
+                    ? <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400 bg-emerald-500/5 font-mono">LIVE</Badge>
+                    : <Badge variant="outline" className="text-[9px] border-white/20 text-muted-foreground bg-white/3 font-mono">TRACKING</Badge>
+                }
+              />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {cards.map(({ label, cents, icon: Icon, color, accent }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => systems.length === 1 ? navigate(`/systems/${systems[0].id}`) : navigate('/systems')}
+                    className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-md p-5 flex items-start gap-4 text-left hover:bg-white/5 hover:border-white/20 transition-all group cursor-pointer w-full"
+                  >
+                    <div className={`w-10 h-10 rounded-xl ${accent} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
+                      <Icon className={`w-5 h-5 ${color}`} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest mb-0.5">{label}</p>
+                      <p className={`text-2xl font-bold leading-none font-mono ${color}`}>${fmt(cents)}</p>
+                      <p className="text-[10px] text-muted-foreground/40 mt-1 group-hover:text-muted-foreground/60 transition-colors">
+                        {cents > 0 ? 'Click to see breakdown' : 'No events yet'}
+                      </p>
+                    </div>
+                  </button>
+                ))}
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest mb-0.5">{label}</p>
-                <p className={`text-2xl font-bold leading-none font-mono ${color}`}>${value.toLocaleString()}</p>
-                <p className="text-[10px] text-muted-foreground/40 mt-1">Connect Stripe to track</p>
-              </div>
-            </div>
-          ))}
-        </div>
+            </>
+          );
+        })()}
       </section>
 
       {/* ── AI Operations + Credits ──────────────────────────────────────── */}

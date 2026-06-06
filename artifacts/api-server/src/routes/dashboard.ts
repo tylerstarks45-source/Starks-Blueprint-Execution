@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, sql, inArray } from "drizzle-orm";
 import {
   db,
   blueprintsTable,
@@ -9,6 +9,7 @@ import {
   systemInstancesTable,
   buildProgressTable,
   buildSessionsTable,
+  systemActivityEventsTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { requireAuthActive } from "../lib/auth";
@@ -176,17 +177,61 @@ If a tool has no affiliate link in the catalog, say "Available on marketplace" i
   }
 });
 
-// GET /api/dashboard/revenue-summary — placeholder revenue data (ready for Stripe hookup)
+// GET /api/dashboard/revenue-summary — aggregated earnings across all user systems
 router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
+
+  // Get all system instance IDs for this user
+  const userSystems = await db
+    .select({ id: systemInstancesTable.id })
+    .from(systemInstancesTable)
+    .where(eq(systemInstancesTable.userId, userId));
+
+  if (userSystems.length === 0) {
+    res.json({ todayCents: 0, weekCents: 0, monthCents: 0, lifetimeCents: 0, systemCount: 0, currency: "USD" });
+    return;
+  }
+
+  const systemIds = userSystems.map((s) => s.id);
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(startOfToday);
+  startOfWeek.setDate(startOfWeek.getDate() - 6);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const revenueBase = and(
+    inArray(systemActivityEventsTable.systemInstanceId, systemIds),
+    eq(systemActivityEventsTable.eventType, "revenue"),
+  );
+
+  const [todayRows, weekRows, monthRows, lifetimeRows] = await Promise.all([
+    db
+      .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
+      .from(systemActivityEventsTable)
+      .where(and(revenueBase, gte(systemActivityEventsTable.createdAt, startOfToday))),
+    db
+      .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
+      .from(systemActivityEventsTable)
+      .where(and(revenueBase, gte(systemActivityEventsTable.createdAt, startOfWeek))),
+    db
+      .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
+      .from(systemActivityEventsTable)
+      .where(and(revenueBase, gte(systemActivityEventsTable.createdAt, startOfMonth))),
+    db
+      .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
+      .from(systemActivityEventsTable)
+      .where(revenueBase),
+  ]);
+
   res.json({
-    today: 0,
-    thisWeek: 0,
-    thisMonth: 0,
-    lifetime: 0,
+    todayCents: Number(todayRows[0]?.total ?? 0),
+    weekCents: Number(weekRows[0]?.total ?? 0),
+    monthCents: Number(monthRows[0]?.total ?? 0),
+    lifetimeCents: Number(lifetimeRows[0]?.total ?? 0),
+    systemCount: systemIds.length,
     currency: "USD",
-    note: "Revenue tracking activates when Stripe billing is connected",
   });
 });
 

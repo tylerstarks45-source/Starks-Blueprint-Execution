@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, count } from "drizzle-orm";
-import { db, userCredentialsTable, systemInstancesTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+import { db, userCredentialsTable } from "@workspace/db";
 import { requireAuthActive, getTokenPayload } from "../lib/auth";
 import {
   ListUserCredentialsResponse,
@@ -38,24 +38,40 @@ router.get("/user-credentials/summary", async (req, res): Promise<void> => {
       .where(eq(systemInstancesTable.userId, userId)),
   ]);
 
-  const systemsCount = sysCount?.count ?? 0;
-
+  // No direct per-credential → system linkage in the schema yet.
+  // Return 0 for all until proper usage tracking is added (see task #10).
   const summary = serialize(rows).map((r) => ({
     ...r,
-    usedBySystemsCount: systemsCount,
+    usedBySystemsCount: 0,
   }));
 
   res.json(summary);
 });
 
 // ─── GET /api/user-credentials ───────────────────────────────────────────────
-// Returns metadata (no values) filtered by userId query param (legacy support).
+// Auth-protected. Returns metadata (no values) for the authenticated caller's
+// own credentials. Admins may supply ?userId= to query another user.
+
+const ADMIN_ROLES = new Set(["ADMIN", "SUPER_ADMIN"]);
 
 router.get("/user-credentials", async (req, res): Promise<void> => {
-  if (!req.query.userId) {
-    res.status(400).json({ error: "userId query parameter is required" });
-    return;
+  const callerId = await requireAuthActive(req, res);
+  if (callerId === null) return;
+
+  let targetUserId = callerId;
+
+  if (req.query.userId) {
+    const requestedId = Number(req.query.userId);
+    if (requestedId !== callerId) {
+      const payload = getTokenPayload(req);
+      if (!payload || !ADMIN_ROLES.has(payload.role)) {
+        res.status(403).json({ error: "Forbidden: cannot read another user's credentials" });
+        return;
+      }
+      targetUserId = requestedId;
+    }
   }
+
   const rows = await db
     .select({
       id: userCredentialsTable.id,
@@ -66,7 +82,7 @@ router.get("/user-credentials", async (req, res): Promise<void> => {
       updatedAt: userCredentialsTable.updatedAt,
     })
     .from(userCredentialsTable)
-    .where(eq(userCredentialsTable.userId, Number(req.query.userId)))
+    .where(eq(userCredentialsTable.userId, targetUserId))
     .orderBy(userCredentialsTable.credentialKey);
   res.json(ListUserCredentialsResponse.parse(serialize(rows)));
 });

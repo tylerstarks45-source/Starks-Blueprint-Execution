@@ -205,7 +205,7 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, onComplete }) =
           <Button
             size="sm"
             className="h-8 text-xs gap-1.5"
-            onClick={() => instanceId ? navigate(`/build/${instanceId}`) : navigate('/dashboard')}
+            onClick={() => instanceId ? navigate(`/systems/${instanceId}`) : navigate('/dashboard')}
           >
             View System <ExternalLink className="w-3 h-3" />
           </Button>

@@ -70,7 +70,7 @@ const SystemBuilderPage = () => {
       });
       if (!resp.ok) throw new Error('Failed to create system');
       const instance = await resp.json();
-      navigate(`/build/${instance.id}`);
+      navigate(`/systems/${instance.id}`);
     } catch {
       setBuildingId(null);
     }
@@ -198,7 +198,7 @@ const SystemBuilderPage = () => {
                         </p>
                       </div>
                       <button
-                        onClick={() => navigate(`/build/${activeSystem.id}`)}
+                        onClick={() => navigate(`/systems/${activeSystem.id}`)}
                         className="saas-button py-2 px-6 text-sm whitespace-nowrap"
                       >
                         Continue Building →

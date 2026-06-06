@@ -190,7 +190,16 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     const displayContent = raw.replace(/<SBEP_DATA>[\s\S]*?<\/SBEP_DATA>/g, "").trim();
 
     if (dataMatch) {
-      try { structuredData = JSON.parse(dataMatch[1].trim()); } catch { /* ignored */ }
+      try {
+        structuredData = JSON.parse(dataMatch[1].trim());
+        // Server-side deterministic enforcement: strip already-stored credential keys
+        // from requiredCredentials so the frontend never asks for keys on file.
+        if (structuredData && Array.isArray((structuredData as Record<string, unknown>).requiredCredentials)) {
+          (structuredData as Record<string, unknown>).requiredCredentials =
+            (structuredData.requiredCredentials as { key?: string }[])
+              .filter((c) => !(c.key && storedKeys.includes(c.key)));
+        }
+      } catch { /* ignored */ }
     }
 
     res.json({ content: displayContent, structuredData, tokens: result.totalTokens });

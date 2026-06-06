@@ -78,7 +78,7 @@ const UserActiveSystemsCard = () => {
                       {sys.buildStatus || sys.status || 'Not Started'}
                     </Badge>
                     <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                      <Link to={`/build/${sys.id}`}>
+                      <Link to={`/systems/${sys.id}`}>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     </Button>

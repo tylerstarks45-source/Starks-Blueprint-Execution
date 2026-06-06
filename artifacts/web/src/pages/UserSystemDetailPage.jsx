@@ -250,16 +250,33 @@ export default function UserSystemDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
+  const [allSessions, setAllSessions] = useState([]);
+  const [storedCredKeys, setStoredCredKeys] = useState([]);
+
   const fetchData = useCallback(async () => {
     try {
-      // Fetch status (instance + session + steps in one call)
-      const statusRes = await fetch(`/api/build-engine/${id}/status`, { headers: authHeaders() });
+      // Parallel fetches: build-engine status + all sessions + vault creds
+      const [statusRes, sessionsRes, credsRes] = await Promise.all([
+        fetch(`/api/build-engine/${id}/status`, { headers: authHeaders() }),
+        fetch(`/api/build-sessions?systemInstanceId=${id}`, { headers: authHeaders() }),
+        fetch('/api/user-credentials/summary', { headers: authHeaders() }),
+      ]);
+
       if (!statusRes.ok) throw new Error('System not found');
       const statusData = await statusRes.json();
-
       setInstance(statusData.instance);
       setSession(statusData.session);
       setSteps(statusData.steps ?? []);
+
+      if (sessionsRes.ok) {
+        const sessionsData = await sessionsRes.json();
+        setAllSessions(Array.isArray(sessionsData) ? sessionsData : []);
+      }
+
+      if (credsRes.ok) {
+        const credsData = await credsRes.json();
+        setStoredCredKeys(Array.isArray(credsData) ? credsData.map((c) => c.credentialKey) : []);
+      }
 
       // Fetch blueprint info
       if (statusData.instance?.blueprintId) {
@@ -431,6 +448,9 @@ export default function UserSystemDetailPage() {
             {(instance.buildStatus === 'failed' || instance.buildStatus === 'paused') && (
               <ControlBtn label="Rebuild" icon="↻" variant="blue" onClick={() => navigate('/builder')} disabled={actionLoading} />
             )}
+            {instance.buildStatus === 'active' && (
+              <ControlBtn label="Restart Build" icon="⟳" variant="blue" onClick={() => navigate('/builder')} disabled={actionLoading} />
+            )}
             <ControlBtn label="Refresh" icon="⟳" variant="ghost" onClick={fetchData} disabled={loading} />
             <ControlBtn label="Delete" icon="✕" variant="red" onClick={() => setShowDelete(true)} disabled={actionLoading} />
           </div>
@@ -463,6 +483,66 @@ export default function UserSystemDetailPage() {
             accent="amber"
           />
         </div>
+
+        {/* ── Connected Tools Grid ── */}
+        {blueprint?.requiredTools && blueprint.requiredTools.length > 0 && (
+          <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+            <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-violet-400"></span>
+                <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Connected Tools</span>
+              </div>
+              <span className="text-xs text-gray-600">{storedCredKeys.length > 0 ? `${storedCredKeys.length} credential${storedCredKeys.length !== 1 ? 's' : ''} in vault` : 'No vault credentials yet'}</span>
+            </div>
+            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {blueprint.requiredTools.map((tool) => {
+                const toolKey = tool.toUpperCase().replace(/[^A-Z0-9]/g, '_') + '_API_KEY';
+                const altKey = tool.toUpperCase().replace(/[^A-Z0-9]/g, '_') + '_ACCESS_TOKEN';
+                const isStored = storedCredKeys.some((k) =>
+                  k.includes(tool.toUpperCase().replace(/[^A-Z0-9]/g, '_')) ||
+                  k === toolKey || k === altKey
+                );
+                return (
+                  <div
+                    key={tool}
+                    className={`rounded-xl p-3 border transition-colors ${
+                      isStored
+                        ? 'border-emerald-500/20 bg-emerald-500/5'
+                        : 'border-white/5 bg-white/2'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold text-white truncate">{tool}</span>
+                      {isStored ? (
+                        <span className="text-emerald-400 text-xs shrink-0">✓</span>
+                      ) : (
+                        <span
+                          className="text-xs text-blue-400 cursor-pointer hover:underline shrink-0"
+                          onClick={() => navigate('/connections')}
+                        >
+                          +
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-[10px] font-mono ${isStored ? 'text-emerald-600' : 'text-gray-600'}`}>
+                      {isStored ? 'Configured' : 'Not set'}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            {storedCredKeys.length === 0 && (
+              <div className="px-4 pb-4">
+                <button
+                  onClick={() => navigate('/connections')}
+                  className="w-full py-2 rounded-lg border border-blue-500/20 bg-blue-500/5 text-xs text-blue-400 hover:bg-blue-500/10 transition-colors font-mono"
+                >
+                  Connect tools in Credential Vault →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Blueprint Info + Build Logs (2-col) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -530,6 +610,79 @@ export default function UserSystemDetailPage() {
 
         {/* ── AI Outputs ── */}
         <OutputsPanel outputs={outputs} />
+
+        {/* ── Activity Timeline ── */}
+        {allSessions.length > 0 && (
+          <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+            <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+              <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Activity Timeline</span>
+              <span className="ml-auto text-xs text-gray-600">{allSessions.length} session{allSessions.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="p-4 space-y-0 max-h-80 overflow-y-auto">
+              {[...allSessions].reverse().map((sess, sessIdx) => {
+                const sessSteps = sess.id === session?.id ? steps : [];
+                const sessStatus = sess.status ?? 'active';
+                const sessionStatusColors = {
+                  active: 'text-blue-400',
+                  completed: 'text-emerald-400',
+                  failed: 'text-red-400',
+                };
+                return (
+                  <div key={sess.id} className="relative">
+                    {sessIdx < allSessions.length - 1 && (
+                      <div className="absolute left-[7px] top-6 bottom-0 w-px bg-white/5" />
+                    )}
+                    <div className="flex items-start gap-3 py-2">
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 mt-0.5 ${
+                        sessStatus === 'completed' ? 'border-emerald-400 bg-emerald-400/20' :
+                        sessStatus === 'failed' ? 'border-red-400 bg-red-400/20' :
+                        'border-blue-400 bg-blue-400/20'
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-white">
+                            Build Session #{sess.id}
+                          </span>
+                          <span className={`text-xs font-mono capitalize ${sessionStatusColors[sessStatus] ?? 'text-gray-400'}`}>
+                            {sessStatus}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 font-mono mt-0.5">
+                          Started {formatDate(sess.startedAt)}
+                          {sess.completedAt && ` · Completed ${timeAgo(sess.completedAt)}`}
+                        </p>
+                        {/* Show steps for current session only */}
+                        {sessSteps.length > 0 && (
+                          <div className="mt-2 space-y-1 pl-3 border-l border-white/5">
+                            {sessSteps.slice(-4).map((step) => {
+                              const meta = STEP_STATUS_META[step.status] ?? STEP_STATUS_META.pending;
+                              return (
+                                <div key={step.id} className="flex items-center gap-2 text-xs">
+                                  <span className={meta.color}>{meta.icon}</span>
+                                  <span className="text-gray-500">
+                                    Step {step.stepNumber}
+                                    {step.notes && ` — ${step.notes}`}
+                                  </span>
+                                  {step.completedAt && (
+                                    <span className="text-gray-700 ml-auto">{timeAgo(step.completedAt)}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {sessSteps.length > 4 && (
+                              <p className="text-xs text-gray-700 pl-4">+{sessSteps.length - 4} more steps</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Revenue Placeholder ── */}
         <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">

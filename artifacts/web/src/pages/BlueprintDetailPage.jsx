@@ -94,7 +94,7 @@ const BlueprintDetailPage = () => {
 
       const instance = await resp.json();
       toast.success(`Launching AI Build Agent for "${blueprint.name}"...`);
-      navigate(`/build/${instance.id}`);
+      navigate(`/systems/${instance.id}`);
     } catch (err) {
       toast.error(err.message || 'Failed to start build. Please try again.');
     } finally {

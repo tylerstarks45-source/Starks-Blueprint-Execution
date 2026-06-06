@@ -74,22 +74,30 @@ router.get("/user-credentials", async (req, res): Promise<void> => {
 // ─── POST /api/user-credentials ──────────────────────────────────────────────
 // Upsert: if a credential with the same (userId, credentialKey) already exists,
 // update its encryptedValue; otherwise insert a new row.
+// NOTE: userId is ALWAYS taken from the auth token — the body's userId is ignored
+// to prevent one user from writing credentials for another.
 
 router.post("/user-credentials", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
   const parsed = StoreUserCredentialBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
 
-  // Check for an existing record with the same userId + credentialKey
+  // Force userId from token regardless of what the body sent
+  const safeData = { ...parsed.data, userId };
+
+  // Check for an existing record with the same (token userId) + credentialKey
   const [existing] = await db
     .select({ id: userCredentialsTable.id })
     .from(userCredentialsTable)
     .where(
       and(
-        eq(userCredentialsTable.userId, parsed.data.userId),
-        eq(userCredentialsTable.credentialKey, parsed.data.credentialKey),
+        eq(userCredentialsTable.userId, userId),
+        eq(userCredentialsTable.credentialKey, safeData.credentialKey),
       ),
     );
 
@@ -105,14 +113,14 @@ router.post("/user-credentials", async (req, res): Promise<void> => {
   if (existing) {
     const [row] = await db
       .update(userCredentialsTable)
-      .set({ encryptedValue: parsed.data.encryptedValue, updatedAt: new Date() })
+      .set({ encryptedValue: safeData.encryptedValue, updatedAt: new Date() })
       .where(eq(userCredentialsTable.id, existing.id))
       .returning(responseShape);
     res.json(ListUserCredentialsResponseItem.parse(serialize(row)));
   } else {
     const [row] = await db
       .insert(userCredentialsTable)
-      .values(parsed.data)
+      .values(safeData)
       .returning(responseShape);
     res.status(201).json(ListUserCredentialsResponseItem.parse(serialize(row)));
   }

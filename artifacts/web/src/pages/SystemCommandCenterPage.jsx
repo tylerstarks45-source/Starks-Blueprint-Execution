@@ -481,7 +481,7 @@ const SystemCommandCenterPage = () => {
 
                     {/* Controls */}
                     <div className="xl:col-span-2 flex items-center gap-1 flex-wrap xl:justify-end">
-                      <Button size="sm" variant="ghost" onClick={() => navigate(`/build/${system.id}`)} disabled={isLoading} title="Open" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+                      <Button size="sm" variant="ghost" onClick={() => navigate(`/systems/${system.id}`)} disabled={isLoading} title="Open" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
                         <ExternalLink className="w-3.5 h-3.5" />
                       </Button>
                       {isPaused ? (

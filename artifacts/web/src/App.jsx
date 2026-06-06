@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Toaster } from 'sonner';
 
@@ -43,6 +43,12 @@ import MyStackPage from '@/pages/MyStackPage.jsx';
 import UpdatesPage from '@/pages/UpdatesPage.jsx';
 import PasswordResetPage from '@/pages/PasswordResetPage.jsx';
 import VerifyEmailPage from '@/pages/VerifyEmailPage.jsx';
+// Redirect /build/:id → /systems/:id (param-based, preserves the id)
+const BuildRedirect = () => {
+  const { systemInstanceId } = useParams();
+  return <Navigate to={`/systems/${systemInstanceId}`} replace />;
+};
+
 const NotFoundPage = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 text-center">
     <h1 className="text-7xl font-extrabold text-primary mb-4">404</h1>
@@ -120,13 +126,12 @@ const App = () => {
               <MyStackPage />
             </ProtectedRoute>
           } />
+          {/* /build/:id redirects to /systems/:id — param preserved */}
           <Route path="/build/:systemInstanceId" element={
             <ProtectedRoute>
-              <BuildPage />
+              <BuildRedirect />
             </ProtectedRoute>
           } />
-          {/* Redirect legacy /build/:id → /systems/:id */}
-          <Route path="/build/:id" element={<Navigate to="/dashboard" replace />} />
           <Route path="/systems/:id" element={
             <ProtectedRoute>
               <UserSystemDetailPage />

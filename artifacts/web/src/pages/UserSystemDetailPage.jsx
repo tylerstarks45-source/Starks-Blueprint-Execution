@@ -367,7 +367,7 @@ function DeleteModal({ systemName, onConfirm, onCancel, loading }) {
 
 // ─── REVENUE SECTION ──────────────────────────────────────────────────────────
 
-function RevenueSection({ instanceId }) {
+function RevenueSection({ instanceId, buildStatus }) {
   const [revenue, setRevenue] = useState(null);
   const [activity, setActivity] = useState([]);
   const [loadingRevenue, setLoadingRevenue] = useState(true);
@@ -390,6 +390,14 @@ function RevenueSection({ instanceId }) {
   useEffect(() => {
     fetchRevenue();
   }, [fetchRevenue]);
+
+  // Poll every 8 seconds while the system is building or active so the
+  // activity feed and revenue cards reflect events written by the build engine.
+  useEffect(() => {
+    if (buildStatus !== 'building' && buildStatus !== 'active') return;
+    const interval = setInterval(fetchRevenue, 8000);
+    return () => clearInterval(interval);
+  }, [fetchRevenue, buildStatus]);
 
   const revenueCards = [
     { label: 'Today',      value: revenue ? centsToDisplay(revenue.todayCents)    : '$0', accent: 'emerald' },
@@ -940,7 +948,7 @@ export default function UserSystemDetailPage() {
         </div>
 
         {/* ── Revenue + Live Activity ── */}
-        <RevenueSection instanceId={id} />
+        <RevenueSection instanceId={id} buildStatus={instance?.buildStatus} />
 
       </div>
     </div>

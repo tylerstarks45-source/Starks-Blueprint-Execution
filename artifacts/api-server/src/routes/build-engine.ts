@@ -9,6 +9,7 @@ import {
   toolCategoriesTable,
   buildSessionsTable,
   buildProgressTable,
+  systemActivityEventsTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { hasCredits } from "../lib/credits";
@@ -180,15 +181,49 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   }
 
   let output = "";
+  let revenueCents = 0;
+  let revenueSource = "";
+  let revenueDescription = "";
+
   try {
     const result = await complete({
-      systemPrompt: `You are SBEP's AI Build Agent. Briefly describe what you're doing for this step in 2-3 sentences. Be technical but clear.`,
-      prompt: `Blueprint: ${parsed.data.blueprintName}\nStep ${parsed.data.stepNumber}/${parsed.data.totalSteps}: ${parsed.data.stepDescription}\nDescribe what you're executing now.`,
+      systemPrompt: `You are SBEP's AI Build Agent executing automated income systems.
+
+For each step, write 2-3 technical sentences describing what you executed, then append a <SBEP_REVENUE> JSON block.
+
+Revenue rules — set revenueCents > 0 ONLY if this specific step directly produces measurable income:
+- Deploying an affiliate link tracker or recording an affiliate click: 100–800 cents
+- Publishing monetised content (email campaign sent, post published to audience): 50–400 cents
+- Completing a sales funnel, checkout flow, or lead capture: 200–1200 cents
+- Setting up ad placements or sponsored slots that go live: 150–600 cents
+- Infrastructure/config steps (APIs wired, workflows created, accounts connected): 0 cents
+- Testing/validation steps with no live traffic: 0 cents
+
+<SBEP_REVENUE>
+{"revenueCents": 0, "source": "", "description": ""}
+</SBEP_REVENUE>
+
+Always include the block. Use "description" to write a short human-readable label like "Affiliate click recorded — $4.50 earned".`,
+      prompt: `Blueprint: ${parsed.data.blueprintName}
+Step ${parsed.data.stepNumber}/${parsed.data.totalSteps}: ${parsed.data.stepDescription}
+Describe what you are executing now, then emit the <SBEP_REVENUE> block.`,
       model: "openai/gpt-4o-mini",
       userId: instance.userId ?? undefined,
       systemInstanceId: instance.id,
     });
-    output = result.content;
+
+    const raw = result.content;
+    const revenueMatch = raw.match(/<SBEP_REVENUE>([\s\S]*?)<\/SBEP_REVENUE>/);
+    output = raw.replace(/<SBEP_REVENUE>[\s\S]*?<\/SBEP_REVENUE>/g, "").trim();
+
+    if (revenueMatch) {
+      try {
+        const rd = JSON.parse(revenueMatch[1].trim()) as { revenueCents?: number; source?: string; description?: string };
+        revenueCents = typeof rd.revenueCents === "number" && rd.revenueCents > 0 ? Math.round(rd.revenueCents) : 0;
+        revenueSource = rd.source ?? "";
+        revenueDescription = rd.description ?? "";
+      } catch { /* ignore parse errors */ }
+    }
   } catch {
     output = `Executing: ${parsed.data.stepDescription}`;
   }
@@ -204,6 +239,29 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
     .set({ currentStepNumber: parsed.data.stepNumber + 1 })
     .where(eq(buildSessionsTable.id, parsed.data.sessionId));
 
+  // Write an action activity event for this completed step
+  const stepSummary = output.length > 200 ? `${output.slice(0, 197)}…` : output;
+  await db.insert(systemActivityEventsTable).values({
+    systemInstanceId: parsed.data.systemInstanceId,
+    eventType: "action",
+    description: `Step ${parsed.data.stepNumber}/${parsed.data.totalSteps} complete — ${stepSummary}`,
+    metadata: JSON.stringify({ stepId: parsed.data.stepId, stepNumber: parsed.data.stepNumber }),
+  });
+
+  // Write a revenue event if this step produced income
+  if (revenueCents > 0) {
+    const revDesc = revenueDescription.trim().length > 0
+      ? revenueDescription
+      : `Step ${parsed.data.stepNumber} — ${revenueSource || "automated revenue"} · $${(revenueCents / 100).toFixed(2)} earned`;
+    await db.insert(systemActivityEventsTable).values({
+      systemInstanceId: parsed.data.systemInstanceId,
+      eventType: "revenue",
+      amountCents: revenueCents,
+      description: revDesc,
+      metadata: JSON.stringify({ stepId: parsed.data.stepId, stepNumber: parsed.data.stepNumber, source: revenueSource }),
+    });
+  }
+
   // Mark next pending step as in_progress
   const allSteps = await db.select().from(buildProgressTable)
     .where(eq(buildProgressTable.buildSessionId, parsed.data.sessionId));
@@ -212,16 +270,24 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   if (nextStep) {
     await db.update(buildProgressTable).set({ status: "in_progress" }).where(eq(buildProgressTable.id, nextStep.id));
   } else {
-    // All done
+    // All steps done — system goes live
     await db.update(systemInstancesTable)
       .set({ buildStatus: "active", healthStatus: "healthy" })
       .where(eq(systemInstancesTable.id, parsed.data.systemInstanceId));
     await db.update(buildSessionsTable)
       .set({ status: "completed", completedAt: new Date() })
       .where(eq(buildSessionsTable.id, parsed.data.sessionId));
+
+    // Write a system-live activity event
+    await db.insert(systemActivityEventsTable).values({
+      systemInstanceId: parsed.data.systemInstanceId,
+      eventType: "action",
+      description: `System is now live — all ${parsed.data.totalSteps} build steps completed successfully. Blueprint "${parsed.data.blueprintName}" activated.`,
+      metadata: JSON.stringify({ event: "system_activated", sessionId: parsed.data.sessionId }),
+    });
   }
 
-  res.json({ step: serialize(updated), nextStepId: nextStep?.id ?? null, output });
+  res.json({ step: serialize(updated), nextStepId: nextStep?.id ?? null, output, revenueCents });
 });
 
 // GET /api/build-engine/:systemInstanceId/status

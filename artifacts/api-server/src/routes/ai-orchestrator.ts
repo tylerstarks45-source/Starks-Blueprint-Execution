@@ -12,6 +12,7 @@ import {
   buildSessionsTable,
   buildProgressTable,
   openrouterUsageTable,
+  systemActivityEventsTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { hasCredits } from "../lib/credits";
@@ -361,6 +362,14 @@ Return: {"categoryIds":[1,3],"buildPlan":["Step 1: ...","Step 2: ...","Step 3: .
       }).returning().then(([row]) => row)
     )
   );
+
+  // Write an initial activity event marking the build start
+  await db.insert(systemActivityEventsTable).values({
+    systemInstanceId: instance.id,
+    eventType: "action",
+    description: `Build initiated — STARK AI is configuring "${blueprint.name}" across ${buildPlan.length} steps.`,
+    metadata: JSON.stringify({ event: "build_started", blueprintSlug: blueprint.slug, sessionId: session.id }),
+  });
 
   req.log.info({ userId, instanceId: instance.id, blueprint: blueprint.slug }, "Autonomous build initiated");
 

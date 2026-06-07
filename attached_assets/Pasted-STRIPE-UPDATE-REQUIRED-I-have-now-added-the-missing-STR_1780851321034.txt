@@ -1,0 +1,86 @@
+STRIPE UPDATE REQUIRED
+
+I have now added the missing `STRIPE_SECRET_KEY` to the Replit Secrets page. All required Stripe credentials should now be available to the application.
+
+Your task is to perform a complete Stripe audit and migrate the platform fully to LIVE MODE.
+
+REQUIRED ACTIONS:
+
+1. Verify all Stripe environment variables are being loaded correctly:
+
+   * STRIPE_SECRET_KEY
+   * stripe_publishable_key
+   * STRIPE_WEBHOOK_SECRET
+   * All STRIPE_PRICE_* variables
+
+2. Confirm the secret key starts with:
+
+   * sk_live_
+
+3. Confirm the publishable key starts with:
+
+   * pk_live_
+
+4. Search the entire codebase for:
+
+   * sk_test
+   * pk_test
+   * test mode references
+   * sandbox references
+   * Stripe test environments
+   * hardcoded Stripe keys
+
+5. Remove any remaining test-mode configuration and ensure the application uses LIVE Stripe only.
+
+6. Audit all checkout flows:
+
+   * Free Plan
+   * Pro Plan
+   * Empire Plan
+   * Credit Top-Ups
+
+7. Verify all Stripe Checkout sessions are being created using the live secret key.
+
+8. Verify all Stripe Price IDs are connected to the correct subscription plans.
+
+9. Verify Stripe webhooks are functioning correctly:
+
+   * New subscription
+   * Subscription renewal
+   * Cancellation
+   * Credit purchases
+   * Upgrade
+   * Downgrade
+
+10. Investigate why Stripe Checkout still displays:
+    "Starks Global Group sandbox"
+
+11. Determine whether:
+
+* The Stripe account is still in test mode
+* A sandbox product was previously created
+* Checkout branding is pulling from an old Stripe configuration
+* Checkout sessions are using an old product or old price IDs
+
+12. Fix the branding so checkout displays:
+    "Starks Global Group"
+    and no longer shows "sandbox" anywhere.
+
+13. Verify that after payment:
+
+* Users are assigned the correct plan
+* Credits are added correctly
+* Account permissions update automatically
+* Dashboard reflects subscription status
+
+14. Produce a final audit report showing:
+
+* Live Mode Status
+* Stripe Connection Status
+* Checkout Status
+* Webhook Status
+* Subscription Status
+* Credit System Status
+* Any remaining issues found
+
+Do not make assumptions. Trace the entire Stripe implementation from frontend → backend → Stripe → webhook → database and confirm everything is operating in LIVE MODE.

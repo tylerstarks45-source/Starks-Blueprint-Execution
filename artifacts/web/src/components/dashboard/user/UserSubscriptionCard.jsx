@@ -46,7 +46,7 @@ const UserSubscriptionCard = () => {
   const isTopTier = tier === 'empire';
 
   return (
-    <Card className="h-full flex flex-col shadow-sm">
+    <Card className="h-full flex flex-col border-white/10 bg-black/80 backdrop-blur-sm shadow-xl">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-medium flex items-center gap-2">

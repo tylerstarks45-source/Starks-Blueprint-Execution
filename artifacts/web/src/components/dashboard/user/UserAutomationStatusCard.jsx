@@ -60,7 +60,7 @@ const UserAutomationStatusCard = () => {
   };
 
   return (
-    <Card className="h-full flex flex-col shadow-sm">
+    <Card className="h-full flex flex-col border-white/10 bg-black/80 backdrop-blur-sm shadow-xl">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-medium flex items-center gap-2">
           <Activity className="w-5 h-5 text-rose-500" /> Build Activity

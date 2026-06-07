@@ -26,7 +26,7 @@ const UserAIBuildAgentCard = () => {
   }, []);
 
   return (
-    <Card className="flex flex-col border-white/10 bg-gradient-to-br from-primary/8 to-black/40 backdrop-blur-md shadow-xl">
+    <Card className="flex flex-col border-white/10 bg-gradient-to-br from-primary/15 to-black/80 backdrop-blur-sm shadow-xl">
       <CardHeader className="pb-3 border-b border-white/10">
         <CardTitle className="text-base font-semibold flex items-center justify-between">
           <span className="flex items-center gap-2">

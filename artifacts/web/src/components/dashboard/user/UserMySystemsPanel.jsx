@@ -193,7 +193,7 @@ const UserMySystemsPanel = () => {
   };
 
   return (
-    <Card className="border-white/10 bg-black/40 backdrop-blur-md shadow-xl">
+    <Card className="border-white/10 bg-black/80 backdrop-blur-sm shadow-xl">
       <CardHeader className="pb-3 border-b border-white/10 flex flex-row items-center justify-between">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <Layers className="w-5 h-5 text-primary" /> My Blueprints & Systems

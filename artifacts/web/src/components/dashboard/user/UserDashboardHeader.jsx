@@ -86,21 +86,21 @@ const UserDashboardHeader = () => {
 
         {/* Right: stat pills + actions */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/4 border border-white/8 backdrop-blur-sm">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-black/70 border border-white/10 backdrop-blur-sm">
             <Layers className="w-4 h-4 text-primary shrink-0" />
             <div>
               <p className="text-xl font-bold font-mono leading-none text-foreground">{stats.total}</p>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Systems</p>
             </div>
           </div>
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/4 border border-white/8 backdrop-blur-sm">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-black/70 border border-white/10 backdrop-blur-sm">
             <Server className="w-4 h-4 text-emerald-400 shrink-0" />
             <div>
               <p className="text-xl font-bold font-mono leading-none text-emerald-400">{stats.active}</p>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Active</p>
             </div>
           </div>
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/4 border border-white/8 backdrop-blur-sm">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-black/70 border border-white/10 backdrop-blur-sm">
             <Coins className="w-4 h-4 text-amber-400 shrink-0" />
             <div>
               <p className="text-xl font-bold font-mono leading-none text-amber-400">{stats.balance.toLocaleString()}</p>

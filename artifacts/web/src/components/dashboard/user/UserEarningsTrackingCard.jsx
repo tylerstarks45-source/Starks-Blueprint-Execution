@@ -10,7 +10,7 @@ const authHeaders = () => {
 const ACTIVE_STATUSES = new Set(['active', 'building', 'running', 'in_progress']);
 
 const StatBox = ({ icon: Icon, label, value, color, sub }) => (
-  <div className="p-3 rounded-xl border border-white/8 bg-white/3 text-center flex flex-col items-center gap-1">
+  <div className="p-3 rounded-xl border border-white/10 bg-black/60 text-center flex flex-col items-center gap-1">
     <Icon className={`w-4 h-4 ${color}`} />
     <p className={`text-xl font-bold font-mono tracking-tight ${color}`}>{value}</p>
     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium leading-tight">{label}</p>
@@ -59,7 +59,7 @@ const UserEarningsTrackingCard = () => {
   ];
 
   return (
-    <Card className="border-white/10 bg-black/40 backdrop-blur-md shadow-xl">
+    <Card className="border-white/10 bg-black/80 backdrop-blur-sm shadow-xl">
       <CardHeader className="pb-2 border-b border-white/10">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-primary" /> Account Overview

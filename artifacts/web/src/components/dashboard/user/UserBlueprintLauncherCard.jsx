@@ -66,7 +66,7 @@ const UserBlueprintLauncherCard = () => {
   const activeBlueprint = blueprints.find(b => b.id === selected) || blueprints[0];
 
   return (
-    <div className="rounded-2xl border border-white/8 bg-black/40 backdrop-blur-md overflow-hidden h-full flex flex-col">
+    <div className="rounded-2xl border border-white/10 bg-black/80 backdrop-blur-sm overflow-hidden h-full flex flex-col">
       {/* Header */}
       <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -155,7 +155,7 @@ const UserBlueprintLauncherCard = () => {
                 {/* Meta */}
                 <div className="grid grid-cols-2 gap-2 mb-5">
                   {activeBlueprint.estimatedTime && (
-                    <div className="p-2 rounded-lg bg-white/3 border border-white/6">
+                    <div className="p-2 rounded-lg bg-black/60 border border-white/10">
                       <div className="flex items-center gap-1.5 mb-1">
                         <Clock className="w-3 h-3 text-muted-foreground" />
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Setup Time</p>
@@ -164,7 +164,7 @@ const UserBlueprintLauncherCard = () => {
                     </div>
                   )}
                   {activeBlueprint.estimatedCost && (
-                    <div className="p-2 rounded-lg bg-white/3 border border-white/6">
+                    <div className="p-2 rounded-lg bg-black/60 border border-white/10">
                       <div className="flex items-center gap-1.5 mb-1">
                         <DollarSign className="w-3 h-3 text-muted-foreground" />
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Est. Cost</p>

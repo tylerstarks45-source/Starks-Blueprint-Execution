@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 
 const UserQuickActionsPanel = () => {
   return (
-    <Card className="shadow-sm">
+    <Card className="border-white/10 bg-black/80 backdrop-blur-sm shadow-xl">
       <CardContent className="p-4 grid grid-cols-3 gap-4">
         <Button variant="outline" className="h-auto py-3 flex flex-col gap-2 bg-muted/10" asChild>
           <Link to="/how-it-works">

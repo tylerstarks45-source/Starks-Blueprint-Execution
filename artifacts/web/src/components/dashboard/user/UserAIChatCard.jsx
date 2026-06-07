@@ -223,7 +223,7 @@ const MessageBubble = ({ msg }) => {
       <div className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
         isUser
           ? 'bg-primary text-primary-foreground rounded-tr-sm'
-          : 'bg-white/6 border border-white/10 text-foreground rounded-tl-sm'
+          : 'bg-black/70 border border-white/15 text-foreground rounded-tl-sm'
       }`}>
         {msg.content.split('\n').map((line, i) => {
           if (!line) return <br key={i} />;
@@ -511,7 +511,7 @@ const UserAIChatCard = () => {
         {/* STARK analyzing */}
         {chatLoading && (
           <div className="flex items-start gap-2">
-            <div className="bg-white/6 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-2.5">
+            <div className="bg-black/70 border border-white/15 rounded-2xl rounded-tl-sm px-4 py-2.5">
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
                 <span className="font-mono text-xs">STARK is analyzing…</span>

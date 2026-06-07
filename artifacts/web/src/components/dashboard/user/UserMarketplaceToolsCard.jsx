@@ -55,7 +55,7 @@ const UserMarketplaceToolsCard = () => {
   }, []);
 
   return (
-    <Card className="h-full flex flex-col shadow-sm">
+    <Card className="h-full flex flex-col border-white/10 bg-black/80 backdrop-blur-sm shadow-xl">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-medium flex items-center gap-2">
           <ShoppingBag className="w-5 h-5 text-purple-500" /> Marketplace

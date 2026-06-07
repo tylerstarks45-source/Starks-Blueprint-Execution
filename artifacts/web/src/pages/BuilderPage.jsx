@@ -123,7 +123,7 @@ const BlueprintCard = ({ bp, selected, onSelect }) => {
       className={`w-full text-left rounded-xl border p-3.5 transition-all active:scale-[0.98] ${
         selected
           ? 'border-primary/60 bg-primary/10 shadow-lg shadow-primary/10'
-          : 'border-white/10 bg-white/3 hover:bg-white/6 hover:border-white/20'
+          : 'border-white/10 bg-black/70 hover:bg-black/85 hover:border-white/20'
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -842,7 +842,7 @@ const BuilderPage = () => {
             </div>
 
             {/* Mode toggle */}
-            <div className="flex rounded-lg bg-white/4 border border-white/8 p-0.5">
+            <div className="flex rounded-lg bg-black/70 border border-white/10 p-0.5">
               <button
                 onClick={() => setMode('custom')}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
@@ -996,7 +996,7 @@ const BuilderPage = () => {
               </div>
 
               {/* Input bar */}
-              <div className="p-3 border-t border-white/10 bg-black/20 shrink-0">
+              <div className="p-3 border-t border-white/10 bg-black/70 shrink-0">
                 {phase === 'building' ? (
                   <div className="flex items-center justify-center gap-2 py-1.5 text-xs text-muted-foreground/50">
                     <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
@@ -1067,7 +1067,7 @@ const BuilderPage = () => {
           {phase === 'collecting' && (
             <div className="space-y-2 shrink-0">
               {/* Connection status check */}
-              <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+              <div className="rounded-xl border border-white/10 bg-black/80 p-3">
                 <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 mb-2">Required Connections</p>
                 <div className="space-y-1.5">
                   {pendingCreds.map(cred => {

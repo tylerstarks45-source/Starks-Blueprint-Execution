@@ -405,7 +405,7 @@ function ConnectionCard({ integration, credData, onConnect, onTest, testing }) {
   const usedBy = credData?.usedBySystems ?? [];
 
   return (
-    <div className={`relative rounded-2xl border bg-gradient-to-b ${ac.glow} to-transparent ${isConnected ? ac.border : 'border-white/5'} bg-black/20 p-5 flex flex-col gap-4 transition-all hover:bg-black/30`}>
+    <div className={`relative rounded-2xl border ${isConnected ? ac.border : 'border-white/10'} bg-black/80 backdrop-blur-sm p-5 flex flex-col gap-4 transition-all hover:bg-black/90`}>
 
       {/* Top row */}
       <div className="flex items-start gap-3">
@@ -420,24 +420,24 @@ function ConnectionCard({ integration, credData, onConnect, onTest, testing }) {
               {sc.label}
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{integration.description}</p>
+          <p className="text-xs text-gray-300 mt-0.5 line-clamp-2">{integration.description}</p>
         </div>
       </div>
 
       {/* Metadata (only when connected) */}
       {isConnected && (
         <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="bg-white/3 rounded-lg py-2 px-1">
-            <p className="text-[10px] text-gray-500 mb-0.5">Last Sync</p>
-            <p className="text-[11px] font-mono text-gray-300">{timeAgo(credData.lastSyncAt || credData.updatedAt)}</p>
+          <div className="bg-white/10 rounded-lg py-2 px-1">
+            <p className="text-[10px] text-gray-400 mb-0.5">Last Sync</p>
+            <p className="text-[11px] font-mono text-white">{timeAgo(credData.lastSyncAt || credData.updatedAt)}</p>
           </div>
-          <div className="bg-white/3 rounded-lg py-2 px-1">
-            <p className="text-[10px] text-gray-500 mb-0.5">Connected</p>
-            <p className="text-[11px] font-mono text-gray-300">{timeAgo(credData.connectedAt || credData.createdAt)}</p>
+          <div className="bg-white/10 rounded-lg py-2 px-1">
+            <p className="text-[10px] text-gray-400 mb-0.5">Connected</p>
+            <p className="text-[11px] font-mono text-white">{timeAgo(credData.connectedAt || credData.createdAt)}</p>
           </div>
-          <div className="bg-white/3 rounded-lg py-2 px-1">
-            <p className="text-[10px] text-gray-500 mb-0.5">Systems</p>
-            <p className="text-[11px] font-mono text-gray-300">{usedBy.length}</p>
+          <div className="bg-white/10 rounded-lg py-2 px-1">
+            <p className="text-[10px] text-gray-400 mb-0.5">Systems</p>
+            <p className="text-[11px] font-mono text-white">{usedBy.length}</p>
           </div>
         </div>
       )}
@@ -516,7 +516,7 @@ function CustomConnectionCard({ credData, onConnect, onDelete }) {
   };
 
   return (
-    <div className="relative rounded-2xl border border-white/5 bg-black/20 p-5 flex flex-col gap-3 hover:bg-black/30 transition-all">
+    <div className="relative rounded-2xl border border-white/10 bg-black/80 p-5 flex flex-col gap-3 hover:bg-black/90 transition-all">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg bg-white/5 text-gray-400 shrink-0">⚙</div>
         <div className="flex-1 min-w-0">
@@ -527,7 +527,7 @@ function CustomConnectionCard({ credData, onConnect, onDelete }) {
               {sc.label}
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">Custom integration · updated {timeAgo(credData.updatedAt)}</p>
+          <p className="text-xs text-gray-300 mt-0.5">Custom integration · updated {timeAgo(credData.updatedAt)}</p>
         </div>
       </div>
       {usedBy.length > 0 && (
@@ -719,7 +719,7 @@ export default function ConnectionsHubPage() {
             { label: 'Expired',      value: expired + invalid, color: 'text-red-400', sub: 'invalid or expired'   },
             { label: 'Disconnected', value: disconnected, color: 'text-gray-500',     sub: 'not yet connected'    },
           ].map(stat => (
-            <div key={stat.label} className="rounded-xl bg-white/3 border border-white/5 px-4 py-3">
+            <div key={stat.label} className="rounded-xl bg-black/80 border border-white/10 px-4 py-3">
               <p className={`text-2xl font-bold font-mono ${stat.color}`}>{stat.value}</p>
               <p className="text-xs font-semibold text-gray-300 mt-0.5">{stat.label}</p>
               <p className="text-[10px] text-gray-600">{stat.sub}</p>
@@ -735,7 +735,7 @@ export default function ConnectionsHubPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search integrations…"
-              className="w-full bg-black/30 border border-white/8 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-white/20"
+              className="w-full bg-black/70 border border-white/15 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-white/30"
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">

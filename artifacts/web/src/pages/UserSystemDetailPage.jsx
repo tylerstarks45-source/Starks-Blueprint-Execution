@@ -175,14 +175,14 @@ function StatCard({ label, value, sub, accent = 'blue' }) {
   const colors = {
     blue: 'from-blue-500/10 to-transparent border-blue-500/20',
     emerald: 'from-emerald-500/10 to-transparent border-emerald-500/20',
-    purple: 'from-purple-500/10 to-transparent border-purple-500/20',
-    amber: 'from-amber-500/10 to-transparent border-amber-500/20',
+    purple: 'from-purple-500/20 to-purple-500/5 border-purple-500/30',
+    amber: 'from-amber-500/20 to-amber-500/5 border-amber-500/30',
   };
   return (
-    <div className={`relative rounded-xl border bg-gradient-to-br ${colors[accent]} p-4`}>
-      <p className="text-[10px] uppercase tracking-widest text-gray-500 font-mono mb-1">{label}</p>
+    <div className={`relative rounded-xl border bg-gradient-to-br ${colors[accent]} bg-black/70 p-4`}>
+      <p className="text-[10px] uppercase tracking-widest text-gray-400 font-mono mb-1">{label}</p>
       <p className="text-2xl font-bold text-white font-mono">{value}</p>
-      {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-gray-300 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -202,7 +202,7 @@ function BuildLogPanel({ steps, session }) {
   const hiddenCount = totalSteps - visibleSteps.length;
 
   return (
-    <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm overflow-hidden">
+    <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm overflow-hidden">
       <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-blue-400"></span>
@@ -292,7 +292,7 @@ function OutputsPanel({ outputs }) {
   };
 
   return (
-    <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+    <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
       <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-purple-400"></span>
         <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">AI Outputs</span>
@@ -303,7 +303,7 @@ function OutputsPanel({ outputs }) {
           <p className="text-gray-600 text-center py-6 text-xs font-mono">No outputs generated yet.</p>
         ) : (
           outputs.map((out) => (
-            <div key={out.id} className="rounded-lg bg-white/3 border border-white/5 p-3">
+            <div key={out.id} className="rounded-lg bg-black/60 border border-white/10 p-3">
               <div className="flex items-center gap-2 mb-1">
                 <span>{OUTPUT_ICONS[out.outputType] ?? '📄'}</span>
                 <span className="text-xs font-semibold text-white">{out.title}</span>
@@ -435,7 +435,7 @@ function RevenueSection({ instanceId, buildStatus }) {
   return (
     <>
       {/* ── Revenue Tracking ── */}
-      <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+      <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
         <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
           <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Revenue Tracking</span>
@@ -458,7 +458,7 @@ function RevenueSection({ instanceId, buildStatus }) {
           {revenue && revenue.trend && (
             <div>
               <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono mb-1">7-day revenue trend</p>
-              <div className="rounded-lg bg-white/3 border border-white/5 p-3">
+              <div className="rounded-lg bg-black/60 border border-white/10 p-3">
                 <RevenueSparkline trend={revenue.trend} />
                 <div className="flex justify-between mt-1">
                   {revenue.trend.map((t) => (
@@ -472,7 +472,7 @@ function RevenueSection({ instanceId, buildStatus }) {
       </div>
 
       {/* ── Live Activity Feed ── */}
-      <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+      <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
         <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
           <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Live Activity</span>
@@ -814,7 +814,7 @@ export default function UserSystemDetailPage() {
 
         {/* ── Connected Tools Grid ── */}
         {blueprint?.requiredTools && blueprint.requiredTools.length > 0 && (
-          <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+          <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
             <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-violet-400"></span>
@@ -876,7 +876,7 @@ export default function UserSystemDetailPage() {
         {(runtimeConnectors.length > 0 || runtimeJobs.length > 0 || ['deploying','running','degraded','paused'].includes(instance.buildStatus)) && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Connector Status */}
-            <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+            <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
               <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-violet-400"></span>
@@ -928,7 +928,7 @@ export default function UserSystemDetailPage() {
             </div>
 
             {/* Job Feed */}
-            <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+            <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
               <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-blue-400"></span>
@@ -985,7 +985,7 @@ export default function UserSystemDetailPage() {
         {/* ── Blueprint Info + Build Logs (2-col) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Blueprint panel */}
-          <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+          <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
             <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-amber-400"></span>
               <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Blueprint</span>
@@ -999,25 +999,25 @@ export default function UserSystemDetailPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {blueprint.difficulty && (
-                      <div className="rounded-lg bg-white/3 border border-white/5 p-3">
+                      <div className="rounded-lg bg-black/60 border border-white/10 p-3">
                         <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono">Difficulty</p>
                         <p className="text-sm text-white mt-0.5">{blueprint.difficulty}</p>
                       </div>
                     )}
                     {blueprint.estimatedSetupTime && (
-                      <div className="rounded-lg bg-white/3 border border-white/5 p-3">
+                      <div className="rounded-lg bg-black/60 border border-white/10 p-3">
                         <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono">Setup Time</p>
                         <p className="text-sm text-white mt-0.5">{blueprint.estimatedSetupTime}</p>
                       </div>
                     )}
                     {blueprint.estimatedMonthlyCost && (
-                      <div className="rounded-lg bg-white/3 border border-white/5 p-3">
+                      <div className="rounded-lg bg-black/60 border border-white/10 p-3">
                         <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono">Monthly Cost</p>
                         <p className="text-sm text-white mt-0.5">{blueprint.estimatedMonthlyCost}</p>
                       </div>
                     )}
                     {blueprint.estimatedMonthlyRevenue && (
-                      <div className="rounded-lg bg-white/3 border border-white/5 p-3">
+                      <div className="rounded-lg bg-black/60 border border-white/10 p-3">
                         <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono">Est. Revenue*</p>
                         <p className="text-sm text-emerald-400 font-semibold mt-0.5">{blueprint.estimatedMonthlyRevenue}</p>
                       </div>
@@ -1056,7 +1056,7 @@ export default function UserSystemDetailPage() {
         <OutputsPanel outputs={outputs} />
 
         {/* ── Activity Timeline ── */}
-        <div className="rounded-xl border border-white/5 bg-black/30 backdrop-blur-sm">
+        <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
           <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-400"></span>
             <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Activity Timeline</span>

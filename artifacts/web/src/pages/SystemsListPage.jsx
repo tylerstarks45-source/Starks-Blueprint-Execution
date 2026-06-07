@@ -145,7 +145,7 @@ const SystemRow = ({ system, lifetimeCents, onView, onRebuild, onRename, onToggl
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-4 rounded-xl border border-white/8 bg-black/40 backdrop-blur-md hover:bg-white/3 hover:border-white/15 transition-all"
+      className="group grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-4 rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm hover:bg-black/90 hover:border-white/20 transition-all"
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
@@ -526,14 +526,14 @@ const SystemsListPage = () => {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/4 border border-white/8">
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black/70 border border-white/10">
                 <Server className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span className="text-lg font-bold font-mono text-emerald-400">
                   {systems.filter(s => ['active', 'building', 'running', 'completed'].includes((s.buildStatus || '').toLowerCase())).length}
                 </span>
                 <span className="text-xs text-muted-foreground">active (page)</span>
               </div>
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/4 border border-white/8">
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black/70 border border-white/10">
                 <Layers className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-lg font-bold font-mono text-foreground">{total}</span>
                 <span className="text-xs text-muted-foreground">total</span>
@@ -557,10 +557,10 @@ const SystemsListPage = () => {
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(0); }}
                 placeholder="Search by name or blueprint…"
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/4 border border-white/10 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/40 focus:bg-white/6 transition-all"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-black/70 border border-white/10 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/40 focus:bg-black/80 transition-all"
               />
             </div>
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/4 border border-white/8 flex-wrap">
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/70 border border-white/10 flex-wrap">
               {FILTER_OPTIONS.map(opt => (
                 <button
                   key={opt.value}

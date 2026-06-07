@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import VideoBackground from '@/components/VideoBackground.jsx';
+import Header from '@/components/Header.jsx';
+import Footer from '@/components/Footer.jsx';
 
 const authHeaders = () => {
   const token = localStorage.getItem('sbep_auth_token');
@@ -640,17 +643,20 @@ export default function ConnectionsHubPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-gray-500 font-mono">Loading connections…</p>
+      <VideoBackground>
+        <Header />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mx-auto" />
+            <p className="text-xs text-gray-500 font-mono">Loading connections…</p>
+          </div>
         </div>
-      </div>
+      </VideoBackground>
     );
   }
 
   return (
-    <div className="min-h-screen text-white">
+    <VideoBackground>
       {/* Slide-over */}
       {slideOver && (
         <ConnectSlideOver
@@ -671,11 +677,20 @@ export default function ConnectionsHubPage() {
         />
       )}
 
+      <Header />
+
+      <main className="flex-grow pb-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
         {/* ── PAGE HEADER ── */}
         <div className="flex items-start justify-between gap-4 border-b border-white/6 pb-8">
           <div>
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-1.5 text-xs font-mono text-muted-foreground/60 hover:text-foreground transition-colors mb-4"
+            >
+              ← Return to Dashboard
+            </Link>
             <div className="flex items-center gap-3 mb-2">
               <span className="text-2xl">🔗</span>
               <h1 className="text-2xl font-bold text-white tracking-tight">Connections Hub</h1>
@@ -863,6 +878,8 @@ export default function ConnectionsHubPage() {
         </div>
 
       </div>
-    </div>
+      </main>
+      <Footer />
+    </VideoBackground>
   );
 }

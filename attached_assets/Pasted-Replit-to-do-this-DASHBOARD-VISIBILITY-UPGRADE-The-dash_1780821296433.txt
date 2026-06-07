@@ -1,0 +1,151 @@
+Replit to do this:
+
+DASHBOARD VISIBILITY UPGRADE
+
+The dashboard background is visually impressive, but text readability is suffering because content is sitting directly on top of a highly detailed animated background.
+
+Do NOT remove the futuristic background.
+
+Instead implement a proper content-layer architecture.
+
+LAYER 1
+Background animation/image
+
+LAYER 2
+Global dark overlay
+rgba(0,0,0,0.75)
+
+LAYER 3
+Section containers
+rgba(8,12,20,0.75)
+backdrop-filter: blur(20px)
+
+LAYER 4
+Content
+
+Every dashboard section should sit inside a translucent glass panel.
+
+Examples:
+
+Command Center
+
+Revenue Analytics
+
+AI Activity
+
+System Fleet
+
+Connection Health
+
+Alerts
+
+Charts
+
+System Detail Cards
+
+Each panel should have:
+
+background: rgba(8,12,20,0.75)
+backdrop-filter: blur(20px)
+border: 1px solid rgba(255,255,255,0.08)
+border-radius: 20px
+
+This will make all text readable while keeping the futuristic background visible.
+Also tell Replit to fix the metric cards
+
+Right now:
+
+Today
+This Week
+Credits
+AI Requests
+
+are floating over the background.
+
+Instead:
+
+┌────────────────────┐
+│ TODAY              │
+│ $0.00              │
+└────────────────────┘
+
+┌────────────────────┐
+│ THIS WEEK          │
+│ $0.00              │
+└────────────────────┘
+
+Each metric should sit inside a dark glass card.
+
+Fix the Charts
+
+The charts are almost invisible.
+
+Tell Replit:
+
+Put every chart inside its own analytics panel.
+
+Do not place charts directly on the dashboard background.
+
+Revenue Chart
+
+AI Usage Chart
+
+System Activity Chart
+
+Affiliate Earnings Chart
+
+Each chart should have:
+
+Title
+
+Date Selector
+
+Legend
+
+Hover Tooltips
+
+Dark Glass Background
+
+Visible axis labels
+Fix the System Fleet Section
+
+The system list should look like:
+
+MY SYSTEMS
+
+Affiliate Empire
+Running
+$1,250 Revenue
+98% Health
+
+Lead Generation Machine
+Running
+$430 Revenue
+95% Health
+
+YouTube Automation
+Paused
+$0 Revenue
+70% Health
+
+inside a dark glass panel.
+
+Fix Navigation
+
+The navigation is hard to see.
+
+Tell Replit:
+
+Add a translucent navigation bar.
+
+Background:
+rgba(5,10,18,0.85)
+
+Backdrop blur:
+20px
+
+Add hover glow effects.
+
+Increase text contrast.
+
+Make active page clearly highlighted.

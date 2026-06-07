@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import VideoBackground from '@/components/VideoBackground.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bot, Send, Loader2, AlertCircle, Zap, CheckCircle2,
@@ -792,7 +793,8 @@ const BuilderPage = () => {
     : blueprints;
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <VideoBackground>
+    <div className="h-screen flex flex-col overflow-hidden">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 bg-black/60 backdrop-blur-lg shrink-0">
         <div className="flex items-center gap-3">
@@ -1130,6 +1132,7 @@ const BuilderPage = () => {
         </div>
       </div>
     </div>
+    </VideoBackground>
   );
 };
 

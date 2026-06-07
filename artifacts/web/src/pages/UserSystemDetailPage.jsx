@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import VideoBackground from '@/components/VideoBackground.jsx';
 import { toast } from 'sonner';
 import {
   AreaChart,
@@ -689,7 +690,8 @@ export default function UserSystemDetailPage() {
   const healthMeta = HEALTH_META[instance.healthStatus] ?? HEALTH_META.unknown;
 
   return (
-    <div className="min-h-screen bg-background text-white">
+    <VideoBackground>
+    <div className="min-h-screen text-white">
       {showDelete && (
         <DeleteModal
           systemName={instance.name}
@@ -1128,5 +1130,6 @@ export default function UserSystemDetailPage() {
 
       </div>
     </div>
+    </VideoBackground>
   );
 }

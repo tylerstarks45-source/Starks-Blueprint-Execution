@@ -46,6 +46,7 @@ import UpdatesPage from '@/pages/UpdatesPage.jsx';
 import PasswordResetPage from '@/pages/PasswordResetPage.jsx';
 import VerifyEmailPage from '@/pages/VerifyEmailPage.jsx';
 import SystemsListPage from '@/pages/SystemsListPage.jsx';
+import CreditsPage from '@/pages/CreditsPage.jsx';
 
 // Global fetch interceptor — fires sbep:out-of-credits when any API call returns 402
 if (typeof window !== 'undefined') {
@@ -153,6 +154,9 @@ const App = () => {
               <ProtectedRoute><BuilderPage /></ProtectedRoute>
             } />
             <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/credits" element={
+              <ProtectedRoute><CreditsPage /></ProtectedRoute>
+            } />
 
             {/* Protected Admin Routes */}
             <Route path="/admin/*" element={

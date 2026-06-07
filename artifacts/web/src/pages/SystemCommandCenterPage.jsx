@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   Activity, Zap, CheckCircle2, AlertTriangle, Clock, Server,
   Brain, Cpu, CreditCard, RefreshCw, TrendingUp,
@@ -170,6 +171,7 @@ const ToolPill = ({ name, status }) => {
 
 const SystemCommandCenterPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState(null);
   const [revenue, setRevenue] = useState(null);
   const [credits, setCredits] = useState(null);
@@ -183,6 +185,18 @@ const SystemCommandCenterPage = () => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const user = JSON.parse(localStorage.getItem('sbep_auth_user') || '{}');
+
+  // Handle Stripe return URL params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('credits_purchased') === '1') {
+      toast.success('Credits added to your account!', { description: 'Your balance has been updated.' });
+      navigate('/dashboard', { replace: true });
+    } else if (params.get('credits_canceled') === '1') {
+      toast.info('Credit purchase canceled.');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [location.search, navigate]);
 
   const load = useCallback(async () => {
     setLoading(true);

@@ -1,0 +1,429 @@
+STARKS GLOBAL GROUP PLATFORM MONETIZATION, SUBSCRIPTION & BILLING SYSTEM UPGRADE
+
+MISSION
+
+Transform the STARKS Global Group platform from a simple signup experience into a complete SaaS ecosystem centered around:
+
+• STARKS AI Agent
+• AI Blueprints
+• AI Tools
+• Business Automation
+• System Building
+• System Hosting
+• System Monitoring
+• Revenue Growth Infrastructure
+• Connection Hub
+
+The platform must generate recurring monthly revenue while allowing users to purchase additional AI credits whenever needed.
+
+==================================================
+CRITICAL CHANGE #1
+PLAN SELECTION REQUIRED
+=======================
+
+No user should ever gain access to the platform without selecting a plan.
+
+NEW USER FLOW
+
+Landing Page
+
+→ Pricing Page
+
+→ Select Plan
+
+→ Create Account
+
+→ Stripe Checkout (Paid Plans)
+
+→ Dashboard Access
+
+FREE PLAN FLOW
+
+→ Select Free Plan
+
+→ Create Account
+
+→ Dashboard Access
+
+PRO / EMPIRE FLOW
+
+→ Select Paid Plan
+
+→ Create Account
+
+→ Stripe Subscription Checkout
+
+→ Dashboard Access
+
+Users must clearly understand what each plan includes before creating an account.
+
+==================================================
+CRITICAL CHANGE #2
+PUBLIC PRICING PAGE
+===================
+
+Create a dedicated public Pricing page accessible from the main website navigation.
+
+The Pricing page must clearly explain:
+
+• STARKS AI Agent Access
+• Blueprint Access
+• System Building Limits
+• System Hosting Limits
+• Connection Hub Access
+• Monthly AI Credits
+• Credit Top-Ups
+• Analytics Access
+• Platform Limits
+
+Create a professional comparison table.
+
+Display:
+
+Free
+Pro
+Empire
+
+Highlight Pro as:
+
+MOST POPULAR
+
+==================================================
+PLAN 1
+FREE
+====
+
+$0 Per Month
+
+Purpose:
+
+Allow users to explore the platform and experience the STARKS AI Agent.
+
+Includes:
+
+• Access Marketplace
+• Browse All Blueprints
+• Save Favorite Blueprints
+• Build 1 Active System
+• Host 1 Active System
+• Basic Dashboard
+• Basic Analytics
+• Connection Hub Access
+• Connect Up To 3 Platforms
+• STARKS AI Agent Trial Access
+• Community Support
+• 50 Monthly AI Credits
+
+Limits:
+
+• 1 Active Build
+• 1 Hosted System
+• 3 Connections
+• Limited Agent Actions
+
+When limits are reached:
+
+Display upgrade prompts.
+
+==================================================
+PLAN 2
+PRO
+===
+
+$49 Per Month
+
+Most Popular Plan
+
+Includes Everything In Free Plus:
+
+• Unlimited Blueprint Access
+• Build Up To 25 Systems
+• Host Up To 10 Systems
+• Connect Up To 25 Platforms
+• Revenue Dashboard
+• Advanced Analytics
+• System Health Monitoring
+• Enhanced STARKS AI Agent Access
+• Faster Build Processing
+• Priority Build Queue
+• Automation Features
+• Email Support
+• 1,000 Monthly AI Credits
+
+Limits:
+
+• 25 Systems
+• 10 Hosted Systems
+• 25 Connections
+
+Ideal For:
+
+• Entrepreneurs
+• Affiliate Marketers
+• Content Creators
+• Ecommerce Operators
+• Local Business Owners
+
+==================================================
+PLAN 3
+EMPIRE
+======
+
+$199 Per Month
+
+Built For Serious Builders
+
+Includes Everything In Pro Plus:
+
+• Unlimited System Builds
+• Unlimited Hosting
+• Unlimited Connections
+• Full STARKS AI Agent Access
+• Premium Automation Features
+• Team Management
+• White Label Features
+• API Access
+• Advanced Revenue Analytics
+• Enterprise Reporting
+• Priority Agent Processing
+• Priority Support
+• 5,000 Monthly AI Credits
+
+Ideal For:
+
+• Agencies
+• Founders
+• Power Users
+• Digital Entrepreneurs
+• Multi-Business Operators
+
+==================================================
+CRITICAL CHANGE #3
+AI CREDIT TOP-UP SYSTEM
+=======================
+
+Every plan must include monthly credits.
+
+Unused credits expire at monthly renewal.
+
+Users may purchase additional credits at any time.
+
+Create a Buy Credits page.
+
+==================================================
+CREDIT TOP-UP PACKAGES
+======================
+
+Starter Pack
+
+100 Credits
+$9
+
+Growth Pack
+
+500 Credits
+$39
+
+Builder Pack
+
+1,000 Credits
+$69
+
+Pro Pack
+
+5,000 Credits
+$249
+
+Empire Pack
+
+10,000 Credits
+$449
+
+These top-ups work on all plans.
+
+Credits are added instantly after payment.
+
+==================================================
+CRITICAL CHANGE #4
+STRIPE BILLING SYSTEM
+=====================
+
+Connect all subscriptions directly to Stripe.
+
+Support:
+
+• Monthly Subscriptions
+• Credit Purchases
+• Upgrade Plan
+• Downgrade Plan
+• Cancel Subscription
+• Billing History
+• Invoice Downloads
+• Payment Method Updates
+• Automatic Renewals
+
+Create a Billing Center inside the dashboard.
+
+Display:
+
+Current Plan
+Renewal Date
+Credits Remaining
+Credits Used
+Upgrade Plan Button
+Buy Credits Button
+
+==================================================
+CRITICAL CHANGE #5
+AI CREDIT SYSTEM
+================
+
+Credits power:
+
+• STARKS AI Agent Actions
+• System Generation
+• Blueprint Builds
+• Content Generation
+• Automation Tasks
+• Future AI Features
+
+Display credits throughout the platform.
+
+Dashboard Widgets:
+
+Current Credits
+Credits Used
+Credits Remaining
+Monthly Allocation
+Buy Credits
+
+==================================================
+CRITICAL CHANGE #6
+PUBLIC WEBSITE POSITIONING
+==========================
+
+The website should no longer present itself as only a blueprint marketplace.
+
+Visitors must immediately understand:
+
+We Provide:
+
+• AI Blueprints
+• AI Tools
+• The STARKS AI Agent
+• System Building
+• System Hosting
+• System Monitoring
+• Automation Infrastructure
+• Revenue Tracking
+• Business Growth Systems
+
+Core Message:
+
+Build It.
+Launch It.
+Host It.
+Run It.
+
+Powered By The STARKS AI Agent.
+
+==================================================
+NEW PUBLIC PAGES
+================
+
+Create:
+
+1. Pricing
+2. STARKS AI Agent
+3. Connection Hub
+4. Hosting & Monitoring
+5. Success Stories
+6. Founder Story
+7. Marketplace
+8. Blueprint Library
+
+==================================================
+CONNECTION HUB UPGRADE
+======================
+
+Expand the Connection Hub into a searchable connector marketplace.
+
+Support:
+
+OpenRouter
+OpenAI
+Claude
+Google AI
+Meta
+Facebook
+Instagram
+TikTok
+YouTube
+X
+LinkedIn
+Stripe
+PayPal
+Shopify
+WooCommerce
+Gmail
+Google Workspace
+Outlook
+Cloudflare
+Supabase
+Postgres
+MySQL
+MongoDB
+Zapier
+Make
+Slack
+Discord
+Twilio
+Resend
+Mailchimp
+
+Every connector must display:
+
+Connected
+Disconnected
+Needs Attention
+Ready
+
+Allow users to enter credentials and connect services directly through the platform.
+
+==================================================
+DESIGN REQUIREMENTS
+===================
+
+Modern Enterprise SaaS Design
+
+Reduce excessive box layouts
+
+Increase spacing
+
+Improve typography
+
+Improve readability
+
+Create stronger visual hierarchy
+
+Add real line charts
+
+Add revenue dashboards
+
+Add AI activity panels
+
+Add connection status panels
+
+Add hosted system monitoring
+
+Add system health indicators
+
+Add professional animations
+
+Add enterprise-grade polish
+
+The platform should feel comparable to leading SaaS companies and clearly position the STARKS AI Agent as the centerpiece of the entire ecosystem.
+
+Final Positioning:
+
+STARKS Global Group is a complete AI Business Operating System where users can discover systems, build systems, launch systems, host systems, automate systems, monitor systems, and scale revenue from a single platform powered by the STARKS AI Agent.

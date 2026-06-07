@@ -1,0 +1,88 @@
+The dashboard has improved but it is still built around a card-heavy layout and does not yet feel like a premium AI Operating System.
+
+I want a complete redesign philosophy.
+
+Stop designing around boxes and cards.
+
+Use Canvas and any available Replit design/planning tools to redesign the dashboard as an AI Operations Center.
+
+Reference products like:
+
+- Stripe Dashboard
+- Vercel Analytics
+- Datadog
+- Grafana
+- TradingView
+- Linear
+- Cursor Analytics
+
+Design goals:
+
+1. Dashboard is for monitoring systems, not building systems.
+
+2. Builder functionality should live on a dedicated Builder page.
+
+3. Dashboard should focus on:
+   - Revenue
+   - System Health
+   - AI Activity
+   - Connected Tools
+   - Alerts
+   - System Performance
+
+4. Replace most cards with:
+   - Interactive charts
+   - Timelines
+   - Tables
+   - Analytics views
+   - System fleet monitoring
+
+5. Add a large primary analytics chart near the top showing:
+   - Revenue
+   - AI usage
+   - System activity
+   - Events
+   by day/week/month.
+
+6. Create a Systems Fleet section.
+
+Each deployed system should appear as a row:
+
+Name
+Status
+Revenue
+Health
+Last Activity
+Connected Tools
+
+Users should be able to click a system and open a dedicated System Detail page.
+
+7. Create System Detail pages.
+
+Each system should have:
+
+- Revenue
+- Expenses
+- Profit
+- Connected tools
+- Credential status
+- AI activity
+- Build history
+- Health score
+- Error logs
+- Runtime status
+- Analytics
+
+8. Create a visual AI Activity timeline showing everything the AI has done.
+
+9. Add a Connected Tools view showing all integrations used by each system and whether they are healthy.
+
+10. Reduce visual clutter.
+Remove unnecessary cards and boxes.
+Increase whitespace.
+Improve typography.
+Improve hierarchy.
+
+Use Canvas first and provide the new dashboard architecture before implementation.
+
+The goal is for the platform to feel like a premium AI Operating System and Mission Control Center rather than a collection of status cards.

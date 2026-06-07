@@ -19,7 +19,7 @@ const Header = () => {
   const publicNav = [
     { name: 'Home', path: '/' },
     { name: 'How It Works', path: '/how-it-works' },
-    { name: 'Business Model', path: '/business-model' },
+    { name: 'Pricing', path: '/pricing' },
     { name: 'Marketplace', path: '/marketplace' },
     { name: 'Research Lab', path: '/research-lab' },
     { name: 'About', path: '/about' },

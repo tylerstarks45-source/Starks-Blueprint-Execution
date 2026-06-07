@@ -2,45 +2,51 @@ import { sql, eq, desc } from "drizzle-orm";
 import { db, usersTable, creditTransactionsTable } from "@workspace/db";
 
 export const TIER_ALLOTMENTS: Record<string, number> = {
-  free: 50,         // free tier — matches the signup grant
-  starter: 500,
-  builder: 500,     // legacy alias — same as starter
-  operator: 2500,
-  empire: 10000,
+  free:     50,
+  pro:      1000,
+  empire:   5000,
+  // legacy aliases — map to new tiers
+  starter:  1000,
+  builder:  1000,
+  operator: 5000,
 };
 
 export const TIER_NAMES: Record<string, string> = {
-  free: "Free",
-  starter: "Starter",
-  builder: "Starter",   // legacy alias
-  operator: "Operator",
-  empire: "Empire",
+  free:     "Free",
+  pro:      "Pro",
+  empire:   "Empire",
+  starter:  "Pro",
+  builder:  "Pro",
+  operator: "Empire",
 };
 
 export const TIER_PRICES: Record<string, number> = {
-  free: 0,          // $0/mo
-  starter: 2900,    // $29/mo
-  builder: 2900,    // legacy alias
-  operator: 9900,   // $99/mo
-  empire: 29900,    // $299/mo
+  free:     0,
+  pro:      4900,   // $49/mo
+  empire:   19900,  // $199/mo
+  starter:  4900,
+  builder:  4900,
+  operator: 19900,
 };
 
 // Maximum number of systems a user on each tier can own simultaneously.
 export const TIER_SYSTEM_LIMITS: Record<string, number> = {
-  free: 1,          // 1 system on free tier
-  starter: 3,
-  builder: 3,       // legacy alias
-  operator: 15,
-  empire: 999999,   // effectively unlimited
+  free:     1,
+  pro:      25,
+  empire:   999999, // unlimited
+  starter:  25,
+  builder:  25,
+  operator: 999999,
 };
 
-export const SIGNUP_GRANT = 50; // free-trial credits granted on signup (matches free tier allotment)
+export const SIGNUP_GRANT = 50; // free-trial credits on signup
 
 export const CREDIT_PACKS: Record<string, { id: string; name: string; credits: number; priceCents: number }> = {
-  small:  { id: "small",  name: "Small Pack",  credits: 100,  priceCents: 1000  }, // $10
-  medium: { id: "medium", name: "Medium Pack", credits: 300,  priceCents: 2500  }, // $25
-  large:  { id: "large",  name: "Large Pack",  credits: 700,  priceCents: 5000  }, // $50
-  xl:     { id: "xl",     name: "XL Pack",     credits: 1500, priceCents: 10000 }, // $100
+  starter: { id: "starter", name: "Starter Pack",  credits: 100,   priceCents:  900 }, // $9
+  growth:  { id: "growth",  name: "Growth Pack",   credits: 500,   priceCents: 3900 }, // $39
+  builder: { id: "builder", name: "Builder Pack",  credits: 1000,  priceCents: 6900 }, // $69
+  pro:     { id: "pro",     name: "Pro Pack",      credits: 5000,  priceCents: 24900 }, // $249
+  empire:  { id: "empire",  name: "Empire Pack",   credits: 10000, priceCents: 44900 }, // $449
 };
 
 export type CreditTxType = "signup_grant" | "tier_grant" | "purchase" | "usage" | "admin_adjust";
@@ -50,11 +56,11 @@ export function creditsForTokens(tokens: number): number {
 }
 
 export function tierAllotment(tier: string | null | undefined): number {
-  return TIER_ALLOTMENTS[tier ?? "starter"] ?? TIER_ALLOTMENTS.starter;
+  return TIER_ALLOTMENTS[tier ?? "pro"] ?? TIER_ALLOTMENTS.pro;
 }
 
 export function tierSystemLimit(tier: string | null | undefined): number {
-  return TIER_SYSTEM_LIMITS[tier ?? "starter"] ?? TIER_SYSTEM_LIMITS.starter;
+  return TIER_SYSTEM_LIMITS[tier ?? "pro"] ?? TIER_SYSTEM_LIMITS.pro;
 }
 
 export async function getBalance(userId: number): Promise<number> {
@@ -96,9 +102,6 @@ export async function adjustCredits(
   return balanceAfter;
 }
 
-// Deduct credits for AI usage. Retries a few times because the AI call has already
-// succeeded by this point — dropping the charge on a transient DB blip is revenue leakage.
-// Throws after exhausting retries so callers can surface CREDIT_DEDUCTION_FAILED for alerting.
 export async function deductForUsage(userId: number, tokens: number, model: string): Promise<number> {
   const credits = creditsForTokens(tokens);
   let lastErr: unknown;

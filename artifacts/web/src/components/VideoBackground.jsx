@@ -7,7 +7,7 @@ const VideoBackground = ({ children, className = '' }) => {
       {/* Background Video Layer */}
       <div className="fixed inset-0 w-full h-screen z-[-1] overflow-hidden pointer-events-none">
         <iframe
-          src="https://www.youtube.com/embed/ooee9p4P_Eg?autoplay=1&mute=1&loop=1&playlist=ooee9p4P_Eg&controls=0&modestbranding=1&playsinline=1&rel=0"
+          src="https://www.youtube.com/embed/Hgg7M3kSqyE?autoplay=1&mute=1&loop=1&playlist=Hgg7M3kSqyE&controls=0&modestbranding=1&playsinline=1&rel=0"
           className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-[100vh] min-w-[177.77vh] -translate-x-1/2 -translate-y-1/2 object-cover"
           allow="autoplay; encrypted-media"
           frameBorder="0"

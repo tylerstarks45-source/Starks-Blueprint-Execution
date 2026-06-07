@@ -1,0 +1,298 @@
+1. Command Center
+
+Monitor everything.
+
+Revenue
+Profit
+AI usage
+OpenRouter costs
+System health
+Alerts
+Uptime
+Build activity
+System performance
+
+This is the dashboard.
+
+2. AI Builder
+
+Build everything.
+
+User says:
+
+Build me a YouTube automation business
+
+The AI then:
+
+Designs the system
+Selects blueprint
+Selects tools
+Creates build plan
+Creates deployment plan
+Requests credentials
+Builds system
+Launches system
+
+This is the Builder Page.
+
+3. Connections Hub
+
+This is the page you're describing.
+
+This page becomes the central place where users connect tools.
+
+Examples:
+
+AI TOOLS
+
+✓ OpenAI
+✓ OpenRouter
+✓ Claude
+✓ Gemini
+✓ ElevenLabs
+✓ HeyGen
+✓ Midjourney
+
+MARKETING
+
+✓ Meta Ads
+✓ TikTok Ads
+✓ Google Ads
+
+EMAIL
+
+✓ Resend
+✓ Mailchimp
+✓ ConvertKit
+
+ECOMMERCE
+
+✓ Shopify
+✓ WooCommerce
+✓ Stripe
+
+AUTOMATION
+
+✓ Make
+✓ Zapier
+✓ N8N
+
+CONTENT
+
+✓ YouTube
+✓ Instagram
+✓ Facebook
+✓ TikTok
+✓ X
+
+CRM
+
+✓ GoHighLevel
+✓ HubSpot
+✓ Salesforce
+Connection Status
+
+Each tool should show:
+
+Connected
+Disconnected
+Needs Attention
+Expired
+
+Example:
+
+OpenRouter      Connected
+
+TikTok          Needs Reconnect
+
+Stripe          Connected
+
+Resend          Connected
+
+YouTube         Disconnected
+AI Agent Integration
+
+This is where it becomes powerful.
+
+The AI Agent should always check the Connections Hub first.
+
+Example:
+
+User says:
+
+Build me a YouTube Shorts Automation System
+
+AI instantly checks:
+
+YouTube
+Connected
+
+OpenRouter
+Connected
+
+ElevenLabs
+Connected
+
+HeyGen
+Missing
+
+AI responds:
+
+Everything is ready except HeyGen.
+
+Purchase HeyGen here:
+[affiliate link]
+
+After purchase I need:
+
+API Key
+Credential Vault
+
+This is critical.
+
+You already mentioned this.
+
+Build:
+
+Credential Vault
+
+inside the platform.
+
+Users enter:
+
+API Keys
+
+OAuth Tokens
+
+Webhook URLs
+
+Secrets
+
+Passwords
+
+Store:
+
+Encrypted
+
+Per User
+
+Role Protected
+
+Audit Logged
+
+Exactly like Replit Secrets.
+
+AI Tool Marketplace Integration
+
+This is where the money is made.
+
+The AI should always follow this logic:
+
+Need Tool?
+
+↓
+
+Check Marketplace
+
+↓
+
+Tool Exists?
+
+YES
+
+↓
+
+Use Affiliate Link
+
+NO
+
+↓
+
+Use External Tool
+
+The AI should prioritize your marketplace tools first.
+
+That way every build increases affiliate revenue.
+
+My Systems Page
+
+This should be another major page.
+
+Not Dashboard.
+
+Not Builder.
+
+Separate page.
+
+Example:
+
+Affiliate Empire
+
+Revenue
+$3,243
+
+Health
+98%
+
+Status
+Running
+
+Tools
+Stripe
+OpenRouter
+TikTok
+Resend
+
+Clicking it opens:
+
+System Details
+
+with:
+
+Revenue
+Expenses
+Profit
+AI Activity
+Build Logs
+Connected Tools
+Credentials Used
+Runtime Status
+Errors
+Deployment History
+What The Final Platform Looks Like
+Command Center
+
+Monitor everything.
+
+Builder
+
+Create anything.
+
+Connections Hub
+
+Manage all integrations.
+
+Credential Vault
+
+Store all secrets securely.
+
+Marketplace
+
+Sell tools and earn affiliate commissions.
+
+My Systems
+
+Manage deployed businesses.
+
+Admin Center
+
+Platform analytics.
+
+Total revenue
+Affiliate earnings
+User growth
+OpenRouter costs
+Model usage
+Subscription revenue
+Churn
+Conversion rates

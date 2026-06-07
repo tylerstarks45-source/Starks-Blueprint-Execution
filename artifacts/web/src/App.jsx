@@ -38,7 +38,7 @@ import BuilderPage from '@/pages/BuilderPage.jsx';
 import SavedSystemsPage from '@/pages/SavedSystemsPage.jsx';
 import BuildPage from '@/pages/BuildPage.jsx';
 import UserSystemDetailPage from '@/pages/UserSystemDetailPage.jsx';
-import CredentialVaultPage from '@/pages/CredentialVaultPage.jsx';
+import ConnectionsHubPage from '@/pages/ConnectionsHubPage.jsx';
 import PricingPage from '@/pages/PricingPage.jsx';
 import ToolDetailPage from '@/pages/ToolDetailPage.jsx';
 import MyStackPage from '@/pages/MyStackPage.jsx';
@@ -144,7 +144,7 @@ const App = () => {
               <ProtectedRoute><UserSystemDetailPage /></ProtectedRoute>
             } />
             <Route path="/connections" element={
-              <ProtectedRoute><CredentialVaultPage /></ProtectedRoute>
+              <ProtectedRoute><ConnectionsHubPage /></ProtectedRoute>
             } />
             <Route path="/systems" element={
               <ProtectedRoute><SystemsListPage /></ProtectedRoute>

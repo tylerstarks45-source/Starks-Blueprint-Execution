@@ -30,11 +30,11 @@ const Header = () => {
 
   const privateNav = [
     { name: 'Dashboard', path: '/dashboard' },
-    { name: 'AI Feed', path: '/dashboard/ai-feed', icon: <Activity className="w-3.5 h-3.5 mr-1.5 inline" /> },
-    { name: 'Blueprints', path: '/blueprints' },
+    { name: 'Builder', path: '/builder' },
+    { name: 'Connections', path: '/connections' },
+    { name: 'My Systems', path: '/systems' },
     { name: 'Marketplace', path: '/marketplace' },
-    { name: 'My Stack', path: '/dashboard/my-stack' },
-    { name: 'Saved Systems', path: '/dashboard/saved-systems' },
+    { name: 'Blueprints', path: '/blueprints' },
     { name: 'Blog', path: 'https://blog.starksglobalgroup.net/blog', external: true },
   ];
 

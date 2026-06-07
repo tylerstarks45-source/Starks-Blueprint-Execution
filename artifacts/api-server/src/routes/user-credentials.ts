@@ -20,8 +20,7 @@ import {
 const router: IRouter = Router();
 
 // ─── GET /api/user-credentials/summary ──────────────────────────────────────
-// Auth-protected. Returns credential metadata (no values) for the caller.
-// Includes a count of the caller's system instances as "usedBySystemsCount".
+// Returns credential metadata (no values) including Connection Hub fields.
 
 router.get("/user-credentials/summary", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
@@ -32,6 +31,12 @@ router.get("/user-credentials/summary", async (req, res): Promise<void> => {
       id: userCredentialsTable.id,
       credentialKey: userCredentialsTable.credentialKey,
       toolId: userCredentialsTable.toolId,
+      status: userCredentialsTable.status,
+      connectedAt: userCredentialsTable.connectedAt,
+      lastSyncAt: userCredentialsTable.lastSyncAt,
+      expiresAt: userCredentialsTable.expiresAt,
+      usageCount: userCredentialsTable.usageCount,
+      metadata: userCredentialsTable.metadata,
       createdAt: userCredentialsTable.createdAt,
       updatedAt: userCredentialsTable.updatedAt,
     })
@@ -39,17 +44,17 @@ router.get("/user-credentials/summary", async (req, res): Promise<void> => {
     .where(eq(userCredentialsTable.userId, userId))
     .orderBy(userCredentialsTable.credentialKey);
 
-  // Compute per-credential usage count via:
-  //   tool_credential_requirements.credential_key → tool_id
-  //   → user_tool_selections.tool_id → system_instance_id
-  //   → system_instances.user_id = caller (ownership filter)
+  // Compute per-credential usage count + which systems use each credential
   const usageMap = new Map<string, Set<number>>();
+  const systemNamesMap = new Map<string, { id: number; name: string }[]>();
+
   if (rows.length > 0) {
     const credentialKeys = rows.map((r) => r.credentialKey);
     const usageRows = await db
       .select({
         credentialKey: toolCredentialRequirementsTable.credentialKey,
         systemInstanceId: userToolSelectionsTable.systemInstanceId,
+        systemName: systemInstancesTable.name,
       })
       .from(toolCredentialRequirementsTable)
       .innerJoin(
@@ -68,21 +73,26 @@ router.get("/user-credentials/summary", async (req, res): Promise<void> => {
     for (const row of usageRows) {
       if (!usageMap.has(row.credentialKey)) usageMap.set(row.credentialKey, new Set());
       usageMap.get(row.credentialKey)!.add(row.systemInstanceId);
+
+      if (!systemNamesMap.has(row.credentialKey)) systemNamesMap.set(row.credentialKey, []);
+      const existing = systemNamesMap.get(row.credentialKey)!;
+      if (!existing.find((s) => s.id === row.systemInstanceId)) {
+        existing.push({ id: row.systemInstanceId, name: row.systemName });
+      }
     }
   }
 
   const summary = serialize(rows).map((r) => ({
     ...r,
     usedBySystemsCount: usageMap.get(r.credentialKey)?.size ?? 0,
-    lastUsedAt: r.updatedAt, // updatedAt refreshes on every credential write/upsert
+    usedBySystems: systemNamesMap.get(r.credentialKey) ?? [],
+    lastUsedAt: r.updatedAt,
   }));
 
   res.json(summary);
 });
 
 // ─── GET /api/user-credentials ───────────────────────────────────────────────
-// Auth-protected. Returns metadata (no values) for the authenticated caller's
-// own credentials. Admins may supply ?userId= to query another user.
 
 const ADMIN_ROLES = new Set(["ADMIN", "SUPER_ADMIN"]);
 
@@ -111,6 +121,12 @@ router.get("/user-credentials", async (req, res): Promise<void> => {
       toolId: userCredentialsTable.toolId,
       credentialKey: userCredentialsTable.credentialKey,
       encryptedValue: userCredentialsTable.encryptedValue,
+      status: userCredentialsTable.status,
+      connectedAt: userCredentialsTable.connectedAt,
+      lastSyncAt: userCredentialsTable.lastSyncAt,
+      expiresAt: userCredentialsTable.expiresAt,
+      usageCount: userCredentialsTable.usageCount,
+      metadata: userCredentialsTable.metadata,
       createdAt: userCredentialsTable.createdAt,
       updatedAt: userCredentialsTable.updatedAt,
     })
@@ -119,7 +135,6 @@ router.get("/user-credentials", async (req, res): Promise<void> => {
     .orderBy(userCredentialsTable.credentialKey);
 
   // Silently re-encrypt any rows still in legacy base64 format.
-  // All updates run inside a single transaction to avoid N separate round-trips.
   const legacyRows = rows.filter((r) => !isEncrypted(r.encryptedValue));
   if (legacyRows.length > 0) {
     try {
@@ -142,16 +157,12 @@ router.get("/user-credentials", async (req, res): Promise<void> => {
     }
   }
 
-  // Strip the encryptedValue before returning — callers only get metadata.
   const safeRows = rows.map(({ encryptedValue: _omit, ...rest }) => rest);
   res.json(ListUserCredentialsResponse.parse(serialize(safeRows)));
 });
 
 // ─── POST /api/user-credentials ──────────────────────────────────────────────
-// Upsert: if a credential with the same (userId, credentialKey) already exists,
-// update its encryptedValue; otherwise insert a new row.
-// NOTE: userId is ALWAYS taken from the auth token — the body's userId is ignored
-// to prevent one user from writing credentials for another.
+// Upsert. Sets status='connected' and connectedAt on first insert.
 
 router.post("/user-credentials", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
@@ -163,12 +174,10 @@ router.post("/user-credentials", async (req, res): Promise<void> => {
     return;
   }
 
-  // Force userId from token regardless of what the body sent
   const safeData = { ...parsed.data, userId };
 
-  // Check for an existing record with the same (token userId) + credentialKey
   const [existing] = await db
-    .select({ id: userCredentialsTable.id })
+    .select({ id: userCredentialsTable.id, connectedAt: userCredentialsTable.connectedAt })
     .from(userCredentialsTable)
     .where(
       and(
@@ -182,29 +191,163 @@ router.post("/user-credentials", async (req, res): Promise<void> => {
     userId: userCredentialsTable.userId,
     toolId: userCredentialsTable.toolId,
     credentialKey: userCredentialsTable.credentialKey,
+    status: userCredentialsTable.status,
+    connectedAt: userCredentialsTable.connectedAt,
+    lastSyncAt: userCredentialsTable.lastSyncAt,
     createdAt: userCredentialsTable.createdAt,
     updatedAt: userCredentialsTable.updatedAt,
   };
 
-  // The CredentialVaultPage frontend sends encryptedValue as btoa(rawSecret).
-  // Decode that base64 back to the raw secret, then encrypt with AES-256-GCM.
   const rawSecret = Buffer.from(safeData.encryptedValue, "base64").toString("utf8");
   const encryptedValue = encrypt(rawSecret);
+  const now = new Date();
 
   if (existing) {
     const [row] = await db
       .update(userCredentialsTable)
-      .set({ encryptedValue, updatedAt: new Date() })
+      .set({
+        encryptedValue,
+        status: "connected",
+        lastSyncAt: now,
+        updatedAt: now,
+      })
       .where(eq(userCredentialsTable.id, existing.id))
       .returning(responseShape);
     res.json(ListUserCredentialsResponseItem.parse(serialize(row)));
   } else {
     const [row] = await db
       .insert(userCredentialsTable)
-      .values({ ...safeData, encryptedValue })
+      .values({
+        ...safeData,
+        encryptedValue,
+        status: "connected",
+        connectedAt: now,
+        lastSyncAt: now,
+      })
       .returning(responseShape);
     res.status(201).json(ListUserCredentialsResponseItem.parse(serialize(row)));
   }
+});
+
+// ─── POST /api/user-credentials/:id/test ─────────────────────────────────────
+// Attempts to validate a stored credential by making a live API call (where
+// supported). Updates status + lastSyncAt. Returns { ok, message, status }.
+
+router.post("/user-credentials/:id/test", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const credId = Number(req.params.id);
+  if (!credId) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [cred] = await db
+    .select()
+    .from(userCredentialsTable)
+    .where(and(eq(userCredentialsTable.id, credId), eq(userCredentialsTable.userId, userId)));
+
+  if (!cred) { res.status(404).json({ error: "Not found" }); return; }
+
+  let testOk = false;
+  let testMessage = "Credential stored and format valid";
+  let newStatus: string = "connected";
+
+  try {
+    const plaintext = decrypt(cred.encryptedValue);
+
+    if (cred.credentialKey === "OPENROUTER_API_KEY") {
+      const r = await fetch("https://openrouter.ai/api/v1/models", {
+        headers: { Authorization: `Bearer ${plaintext}` },
+      });
+      if (r.ok) {
+        testOk = true;
+        testMessage = "OpenRouter API reachable — authentication valid";
+      } else if (r.status === 401) {
+        testOk = false;
+        testMessage = "Invalid API key — authentication rejected";
+        newStatus = "invalid";
+      } else if (r.status === 429) {
+        testOk = false;
+        testMessage = "Rate limited — key is valid but quota exceeded";
+        newStatus = "rate_limited";
+      } else {
+        testOk = false;
+        testMessage = `API returned ${r.status}`;
+        newStatus = "needs_reconnect";
+      }
+    } else if (cred.credentialKey === "STRIPE_SECRET_KEY") {
+      const r = await fetch("https://api.stripe.com/v1/account", {
+        headers: { Authorization: `Bearer ${plaintext}` },
+      });
+      if (r.ok) {
+        testOk = true;
+        testMessage = "Stripe API reachable — authentication valid";
+      } else if (r.status === 401) {
+        testOk = false;
+        testMessage = "Invalid Stripe key";
+        newStatus = "invalid";
+      } else {
+        testOk = false;
+        testMessage = `Stripe returned ${r.status}`;
+        newStatus = "needs_reconnect";
+      }
+    } else {
+      // For other keys: verify non-empty and reasonable length
+      if (plaintext && plaintext.trim().length >= 8) {
+        testOk = true;
+        testMessage = "Credential stored and format valid";
+        newStatus = "connected";
+      } else {
+        testOk = false;
+        testMessage = "Credential appears empty or too short";
+        newStatus = "invalid";
+      }
+    }
+  } catch (err) {
+    req.log.warn({ credId, err }, "Credential test failed");
+    testOk = false;
+    testMessage = "Test failed — could not decrypt credential";
+    newStatus = "needs_reconnect";
+  }
+
+  const now = new Date();
+  await db
+    .update(userCredentialsTable)
+    .set({ status: newStatus, lastSyncAt: now, updatedAt: now })
+    .where(eq(userCredentialsTable.id, credId));
+
+  res.json({ ok: testOk, message: testMessage, status: newStatus });
+});
+
+// ─── PATCH /api/user-credentials/:id ─────────────────────────────────────────
+// Update status / metadata fields without touching the secret value.
+
+router.patch("/user-credentials/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const credId = Number(req.params.id);
+  if (!credId) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [existing] = await db
+    .select({ userId: userCredentialsTable.userId })
+    .from(userCredentialsTable)
+    .where(and(eq(userCredentialsTable.id, credId), eq(userCredentialsTable.userId, userId)));
+
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+
+  const { status, metadata, expiresAt } = req.body as {
+    status?: string;
+    metadata?: string;
+    expiresAt?: string;
+  };
+
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  if (status) updates.status = status;
+  if (metadata !== undefined) updates.metadata = metadata;
+  if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
+
+  await db.update(userCredentialsTable).set(updates).where(eq(userCredentialsTable.id, credId));
+  res.sendStatus(204);
 });
 
 // ─── DELETE /api/user-credentials/:id ────────────────────────────────────────
@@ -216,7 +359,6 @@ router.delete("/user-credentials/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  // Verify caller owns the credential
   const caller = getTokenPayload(req);
   if (!caller) { res.status(401).json({ error: "Unauthorized" }); return; }
 

@@ -1063,24 +1063,59 @@ const BuilderPage = () => {
         {/* ── Right Pane: Terminal ────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 p-4 flex flex-col gap-3">
           {phase === 'collecting' && (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 shrink-0">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="space-y-2 shrink-0">
+              {/* Connection status check */}
+              <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+                <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 mb-2">Required Connections</p>
+                <div className="space-y-1.5">
+                  {pendingCreds.map(cred => {
+                    const isStored = !!storedCredKeys[cred.key];
+                    return (
+                      <div key={cred.key} className="flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isStored ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                        <span className="text-xs text-muted-foreground flex-1 min-w-0 truncate">{cred.name || cred.key}</span>
+                        {isStored
+                          ? <span className="text-[10px] text-emerald-400 font-mono shrink-0">Connected ✓</span>
+                          : <a
+                              href={`/connections?connect=${encodeURIComponent(cred.key)}`}
+                              className="text-[10px] text-amber-400 hover:text-amber-300 underline shrink-0"
+                            >
+                              Connect →
+                            </a>
+                        }
+                      </div>
+                    );
+                  })}
+                </div>
+                {pendingCreds.some(c => !storedCredKeys[c.key]) && (
+                  <a
+                    href="/connections"
+                    className="mt-2.5 flex items-center gap-1.5 text-[10px] text-blue-400 hover:text-blue-300"
+                  >
+                    <span>🔗</span> Open Connections Hub to connect missing tools
+                  </a>
+                )}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-emerald-400">Plan Ready — Enter credentials, then execute</p>
-                <p className="text-[10px] text-muted-foreground/50">Fill the credential form in the sidebar to unlock build</p>
+              {/* Execute banner */}
+              <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-emerald-400">Plan Ready — Enter credentials, then execute</p>
+                  <p className="text-[10px] text-muted-foreground/50">Fill the credential form in the sidebar to unlock build</p>
+                </div>
+                <Button
+                  className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0 border-0"
+                  onClick={() => handleCredentialSubmit(liftedCredValues)}
+                  disabled={executeLoading || pendingCreds.some(c => c.required !== false && !(liftedCredValues[c.key] || '').trim())}
+                >
+                  {executeLoading
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Play className="w-3.5 h-3.5" />}
+                  Execute Build
+                </Button>
               </div>
-              <Button
-                className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0 border-0"
-                onClick={() => handleCredentialSubmit(liftedCredValues)}
-                disabled={executeLoading || pendingCreds.some(c => c.required !== false && !(liftedCredValues[c.key] || '').trim())}
-              >
-                {executeLoading
-                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  : <Play className="w-3.5 h-3.5" />}
-                Execute Build
-              </Button>
             </div>
           )}
           <div className="flex-1 min-h-0">

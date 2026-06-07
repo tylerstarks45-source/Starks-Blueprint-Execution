@@ -1,4 +1,5 @@
 - [Admin dashboard contract & roles](admin-dashboard.md) — real admin UI is AdminDashboardLayout (not the page); Zod strips fields absent from openapi.yaml; admin roles kept in lockstep.
+- [Connections Hub architecture](connections-hub.md) — Credential Vault upgraded to Connections Hub; schema columns, new test/patch endpoints, 40+ integration catalog, builder integration pattern.
 - [DB schema change workflow](db-schema-workflow.md) — adding columns requires: push → typecheck:libs → api-server typecheck, in that order.
 - [System instance creation body](system-instance-body.md) — POST /api/system-instances requires userId (non-optional in Zod schema); always pass currentUser.id explicitly even though server also injects it from JWT.
 - [PocketBase shim auth](pocketbase-shim-auth.md) — AuthContext correctly works through the pb shim; shim routes authWithPassword → /api/auth/login and authStore persists to localStorage. Do not rewrite AuthContext.

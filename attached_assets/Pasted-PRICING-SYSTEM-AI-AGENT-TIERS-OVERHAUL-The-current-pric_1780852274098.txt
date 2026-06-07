@@ -1,0 +1,132 @@
+PRICING SYSTEM + AI AGENT TIERS OVERHAUL
+
+The current pricing page is functional but the pricing structure and AI credit model need to be redesigned to better balance user value, platform profitability, and long-term scalability.
+
+PRICING RESTRUCTURE REQUIRED
+
+FREE PLAN
+
+$0/month
+
+Purpose:
+Allow users to experience the platform and test the STARKS AI Agent.
+
+Includes:
+
+* 100 monthly credits
+* Build up to 1 system
+* 1 hosted system
+* Access to marketplace
+* Access to blueprint library
+* Connect up to 3 integrations
+* Basic analytics
+* STARKS AI Agent trial access
+
+PRO PLAN
+
+$49/month
+
+Includes:
+
+* 2,500 monthly credits
+* Build up to 25 systems
+* Up to 10 hosted systems
+* Advanced analytics
+* Revenue tracking
+* Priority build queue
+* Agent-assisted system building
+* Up to 25 integrations
+
+EMPIRE PLAN
+
+$199/month
+
+Includes:
+
+* 10,000 monthly credits
+* Unlimited system builds
+* Unlimited hosted systems
+* Unlimited integrations
+* Full STARKS AI Agent access
+* Team features
+* White-label readiness
+* API access
+* Priority processing
+* Premium support
+
+TOP-UP CREDIT PACKS
+
+Replace current packs with:
+
+100 Credits = $9
+500 Credits = $29
+1,500 Credits = $59
+5,000 Credits = $149
+15,000 Credits = $349
+
+Display savings percentages on larger packs.
+
+AI AGENT MODE SYSTEM
+
+Add a new AI Agent Power Selector on the Builder page.
+
+Modes:
+
+FAST MODE
+
+* Lowest credit consumption
+* Quick builds
+* Simple planning
+
+BUSINESS MODE
+
+* Better research
+* Better automation planning
+* Moderate credit usage
+
+EXPERT MODE
+
+* Deep reasoning
+* Advanced architecture generation
+* Higher credit usage
+
+EMPIRE MODE
+
+* Maximum reasoning
+* Multi-agent orchestration
+* Deep business analysis
+* Highest credit usage
+* Empire accounts only
+
+UI REQUIREMENTS
+
+* Add visual AI Power Selector
+* Display estimated credit consumption
+* Display speed vs intelligence comparison
+* Show which modes are available for each subscription
+
+DASHBOARD REQUIREMENTS
+
+Display:
+
+* Current plan
+* Monthly credits
+* Remaining credits
+* Credit burn rate
+* AI mode currently selected
+* Upgrade prompts when limits are reached
+
+IMPORTANT
+
+After implementing these changes:
+
+1. Audit all Stripe products.
+2. Verify Stripe Price IDs match the new pricing.
+3. Create any missing Stripe products or prices.
+4. Update checkout pages.
+5. Update subscription logic.
+6. Update credit allocation logic.
+7. Update plan enforcement logic.
+8. Update all pricing tables across the public website and dashboard.
+
+Provide a final report showing exactly what Stripe products, Stripe prices, and platform billing logic were updated.

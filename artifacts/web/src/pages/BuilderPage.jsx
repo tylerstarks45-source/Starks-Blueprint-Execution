@@ -6,6 +6,7 @@ import {
   Eye, EyeOff, ChevronRight, Terminal, Activity, Lock,
   Cpu, Play, ExternalLink, ArrowLeft, Grid3x3,
   MessageSquare, Sparkles, Clock, DollarSign, RotateCcw,
+  Brain, Gauge,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -28,6 +29,56 @@ const STARTER_PROMPTS = [
   'Email marketing system',
   'Shopify automation',
 ];
+
+// ── AI Agent Power Modes ──────────────────────────────────────────────────────
+const AI_MODES = [
+  {
+    id: 'fast',
+    label: 'Fast',
+    subtitle: 'Quick responses',
+    creditHint: '~1 cr/msg',
+    icon: Zap,
+    color: 'text-emerald-400',
+    activeBg: 'bg-emerald-500/15 border-emerald-500/40',
+    inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
+    requiredTier: null,
+  },
+  {
+    id: 'business',
+    label: 'Business',
+    subtitle: 'Deeper research',
+    creditHint: '~3 cr/msg',
+    icon: Brain,
+    color: 'text-blue-400',
+    activeBg: 'bg-blue-500/15 border-blue-500/40',
+    inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
+    requiredTier: null,
+  },
+  {
+    id: 'expert',
+    label: 'Expert',
+    subtitle: 'Deep reasoning',
+    creditHint: '~8 cr/msg',
+    icon: Cpu,
+    color: 'text-violet-400',
+    activeBg: 'bg-violet-500/15 border-violet-500/40',
+    inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
+    requiredTier: null,
+  },
+  {
+    id: 'empire',
+    label: 'Empire',
+    subtitle: 'Multi-agent',
+    creditHint: '~25 cr/msg',
+    icon: Gauge,
+    color: 'text-amber-400',
+    activeBg: 'bg-amber-500/15 border-amber-500/40',
+    inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
+    requiredTier: 'empire',
+  },
+];
+
+const aiModeStorageKey = (userId) => `sbep_ai_mode_${userId}`;
 
 const DIFFICULTY_COLOR = {
   beginner: 'text-emerald-400 border-emerald-400/30 bg-emerald-400/8',
@@ -518,6 +569,20 @@ const BuilderPage = () => {
   // Stored credential prefill map: { [credentialKey]: '•••' (masked placeholder) }
   const [storedCredKeys, setStoredCredKeys] = useState({});
 
+  // AI Agent Power Mode
+  const [aiMode, setAiMode] = useState(() => {
+    try { return localStorage.getItem(aiModeStorageKey(currentUser?.id)) || 'fast'; } catch { return 'fast'; }
+  });
+
+  // Persist AI mode to localStorage on change
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try { localStorage.setItem(aiModeStorageKey(currentUser.id), aiMode); } catch {}
+  }, [aiMode, currentUser?.id]);
+
+  const userTier = (currentUser?.membershipTier || 'free').toLowerCase();
+  const isEmpireTier = userTier === 'empire' || userTier === 'operator';
+
   // Phase machine
   const [phase, setPhase] = useState('idle');
 
@@ -783,7 +848,7 @@ const BuilderPage = () => {
       const resp = await fetch('/api/ai-orchestrator/chat', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ message: msg, history }),
+        body: JSON.stringify({ message: msg, history, agentMode: aiMode }),
       });
       if (resp.status === 402) { setError('Out of AI credits. Top up to continue.'); return; }
       if (!resp.ok) throw new Error('STARK request failed');
@@ -842,7 +907,7 @@ const BuilderPage = () => {
       const resp = await fetch('/api/ai-orchestrator/chat', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ message: msg, history }),
+        body: JSON.stringify({ message: msg, history, agentMode: aiMode }),
       });
       if (resp.status === 402) { setError('Out of AI credits.'); return; }
       if (!resp.ok) throw new Error();
@@ -943,7 +1008,7 @@ const BuilderPage = () => {
             </div>
 
             {/* Mode toggle */}
-            <div className="flex rounded-lg bg-black/70 border border-white/10 p-0.5">
+            <div className="flex rounded-lg bg-black/70 border border-white/10 p-0.5 mb-3">
               <button
                 onClick={() => setMode('custom')}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
@@ -964,6 +1029,48 @@ const BuilderPage = () => {
               >
                 <Grid3x3 className="w-3 h-3" /> Blueprint
               </button>
+            </div>
+
+            {/* AI Agent Power Mode Selector */}
+            <div>
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-medium mb-1.5 flex items-center gap-1">
+                <Brain className="w-2.5 h-2.5" /> Agent Power Mode
+              </p>
+              <div className="grid grid-cols-4 gap-1">
+                {AI_MODES.map((m) => {
+                  const Icon = m.icon;
+                  const isLocked = m.requiredTier && !isEmpireTier;
+                  const isActive = aiMode === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      disabled={isLocked}
+                      onClick={() => !isLocked && setAiMode(m.id)}
+                      title={isLocked ? `Requires Empire plan` : `${m.label} — ${m.subtitle} (${m.creditHint})`}
+                      className={`relative flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg border text-center transition-all ${
+                        isLocked
+                          ? 'opacity-35 cursor-not-allowed border-white/8 bg-white/2'
+                          : isActive
+                          ? m.activeBg
+                          : m.inactiveBg
+                      }`}
+                    >
+                      <Icon className={`w-3 h-3 ${isActive ? m.color : 'text-muted-foreground/50'}`} />
+                      <span className={`text-[9px] font-bold font-mono ${isActive ? m.color : 'text-muted-foreground/40'}`}>
+                        {m.label}
+                      </span>
+                      {isLocked && (
+                        <Lock className="w-2 h-2 text-muted-foreground/30 absolute top-1 right-1" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {aiMode && (
+                <p className="text-[9px] text-muted-foreground/35 mt-1.5 text-center font-mono">
+                  {AI_MODES.find(m => m.id === aiMode)?.creditHint} · {AI_MODES.find(m => m.id === aiMode)?.subtitle}
+                </p>
+              )}
             </div>
           </div>
 

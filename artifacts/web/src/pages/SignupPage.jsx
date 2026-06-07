@@ -20,7 +20,7 @@ const SIGNUP_PLANS = [
     border: 'border-emerald-500/30',
     activeBorder: 'border-emerald-400',
     activeBg: 'bg-emerald-500/10',
-    highlights: ['50 AI credits/mo', '1 active system', 'Blueprint library', 'No credit card'],
+    highlights: ['100 AI credits/mo', '1 active system', 'Blueprint library', 'No credit card'],
   },
   {
     key: 'pro',
@@ -34,7 +34,7 @@ const SIGNUP_PLANS = [
     activeBg: 'bg-blue-500/10',
     badge: 'Most Popular',
     badgeCls: 'bg-blue-500/20 text-blue-400',
-    highlights: ['1,000 AI credits/mo', '25 active systems', 'Full STARKS AI Agent', 'Revenue tracking'],
+    highlights: ['2,500 AI credits/mo', '25 active systems', 'Full STARKS AI Agent', 'Revenue tracking'],
   },
   {
     key: 'empire',
@@ -46,7 +46,7 @@ const SIGNUP_PLANS = [
     border: 'border-amber-500/30',
     activeBorder: 'border-amber-400',
     activeBg: 'bg-amber-500/10',
-    highlights: ['5,000 AI credits/mo', 'Unlimited systems', 'Priority AI processing', 'API access'],
+    highlights: ['10,000 AI credits/mo', 'Unlimited systems', 'Priority AI processing', 'API access'],
   },
 ];
 

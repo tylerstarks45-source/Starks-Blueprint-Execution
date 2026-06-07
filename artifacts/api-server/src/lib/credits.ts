@@ -2,13 +2,13 @@ import { sql, eq, desc } from "drizzle-orm";
 import { db, usersTable, creditTransactionsTable } from "@workspace/db";
 
 export const TIER_ALLOTMENTS: Record<string, number> = {
-  free:     50,
-  pro:      1000,
-  empire:   5000,
-  // legacy aliases — map to new tiers
-  starter:  1000,
-  builder:  1000,
-  operator: 5000,
+  free:     100,
+  pro:      2500,
+  empire:   10000,
+  // legacy aliases — map to canonical tiers
+  starter:  2500,
+  builder:  2500,
+  operator: 10000,
 };
 
 export const TIER_NAMES: Record<string, string> = {
@@ -39,14 +39,14 @@ export const TIER_SYSTEM_LIMITS: Record<string, number> = {
   operator: 999999,
 };
 
-export const SIGNUP_GRANT = 50; // free-trial credits on signup
+export const SIGNUP_GRANT = 100; // credits granted on new account creation
 
 export const CREDIT_PACKS: Record<string, { id: string; name: string; credits: number; priceCents: number }> = {
-  starter: { id: "starter", name: "Starter Pack",  credits: 100,   priceCents:  900 }, // $9
-  growth:  { id: "growth",  name: "Growth Pack",   credits: 500,   priceCents: 3900 }, // $39
-  builder: { id: "builder", name: "Builder Pack",  credits: 1000,  priceCents: 6900 }, // $69
-  pro:     { id: "pro",     name: "Pro Pack",      credits: 5000,  priceCents: 24900 }, // $249
-  empire:  { id: "empire",  name: "Empire Pack",   credits: 10000, priceCents: 44900 }, // $449
+  starter: { id: "starter", name: "Starter Pack",  credits: 100,   priceCents:  900  }, // $9
+  growth:  { id: "growth",  name: "Growth Pack",   credits: 500,   priceCents: 2900  }, // $29
+  builder: { id: "builder", name: "Builder Pack",  credits: 1500,  priceCents: 5900  }, // $59
+  pro:     { id: "pro",     name: "Pro Pack",      credits: 5000,  priceCents: 14900 }, // $149
+  empire:  { id: "empire",  name: "Empire Pack",   credits: 15000, priceCents: 34900 }, // $349
 };
 
 export type CreditTxType = "signup_grant" | "tier_grant" | "purchase" | "usage" | "admin_adjust";
@@ -56,11 +56,11 @@ export function creditsForTokens(tokens: number): number {
 }
 
 export function tierAllotment(tier: string | null | undefined): number {
-  return TIER_ALLOTMENTS[tier ?? "pro"] ?? TIER_ALLOTMENTS.pro;
+  return TIER_ALLOTMENTS[tier ?? "free"] ?? TIER_ALLOTMENTS.free;
 }
 
 export function tierSystemLimit(tier: string | null | undefined): number {
-  return TIER_SYSTEM_LIMITS[tier ?? "pro"] ?? TIER_SYSTEM_LIMITS.pro;
+  return TIER_SYSTEM_LIMITS[tier ?? "free"] ?? TIER_SYSTEM_LIMITS.free;
 }
 
 export async function getBalance(userId: number): Promise<number> {

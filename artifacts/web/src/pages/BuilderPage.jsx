@@ -5,7 +5,7 @@ import {
   Bot, Send, Loader2, AlertCircle, Zap, CheckCircle2,
   Eye, EyeOff, ChevronRight, Terminal, Activity, Lock,
   Cpu, Play, ExternalLink, ArrowLeft, Grid3x3,
-  MessageSquare, Sparkles, Clock, DollarSign,
+  MessageSquare, Sparkles, Clock, DollarSign, RotateCcw,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -478,6 +478,27 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
   );
 };
 
+// ─── Session persistence helpers ──────────────────────────────────────────────
+const WELCOME_MSG = {
+  id: 'welcome',
+  role: 'assistant',
+  content: "I'm STARK — your Autonomous System Builder.\n\nGive me your income goal. I'll select the right blueprint, collect only the credentials I need, and build the entire system for you automatically.",
+  ts: Date.now(),
+};
+
+const sessionKey = (userId) => `sbep_builder_v1_${userId}`;
+
+const loadSession = (userId) => {
+  try {
+    const raw = localStorage.getItem(sessionKey(userId));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+
+const clearStoredSession = (userId) => {
+  try { localStorage.removeItem(sessionKey(userId)); } catch {}
+};
+
 // ─── Builder Page ─────────────────────────────────────────────────────────────
 const BuilderPage = () => {
   const navigate = useNavigate();
@@ -500,13 +521,8 @@ const BuilderPage = () => {
   // Phase machine
   const [phase, setPhase] = useState('idle');
 
-  // Chat
-  const [messages, setMessages] = useState([{
-    id: 'welcome',
-    role: 'assistant',
-    content: "I'm STARK — your Autonomous System Builder.\n\nGive me your income goal. I'll select the right blueprint, collect only the credentials I need, and build the entire system for you automatically.",
-    ts: Date.now(),
-  }]);
+  // Chat — starts empty; welcome message injected after session check
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [error, setError] = useState('');
@@ -527,6 +543,76 @@ const BuilderPage = () => {
 
   const chatBottomRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Track whether we've loaded (or decided not to load) a saved session
+  const sessionLoadedRef = useRef(false);
+
+  // ── Restore session from localStorage once currentUser is known ───────────
+  useEffect(() => {
+    if (!currentUser?.id || sessionLoadedRef.current) return;
+    sessionLoadedRef.current = true;
+
+    const saved = loadSession(currentUser.id);
+    if (saved && Array.isArray(saved.messages) && saved.messages.length > 0) {
+      setMessages(saved.messages);
+      setPhase(saved.phase ?? 'idle');
+      setActivatedSkills(saved.activatedSkills ?? []);
+      if (saved.buildData) setBuildData(saved.buildData);
+      if (saved.stepOutputs) setStepOutputs(saved.stepOutputs);
+      if (typeof saved.currentStepIdx === 'number') setCurrentStepIdx(saved.currentStepIdx);
+      if (saved.mode) setMode(saved.mode);
+      if (saved.selectedBp) setSelectedBp(saved.selectedBp);
+      if (saved.pendingCreds?.length > 0) setPendingCreds(saved.pendingCreds);
+      if (saved.pendingBlueprint) pendingBlueprintRef.current = saved.pendingBlueprint;
+      if (saved.pendingSystemName) pendingSystemNameRef.current = saved.pendingSystemName;
+    } else {
+      setMessages([WELCOME_MSG]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
+
+  // ── Persist session to localStorage whenever relevant state changes ────────
+  useEffect(() => {
+    if (!currentUser?.id || !sessionLoadedRef.current) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(sessionKey(currentUser.id), JSON.stringify({
+          messages,
+          phase,
+          activatedSkills,
+          buildData,
+          stepOutputs,
+          currentStepIdx,
+          mode,
+          selectedBp,
+          pendingCreds,
+          pendingBlueprint: pendingBlueprintRef.current,
+          pendingSystemName: pendingSystemNameRef.current,
+        }));
+      } catch {}
+    }, 400);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, phase, activatedSkills, buildData, stepOutputs, currentStepIdx, mode, selectedBp, pendingCreds, currentUser?.id]);
+
+  // ── Reset to a fresh session ───────────────────────────────────────────────
+  const clearSession = useCallback(() => {
+    clearStoredSession(currentUser?.id);
+    setMessages([WELCOME_MSG]);
+    setPhase('idle');
+    setActivatedSkills([]);
+    setBuildData(null);
+    setStepOutputs({});
+    setCurrentStepIdx(0);
+    setMode('custom');
+    setSelectedBp(null);
+    setPendingCreds([]);
+    setError('');
+    setInput('');
+    pendingBlueprintRef.current = null;
+    pendingSystemNameRef.current = '';
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, [currentUser?.id]);
 
   // Load blueprints + categories
   useEffect(() => {
@@ -580,8 +666,12 @@ const BuilderPage = () => {
       toast.success('System deployed and live!', {
         description: `${buildData.blueprint?.name ?? 'Your system'} is ready.`,
       });
-      // Auto-redirect after 3 seconds so user sees success banner
-      const timer = setTimeout(() => navigate(`/systems/${buildData.instanceId}`), 3000);
+      // Auto-redirect after 3 seconds so user sees success banner.
+      // Clear the saved session so next visit starts fresh.
+      const timer = setTimeout(() => {
+        clearStoredSession(currentUser?.id);
+        navigate(`/systems/${buildData.instanceId}`);
+      }, 3000);
       return () => clearTimeout(timer);
     }
 
@@ -811,7 +901,18 @@ const BuilderPage = () => {
             Builder
           </span>
         </div>
-        <PhaseBar phase={phase} />
+        <div className="flex items-center gap-3">
+          <PhaseBar phase={phase} />
+          <button
+            onClick={clearSession}
+            disabled={phase === 'building'}
+            title="Start a new conversation"
+            className="flex items-center gap-1.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors text-xs disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            New Chat
+          </button>
+        </div>
       </div>
 
       {/* Split pane */}

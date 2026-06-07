@@ -1,7 +1,11 @@
-// Stripe client via Replit Connectors — never cache this client
+// Stripe client — prefers direct env-var keys (sk_live_* / sk_test_*) when set.
+// Falls back to the Replit Connector, which routes to "development" (test) keys
+// in the Replit IDE and "production" (live) keys only when REPLIT_DEPLOYMENT=1.
+//
+// IMPORTANT: Never cache this client — short-lived Replit identity tokens expire.
 import Stripe from "stripe";
 
-async function getCredentials() {
+async function getCredentialsFromConnector(): Promise<{ secretKey: string; publishableKey: string }> {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY
     ? "repl " + process.env.REPL_IDENTITY
@@ -37,9 +41,24 @@ async function getCredentials() {
   }
 
   return {
-    publishableKey: settings.publishable as string,
     secretKey: settings.secret as string,
+    publishableKey: settings.publishable as string,
   };
+}
+
+async function getCredentials(): Promise<{ secretKey: string; publishableKey: string }> {
+  // Prefer explicitly-set env vars (supports both STRIPE_PUBLISHABLE_KEY and
+  // the legacy lowercase stripe_publishable_key secret name).
+  const envSecretKey     = process.env.STRIPE_SECRET_KEY;
+  const envPublishableKey =
+    process.env.STRIPE_PUBLISHABLE_KEY ?? process.env.stripe_publishable_key;
+
+  if (envSecretKey && envPublishableKey) {
+    return { secretKey: envSecretKey, publishableKey: envPublishableKey };
+  }
+
+  // Fall back to the Replit Connector.
+  return getCredentialsFromConnector();
 }
 
 // WARNING: Never cache this client — tokens expire

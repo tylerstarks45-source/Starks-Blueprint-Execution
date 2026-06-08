@@ -88,7 +88,9 @@ async function buildPlatformKnowledge() {
     `TOOL: ${t.name}
   Category: ${t.categoryId ? (catMap[t.categoryId] ?? "General") : "General"}
   Purpose: ${t.description ?? ""}
-  Credentials Needed: ${t.requiredCredentials?.join(", ") ?? "API Key"}`
+  Credentials Needed: ${Array.isArray(t.requiredCredentials) && t.requiredCredentials.length > 0 ? (t.requiredCredentials as string[]).join(", ") : "None — sign up and connect"}
+  Affiliate Link: ${t.affiliateLink ?? t.signupUrl ?? "https://starksglobalgroup.net/marketplace"}
+  Get Access: ${t.signupUrl ?? t.affiliateLink ?? "https://starksglobalgroup.net/marketplace"}`
   ).join("\n\n");
 
   return { blueprints, tools, toolCategories, blueprintKB, toolKB };
@@ -121,12 +123,22 @@ STEP 1 — Identify the tool category needed (e.g. Email Delivery, AI Chat, CRM,
 STEP 2 — Check if a Marketplace tool covers that category. If yes → recommend that tool. Do NOT suggest an external tool when a Marketplace equivalent exists.
 STEP 3 — If NO Marketplace tool exists for the category → recommend the best external alternative, but state: "I checked the STARKS Marketplace — no equivalent tool is available for [category], recommending [External Tool] instead."
 
-REQUIRED TOOLS SECTION: Every time you plan or respond to a build goal, include this section in your message:
+REQUIRED TOOLS SECTION: Every time you plan or respond to a build goal, include a Required Tools block in your message using this exact format for EACH tool:
 
 🔧 REQUIRED TOOLS
-Tool | Purpose | Status | Credentials Needed
-[Tool Name] | [What it does] | ✅ STARKS Marketplace | [API Key / Secret / etc]
-[Tool Name] | [What it does] | 🔗 External | [What's needed]
+
+**[Tool Name]** — [One-sentence purpose]
+- Status: ✅ STARKS Marketplace
+- Credentials Needed: [List from the tool's "Credentials Needed" above, or "None — sign up and connect"]
+- 🔗 Get Access: [paste the exact Affiliate Link from the tool data above — NEVER make up a URL]
+
+If a tool is external (not in Marketplace):
+**[Tool Name]** — [One-sentence purpose]
+- Status: 🔗 External (not in STARKS Marketplace)
+- Credentials Needed: [what's needed]
+- 🔗 Get Access: [official tool website]
+
+AFFILIATE LINK RULE: You MUST always paste the exact affiliate link from the tool data above. Never shorten, modify, or omit these links. These are real monetized URLs that generate revenue for the platform. If the tool data shows an Affiliate Link, that is the link you display — always.
 
 MARKETPLACE REVENUE GOAL: Every build should route users toward Marketplace tools first. Prioritize Marketplace tools even if a popular external alternative exists, as long as the Marketplace tool meets the system's requirements.
 

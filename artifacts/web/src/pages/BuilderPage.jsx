@@ -3,12 +3,14 @@ import VideoBackground from '@/components/VideoBackground.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bot, Send, Loader2, AlertCircle, Zap, CheckCircle2,
-  Eye, EyeOff, ChevronRight, Terminal, Activity, Lock,
+  Eye, EyeOff, ChevronRight, ChevronDown, Terminal, Activity, Lock,
   Cpu, Play, ExternalLink, ArrowLeft, Grid3x3,
   MessageSquare, Sparkles, Clock, DollarSign, RotateCcw,
   Brain, Gauge, Target, Building2, TrendingUp, X,
   PlusCircle, Rocket, ShoppingCart, Users, Layers,
   Megaphone, Cog, Wand2, FlaskConical, Globe,
+  Folder, FolderOpen, FileText, FileJson2, Circle, Server,
+  AlertTriangle, CheckCircle, PlayCircle, PauseCircle,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -742,6 +744,12 @@ const BuilderPage = () => {
   // Checkpoints — loaded from localStorage, refreshed after each save
   const [checkpoints, setCheckpoints] = useState([]);
 
+  // User's system instances for the file tree
+  const [userSystems, setUserSystems] = useState([]);
+  const [systemsLoading, setSystemsLoading] = useState(false);
+  const [expandedSystems, setExpandedSystems] = useState({});   // { [id]: true }
+  const [expandedFolders, setExpandedFolders] = useState({});   // { [id+folder]: true }
+
   // Track whether we've loaded (or decided not to load) a saved session
   const sessionLoadedRef = useRef(false);
 
@@ -851,6 +859,25 @@ const BuilderPage = () => {
         setStoredCredKeys(map);
       })
       .catch(() => {});
+  }, [currentUser?.id]);
+
+  // Load user's system instances for file tree
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    setSystemsLoading(true);
+    fetch('/api/system-instances', { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(rows => {
+        const arr = Array.isArray(rows) ? rows : [];
+        setUserSystems(arr);
+        // Auto-expand the most recent system
+        if (arr.length > 0) {
+          setExpandedSystems({ [arr[0].id]: true });
+          setExpandedFolders({ [`${arr[0].id}_steps`]: true });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setSystemsLoading(false));
   }, [currentUser?.id]);
 
   // Scroll chat to bottom
@@ -1247,54 +1274,229 @@ const BuilderPage = () => {
 
               {/* ── EXPLORER ── */}
               {activeSidePanel === 'explorer' && (
-                <div className="flex-1 overflow-y-auto py-1">
-                  <div className="px-3 py-2">
-                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1">Session</p>
+                <div className="flex-1 overflow-y-auto py-1 select-none">
+
+                  {/* ── SESSION ACTIONS ── */}
+                  <div className="px-2 py-1.5">
+                    <button
+                      onClick={() => setMode('custom')}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors ${
+                        mode === 'custom' ? 'bg-primary/12 text-primary' : 'text-muted-foreground/50 hover:text-foreground hover:bg-white/5'
+                      }`}
+                    >
+                      <MessageSquare className="w-3 h-3 shrink-0" />
+                      Chat with ASH
+                    </button>
+                    <button
+                      onClick={() => { setMode('blueprint'); setActiveSidePanel('blueprints'); }}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors ${
+                        mode === 'blueprint' ? 'bg-primary/12 text-primary' : 'text-muted-foreground/50 hover:text-foreground hover:bg-white/5'
+                      }`}
+                    >
+                      <Grid3x3 className="w-3 h-3 shrink-0" />
+                      Blueprint Picker
+                    </button>
+                  </div>
+
+                  <div className="border-t border-white/6 mx-2 my-1" />
+
+                  {/* ── SYSTEMS FILE TREE ── */}
+                  <div className="px-2 py-1">
+                    <div className="flex items-center justify-between px-1 mb-1">
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/30 font-mono">Systems</p>
+                      {systemsLoading && <Loader2 className="w-2.5 h-2.5 text-muted-foreground/30 animate-spin" />}
+                    </div>
+
+                    {!systemsLoading && userSystems.length === 0 && (
+                      <div className="px-2 py-3 text-center">
+                        <Server className="w-5 h-5 text-muted-foreground/15 mx-auto mb-1.5" />
+                        <p className="text-[9px] text-muted-foreground/25 font-mono">No systems yet.</p>
+                        <p className="text-[9px] text-muted-foreground/20 font-mono">Build one with ASH →</p>
+                      </div>
+                    )}
+
                     <div className="space-y-0.5">
-                      <button
-                        onClick={() => setMode('custom')}
-                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
-                          mode === 'custom' ? 'bg-primary/12 text-primary' : 'text-muted-foreground/60 hover:text-foreground hover:bg-white/5'
-                        }`}
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                        Chat with ASH
-                      </button>
-                      <button
-                        onClick={() => { setMode('blueprint'); setActiveSidePanel('blueprints'); }}
-                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
-                          mode === 'blueprint' ? 'bg-primary/12 text-primary' : 'text-muted-foreground/60 hover:text-foreground hover:bg-white/5'
-                        }`}
-                      >
-                        <Grid3x3 className="w-3.5 h-3.5 shrink-0" />
-                        Blueprint Picker
-                      </button>
+                      {userSystems.map((sys) => {
+                        const status = (sys.buildStatus || '').toLowerCase();
+                        const health = (sys.healthStatus || '').toLowerCase();
+                        const isOpen = !!expandedSystems[sys.id];
+                        const stepsOpen = !!expandedFolders[`${sys.id}_steps`];
+
+                        const statusColor =
+                          status === 'active' || status === 'completed' || health === 'healthy'
+                            ? 'text-emerald-400'
+                            : status === 'building'
+                            ? 'text-blue-400'
+                            : status === 'paused'
+                            ? 'text-amber-400'
+                            : health === 'unhealthy' || status === 'failed'
+                            ? 'text-rose-400'
+                            : 'text-zinc-500';
+
+                        const dotColor =
+                          status === 'active' || status === 'completed' || health === 'healthy'
+                            ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]'
+                            : status === 'building'
+                            ? 'bg-blue-400 animate-pulse shadow-[0_0_6px_rgba(96,165,250,0.6)]'
+                            : status === 'paused'
+                            ? 'bg-amber-400'
+                            : health === 'unhealthy' || status === 'failed'
+                            ? 'bg-rose-400'
+                            : 'bg-zinc-600';
+
+                        const folderIconColor =
+                          status === 'active' || status === 'completed' || health === 'healthy'
+                            ? 'text-emerald-400/70'
+                            : status === 'building'
+                            ? 'text-blue-400/70'
+                            : status === 'paused'
+                            ? 'text-amber-400/70'
+                            : 'text-zinc-500/60';
+
+                        const steps = Array.isArray(sys.steps) ? sys.steps : [];
+
+                        return (
+                          <div key={sys.id}>
+                            {/* ── System root folder ── */}
+                            <button
+                              onClick={() => setExpandedSystems(prev => ({ ...prev, [sys.id]: !prev[sys.id] }))}
+                              className="w-full group flex items-center gap-1 px-1 py-1 rounded hover:bg-white/6 transition-colors"
+                            >
+                              {isOpen
+                                ? <ChevronDown className="w-3 h-3 text-muted-foreground/30 shrink-0" />
+                                : <ChevronRight className="w-3 h-3 text-muted-foreground/30 shrink-0" />
+                              }
+                              {isOpen
+                                ? <FolderOpen className={`w-3.5 h-3.5 shrink-0 ${folderIconColor}`} />
+                                : <Folder className={`w-3.5 h-3.5 shrink-0 ${folderIconColor}`} />
+                              }
+                              <span className="flex-1 truncate text-[11px] text-foreground/75 text-left font-mono leading-tight">
+                                {sys.name || 'Unnamed System'}
+                              </span>
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+                            </button>
+
+                            {/* ── Expanded content ── */}
+                            {isOpen && (
+                              <div className="ml-4 border-l border-white/6 pl-2 mb-0.5 space-y-0.5">
+
+                                {/* README.md */}
+                                <button
+                                  onClick={() => navigate(`/systems/${sys.id}`)}
+                                  className="w-full flex items-center gap-1.5 px-1 py-0.5 rounded hover:bg-white/5 transition-colors group"
+                                >
+                                  <FileText className="w-3 h-3 shrink-0 text-sky-400/60" />
+                                  <span className="text-[10px] text-muted-foreground/55 font-mono group-hover:text-sky-300/80 truncate transition-colors">README.md</span>
+                                  <ExternalLink className="w-2.5 h-2.5 text-muted-foreground/20 opacity-0 group-hover:opacity-100 ml-auto shrink-0 transition-all" />
+                                </button>
+
+                                {/* config.json */}
+                                <div className="flex items-center gap-1.5 px-1 py-0.5">
+                                  <FileJson2 className="w-3 h-3 shrink-0 text-amber-400/60" />
+                                  <span className="text-[10px] text-muted-foreground/40 font-mono truncate">config.json</span>
+                                </div>
+
+                                {/* activity.log */}
+                                <div className="flex items-center gap-1.5 px-1 py-0.5">
+                                  <FileText className="w-3 h-3 shrink-0 text-violet-400/50" />
+                                  <span className="text-[10px] text-muted-foreground/40 font-mono truncate">activity.log</span>
+                                  <span className={`ml-auto text-[8px] font-mono shrink-0 ${statusColor}`}>
+                                    {status || 'pending'}
+                                  </span>
+                                </div>
+
+                                {/* build-steps/ folder */}
+                                <button
+                                  onClick={() => setExpandedFolders(prev => ({ ...prev, [`${sys.id}_steps`]: !prev[`${sys.id}_steps`] }))}
+                                  className="w-full flex items-center gap-1 px-1 py-0.5 rounded hover:bg-white/5 transition-colors"
+                                >
+                                  {stepsOpen
+                                    ? <ChevronDown className="w-2.5 h-2.5 text-muted-foreground/25 shrink-0" />
+                                    : <ChevronRight className="w-2.5 h-2.5 text-muted-foreground/25 shrink-0" />
+                                  }
+                                  {stepsOpen
+                                    ? <FolderOpen className="w-3 h-3 shrink-0 text-orange-400/60" />
+                                    : <Folder className="w-3 h-3 shrink-0 text-orange-400/60" />
+                                  }
+                                  <span className="text-[10px] text-muted-foreground/45 font-mono">build-steps/</span>
+                                  {steps.length > 0 && (
+                                    <span className="ml-auto text-[8px] font-mono text-muted-foreground/25">{steps.length}</span>
+                                  )}
+                                </button>
+
+                                {/* Step files */}
+                                {stepsOpen && (
+                                  <div className="ml-3 border-l border-white/5 pl-2 space-y-0.5">
+                                    {steps.length === 0 ? (
+                                      <p className="text-[9px] text-muted-foreground/20 font-mono px-1 py-0.5">no steps</p>
+                                    ) : (
+                                      steps.map((step, i) => {
+                                        const stepNum = String(i + 1).padStart(2, '0');
+                                        const stepNote = (step.notes || step.name || `Step ${i + 1}`)
+                                          .toLowerCase()
+                                          .replace(/\s+/g, '_')
+                                          .replace(/[^a-z0-9_]/g, '')
+                                          .slice(0, 22);
+                                        const isComplete = step.status === 'completed' || step.completedAt;
+                                        const isActive   = step.status === 'in_progress' || step.status === 'running';
+                                        const isFailed   = step.status === 'failed';
+                                        return (
+                                          <div key={step.id || i} className="flex items-center gap-1.5 px-1 py-0.5">
+                                            {isComplete
+                                              ? <CheckCircle className="w-2.5 h-2.5 shrink-0 text-emerald-400/70" />
+                                              : isActive
+                                              ? <PlayCircle className="w-2.5 h-2.5 shrink-0 text-blue-400 animate-pulse" />
+                                              : isFailed
+                                              ? <AlertTriangle className="w-2.5 h-2.5 shrink-0 text-rose-400/70" />
+                                              : <Circle className="w-2.5 h-2.5 shrink-0 text-muted-foreground/20" />
+                                            }
+                                            <span className={`text-[9px] font-mono truncate ${
+                                              isComplete ? 'text-emerald-400/60'
+                                                : isActive ? 'text-blue-400/80'
+                                                : isFailed ? 'text-rose-400/60'
+                                                : 'text-muted-foreground/30'
+                                            }`}>
+                                              {stepNum}_{stepNote}.md
+                                            </span>
+                                          </div>
+                                        );
+                                      })
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  <div className="border-t border-white/6 mx-3 my-1" />
+                  <div className="border-t border-white/6 mx-2 my-1" />
 
-                  <div className="px-3 py-2">
-                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1">Quick Start</p>
+                  {/* ── QUICK START ── */}
+                  <div className="px-2 py-1">
+                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1 px-1">Quick Start</p>
                     <div className="space-y-0.5">
                       {STARTER_PROMPTS.map((prompt, i) => (
                         <button
                           key={i}
                           onClick={() => { setMode('custom'); sendMessage(prompt); }}
-                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] text-muted-foreground/55 hover:text-foreground hover:bg-white/5 transition-colors text-left"
+                          className="w-full flex items-center gap-2 px-2 py-1 rounded text-[10px] text-muted-foreground/45 hover:text-foreground hover:bg-white/5 transition-colors text-left"
                         >
-                          <Zap className="w-3 h-3 shrink-0 text-primary/40" />
+                          <Zap className="w-2.5 h-2.5 shrink-0 text-primary/35" />
                           <span className="truncate">{prompt}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
+                  {/* ── ACTIVE BUILD OUTPUT ── */}
                   {buildData && (
                     <>
-                      <div className="border-t border-white/6 mx-3 my-1" />
-                      <div className="px-3 py-2">
-                        <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1">Build Output</p>
+                      <div className="border-t border-white/6 mx-2 my-1" />
+                      <div className="px-2 py-1">
+                        <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1 px-1">Active Build</p>
                         <div className="space-y-0.5">
                           {buildData.steps?.map((step, i) => {
                             const isDone = i < currentStepIdx;
@@ -1302,13 +1504,16 @@ const BuilderPage = () => {
                             return (
                               <div
                                 key={step.id}
-                                className={`flex items-center gap-2 px-2 py-1 rounded text-[10px] font-mono ${
-                                  isDone ? 'text-emerald-400/70' : isRunning ? 'text-primary' : 'text-muted-foreground/25'
+                                className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-mono ${
+                                  isDone ? 'text-emerald-400/65' : isRunning ? 'text-primary' : 'text-muted-foreground/22'
                                 }`}
                               >
-                                <span className="shrink-0 w-3 text-center">
-                                  {isDone ? '✓' : isRunning ? '▶' : '○'}
-                                </span>
+                                {isDone
+                                  ? <CheckCircle className="w-2.5 h-2.5 shrink-0" />
+                                  : isRunning
+                                  ? <PlayCircle className="w-2.5 h-2.5 shrink-0 animate-pulse" />
+                                  : <Circle className="w-2.5 h-2.5 shrink-0" />
+                                }
                                 <span className="truncate">{step.notes}</span>
                               </div>
                             );
@@ -1319,9 +1524,9 @@ const BuilderPage = () => {
                   )}
 
                   {/* ── CHECKPOINTS ── */}
-                  <div className="border-t border-white/6 mx-3 my-1" />
-                  <div className="px-3 py-2">
-                    <div className="flex items-center justify-between mb-1.5">
+                  <div className="border-t border-white/6 mx-2 my-1" />
+                  <div className="px-2 py-1">
+                    <div className="flex items-center justify-between px-1 mb-1.5">
                       <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono">Checkpoints</p>
                       {checkpoints.length > 0 && (
                         <button
@@ -1329,34 +1534,34 @@ const BuilderPage = () => {
                             try { localStorage.removeItem(checkpointsKey(currentUser?.id)); } catch {}
                             setCheckpoints([]);
                           }}
-                          className="text-[9px] text-muted-foreground/30 hover:text-red-400/70 transition-colors font-mono"
+                          className="text-[9px] text-muted-foreground/25 hover:text-rose-400/60 transition-colors font-mono"
                         >
-                          clear all
+                          clear
                         </button>
                       )}
                     </div>
                     {checkpoints.length === 0 ? (
-                      <p className="text-[10px] text-muted-foreground/25 font-mono px-2">
-                        Checkpoints are saved automatically after each AI response.
+                      <p className="text-[9px] text-muted-foreground/20 font-mono px-1">
+                        Auto-saved after each AI reply.
                       </p>
                     ) : (
-                      <div className="space-y-1">
+                      <div className="space-y-0.5">
                         {checkpoints.map((cp) => (
                           <div
                             key={cp.id}
-                            className="group flex items-start gap-2 px-2 py-1.5 rounded hover:bg-white/5 transition-colors"
+                            className="group flex items-start gap-1.5 px-1 py-1 rounded hover:bg-white/5 transition-colors"
                           >
-                            <div className="w-1.5 h-1.5 rounded-full bg-primary/40 mt-1.5 shrink-0" />
+                            <div className="w-1 h-1 rounded-full bg-primary/35 mt-1.5 shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-[10px] text-foreground/70 truncate leading-tight">{cp.summary}</p>
-                              <p className="text-[9px] text-muted-foreground/30 font-mono mt-0.5">
-                                {formatTs(cp.ts)} · {cp.messageCount} msg{cp.messageCount !== 1 ? 's' : ''}
+                              <p className="text-[9px] text-foreground/60 truncate font-mono leading-tight">{cp.summary}</p>
+                              <p className="text-[8px] text-muted-foreground/25 font-mono mt-0.5">
+                                {formatTs(cp.ts)} · {cp.messageCount}msg
                               </p>
                             </div>
                             <button
                               onClick={() => restoreCheckpoint(cp)}
-                              className="shrink-0 opacity-0 group-hover:opacity-100 text-[9px] text-primary/60 hover:text-primary font-mono transition-all"
-                              title="Restore this checkpoint"
+                              className="shrink-0 opacity-0 group-hover:opacity-100 text-[8px] text-primary/55 hover:text-primary font-mono transition-all"
+                              title="Restore checkpoint"
                             >
                               restore
                             </button>

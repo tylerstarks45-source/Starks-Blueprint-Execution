@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin'];
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'];
 
 const ProtectedAdminRoute = ({ children }) => {
   const { currentUser, currentUserRole, isLoading, isAuthenticated } = useAuth();

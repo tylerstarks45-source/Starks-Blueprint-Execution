@@ -83,9 +83,15 @@ export async function getBalance(userId: number): Promise<{ monthly: number; wal
   return { monthly, wallet, total: monthly + wallet };
 }
 
+// FOUNDER_ADMIN always has credits — usage still tracked, just never blocked.
 export async function hasCredits(userId: number): Promise<boolean> {
-  const b = await getBalance(userId);
-  return b.total > 0;
+  const [row] = await db
+    .select({ monthly: usersTable.creditsBalance, wallet: usersTable.walletBalance, role: usersTable.role })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  if (row?.role === "FOUNDER_ADMIN") return true;
+  const total = (row?.monthly ?? 0) + (row?.wallet ?? 0);
+  return total > 0;
 }
 
 // Adjust monthly credits (creditsBalance). Delta may be negative.

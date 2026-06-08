@@ -14,7 +14,7 @@ const Header = () => {
   
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
-  const isSuperAdmin = currentUser?.role === 'admin' || currentUser?.role === 'SUPER_ADMIN';
+  const isSuperAdmin = currentUser?.role === 'admin' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'FOUNDER_ADMIN';
 
   const publicNav = [
     { name: 'Home', path: '/' },

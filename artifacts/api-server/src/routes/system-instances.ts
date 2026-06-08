@@ -96,26 +96,29 @@ router.post("/system-instances", async (req, res): Promise<void> => {
     return;
   }
 
-  // Enforce per-tier system limits
+  // Enforce per-tier system limits (FOUNDER_ADMIN is exempt — unlimited systems).
   const [userRow] = await db
-    .select({ membershipTier: usersTable.membershipTier })
+    .select({ membershipTier: usersTable.membershipTier, role: usersTable.role })
     .from(usersTable)
     .where(eq(usersTable.id, userId));
-  const limit = tierSystemLimit(userRow?.membershipTier);
+  const isFounder = userRow?.role === "FOUNDER_ADMIN";
 
-  const [{ systemCount }] = await db
-    .select({ systemCount: sql<number>`count(*)::int` })
-    .from(systemInstancesTable)
-    .where(eq(systemInstancesTable.userId, userId));
+  if (!isFounder) {
+    const limit = tierSystemLimit(userRow?.membershipTier);
+    const [{ systemCount }] = await db
+      .select({ systemCount: sql<number>`count(*)::int` })
+      .from(systemInstancesTable)
+      .where(eq(systemInstancesTable.userId, userId));
 
-  if (systemCount >= limit) {
-    res.status(403).json({
-      error: `Your plan allows a maximum of ${limit} system${limit === 1 ? "" : "s"}. Upgrade your plan to create more.`,
-      code: "system_limit_reached",
-      limit,
-      current: systemCount,
-    });
-    return;
+    if (systemCount >= limit) {
+      res.status(403).json({
+        error: `Your plan allows a maximum of ${limit} system${limit === 1 ? "" : "s"}. Upgrade your plan to create more.`,
+        code: "system_limit_reached",
+        limit,
+        current: systemCount,
+      });
+      return;
+    }
   }
 
   const [row] = await db

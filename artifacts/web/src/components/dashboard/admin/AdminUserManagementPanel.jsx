@@ -22,7 +22,7 @@ import adminApi from '@/lib/adminApi.js';
 import { useAdminData } from '@/contexts/AdminDataContext.jsx';
 import { num, compact, usd } from '@/lib/adminFormat.js';
 
-const ROLE_OPTIONS = ['USER', 'ADMIN', 'SUPER_ADMIN'];
+const ROLE_OPTIONS = ['USER', 'ADMIN', 'SUPER_ADMIN', 'FOUNDER_ADMIN'];
 const TIER_OPTIONS = ['free', 'starter', 'builder', 'operator', 'empire'];
 const STATUS_OPTIONS = ['inactive', 'active', 'cancelled'];
 const NO_TIER = '__none__';
@@ -268,8 +268,11 @@ const AdminUserManagementPanel = () => {
                       </button>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className={user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? 'bg-primary/10 text-primary' : 'bg-muted'}>
-                        {user.role}
+                      <Badge variant="secondary" className={
+                        user.role === 'FOUNDER_ADMIN' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
+                        user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? 'bg-primary/10 text-primary' : 'bg-muted'
+                      }>
+                        {user.role === 'FOUNDER_ADMIN' ? '👑 FOUNDER' : user.role}
                       </Badge>
                     </TableCell>
                     <TableCell>

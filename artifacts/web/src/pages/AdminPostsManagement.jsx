@@ -17,7 +17,7 @@ const AdminPostsManagement = () => {
   const [editingPost, setEditingPost] = useState(null);
 
   useEffect(() => {
-    if (currentUser && !['SUPER_ADMIN', 'ADMIN', 'admin'].includes(currentUser.role)) {
+    if (currentUser && !['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'].includes(currentUser.role)) {
       toast.error("Unauthorized access.");
       navigate('/dashboard/ai-feed');
     }
@@ -86,7 +86,7 @@ const AdminPostsManagement = () => {
     }
   };
 
-  if (!['SUPER_ADMIN', 'ADMIN', 'admin'].includes(currentUser?.role)) {
+  if (!['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'].includes(currentUser?.role)) {
     return null;
   }
 

@@ -53,10 +53,18 @@ export function requireAuth(req: Request, res: Response): number | null {
 }
 
 // Roles permitted to access admin-only endpoints.
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "admin"]);
+// FOUNDER_ADMIN is the highest privilege level — unrestricted platform access
+// while still tracking all usage through production systems.
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "admin", "FOUNDER_ADMIN"]);
 
 export function isAdminRole(role: string): boolean {
   return ADMIN_ROLES.has(role);
+}
+
+// Returns true only for the FOUNDER_ADMIN role — used to bypass plan limits
+// while still allowing full usage tracking.
+export function isFounderAdmin(role: string | null | undefined): boolean {
+  return role === "FOUNDER_ADMIN";
 }
 
 // Async version of requireAuth that also verifies users.active.

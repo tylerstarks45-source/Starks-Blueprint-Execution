@@ -19,7 +19,8 @@ export const withAdminProtection = (WrappedComponent) => {
         }
 
         const role = currentUser?.role?.toUpperCase();
-        if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
+        const ALLOWED = ['SUPER_ADMIN', 'ADMIN', 'FOUNDER_ADMIN'];
+        if (!ALLOWED.includes(role)) {
           toast.error('Access denied. Administrator privileges required.');
           navigate('/dashboard', { replace: true });
         }
@@ -36,7 +37,8 @@ export const withAdminProtection = (WrappedComponent) => {
     }
 
     const role = currentUser?.role?.toUpperCase();
-    if (!isAuthenticated || !currentUser || (role !== 'SUPER_ADMIN' && role !== 'ADMIN')) {
+    const ALLOWED = ['SUPER_ADMIN', 'ADMIN', 'FOUNDER_ADMIN'];
+    if (!isAuthenticated || !currentUser || !ALLOWED.includes(role)) {
       return null; // Will redirect in useEffect
     }
 

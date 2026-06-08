@@ -1,4 +1,5 @@
 - [Admin dashboard contract & roles](admin-dashboard.md) — real admin UI is AdminDashboardLayout (not the page); Zod strips fields absent from openapi.yaml; admin roles kept in lockstep.
+- [FOUNDER_ADMIN role](founder-admin.md) — bypass pattern: check role in hasCredits(), openrouter.ts credit gate, system-instances.ts limit; 8 frontend files need updating when adding new admin roles.
 - [Connections Hub architecture](connections-hub.md) — Credential Vault upgraded to Connections Hub; schema columns, new test/patch endpoints, 40+ integration catalog, builder integration pattern.
 - [DB schema change workflow](db-schema-workflow.md) — adding columns requires: push → typecheck:libs → api-server typecheck, in that order.
 - [System instance creation body](system-instance-body.md) — POST /api/system-instances requires userId (non-optional in Zod schema); always pass currentUser.id explicitly even though server also injects it from JWT.

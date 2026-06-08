@@ -1,6 +1,7 @@
 import { logger } from "./logger";
-import { db } from "@workspace/db";
+import { db, usersTable } from "@workspace/db";
 import { openrouterUsageTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { getBalance, deductForUsage, OutOfCreditsError } from "./credits";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
@@ -37,12 +38,21 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
   }
   messages.push({ role: "user", content: request.prompt });
 
-  // Enforce credit balance before spending tokens (only for attributed user calls)
+  // Enforce credit balance before spending tokens (only for attributed user calls).
+  // FOUNDER_ADMIN bypasses the block so real-world testing is never interrupted,
+  // but usage is still logged and deducted so analytics remain accurate.
   if (request.userId != null) {
-    const bal = await getBalance(request.userId);
-    if (bal.total <= 0) {
-      logger.warn({ userId: request.userId }, "Blocked OpenRouter call: out of credits");
-      throw new OutOfCreditsError();
+    const [userRow] = await db
+      .select({ role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, request.userId));
+    const isFounder = userRow?.role === "FOUNDER_ADMIN";
+    if (!isFounder) {
+      const bal = await getBalance(request.userId);
+      if (bal.total <= 0) {
+        logger.warn({ userId: request.userId }, "Blocked OpenRouter call: out of credits");
+        throw new OutOfCreditsError();
+      }
     }
   }
 

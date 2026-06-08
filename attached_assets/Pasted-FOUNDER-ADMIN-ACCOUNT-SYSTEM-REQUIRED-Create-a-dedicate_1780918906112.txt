@@ -1,0 +1,203 @@
+FOUNDER ADMIN ACCOUNT SYSTEM REQUIRED
+
+Create a dedicated Founder/Admin account role for Tyler Starks.
+
+This account must be separate from normal user accounts and have full platform administration capabilities.
+
+========================================
+FOUNDER ADMIN ROLE
+==================
+
+Create a role:
+
+FOUNDER_ADMIN
+
+This role should have unrestricted platform access while still using the same production systems that normal users use.
+
+The goal is to test the platform exactly as customers experience it while maintaining full administrative control.
+
+========================================
+FOUNDER ACCOUNT PRIVILEGES
+==========================
+
+Founder Admin can:
+
+* Access all pages
+* Access all tools
+* Access all blueprints
+* Access all AI Agent modes
+* Access all integrations
+* Access all hosting features
+* Access all monitoring features
+* Access all subscription features
+* Access all billing features
+
+Founder account should never be blocked by plan limitations.
+
+========================================
+UNLIMITED TESTING MODE
+======================
+
+Founder account should have:
+
+* Unlimited testing credits
+* Unlimited AI Agent usage
+* Unlimited blueprint builds
+* Unlimited hosted systems
+* Unlimited connections
+
+However:
+
+* Usage must still be tracked
+* Usage must still appear in analytics
+* Usage must still be logged
+
+This allows real-world testing.
+
+========================================
+PLATFORM ADMIN DASHBOARD
+========================
+
+Create an Admin Dashboard.
+
+Display:
+
+* Total Users
+* Active Users
+* New Signups
+* Subscription Counts
+* Monthly Revenue
+* Credit Purchases
+* AI Agent Usage
+* OpenRouter Usage
+* Total Systems Built
+* Total Systems Hosted
+* Total Integrations Connected
+
+========================================
+OPENROUTER ANALYTICS
+====================
+
+Track:
+
+* Requests per user
+* Requests per model
+* Token usage
+* Cost per user
+* Cost per day
+* Cost per month
+* Most used models
+* Failed requests
+* Average response times
+
+Display all analytics in the Admin Dashboard.
+
+========================================
+USER MANAGEMENT
+===============
+
+Founder Admin can:
+
+* View users
+* Search users
+* Suspend users
+* Restore users
+* Upgrade plans
+* Downgrade plans
+* Add credits
+* Remove credits
+* View AI usage
+* View billing history
+
+========================================
+PLATFORM HEALTH CENTER
+======================
+
+Create a Health Monitoring page.
+
+Display:
+
+* API Status
+* OpenRouter Status
+* Stripe Status
+* Database Status
+* Email Status
+* Hosting Status
+* Queue Status
+* Background Worker Status
+
+Include:
+
+Run Health Check button
+
+When clicked:
+
+* Test OpenRouter
+* Test Database
+* Test Stripe
+* Test Email
+* Test Storage
+* Test Worker Queue
+
+Display pass/fail results.
+
+========================================
+NOTIFICATION CENTER
+===================
+
+Create platform notifications.
+
+Display:
+
+* New Signups
+* Failed Payments
+* Stripe Errors
+* OpenRouter Errors
+* Build Failures
+* Deployment Failures
+* System Warnings
+* Subscription Events
+
+Founder Admin should receive all notifications.
+
+========================================
+AUDIT LOGS
+==========
+
+Track:
+
+* User actions
+* Subscription changes
+* Credit purchases
+* AI Agent actions
+* Admin actions
+* System events
+
+Create a searchable audit log.
+
+========================================
+SECURITY
+========
+
+Founder Admin role must be protected.
+
+Do not expose admin features to normal users.
+
+Use role-based access controls throughout the platform.
+
+========================================
+FINAL REPORT
+============
+
+After implementation provide:
+
+1. Admin pages created
+2. Analytics added
+3. OpenRouter tracking implemented
+4. Health monitoring implemented
+5. Notification system implemented
+6. User management implemented
+7. Audit logging implemented
+8. Founder account permissions implemented
+
+The Founder Admin account should function as a complete platform command center while still allowing realistic testing of the production platform.

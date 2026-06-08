@@ -24,8 +24,9 @@ const LoginPage = () => {
     if (authLoading) return;
     if (isAuthenticated && currentUser) {
       const role = currentUser.role || 'USER';
+      const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'];
       if (from) navigate(from, { replace: true });
-      else if (role === 'SUPER_ADMIN') navigate('/admin-dashboard', { replace: true });
+      else if (ADMIN_ROLES.includes(role)) navigate('/admin-dashboard', { replace: true });
       else navigate('/user-dashboard', { replace: true });
     }
   }, [isAuthenticated, authLoading, currentUser, navigate, from]);
@@ -47,9 +48,10 @@ const LoginPage = () => {
       if (result && result.success) {
         const userObj = result.data?.record || result.data?.user || result.data;
         const role = userObj?.role || 'USER';
+        const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'];
         toast.success("Welcome back. System access granted.");
         if (from) navigate(from, { replace: true });
-        else if (role === 'SUPER_ADMIN') navigate('/admin-dashboard', { replace: true });
+        else if (ADMIN_ROLES.includes(role)) navigate('/admin-dashboard', { replace: true });
         else navigate('/user-dashboard', { replace: true });
       } else {
         toast.error(result?.error || "Invalid credentials. Access denied.");

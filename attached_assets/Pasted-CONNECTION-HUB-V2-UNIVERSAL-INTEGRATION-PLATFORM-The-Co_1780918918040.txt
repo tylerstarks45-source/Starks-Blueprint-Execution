@@ -1,0 +1,247 @@
+CONNECTION HUB V2 - UNIVERSAL INTEGRATION PLATFORM
+
+The Connection Hub must become a core platform feature and not just a page that stores API keys.
+
+MISSION
+
+The STARKS AI Agent must be able to connect to, manage, and use external platforms when building and running systems.
+
+========================================
+UNIVERSAL CONNECTION HUB
+========================
+
+The Connection Hub must support:
+
+AI Providers
+
+* OpenRouter
+* OpenAI
+* Anthropic Claude
+* Google AI
+* Grok
+* DeepSeek
+* Mistral
+* Cohere
+
+Social Platforms
+
+* Facebook
+* Instagram
+* Threads
+* TikTok
+* YouTube
+* X
+* LinkedIn
+* Pinterest
+
+E-Commerce
+
+* Shopify
+* WooCommerce
+* Amazon
+* Etsy
+
+Payments
+
+* Stripe
+* PayPal
+* Square
+
+Automation
+
+* Zapier
+* Make
+* n8n
+
+Communication
+
+* Gmail
+* Google Workspace
+* Outlook
+* Slack
+* Discord
+* Twilio
+* Resend
+* Mailchimp
+
+Databases
+
+* Supabase
+* PostgreSQL
+* MySQL
+* MongoDB
+* Airtable
+
+Hosting & Infrastructure
+
+* Cloudflare
+* Vercel
+* Netlify
+* AWS
+* DigitalOcean
+* Railway
+* Render
+
+========================================
+CUSTOM CONNECTOR SYSTEM
+=======================
+
+Do NOT limit users to only the connectors shown on the page.
+
+Create:
+
+"Add Custom Connector"
+
+Users should be able to create connectors for any platform.
+
+Support:
+
+* API Key
+* OAuth
+* Username/Password
+* Bearer Token
+* Webhook URL
+* Custom Headers
+* Custom Endpoints
+
+Users should be able to save custom integrations.
+
+========================================
+CONNECTION TESTING
+==================
+
+Every connector must support:
+
+Test Connection
+
+Display:
+
+* Connected
+* Disconnected
+* Expired
+* Error
+* Needs Attention
+
+Show the last successful connection timestamp.
+
+========================================
+AI AGENT INTEGRATION AWARENESS
+==============================
+
+The STARKS AI Agent must be aware of connected tools.
+
+When building a system:
+
+The AI Agent should:
+
+* Detect available integrations
+* Recommend required integrations
+* Tell users what is missing
+* Use connected services automatically
+
+Example:
+
+If building a TikTok automation:
+
+Agent checks:
+
+* OpenRouter
+* TikTok
+* Storage
+* Email
+
+If missing:
+
+Display setup instructions.
+
+========================================
+CONNECTION REQUIREMENTS ENGINE
+==============================
+
+Every blueprint should define required integrations.
+
+Example:
+
+YouTube System
+
+Requires:
+
+* OpenRouter
+* YouTube
+* Storage
+
+Email System
+
+Requires:
+
+* OpenRouter
+* Gmail or Resend
+
+Shopify System
+
+Requires:
+
+* Shopify
+* Stripe
+* OpenRouter
+
+Show readiness status before deployment.
+
+========================================
+CONNECTION MARKETPLACE
+======================
+
+Create searchable connector marketplace.
+
+Allow filtering by:
+
+* AI
+* Social
+* Ecommerce
+* Payments
+* Automation
+* Communication
+* Infrastructure
+* Database
+
+========================================
+ADMIN MONITORING
+================
+
+Founder Admin should see:
+
+* Total connected integrations
+* Failed integrations
+* Expired credentials
+* Connection health
+* Usage by connector
+* Most used integrations
+
+========================================
+SECURITY
+========
+
+Encrypt all credentials.
+
+Store credentials securely.
+
+Never expose secrets to the frontend.
+
+Use role-based access controls.
+
+========================================
+FINAL DELIVERABLE
+=================
+
+Provide:
+
+1. List of built-in connectors
+2. Custom connector architecture
+3. Credential storage architecture
+4. Connection testing implementation
+5. AI Agent integration awareness implementation
+6. Blueprint dependency system
+7. Admin monitoring implementation
+8. Any required future integrations
+
+The goal is for the STARKS AI Agent to be capable of connecting to virtually any platform, API, software, or service needed to build and operate real-world business systems.

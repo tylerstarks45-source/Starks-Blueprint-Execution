@@ -29,14 +29,12 @@ const PLANS = [
     credits: '100 monthly AI credits',
     cta: 'Start Free',
     features: [
-      { text: 'STARKS AI Agent trial access', included: true },
+      { text: 'ASH AI Agent trial access', included: true },
       { text: '100 monthly AI credits', included: true },
       { text: 'Browse all blueprints', included: true },
       { text: 'Full marketplace access', included: true },
       { text: 'Build 1 active system', included: true },
-      { text: 'Host 1 system', included: true },
       { text: 'Connect up to 3 integrations', included: true },
-      { text: 'Basic analytics', included: true },
       { text: 'Community support', included: true },
       { text: 'Revenue tracking', included: false },
       { text: 'System health monitoring', included: false },
@@ -44,9 +42,9 @@ const PLANS = [
     ],
   },
   {
-    key: 'pro',
-    name: 'Pro',
-    price: '$49',
+    key: 'builder',
+    name: 'Builder',
+    price: '$29',
     period: '/mo',
     icon: Zap,
     color: 'text-blue-400',
@@ -55,29 +53,56 @@ const PLANS = [
     highlight: true,
     badge: 'MOST POPULAR',
     badgeColor: 'bg-blue-500',
-    description: 'For entrepreneurs ready to build and scale AI systems.',
-    credits: '2,500 monthly AI credits',
-    cta: 'Start Pro',
+    description: 'For entrepreneurs ready to launch their first AI income system.',
+    credits: '1,000 monthly AI credits',
+    cta: 'Start Building',
     features: [
-      { text: 'Full STARKS AI Agent access', included: true },
-      { text: '2,500 monthly AI credits', included: true },
-      { text: 'Build up to 25 systems', included: true },
-      { text: 'Host up to 10 systems', included: true },
-      { text: 'Connect up to 25 integrations', included: true },
+      { text: 'Full ASH AI Agent access', included: true },
+      { text: '1,000 monthly AI credits', included: true },
+      { text: 'Build up to 5 systems', included: true },
+      { text: 'Host up to 3 systems', included: true },
+      { text: 'Connect up to 10 integrations', included: true },
       { text: 'Unlimited blueprint access', included: true },
       { text: 'Revenue dashboard', included: true },
       { text: 'Advanced analytics', included: true },
       { text: 'System health monitoring', included: true },
+      { text: 'Email support', included: true },
+      { text: 'API access', included: false },
+    ],
+  },
+  {
+    key: 'operator',
+    name: 'Operator',
+    price: '$99',
+    period: '/mo',
+    icon: Rocket,
+    color: 'text-violet-400',
+    glow: 'shadow-violet-500/20',
+    border: 'border-violet-500/40',
+    highlight: false,
+    badge: 'SCALE FASTER',
+    badgeColor: 'bg-violet-600',
+    description: 'For serious operators scaling multiple AI income streams.',
+    credits: '5,000 monthly AI credits',
+    cta: 'Become an Operator',
+    features: [
+      { text: 'Full ASH AI Agent access', included: true },
+      { text: '5,000 monthly AI credits', included: true },
+      { text: 'Build up to 25 systems', included: true },
+      { text: 'Host up to 15 systems', included: true },
+      { text: 'Connect up to 40 integrations', included: true },
       { text: 'Priority build queue', included: true },
       { text: 'Agent-assisted system building', included: true },
-      { text: 'Email support', included: true },
+      { text: 'Advanced revenue intelligence', included: true },
+      { text: 'Team management features', included: true },
+      { text: 'Email & chat support', included: true },
       { text: 'API access', included: false },
     ],
   },
   {
     key: 'empire',
     name: 'Empire',
-    price: '$199',
+    price: '$499',
     period: '/mo',
     icon: Crown,
     color: 'text-amber-400',
@@ -86,23 +111,21 @@ const PLANS = [
     highlight: false,
     badge: 'FOR FOUNDERS & AGENCIES',
     badgeColor: 'bg-amber-500/80',
-    description: 'Unlimited power for agencies, founders, and power users.',
-    credits: '10,000 monthly AI credits',
+    description: 'Unlimited power for agencies, founders, and power operators.',
+    credits: '25,000 monthly AI credits',
     cta: 'Go Empire',
     features: [
-      { text: 'Full STARKS AI Agent access', included: true },
-      { text: '10,000 monthly AI credits', included: true },
+      { text: 'Full ASH AI Agent access', included: true },
+      { text: '25,000 monthly AI credits', included: true },
       { text: 'Unlimited system builds', included: true },
       { text: 'Unlimited hosting', included: true },
       { text: 'Unlimited integrations', included: true },
       { text: 'Priority agent processing', included: true },
-      { text: 'Team management features', included: true },
-      { text: 'Enterprise analytics', included: true },
       { text: 'White label ready', included: true },
+      { text: 'Enterprise analytics', included: true },
       { text: 'API access', included: true },
-      { text: 'Advanced revenue intelligence', included: true },
-      { text: 'Priority support', included: true },
       { text: 'Custom onboarding', included: true },
+      { text: 'Priority support', included: true },
     ],
   },
 ];
@@ -165,18 +188,18 @@ const CREDIT_PACKS = [
 
 // ─── Comparison table rows ────────────────────────────────────────────────────
 const COMPARISON = [
-  { label: 'Monthly AI Credits',   free: '100',         pro: '2,500',      empire: '10,000' },
-  { label: 'Active Systems',       free: '1',           pro: '25',         empire: 'Unlimited' },
-  { label: 'Hosted Systems',       free: '1',           pro: '10',         empire: 'Unlimited' },
-  { label: 'Integrations',         free: '3',           pro: '25',         empire: 'Unlimited' },
-  { label: 'STARKS AI Agent',      free: 'Trial',       pro: 'Full',       empire: 'Priority' },
-  { label: 'Blueprint Library',    free: 'Browse only', pro: 'Full access', empire: 'Full access' },
-  { label: 'Revenue Tracking',     free: '✗',           pro: '✓',          empire: '✓' },
-  { label: 'System Monitoring',    free: '✗',           pro: '✓',          empire: '✓' },
-  { label: 'API Access',           free: '✗',           pro: '✗',          empire: '✓' },
-  { label: 'White Label',          free: '✗',           pro: '✗',          empire: '✓' },
-  { label: 'Team Features',        free: '✗',           pro: '✗',          empire: '✓' },
-  { label: 'Support',              free: 'Community',   pro: 'Email',      empire: 'Priority' },
+  { label: 'Monthly AI Credits',   free: '100',         builder: '1,000',      operator: '5,000',      empire: '25,000' },
+  { label: 'Active Systems',       free: '1',           builder: '5',          operator: '25',         empire: 'Unlimited' },
+  { label: 'Hosted Systems',       free: '1',           builder: '3',          operator: '15',         empire: 'Unlimited' },
+  { label: 'Integrations',         free: '3',           builder: '10',         operator: '40',         empire: 'Unlimited' },
+  { label: 'ASH AI Agent',         free: 'Trial',       builder: 'Full',       operator: 'Priority',   empire: 'Priority' },
+  { label: 'Blueprint Library',    free: 'Browse only', builder: 'Full access', operator: 'Full access', empire: 'Full access' },
+  { label: 'Revenue Tracking',     free: '✗',           builder: '✓',          operator: '✓',          empire: '✓' },
+  { label: 'System Monitoring',    free: '✗',           builder: '✓',          operator: '✓',          empire: '✓' },
+  { label: 'Team Features',        free: '✗',           builder: '✗',          operator: '✓',          empire: '✓' },
+  { label: 'API Access',           free: '✗',           builder: '✗',          operator: '✗',          empire: '✓' },
+  { label: 'White Label',          free: '✗',           builder: '✗',          operator: '✗',          empire: '✓' },
+  { label: 'Support',              free: 'Community',   builder: 'Email',      operator: 'Email & Chat', empire: 'Priority' },
 ];
 
 const authHeaders = () => {
@@ -199,8 +222,7 @@ const PricingPage = () => {
   const isCurrentPlan = (key) => {
     if (key === userTier) return true;
     // normalise legacy tiers
-    if (key === 'pro' && (userTier === 'starter' || userTier === 'builder')) return true;
-    if (key === 'empire' && userTier === 'operator') return true;
+    if (key === 'builder' && (userTier === 'starter' || userTier === 'pro')) return true;
     return false;
   };
 
@@ -314,7 +336,7 @@ const PricingPage = () => {
         {/* ── Plan Cards ───────────────────────────────────────────────────── */}
         <section className="px-4 pb-24">
           <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-8">
               {PLANS.map((plan, idx) => {
                 const Icon = plan.icon;
                 const active = isCurrentPlan(plan.key);
@@ -410,17 +432,19 @@ const PricingPage = () => {
             <div className="max-w-4xl mx-auto">
               <h2 className="text-2xl font-bold font-mono text-center mb-8">Full Plan Comparison</h2>
               <div className="rounded-2xl border border-white/10 bg-black/50 backdrop-blur-sm overflow-hidden">
-                <div className="grid grid-cols-4 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground bg-white/4 px-6 py-4">
+                <div className="grid grid-cols-5 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground bg-white/4 px-6 py-4">
                   <div>Feature</div>
                   <div className="text-center text-emerald-400">Free</div>
-                  <div className="text-center text-blue-400">Pro</div>
+                  <div className="text-center text-blue-400">Builder</div>
+                  <div className="text-center text-violet-400">Operator</div>
                   <div className="text-center text-amber-400">Empire</div>
                 </div>
                 {COMPARISON.map((row, i) => (
-                  <div key={i} className={`grid grid-cols-4 px-6 py-3.5 text-sm ${i % 2 === 0 ? 'bg-white/2' : ''} border-t border-white/5`}>
+                  <div key={i} className={`grid grid-cols-5 px-6 py-3.5 text-sm ${i % 2 === 0 ? 'bg-white/2' : ''} border-t border-white/5`}>
                     <div className="text-muted-foreground">{row.label}</div>
                     <div className="text-center font-mono text-xs">{row.free === '✓' ? <span className="text-emerald-400">✓</span> : row.free === '✗' ? <span className="opacity-25">✗</span> : row.free}</div>
-                    <div className="text-center font-mono text-xs">{row.pro === '✓' ? <span className="text-emerald-400">✓</span> : row.pro === '✗' ? <span className="opacity-25">✗</span> : row.pro}</div>
+                    <div className="text-center font-mono text-xs">{row.builder === '✓' ? <span className="text-emerald-400">✓</span> : row.builder === '✗' ? <span className="opacity-25">✗</span> : row.builder}</div>
+                    <div className="text-center font-mono text-xs">{row.operator === '✓' ? <span className="text-emerald-400">✓</span> : row.operator === '✗' ? <span className="opacity-25">✗</span> : row.operator}</div>
                     <div className="text-center font-mono text-xs">{row.empire === '✓' ? <span className="text-emerald-400">✓</span> : row.empire === '✗' ? <span className="opacity-25">✗</span> : row.empire}</div>
                   </div>
                 ))}
@@ -588,7 +612,7 @@ const PricingPage = () => {
                   onClick={() => handlePlanSelect(PLANS[1])}
                   className="px-8 py-3.5 rounded-xl bg-blue-500 text-white font-semibold hover:bg-blue-400 transition-all"
                 >
-                  Start Pro — $49/mo
+                  Start Builder — $29/mo
                 </button>
               </div>
               <p className="text-xs text-muted-foreground mt-4">

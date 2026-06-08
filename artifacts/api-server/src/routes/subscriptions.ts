@@ -9,27 +9,27 @@ import { requireAuthActive } from "../lib/auth";
 
 const router: IRouter = Router();
 
-// Tier config — price IDs come from Stripe dashboard env vars.
-// Current tiers: pro ($49/mo), empire ($199/mo).
-// Legacy aliases: STRIPE_PRICE_STARTER / STRIPE_PRICE_BUILDER map to pro;
-//                 STRIPE_PRICE_OPERATOR maps to empire.
+// Tier config — 3 paid tiers matching the Stripe product catalogue.
+// Price IDs are loaded from env vars at runtime (set STRIPE_PRICE_BUILDER,
+// STRIPE_PRICE_OPERATOR, STRIPE_PRICE_EMPIRE in Replit Secrets).
 const TIER_CONFIG: Record<string, { tier: string; name: string; amount: number }> = {
-  pro:      { tier: "pro",      name: "Pro",      amount: 4900  }, // $49/mo
-  empire:   { tier: "empire",   name: "Empire",   amount: 19900 }, // $199/mo
-  // legacy aliases kept so existing Stripe webhook events still resolve
-  starter:  { tier: "pro",      name: "Pro",      amount: 4900  },
-  builder:  { tier: "pro",      name: "Pro",      amount: 4900  },
-  operator: { tier: "empire",   name: "Empire",   amount: 19900 },
+  builder:  { tier: "builder",  name: "Builder",  amount: 2900  }, // $29/mo
+  operator: { tier: "operator", name: "Operator", amount: 9900  }, // $99/mo
+  empire:   { tier: "empire",   name: "Empire",   amount: 49900 }, // $499/mo
+  // Legacy aliases — kept so any existing Stripe webhook events continue to resolve
+  pro:      { tier: "builder",  name: "Builder",  amount: 2900  },
+  starter:  { tier: "builder",  name: "Builder",  amount: 2900  },
 };
 
 function getPriceId(tier: string): string | null {
-  // Normalise legacy tiers to canonical name before looking up price ID
-  const canonical = tier === "starter" || tier === "builder" ? "pro"
-                  : tier === "operator" ? "empire"
-                  : tier;
+  // Normalise legacy aliases to canonical tier name
+  const canonical =
+    tier === "starter" || tier === "pro" ? "builder" :
+    tier;
   const envMap: Record<string, string | undefined> = {
-    pro:    process.env.STRIPE_PRICE_PRO ?? process.env.STRIPE_PRICE_STARTER ?? process.env.STRIPE_PRICE_BUILDER,
-    empire: process.env.STRIPE_PRICE_EMPIRE ?? process.env.STRIPE_PRICE_OPERATOR,
+    builder:  process.env.STRIPE_PRICE_BUILDER  ?? process.env.STRIPE_PRICE_PRO ?? process.env.STRIPE_PRICE_STARTER,
+    operator: process.env.STRIPE_PRICE_OPERATOR,
+    empire:   process.env.STRIPE_PRICE_EMPIRE   ?? process.env.STRIPE_PRICE_OPERATOR,
   };
   return envMap[canonical] || null;
 }
@@ -37,10 +37,12 @@ function getPriceId(tier: string): string | null {
 // Reverse-map a Stripe price ID back to an internal tier name.
 function getTierFromPriceId(priceId: string): string | null {
   const reverseMap: Record<string, string> = {};
-  const pro    = process.env.STRIPE_PRICE_PRO ?? process.env.STRIPE_PRICE_STARTER ?? process.env.STRIPE_PRICE_BUILDER;
-  const empire = process.env.STRIPE_PRICE_EMPIRE ?? process.env.STRIPE_PRICE_OPERATOR;
-  if (pro)    reverseMap[pro]    = "pro";
-  if (empire) reverseMap[empire] = "empire";
+  const builder  = process.env.STRIPE_PRICE_BUILDER  ?? process.env.STRIPE_PRICE_PRO ?? process.env.STRIPE_PRICE_STARTER;
+  const operator = process.env.STRIPE_PRICE_OPERATOR;
+  const empire   = process.env.STRIPE_PRICE_EMPIRE   ?? process.env.STRIPE_PRICE_OPERATOR;
+  if (builder)  reverseMap[builder]  = "builder";
+  if (operator) reverseMap[operator] = "operator";
+  if (empire)   reverseMap[empire]   = "empire";
   return reverseMap[priceId] ?? null;
 }
 

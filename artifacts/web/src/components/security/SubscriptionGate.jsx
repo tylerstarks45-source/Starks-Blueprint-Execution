@@ -66,7 +66,7 @@ const SubscriptionGate = ({ children }) => {
         <div className="bg-white/3 border border-white/8 rounded-xl p-4 text-left space-y-2.5">
           {[
             'Access to ASH — Autonomous Business Builder',
-            'All 8 AI income system blueprints',
+            'Unlimited income blueprint systems',
             'Connections Hub with 57+ integrations',
             'AI credits to run automated builds',
             'Live system monitoring & analytics',

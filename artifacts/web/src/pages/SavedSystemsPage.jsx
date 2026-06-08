@@ -145,13 +145,38 @@ const SavedSystemsPage = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-background/60 border border-white/10 rounded-xl p-5 shadow-inner">
                           <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 text-shadow-sm">System Health</h4>
-                          <p className="text-3xl font-extrabold text-foreground text-shadow-md">98%</p>
-                          <p className="text-xs text-emerald-400 font-bold mt-1">Optimal performance</p>
+                          {selectedSystem.healthStatus === 'healthy' ? (
+                            <>
+                              <p className="text-3xl font-extrabold text-foreground text-shadow-md">Healthy</p>
+                              <p className="text-xs text-emerald-400 font-bold mt-1">All systems nominal</p>
+                            </>
+                          ) : selectedSystem.healthStatus === 'degraded' ? (
+                            <>
+                              <p className="text-3xl font-extrabold text-amber-400 text-shadow-md">Degraded</p>
+                              <p className="text-xs text-amber-400 font-bold mt-1">Partial service disruption</p>
+                            </>
+                          ) : selectedSystem.healthStatus === 'unhealthy' ? (
+                            <>
+                              <p className="text-3xl font-extrabold text-rose-400 text-shadow-md">Unhealthy</p>
+                              <p className="text-xs text-rose-400 font-bold mt-1">Service disruption detected</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-3xl font-extrabold text-zinc-400 text-shadow-md">—</p>
+                              <p className="text-xs text-zinc-500 font-bold mt-1">No health data yet</p>
+                            </>
+                          )}
                         </div>
                         <div className="bg-background/60 border border-white/10 rounded-xl p-5 shadow-inner">
-                          <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 text-shadow-sm">Executions (24h)</h4>
-                          <p className="text-3xl font-extrabold text-foreground text-shadow-md">1,248</p>
-                          <p className="text-xs text-zinc-400 font-bold mt-1">~52 per hour</p>
+                          <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 text-shadow-sm">Build Status</h4>
+                          <p className="text-3xl font-extrabold text-foreground capitalize text-shadow-md">
+                            {selectedSystem.buildStatus || '—'}
+                          </p>
+                          <p className="text-xs text-zinc-400 font-bold mt-1">
+                            Updated {selectedSystem.updatedAt
+                              ? new Date(selectedSystem.updatedAt).toLocaleDateString()
+                              : 'N/A'}
+                          </p>
                         </div>
                       </div>
                       

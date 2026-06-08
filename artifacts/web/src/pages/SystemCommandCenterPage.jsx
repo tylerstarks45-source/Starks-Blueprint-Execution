@@ -49,8 +49,8 @@ const buildDailyData = (daily) => {
 const buildAIData = (aiActivity) => {
   const total = aiActivity?.totalRequests ?? 0;
   return Array.from({ length: 7 }, (_, i) => ({
-    day: ['6d', '5d', '4d', '3d', '2d', '1d', 'Now'][i],
-    val: i === 6 ? total : Math.floor(Math.random() * (total * 0.3)),
+    day: ['6d', '5d', '4d', '1d', 'Now'][i] ?? `${6 - i}d`,
+    val: i === 6 ? total : Math.max(0, total - (6 - i)),
   }));
 };
 

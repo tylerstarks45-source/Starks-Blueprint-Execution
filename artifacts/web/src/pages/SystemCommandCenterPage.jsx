@@ -9,7 +9,7 @@ import {
   ChevronRight, Shield, Target, Gauge, BarChart2, Bot,
   Rocket, Settings, ArrowUpRight, ArrowDownRight, Layers,
   FlaskConical, Globe, Key, Database, ShieldCheck, Eye,
-  TrendingDown, ArrowRight, Bolt, Flame, Star,
+  TrendingDown, ArrowRight, Bolt, Flame, Star, Crown,
 } from 'lucide-react';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
@@ -412,6 +412,16 @@ const SystemCommandCenterPage = () => {
           >
             <Key className="w-3 h-3" /> Credentials
           </Button>
+          {(user.subscriptionTier ?? user.membershipTier ?? 'free').toLowerCase() !== 'empire' && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/pricing')}
+              className="h-8 text-xs gap-1.5 px-3 border-amber-500/40 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-400/60 transition-all"
+            >
+              <Crown className="w-3 h-3" /> Upgrade Plan
+            </Button>
+          )}
           <Button size="sm" onClick={() => navigate('/builder')} className="h-8 text-xs gap-1.5 px-3 font-semibold">
             <Plus className="w-3.5 h-3.5" /> New System
           </Button>

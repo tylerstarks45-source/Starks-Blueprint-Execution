@@ -483,6 +483,7 @@ export interface OpenrouterUsageSummary {
 
 export interface CreditBalance {
   balance: number;
+  walletBalance: number;
   /** @nullable */
   tier?: string | null;
   tierAllotment: number;
@@ -510,21 +511,24 @@ export interface CreditTierConfig {
   monthlyPrice: number;
 }
 
-export interface CreditPackConfig {
+export interface WalletTierConfig {
   id: string;
   name: string;
   credits: number;
   priceCents: number;
+  dollarAmount: number;
+  /** @nullable */
+  saving?: string | null;
 }
 
 export interface CreditConfig {
   tiers: CreditTierConfig[];
-  packs: CreditPackConfig[];
+  walletTiers: WalletTierConfig[];
 }
 
-export interface CreditPackPurchase {
+export interface WalletCreditPurchase {
   /** @minLength 1 */
-  pack: string;
+  walletTier: string;
 }
 
 export interface CreditCheckoutSession {

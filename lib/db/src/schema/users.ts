@@ -12,6 +12,7 @@ export const usersTable = pgTable("users", {
   membershipStatus: text("membership_status").notNull().default("inactive"),
   membershipTier: text("membership_tier"),
   creditsBalance: integer("credits_balance").notNull().default(0),
+  walletBalance: integer("wallet_balance").notNull().default(0),
   active: boolean("active").notNull().default(true),
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry", { withTimezone: true }),

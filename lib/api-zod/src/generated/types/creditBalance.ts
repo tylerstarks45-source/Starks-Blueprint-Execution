@@ -8,6 +8,7 @@
 
 export interface CreditBalance {
   balance: number;
+  walletBalance: number;
   /** @nullable */
   tier?: string | null;
   tierAllotment: number;

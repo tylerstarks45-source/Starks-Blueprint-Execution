@@ -39,8 +39,8 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
 
   // Enforce credit balance before spending tokens (only for attributed user calls)
   if (request.userId != null) {
-    const balance = await getBalance(request.userId);
-    if (balance <= 0) {
+    const bal = await getBalance(request.userId);
+    if (bal.total <= 0) {
       logger.warn({ userId: request.userId }, "Blocked OpenRouter call: out of credits");
       throw new OutOfCreditsError();
     }

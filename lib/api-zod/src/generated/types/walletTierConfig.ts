@@ -6,9 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CreditPackConfig {
+export interface WalletTierConfig {
   id: string;
   name: string;
   credits: number;
   priceCents: number;
+  dollarAmount: number;
+  /** @nullable */
+  saving?: string | null;
 }

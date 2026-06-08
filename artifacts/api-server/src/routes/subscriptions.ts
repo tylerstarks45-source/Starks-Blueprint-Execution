@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db, subscriptionsTable, usersTable, processedStripeEventsTable } from "@workspace/db";
 import { z } from "zod";
 import { getUncachableStripeClient } from "../lib/stripe";
-import { adjustCredits, tierAllotment } from "../lib/credits";
+import { adjustCredits, adjustWalletCredits, tierAllotment } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -163,11 +163,11 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
       const customerId = session.customer as string;
       const subscriptionId = session.subscription as string;
 
-      if (session.metadata?.kind === "credit_pack") {
+      if (session.metadata?.kind === "wallet_purchase") {
         const credits = Number(session.metadata?.credits);
         if (userId && credits > 0) {
-          await adjustCredits(userId, credits, "purchase", { reason: `Purchased ${credits} credits` });
-          req.log.info({ userId, credits }, "Credit pack purchased");
+          await adjustWalletCredits(userId, credits, { reason: `Wallet top-up: ${credits} credits` });
+          req.log.info({ userId, credits }, "Wallet top-up completed");
         }
       } else if (userId && tier) {
         const priceId = getPriceId(tier);

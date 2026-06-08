@@ -57,7 +57,6 @@ import type {
   CreditBalance,
   CreditCheckoutSession,
   CreditConfig,
-  CreditPackPurchase,
   CreditTransaction,
   CrossSystemActivityEvent,
   ErrorResponse,
@@ -107,7 +106,8 @@ import type {
   UserInput,
   UserMemoryInput,
   UserMemoryRecord,
-  UserUpdate
+  UserUpdate,
+  WalletCreditPurchase
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -4916,9 +4916,9 @@ export const getCreateCreditCheckoutUrl = () => {
 }
 
 /**
- * @summary Create a Stripe checkout session to buy a credit pack
+ * @summary Create a Stripe checkout session to top up the credit wallet
  */
-export const createCreditCheckout = async (creditPackPurchase: CreditPackPurchase, options?: RequestInit): Promise<CreditCheckoutSession> => {
+export const createCreditCheckout = async (walletCreditPurchase: WalletCreditPurchase, options?: RequestInit): Promise<CreditCheckoutSession> => {
 
   return customFetch<CreditCheckoutSession>(getCreateCreditCheckoutUrl(),
   {
@@ -4926,7 +4926,7 @@ export const createCreditCheckout = async (creditPackPurchase: CreditPackPurchas
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      creditPackPurchase,)
+      walletCreditPurchase,)
   }
 );}
 
@@ -4934,8 +4934,8 @@ export const createCreditCheckout = async (creditPackPurchase: CreditPackPurchas
 
 
 export const getCreateCreditCheckoutMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCreditCheckout>>, TError,{data: BodyType<CreditPackPurchase>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createCreditCheckout>>, TError,{data: BodyType<CreditPackPurchase>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCreditCheckout>>, TError,{data: BodyType<WalletCreditPurchase>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCreditCheckout>>, TError,{data: BodyType<WalletCreditPurchase>}, TContext> => {
 
 const mutationKey = ['createCreditCheckout'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -4947,7 +4947,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCreditCheckout>>, {data: BodyType<CreditPackPurchase>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCreditCheckout>>, {data: BodyType<WalletCreditPurchase>}> = (props) => {
           const {data} = props ?? {};
 
           return  createCreditCheckout(data,requestOptions)
@@ -4961,18 +4961,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateCreditCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof createCreditCheckout>>>
-    export type CreateCreditCheckoutMutationBody = BodyType<CreditPackPurchase>
+    export type CreateCreditCheckoutMutationBody = BodyType<WalletCreditPurchase>
     export type CreateCreditCheckoutMutationError = ErrorType<ErrorResponse>
 
     /**
- * @summary Create a Stripe checkout session to buy a credit pack
+ * @summary Create a Stripe checkout session to top up the credit wallet
  */
 export const useCreateCreditCheckout = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCreditCheckout>>, TError,{data: BodyType<CreditPackPurchase>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCreditCheckout>>, TError,{data: BodyType<WalletCreditPurchase>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createCreditCheckout>>,
         TError,
-        {data: BodyType<CreditPackPurchase>},
+        {data: BodyType<WalletCreditPurchase>},
         TContext
       > => {
       return useMutation(getCreateCreditCheckoutMutationOptions(options));

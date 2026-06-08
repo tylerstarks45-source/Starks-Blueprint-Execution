@@ -8,8 +8,7 @@ import {
   TIER_ALLOTMENTS,
   TIER_NAMES,
   TIER_PRICES,
-  CREDIT_PACKS,
-  getBalance,
+  WALLET_TIERS,
   listTransactions,
   tierAllotment,
 } from "../lib/credits";
@@ -32,11 +31,12 @@ router.get("/credits/me", async (req, res): Promise<void> => {
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
   const tier = user.membershipTier ?? "free";
-  res.json(GetMyCreditsResponse.parse({
+  res.json(GetMyCreditsResponse.parse(serialize({
     balance: user.creditsBalance ?? 0,
+    walletBalance: user.walletBalance ?? 0,
     tier,
     tierAllotment: tierAllotment(tier),
-  }));
+  })));
 });
 
 // GET /api/credits/transactions
@@ -48,7 +48,7 @@ router.get("/credits/transactions", async (req, res): Promise<void> => {
   res.json(ListMyCreditTransactionsResponse.parse(serialize(rows)));
 });
 
-// GET /api/credits/config — public tier allotments + credit packs
+// GET /api/credits/config — public tier allotments + wallet top-up tiers
 router.get("/credits/config", async (_req, res): Promise<void> => {
   const tiers = Object.keys(TIER_ALLOTMENTS).map((t) => ({
     tier: t,
@@ -56,16 +56,18 @@ router.get("/credits/config", async (_req, res): Promise<void> => {
     allotment: TIER_ALLOTMENTS[t],
     monthlyPrice: TIER_PRICES[t] ?? 0,
   }));
-  const packs = Object.values(CREDIT_PACKS).map((p) => ({
+  const walletTiers = Object.values(WALLET_TIERS).map((p) => ({
     id: p.id,
     name: p.name,
     credits: p.credits,
     priceCents: p.priceCents,
+    dollarAmount: p.dollarAmount,
+    saving: p.saving ?? null,
   }));
-  res.json(GetCreditConfigResponse.parse({ tiers, packs }));
+  res.json(GetCreditConfigResponse.parse({ tiers, walletTiers }));
 });
 
-// POST /api/credits/checkout — one-time Stripe checkout for a credit pack
+// POST /api/credits/checkout — Stripe checkout to top up credit wallet
 router.post("/credits/checkout", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
@@ -73,8 +75,8 @@ router.post("/credits/checkout", async (req, res): Promise<void> => {
   const parsed = CreateCreditCheckoutBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
-  const pack = CREDIT_PACKS[parsed.data.pack];
-  if (!pack) { res.status(400).json({ error: "Unknown credit pack" }); return; }
+  const tier = WALLET_TIERS[parsed.data.walletTier];
+  if (!tier) { res.status(400).json({ error: "Unknown wallet tier" }); return; }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
@@ -92,23 +94,23 @@ router.post("/credits/checkout", async (req, res): Promise<void> => {
         quantity: 1,
         price_data: {
           currency: "usd",
-          unit_amount: pack.priceCents,
-          product_data: { name: `SBEP ${pack.name}` },
+          unit_amount: tier.priceCents,
+          product_data: { name: `SBEP Credit Wallet — ${tier.credits.toLocaleString()} Credits` },
         },
       }],
-      success_url: `${baseUrl}/dashboard?credits_purchased=1`,
-      cancel_url: `${baseUrl}/dashboard?credits_canceled=1`,
+      success_url: `${baseUrl}/credits?wallet_topped_up=1`,
+      cancel_url: `${baseUrl}/credits?wallet_canceled=1`,
       metadata: {
         userId: String(userId),
-        kind: "credit_pack",
-        credits: String(pack.credits),
-        pack: pack.id,
+        kind: "wallet_purchase",
+        credits: String(tier.credits),
+        walletTier: tier.id,
       },
     });
 
     res.json(CreateCreditCheckoutResponse.parse({ url: session.url, sessionId: session.id }));
   } catch (err: any) {
-    req.log.error({ err }, "Credit checkout error");
+    req.log.error({ err }, "Wallet checkout error");
     res.status(500).json({ error: "Failed to create checkout session. Please try again." });
   }
 });

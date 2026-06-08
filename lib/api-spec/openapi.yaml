@@ -1419,13 +1419,13 @@ paths:
     post:
       operationId: createCreditCheckout
       tags: [credits]
-      summary: Create a Stripe checkout session to buy a credit pack
+      summary: Create a Stripe checkout session to top up the credit wallet
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreditPackPurchase"
+              $ref: "#/components/schemas/WalletCreditPurchase"
       responses:
         "200":
           description: Checkout session created
@@ -2675,11 +2675,13 @@ components:
       properties:
         balance:
           type: integer
+        walletBalance:
+          type: integer
         tier:
           type: ["string", "null"]
         tierAllotment:
           type: integer
-      required: [balance, tierAllotment]
+      required: [balance, walletBalance, tierAllotment]
 
     CreditTransaction:
       type: object
@@ -2717,7 +2719,7 @@ components:
           type: integer
       required: [tier, name, allotment, monthlyPrice]
 
-    CreditPackConfig:
+    WalletTierConfig:
       type: object
       properties:
         id:
@@ -2728,7 +2730,11 @@ components:
           type: integer
         priceCents:
           type: integer
-      required: [id, name, credits, priceCents]
+        dollarAmount:
+          type: integer
+        saving:
+          type: ["string", "null"]
+      required: [id, name, credits, priceCents, dollarAmount]
 
     CreditConfig:
       type: object
@@ -2737,19 +2743,19 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CreditTierConfig"
-        packs:
+        walletTiers:
           type: array
           items:
-            $ref: "#/components/schemas/CreditPackConfig"
-      required: [tiers, packs]
+            $ref: "#/components/schemas/WalletTierConfig"
+      required: [tiers, walletTiers]
 
-    CreditPackPurchase:
+    WalletCreditPurchase:
       type: object
       properties:
-        pack:
+        walletTier:
           type: string
           minLength: 1
-      required: [pack]
+      required: [walletTier]
 
     CreditCheckoutSession:
       type: object

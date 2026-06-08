@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CreditPackPurchase {
+export interface WalletCreditPurchase {
   /** @minLength 1 */
-  pack: string;
+  walletTier: string;
 }

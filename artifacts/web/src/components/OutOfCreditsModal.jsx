@@ -39,11 +39,12 @@ const UPGRADE_PLANS = [
   },
 ];
 
+// Wallet tiers — permanent credits, never expire
 const CREDIT_PACKS = [
-  { id: 'small',  label: '100 credits', price: '$10' },
-  { id: 'medium', label: '300 credits', price: '$25' },
-  { id: 'large',  label: '700 credits', price: '$50' },
-  { id: 'xl',     label: '1,500 credits', price: '$100' },
+  { id: 'ten',        label: '250 credits',  price: '$10'  },
+  { id: 'twentyfive', label: '700 credits',  price: '$25'  },
+  { id: 'fifty',      label: '1,500 credits', price: '$50' },
+  { id: 'hundred',    label: '3,500 credits', price: '$100' },
 ];
 
 const OutOfCreditsModal = () => {
@@ -85,7 +86,7 @@ const OutOfCreditsModal = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('sbep_auth_token')}`,
         },
-        body: JSON.stringify({ pack: packId }),
+        body: JSON.stringify({ walletTier: packId }),
       });
       const data = await resp.json();
       if (!resp.ok) {
@@ -182,12 +183,12 @@ const OutOfCreditsModal = () => {
                 <div className="flex-1 h-px bg-border/50" />
               </div>
 
-              {/* Credit Packs */}
+              {/* Wallet Top-ups */}
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-3">
                   <Package className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm font-semibold font-mono text-foreground">Buy Credit Pack</span>
-                  <span className="text-xs text-muted-foreground ml-1">— one-time, never expire, any plan</span>
+                  <span className="text-sm font-semibold font-mono text-foreground">Top Up Wallet</span>
+                  <span className="text-xs text-muted-foreground ml-1">— permanent credits, never expire, any plan</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {CREDIT_PACKS.map((pack) => {

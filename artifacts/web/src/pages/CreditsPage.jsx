@@ -3,8 +3,8 @@ import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import {
   Coins, Zap, Crown, Building2, Gift, Check, ArrowLeft,
-  TrendingUp, Package, Star, Flame, Shield, Clock,
-  ChevronRight, Loader2, RefreshCw, BarChart2, AlertTriangle,
+  TrendingUp, Star, Flame, Shield, Clock,
+  ChevronRight, Loader2, BarChart2, Wallet,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Header from '@/components/Header.jsx';
@@ -19,37 +19,36 @@ const authHeaders = () => {
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Pricing data
-   Credit packs: one-time, never expire
-   Cost per credit decreases at higher tiers → rewards bigger purchases
-   while maintaining healthy margins at every level.
+   Wallet Tiers — matches server WALLET_TIERS exactly
+   $10=250cr, $25=700cr, $50=1500cr, $100=3500cr, $250=10000cr
+   Permanent credits — never expire — consume monthly credits first
 ───────────────────────────────────────────────────────────────────────────── */
-
-const CREDIT_PACKS = [
+const WALLET_TIERS = [
   {
-    id: 'starter',
-    name: 'Starter Pack',
-    credits: 100,
-    priceCents: 900,
-    priceLabel: '$9',
-    perCredit: '$0.09',
+    id: 'ten',
+    name: '$10',
+    credits: 250,
+    priceCents: 1000,
+    dollarAmount: 10,
+    perCredit: '$0.040',
     saving: null,
     color: 'text-blue-400',
     border: 'border-blue-500/30',
     bg: 'bg-blue-500/8',
     hoverBg: 'hover:bg-blue-500/15',
     badge: null,
-    icon: Package,
-    description: 'Great for trying things out',
+    badgeColor: null,
+    icon: Coins,
+    description: 'Starter wallet load',
   },
   {
-    id: 'growth',
-    name: 'Growth Pack',
-    credits: 500,
-    priceCents: 2900,
-    priceLabel: '$29',
-    perCredit: '$0.058',
-    saving: 'Save 19%',
+    id: 'twentyfive',
+    name: '$25',
+    credits: 700,
+    priceCents: 2500,
+    dollarAmount: 25,
+    perCredit: '$0.036',
+    saving: 'Save 13%',
     color: 'text-violet-400',
     border: 'border-violet-500/30',
     bg: 'bg-violet-500/8',
@@ -60,13 +59,13 @@ const CREDIT_PACKS = [
     description: 'Most popular top-up',
   },
   {
-    id: 'builder',
-    name: 'Builder Pack',
+    id: 'fifty',
+    name: '$50',
     credits: 1500,
-    priceCents: 5900,
-    priceLabel: '$59',
-    perCredit: '$0.039',
-    saving: 'Save 34%',
+    priceCents: 5000,
+    dollarAmount: 50,
+    perCredit: '$0.033',
+    saving: 'Save 25%',
     color: 'text-emerald-400',
     border: 'border-emerald-500/30',
     bg: 'bg-emerald-500/8',
@@ -77,13 +76,13 @@ const CREDIT_PACKS = [
     description: 'Best value for builders',
   },
   {
-    id: 'pro',
-    name: 'Pro Pack',
-    credits: 5000,
-    priceCents: 14900,
-    priceLabel: '$149',
-    perCredit: '$0.030',
-    saving: 'Save 44%',
+    id: 'hundred',
+    name: '$100',
+    credits: 3500,
+    priceCents: 10000,
+    dollarAmount: 100,
+    perCredit: '$0.029',
+    saving: 'Save 42%',
     color: 'text-amber-400',
     border: 'border-amber-500/30',
     bg: 'bg-amber-500/8',
@@ -94,13 +93,13 @@ const CREDIT_PACKS = [
     description: 'For power users & teams',
   },
   {
-    id: 'empire',
-    name: 'Empire Pack',
-    credits: 15000,
-    priceCents: 34900,
-    priceLabel: '$349',
-    perCredit: '$0.023',
-    saving: 'Save 57%',
+    id: 'twofifty',
+    name: '$250',
+    credits: 10000,
+    priceCents: 25000,
+    dollarAmount: 250,
+    perCredit: '$0.025',
+    saving: 'Save 60%',
     color: 'text-rose-400',
     border: 'border-rose-500/30',
     bg: 'bg-rose-500/8',
@@ -108,7 +107,7 @@ const CREDIT_PACKS = [
     badge: 'Max Savings',
     badgeColor: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
     icon: Crown,
-    description: 'Maximum savings for agencies',
+    description: 'Maximum savings — never expire',
   },
 ];
 
@@ -181,7 +180,6 @@ const PLANS = [
 ];
 
 const PANEL = 'bg-black/80 backdrop-blur-md border border-white/10 rounded-xl';
-const SUBPANEL = 'bg-black/60 border border-white/8 rounded-lg';
 
 const CreditsPage = () => {
   const navigate = useNavigate();
@@ -205,7 +203,7 @@ const CreditsPage = () => {
           setTransactions(Array.isArray(data?.items ?? data) ? (data?.items ?? data) : []);
         }
       } catch {
-        // silently fail — user still sees packs
+        // silently fail — user still sees wallet tiers
       } finally {
         setLoading(false);
       }
@@ -213,14 +211,14 @@ const CreditsPage = () => {
     load();
   }, []);
 
-  const handleBuyPack = async (packId) => {
+  const handleBuyWallet = async (tierId) => {
     if (!currentUser) { navigate('/login'); return; }
-    setLoadingKey(packId);
+    setLoadingKey(tierId);
     try {
       const resp = await fetch('/api/credits/checkout', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ pack: packId }),
+        body: JSON.stringify({ walletTier: tierId }),
       });
       const data = await resp.json();
       if (!resp.ok) { toast.error(data.error || 'Failed to start checkout'); return; }
@@ -251,15 +249,16 @@ const CreditsPage = () => {
     }
   };
 
-  const balance   = credits?.balance      ?? 0;
-  const allotment = credits?.tierAllotment ?? 0;
-  const tier      = credits?.tier ?? 'free';
-  const credPct   = allotment > 0 ? Math.round((balance / allotment) * 100) : 100;
+  const monthlyBalance = credits?.balance      ?? 0;
+  const walletBalance  = credits?.walletBalance ?? 0;
+  const totalBalance   = monthlyBalance + walletBalance;
+  const allotment      = credits?.tierAllotment ?? 0;
+  const tier           = credits?.tier ?? 'free';
+  const credPct        = allotment > 0 ? Math.round((monthlyBalance / allotment) * 100) : 100;
 
   const fmtTx = (tx) => {
     if (!tx.createdAt) return '';
-    const d = new Date(tx.createdAt);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return new Date(tx.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const txColor = (type, amount) => {
@@ -269,11 +268,12 @@ const CreditsPage = () => {
   };
 
   const txLabel = (type) => ({
-    signup_grant: 'Welcome Grant',
-    tier_grant:   'Monthly Allotment',
-    purchase:     'Credit Purchase',
-    usage:        'AI Usage',
-    admin_adjust: 'Admin Adjustment',
+    signup_grant:   'Welcome Grant',
+    tier_grant:     'Monthly Allotment',
+    purchase:       'Credit Purchase',
+    wallet_purchase:'Wallet Top-up',
+    usage:          'AI Usage',
+    admin_adjust:   'Admin Adjustment',
   }[type] ?? type);
 
   return (
@@ -303,7 +303,7 @@ const CreditsPage = () => {
                 style={{ textShadow: '0 0 20px rgba(0,0,0,0.9)' }}>
                 Credits &amp; Plans
               </h1>
-              <p className="text-sm text-white/50 font-mono">Manage your AI fuel — packs never expire</p>
+              <p className="text-sm text-white/50 font-mono">Monthly credits reset · wallet credits never expire</p>
             </div>
           </div>
           {loading ? (
@@ -313,9 +313,9 @@ const CreditsPage = () => {
               <div className="text-right">
                 <p className="text-3xl font-bold font-mono text-amber-400 tabular-nums"
                   style={{ textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(245,158,11,0.2)' }}>
-                  {balance.toLocaleString()}
+                  {totalBalance.toLocaleString()}
                 </p>
-                <p className="text-xs text-white/40 font-mono">credits remaining</p>
+                <p className="text-xs text-white/40 font-mono">total credits</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold font-mono text-white uppercase">{tier}</p>
@@ -325,39 +325,57 @@ const CreditsPage = () => {
           )}
         </div>
 
-        {/* ── Credit Balance Bar ──────────────────────────────────────────────── */}
-        {!loading && allotment > 0 && (
-          <div className={`${PANEL} p-5 mb-6`}>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold text-white/60 uppercase tracking-widest font-mono">Monthly Allotment Usage</p>
-              <p className="text-xs text-white/40 font-mono">{balance.toLocaleString()} / {allotment.toLocaleString()} credits</p>
+        {/* ── Dual Balance Display ─────────────────────────────────────────────── */}
+        {!loading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            {/* Monthly balance */}
+            <div className={`${PANEL} p-5`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="w-4 h-4 text-blue-400" />
+                <p className="text-xs font-bold text-white/60 uppercase tracking-widest font-mono">Monthly Allotment</p>
+              </div>
+              <p className="text-2xl font-bold font-mono text-blue-400 tabular-nums mb-1">
+                {monthlyBalance.toLocaleString()}
+                <span className="text-sm text-white/30 ml-1">/ {allotment.toLocaleString()}</span>
+              </p>
+              {allotment > 0 && (
+                <div className="h-2 bg-black/60 border border-white/8 rounded-full overflow-hidden mt-2">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      credPct > 60 ? 'bg-gradient-to-r from-blue-500 to-blue-400' :
+                      credPct > 25 ? 'bg-gradient-to-r from-orange-500 to-amber-400' :
+                      'bg-gradient-to-r from-rose-600 to-rose-400'
+                    }`}
+                    style={{ width: `${credPct}%` }}
+                  />
+                </div>
+              )}
+              <p className="text-[10px] text-white/30 font-mono mt-2">Resets each billing cycle · unused credits do not roll over</p>
             </div>
-            <div className="h-3 bg-black/60 border border-white/8 rounded-full overflow-hidden mb-2">
-              <div
-                className={`h-full rounded-full transition-all duration-700 ${
-                  credPct > 60 ? 'bg-gradient-to-r from-amber-500 to-amber-400' :
-                  credPct > 25 ? 'bg-gradient-to-r from-orange-500 to-amber-400' :
-                  'bg-gradient-to-r from-rose-600 to-rose-400'
-                }`}
-                style={{ width: `${credPct}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-[10px] text-white/30 font-mono">
-              <span>{(allotment - balance).toLocaleString()} used this period</span>
-              <span>{credPct}% remaining</span>
+
+            {/* Wallet balance */}
+            <div className={`${PANEL} p-5`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Wallet className="w-4 h-4 text-amber-400" />
+                <p className="text-xs font-bold text-white/60 uppercase tracking-widest font-mono">Credit Wallet</p>
+              </div>
+              <p className="text-2xl font-bold font-mono text-amber-400 tabular-nums mb-1">
+                {walletBalance.toLocaleString()}
+              </p>
+              <p className="text-[10px] text-white/30 font-mono mt-2">Permanent credits — never expire · consumed after monthly credits</p>
             </div>
           </div>
         )}
 
-        {/* ── Credit Packs ────────────────────────────────────────────────────── */}
+        {/* ── Credit Wallet Top-ups ────────────────────────────────────────────── */}
         <div className={`${PANEL} p-5 mb-6`}>
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-base font-bold text-white uppercase tracking-widest font-mono"
                 style={{ textShadow: '0 0 10px rgba(0,0,0,0.9)' }}>
-                Credit Packs
+                Credit Wallet Top-ups
               </h2>
-              <p className="text-xs text-white/40 font-mono mt-0.5">One-time purchase · credits never expire · stack on any plan</p>
+              <p className="text-xs text-white/40 font-mono mt-0.5">One-time purchase · permanent credits · stack on any plan · bigger = better value</p>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
               <Shield className="w-3.5 h-3.5 text-emerald-400" />
@@ -365,50 +383,53 @@ const CreditsPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {CREDIT_PACKS.map(pack => {
-              const isLoading = loadingKey === pack.id;
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {WALLET_TIERS.map(wt => {
+              const isLoading = loadingKey === wt.id;
               return (
                 <div
-                  key={pack.id}
-                  className={`relative flex flex-col rounded-2xl border p-5 transition-all duration-200 ${pack.border} ${pack.bg} ${pack.hoverBg} cursor-pointer group`}
-                  onClick={() => !loadingKey && handleBuyPack(pack.id)}
+                  key={wt.id}
+                  className={`relative flex flex-col rounded-2xl border p-5 transition-all duration-200 ${wt.border} ${wt.bg} ${wt.hoverBg} cursor-pointer group`}
+                  onClick={() => !loadingKey && handleBuyWallet(wt.id)}
                 >
-                  {pack.badge && (
-                    <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full border text-[10px] font-bold font-mono uppercase tracking-wide whitespace-nowrap ${pack.badgeColor}`}>
-                      {pack.badge}
+                  {wt.badge && (
+                    <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full border text-[10px] font-bold font-mono uppercase tracking-wide whitespace-nowrap ${wt.badgeColor}`}>
+                      {wt.badge}
                     </div>
                   )}
 
                   <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-black/40 border ${pack.border}`}>
-                      <pack.icon className={`w-4 h-4 ${pack.color}`} />
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-black/40 border ${wt.border}`}>
+                      <wt.icon className={`w-4 h-4 ${wt.color}`} />
                     </div>
-                    <span className={`text-sm font-bold font-mono ${pack.color}`}>{pack.name}</span>
+                    <span className={`text-sm font-bold font-mono ${wt.color}`}>{wt.name}</span>
                   </div>
 
-                  <div className="flex-1 mb-4">
-                    <p className={`text-3xl font-bold font-mono tabular-nums ${pack.color}`}
+                  <div className="flex-1 mb-3">
+                    <p className={`text-2xl font-bold font-mono tabular-nums ${wt.color}`}
                       style={{ textShadow: '0 0 15px rgba(0,0,0,0.9)' }}>
-                      {pack.priceLabel}
+                      {wt.credits.toLocaleString()}
                     </p>
-                    <p className="text-lg font-semibold text-white font-mono mt-0.5">
-                      {pack.credits.toLocaleString()} <span className="text-sm text-white/50">credits</span>
-                    </p>
-                    <p className="text-[11px] text-white/40 font-mono mt-1">{pack.perCredit} per credit</p>
+                    <p className="text-xs text-white/50 font-mono mt-0.5">credits</p>
+                    {wt.saving && (
+                      <span className="inline-block mt-1.5 text-[10px] font-bold font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-full">
+                        {wt.saving}
+                      </span>
+                    )}
                   </div>
 
-                  <p className="text-[11px] text-white/50 mb-4 leading-relaxed">{pack.description}</p>
+                  <p className="text-[11px] text-white/40 font-mono mb-1">{wt.perCredit} per credit</p>
+                  <p className="text-[11px] text-white/50 mb-4 leading-relaxed">{wt.description}</p>
 
                   <button
                     disabled={!!loadingKey}
-                    className={`w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all border ${pack.border}
+                    className={`w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all border ${wt.border}
                       bg-black/40 group-hover:bg-black/60 disabled:opacity-50 flex items-center justify-center gap-2`}
                   >
                     {isLoading ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</>
                     ) : (
-                      <>Buy {pack.name} <ChevronRight className="w-4 h-4" /></>
+                      <>Add {wt.credits.toLocaleString()} cr <ChevronRight className="w-4 h-4" /></>
                     )}
                   </button>
                 </div>
@@ -416,9 +437,11 @@ const CreditsPage = () => {
             })}
           </div>
 
-          <p className="text-[11px] text-white/25 text-center mt-4 font-mono">
-            Powered by Stripe · 256-bit SSL encryption · No subscription required for credit packs
-          </p>
+          <div className="mt-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+            <p className="text-[11px] text-amber-400/70 font-mono text-center">
+              🔒 Wallet credits never expire · Monthly subscription credits consumed first · Powered by Stripe · 256-bit SSL
+            </p>
+          </div>
         </div>
 
         {/* ── Subscription Plans ──────────────────────────────────────────────── */}
@@ -431,7 +454,7 @@ const CreditsPage = () => {
             <p className="text-xs text-white/40 font-mono mt-0.5">Monthly credits that reset every billing cycle · cancel anytime</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {PLANS.map(plan => {
               const isCurrentTier = tier === plan.key;
               const isLoading = loadingKey === plan.key;
@@ -527,7 +550,6 @@ const CreditsPage = () => {
             </div>
           ) : (
             <div>
-              {/* Header */}
               <div className="grid grid-cols-4 gap-3 pb-2 border-b border-white/8 mb-1 px-1">
                 {['Date', 'Type', 'Amount', 'Balance After'].map(h => (
                   <div key={h} className="text-[9px] uppercase tracking-widest text-white/30 font-bold">{h}</div>

@@ -1,0 +1,160 @@
+STARKS BILLING SYSTEM OVERHAUL REQUIRED
+
+The current credit-pack system is too simplistic and feels like a one-time purchase marketplace.
+
+We are transitioning STARKS into a true SaaS platform with recurring subscriptions and a flexible credit wallet system.
+
+========================================
+NEW BILLING MODEL
+=================
+
+REMOVE the fixed credit-pack structure currently shown on the Credits & Plans page.
+
+Replace it with:
+
+MONTHLY SUBSCRIPTIONS
+
+FREE
+$0/month
+
+* 100 monthly credits
+* Build 1 system
+* Host 1 system
+* Marketplace access
+* Blueprint library access
+* Up to 3 integrations
+* Basic analytics
+* Limited STARKS AI Agent access
+
+PRO
+$49/month
+
+* 2,500 monthly credits
+* Up to 25 systems
+* Up to 10 hosted systems
+* Revenue tracking
+* Advanced analytics
+* Priority queue
+* STARKS AI Agent access
+* Up to 25 integrations
+
+EMPIRE
+$199/month
+
+* 10,000 monthly credits
+* Unlimited systems
+* Unlimited hosting
+* Unlimited integrations
+* Full STARKS AI Agent access
+* Team features
+* API access
+* White-label readiness
+* Priority support
+
+========================================
+NEW CREDIT WALLET SYSTEM
+========================
+
+Remove all fixed credit packs.
+
+Create a credit wallet.
+
+Users can purchase additional credits anytime.
+
+Minimum purchase:
+
+$10
+
+Suggested wallet purchases:
+
+$10 = 250 credits
+$25 = 700 credits
+$50 = 1,500 credits
+$100 = 3,500 credits
+$250 = 10,000 credits
+
+Larger purchases receive better value.
+
+Purchased credits NEVER expire.
+
+Monthly subscription credits reset monthly.
+
+Wallet credits remain permanently.
+
+System should consume monthly credits first and wallet credits second.
+
+========================================
+AI AGENT POWER MODES
+====================
+
+Add a new Agent Power Selector to the Builder page.
+
+MODES:
+
+SPEED MODE
+
+* Fastest
+* Lowest credit cost
+
+BUSINESS MODE
+
+* Balanced performance
+* Recommended default
+
+EXPERT MODE
+
+* Advanced reasoning
+* Better automation planning
+* Higher credit consumption
+
+EMPIRE MODE
+
+* Maximum intelligence
+* Deep research
+* Multi-agent orchestration
+* Highest credit consumption
+* Empire subscribers only
+
+Display estimated credit consumption for each mode.
+
+========================================
+STRIPE MIGRATION REQUIRED
+=========================
+
+Do NOT only update the UI.
+
+Audit and update:
+
+* Stripe products
+* Stripe subscriptions
+* Stripe checkout
+* Stripe billing logic
+* Stripe webhooks
+* Stripe customer records
+* Credit wallet purchases
+* Subscription renewals
+* Upgrade flows
+* Downgrade flows
+* Billing history
+
+Create new Stripe Products and Price IDs where necessary.
+
+Remove legacy products that no longer match the platform plans.
+
+========================================
+FINAL DELIVERABLE
+=================
+
+After implementation provide:
+
+1. List of all Stripe Products
+2. List of all Stripe Prices
+3. New Price IDs
+4. Required environment variables
+5. Database changes made
+6. Billing logic changes made
+7. Credit wallet logic implemented
+8. Subscription logic implemented
+9. Any remaining manual Stripe actions required
+
+Do not stop at frontend changes. Complete the entire billing architecture so the platform is launch-ready and capable of accepting real customer payments.

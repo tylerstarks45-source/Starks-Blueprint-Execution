@@ -1129,6 +1129,7 @@ export const GetOpenrouterUsageSummaryResponse = zod.object({
  */
 export const GetMyCreditsResponse = zod.object({
   "balance": zod.number(),
+  "walletBalance": zod.number(),
   "tier": zod.string().nullish(),
   "tierAllotment": zod.number()
 })
@@ -1161,23 +1162,25 @@ export const GetCreditConfigResponse = zod.object({
   "allotment": zod.number(),
   "monthlyPrice": zod.number()
 })),
-  "packs": zod.array(zod.object({
+  "walletTiers": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "credits": zod.number(),
-  "priceCents": zod.number()
+  "priceCents": zod.number(),
+  "dollarAmount": zod.number(),
+  "saving": zod.string().nullish()
 }))
 })
 
 
 /**
- * @summary Create a Stripe checkout session to buy a credit pack
+ * @summary Create a Stripe checkout session to top up the credit wallet
  */
 
 
 
 export const CreateCreditCheckoutBody = zod.object({
-  "pack": zod.string().min(1)
+  "walletTier": zod.string().min(1)
 })
 
 export const CreateCreditCheckoutResponse = zod.object({

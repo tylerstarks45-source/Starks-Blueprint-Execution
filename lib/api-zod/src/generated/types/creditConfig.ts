@@ -5,10 +5,10 @@
  * SBEP — Starks Blueprint Execution Platform API
  * OpenAPI spec version: 0.1.0
  */
-import type { CreditPackConfig } from './creditPackConfig';
 import type { CreditTierConfig } from './creditTierConfig';
+import type { WalletTierConfig } from './walletTierConfig';
 
 export interface CreditConfig {
   tiers: CreditTierConfig[];
-  packs: CreditPackConfig[];
+  walletTiers: WalletTierConfig[];
 }

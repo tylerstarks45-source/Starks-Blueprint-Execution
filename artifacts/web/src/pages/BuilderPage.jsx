@@ -688,6 +688,9 @@ const BuilderPage = () => {
   const chatBottomRef = useRef(null);
   const inputRef = useRef(null);
 
+  // Active side panel: null | 'explorer' | 'blueprints' | 'tools' | 'settings'
+  const [activeSidePanel, setActiveSidePanel] = useState('explorer');
+
   // Track whether we've loaded (or decided not to load) a saved session
   const sessionLoadedRef = useRef(false);
 
@@ -1026,40 +1029,77 @@ const BuilderPage = () => {
     ? blueprints.filter(b => b.categoryId === activeCatId)
     : blueprints;
 
+  const SIDE_PANELS = [
+    { id: 'explorer',   icon: Layers,       title: 'Explorer' },
+    { id: 'blueprints', icon: Grid3x3,      title: 'Blueprints' },
+    { id: 'tools',      icon: Cog,          title: 'Tools' },
+    { id: 'settings',   icon: Brain,        title: 'Settings' },
+  ];
+
+  const TOOLS_CATALOG = [
+    { category: 'Email & CRM',   items: ['Mailchimp', 'ConvertKit', 'ActiveCampaign', 'HubSpot'] },
+    { category: 'Payments',      items: ['Stripe', 'PayPal', 'Gumroad'] },
+    { category: 'Social Media',  items: ['Twitter/X', 'Instagram', 'TikTok', 'YouTube'] },
+    { category: 'Ecommerce',     items: ['Shopify', 'WooCommerce', 'Etsy'] },
+    { category: 'Automation',    items: ['Zapier', 'Make', 'n8n'] },
+    { category: 'AI & Content',  items: ['OpenAI', 'Claude', 'Midjourney'] },
+  ];
+
+  const activeMode = AI_MODES.find(m => m.id === aiMode);
+
   return (
     <VideoBackground>
     <div className="h-screen flex flex-col overflow-hidden">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 bg-black/60 backdrop-blur-lg shrink-0">
-        <div className="flex items-center gap-3">
+
+      {/* ── TOP BAR ─────────────────────────────────────────────────────── */}
+      <div className="h-11 flex items-center justify-between px-3 border-b border-white/8 bg-black/80 backdrop-blur-lg shrink-0 gap-3">
+
+        {/* Left: breadcrumb */}
+        <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-1.5 text-muted-foreground/60 hover:text-foreground transition-colors text-sm"
+            className="flex items-center gap-1.5 text-muted-foreground/50 hover:text-foreground transition-colors text-xs shrink-0"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-3.5 h-3.5" />
             Dashboard
           </button>
-          <span className="text-white/20">/</span>
-          <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-            <Wand2 className="w-4 h-4 text-primary" />
+          <ChevronRight className="w-3 h-3 text-white/20 shrink-0" />
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground shrink-0">
+            <Wand2 className="w-3.5 h-3.5 text-primary" />
             ASH Builder
           </span>
           {businessType && (
             <>
-              <span className="text-white/20">/</span>
-              <span className="text-xs text-muted-foreground/60 font-mono capitalize">{businessType}</span>
+              <ChevronRight className="w-3 h-3 text-white/20 shrink-0" />
+              <span className="text-xs text-muted-foreground/50 font-mono capitalize truncate">{businessType}</span>
             </>
           )}
           {revenueGoal && (
-            <span className="hidden md:flex items-center gap-1 text-[10px] text-emerald-400/70 bg-emerald-500/8 border border-emerald-500/20 rounded-full px-2 py-0.5 font-mono">
+            <span className="hidden lg:flex items-center gap-1 text-[10px] text-emerald-400/70 bg-emerald-500/8 border border-emerald-500/20 rounded-full px-2 py-0.5 font-mono shrink-0">
               <Target className="w-2.5 h-2.5" /> {revenueGoal}/mo
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Center: phase bar */}
+        <div className="shrink-0">
           <PhaseBar phase={phase} />
+        </div>
+
+        {/* Right: controls */}
+        <div className="flex items-center gap-2 shrink-0">
+          {activeMode && (
+            <button
+              onClick={() => setActiveSidePanel(p => p === 'settings' ? null : 'settings')}
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-mono font-bold transition-colors ${activeMode.activeBg} ${activeMode.color}`}
+            >
+              <activeMode.icon className="w-3 h-3" />
+              {activeMode.label}
+              <span className="text-[9px] opacity-60">· {activeMode.creditHint}</span>
+            </button>
+          )}
           {isFounderAdmin && (
-            <span className="text-[9px] font-mono text-amber-400/70 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">
+            <span className="hidden md:block text-[9px] font-mono text-amber-400/70 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">
               👑 FOUNDER
             </span>
           )}
@@ -1067,526 +1107,419 @@ const BuilderPage = () => {
             onClick={clearSession}
             disabled={phase === 'building'}
             title="Start a new session"
-            className="flex items-center gap-1.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors text-xs disabled:opacity-20 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors text-xs disabled:opacity-20 disabled:cursor-not-allowed px-2 py-1 rounded border border-white/8 hover:border-white/20"
           >
             <PlusCircle className="w-3.5 h-3.5" />
-            New Session
+            <span className="hidden sm:inline">New Session</span>
           </button>
         </div>
       </div>
 
-      {/* Split pane */}
+      {/* ── MAIN LAYOUT ─────────────────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0">
 
-        {/* ── Left Pane ──────────────────────────────────────────────────── */}
-        <div className="w-[400px] shrink-0 flex flex-col border-r border-white/8 bg-black/40">
+        {/* ── ACTIVITY BAR (48px) ───────────────────────────────────────── */}
+        <div className="w-12 shrink-0 flex flex-col items-center py-3 gap-1 border-r border-white/8 bg-black/70">
+          {SIDE_PANELS.map(({ id, icon: Icon, title }) => (
+            <button
+              key={id}
+              title={title}
+              onClick={() => setActiveSidePanel(p => p === id ? null : id)}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                activeSidePanel === id
+                  ? 'bg-primary/20 text-primary border border-primary/30'
+                  : 'text-muted-foreground/35 hover:text-muted-foreground hover:bg-white/5'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+            </button>
+          ))}
+          <div className="flex-1" />
+          <button
+            title="Connections Hub"
+            onClick={() => navigate('/connections')}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground/25 hover:text-muted-foreground hover:bg-white/5 transition-all"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </button>
+        </div>
 
-          {/* ASH header + context selectors */}
-          <div className="px-4 pt-4 pb-3 border-b border-white/8 shrink-0">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <Wand2 className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-foreground tracking-tight">ASH</span>
-                    <Badge variant="outline" className="text-[9px] border-primary/30 text-primary bg-primary/5 font-mono">
-                      AI BUILDER
-                    </Badge>
-                  </div>
-                  <p className="text-[9px] text-muted-foreground/40 font-mono">Autonomous Business Builder</p>
-                </div>
-              </div>
-              <span className="flex items-center gap-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+        {/* ── COLLAPSIBLE SIDE PANEL (240px) ───────────────────────────── */}
+        <AnimatePresence initial={false}>
+          {activeSidePanel && (
+            <motion.div
+              key="side-panel"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 240, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.18, ease: 'easeInOut' }}
+              className="shrink-0 border-r border-white/8 bg-black/50 flex flex-col overflow-hidden"
+            >
+              {/* Panel header */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-white/8 shrink-0">
+                <span className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-mono font-bold">
+                  {SIDE_PANELS.find(p => p.id === activeSidePanel)?.title}
                 </span>
-                <span className="text-xs text-emerald-400">Online</span>
-              </span>
-            </div>
-
-            {/* Business type selector */}
-            <div className="mb-3">
-              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-medium mb-1.5 flex items-center gap-1">
-                <Building2 className="w-2.5 h-2.5" /> Business Type
-              </p>
-              <div className="grid grid-cols-4 gap-1">
-                {BUSINESS_TYPES.map(bt => {
-                  const BIcon = bt.icon;
-                  const isActive = businessType === bt.id;
-                  return (
-                    <button
-                      key={bt.id}
-                      onClick={() => setBusinessType(isActive ? null : bt.id)}
-                      className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg border text-center transition-all text-[9px] font-bold font-mono ${
-                        isActive ? bt.bg + ' ' + bt.color : 'bg-white/3 border-white/8 hover:border-white/20 text-muted-foreground/40'
-                      }`}
-                    >
-                      <BIcon className={`w-3 h-3 ${isActive ? bt.color : 'text-muted-foreground/40'}`} />
-                      {bt.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Revenue goal */}
-            <div className="mb-3">
-              {showRevenueGoalInput ? (
-                <div className="flex gap-1.5">
-                  <input
-                    type="text"
-                    value={revenueGoal}
-                    onChange={e => setRevenueGoal(e.target.value)}
-                    placeholder="e.g. $5,000"
-                    className="flex-1 text-[10px] bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 font-mono"
-                    onKeyDown={e => { if (e.key === 'Enter') setShowRevenueGoalInput(false); }}
-                    autoFocus
-                  />
-                  <button onClick={() => setShowRevenueGoalInput(false)} className="text-[10px] text-primary hover:text-primary/80 px-2">✓</button>
-                </div>
-              ) : (
                 <button
-                  onClick={() => setShowRevenueGoalInput(true)}
-                  className="w-full flex items-center justify-between text-[9px] px-2 py-1.5 rounded-lg border border-white/8 bg-white/3 hover:border-white/20 transition-colors"
+                  onClick={() => setActiveSidePanel(null)}
+                  className="text-muted-foreground/25 hover:text-muted-foreground transition-colors"
                 >
-                  <span className="flex items-center gap-1.5 text-muted-foreground/40">
-                    <Target className="w-2.5 h-2.5" />
-                    <span className="font-mono uppercase tracking-widest">Revenue Goal</span>
-                  </span>
-                  {revenueGoal ? (
-                    <span className="text-emerald-400 font-mono font-bold">{revenueGoal}/mo</span>
-                  ) : (
-                    <span className="text-muted-foreground/25 font-mono">Set goal →</span>
-                  )}
+                  <X className="w-3.5 h-3.5" />
                 </button>
-              )}
-            </div>
-
-            {/* Mode toggle */}
-            <div className="flex rounded-lg bg-black/70 border border-white/10 p-0.5 mb-3">
-              <button
-                onClick={() => setMode('custom')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  mode === 'custom'
-                    ? 'bg-primary/20 text-primary shadow-sm'
-                    : 'text-muted-foreground/50 hover:text-muted-foreground'
-                }`}
-              >
-                <MessageSquare className="w-3 h-3" /> Custom Goal
-              </button>
-              <button
-                onClick={() => setMode('blueprint')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  mode === 'blueprint'
-                    ? 'bg-primary/20 text-primary shadow-sm'
-                    : 'text-muted-foreground/50 hover:text-muted-foreground'
-                }`}
-              >
-                <Grid3x3 className="w-3 h-3" /> Blueprint
-              </button>
-            </div>
-
-            {/* AI Agent Power Mode Selector */}
-            <div>
-              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-medium mb-1.5 flex items-center gap-1">
-                <Brain className="w-2.5 h-2.5" /> Agent Power Mode
-              </p>
-              <div className="grid grid-cols-4 gap-1">
-                {AI_MODES.map((m) => {
-                  const Icon = m.icon;
-                  const isLocked = m.requiredTier && !isEmpireTier;
-                  const isActive = aiMode === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      disabled={isLocked}
-                      onClick={() => !isLocked && setAiMode(m.id)}
-                      title={isLocked ? `Requires Empire plan` : `${m.label} — ${m.subtitle} (${m.creditHint})`}
-                      className={`relative flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg border text-center transition-all ${
-                        isLocked
-                          ? 'opacity-35 cursor-not-allowed border-white/8 bg-white/2'
-                          : isActive
-                          ? m.activeBg
-                          : m.inactiveBg
-                      }`}
-                    >
-                      <Icon className={`w-3 h-3 ${isActive ? m.color : 'text-muted-foreground/50'}`} />
-                      <span className={`text-[9px] font-bold font-mono ${isActive ? m.color : 'text-muted-foreground/40'}`}>
-                        {m.label}
-                      </span>
-                      {isLocked && (
-                        <Lock className="w-2 h-2 text-muted-foreground/30 absolute top-1 right-1" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              {/* Credit + model info box — shown whenever a mode is active */}
-              {aiMode && (() => {
-                const active = AI_MODES.find(m => m.id === aiMode);
-                if (!active) return null;
-                const Icon = active.icon;
-                return (
-                  <div className={`mt-2 rounded-xl border p-3 space-y-2 transition-all ${active.activeBg}`}>
-                    {/* Header row */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <Icon className={`w-3 h-3 ${active.color}`} />
-                        <span className={`text-[10px] font-bold font-mono ${active.color}`}>{active.label} Mode</span>
-                      </div>
-                      <span className={`text-[10px] font-mono font-bold ${active.color}`}>{active.creditHint}</span>
-                    </div>
-
-                    {/* Model routing info */}
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border ${active.activeBg} ${active.color} opacity-80`}>
-                        {active.modelLabel}
-                      </span>
-                      <span className="text-[8px] text-muted-foreground/40 font-mono">·</span>
-                      <span className="text-[8px] text-muted-foreground/50 font-mono">{active.speed}</span>
-                    </div>
-
-                    {/* Description */}
-                    <p className="text-[9px] text-muted-foreground/70 leading-relaxed">{active.description}</p>
-
-                    {/* Use cases */}
-                    <div className="flex flex-wrap gap-1">
-                      {active.useCases.map(uc => (
-                        <span key={uc} className={`text-[8px] font-mono px-1.5 py-0.5 rounded-full border ${active.activeBg} ${active.color} opacity-70`}>
-                          {uc}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Credit usage bar */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/40">Credit intensity</span>
-                        <span className="text-[8px] font-mono text-muted-foreground/50">{active.creditsPerBuild} per build</span>
-                      </div>
-                      <div className="w-full h-1 rounded-full bg-white/8">
-                        <div className={`h-1 rounded-full ${active.barColor} ${active.barWidth} transition-all duration-300`} />
-                      </div>
-                    </div>
-
-                    {/* Warning line */}
-                    <p className={`text-[8px] font-mono ${active.color} opacity-70`}>⚡ {active.creditWarning}</p>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-
-          {/* Blueprint mode */}
-          {mode === 'blueprint' && (
-            <div className="flex flex-col flex-1 min-h-0">
-              <div className="px-4 py-3 border-b border-white/6 shrink-0">
-                <div className="flex gap-1.5 flex-wrap">
-                  <button
-                    onClick={() => setActiveCatId(null)}
-                    className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold transition-colors ${
-                      activeCatId === null
-                        ? 'bg-primary/20 text-primary border border-primary/30'
-                        : 'bg-white/4 text-muted-foreground/50 border border-white/8 hover:text-foreground'
-                    }`}
-                  >
-                    All
-                  </button>
-                  {categories.map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setActiveCatId(activeCatId === cat.id ? null : cat.id)}
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold transition-colors ${
-                        activeCatId === cat.id
-                          ? 'bg-primary/20 text-primary border border-primary/30'
-                          : 'bg-white/4 text-muted-foreground/50 border border-white/8 hover:text-foreground'
-                      }`}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {bpLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                  </div>
-                ) : filteredBps.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground/40 text-sm">No blueprints found</div>
-                ) : (
-                  filteredBps.map(bp => (
-                    <BlueprintCard
-                      key={bp.id}
-                      bp={bp}
-                      selected={selectedBp?.id === bp.id}
-                      onSelect={setSelectedBp}
-                    />
-                  ))
-                )}
-              </div>
-
-              <div className="p-4 border-t border-white/8 shrink-0 space-y-2">
-                <Button
-                  className="w-full h-11 gap-2 font-semibold"
-                  disabled={!selectedBp || phase === 'building' || phase === 'complete' || chatLoading}
-                  onClick={handleBlueprintLaunch}
-                >
-                  {chatLoading || executeLoading
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Planning…</>
-                    : <><Sparkles className="w-4 h-4" /> Plan This System <ChevronRight className="w-4 h-4" /></>}
-                </Button>
-                {!selectedBp && (
-                  <p className="text-[10px] text-muted-foreground/30 text-center">
-                    Select a blueprint above to continue
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Custom / Chat mode */}
-          {mode === 'custom' && (
-            <div className="flex flex-col flex-1 min-h-0">
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10">
-                <SkillActivationPanel activatedSkills={activatedSkills} />
-                {messages.map(m => <MessageBubble key={m.id} msg={m} />)}
-
-                {/* Credential collection */}
-                {phase === 'collecting' && pendingCreds.length > 0 && (
-                  <CredentialForm
-                    credentials={pendingCreds}
-                    blueprint={pendingBlueprintRef.current}
-                    onExecute={handleCredentialSubmit}
-                    loading={executeLoading}
-                    prefill={storedCredKeys}
-                    onValuesChange={setLiftedCredValues}
-                  />
-                )}
-
-                {chatLoading && (
-                  <div className="flex items-start gap-2">
-                    <div className="bg-white/6 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-2.5">
-                      <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                        <span className="font-mono text-xs">ASH is analyzing…</span>
-                      </div>
+              {/* ── EXPLORER ── */}
+              {activeSidePanel === 'explorer' && (
+                <div className="flex-1 overflow-y-auto py-1">
+                  <div className="px-3 py-2">
+                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1">Session</p>
+                    <div className="space-y-0.5">
+                      <button
+                        onClick={() => setMode('custom')}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                          mode === 'custom' ? 'bg-primary/12 text-primary' : 'text-muted-foreground/60 hover:text-foreground hover:bg-white/5'
+                        }`}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                        Chat with ASH
+                      </button>
+                      <button
+                        onClick={() => { setMode('blueprint'); setActiveSidePanel('blueprints'); }}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                          mode === 'blueprint' ? 'bg-primary/12 text-primary' : 'text-muted-foreground/60 hover:text-foreground hover:bg-white/5'
+                        }`}
+                      >
+                        <Grid3x3 className="w-3.5 h-3.5 shrink-0" />
+                        Blueprint Picker
+                      </button>
                     </div>
                   </div>
-                )}
 
-                {error && (
-                  <div className="flex items-center gap-2 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    {error}
-                  </div>
-                )}
+                  <div className="border-t border-white/6 mx-3 my-1" />
 
-                {messages.length === 1 && phase === 'idle' && (
-                  <div>
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/40 font-medium mb-2">
-                      Quick start
-                    </p>
-                    <div className="grid grid-cols-1 gap-1.5">
-                      {STARTER_PROMPTS.map((g, i) => (
+                  <div className="px-3 py-2">
+                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1">Quick Start</p>
+                    <div className="space-y-0.5">
+                      {STARTER_PROMPTS.map((prompt, i) => (
                         <button
                           key={i}
-                          onClick={() => sendMessage(g)}
-                          className="text-left text-xs px-3 py-2.5 rounded-lg border border-white/8 bg-white/3 hover:bg-white/8 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+                          onClick={() => { setMode('custom'); sendMessage(prompt); }}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] text-muted-foreground/55 hover:text-foreground hover:bg-white/5 transition-colors text-left"
                         >
-                          <Zap className="w-3 h-3 text-primary/50 shrink-0" />
-                          {g}
+                          <Zap className="w-3 h-3 shrink-0 text-primary/40" />
+                          <span className="truncate">{prompt}</span>
                         </button>
                       ))}
                     </div>
                   </div>
-                )}
 
-                <div ref={chatBottomRef} />
-              </div>
+                  {buildData && (
+                    <>
+                      <div className="border-t border-white/6 mx-3 my-1" />
+                      <div className="px-3 py-2">
+                        <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1">Build Output</p>
+                        <div className="space-y-0.5">
+                          {buildData.steps?.map((step, i) => {
+                            const isDone = i < currentStepIdx;
+                            const isRunning = i === currentStepIdx && phase === 'building';
+                            return (
+                              <div
+                                key={step.id}
+                                className={`flex items-center gap-2 px-2 py-1 rounded text-[10px] font-mono ${
+                                  isDone ? 'text-emerald-400/70' : isRunning ? 'text-primary' : 'text-muted-foreground/25'
+                                }`}
+                              >
+                                <span className="shrink-0 w-3 text-center">
+                                  {isDone ? '✓' : isRunning ? '▶' : '○'}
+                                </span>
+                                <span className="truncate">{step.notes}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
-              {/* Input bar */}
-              <div className="p-3 border-t border-white/10 bg-black/70 shrink-0">
-                {phase === 'building' ? (
-                  <div className="flex items-center justify-center gap-2 py-1.5 text-xs text-muted-foreground/50">
-                    <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                    <span className="font-mono">Building — {buildData?.steps?.length ?? 0} steps queued</span>
-                  </div>
-                ) : phase === 'complete' ? (
-                  <div className="flex items-center justify-center gap-2 py-1.5 text-xs text-emerald-400">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span className="font-mono">System deployed — redirecting…</span>
-                  </div>
-                ) : (
-                  <>
-                    {phase === 'idle' && input.trim() && (
-                      <Button
-                        className="w-full h-9 gap-2 font-semibold mb-2 text-xs bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30"
-                        onClick={() => sendMessage()}
-                        disabled={chatLoading}
+              {/* ── BLUEPRINTS ── */}
+              {activeSidePanel === 'blueprints' && (
+                <div className="flex-1 flex flex-col min-h-0">
+                  <div className="p-2 border-b border-white/6 flex flex-wrap gap-1 shrink-0">
+                    <button
+                      onClick={() => setActiveCatId(null)}
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-mono transition-colors ${
+                        activeCatId === null
+                          ? 'bg-primary/20 text-primary border border-primary/30'
+                          : 'bg-white/4 text-muted-foreground/45 border border-white/8 hover:text-foreground'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {categories.map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setActiveCatId(activeCatId === cat.id ? null : cat.id)}
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-mono transition-colors ${
+                          activeCatId === cat.id
+                            ? 'bg-primary/20 text-primary border border-primary/30'
+                            : 'bg-white/4 text-muted-foreground/45 border border-white/8 hover:text-foreground'
+                        }`}
                       >
-                        {chatLoading
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <Sparkles className="w-3.5 h-3.5" />}
-                        Plan My System
-                      </Button>
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+                    {bpLoading ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                      </div>
+                    ) : filteredBps.length === 0 ? (
+                      <p className="text-center py-6 text-muted-foreground/30 text-xs">No blueprints found</p>
+                    ) : filteredBps.map(bp => (
+                      <BlueprintCard key={bp.id} bp={bp} selected={selectedBp?.id === bp.id} onSelect={setSelectedBp} />
+                    ))}
+                  </div>
+                  <div className="p-2.5 border-t border-white/8 shrink-0">
+                    <Button
+                      className="w-full h-9 gap-2 text-xs font-semibold"
+                      disabled={!selectedBp || phase === 'building' || phase === 'complete' || chatLoading}
+                      onClick={handleBlueprintLaunch}
+                    >
+                      {chatLoading || executeLoading
+                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Planning…</>
+                        : <><Sparkles className="w-3.5 h-3.5" /> Plan Blueprint</>}
+                    </Button>
+                    {!selectedBp && (
+                      <p className="text-[9px] text-muted-foreground/25 text-center mt-1.5 font-mono">
+                        Select a blueprint above
+                      </p>
                     )}
-                    <div className="flex gap-2">
-                      <textarea
-                        ref={inputRef}
-                        value={input}
-                        onChange={e => setInput(e.target.value)}
-                        onKeyDown={handleKey}
-                        placeholder={
-                          phase === 'collecting'
-                            ? 'Fill in credentials above to proceed…'
-                            : 'Describe your income goal…'
-                        }
-                        disabled={isInputDisabled}
-                        className="flex-1 resize-none text-sm bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-40"
-                        rows={1}
-                        style={{ minHeight: '38px', maxHeight: '96px' }}
-                        onInput={e => {
-                          e.target.style.height = 'auto';
-                          e.target.style.height = Math.min(e.target.scrollHeight, 96) + 'px';
-                        }}
-                      />
-                      <Button
-                        onClick={() => sendMessage()}
-                        disabled={!input.trim() || isInputDisabled}
-                        size="icon"
-                        className="h-[38px] w-[38px] shrink-0 rounded-xl"
-                      >
-                        {chatLoading
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <Send className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground/25 mt-1.5 text-center font-mono">
-                      ASH builds autonomously · Credentials encrypted at rest
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+                  </div>
+                </div>
+              )}
 
-        {/* ── Right Pane: Terminal ────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 p-4 flex flex-col gap-3">
-          {phase === 'collecting' && (
-            <div className="space-y-2 shrink-0">
-              {/* Connection status check */}
-              <div className="rounded-xl border border-white/10 bg-black/80 p-3">
-                <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 mb-2">Required Connections</p>
-                <div className="space-y-1.5">
-                  {pendingCreds.map(cred => {
-                    const isStored = !!storedCredKeys[cred.key];
-                    return (
-                      <div key={cred.key} className="flex items-center gap-2">
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isStored ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                        <span className="text-xs text-muted-foreground flex-1 min-w-0 truncate">{cred.name || cred.key}</span>
-                        {isStored
-                          ? <span className="text-[10px] text-emerald-400 font-mono shrink-0">Connected ✓</span>
-                          : <a
-                              href={`/connections?connect=${encodeURIComponent(cred.key)}`}
-                              className="text-[10px] text-amber-400 hover:text-amber-300 underline shrink-0"
+              {/* ── TOOLS ── */}
+              {activeSidePanel === 'tools' && (
+                <div className="flex-1 overflow-y-auto">
+                  <div className="px-3 pt-2.5 pb-1">
+                    <p className="text-[10px] text-muted-foreground/40 leading-relaxed">
+                      Connect tools so ASH can build with them automatically.
+                    </p>
+                  </div>
+                  {TOOLS_CATALOG.map(({ category, items }) => (
+                    <div key={category} className="px-3 py-2">
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1">{category}</p>
+                      <div className="space-y-0.5">
+                        {items.map(tool => (
+                          <div key={tool} className="flex items-center justify-between px-2 py-1 rounded hover:bg-white/4 transition-colors">
+                            <span className="text-[11px] text-muted-foreground/60">{tool}</span>
+                            <button
+                              onClick={() => navigate('/connections')}
+                              className="text-[9px] font-mono text-primary/50 hover:text-primary transition-colors"
                             >
                               Connect →
-                            </a>
-                        }
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    );
-                  })}
+                      <div className="border-t border-white/5 mt-2" />
+                    </div>
+                  ))}
+                  <div className="p-3 pt-1">
+                    <button
+                      onClick={() => navigate('/connections')}
+                      className="w-full py-2 px-3 text-xs font-semibold text-primary bg-primary/8 hover:bg-primary/15 border border-primary/20 rounded-lg transition-colors"
+                    >
+                      Open Connections Hub →
+                    </button>
+                  </div>
                 </div>
-                {pendingCreds.some(c => !storedCredKeys[c.key]) && (
-                  <a
-                    href="/connections"
-                    className="mt-2.5 flex items-center gap-1.5 text-[10px] text-blue-400 hover:text-blue-300"
-                  >
-                    <span>🔗</span> Open Connections Hub to connect missing tools
-                  </a>
-                )}
-              </div>
-              {/* Execute banner */}
-              <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+
+              {/* ── SETTINGS ── */}
+              {activeSidePanel === 'settings' && (
+                <div className="flex-1 overflow-y-auto py-3 px-3 space-y-5">
+                  {/* Business type */}
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-mono mb-2 flex items-center gap-1">
+                      <Building2 className="w-2.5 h-2.5" /> Business Type
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {BUSINESS_TYPES.map(bt => {
+                        const BIcon = bt.icon;
+                        const isActive = businessType === bt.id;
+                        return (
+                          <button
+                            key={bt.id}
+                            onClick={() => setBusinessType(isActive ? null : bt.id)}
+                            className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs font-medium transition-all ${
+                              isActive ? `${bt.bg} ${bt.color}` : 'bg-white/3 border-white/8 hover:border-white/20 text-muted-foreground/50'
+                            }`}
+                          >
+                            <BIcon className={`w-3.5 h-3.5 shrink-0 ${isActive ? bt.color : 'text-muted-foreground/35'}`} />
+                            {bt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Revenue goal */}
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-mono mb-2 flex items-center gap-1">
+                      <Target className="w-2.5 h-2.5" /> Revenue Goal
+                    </p>
+                    {showRevenueGoalInput ? (
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          value={revenueGoal}
+                          onChange={e => setRevenueGoal(e.target.value)}
+                          placeholder="e.g. $5,000/mo"
+                          className="flex-1 text-xs bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 font-mono"
+                          onKeyDown={e => { if (e.key === 'Enter') setShowRevenueGoalInput(false); }}
+                          autoFocus
+                        />
+                        <button onClick={() => setShowRevenueGoalInput(false)} className="text-primary hover:text-primary/80 px-2 text-sm">✓</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowRevenueGoalInput(true)}
+                        className="w-full flex items-center justify-between text-xs px-2.5 py-2 rounded-lg border border-white/8 bg-white/3 hover:border-white/20 transition-colors"
+                      >
+                        <span className="text-muted-foreground/45">{revenueGoal || 'Set monthly goal…'}</span>
+                        {revenueGoal && <span className="text-emerald-400 font-mono font-bold">{revenueGoal}/mo</span>}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* AI Power Mode */}
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-mono mb-2 flex items-center gap-1">
+                      <Brain className="w-2.5 h-2.5" /> Agent Power Mode
+                    </p>
+                    <div className="space-y-1.5">
+                      {AI_MODES.map(m => {
+                        const Icon = m.icon;
+                        const isLocked = m.requiredTier && !isEmpireTier;
+                        const isActive = aiMode === m.id;
+                        return (
+                          <button
+                            key={m.id}
+                            disabled={isLocked}
+                            onClick={() => !isLocked && setAiMode(m.id)}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs transition-all ${
+                              isLocked
+                                ? 'opacity-35 cursor-not-allowed border-white/8 bg-white/2'
+                                : isActive ? m.activeBg : m.inactiveBg
+                            }`}
+                          >
+                            <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? m.color : 'text-muted-foreground/45'}`} />
+                            <div className="flex-1 text-left min-w-0">
+                              <div className={`font-semibold font-mono text-[11px] ${isActive ? m.color : 'text-muted-foreground/55'}`}>{m.label}</div>
+                              <div className="text-[9px] text-muted-foreground/35 truncate">{m.subtitle}</div>
+                            </div>
+                            <span className={`font-mono text-[9px] shrink-0 ${isActive ? m.color : 'text-muted-foreground/25'}`}>{m.creditHint}</span>
+                            {isLocked && <Lock className="w-3 h-3 text-muted-foreground/25 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {activeMode && (
+                      <div className={`mt-2 p-2.5 rounded-lg border ${activeMode.activeBg}`}>
+                        <p className={`text-[10px] leading-relaxed ${activeMode.color} opacity-70`}>{activeMode.description}</p>
+                        <div className="mt-1.5">
+                          <div className="w-full h-0.5 rounded-full bg-white/8">
+                            <div className={`h-0.5 rounded-full ${activeMode.barColor} ${activeMode.barWidth}`} />
+                          </div>
+                          <p className={`text-[9px] font-mono mt-1 ${activeMode.color} opacity-50`}>{activeMode.creditsPerBuild} per build</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-emerald-400">Plan Ready — Enter credentials, then execute</p>
-                  <p className="text-[10px] text-muted-foreground/50">Fill the credential form in the sidebar to unlock build</p>
-                </div>
-                <Button
-                  className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0 border-0"
-                  onClick={() => handleCredentialSubmit(liftedCredValues)}
-                  disabled={executeLoading || pendingCreds.some(c => c.required !== false && !(liftedCredValues[c.key] || '').trim())}
-                >
-                  {executeLoading
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    : <Play className="w-3.5 h-3.5" />}
-                  Execute Build
-                </Button>
-              </div>
-            </div>
+              )}
+            </motion.div>
           )}
-          {/* Multi-agent status panel — visible during build */}
+        </AnimatePresence>
+
+        {/* ── CENTER: Build Terminal ───────────────────────────────────── */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          {/* Agent team status strip */}
           {(phase === 'building' || phase === 'collecting' || phase === 'complete') && (
-            <div className="shrink-0 rounded-xl border border-white/8 bg-black/60 p-3">
-              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-mono mb-2 flex items-center gap-1.5">
-                <Globe className="w-2.5 h-2.5" /> ASH Agent Team
+            <div className="shrink-0 border-b border-white/8 px-4 py-2 bg-black/40 flex items-center gap-3 flex-wrap">
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/35 font-mono flex items-center gap-1 shrink-0">
+                <Globe className="w-2.5 h-2.5" /> Agents
               </p>
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {MULTI_AGENTS.map(agent => {
                   const AIcon = agent.icon;
                   const isActive = agent.phases.includes(phase);
                   const isDone = phase === 'complete';
                   return (
-                    <div
+                    <span
                       key={agent.id}
-                      className={`flex flex-col items-center gap-1 py-2 px-1 rounded-lg border text-center transition-all ${
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-mono transition-all ${
                         isDone
                           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                           : isActive && phase === 'building'
                           ? 'bg-primary/10 border-primary/30 text-primary'
-                          : isActive && phase === 'collecting'
+                          : isActive
                           ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-                          : 'bg-white/3 border-white/8 text-muted-foreground/25'
+                          : 'bg-white/3 border-white/8 text-muted-foreground/20'
                       }`}
                     >
-                      <div className="relative">
-                        <AIcon className="w-3 h-3" />
-                        {isActive && phase === 'building' && !isDone && (
-                          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                        )}
-                        {isDone && (
-                          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        )}
-                      </div>
-                      <span className="text-[8px] font-mono font-bold">{agent.label}</span>
-                      <span className={`text-[7px] font-mono ${isDone ? 'text-emerald-400/70' : isActive ? 'opacity-70' : 'opacity-30'}`}>
-                        {isDone ? 'done' : isActive ? (phase === 'building' ? 'active' : 'ready') : 'idle'}
-                      </span>
-                    </div>
+                      <AIcon className="w-2.5 h-2.5" />
+                      {agent.label}
+                      {isActive && phase === 'building' && !isDone && (
+                        <span className="w-1 h-1 rounded-full bg-primary animate-pulse" />
+                      )}
+                    </span>
                   );
                 })}
               </div>
               {phase === 'building' && buildData?.steps && (
-                <div className="mt-2 pt-2 border-t border-white/6 flex items-center justify-between">
-                  <span className="text-[8px] text-muted-foreground/40 font-mono">Build progress</span>
-                  <span className="text-[8px] text-primary font-mono font-bold">
-                    {currentStepIdx}/{buildData.steps.length} steps
-                  </span>
-                </div>
+                <span className="ml-auto text-[9px] font-mono text-primary/60 shrink-0">
+                  {currentStepIdx}/{buildData.steps.length} steps
+                </span>
               )}
             </div>
           )}
 
-          <div className="flex-1 min-h-0">
+          {/* Credential status (inline, no sidebar clutter) */}
+          {phase === 'collecting' && pendingCreds.length > 0 && (
+            <div className="shrink-0 border-b border-white/8 px-4 py-2 bg-amber-500/5 flex items-center gap-4 flex-wrap">
+              <p className="text-[9px] text-amber-400/70 font-mono uppercase tracking-widest shrink-0">Credentials needed</p>
+              <div className="flex items-center gap-3 flex-wrap">
+                {pendingCreds.map(cred => {
+                  const isStored = !!storedCredKeys[cred.key];
+                  return (
+                    <span key={cred.key} className="flex items-center gap-1.5 text-[11px]">
+                      <span className={`w-1.5 h-1.5 rounded-full ${isStored ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                      <span className="text-muted-foreground/60">{cred.name || cred.key}</span>
+                      {!isStored && (
+                        <a href={`/connections?connect=${encodeURIComponent(cred.key)}`} className="text-amber-400 hover:text-amber-300 underline text-[9px] font-mono">connect</a>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+              <Button
+                className="ml-auto h-7 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold border-0 shrink-0"
+                onClick={() => handleCredentialSubmit(liftedCredValues)}
+                disabled={executeLoading || pendingCreds.some(c => c.required !== false && !(liftedCredValues[c.key] || '').trim())}
+              >
+                {executeLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                Execute Build
+              </Button>
+            </div>
+          )}
+
+          {/* Terminal fills remaining space */}
+          <div className="flex-1 min-h-0 p-4">
             <BuildTerminal
               steps={buildData?.steps ?? []}
               outputs={stepOutputs}
@@ -1596,6 +1529,138 @@ const BuilderPage = () => {
             />
           </div>
         </div>
+
+        {/* ── RIGHT: Chat Panel (320px) ────────────────────────────────── */}
+        <div className="w-[300px] xl:w-[320px] shrink-0 flex flex-col border-l border-white/8 bg-black/40">
+
+          {/* Chat header */}
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/8 shrink-0 bg-black/60">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-primary/20 flex items-center justify-center">
+                <Wand2 className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-foreground">ASH</span>
+                  <Badge variant="outline" className="text-[8px] border-primary/30 text-primary bg-primary/5 font-mono px-1 py-0">AI</Badge>
+                </div>
+                <p className="text-[9px] text-muted-foreground/35 font-mono">Autonomous Business Builder</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+              </span>
+              <span className="text-[10px] text-emerald-400">Online</span>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 scrollbar-thin scrollbar-thumb-white/10">
+            <SkillActivationPanel activatedSkills={activatedSkills} />
+
+            {messages.map(m => <MessageBubble key={m.id} msg={m} />)}
+
+            {phase === 'collecting' && pendingCreds.length > 0 && (
+              <CredentialForm
+                credentials={pendingCreds}
+                blueprint={pendingBlueprintRef.current}
+                onExecute={handleCredentialSubmit}
+                loading={executeLoading}
+                prefill={storedCredKeys}
+                onValuesChange={setLiftedCredValues}
+              />
+            )}
+
+            {chatLoading && (
+              <div className="flex items-start gap-2">
+                <div className="bg-white/5 border border-white/10 rounded-xl rounded-tl-sm px-3 py-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                    <span className="font-mono text-[11px]">ASH is analyzing…</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex items-center gap-2 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {messages.length === 1 && phase === 'idle' && (
+              <div>
+                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/35 font-mono mb-2">Quick start</p>
+                <div className="space-y-1">
+                  {STARTER_PROMPTS.map((g, i) => (
+                    <button
+                      key={i}
+                      onClick={() => sendMessage(g)}
+                      className="w-full text-left text-[11px] px-3 py-2 rounded-lg border border-white/8 bg-white/3 hover:bg-white/8 text-muted-foreground/70 hover:text-foreground transition-colors flex items-center gap-2"
+                    >
+                      <Zap className="w-3 h-3 text-primary/50 shrink-0" />
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div ref={chatBottomRef} />
+          </div>
+
+          {/* Input bar */}
+          <div className="p-3 border-t border-white/10 bg-black/60 shrink-0">
+            {phase === 'building' ? (
+              <div className="flex items-center justify-center gap-2 py-1.5">
+                <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                <span className="font-mono text-[11px] text-muted-foreground/50">Building — {buildData?.steps?.length ?? 0} steps</span>
+              </div>
+            ) : phase === 'complete' ? (
+              <div className="flex items-center justify-center gap-2 py-1.5 text-emerald-400">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span className="font-mono text-[11px]">Deployed — redirecting…</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={handleKey}
+                    placeholder={phase === 'collecting' ? 'Fill credentials above…' : 'Describe your income goal…'}
+                    disabled={isInputDisabled}
+                    className="flex-1 resize-none text-xs bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground/35 focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-40"
+                    rows={1}
+                    style={{ minHeight: '36px', maxHeight: '88px' }}
+                    onInput={e => {
+                      e.target.style.height = 'auto';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 88) + 'px';
+                    }}
+                  />
+                  <Button
+                    onClick={() => sendMessage()}
+                    disabled={!input.trim() || isInputDisabled}
+                    size="icon"
+                    className="h-[36px] w-[36px] shrink-0 rounded-xl"
+                  >
+                    {chatLoading
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Send className="w-4 h-4" />}
+                  </Button>
+                </div>
+                <p className="text-[9px] text-muted-foreground/20 mt-1.5 text-center font-mono">
+                  ASH builds autonomously · Credentials encrypted at rest
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
     </VideoBackground>

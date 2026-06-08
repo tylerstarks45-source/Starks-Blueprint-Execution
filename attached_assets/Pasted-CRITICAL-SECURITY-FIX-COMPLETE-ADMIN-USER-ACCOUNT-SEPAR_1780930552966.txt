@@ -1,0 +1,217 @@
+CRITICAL SECURITY FIX — COMPLETE ADMIN / USER ACCOUNT SEPARATION
+
+This is a HIGH PRIORITY launch-blocking issue.
+
+Currently, standard user accounts can access areas that should be restricted to the platform owner and administrators.
+
+This must be fixed immediately.
+
+==================================================
+
+MISSION
+
+Create a strict separation between:
+
+1. Founder / Admin Accounts
+2. Standard User Accounts
+
+These must be completely isolated from each other.
+
+A paying customer should NEVER have access to admin functionality.
+
+==================================================
+
+ACCOUNT TYPES
+
+Create explicit account roles:
+
+FOUNDER
+
+ADMIN
+
+USER
+
+==================================================
+
+FOUNDER ROLE
+
+This role is reserved for platform ownership only.
+
+Founder accounts must have access to:
+
+* Admin Dashboard
+* User Management
+* Subscription Management
+* Stripe Management
+* Refund Controls
+* Credit Management
+* OpenRouter Usage Monitoring
+* Revenue Analytics
+* Platform Health
+* System Monitoring
+* Audit Logs
+* Connection Management
+* Notifications Center
+* Agent Monitoring
+* Deployment Monitoring
+* Security Controls
+* Environment Status
+* Founder Settings
+
+Founder accounts should automatically receive:
+
+* Unlimited Credits
+* Unlimited AI Usage
+* Unlimited Builds
+* Unlimited Hosting
+* Unlimited Connections
+* Unlimited Agent Access
+
+Founder accounts should never require subscriptions or payments.
+
+==================================================
+
+ADMIN ROLE
+
+Optional internal staff role.
+
+Can manage users and support functions.
+
+Cannot modify founder-level settings.
+
+Cannot access sensitive platform secrets.
+
+==================================================
+
+USER ROLE
+
+This is for paying customers.
+
+Users must ONLY have access to:
+
+* Dashboard
+* Builder
+* Marketplace
+* Blueprints
+* My Systems
+* Connections
+* Billing
+* Profile Settings
+
+Users must NEVER access:
+
+* User Management
+* Revenue Analytics
+* Platform Health
+* OpenRouter Usage Data
+* Founder Dashboard
+* Admin Dashboard
+* Audit Logs
+* Stripe Controls
+* Refund Controls
+* Security Controls
+* Platform Notifications
+* System-Wide Metrics
+* Other User Accounts
+
+==================================================
+
+ROUTE PROTECTION
+
+Implement backend role-based access control.
+
+Do not rely on frontend hiding.
+
+All admin routes must verify role permissions on the server.
+
+Protected routes should return:
+
+403 Forbidden
+
+for unauthorized users.
+
+==================================================
+
+ADMIN DASHBOARD PROTECTION
+
+The admin dashboard must only render for:
+
+Founder
+Admin
+
+Never for User accounts.
+
+==================================================
+
+USER DATA ISOLATION
+
+Users should only see:
+
+Their own projects
+Their own systems
+Their own credits
+Their own subscriptions
+Their own analytics
+Their own billing history
+
+Users must never see data belonging to another user.
+
+==================================================
+
+FOUNDER IDENTIFICATION
+
+Create a Founder flag in the database.
+
+Example:
+
+role = founder
+
+Founder accounts automatically receive full platform access.
+
+==================================================
+
+SECURITY AUDIT
+
+Perform a full audit of:
+
+* Routes
+* API Endpoints
+* Dashboard Pages
+* Builder Pages
+* Billing Pages
+* User Data Queries
+* Admin Components
+
+Identify every area where a user can access admin functionality and lock it down.
+
+==================================================
+
+TESTING REQUIREMENTS
+
+Create test accounts:
+
+Founder Account
+
+Admin Account
+
+Free User
+
+Pro User
+
+Empire User
+
+Verify each role can only access approved functionality.
+
+==================================================
+
+GOAL
+
+The platform must operate like a professional SaaS product.
+
+Customers should only see customer features.
+
+Administrators should only see administration features.
+
+Founder controls must be completely isolated from normal users.
+
+No user account should ever have access to founder or admin functionality unless explicitly assigned the proper role.

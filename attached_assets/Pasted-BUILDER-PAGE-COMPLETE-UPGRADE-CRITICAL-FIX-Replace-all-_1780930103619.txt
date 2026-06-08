@@ -1,0 +1,182 @@
+BUILDER PAGE COMPLETE UPGRADE
+
+CRITICAL FIX
+
+Replace all references to:
+
+STARK
+
+with
+
+ASH AI
+
+ASH Build Engine
+
+ASH Autonomous Business Builder
+
+STARKS Global Group is the company.
+
+ASH is the AI agent.
+
+====================================
+
+UPGRADE THE BUILDER PAGE TO FEEL MORE LIKE REPLIT
+
+The Builder must become the centerpiece of the platform.
+
+Users should feel like they have an AI engineering team working for them.
+
+====================================
+
+ADD PROJECT MANAGEMENT
+
+* New Project
+* Save Project
+* Save As
+* Duplicate Project
+* Rename Project
+* Archive Project
+* Delete Project
+
+Enable auto-save.
+
+No work should ever be lost.
+
+====================================
+
+ADD REPLIT STYLE PROJECT SIDEBAR
+
+Display:
+
+* Recent Projects
+* Saved Projects
+* Active Builds
+* Drafts
+* Archived Projects
+
+====================================
+
+UPGRADE AGENT POWER SYSTEM
+
+Current:
+Fast
+Business
+Expert
+Empire
+
+Keep these.
+
+However when a user selects a power level, display a modal explaining:
+
+* Models used
+* Estimated credits
+* Estimated speed
+* Recommended use cases
+
+====================================
+
+OPENROUTER MODEL ROUTING
+
+FAST
+Use lower-cost models.
+
+BUSINESS
+Use stronger planning models.
+
+EXPERT
+Use premium models.
+
+EMPIRE
+Use multi-model orchestration and the highest-quality models available through OpenRouter.
+
+ASH should automatically select models based on power level.
+
+====================================
+
+ADD WORKSPACE TABS
+
+GOAL
+
+PLAN
+
+BUILD
+
+TEST
+
+DEPLOY
+
+MONITOR
+
+====================================
+
+ADD BUSINESS TYPE SELECTOR
+
+Before starting a build:
+
+* SaaS
+* Ecommerce
+* Affiliate
+* Lead Generation
+* Agency
+* Content
+* Automation
+* Custom
+
+ASH adapts automatically.
+
+====================================
+
+ADD MULTI-AGENT STATUS PANEL
+
+Display:
+
+* Planner Agent
+* Research Agent
+* Builder Agent
+* Testing Agent
+* Deployment Agent
+
+Show live progress.
+
+====================================
+
+ADD KNOWLEDGE VAULT
+
+Store:
+
+* Files
+* Notes
+* Assets
+* Documentation
+* Credentials
+* APIs
+
+Per project.
+
+====================================
+
+ADD DEPLOYMENT CENTER
+
+Buttons:
+
+* Deploy Website
+* Deploy SaaS
+* Deploy API
+* Deploy Automation
+* Deploy Landing Page
+
+====================================
+
+ADD REVENUE GOAL MODE
+
+Ask users:
+
+"What monthly revenue goal are you building toward?"
+
+ASH should use this goal when planning systems.
+
+====================================
+
+DESIGN GOAL
+
+The Builder should feel comparable to Replit, Lovable, Cursor, Bolt, Devin, and Manus while remaining simple enough for beginners and powerful enough for advanced users.

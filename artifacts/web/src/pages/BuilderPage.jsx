@@ -6,7 +6,9 @@ import {
   Eye, EyeOff, ChevronRight, Terminal, Activity, Lock,
   Cpu, Play, ExternalLink, ArrowLeft, Grid3x3,
   MessageSquare, Sparkles, Clock, DollarSign, RotateCcw,
-  Brain, Gauge,
+  Brain, Gauge, Target, Building2, TrendingUp, X,
+  PlusCircle, Rocket, ShoppingCart, Users, Layers,
+  Megaphone, Cog, Wand2, FlaskConical, Globe,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -40,6 +42,10 @@ const AI_MODES = [
     creditsPerBuild: '3–5 credits',
     description: 'Lightweight model optimised for speed. Best for simple blueprints and quick iterations.',
     creditWarning: 'Lowest credit usage — ideal for exploring ideas before committing to a full build.',
+    model: 'openai/gpt-4o-mini',
+    modelLabel: 'GPT-4o Mini',
+    speed: '~3 sec / msg',
+    useCases: ['Idea validation', 'Simple blueprints', 'Quick iterations', 'Drafting content'],
     icon: Zap,
     color: 'text-emerald-400',
     barColor: 'bg-emerald-500',
@@ -56,6 +62,10 @@ const AI_MODES = [
     creditsPerBuild: '10–18 credits',
     description: 'Balanced model with stronger reasoning. Handles multi-step blueprints and business logic well.',
     creditWarning: 'Moderate credit usage — 3× more than Fast. Recommended for most production builds.',
+    model: 'openai/gpt-4o',
+    modelLabel: 'GPT-4o',
+    speed: '~8 sec / msg',
+    useCases: ['Production builds', 'Multi-step systems', 'Business logic', 'Research & planning'],
     icon: Brain,
     color: 'text-blue-400',
     barColor: 'bg-blue-500',
@@ -72,6 +82,10 @@ const AI_MODES = [
     creditsPerBuild: '25–45 credits',
     description: 'Advanced reasoning model. Produces highly detailed plans, complex automations, and thorough analysis.',
     creditWarning: 'High credit usage — 8× more than Fast. Use for complex systems where quality matters most.',
+    model: 'anthropic/claude-3.5-sonnet',
+    modelLabel: 'Claude 3.5 Sonnet',
+    speed: '~15 sec / msg',
+    useCases: ['Complex automations', 'Deep research', 'Enterprise systems', 'Revenue optimization'],
     icon: Cpu,
     color: 'text-violet-400',
     barColor: 'bg-violet-500',
@@ -88,6 +102,10 @@ const AI_MODES = [
     creditsPerBuild: '80–150 credits',
     description: 'Full multi-agent orchestration. Parallel sub-agents research, plan, build, and validate simultaneously.',
     creditWarning: 'Maximum credit usage — 25× more than Fast. Reserved for flagship income systems and large deployments.',
+    model: 'anthropic/claude-3-opus',
+    modelLabel: 'Multi-Model Orchestration',
+    speed: '~30+ sec / msg',
+    useCases: ['Flagship systems', 'Multi-agent builds', 'Maximum quality', '$10k+/mo revenue targets'],
     icon: Gauge,
     color: 'text-amber-400',
     barColor: 'bg-amber-500',
@@ -96,6 +114,27 @@ const AI_MODES = [
     inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
     requiredTier: 'empire',
   },
+];
+
+// ── Business Types ─────────────────────────────────────────────────────────────
+const BUSINESS_TYPES = [
+  { id: 'saas',         label: 'SaaS',           icon: Layers,       color: 'text-blue-400',    bg: 'bg-blue-500/15 border-blue-500/30' },
+  { id: 'ecommerce',    label: 'Ecommerce',       icon: ShoppingCart, color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/30' },
+  { id: 'affiliate',    label: 'Affiliate',       icon: TrendingUp,   color: 'text-amber-400',   bg: 'bg-amber-500/15 border-amber-500/30' },
+  { id: 'leadgen',      label: 'Lead Gen',        icon: Target,       color: 'text-rose-400',    bg: 'bg-rose-500/15 border-rose-500/30' },
+  { id: 'agency',       label: 'Agency',          icon: Building2,    color: 'text-violet-400',  bg: 'bg-violet-500/15 border-violet-500/30' },
+  { id: 'content',      label: 'Content',         icon: Megaphone,    color: 'text-cyan-400',    bg: 'bg-cyan-500/15 border-cyan-500/30' },
+  { id: 'automation',   label: 'Automation',      icon: Cog,          color: 'text-orange-400',  bg: 'bg-orange-500/15 border-orange-500/30' },
+  { id: 'custom',       label: 'Custom',          icon: Wand2,        color: 'text-pink-400',    bg: 'bg-pink-500/15 border-pink-500/30' },
+];
+
+// ── Multi-Agent Roster ─────────────────────────────────────────────────────────
+const MULTI_AGENTS = [
+  { id: 'planner',    label: 'Planner',    icon: Brain,        phases: ['collecting', 'building'] },
+  { id: 'research',   label: 'Research',   icon: FlaskConical, phases: ['building'] },
+  { id: 'builder',    label: 'Builder',    icon: Cog,          phases: ['building'] },
+  { id: 'tester',     label: 'Tester',     icon: Target,       phases: ['building', 'complete'] },
+  { id: 'deploy',     label: 'Deploy',     icon: Rocket,       phases: ['complete'] },
 ];
 
 const aiModeStorageKey = (userId) => `sbep_ai_mode_${userId}`;
@@ -396,7 +435,7 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
         </div>
         <span className="text-[11px] text-muted-foreground/50 ml-3 flex items-center gap-2">
           <Terminal className="w-3 h-3" />
-          STARK Build Engine · Autonomous Mode
+          ASH Build Engine · Autonomous Mode
         </span>
         <div className="ml-auto flex items-center gap-1.5">
           {phase === 'building' ? (
@@ -455,7 +494,7 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
             <div className="flex flex-col items-center justify-center h-full gap-4 opacity-30">
               <Terminal className="w-12 h-12 text-muted-foreground" />
               <div className="text-center">
-                <p className="text-sm text-muted-foreground font-semibold">STARK Build Engine</p>
+                <p className="text-sm text-muted-foreground font-semibold">ASH Build Engine</p>
                 <p className="text-xs text-muted-foreground/60 mt-1">Awaiting build instructions…</p>
               </div>
               <div className="flex items-center gap-1 text-muted-foreground/50 text-[10px]">
@@ -553,7 +592,7 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
 const WELCOME_MSG = {
   id: 'welcome',
   role: 'assistant',
-  content: "I'm STARK — your Autonomous System Builder.\n\nGive me your income goal. I'll select the right blueprint, collect only the credentials I need, and build the entire system for you automatically.",
+  content: "I'm ASH — your Autonomous Business Builder.\n\nTell me your income goal, your business type, and what you want to build. I'll select the right blueprint, collect only the credentials I need, and build the entire system for you automatically.\n\nYou can build anything — SaaS products, affiliate engines, ecommerce stores, lead generation systems, content machines, and more.",
   ts: Date.now(),
 };
 
@@ -602,6 +641,26 @@ const BuilderPage = () => {
 
   const userTier = (currentUser?.membershipTier || 'free').toLowerCase();
   const isEmpireTier = userTier === 'empire' || userTier === 'operator';
+  const isFounderAdmin = currentUser?.role === 'FOUNDER_ADMIN';
+
+  // Business context
+  const [businessType, setBusinessType] = useState(() => {
+    try { return localStorage.getItem(`sbep_biz_${currentUser?.id}`) || null; } catch { return null; }
+  });
+  const [revenueGoal, setRevenueGoal] = useState(() => {
+    try { return localStorage.getItem(`sbep_goal_${currentUser?.id}`) || ''; } catch { return ''; }
+  });
+  const [showRevenueGoalInput, setShowRevenueGoalInput] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try { localStorage.setItem(`sbep_biz_${currentUser.id}`, businessType ?? ''); } catch {}
+  }, [businessType, currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try { localStorage.setItem(`sbep_goal_${currentUser.id}`, revenueGoal); } catch {}
+  }, [revenueGoal, currentUser?.id]);
 
   // Phase machine
   const [phase, setPhase] = useState('idle');
@@ -850,7 +909,7 @@ const BuilderPage = () => {
   const pendingBlueprintRef = useRef(null);
   const pendingSystemNameRef = useRef('');
 
-  // ── Send message to STARK ──────────────────────────────────────────────────
+  // ── Send message to ASH ────────────────────────────────────────────────────
   const sendMessage = useCallback(async (text) => {
     const msg = (text ?? input).trim();
     if (!msg || chatLoading) return;
@@ -868,10 +927,10 @@ const BuilderPage = () => {
       const resp = await fetch('/api/ai-orchestrator/chat', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ message: msg, history, agentMode: aiMode }),
+        body: JSON.stringify({ message: msg, history, agentMode: aiMode, businessType, revenueGoal }),
       });
       if (resp.status === 402) { setError('Out of AI credits. Top up to continue.'); return; }
-      if (!resp.ok) throw new Error('STARK request failed');
+      if (!resp.ok) throw new Error('ASH request failed');
 
       const data = await resp.json();
       setMessages(prev => [...prev, {
@@ -903,7 +962,7 @@ const BuilderPage = () => {
         await executeBuild({}, sd.blueprint, sd.systemName ?? '');
       }
     } catch {
-      setError('STARK is temporarily unavailable. Please try again.');
+      setError('ASH is temporarily unavailable. Please try again.');
     } finally {
       setChatLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -927,7 +986,7 @@ const BuilderPage = () => {
       const resp = await fetch('/api/ai-orchestrator/chat', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ message: msg, history, agentMode: aiMode }),
+        body: JSON.stringify({ message: msg, history, agentMode: aiMode, businessType, revenueGoal }),
       });
       if (resp.status === 402) { setError('Out of AI credits.'); return; }
       if (!resp.ok) throw new Error();
@@ -945,7 +1004,7 @@ const BuilderPage = () => {
         await executeBuild({}, sd.blueprint, sd.systemName ?? '');
       }
     } catch {
-      setError('STARK is temporarily unavailable.');
+      setError('ASH is temporarily unavailable.');
     } finally {
       setChatLoading(false);
     }
@@ -982,20 +1041,36 @@ const BuilderPage = () => {
           </button>
           <span className="text-white/20">/</span>
           <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-primary" />
-            Builder
+            <Wand2 className="w-4 h-4 text-primary" />
+            ASH Builder
           </span>
+          {businessType && (
+            <>
+              <span className="text-white/20">/</span>
+              <span className="text-xs text-muted-foreground/60 font-mono capitalize">{businessType}</span>
+            </>
+          )}
+          {revenueGoal && (
+            <span className="hidden md:flex items-center gap-1 text-[10px] text-emerald-400/70 bg-emerald-500/8 border border-emerald-500/20 rounded-full px-2 py-0.5 font-mono">
+              <Target className="w-2.5 h-2.5" /> {revenueGoal}/mo
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <PhaseBar phase={phase} />
+          {isFounderAdmin && (
+            <span className="text-[9px] font-mono text-amber-400/70 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">
+              👑 FOUNDER
+            </span>
+          )}
           <button
             onClick={clearSession}
             disabled={phase === 'building'}
-            title="Start a new conversation"
+            title="Start a new session"
             className="flex items-center gap-1.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors text-xs disabled:opacity-20 disabled:cursor-not-allowed"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            New Chat
+            <PlusCircle className="w-3.5 h-3.5" />
+            New Session
           </button>
         </div>
       </div>
@@ -1006,17 +1081,22 @@ const BuilderPage = () => {
         {/* ── Left Pane ──────────────────────────────────────────────────── */}
         <div className="w-[400px] shrink-0 flex flex-col border-r border-white/8 bg-black/40">
 
-          {/* STARK header + mode toggle */}
+          {/* ASH header + context selectors */}
           <div className="px-4 pt-4 pb-3 border-b border-white/8 shrink-0">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-primary" />
+                  <Wand2 className="w-4 h-4 text-primary" />
                 </div>
-                <span className="font-semibold text-sm text-foreground">STARK</span>
-                <Badge variant="outline" className="text-[9px] border-primary/30 text-primary bg-primary/5 font-mono">
-                  AUTONOMOUS BUILDER
-                </Badge>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-foreground tracking-tight">ASH</span>
+                    <Badge variant="outline" className="text-[9px] border-primary/30 text-primary bg-primary/5 font-mono">
+                      AI BUILDER
+                    </Badge>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground/40 font-mono">Autonomous Business Builder</p>
+                </div>
               </div>
               <span className="flex items-center gap-1.5">
                 <span className="relative flex h-2 w-2">
@@ -1025,6 +1105,64 @@ const BuilderPage = () => {
                 </span>
                 <span className="text-xs text-emerald-400">Online</span>
               </span>
+            </div>
+
+            {/* Business type selector */}
+            <div className="mb-3">
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-medium mb-1.5 flex items-center gap-1">
+                <Building2 className="w-2.5 h-2.5" /> Business Type
+              </p>
+              <div className="grid grid-cols-4 gap-1">
+                {BUSINESS_TYPES.map(bt => {
+                  const BIcon = bt.icon;
+                  const isActive = businessType === bt.id;
+                  return (
+                    <button
+                      key={bt.id}
+                      onClick={() => setBusinessType(isActive ? null : bt.id)}
+                      className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg border text-center transition-all text-[9px] font-bold font-mono ${
+                        isActive ? bt.bg + ' ' + bt.color : 'bg-white/3 border-white/8 hover:border-white/20 text-muted-foreground/40'
+                      }`}
+                    >
+                      <BIcon className={`w-3 h-3 ${isActive ? bt.color : 'text-muted-foreground/40'}`} />
+                      {bt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Revenue goal */}
+            <div className="mb-3">
+              {showRevenueGoalInput ? (
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={revenueGoal}
+                    onChange={e => setRevenueGoal(e.target.value)}
+                    placeholder="e.g. $5,000"
+                    className="flex-1 text-[10px] bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 font-mono"
+                    onKeyDown={e => { if (e.key === 'Enter') setShowRevenueGoalInput(false); }}
+                    autoFocus
+                  />
+                  <button onClick={() => setShowRevenueGoalInput(false)} className="text-[10px] text-primary hover:text-primary/80 px-2">✓</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowRevenueGoalInput(true)}
+                  className="w-full flex items-center justify-between text-[9px] px-2 py-1.5 rounded-lg border border-white/8 bg-white/3 hover:border-white/20 transition-colors"
+                >
+                  <span className="flex items-center gap-1.5 text-muted-foreground/40">
+                    <Target className="w-2.5 h-2.5" />
+                    <span className="font-mono uppercase tracking-widest">Revenue Goal</span>
+                  </span>
+                  {revenueGoal ? (
+                    <span className="text-emerald-400 font-mono font-bold">{revenueGoal}/mo</span>
+                  ) : (
+                    <span className="text-muted-foreground/25 font-mono">Set goal →</span>
+                  )}
+                </button>
+              )}
             </div>
 
             {/* Mode toggle */}
@@ -1086,7 +1224,7 @@ const BuilderPage = () => {
                   );
                 })}
               </div>
-              {/* Credit usage info box — shown whenever a mode is active */}
+              {/* Credit + model info box — shown whenever a mode is active */}
               {aiMode && (() => {
                 const active = AI_MODES.find(m => m.id === aiMode);
                 if (!active) return null;
@@ -1102,8 +1240,26 @@ const BuilderPage = () => {
                       <span className={`text-[10px] font-mono font-bold ${active.color}`}>{active.creditHint}</span>
                     </div>
 
+                    {/* Model routing info */}
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border ${active.activeBg} ${active.color} opacity-80`}>
+                        {active.modelLabel}
+                      </span>
+                      <span className="text-[8px] text-muted-foreground/40 font-mono">·</span>
+                      <span className="text-[8px] text-muted-foreground/50 font-mono">{active.speed}</span>
+                    </div>
+
                     {/* Description */}
                     <p className="text-[9px] text-muted-foreground/70 leading-relaxed">{active.description}</p>
+
+                    {/* Use cases */}
+                    <div className="flex flex-wrap gap-1">
+                      {active.useCases.map(uc => (
+                        <span key={uc} className={`text-[8px] font-mono px-1.5 py-0.5 rounded-full border ${active.activeBg} ${active.color} opacity-70`}>
+                          {uc}
+                        </span>
+                      ))}
+                    </div>
 
                     {/* Credit usage bar */}
                     <div>
@@ -1217,7 +1373,7 @@ const BuilderPage = () => {
                     <div className="bg-white/6 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-2.5">
                       <div className="flex items-center gap-2 text-muted-foreground text-sm">
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                        <span className="font-mono text-xs">STARK is analyzing…</span>
+                        <span className="font-mono text-xs">ASH is analyzing…</span>
                       </div>
                     </div>
                   </div>
@@ -1311,7 +1467,7 @@ const BuilderPage = () => {
                       </Button>
                     </div>
                     <p className="text-[10px] text-muted-foreground/25 mt-1.5 text-center font-mono">
-                      STARK builds autonomously · Credentials encrypted at rest
+                      ASH builds autonomously · Credentials encrypted at rest
                     </p>
                   </>
                 )}
@@ -1378,6 +1534,58 @@ const BuilderPage = () => {
               </div>
             </div>
           )}
+          {/* Multi-agent status panel — visible during build */}
+          {(phase === 'building' || phase === 'collecting' || phase === 'complete') && (
+            <div className="shrink-0 rounded-xl border border-white/8 bg-black/60 p-3">
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-mono mb-2 flex items-center gap-1.5">
+                <Globe className="w-2.5 h-2.5" /> ASH Agent Team
+              </p>
+              <div className="grid grid-cols-5 gap-1.5">
+                {MULTI_AGENTS.map(agent => {
+                  const AIcon = agent.icon;
+                  const isActive = agent.phases.includes(phase);
+                  const isDone = phase === 'complete';
+                  return (
+                    <div
+                      key={agent.id}
+                      className={`flex flex-col items-center gap-1 py-2 px-1 rounded-lg border text-center transition-all ${
+                        isDone
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                          : isActive && phase === 'building'
+                          ? 'bg-primary/10 border-primary/30 text-primary'
+                          : isActive && phase === 'collecting'
+                          ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                          : 'bg-white/3 border-white/8 text-muted-foreground/25'
+                      }`}
+                    >
+                      <div className="relative">
+                        <AIcon className="w-3 h-3" />
+                        {isActive && phase === 'building' && !isDone && (
+                          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        )}
+                        {isDone && (
+                          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        )}
+                      </div>
+                      <span className="text-[8px] font-mono font-bold">{agent.label}</span>
+                      <span className={`text-[7px] font-mono ${isDone ? 'text-emerald-400/70' : isActive ? 'opacity-70' : 'opacity-30'}`}>
+                        {isDone ? 'done' : isActive ? (phase === 'building' ? 'active' : 'ready') : 'idle'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {phase === 'building' && buildData?.steps && (
+                <div className="mt-2 pt-2 border-t border-white/6 flex items-center justify-between">
+                  <span className="text-[8px] text-muted-foreground/40 font-mono">Build progress</span>
+                  <span className="text-[8px] text-primary font-mono font-bold">
+                    {currentStepIdx}/{buildData.steps.length} steps
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex-1 min-h-0">
             <BuildTerminal
               steps={buildData?.steps ?? []}

@@ -1,0 +1,155 @@
+ADMIN CONTROL CENTER UPGRADE
+
+The current Admin dashboard is not functioning as a true platform administration center.
+
+Convert the Admin account into a Founder Super Admin Control Center.
+
+REQUIRED NEW SECTIONS:
+
+1. USER MANAGEMENT
+
+Create a dedicated Users page.
+
+Display:
+
+* Total Users
+* Active Users
+* Free Users
+* Pro Users
+* Empire Users
+* Suspended Users
+
+Allow searching and filtering.
+
+When clicking a user, display:
+
+* Name
+* Email
+* Signup Date
+* Last Login
+* Subscription Plan
+* Stripe Customer ID
+* Credits Remaining
+* Credits Used
+* Total Spend
+* Lifetime Value
+* OpenRouter Usage
+* Systems Created
+* Connected Integrations
+
+Admin Actions:
+
+* Grant Credits
+* Remove Credits
+* Upgrade Plan
+* Downgrade Plan
+* Cancel Subscription
+* Issue Refund
+* Suspend Account
+* Ban Account
+* Delete Account
+* Reset Password
+* Impersonate User
+
+2. BILLING CENTER
+
+Display:
+
+* MRR
+* ARR
+* Total Revenue
+* Revenue By Plan
+* Failed Payments
+* Refunds
+* Active Subscriptions
+* Credit Purchases
+
+3. OPENROUTER COST CENTER
+
+Track:
+
+* Usage By User
+* Usage By System
+* Usage By AI Model
+* Token Consumption
+* Cost Consumption
+* Estimated Profit Per User
+
+4. AI AGENT CONTROL CENTER
+
+Display:
+
+* Running Agents
+* Queued Agents
+* Failed Agents
+* Completed Agents
+* Build Success Rate
+* Build Failure Rate
+* Agent Logs
+
+5. PLATFORM HEALTH CENTER
+
+Display:
+
+* OpenRouter Status
+* Database Status
+* Stripe Status
+* Email Status
+* Hosting Status
+* Storage Status
+* Connection Hub Status
+
+Show uptime, errors, and response times.
+
+6. SYSTEMS MANAGEMENT
+
+Display all systems created across the platform.
+
+Show:
+
+* Owner
+* Status
+* Revenue
+* Hosting Status
+* Last Run
+* Errors
+
+7. NOTIFICATIONS CENTER
+
+Display:
+
+* New Signups
+* Failed Payments
+* Refund Requests
+* Failed Builds
+* Connection Failures
+* Platform Incidents
+
+8. FOUNDER SUPER ADMIN
+
+The founder account must automatically receive:
+
+* Unlimited Credits
+* Unlimited AI Usage
+* Unlimited Builds
+* Unlimited Hosting
+* Unlimited Connections
+* Full Platform Access
+
+Founder accounts should never require subscriptions or credit purchases.
+
+9. AUDIT LOGS
+
+Track:
+
+* User Actions
+* Admin Actions
+* Billing Actions
+* Credit Changes
+* Subscription Changes
+* AI Agent Activity
+* System Deployments
+
+GOAL:
+
+Transform the current admin dashboard into a complete SaaS Founder Control Center comparable to Stripe, Shopify, HubSpot, or Replit administration systems.

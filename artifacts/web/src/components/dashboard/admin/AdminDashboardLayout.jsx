@@ -2,7 +2,10 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AdminDataProvider } from '@/contexts/AdminDataContext.jsx';
-import { LayoutDashboard, DollarSign, BrainCircuit, Server, TrendingUp } from 'lucide-react';
+import {
+  LayoutDashboard, DollarSign, BrainCircuit, Server, TrendingUp,
+  Users, Bell, ShieldCheck,
+} from 'lucide-react';
 
 import AdminPlatformMetricsCard from './AdminPlatformMetricsCard.jsx';
 import AdminAIUsageAnalyticsCard from './AdminAIUsageAnalyticsCard.jsx';
@@ -34,11 +37,14 @@ import UsageOverviewCard from '@/components/admin/UsageOverviewCard.jsx';
 import MonthlyConsumptionCard from '@/components/admin/MonthlyConsumptionCard.jsx';
 
 const TABS = [
-  { key: 'overview',      label: 'Overview',     icon: LayoutDashboard, path: '/admin' },
-  { key: 'revenue',       label: 'Revenue',      icon: DollarSign,      path: '/admin/revenue' },
-  { key: 'ai-analytics',  label: 'AI Analytics', icon: BrainCircuit,    path: '/admin/ai-analytics' },
-  { key: 'profitability', label: 'Profitability',icon: TrendingUp,      path: '/admin/profitability' },
-  { key: 'systems',       label: 'Systems',      icon: Server,          path: '/admin/systems' },
+  { key: 'overview',      label: 'Overview',       icon: LayoutDashboard, path: '/admin' },
+  { key: 'users',         label: 'Users',           icon: Users,           path: '/admin/users' },
+  { key: 'revenue',       label: 'Revenue',         icon: DollarSign,      path: '/admin/revenue' },
+  { key: 'ai-analytics',  label: 'AI Analytics',    icon: BrainCircuit,    path: '/admin/ai-analytics' },
+  { key: 'profitability', label: 'Profitability',   icon: TrendingUp,      path: '/admin/profitability' },
+  { key: 'systems',       label: 'Systems',         icon: Server,          path: '/admin/systems' },
+  { key: 'health',        label: 'Platform Health', icon: ShieldCheck,     path: '/admin/health' },
+  { key: 'activity',      label: 'Activity',        icon: Bell,            path: '/admin/activity' },
 ];
 
 function useActiveTab() {
@@ -74,7 +80,7 @@ const AdminDashboardLayout = () => {
           ))}
         </div>
 
-        {/* Overview tab */}
+        {/* ── Overview tab ─────────────────────────────────────────────────── */}
         {activeTab === 'overview' && (
           <>
             <AdminPlatformMetricsCard />
@@ -99,6 +105,28 @@ const AdminDashboardLayout = () => {
               <AdminComputeUsageMetricsCard />
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <CreditBalanceCard />
+              <UsageOverviewCard />
+              <MonthlyConsumptionCard />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <AdminAIInfrastructureMonitoringCard />
+              <AdminAIRuntimeMonitoringCard />
+              <AdminAPIMonitoringCard />
+              <AdminBlueprintDeploymentMonitoringCard />
+            </div>
+
+            <div className="grid grid-cols-1">
+              <AdminSkillEnginePanel />
+            </div>
+          </>
+        )}
+
+        {/* ── Users tab ────────────────────────────────────────────────────── */}
+        {activeTab === 'users' && (
+          <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               <div className="col-span-1 lg:col-span-3">
                 <AdminUserManagementPanel />
@@ -108,60 +136,62 @@ const AdminDashboardLayout = () => {
                 <AdminSubscriptionAnalyticsCard />
               </div>
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <AdminPlatformErrorLogsPanel />
-              </div>
-              <div className="space-y-6">
-                <AdminSystemDiagnosticsPanel />
-                <AdminSystemHealthOverviewCard />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <AdminAIInfrastructureMonitoringCard />
-              <AdminAIRuntimeMonitoringCard />
-              <AdminAPIMonitoringCard />
-              <AdminBlueprintDeploymentMonitoringCard />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <CreditBalanceCard />
-              <UsageOverviewCard />
-              <MonthlyConsumptionCard />
-            </div>
-
-            <div className="grid grid-cols-1">
-              <AdminSkillEnginePanel />
-            </div>
-
-            <div className="grid grid-cols-1">
-              <AdminGlobalActivityFeedPanel />
-            </div>
-          </>
+          </div>
         )}
 
-        {/* Revenue tab */}
+        {/* ── Revenue tab ──────────────────────────────────────────────────── */}
         {activeTab === 'revenue' && (
           <div className="space-y-6">
             <AdminRevenueActivityPanel />
           </div>
         )}
 
-        {/* AI Analytics tab */}
+        {/* ── AI Analytics tab ─────────────────────────────────────────────── */}
         {activeTab === 'ai-analytics' && (
           <AdminAIAnalyticsDashboard />
         )}
 
-        {/* Profitability tab */}
+        {/* ── Profitability tab ────────────────────────────────────────────── */}
         {activeTab === 'profitability' && (
           <AdminProfitabilityPanel />
         )}
 
-        {/* Systems tab */}
+        {/* ── Systems tab ──────────────────────────────────────────────────── */}
         {activeTab === 'systems' && (
           <AdminSystemMonitoringPanel />
+        )}
+
+        {/* ── Platform Health tab ──────────────────────────────────────────── */}
+        {activeTab === 'health' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AdminPlatformHealthCard />
+              <AdminOpenRouterHealthCard />
+              <AdminAPIMonitoringCard />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <AdminSystemDiagnosticsPanel />
+              <AdminSystemHealthOverviewCard />
+              <AdminAIRuntimeMonitoringCard />
+            </div>
+            <div className="grid grid-cols-1">
+              <AdminPlatformErrorLogsPanel />
+            </div>
+          </div>
+        )}
+
+        {/* ── Activity / Audit tab ─────────────────────────────────────────── */}
+        {activeTab === 'activity' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1">
+              <AdminGlobalActivityFeedPanel />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <AdminBlueprintDeploymentMonitoringCard />
+              <AdminAIInfrastructureMonitoringCard />
+              <AdminComputeUsageMetricsCard />
+            </div>
+          </div>
         )}
 
       </div>

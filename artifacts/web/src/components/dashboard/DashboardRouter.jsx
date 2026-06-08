@@ -1,19 +1,23 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboard } from '@/contexts/DashboardContext.jsx';
+import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Loader2 } from 'lucide-react';
 import AdminDashboardLayout from './admin/AdminDashboardLayout.jsx';
 import UserDashboardLayout from './user/UserDashboardLayout.jsx';
 
+// Only this specific email may see the admin dashboard.
+const ADMIN_EMAIL = 'tylerstarks45@gmail.com';
+const ADMIN_ROLES = ['admin', 'ADMIN', 'SUPER_ADMIN', 'FOUNDER_ADMIN'];
+
 const DashboardRouter = () => {
   const { role, isLoading } = useDashboard();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     const validRoles = ['admin', 'ADMIN', 'SUPER_ADMIN', 'FOUNDER_ADMIN', 'USER'];
-    
     if (!isLoading && role && !validRoles.includes(role)) {
-      console.warn(`Invalid role detected: ${role}. Redirecting to login.`);
       navigate('/login', { replace: true });
     }
   }, [isLoading, role, navigate]);
@@ -27,12 +31,15 @@ const DashboardRouter = () => {
     );
   }
 
-  // Render Admin layout for all admin roles
-  if (role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'admin' || role === 'FOUNDER_ADMIN') {
+  // Admin layout ONLY for the authorised founder email — role alone is not enough
+  const isAdminUser =
+    ADMIN_ROLES.includes(role) &&
+    currentUser?.email === ADMIN_EMAIL;
+
+  if (isAdminUser) {
     return <AdminDashboardLayout />;
   }
 
-  // Default to User layout for 'USER' or any other valid role
   return <UserDashboardLayout />;
 };
 

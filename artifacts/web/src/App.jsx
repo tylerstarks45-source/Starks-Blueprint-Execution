@@ -12,6 +12,7 @@ import OutOfCreditsModal from '@/components/OutOfCreditsModal.jsx';
 // Security Routes
 import ProtectedRoute from '@/components/security/ProtectedRoute.jsx';
 import ProtectedAdminRoute from '@/components/security/ProtectedAdminRoute.jsx';
+import SubscriptionGate from '@/components/security/SubscriptionGate.jsx';
 
 // Pages
 import HomePage from '@/pages/HomePage.jsx';
@@ -122,40 +123,40 @@ const App = () => {
             <Route path="/affiliate-disclosure" element={<AffiliateDisclosure />} />
             <Route path="/earnings-disclaimer" element={<EarningsDisclaimer />} />
 
-            {/* Protected User Routes */}
+            {/* Protected User Routes — requires login + active subscription */}
             <Route path="/dashboard/*" element={
-              <ProtectedRoute><DashboardPage /></ProtectedRoute>
+              <ProtectedRoute><SubscriptionGate><DashboardPage /></SubscriptionGate></ProtectedRoute>
             } />
             <Route path="/user-dashboard" element={
-              <ProtectedRoute><DashboardPage /></ProtectedRoute>
+              <ProtectedRoute><SubscriptionGate><DashboardPage /></SubscriptionGate></ProtectedRoute>
             } />
             <Route path="/system-builder" element={
-              <ProtectedRoute><SystemBuilderPage /></ProtectedRoute>
+              <ProtectedRoute><SubscriptionGate><SystemBuilderPage /></SubscriptionGate></ProtectedRoute>
             } />
             <Route path="/saved-systems" element={
-              <ProtectedRoute><SavedSystemsPage /></ProtectedRoute>
+              <ProtectedRoute><SubscriptionGate><SavedSystemsPage /></SubscriptionGate></ProtectedRoute>
             } />
             <Route path="/my-stack" element={
-              <ProtectedRoute><MyStackPage /></ProtectedRoute>
+              <ProtectedRoute><SubscriptionGate><MyStackPage /></SubscriptionGate></ProtectedRoute>
             } />
             <Route path="/build/:systemInstanceId" element={
-              <ProtectedRoute><BuildRedirect /></ProtectedRoute>
+              <ProtectedRoute><SubscriptionGate><BuildRedirect /></SubscriptionGate></ProtectedRoute>
             } />
             <Route path="/systems/:id" element={
-              <ProtectedRoute><UserSystemDetailPage /></ProtectedRoute>
+              <ProtectedRoute><SubscriptionGate><UserSystemDetailPage /></SubscriptionGate></ProtectedRoute>
             } />
             <Route path="/connections" element={
-              <ProtectedRoute><ConnectionsHubPage /></ProtectedRoute>
+              <ProtectedRoute><SubscriptionGate><ConnectionsHubPage /></SubscriptionGate></ProtectedRoute>
             } />
             <Route path="/systems" element={
-              <ProtectedRoute><SystemsListPage /></ProtectedRoute>
+              <ProtectedRoute><SubscriptionGate><SystemsListPage /></SubscriptionGate></ProtectedRoute>
             } />
             <Route path="/builder" element={
-              <ProtectedRoute><BuilderPage /></ProtectedRoute>
+              <ProtectedRoute><SubscriptionGate><BuilderPage /></SubscriptionGate></ProtectedRoute>
             } />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/credits" element={
-              <ProtectedRoute><CreditsPage /></ProtectedRoute>
+              <ProtectedRoute><SubscriptionGate><CreditsPage /></SubscriptionGate></ProtectedRoute>
             } />
 
             {/* Protected Admin Routes */}

@@ -121,8 +121,13 @@ export async function getActiveCallerPayload(
   }
 }
 
-// Verifies the caller is authenticated AND has an admin role AND is not suspended.
-// Sends 401 (no/invalid token), 403 (suspended or not admin) and returns null on failure.
+// The single account authorised for admin access.
+// Role-based checks alone are not sufficient — this email lock ensures only
+// the founder can reach admin endpoints even if another account's role is elevated.
+const ADMIN_EMAIL = "tylerstarks45@gmail.com";
+
+// Verifies the caller is authenticated AND is the authorised admin email AND has an admin role AND is not suspended.
+// Sends 401 (no/invalid token), 403 (suspended, not admin, or wrong email) and returns null on failure.
 export async function requireAdmin(
   req: Request,
   res: Response,
@@ -133,11 +138,16 @@ export async function requireAdmin(
     return null;
   }
   const [user] = await db
-    .select({ role: usersTable.role, active: usersTable.active })
+    .select({ role: usersTable.role, active: usersTable.active, email: usersTable.email })
     .from(usersTable)
     .where(eq(usersTable.id, id));
   if (!user || user.active === false) {
     res.status(403).json({ error: "Account suspended" });
+    return null;
+  }
+  // Email lock — must match the founder account regardless of role
+  if (user.email !== ADMIN_EMAIL) {
+    res.status(403).json({ error: "Admin privileges required" });
     return null;
   }
   const role = user.role ?? "USER";

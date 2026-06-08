@@ -4,6 +4,9 @@ import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Only this specific email may access the admin control center.
+// Role checks alone are not sufficient — the email lock is the authoritative gate.
+const ADMIN_EMAIL = 'tylerstarks45@gmail.com';
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'];
 
 const ProtectedAdminRoute = ({ children }) => {
@@ -11,20 +14,25 @@ const ProtectedAdminRoute = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated || !currentUser) {
-        toast.error('Please log in to access this page.');
-        navigate('/login', { state: { from: location.pathname }, replace: true });
-        return;
-      }
+  const isAuthorisedAdmin =
+    isAuthenticated &&
+    currentUser?.email === ADMIN_EMAIL &&
+    ADMIN_ROLES.includes(currentUserRole);
 
-      if (!ADMIN_ROLES.includes(currentUserRole)) {
-        toast.error('Access denied. Admin privileges required.');
-        navigate('/user-dashboard', { replace: true });
-      }
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (!isAuthenticated || !currentUser) {
+      toast.error('Please log in to access this page.');
+      navigate('/login', { state: { from: location.pathname }, replace: true });
+      return;
     }
-  }, [isLoading, isAuthenticated, currentUser, currentUserRole, navigate, location]);
+
+    if (!isAuthorisedAdmin) {
+      toast.error('Access denied.');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isLoading, isAuthenticated, currentUser, isAuthorisedAdmin, navigate, location]);
 
   if (isLoading) {
     return (
@@ -35,8 +43,8 @@ const ProtectedAdminRoute = ({ children }) => {
     );
   }
 
-  if (!isAuthenticated || !currentUser || !ADMIN_ROLES.includes(currentUserRole)) {
-    return null; // Will redirect in useEffect
+  if (!isAuthenticated || !currentUser || !isAuthorisedAdmin) {
+    return null;
   }
 
   return <>{children}</>;

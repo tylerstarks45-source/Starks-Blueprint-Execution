@@ -1,0 +1,150 @@
+BUILDER PAGE UI READABILITY FIX
+
+CRITICAL ISSUE
+
+The Builder page currently has a highly detailed animated background that is bleeding through the interface.
+
+This makes text, buttons, cards, menus, prompts, settings, and agent information difficult to read.
+
+The Builder should feel premium and futuristic, but readability must always come first.
+
+==================================================
+
+DO NOT REMOVE
+
+* Background animation
+* Motion effects
+* Visual atmosphere
+* Technology-themed visuals
+
+Keep all existing background effects.
+
+==================================================
+
+REQUIRED FIXES
+
+Increase opacity of all Builder UI panels.
+
+Darken:
+
+* Agent Control Panel
+* Goal Panel
+* Blueprint Panel
+* Agent Power Cards
+* Chat Window
+* Build Window
+* Notifications
+* Settings Panels
+* Project Sidebar
+* Tool Panels
+* Connection Panels
+
+Panels should be approximately:
+
+85%–95% opacity
+
+instead of semi-transparent glass.
+
+==================================================
+
+TEXT READABILITY
+
+Increase contrast throughout the Builder.
+
+Requirements:
+
+* Bright white text
+* Higher font weight
+* Better spacing
+* Larger headings
+* Better hierarchy
+
+No text should blend into the background.
+
+==================================================
+
+INPUT AREA
+
+Darken:
+
+* Prompt box
+* Chat area
+* Goal input field
+* Search fields
+
+Users should immediately see where to type.
+
+==================================================
+
+BUTTON IMPROVEMENTS
+
+Increase visibility of:
+
+* Send
+* Save Project
+* New Project
+* Deploy
+* Build
+* Plan
+* Connect
+
+Buttons should stand out clearly from the background.
+
+==================================================
+
+AGENT POWER CARDS
+
+The Fast / Business / Expert / Empire cards are difficult to read.
+
+Add:
+
+* Dark solid backgrounds
+* Strong borders
+* Better hover states
+* Better selected states
+
+The active mode should be instantly recognizable.
+
+==================================================
+
+CHAT + BUILD AREA
+
+The main ASH workspace should use a darker container behind all content.
+
+Do not allow background visuals to interfere with:
+
+* Messages
+* Plans
+* Build output
+* Logs
+* Progress indicators
+
+==================================================
+
+REPLIT-STYLE DESIGN GOAL
+
+Use Replit as inspiration.
+
+The Builder should feel:
+
+* Premium
+* Futuristic
+* Professional
+* Easy to read
+* Easy to use
+
+The user should focus on ASH and the build process, not fight the background.
+
+==================================================
+
+FINAL RULE
+
+Keep the visual style.
+
+Keep the animations.
+
+Keep the atmosphere.
+
+But prioritize readability and usability over transparency.
+
+Every button, card, panel, input, and piece of text should be immediately readable without zooming or straining.

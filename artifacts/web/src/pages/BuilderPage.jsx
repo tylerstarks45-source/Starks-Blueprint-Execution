@@ -609,6 +609,54 @@ const clearStoredSession = (userId) => {
   try { localStorage.removeItem(sessionKey(userId)); } catch {}
 };
 
+// ─── Checkpoint helpers ────────────────────────────────────────────────────────
+const checkpointsKey = (userId) => `sbep_checkpoints_v1_${userId}`;
+const MAX_CHECKPOINTS = 12;
+
+const formatTs = (ts) => {
+  const d = new Date(ts);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const isYesterday = d.toDateString() === new Date(now - 86400000).toDateString();
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return `Today ${time}`;
+  if (isYesterday) return `Yesterday ${time}`;
+  return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
+};
+
+const getCheckpoints = (userId) => {
+  try {
+    const raw = localStorage.getItem(checkpointsKey(userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+
+const saveCheckpoint = (userId, { messages, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp }) => {
+  if (!userId) return;
+  const userMsgs = messages.filter(m => m.id !== 'welcome' && m.role === 'user');
+  if (userMsgs.length === 0) return;
+  const summary = userMsgs[0]?.content?.slice(0, 60) || 'Conversation';
+  const checkpoint = {
+    id: Date.now(),
+    ts: Date.now(),
+    summary,
+    messageCount: messages.filter(m => m.id !== 'welcome').length,
+    phase,
+    messages,
+    buildData,
+    stepOutputs,
+    currentStepIdx,
+    activatedSkills,
+    mode,
+    selectedBp,
+  };
+  try {
+    const existing = getCheckpoints(userId);
+    const updated = [checkpoint, ...existing].slice(0, MAX_CHECKPOINTS);
+    localStorage.setItem(checkpointsKey(userId), JSON.stringify(updated));
+  } catch {}
+};
+
 // ─── Builder Page ─────────────────────────────────────────────────────────────
 const BuilderPage = () => {
   const navigate = useNavigate();
@@ -691,6 +739,9 @@ const BuilderPage = () => {
   // Active side panel: null | 'explorer' | 'blueprints' | 'tools' | 'settings'
   const [activeSidePanel, setActiveSidePanel] = useState('explorer');
 
+  // Checkpoints — loaded from localStorage, refreshed after each save
+  const [checkpoints, setCheckpoints] = useState([]);
+
   // Track whether we've loaded (or decided not to load) a saved session
   const sessionLoadedRef = useRef(false);
 
@@ -715,6 +766,8 @@ const BuilderPage = () => {
     } else {
       setMessages([WELCOME_MSG]);
     }
+    // Load saved checkpoints
+    setCheckpoints(getCheckpoints(currentUser.id));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
 
@@ -813,10 +866,11 @@ const BuilderPage = () => {
       toast.success('System deployed and live!', {
         description: `${buildData.blueprint?.name ?? 'Your system'} is ready.`,
       });
-      // Auto-redirect after 3 seconds so user sees success banner.
-      // Clear the saved session so next visit starts fresh.
+      // Save a checkpoint for the completed build before redirecting
+      saveCheckpoint(currentUser?.id, { messages, phase: 'complete', buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp });
+      setCheckpoints(getCheckpoints(currentUser?.id));
+      // Auto-redirect after 3 seconds — keep session so user can return to history
       const timer = setTimeout(() => {
-        clearStoredSession(currentUser?.id);
         navigate(`/systems/${buildData.instanceId}`);
       }, 3000);
       return () => clearTimeout(timer);
@@ -961,16 +1015,23 @@ const BuilderPage = () => {
         setPendingCreds(sd.requiredCredentials);
         setPhase('collecting');
       } else if (action === 'start_build' && sd?.blueprint) {
-        // No credentials needed — execute immediately, passing blueprint directly
         await executeBuild({}, sd.blueprint, sd.systemName ?? '');
       }
+
+      // Auto-save checkpoint after each successful AI exchange
+      const updatedMessages = [...messages,
+        { id: Date.now(), role: 'user', content: msg, ts: Date.now() },
+        { id: Date.now() + 1, role: 'assistant', content: data.content, ts: Date.now() },
+      ];
+      saveCheckpoint(currentUser?.id, { messages: updatedMessages, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp });
+      setCheckpoints(getCheckpoints(currentUser?.id));
     } catch {
       setError('ASH is temporarily unavailable. Please try again.');
     } finally {
       setChatLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [input, chatLoading, messages, executeBuild]);
+  }, [input, chatLoading, messages, executeBuild, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp, currentUser?.id]);
 
   // ── Blueprint mode: launch selected blueprint ──────────────────────────────
   const handleBlueprintLaunch = useCallback(async () => {
@@ -1028,6 +1089,22 @@ const BuilderPage = () => {
   const filteredBps = activeCatId
     ? blueprints.filter(b => b.categoryId === activeCatId)
     : blueprints;
+
+  // ── Restore a checkpoint ───────────────────────────────────────────────────
+  const restoreCheckpoint = useCallback((cp) => {
+    setMessages(cp.messages);
+    setPhase(cp.phase === 'complete' ? 'idle' : (cp.phase ?? 'idle'));
+    setActivatedSkills(cp.activatedSkills ?? []);
+    setBuildData(cp.buildData ?? null);
+    setStepOutputs(cp.stepOutputs ?? {});
+    setCurrentStepIdx(cp.currentStepIdx ?? 0);
+    setMode(cp.mode ?? 'custom');
+    setSelectedBp(cp.selectedBp ?? null);
+    setPendingCreds([]);
+    setError('');
+    setInput('');
+    toast.success('Checkpoint restored', { description: cp.summary });
+  }, []);
 
   const SIDE_PANELS = [
     { id: 'explorer',   icon: Layers,       title: 'Explorer' },
@@ -1240,6 +1317,54 @@ const BuilderPage = () => {
                       </div>
                     </>
                   )}
+
+                  {/* ── CHECKPOINTS ── */}
+                  <div className="border-t border-white/6 mx-3 my-1" />
+                  <div className="px-3 py-2">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono">Checkpoints</p>
+                      {checkpoints.length > 0 && (
+                        <button
+                          onClick={() => {
+                            try { localStorage.removeItem(checkpointsKey(currentUser?.id)); } catch {}
+                            setCheckpoints([]);
+                          }}
+                          className="text-[9px] text-muted-foreground/30 hover:text-red-400/70 transition-colors font-mono"
+                        >
+                          clear all
+                        </button>
+                      )}
+                    </div>
+                    {checkpoints.length === 0 ? (
+                      <p className="text-[10px] text-muted-foreground/25 font-mono px-2">
+                        Checkpoints are saved automatically after each AI response.
+                      </p>
+                    ) : (
+                      <div className="space-y-1">
+                        {checkpoints.map((cp) => (
+                          <div
+                            key={cp.id}
+                            className="group flex items-start gap-2 px-2 py-1.5 rounded hover:bg-white/5 transition-colors"
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary/40 mt-1.5 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] text-foreground/70 truncate leading-tight">{cp.summary}</p>
+                              <p className="text-[9px] text-muted-foreground/30 font-mono mt-0.5">
+                                {formatTs(cp.ts)} · {cp.messageCount} msg{cp.messageCount !== 1 ? 's' : ''}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => restoreCheckpoint(cp)}
+                              className="shrink-0 opacity-0 group-hover:opacity-100 text-[9px] text-primary/60 hover:text-primary font-mono transition-all"
+                              title="Restore this checkpoint"
+                            >
+                              restore
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

@@ -37,8 +37,13 @@ const AI_MODES = [
     label: 'Fast',
     subtitle: 'Quick responses',
     creditHint: '~1 cr/msg',
+    creditsPerBuild: '3–5 credits',
+    description: 'Lightweight model optimised for speed. Best for simple blueprints and quick iterations.',
+    creditWarning: 'Lowest credit usage — ideal for exploring ideas before committing to a full build.',
     icon: Zap,
     color: 'text-emerald-400',
+    barColor: 'bg-emerald-500',
+    barWidth: 'w-1/4',
     activeBg: 'bg-emerald-500/15 border-emerald-500/40',
     inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
     requiredTier: null,
@@ -48,8 +53,13 @@ const AI_MODES = [
     label: 'Business',
     subtitle: 'Deeper research',
     creditHint: '~3 cr/msg',
+    creditsPerBuild: '10–18 credits',
+    description: 'Balanced model with stronger reasoning. Handles multi-step blueprints and business logic well.',
+    creditWarning: 'Moderate credit usage — 3× more than Fast. Recommended for most production builds.',
     icon: Brain,
     color: 'text-blue-400',
+    barColor: 'bg-blue-500',
+    barWidth: 'w-2/4',
     activeBg: 'bg-blue-500/15 border-blue-500/40',
     inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
     requiredTier: null,
@@ -59,8 +69,13 @@ const AI_MODES = [
     label: 'Expert',
     subtitle: 'Deep reasoning',
     creditHint: '~8 cr/msg',
+    creditsPerBuild: '25–45 credits',
+    description: 'Advanced reasoning model. Produces highly detailed plans, complex automations, and thorough analysis.',
+    creditWarning: 'High credit usage — 8× more than Fast. Use for complex systems where quality matters most.',
     icon: Cpu,
     color: 'text-violet-400',
+    barColor: 'bg-violet-500',
+    barWidth: 'w-3/4',
     activeBg: 'bg-violet-500/15 border-violet-500/40',
     inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
     requiredTier: null,
@@ -70,8 +85,13 @@ const AI_MODES = [
     label: 'Empire',
     subtitle: 'Multi-agent',
     creditHint: '~25 cr/msg',
+    creditsPerBuild: '80–150 credits',
+    description: 'Full multi-agent orchestration. Parallel sub-agents research, plan, build, and validate simultaneously.',
+    creditWarning: 'Maximum credit usage — 25× more than Fast. Reserved for flagship income systems and large deployments.',
     icon: Gauge,
     color: 'text-amber-400',
+    barColor: 'bg-amber-500',
+    barWidth: 'w-full',
     activeBg: 'bg-amber-500/15 border-amber-500/40',
     inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
     requiredTier: 'empire',
@@ -1066,11 +1086,41 @@ const BuilderPage = () => {
                   );
                 })}
               </div>
-              {aiMode && (
-                <p className="text-[9px] text-muted-foreground/35 mt-1.5 text-center font-mono">
-                  {AI_MODES.find(m => m.id === aiMode)?.creditHint} · {AI_MODES.find(m => m.id === aiMode)?.subtitle}
-                </p>
-              )}
+              {/* Credit usage info box — shown whenever a mode is active */}
+              {aiMode && (() => {
+                const active = AI_MODES.find(m => m.id === aiMode);
+                if (!active) return null;
+                const Icon = active.icon;
+                return (
+                  <div className={`mt-2 rounded-xl border p-3 space-y-2 transition-all ${active.activeBg}`}>
+                    {/* Header row */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Icon className={`w-3 h-3 ${active.color}`} />
+                        <span className={`text-[10px] font-bold font-mono ${active.color}`}>{active.label} Mode</span>
+                      </div>
+                      <span className={`text-[10px] font-mono font-bold ${active.color}`}>{active.creditHint}</span>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-[9px] text-muted-foreground/70 leading-relaxed">{active.description}</p>
+
+                    {/* Credit usage bar */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/40">Credit intensity</span>
+                        <span className="text-[8px] font-mono text-muted-foreground/50">{active.creditsPerBuild} per build</span>
+                      </div>
+                      <div className="w-full h-1 rounded-full bg-white/8">
+                        <div className={`h-1 rounded-full ${active.barColor} ${active.barWidth} transition-all duration-300`} />
+                      </div>
+                    </div>
+
+                    {/* Warning line */}
+                    <p className={`text-[8px] font-mono ${active.color} opacity-70`}>⚡ {active.creditWarning}</p>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 

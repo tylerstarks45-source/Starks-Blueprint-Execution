@@ -35,6 +35,7 @@ import AffiliateDisclosure from '@/pages/AffiliateDisclosure.jsx';
 import EarningsDisclaimer from '@/pages/EarningsDisclaimer.jsx';
 import SystemBuilderPage from '@/pages/SystemBuilderPage.jsx';
 import BuilderPage from '@/pages/BuilderPage.jsx';
+import LibraryPage from '@/pages/LibraryPage.jsx';
 import SavedSystemsPage from '@/pages/SavedSystemsPage.jsx';
 import BuildPage from '@/pages/BuildPage.jsx';
 import UserSystemDetailPage from '@/pages/UserSystemDetailPage.jsx';
@@ -152,6 +153,9 @@ const App = () => {
             } />
             <Route path="/builder" element={
               <ProtectedRoute><BuilderPage /></ProtectedRoute>
+            } />
+            <Route path="/library" element={
+              <ProtectedRoute><LibraryPage /></ProtectedRoute>
             } />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/credits" element={

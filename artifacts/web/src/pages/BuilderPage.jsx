@@ -10,7 +10,7 @@ import {
   PlusCircle, Rocket, ShoppingCart, Users, Layers,
   Megaphone, Cog, Wand2, FlaskConical, Globe,
   Folder, FolderOpen, FileText, FileJson2, Circle, Server,
-  AlertTriangle, CheckCircle, PlayCircle, PauseCircle,
+  AlertTriangle, CheckCircle, PlayCircle, PauseCircle, BookOpen, Save,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -953,6 +953,34 @@ const BuilderPage = () => {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, [currentUser?.id, messages, phase, buildData, stepOutputs, currentStepIdx, mode, selectedBp, activatedSkills, currentSessionId, saveSessionToDB]);
 
+  // Save file tree snapshot to Library (system instance)
+  const saveFileTreeToLibrary = useCallback(async (sys) => {
+    const steps = Array.isArray(sys.steps) ? sys.steps : [];
+    const treeNodes = [
+      { name: 'README.md', type: 'file' },
+      { name: 'config.json', type: 'file' },
+      { name: 'activity.log', type: 'file' },
+      {
+        name: 'build-steps/',
+        type: 'folder',
+        children: steps.map((step, i) => ({
+          name: `${String(i + 1).padStart(2, '0')}_${(step.notes || step.name || `step_${i + 1}`).toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 22)}.md`,
+          type: 'file',
+        })),
+      },
+    ];
+    try {
+      await fetch(`/api/system-instances/${sys.id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ fileTree: treeNodes }),
+      });
+      toast.success(`File tree saved to Library for "${sys.name}"`);
+    } catch {
+      toast.error('Failed to save file tree');
+    }
+  }, [authHeaders]);
+
   // Load blueprints + categories
   useEffect(() => {
     setBpLoading(true);
@@ -1339,6 +1367,14 @@ const BuilderPage = () => {
             </span>
           )}
           <button
+            onClick={() => navigate('/library')}
+            title="My Library"
+            className="flex items-center gap-1.5 text-muted-foreground/40 hover:text-primary transition-colors text-xs px-2 py-1 rounded border border-white/8 hover:border-primary/30"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Library</span>
+          </button>
+          <button
             onClick={clearSession}
             disabled={phase === 'building'}
             title="Start a new session"
@@ -1370,6 +1406,13 @@ const BuilderPage = () => {
             </button>
           ))}
           <div className="flex-1" />
+          <button
+            title="My Library"
+            onClick={() => navigate('/library')}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground/25 hover:text-primary hover:bg-primary/10 transition-all"
+          >
+            <BookOpen className="w-4 h-4" />
+          </button>
           <button
             title="Connections Hub"
             onClick={() => navigate('/connections')}
@@ -1637,6 +1680,15 @@ const BuilderPage = () => {
                                     )}
                                   </div>
                                 )}
+
+                                {/* Save to Library */}
+                                <button
+                                  onClick={() => saveFileTreeToLibrary(sys)}
+                                  className="w-full flex items-center gap-1.5 px-1 py-1 mt-1 rounded hover:bg-primary/10 hover:border-primary/20 border border-transparent text-muted-foreground/30 hover:text-primary transition-all group"
+                                >
+                                  <Save className="w-3 h-3 shrink-0" />
+                                  <span className="text-[9px] font-mono">Save tree to Library</span>
+                                </button>
                               </div>
                             )}
                           </div>

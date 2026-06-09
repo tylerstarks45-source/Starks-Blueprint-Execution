@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -11,6 +11,8 @@ export const systemInstancesTable = pgTable("system_instances", {
   name: text("name").notNull(),
   buildStatus: text("build_status").notNull().default("pending"),
   healthStatus: text("health_status").notNull().default("unknown"),
+  fileTree: jsonb("file_tree"),
+  savedImages: jsonb("saved_images"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

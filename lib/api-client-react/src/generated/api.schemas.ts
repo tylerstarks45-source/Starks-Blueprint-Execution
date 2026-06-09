@@ -237,6 +237,12 @@ export interface UserUpdate {
   active?: boolean;
 }
 
+export type SystemInstanceSavedImagesItem = {
+  name: string;
+  dataUrl: string;
+  createdAt: string;
+};
+
 export interface SystemInstance {
   id: number;
   userId: number;
@@ -244,6 +250,8 @@ export interface SystemInstance {
   name: string;
   buildStatus: string;
   healthStatus: string;
+  fileTree?: unknown | null;
+  savedImages?: SystemInstanceSavedImagesItem[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -257,10 +265,18 @@ export interface SystemInstanceInput {
   healthStatus?: string;
 }
 
+export type SystemInstanceUpdateSavedImagesItem = {
+  name: string;
+  dataUrl: string;
+  createdAt: string;
+};
+
 export interface SystemInstanceUpdate {
   name?: string;
   buildStatus?: string;
   healthStatus?: string;
+  fileTree?: unknown | null;
+  savedImages?: SystemInstanceUpdateSavedImagesItem[] | null;
 }
 
 export interface SystemActivityEvent {

@@ -5,6 +5,7 @@
  * SBEP — Starks Blueprint Execution Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { SystemInstanceSavedImagesItem } from './systemInstanceSavedImagesItem';
 
 export interface SystemInstance {
   id: number;
@@ -13,6 +14,8 @@ export interface SystemInstance {
   name: string;
   buildStatus: string;
   healthStatus: string;
+  fileTree?: unknown | null;
+  savedImages?: SystemInstanceSavedImagesItem[] | null;
   createdAt: string;
   updatedAt: string;
 }

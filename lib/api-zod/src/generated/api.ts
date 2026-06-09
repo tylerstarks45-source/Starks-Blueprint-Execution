@@ -645,6 +645,12 @@ export const ListSystemInstancesResponseItem = zod.object({
   "name": zod.string(),
   "buildStatus": zod.string(),
   "healthStatus": zod.string(),
+  "fileTree": zod.unknown().nullish(),
+  "savedImages": zod.array(zod.object({
+  "name": zod.string(),
+  "dataUrl": zod.string(),
+  "createdAt": zod.string()
+})).nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -680,6 +686,12 @@ export const GetSystemInstanceResponse = zod.object({
   "name": zod.string(),
   "buildStatus": zod.string(),
   "healthStatus": zod.string(),
+  "fileTree": zod.unknown().nullish(),
+  "savedImages": zod.array(zod.object({
+  "name": zod.string(),
+  "dataUrl": zod.string(),
+  "createdAt": zod.string()
+})).nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -695,7 +707,13 @@ export const UpdateSystemInstanceParams = zod.object({
 export const UpdateSystemInstanceBody = zod.object({
   "name": zod.string().optional(),
   "buildStatus": zod.string().optional(),
-  "healthStatus": zod.string().optional()
+  "healthStatus": zod.string().optional(),
+  "fileTree": zod.unknown().nullish(),
+  "savedImages": zod.array(zod.object({
+  "name": zod.string(),
+  "dataUrl": zod.string(),
+  "createdAt": zod.string()
+})).nullish()
 })
 
 export const UpdateSystemInstanceResponse = zod.object({
@@ -705,6 +723,12 @@ export const UpdateSystemInstanceResponse = zod.object({
   "name": zod.string(),
   "buildStatus": zod.string(),
   "healthStatus": zod.string(),
+  "fileTree": zod.unknown().nullish(),
+  "savedImages": zod.array(zod.object({
+  "name": zod.string(),
+  "dataUrl": zod.string(),
+  "createdAt": zod.string()
+})).nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })

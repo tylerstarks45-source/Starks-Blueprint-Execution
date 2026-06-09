@@ -8,10 +8,10 @@ import { toast } from 'sonner';
 
 const UPGRADE_PLANS = [
   {
-    key: 'starter',
-    name: 'Starter',
+    key: 'builder',
+    name: 'Builder',
     price: '$29/mo',
-    credits: '500 credits/mo',
+    credits: '1,000 credits/mo',
     icon: Zap,
     color: 'text-blue-400',
     bg: 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30 hover:border-blue-500/60',
@@ -21,7 +21,7 @@ const UPGRADE_PLANS = [
     key: 'operator',
     name: 'Operator',
     price: '$99/mo',
-    credits: '2,500 credits/mo',
+    credits: '5,000 credits/mo',
     icon: Crown,
     color: 'text-violet-400',
     bg: 'bg-violet-500/10 hover:bg-violet-500/20 border-violet-500/30 hover:border-violet-500/60',
@@ -30,8 +30,8 @@ const UPGRADE_PLANS = [
   {
     key: 'empire',
     name: 'Empire',
-    price: '$299/mo',
-    credits: '10,000 credits/mo',
+    price: '$499/mo',
+    credits: '25,000 credits/mo',
     icon: Building2,
     color: 'text-amber-400',
     bg: 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 hover:border-amber-500/60',

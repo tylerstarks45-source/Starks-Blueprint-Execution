@@ -2,41 +2,45 @@ import { sql, eq, desc } from "drizzle-orm";
 import { db, usersTable, creditTransactionsTable } from "@workspace/db";
 
 // ── Tier allotments (monthly credits that reset each billing cycle) ───────────
+// These MUST match PricingPage.jsx and subscriptions.ts TIER_CONFIG exactly.
 export const TIER_ALLOTMENTS: Record<string, number> = {
   free:     100,
-  pro:      2500,
-  empire:   10000,
-  // legacy aliases
-  starter:  2500,
-  builder:  2500,
-  operator: 10000,
+  builder:  1000,
+  operator: 5000,
+  empire:   25000,
+  // legacy aliases — map to canonical tiers
+  pro:      1000,
+  starter:  1000,
 };
 
 export const TIER_NAMES: Record<string, string> = {
   free:     "Free",
-  pro:      "Pro",
+  builder:  "Builder",
+  operator: "Operator",
   empire:   "Empire",
-  starter:  "Pro",
-  builder:  "Pro",
-  operator: "Empire",
+  // legacy aliases
+  pro:      "Builder",
+  starter:  "Builder",
 };
 
 export const TIER_PRICES: Record<string, number> = {
   free:     0,
-  pro:      4900,   // $49/mo
-  empire:   19900,  // $199/mo
-  starter:  4900,
-  builder:  4900,
-  operator: 19900,
+  builder:  2900,   // $29/mo
+  operator: 9900,   // $99/mo
+  empire:   49900,  // $499/mo
+  // legacy aliases
+  pro:      2900,
+  starter:  2900,
 };
 
 export const TIER_SYSTEM_LIMITS: Record<string, number> = {
   free:     1,
-  pro:      25,
+  builder:  5,
+  operator: 25,
   empire:   999999,
-  starter:  25,
-  builder:  25,
-  operator: 999999,
+  // legacy aliases
+  pro:      5,
+  starter:  5,
 };
 
 export const SIGNUP_GRANT = 100; // credits granted to creditsBalance on new account creation

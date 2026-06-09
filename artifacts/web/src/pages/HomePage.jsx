@@ -9,6 +9,7 @@ import {
   Building2, Target, Settings2, Star, Shield, ChevronRight,
   Workflow, Store,
 } from 'lucide-react';
+import tylerImg from '@assets/IMG_8950_(2)_1781022690002.png';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -595,9 +596,9 @@ const HomePage = () => {
                 className="cinematic-card p-10 md:p-14"
               >
                 <div className="grid md:grid-cols-[auto_1fr] gap-10 items-start">
-                  {/* Avatar placeholder */}
-                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/30 to-blue-600/20 border border-primary/30 flex items-center justify-center text-3xl font-extrabold text-white shadow-[0_0_30px_rgba(0,120,255,0.15)] shrink-0">
-                    TS
+                  {/* Tyler Starks photo */}
+                  <div className="w-28 h-28 rounded-2xl overflow-hidden border border-white/15 shadow-[0_0_40px_rgba(0,120,255,0.15)] shrink-0">
+                    <img src={tylerImg} alt="Tyler Starks" className="w-full h-full object-cover object-top" />
                   </div>
                   <div>
                     <div className="text-xs font-bold font-mono text-primary/70 tracking-widest mb-3">FOUNDER & CEO</div>

@@ -36,8 +36,8 @@ export const TIER_PRICES: Record<string, number> = {
 export const TIER_SYSTEM_LIMITS: Record<string, number> = {
   free:     1,
   builder:  5,
-  operator: 25,
-  empire:   999999,
+  operator: 10,
+  empire:   10,
   // legacy aliases
   pro:      5,
   starter:  5,

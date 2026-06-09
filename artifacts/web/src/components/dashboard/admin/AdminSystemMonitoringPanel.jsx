@@ -124,7 +124,7 @@ const AdminSystemMonitoringPanel = () => {
             ) : (
               <div className="space-y-4">
                 {sortedTiers.map((s) => {
-                  const limits = { empire: 'Unlimited systems', operator: '15 systems', starter: '3 systems', builder: '3 systems' };
+                  const limits = { empire: '10 systems', operator: '10 systems', builder: '5 systems', starter: '5 systems', free: '1 system' };
                   const colorClass = TIER_COLORS[s.tier] ?? 'text-muted-foreground';
                   return (
                     <div key={s.tier} className="flex items-center justify-between border-b border-border/30 pb-3">

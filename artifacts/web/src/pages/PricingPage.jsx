@@ -88,8 +88,8 @@ const PLANS = [
     features: [
       { text: 'Full ASH AI Agent access', included: true },
       { text: '5,000 monthly AI credits', included: true },
-      { text: 'Build up to 25 systems', included: true },
-      { text: 'Host up to 15 systems', included: true },
+      { text: 'Build up to 10 systems', included: true },
+      { text: 'Host up to 10 systems', included: true },
       { text: 'Connect up to 40 integrations', included: true },
       { text: 'Priority build queue', included: true },
       { text: 'Agent-assisted system building', included: true },
@@ -117,8 +117,8 @@ const PLANS = [
     features: [
       { text: 'Full ASH AI Agent access', included: true },
       { text: '25,000 monthly AI credits', included: true },
-      { text: 'Unlimited system builds', included: true },
-      { text: 'Unlimited hosting', included: true },
+      { text: 'Build up to 10 systems', included: true },
+      { text: 'Host up to 10 systems', included: true },
       { text: 'Unlimited integrations', included: true },
       { text: 'Priority agent processing', included: true },
       { text: 'White label ready', included: true },
@@ -189,8 +189,8 @@ const CREDIT_PACKS = [
 // ─── Comparison table rows ────────────────────────────────────────────────────
 const COMPARISON = [
   { label: 'Monthly AI Credits',   free: '100',         builder: '1,000',      operator: '5,000',      empire: '25,000' },
-  { label: 'Active Systems',       free: '1',           builder: '5',          operator: '25',         empire: 'Unlimited' },
-  { label: 'Hosted Systems',       free: '1',           builder: '3',          operator: '15',         empire: 'Unlimited' },
+  { label: 'Active Systems',       free: '1',           builder: '5',          operator: '10',         empire: '10' },
+  { label: 'Hosted Systems',       free: '1',           builder: '3',          operator: '10',         empire: '10' },
   { label: 'Integrations',         free: '3',           builder: '10',         operator: '40',         empire: 'Unlimited' },
   { label: 'ASH AI Agent',         free: 'Trial',       builder: 'Full',       operator: 'Priority',   empire: 'Priority' },
   { label: 'Blueprint Library',    free: 'Browse only', builder: 'Full access', operator: 'Full access', empire: 'Full access' },

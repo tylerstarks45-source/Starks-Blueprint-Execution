@@ -46,7 +46,7 @@ const SIGNUP_PLANS = [
     border: 'border-violet-500/30',
     activeBorder: 'border-violet-400',
     activeBg: 'bg-violet-500/10',
-    highlights: ['5,000 AI credits/mo', 'Build up to 25 systems', 'Priority build queue', 'Team features'],
+    highlights: ['5,000 AI credits/mo', 'Build up to 10 systems', 'Priority build queue', 'Team features'],
   },
   {
     key: 'empire',
@@ -58,7 +58,7 @@ const SIGNUP_PLANS = [
     border: 'border-amber-500/30',
     activeBorder: 'border-amber-400',
     activeBg: 'bg-amber-500/10',
-    highlights: ['25,000 AI credits/mo', 'Unlimited systems', 'Priority AI processing', 'API access'],
+    highlights: ['25,000 AI credits/mo', 'Up to 10 systems', 'Priority AI processing', 'API access'],
   },
 ];
 

@@ -1,0 +1,28 @@
+# Starks Global Group
+
+> An AI-powered automation platform that helps entrepreneurs and businesses build and run automated income systems. Users select a blueprint, connect their tools, and an AI agent builds the system on their behalf.
+
+## Main sections
+
+- [Home](https://starksglobalgroup.net/): Platform overview and entry point
+- [Blueprints](https://starksglobalgroup.net/blueprints): Pre-built AI system architectures across 6 categories — affiliate content, lead generation, automation agencies, video content, email funnels, chatbot sales, social growth, and content traffic
+- [Marketplace](https://starksglobalgroup.net/marketplace): Curated directory of 43 AI and automation tools across 8 categories (Content Creation, Automation, Funnels/Marketing, SEO/Traffic, AI Tools, Business Systems)
+- [Pricing](https://starksglobalgroup.net/pricing): Subscription tiers and plan comparison
+- [Updates](https://starksglobalgroup.net/updates): Platform changelog and new feature announcements
+- [How It Works](https://starksglobalgroup.net/how-it-works): Step-by-step walkthrough of the blueprint execution process
+- [Business Model](https://starksglobalgroup.net/business-model): Overview of the platform's revenue and affiliate model
+- [Research Lab](https://starksglobalgroup.net/research-lab): AI system research and insights
+- [Why Trust Us](https://starksglobalgroup.net/why-trust-us): Credibility, transparency, and affiliate disclosure context
+- [About](https://starksglobalgroup.net/about): Company background and mission
+- [Contact](https://starksglobalgroup.net/contact): Support and inquiry contact page
+
+## Legal
+
+- [Privacy Policy](https://starksglobalgroup.net/privacy-policy)
+- [Terms and Conditions](https://starksglobalgroup.net/terms-and-conditions)
+- [Affiliate Disclosure](https://starksglobalgroup.net/affiliate-disclosure)
+- [Earnings Disclaimer](https://starksglobalgroup.net/earnings-disclaimer)
+
+## Sitemap
+
+https://starksglobalgroup.net/sitemap.xml

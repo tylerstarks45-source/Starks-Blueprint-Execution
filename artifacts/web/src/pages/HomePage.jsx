@@ -82,11 +82,20 @@ const PRICING = [
     name: 'Builder',
     price: '$29',
     period: '/month',
-    highlight: true,
-    badge: 'Most Popular',
+    highlight: false,
     cta: 'Start Building',
     ctaTo: '/signup?plan=builder',
     features: ['5 active systems', '1,000 AI credits/mo', 'Full marketplace', 'All blueprints', 'Priority support', 'ASH AI Agent'],
+  },
+  {
+    name: 'Operator',
+    price: '$99',
+    period: '/month',
+    highlight: true,
+    badge: 'Most Popular',
+    cta: 'Go Operator',
+    ctaTo: '/signup?plan=operator',
+    features: ['10 active systems', '5,000 AI credits/mo', 'Full marketplace', 'All blueprints', 'Priority support', 'ASH AI Agent', 'Advanced analytics'],
   },
   {
     name: 'Empire',
@@ -511,7 +520,7 @@ const HomePage = () => {
               <p className="section-subtitle">Free account available. No credit card required to start. Upgrade only when ready.</p>
             </motion.div>
 
-            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-6xl mx-auto">
               {PRICING.map((plan, i) => (
                 <motion.div
                   key={plan.name}

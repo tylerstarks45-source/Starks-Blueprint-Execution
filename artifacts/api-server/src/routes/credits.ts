@@ -95,7 +95,10 @@ router.post("/credits/checkout", async (req, res): Promise<void> => {
         price_data: {
           currency: "usd",
           unit_amount: tier.priceCents,
-          product_data: { name: `SBEP Credit Wallet — ${tier.credits.toLocaleString()} Credits` },
+          product_data: {
+            name: `Starks Global Group — ${tier.credits.toLocaleString()} AI Credits`,
+            description: `One-time top-up of ${tier.credits.toLocaleString()} permanent AI credits. Credits never expire and are applied to your account immediately after purchase.`,
+          },
         },
       }],
       success_url: `${baseUrl}/credits?wallet_topped_up=1`,

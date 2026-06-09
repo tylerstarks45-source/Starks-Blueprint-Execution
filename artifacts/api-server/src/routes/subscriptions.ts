@@ -21,6 +21,22 @@ const TIER_CONFIG: Record<string, { tier: string; name: string; amount: number }
   starter:  { tier: "builder",  name: "Builder",  amount: 2900  },
 };
 
+// What appears on the Stripe-hosted checkout page — must stay in sync with PricingPage.jsx.
+const TIER_DISPLAY: Record<string, { productName: string; description: string }> = {
+  builder:  {
+    productName: "Starks Global Group — Builder Plan",
+    description: "1,000 monthly AI credits · Build up to 5 systems · Full ASH AI Agent access · Revenue dashboard · System health monitoring · Email support",
+  },
+  operator: {
+    productName: "Starks Global Group — Operator Plan",
+    description: "5,000 monthly AI credits · Build up to 25 systems · Priority build queue · Advanced revenue intelligence · Team management · Email & chat support",
+  },
+  empire:   {
+    productName: "Starks Global Group — Empire Plan",
+    description: "25,000 monthly AI credits · Unlimited system builds & hosting · Unlimited integrations · Priority AI processing · White label ready · API access · Custom onboarding · Priority support",
+  },
+};
+
 function getPriceId(tier: string): string | null {
   // Normalise legacy aliases to canonical tier name
   const canonical =
@@ -79,6 +95,25 @@ router.post("/subscriptions/checkout", async (req, res): Promise<void> => {
 
   try {
     const stripe = await getUncachableStripeClient();
+
+    // Sync the Stripe product name + description to match what PricingPage shows.
+    // Do this before creating the session so the checkout page is always consistent.
+    const display = TIER_DISPLAY[plan.tier];
+    if (display) {
+      try {
+        const price = await stripe.prices.retrieve(priceId, { expand: ["product"] });
+        const product = price.product;
+        if (product && typeof product !== "string" && !("deleted" in product)) {
+          await stripe.products.update(product.id, {
+            name: display.productName,
+            description: display.description,
+          });
+        }
+      } catch (syncErr) {
+        // Non-fatal: log and continue — checkout can still proceed with whatever name is in Stripe
+        req.log.warn({ syncErr }, "Could not sync Stripe product metadata; continuing with checkout");
+      }
+    }
 
     // Get or create Stripe customer
     let customerId: string;

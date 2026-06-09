@@ -215,6 +215,23 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, onComplete }) =
   );
 };
 
+// ─── Linkify — turns raw URLs inside a string into clickable <a> tags ─────────
+const linkify = (text) =>
+  text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-400 underline underline-offset-2 hover:text-blue-300 transition-colors break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {part}
+      </a>
+    ) : part
+  );
+
 // ─── Message Bubble ───────────────────────────────────────────────────────────
 const MessageBubble = ({ msg }) => {
   const isUser = msg.role === 'user';
@@ -227,11 +244,14 @@ const MessageBubble = ({ msg }) => {
       }`}>
         {msg.content.split('\n').map((line, i) => {
           if (!line) return <br key={i} />;
-          const parts = line.split(/\*\*(.+?)\*\*/);
-          if (parts.length === 1) return <p key={i} className={i > 0 ? 'mt-1' : ''}>{line}</p>;
+          const boldParts = line.split(/\*\*(.+?)\*\*/);
           return (
             <p key={i} className={i > 0 ? 'mt-1' : ''}>
-              {parts.map((p, j) => j % 2 === 1 ? <strong key={j} className="text-primary font-semibold">{p}</strong> : p)}
+              {boldParts.map((part, j) =>
+                j % 2 === 1
+                  ? <strong key={j} className="text-primary font-semibold">{linkify(part)}</strong>
+                  : <React.Fragment key={j}>{linkify(part)}</React.Fragment>
+              )}
             </p>
           );
         })}

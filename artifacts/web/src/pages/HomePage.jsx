@@ -105,7 +105,7 @@ const PRICING = [
     badge: 'Max Power',
     cta: 'Go Empire',
     ctaTo: '/signup?plan=empire',
-    features: ['10 active systems', '25,000 AI credits/mo', 'Full marketplace', 'All blueprints', 'Dedicated support', 'ASH AI Agent', 'Custom workflows'],
+    features: ['Unlimited active systems', '25,000 AI credits/mo', 'Full marketplace', 'All blueprints', 'Dedicated support', 'ASH AI Agent', 'Custom workflows'],
   },
 ];
 

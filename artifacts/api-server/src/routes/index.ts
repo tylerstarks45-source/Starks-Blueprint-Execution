@@ -27,6 +27,7 @@ import aiOrchestratorRouter from "./ai-orchestrator";
 import skillsRouter from "./skills";
 import connectorsRouter from "./connectors";
 import runtimeRouter from "./runtime";
+import chatSessionsRouter from "./chat-sessions";
 
 const router: IRouter = Router();
 
@@ -58,5 +59,6 @@ router.use(aiOrchestratorRouter);
 router.use(skillsRouter);
 router.use(connectorsRouter);
 router.use(runtimeRouter);
+router.use(chatSessionsRouter);
 
 export default router;

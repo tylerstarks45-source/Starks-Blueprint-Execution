@@ -762,6 +762,11 @@ const BuilderPage = () => {
   // Checkpoints — loaded from localStorage, refreshed after each save
   const [checkpoints, setCheckpoints] = useState([]);
 
+  // DB-backed session history
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [savedSessions, setSavedSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+
   // User's system instances for the file tree
   const [userSystems, setUserSystems] = useState([]);
   const [systemsLoading, setSystemsLoading] = useState(false);
@@ -821,9 +826,117 @@ const BuilderPage = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, phase, activatedSkills, buildData, stepOutputs, currentStepIdx, mode, selectedBp, pendingCreds, currentUser?.id]);
 
+  // ── Load saved sessions from DB ───────────────────────────────────────────
+  const loadSavedSessions = useCallback(async () => {
+    if (!currentUser?.id) return;
+    setSessionsLoading(true);
+    try {
+      const resp = await fetch('/api/chat-sessions', { headers: authHeaders() });
+      if (resp.ok) setSavedSessions((await resp.json()) || []);
+    } catch {} finally { setSessionsLoading(false); }
+  }, [currentUser?.id]);
+
+  useEffect(() => { loadSavedSessions(); }, [loadSavedSessions]);
+
+  // ── Save / update current session in DB ──────────────────────────────────
+  const saveSessionToDB = useCallback(async (sessionId, msgs, phs, bd, so, csi, md, sbp, as_) => {
+    if (!currentUser?.id) return null;
+    const userMsgs = msgs.filter(m => m.id !== 'welcome' && m.role === 'user');
+    if (userMsgs.length === 0) return null;
+    const title = (userMsgs[0]?.content || 'New Session').slice(0, 80);
+    const body = JSON.stringify({
+      title,
+      stateJson: JSON.stringify({ messages: msgs, phase: phs, buildData: bd, stepOutputs: so, currentStepIdx: csi, mode: md, selectedBp: sbp, activatedSkills: as_ }),
+      messageCount: msgs.filter(m => m.id !== 'welcome').length,
+      phase: phs,
+    });
+    try {
+      if (sessionId) {
+        await fetch(`/api/chat-sessions/${sessionId}`, { method: 'PUT', headers: authHeaders(), body });
+        return sessionId;
+      } else {
+        const resp = await fetch('/api/chat-sessions', { method: 'POST', headers: authHeaders(), body });
+        if (resp.ok) { const d = await resp.json(); return d.id; }
+      }
+    } catch {}
+    return null;
+  }, [currentUser?.id]);
+
+  // ── Auto-save to DB after each assistant reply ────────────────────────────
+  const autoSaveTimerRef = useRef(null);
+  useEffect(() => {
+    if (!sessionLoadedRef.current || !currentUser?.id) return;
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== 'assistant' || lastMsg.id === 'welcome') return;
+    clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      const newId = await saveSessionToDB(currentSessionId, messages, phase, buildData, stepOutputs, currentStepIdx, mode, selectedBp, activatedSkills);
+      if (newId && !currentSessionId) {
+        setCurrentSessionId(newId);
+        setSavedSessions(prev => {
+          const exists = prev.some(s => s.id === newId);
+          return exists ? prev : [{ id: newId, title: (messages.find(m => m.role === 'user' && m.id !== 'welcome')?.content || 'New Session').slice(0, 80), messageCount: messages.filter(m => m.id !== 'welcome').length, phase, updatedAt: new Date().toISOString() }, ...prev];
+        });
+      } else if (newId) {
+        setSavedSessions(prev => prev.map(s => s.id === newId ? { ...s, updatedAt: new Date().toISOString(), messageCount: messages.filter(m => m.id !== 'welcome').length, phase } : s));
+      }
+    }, 2500);
+    return () => clearTimeout(autoSaveTimerRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
+  // ── Restore a session from DB ─────────────────────────────────────────────
+  const restoreSession = useCallback(async (session) => {
+    try {
+      const resp = await fetch(`/api/chat-sessions/${session.id}`, { headers: authHeaders() });
+      if (!resp.ok) { toast.error('Could not load session'); return; }
+      const data = await resp.json();
+      const state = JSON.parse(data.stateJson || '{}');
+      if (Array.isArray(state.messages) && state.messages.length > 0) {
+        setMessages(state.messages);
+        setPhase(state.phase === 'complete' ? 'idle' : (state.phase ?? 'idle'));
+        setActivatedSkills(state.activatedSkills ?? []);
+        setBuildData(state.buildData ?? null);
+        setStepOutputs(state.stepOutputs ?? {});
+        setCurrentStepIdx(state.currentStepIdx ?? 0);
+        setMode(state.mode ?? 'custom');
+        setSelectedBp(state.selectedBp ?? null);
+        setPendingCreds([]);
+        setError('');
+        setInput('');
+        setCurrentSessionId(session.id);
+        toast.success('Session restored', { description: session.title });
+      }
+    } catch { toast.error('Failed to restore session'); }
+  }, []);
+
+  // ── Delete a session from DB ──────────────────────────────────────────────
+  const deleteSession = useCallback(async (sessionId, e) => {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/chat-sessions/${sessionId}`, { method: 'DELETE', headers: authHeaders() });
+      setSavedSessions(prev => prev.filter(s => s.id !== sessionId));
+      if (currentSessionId === sessionId) setCurrentSessionId(null);
+    } catch { toast.error('Failed to delete session'); }
+  }, [currentSessionId]);
+
   // ── Reset to a fresh session ───────────────────────────────────────────────
-  const clearSession = useCallback(() => {
+  const clearSession = useCallback(async () => {
+    // Archive current session to DB before clearing
+    const userMsgs = messages.filter(m => m.id !== 'welcome' && m.role === 'user');
+    if (userMsgs.length > 0) {
+      const savedId = await saveSessionToDB(currentSessionId, messages, phase, buildData, stepOutputs, currentStepIdx, mode, selectedBp, activatedSkills);
+      if (savedId) {
+        const title = (userMsgs[0]?.content || 'New Session').slice(0, 80);
+        setSavedSessions(prev => {
+          const exists = prev.some(s => s.id === savedId);
+          if (exists) return prev.map(s => s.id === savedId ? { ...s, title, updatedAt: new Date().toISOString(), messageCount: userMsgs.length, phase } : s);
+          return [{ id: savedId, title, messageCount: userMsgs.length, phase, updatedAt: new Date().toISOString() }, ...prev];
+        });
+      }
+    }
     clearStoredSession(currentUser?.id);
+    setCurrentSessionId(null);
     setMessages([WELCOME_MSG]);
     setPhase('idle');
     setActivatedSkills([]);
@@ -838,7 +951,7 @@ const BuilderPage = () => {
     pendingBlueprintRef.current = null;
     pendingSystemNameRef.current = '';
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, [currentUser?.id]);
+  }, [currentUser?.id, messages, phase, buildData, stepOutputs, currentStepIdx, mode, selectedBp, activatedSkills, currentSessionId, saveSessionToDB]);
 
   // Load blueprints + categories
   useEffect(() => {
@@ -1318,6 +1431,48 @@ const BuilderPage = () => {
 
                   <div className="border-t border-white/6 mx-2 my-1" />
 
+                  {/* ── SAVED SESSIONS ── */}
+                  <div className="px-2 py-1">
+                    <div className="flex items-center justify-between px-1 mb-1.5">
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono">Session History</p>
+                      {sessionsLoading && <Loader2 className="w-2.5 h-2.5 text-muted-foreground/30 animate-spin" />}
+                    </div>
+                    {!sessionsLoading && savedSessions.length === 0 ? (
+                      <p className="text-[9px] text-muted-foreground/20 font-mono px-1 leading-relaxed">
+                        Sessions auto-save after each reply. Click "New Session" to archive the current one.
+                      </p>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {savedSessions.map((s) => (
+                          <div
+                            key={s.id}
+                            onClick={() => restoreSession(s)}
+                            className={`group flex items-start gap-1.5 px-1 py-1.5 rounded cursor-pointer hover:bg-white/5 transition-colors ${
+                              currentSessionId === s.id ? 'bg-primary/8 border border-primary/15' : ''
+                            }`}
+                          >
+                            <Clock className="w-3 h-3 shrink-0 text-muted-foreground/30 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] text-foreground/65 truncate font-mono leading-tight">{s.title}</p>
+                              <p className="text-[8px] text-muted-foreground/25 font-mono mt-0.5">
+                                {formatTs(new Date(s.updatedAt).getTime())} · {s.messageCount ?? 0}msg
+                              </p>
+                            </div>
+                            <button
+                              onClick={(e) => deleteSession(s.id, e)}
+                              title="Delete session"
+                              className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground/20 hover:text-rose-400/70 transition-all p-0.5 rounded"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-white/6 mx-2 my-1" />
+
                   {/* ── SYSTEMS FILE TREE ── */}
                   <div className="px-2 py-1">
                     <div className="flex items-center justify-between px-1 mb-1">
@@ -1567,9 +1722,9 @@ const BuilderPage = () => {
                         {checkpoints.map((cp) => (
                           <div
                             key={cp.id}
-                            className="group flex items-start gap-1.5 px-1 py-1 rounded hover:bg-white/5 transition-colors"
+                            className="group flex items-start gap-1.5 px-1 py-1.5 rounded hover:bg-white/5 transition-colors"
                           >
-                            <div className="w-1 h-1 rounded-full bg-primary/35 mt-1.5 shrink-0" />
+                            <RotateCcw className="w-2.5 h-2.5 shrink-0 text-primary/30 mt-0.5" />
                             <div className="flex-1 min-w-0">
                               <p className="text-[9px] text-foreground/60 truncate font-mono leading-tight">{cp.summary}</p>
                               <p className="text-[8px] text-muted-foreground/25 font-mono mt-0.5">
@@ -1578,10 +1733,11 @@ const BuilderPage = () => {
                             </div>
                             <button
                               onClick={() => restoreCheckpoint(cp)}
-                              className="shrink-0 opacity-0 group-hover:opacity-100 text-[8px] text-primary/55 hover:text-primary font-mono transition-all"
-                              title="Restore checkpoint"
+                              title="Roll back to this checkpoint"
+                              className="shrink-0 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 text-[8px] text-primary/70 hover:text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 rounded px-1.5 py-0.5 font-mono transition-all"
                             >
-                              restore
+                              <RotateCcw className="w-2 h-2" />
+                              rollback
                             </button>
                           </div>
                         ))}

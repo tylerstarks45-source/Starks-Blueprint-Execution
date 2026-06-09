@@ -597,7 +597,7 @@ const HomePage = () => {
               >
                 <div className="grid md:grid-cols-[auto_1fr] gap-10 items-start">
                   {/* Tyler Starks photo */}
-                  <div className="w-28 h-28 rounded-2xl overflow-hidden border border-white/15 shadow-[0_0_40px_rgba(0,120,255,0.15)] shrink-0">
+                  <div className="w-48 h-56 rounded-2xl overflow-hidden border border-white/15 shadow-[0_0_40px_rgba(0,120,255,0.15)] shrink-0">
                     <img src={tylerImg} alt="Tyler Starks" className="w-full h-full object-cover object-top" />
                   </div>
                   <div>

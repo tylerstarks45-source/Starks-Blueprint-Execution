@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
+import { Link } from 'react-router-dom';
 import pb from '@/lib/pocketbaseClient';
 import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import Header from '@/components/Header.jsx';
+import Footer from '@/components/Footer.jsx';
 
 const UpdatesPage = () => {
   const [updates, setUpdates] = useState([]);
@@ -99,6 +101,18 @@ const UpdatesPage = () => {
           </div>
         )}
       </main>
+
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl py-12 border-t border-border mt-8">
+        <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono mb-4">Related Pages</p>
+        <div className="flex flex-wrap gap-3">
+          <Link to="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4">About Us</Link>
+          <Link to="/why-trust-us" className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4">Why Trust Us</Link>
+          <Link to="/business-model" className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4">Business Model</Link>
+          <Link to="/blueprints" className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4">System Blueprints</Link>
+        </div>
+      </div>
+
+      <Footer />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Helmet } from 'react-helmet';
+import { Link } from 'react-router-dom';
 import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import { motion } from 'framer-motion';
 import { ShieldCheck, CheckCircle2, User, Target, Zap, Youtube } from 'lucide-react';
@@ -161,6 +162,16 @@ const AboutPage = () => {
         </div>
       </main>
       
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl py-10 border-t border-white/10">
+        <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono mb-4">Related Pages</p>
+        <div className="flex flex-wrap gap-3">
+          <Link to="/why-trust-us" className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4">Why Trust Us</Link>
+          <Link to="/business-model" className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4">Business Model</Link>
+          <Link to="/updates" className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4">Platform Updates</Link>
+          <Link to="/blueprints" className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4">System Blueprints</Link>
+        </div>
+      </div>
+
       <Footer />
     </VideoBackground>
   );

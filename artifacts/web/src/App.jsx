@@ -80,6 +80,12 @@ const BuildRedirect = () => {
   return <Navigate to={`/systems/${systemInstanceId}`} replace />;
 };
 
+// Redirect /tools/:id → /marketplace/product/:id (canonical tool-detail URL)
+const ToolDetailRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/marketplace/product/${id}`} replace />;
+};
+
 const NotFoundPage = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 text-center">
     <h1 className="text-7xl font-extrabold text-primary mb-4">404</h1>
@@ -120,7 +126,7 @@ const App = () => {
 
               {/* Secondary public pages — lazy */}
               <Route path="/marketplace/product/:productId" element={<ProductDetailPage />} />
-              <Route path="/tools/:id" element={<ToolDetailPage />} />
+              <Route path="/tools/:id" element={<ToolDetailRedirect />} />
               <Route path="/reset-password" element={<PasswordResetPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/about" element={<AboutPage />} />

@@ -23,9 +23,11 @@ const Header = () => {
     { name: 'Marketplace', path: '/marketplace' },
     { name: 'Research Lab', path: '/research-lab' },
     { name: 'About', path: '/about' },
+    { name: 'Why Trust Us', path: '/why-trust-us' },
+    { name: 'Business Model', path: '/business-model' },
+    { name: 'Updates', path: '/updates' },
     { name: 'Contact', path: '/contact' },
     { name: 'Blog', path: 'https://blog.starksglobalgroup.net/blog', external: true },
-    { name: 'Why Trust Us', path: '/why-trust-us' },
   ];
 
   const privateNav = [

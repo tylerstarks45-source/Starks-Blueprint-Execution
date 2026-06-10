@@ -319,22 +319,35 @@ const BlueprintDetailPage = () => {
                       <div key={tool.id} className="p-4 rounded-xl border border-border/50 bg-card/60 hover:border-primary/40 transition-colors">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm">{tool.name}</p>
+                            <Link
+                              to={`/marketplace/product/${tool.id}`}
+                              className="font-semibold text-sm hover:text-primary transition-colors"
+                            >
+                              {tool.name}
+                            </Link>
                             {tool.pricing && (
                               <p className="text-xs text-primary/80 font-mono mt-0.5">{tool.pricing}</p>
                             )}
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{tool.description}</p>
                           </div>
-                          {tool.affiliateLink && (
-                            <a
-                              href={tool.affiliateLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 border border-primary/20 transition-colors"
+                          <div className="shrink-0 flex flex-col gap-1.5 items-end">
+                            <Link
+                              to={`/marketplace/product/${tool.id}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-card border border-border text-xs font-semibold hover:bg-primary/10 hover:border-primary/30 transition-colors"
                             >
-                              Get <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
+                              Details
+                            </Link>
+                            {tool.affiliateLink && (
+                              <a
+                                href={tool.affiliateLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 border border-primary/20 transition-colors"
+                              >
+                                Get <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}

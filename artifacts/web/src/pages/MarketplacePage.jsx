@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Helmet } from 'react-helmet';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, Filter, SlidersHorizontal, ShieldCheck, Star, Users, Zap, ArrowRight } from 'lucide-react';
 import Header from '@/components/Header.jsx';
@@ -140,11 +139,10 @@ const MarketplacePage = () => {
 
   return (
     <VideoBackground>
-      <CanonicalUrl />
-      <Helmet>
-        <title>Premium Tools Marketplace | Starks Global Group</title>
-        <meta name="description" content="Discover expert-curated AI tools, automation systems, and marketing software to scale your business." />
-      </Helmet>
+      <PageMeta
+        title="Premium Tools Marketplace | Starks Global Group"
+        description="Discover expert-curated AI tools, automation systems, and marketing software to scale your business."
+      />
       
       <Header />
       

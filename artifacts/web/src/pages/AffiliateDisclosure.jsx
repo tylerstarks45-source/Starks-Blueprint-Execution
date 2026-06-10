@@ -1,7 +1,6 @@
 
 import React from 'react';
-import { Helmet } from 'react-helmet';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { BadgeDollarSign } from 'lucide-react';
@@ -10,11 +9,10 @@ import VideoBackground from '@/components/VideoBackground.jsx';
 const AffiliateDisclosure = () => {
   return (
     <VideoBackground>
-      <CanonicalUrl />
-      <Helmet>
-        <title>Affiliate Disclosure | Starks Global Group</title>
-        <meta name="description" content="Our transparent affiliate disclosure and commitment to unbiased system building." />
-      </Helmet>
+      <PageMeta
+        title="Affiliate Disclosure | Starks Global Group"
+        description="Our transparent affiliate disclosure and commitment to unbiased system building."
+      />
       
       <Header />
       

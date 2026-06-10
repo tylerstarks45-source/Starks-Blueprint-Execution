@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import pb from '@/lib/pocketbaseClient';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 
@@ -44,11 +43,10 @@ const UpdatesPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <CanonicalUrl />
-      <Helmet>
-        <title>Platform Updates | Starks Global Group</title>
-        <meta name="description" content="Stay up to date with the latest tool additions, new AI system blueprints, and platform improvements from Starks Global Group." />
-      </Helmet>
+      <PageMeta
+        title="Platform Updates | Starks Global Group"
+        description="Stay up to date with the latest tool additions, new AI system blueprints, and platform improvements from Starks Global Group."
+      />
       
       <Header />
       

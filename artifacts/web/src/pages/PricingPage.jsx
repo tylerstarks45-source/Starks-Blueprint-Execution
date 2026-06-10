@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Helmet } from 'react-helmet';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import { motion } from 'framer-motion';
 import {
   Check, Zap, Crown, Gift, Loader2, Package,
@@ -292,11 +291,10 @@ const PricingPage = () => {
 
   return (
     <VideoBackground>
-      <CanonicalUrl />
-      <Helmet>
-        <title>Pricing | Starks Global Group</title>
-        <meta name="description" content="Choose the plan that fits your goals. Free, Pro, or Empire — build and scale AI-powered business systems." />
-      </Helmet>
+      <PageMeta
+        title="Pricing | Starks Global Group"
+        description="Choose the plan that fits your goals. Free, Builder, Operator, or Empire — build and scale AI-powered business systems with ASH AI."
+      />
       <Header />
 
       <main className="flex-grow">

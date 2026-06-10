@@ -1,7 +1,6 @@
 
 import React from 'react';
-import { Helmet } from 'react-helmet';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { motion } from 'framer-motion';
@@ -50,11 +49,10 @@ const articles = [
 const ResearchLabPage = () => {
   return (
     <VideoBackground>
-      <CanonicalUrl />
-      <Helmet>
-        <title>Research & Testing Lab | Starks Global Group</title>
-        <meta name="description" content="We test, compare, and break down AI tools so you know what actually works." />
-      </Helmet>
+      <PageMeta
+        title="Research & Testing Lab | Starks Global Group"
+        description="We test, compare, and break down AI tools so you know what actually works."
+      />
       <Header />
       <main className="flex-grow pt-32 pb-24 bg-background/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">

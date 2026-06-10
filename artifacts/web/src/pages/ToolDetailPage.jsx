@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
 import { useParams, Link } from 'react-router-dom';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import pb from '@/lib/pocketbaseClient.js';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -57,11 +56,10 @@ const ToolDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col bg-grid-pattern">
-      <CanonicalUrl />
-      <Helmet>
-        <title>{tool.name} | AI Tool Marketplace</title>
-        <meta name="description" content={description} />
-      </Helmet>
+      <PageMeta
+        title={`${tool.name} | Starks Global Marketplace`}
+        description={description}
+      />
       <Header />
       
       <main className="flex-grow pt-24 pb-20 container mx-auto px-4 max-w-4xl">

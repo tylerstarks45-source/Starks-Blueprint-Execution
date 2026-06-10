@@ -111,8 +111,8 @@ const App = () => {
       <AuthProvider>
         <CreditsModalProvider>
           <Helmet>
-            <title>Starks Global Group</title>
-            <meta name="description" content="Premium AI Tools and Systems" />
+            <title>Starks Global Group — Build. Launch. Run. Scale. With ASH AI.</title>
+            <meta name="description" content="The AI Business Operating System for entrepreneurs. Select a blueprint, connect your tools, and let ASH AI build and run your automated income systems from one powerful dashboard." />
           </Helmet>
 
           <Suspense fallback={<PageFallback />}>

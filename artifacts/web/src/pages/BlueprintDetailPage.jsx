@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle, Rocket, Clock, Target, Layers, ArrowRight,
@@ -120,7 +119,7 @@ const BlueprintDetailPage = () => {
   if (error || !blueprint) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Helmet><title>Blueprint Not Found</title></Helmet>
+        <PageMeta title="Blueprint Not Found | Starks Global Group" description="The requested blueprint could not be found." robots="noindex, follow" />
         <Header />
         <main className="flex-grow flex items-center justify-center p-4">
           <div className="cinematic-card p-10 text-center max-w-md w-full border-destructive/30">
@@ -158,11 +157,10 @@ const BlueprintDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col bg-grid-pattern selection:bg-primary/20">
-      <CanonicalUrl />
-      <Helmet>
-        <title>{`${blueprint.name} | System Blueprint`}</title>
-        <meta name="description" content={bpDescription} />
-      </Helmet>
+      <PageMeta
+        title={`${blueprint.name} | System Blueprint — Starks Global Group`}
+        description={bpDescription}
+      />
 
       <Header />
 

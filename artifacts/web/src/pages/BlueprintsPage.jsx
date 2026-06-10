@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Helmet } from 'react-helmet';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, ArrowRight, Target, Users, Wrench, Clock, Zap, ChevronDown, Image as ImageIcon } from 'lucide-react';
@@ -117,11 +116,10 @@ const BlueprintsPage = () => {
 
   return (
     <VideoBackground>
-      <CanonicalUrl />
-      <Helmet>
-        <title>AI System Blueprints | System Vault</title>
-        <meta name="description" content="Step-by-step systems to build real AI-powered income streams." />
-      </Helmet>
+      <PageMeta
+        title="AI System Blueprints | System Vault — Starks Global Group"
+        description="Step-by-step systems to build real AI-powered income streams. Browse our full blueprint library and start building your automated business today."
+      />
       
       <Header />
       

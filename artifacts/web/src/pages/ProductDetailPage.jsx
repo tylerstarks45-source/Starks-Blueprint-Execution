@@ -1,8 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import { ArrowLeft, CheckCircle2, Star, ShieldCheck, Zap, ExternalLink, HelpCircle, MessageSquare, ArrowRight } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -93,11 +92,10 @@ const ProductDetailPage = () => {
 
   return (
     <VideoBackground>
-      <CanonicalUrl />
-      <Helmet>
-        <title>{`${product.name} - Starks Global Marketplace`}</title>
-        <meta name="description" content={product.description} />
-      </Helmet>
+      <PageMeta
+        title={`${product.name} | Starks Global Marketplace`}
+        description={product.description}
+      />
       
       <Header />
       

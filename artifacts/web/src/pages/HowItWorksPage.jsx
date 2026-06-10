@@ -1,7 +1,6 @@
 
 import React from 'react';
-import { Helmet } from 'react-helmet';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Cpu, Layers, Rocket, Unlock, LockKeyhole, ShieldCheck, Activity, Wrench, CheckSquare, Crosshair, ArrowRight, TerminalSquare } from 'lucide-react';
@@ -12,11 +11,10 @@ import VideoBackground from '@/components/VideoBackground.jsx';
 const HowItWorksPage = () => {
   return (
     <VideoBackground>
-      <CanonicalUrl />
-      <Helmet>
-        <title>How It Works | Starks Global Group</title>
-        <meta name="description" content="Discover how to use our platform to build, understand, and deploy real AI-powered automation systems." />
-      </Helmet>
+      <PageMeta
+        title="How It Works | Starks Global Group"
+        description="Discover how to use our platform to build, understand, and deploy real AI-powered automation systems."
+      />
       
       <Header />
       

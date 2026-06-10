@@ -1,7 +1,6 @@
 
 import React from 'react';
-import { Helmet } from 'react-helmet';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { ShieldCheck } from 'lucide-react';
@@ -10,11 +9,10 @@ import VideoBackground from '@/components/VideoBackground.jsx';
 const TermsAndConditionsPage = () => {
   return (
     <VideoBackground>
-      <CanonicalUrl />
-      <Helmet>
-        <title>Terms & Conditions | Starks Global Group</title>
-        <meta name="description" content="Terms and conditions for using the Starks Blueprint Execution Platform." />
-      </Helmet>
+      <PageMeta
+        title="Terms & Conditions | Starks Global Group"
+        description="Terms and conditions for using the Starks Blueprint Execution Platform."
+      />
       
       <Header />
       

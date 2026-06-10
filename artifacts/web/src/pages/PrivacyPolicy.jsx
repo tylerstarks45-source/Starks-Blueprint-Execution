@@ -1,7 +1,6 @@
 
 import React from 'react';
-import { Helmet } from 'react-helmet';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { ShieldCheck } from 'lucide-react';
@@ -10,11 +9,10 @@ import VideoBackground from '@/components/VideoBackground.jsx';
 const PrivacyPolicy = () => {
   return (
     <VideoBackground>
-      <CanonicalUrl />
-      <Helmet>
-        <title>Privacy Policy | Starks Global Group</title>
-        <meta name="description" content="How we collect, use, and protect your data at Starks Global Group." />
-      </Helmet>
+      <PageMeta
+        title="Privacy Policy | Starks Global Group"
+        description="How we collect, use, and protect your data at Starks Global Group."
+      />
       
       <Header />
       

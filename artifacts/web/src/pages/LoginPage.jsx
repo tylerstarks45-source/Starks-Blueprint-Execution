@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Helmet } from 'react-helmet';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Zap, Shield, Cpu, Lock } from 'lucide-react';
@@ -72,12 +71,11 @@ const LoginPage = () => {
 
   return (
     <VideoBackground>
-      <CanonicalUrl />
-      <Helmet>
-        <title>Log In | Starks Global Group</title>
-        <meta name="description" content="Log in to your Starks Global Group account to access your AI-powered systems, blueprints, and automation dashboard." />
-        <meta name="robots" content="noindex, follow" />
-      </Helmet>
+      <PageMeta
+        title="Log In | Starks Global Group"
+        description="Log in to your Starks Global Group account to access your AI-powered systems, blueprints, and automation dashboard."
+        noindex
+      />
 
       <Header />
 

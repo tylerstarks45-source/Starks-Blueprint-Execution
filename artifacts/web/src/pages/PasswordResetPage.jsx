@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Helmet } from 'react-helmet';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import CanonicalUrl from '@/components/CanonicalUrl.jsx';
+import PageMeta from '@/components/PageMeta.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { toast } from 'sonner';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -64,12 +63,11 @@ const PasswordResetPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <CanonicalUrl />
-      <Helmet>
-        <title>Reset Password | Starks Global Group</title>
-        <meta name="description" content="Reset your Starks Global Group account password to regain access to your AI systems and automation dashboard." />
-        <meta name="robots" content="noindex, follow" />
-      </Helmet>
+      <PageMeta
+        title="Reset Password | Starks Global Group"
+        description="Reset your Starks Global Group account password to regain access to your AI systems and automation dashboard."
+        noindex
+      />
       <Header />
       <main className="flex-grow flex items-center justify-center p-4 py-24">
         <div className="w-full max-w-md saas-panel p-8 md:p-10">

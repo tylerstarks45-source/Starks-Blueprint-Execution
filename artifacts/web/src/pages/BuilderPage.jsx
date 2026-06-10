@@ -759,6 +759,12 @@ const BuilderPage = () => {
   // Active side panel: null | 'explorer' | 'blueprints' | 'tools' | 'settings'
   const [activeSidePanel, setActiveSidePanel] = useState('explorer');
 
+  // Right resource panel tab
+  const [rightPanel, setRightPanel] = useState('blueprints');
+
+  // Agent modes popup (bottom-left panel)
+  const [showAgentModes, setShowAgentModes] = useState(false);
+
   // Checkpoints — loaded from localStorage, refreshed after each save
   const [checkpoints, setCheckpoints] = useState([]);
 
@@ -1386,628 +1392,408 @@ const BuilderPage = () => {
         </div>
       </div>
 
-      {/* ── MAIN LAYOUT ─────────────────────────────────────────────────── */}
+      {/* ── 3-PANEL MAIN LAYOUT (Replit-style) ─────────────────────────── */}
       <div className="flex flex-1 min-h-0">
 
-        {/* ── ACTIVITY BAR (48px) ───────────────────────────────────────── */}
-        <div className="w-12 shrink-0 flex flex-col items-center py-3 gap-1 border-r border-white/8 bg-black/92">
-          {SIDE_PANELS.map(({ id, icon: Icon, title }) => (
-            <button
-              key={id}
-              title={title}
-              onClick={() => setActiveSidePanel(p => p === id ? null : id)}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                activeSidePanel === id
-                  ? 'bg-primary/20 text-primary border border-primary/30'
-                  : 'text-muted-foreground/35 hover:text-muted-foreground hover:bg-white/5'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
+        {/* ═══════════════════════════════════════════════════════════════
+            LEFT PANEL (260px) — Sessions as Tasks + Agent Modes
+        ═══════════════════════════════════════════════════════════════ */}
+        <div className="w-[260px] shrink-0 flex flex-col border-r border-white/8 bg-[#060608] relative">
+
+          {/* Header */}
+          <div className="px-3 py-2.5 border-b border-white/8 flex items-center gap-2 shrink-0">
+            <div className="w-5 h-5 rounded bg-primary/20 flex items-center justify-center shrink-0">
+              <Wand2 className="w-3 h-3 text-primary" />
+            </div>
+            <span className="flex-1 text-[11px] font-bold text-white/65 font-mono truncate">Starks Blueprint Execution</span>
+            <button title="My Library" onClick={() => navigate('/library')} className="text-white/22 hover:text-primary transition-colors shrink-0">
+              <BookOpen className="w-3.5 h-3.5" />
             </button>
-          ))}
-          <div className="flex-1" />
-          <button
-            title="My Library"
-            onClick={() => navigate('/library')}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground/25 hover:text-primary hover:bg-primary/10 transition-all"
-          >
-            <BookOpen className="w-4 h-4" />
-          </button>
-          <button
-            title="Connections Hub"
-            onClick={() => navigate('/connections')}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground/25 hover:text-muted-foreground hover:bg-white/5 transition-all"
-          >
-            <ExternalLink className="w-4 h-4" />
-          </button>
-        </div>
+          </div>
 
-        {/* ── COLLAPSIBLE SIDE PANEL (240px) ───────────────────────────── */}
-        <AnimatePresence initial={false}>
-          {activeSidePanel && (
-            <motion.div
-              key="side-panel"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 240, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.18, ease: 'easeInOut' }}
-              className="shrink-0 border-r border-white/8 bg-[#0a0a0c] flex flex-col overflow-hidden"
+          {/* Version / context badge */}
+          <div className="px-3 py-1.5 border-b border-white/6 shrink-0">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-primary/50 shrink-0" />
+              <span className="text-[10px] font-mono text-white/35">Main version</span>
+              {activeMode && (
+                <span className={`ml-auto text-[9px] font-mono ${activeMode.color} opacity-50`}>{activeMode.label}</span>
+              )}
+            </div>
+          </div>
+
+          {/* + New task button */}
+          <div className="px-3 py-2 border-b border-white/6 shrink-0">
+            <button
+              onClick={clearSession}
+              disabled={phase === 'building'}
+              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/3 hover:bg-primary/8 hover:border-primary/22 text-white/38 hover:text-primary text-[11px] font-mono transition-all disabled:opacity-25 disabled:cursor-not-allowed"
             >
-              {/* Panel header */}
-              <div className="flex items-center justify-between px-3 py-2 border-b border-white/8 shrink-0">
-                <span className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-mono font-bold">
-                  {SIDE_PANELS.find(p => p.id === activeSidePanel)?.title}
-                </span>
-                <button
-                  onClick={() => setActiveSidePanel(null)}
-                  className="text-muted-foreground/25 hover:text-muted-foreground transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+              <PlusCircle className="w-3.5 h-3.5 shrink-0" />
+              + New task
+            </button>
+          </div>
+
+          {/* Scrollable task list */}
+          <div className="flex-1 overflow-y-auto py-1 select-none">
+
+            {/* Live/active task (if in-progress) */}
+            {phase !== 'idle' && messages.filter(m => m.role === 'user' && m.id !== 'welcome').length > 0 && (
+              <div className="px-2 pt-1.5 pb-1">
+                <div className={`flex items-start gap-2.5 px-2.5 py-2 rounded-lg border ${
+                  phase === 'building' ? 'bg-blue-500/8 border-blue-500/18'
+                  : phase === 'complete' ? 'bg-emerald-500/8 border-emerald-500/18'
+                  : phase === 'collecting' ? 'bg-amber-500/8 border-amber-500/18'
+                  : 'bg-primary/8 border-primary/18'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full shrink-0 mt-1 ${
+                    phase === 'building' ? 'bg-blue-400 animate-pulse'
+                    : phase === 'complete' ? 'bg-emerald-400'
+                    : phase === 'collecting' ? 'bg-amber-400 animate-pulse'
+                    : 'bg-primary'
+                  }`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-white/72 truncate font-mono leading-snug">
+                      {messages.find(m => m.role === 'user' && m.id !== 'welcome')?.content?.slice(0, 44) ?? 'Current task'}
+                    </p>
+                    <p className={`text-[9px] font-mono uppercase tracking-widest mt-0.5 ${
+                      phase === 'building' ? 'text-blue-400/65'
+                      : phase === 'complete' ? 'text-emerald-400/65'
+                      : phase === 'collecting' ? 'text-amber-400/65'
+                      : 'text-primary/65'
+                    }`}>
+                      {phase === 'building' ? `Building · ${currentStepIdx}/${buildData?.steps?.length ?? 0} steps`
+                        : phase === 'complete' ? 'Deployed ✓'
+                        : phase === 'collecting' ? 'Awaiting credentials'
+                        : 'Active'}
+                    </p>
+                  </div>
+                </div>
               </div>
+            )}
 
-              {/* ── EXPLORER ── */}
-              {activeSidePanel === 'explorer' && (
-                <div className="flex-1 overflow-y-auto py-1 select-none">
-
-                  {/* ── SESSION ACTIONS ── */}
-                  <div className="px-2 py-1.5">
-                    <button
-                      onClick={() => setMode('custom')}
-                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors ${
-                        mode === 'custom' ? 'bg-primary/12 text-primary' : 'text-muted-foreground/50 hover:text-foreground hover:bg-white/5'
-                      }`}
-                    >
-                      <MessageSquare className="w-3 h-3 shrink-0" />
-                      Chat with ASH
-                    </button>
-                    <button
-                      onClick={() => { setMode('blueprint'); setActiveSidePanel('blueprints'); }}
-                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors ${
-                        mode === 'blueprint' ? 'bg-primary/12 text-primary' : 'text-muted-foreground/50 hover:text-foreground hover:bg-white/5'
-                      }`}
-                    >
-                      <Grid3x3 className="w-3 h-3 shrink-0" />
-                      Blueprint Picker
-                    </button>
-                  </div>
-
-                  <div className="border-t border-white/6 mx-2 my-1" />
-
-                  {/* ── SAVED SESSIONS ── */}
-                  <div className="px-2 py-1">
-                    <div className="flex items-center justify-between px-1 mb-1.5">
-                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono">Session History</p>
-                      {sessionsLoading && <Loader2 className="w-2.5 h-2.5 text-muted-foreground/30 animate-spin" />}
-                    </div>
-                    {!sessionsLoading && savedSessions.length === 0 ? (
-                      <p className="text-[9px] text-muted-foreground/20 font-mono px-1 leading-relaxed">
-                        Sessions auto-save after each reply. Click "New Session" to archive the current one.
+            {/* Saved sessions as task list */}
+            {savedSessions.length > 0 && (
+              <div className="px-2 pt-1">
+                {sessionsLoading && <div className="flex justify-center py-2"><Loader2 className="w-3.5 h-3.5 animate-spin text-white/20" /></div>}
+                {savedSessions.map(s => (
+                  <div
+                    key={s.id}
+                    onClick={() => restoreSession(s)}
+                    className={`group flex items-start gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-white/5 transition-colors ${
+                      currentSessionId === s.id ? 'bg-primary/8 border-l-2 border-primary/35 pl-1.5' : ''
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
+                      s.phase === 'complete' ? 'bg-emerald-400'
+                      : s.phase === 'building' ? 'bg-blue-400'
+                      : 'bg-white/18'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-white/55 truncate font-mono leading-snug">{s.title}</p>
+                      <p className="text-[9px] text-white/22 font-mono mt-0.5">
+                        {s.phase === 'complete' ? '✓ ' : ''}{formatTs(new Date(s.updatedAt ?? Date.now()).getTime())} · Draft
                       </p>
-                    ) : (
-                      <div className="space-y-0.5">
-                        {savedSessions.map((s) => (
-                          <div
-                            key={s.id}
-                            onClick={() => restoreSession(s)}
-                            className={`group flex items-start gap-1.5 px-1 py-1.5 rounded cursor-pointer hover:bg-white/5 transition-colors ${
-                              currentSessionId === s.id ? 'bg-primary/8 border border-primary/15' : ''
-                            }`}
-                          >
-                            <Clock className="w-3 h-3 shrink-0 text-muted-foreground/30 mt-0.5" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[10px] text-foreground/65 truncate font-mono leading-tight">{s.title}</p>
-                              <p className="text-[8px] text-muted-foreground/25 font-mono mt-0.5">
-                                {formatTs(new Date(s.updatedAt).getTime())} · {s.messageCount ?? 0}msg
-                              </p>
-                            </div>
-                            <button
-                              onClick={(e) => deleteSession(s.id, e)}
-                              title="Delete session"
-                              className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground/20 hover:text-rose-400/70 transition-all p-0.5 rounded"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-white/6 mx-2 my-1" />
-
-                  {/* ── SYSTEMS FILE TREE ── */}
-                  <div className="px-2 py-1">
-                    <div className="flex items-center justify-between px-1 mb-1">
-                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/30 font-mono">Systems</p>
-                      {systemsLoading && <Loader2 className="w-2.5 h-2.5 text-muted-foreground/30 animate-spin" />}
                     </div>
+                    <button
+                      onClick={(e) => deleteSession(s.id, e)}
+                      className="shrink-0 opacity-0 group-hover:opacity-100 text-white/18 hover:text-rose-400/65 transition-all p-0.5 rounded"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
-                    {!systemsLoading && userSystems.length === 0 && (
-                      <div className="px-2 py-3 text-center">
-                        <Server className="w-5 h-5 text-muted-foreground/15 mx-auto mb-1.5" />
-                        <p className="text-[9px] text-muted-foreground/25 font-mono">No systems yet.</p>
-                        <p className="text-[9px] text-muted-foreground/20 font-mono">Build one with ASH →</p>
+            {savedSessions.length === 0 && !sessionsLoading && phase === 'idle' && (
+              <p className="text-[9px] text-white/18 font-mono px-4 py-2 leading-relaxed">Sessions auto-save after each reply.</p>
+            )}
+
+            {/* Active build steps */}
+            {buildData && (
+              <>
+                <div className="border-t border-white/6 mx-3 my-1.5" />
+                <div className="px-3">
+                  <p className="text-[9px] uppercase tracking-widest text-white/18 font-mono mb-1">Build steps</p>
+                  <div className="space-y-0.5">
+                    {buildData.steps?.map((step, i) => {
+                      const isDone = i < currentStepIdx;
+                      const isRunning = i === currentStepIdx && phase === 'building';
+                      return (
+                        <div key={step.id} className={`flex items-center gap-1.5 px-1 py-0.5 rounded text-[10px] font-mono ${
+                          isDone ? 'text-emerald-400/58' : isRunning ? 'text-primary' : 'text-white/18'
+                        }`}>
+                          {isDone ? <CheckCircle className="w-2.5 h-2.5 shrink-0" />
+                            : isRunning ? <PlayCircle className="w-2.5 h-2.5 shrink-0 animate-pulse" />
+                            : <Circle className="w-2.5 h-2.5 shrink-0" />}
+                          <span className="truncate">{step.notes}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Checkpoints */}
+            {checkpoints.length > 0 && (
+              <>
+                <div className="border-t border-white/6 mx-3 my-1.5" />
+                <div className="px-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[9px] uppercase tracking-widest text-white/18 font-mono">Checkpoints</p>
+                    <button
+                      onClick={() => { try { localStorage.removeItem(checkpointsKey(currentUser?.id)); } catch {} setCheckpoints([]); }}
+                      className="text-[9px] text-white/18 hover:text-rose-400/55 transition-colors font-mono"
+                    >clear</button>
+                  </div>
+                  <div className="space-y-0.5">
+                    {checkpoints.map(cp => (
+                      <div key={cp.id} className="group flex items-start gap-1.5 px-1 py-1 rounded hover:bg-white/5 transition-colors">
+                        <RotateCcw className="w-2.5 h-2.5 shrink-0 text-primary/28 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[9px] text-white/45 truncate font-mono leading-tight">{cp.summary}</p>
+                          <p className="text-[8px] text-white/22 font-mono mt-0.5">{formatTs(cp.ts)}</p>
+                        </div>
+                        <button
+                          onClick={() => restoreCheckpoint(cp)}
+                          className="shrink-0 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 text-[8px] text-primary/65 hover:text-primary bg-primary/8 hover:bg-primary/18 border border-primary/18 rounded px-1.5 py-0.5 font-mono transition-all"
+                        >
+                          <RotateCcw className="w-2 h-2 inline" /> rollback
+                        </button>
                       </div>
-                    )}
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
-                    <div className="space-y-0.5">
-                      {userSystems.map((sys) => {
-                        const status = (sys.buildStatus || '').toLowerCase();
-                        const health = (sys.healthStatus || '').toLowerCase();
-                        const isOpen = !!expandedSystems[sys.id];
-                        const stepsOpen = !!expandedFolders[`${sys.id}_steps`];
+            {/* Quick start prompts */}
+            <div className="border-t border-white/6 mx-3 my-1.5" />
+            <div className="px-3">
+              <p className="text-[9px] uppercase tracking-widest text-white/18 font-mono mb-1">Quick start</p>
+              {STARTER_PROMPTS.map((prompt, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setMode('custom'); sendMessage(prompt); }}
+                  className="w-full flex items-center gap-2 px-2 py-1 rounded text-[10px] text-white/32 hover:text-white hover:bg-white/5 transition-colors text-left"
+                >
+                  <Zap className="w-2.5 h-2.5 shrink-0 text-primary/32" />
+                  <span className="truncate">{prompt}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
-                        const statusColor =
-                          status === 'active' || status === 'completed' || health === 'healthy'
-                            ? 'text-emerald-400'
-                            : status === 'building'
-                            ? 'text-blue-400'
-                            : status === 'paused'
-                            ? 'text-amber-400'
-                            : health === 'unhealthy' || status === 'failed'
-                            ? 'text-rose-400'
-                            : 'text-zinc-500';
-
-                        const dotColor =
-                          status === 'active' || status === 'completed' || health === 'healthy'
-                            ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]'
-                            : status === 'building'
-                            ? 'bg-blue-400 animate-pulse shadow-[0_0_6px_rgba(96,165,250,0.6)]'
-                            : status === 'paused'
-                            ? 'bg-amber-400'
-                            : health === 'unhealthy' || status === 'failed'
-                            ? 'bg-rose-400'
-                            : 'bg-zinc-600';
-
-                        const folderIconColor =
-                          status === 'active' || status === 'completed' || health === 'healthy'
-                            ? 'text-emerald-400/70'
-                            : status === 'building'
-                            ? 'text-blue-400/70'
-                            : status === 'paused'
-                            ? 'text-amber-400/70'
-                            : 'text-zinc-500/60';
-
-                        const steps = Array.isArray(sys.steps) ? sys.steps : [];
-
+          {/* ── BOTTOM: Agent Modes (Replit-style popup) ── */}
+          <div className="shrink-0 border-t border-white/8 bg-black/85">
+            {/* Expandable agent modes panel */}
+            <AnimatePresence>
+              {showAgentModes && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="overflow-hidden border-b border-white/8 bg-[#08080f]"
+                >
+                  <div className="p-3 pt-2.5">
+                    <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono mb-2">
+                      Agent modes <span className="text-white/15 normal-case">· Cycle Ctrl+Shift+I</span>
+                    </p>
+                    {/* Mode tabs */}
+                    <div className="flex gap-1 mb-3">
+                      {AI_MODES.map(m => {
+                        const MIcon = m.icon;
+                        const isActive = aiMode === m.id;
+                        const isLocked = m.requiredTier && !isEmpireTier;
                         return (
-                          <div key={sys.id}>
-                            {/* ── System root folder ── */}
-                            <button
-                              onClick={() => setExpandedSystems(prev => ({ ...prev, [sys.id]: !prev[sys.id] }))}
-                              className="w-full group flex items-center gap-1 px-1 py-1 rounded hover:bg-white/6 transition-colors"
-                            >
-                              {isOpen
-                                ? <ChevronDown className="w-3 h-3 text-muted-foreground/30 shrink-0" />
-                                : <ChevronRight className="w-3 h-3 text-muted-foreground/30 shrink-0" />
-                              }
-                              {isOpen
-                                ? <FolderOpen className={`w-3.5 h-3.5 shrink-0 ${folderIconColor}`} />
-                                : <Folder className={`w-3.5 h-3.5 shrink-0 ${folderIconColor}`} />
-                              }
-                              <span className="flex-1 truncate text-[11px] text-foreground/75 text-left font-mono leading-tight">
-                                {sys.name || 'Unnamed System'}
-                              </span>
-                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
-                            </button>
-
-                            {/* ── Expanded content ── */}
-                            {isOpen && (
-                              <div className="ml-4 border-l border-white/6 pl-2 mb-0.5 space-y-0.5">
-
-                                {/* README.md */}
-                                <button
-                                  onClick={() => navigate(`/systems/${sys.id}`)}
-                                  className="w-full flex items-center gap-1.5 px-1 py-0.5 rounded hover:bg-white/5 transition-colors group"
-                                >
-                                  <FileText className="w-3 h-3 shrink-0 text-sky-400/60" />
-                                  <span className="text-[10px] text-muted-foreground/55 font-mono group-hover:text-sky-300/80 truncate transition-colors">README.md</span>
-                                  <ExternalLink className="w-2.5 h-2.5 text-muted-foreground/20 opacity-0 group-hover:opacity-100 ml-auto shrink-0 transition-all" />
-                                </button>
-
-                                {/* config.json */}
-                                <div className="flex items-center gap-1.5 px-1 py-0.5">
-                                  <FileJson2 className="w-3 h-3 shrink-0 text-amber-400/60" />
-                                  <span className="text-[10px] text-muted-foreground/40 font-mono truncate">config.json</span>
-                                </div>
-
-                                {/* activity.log */}
-                                <div className="flex items-center gap-1.5 px-1 py-0.5">
-                                  <FileText className="w-3 h-3 shrink-0 text-violet-400/50" />
-                                  <span className="text-[10px] text-muted-foreground/40 font-mono truncate">activity.log</span>
-                                  <span className={`ml-auto text-[8px] font-mono shrink-0 ${statusColor}`}>
-                                    {status || 'pending'}
-                                  </span>
-                                </div>
-
-                                {/* build-steps/ folder */}
-                                <button
-                                  onClick={() => setExpandedFolders(prev => ({ ...prev, [`${sys.id}_steps`]: !prev[`${sys.id}_steps`] }))}
-                                  className="w-full flex items-center gap-1 px-1 py-0.5 rounded hover:bg-white/5 transition-colors"
-                                >
-                                  {stepsOpen
-                                    ? <ChevronDown className="w-2.5 h-2.5 text-muted-foreground/25 shrink-0" />
-                                    : <ChevronRight className="w-2.5 h-2.5 text-muted-foreground/25 shrink-0" />
-                                  }
-                                  {stepsOpen
-                                    ? <FolderOpen className="w-3 h-3 shrink-0 text-orange-400/60" />
-                                    : <Folder className="w-3 h-3 shrink-0 text-orange-400/60" />
-                                  }
-                                  <span className="text-[10px] text-muted-foreground/45 font-mono">build-steps/</span>
-                                  {steps.length > 0 && (
-                                    <span className="ml-auto text-[8px] font-mono text-muted-foreground/25">{steps.length}</span>
-                                  )}
-                                </button>
-
-                                {/* Step files */}
-                                {stepsOpen && (
-                                  <div className="ml-3 border-l border-white/5 pl-2 space-y-0.5">
-                                    {steps.length === 0 ? (
-                                      <p className="text-[9px] text-muted-foreground/20 font-mono px-1 py-0.5">no steps</p>
-                                    ) : (
-                                      steps.map((step, i) => {
-                                        const stepNum = String(i + 1).padStart(2, '0');
-                                        const stepNote = (step.notes || step.name || `Step ${i + 1}`)
-                                          .toLowerCase()
-                                          .replace(/\s+/g, '_')
-                                          .replace(/[^a-z0-9_]/g, '')
-                                          .slice(0, 22);
-                                        const isComplete = step.status === 'completed' || step.completedAt;
-                                        const isActive   = step.status === 'in_progress' || step.status === 'running';
-                                        const isFailed   = step.status === 'failed';
-                                        return (
-                                          <div key={step.id || i} className="flex items-center gap-1.5 px-1 py-0.5">
-                                            {isComplete
-                                              ? <CheckCircle className="w-2.5 h-2.5 shrink-0 text-emerald-400/70" />
-                                              : isActive
-                                              ? <PlayCircle className="w-2.5 h-2.5 shrink-0 text-blue-400 animate-pulse" />
-                                              : isFailed
-                                              ? <AlertTriangle className="w-2.5 h-2.5 shrink-0 text-rose-400/70" />
-                                              : <Circle className="w-2.5 h-2.5 shrink-0 text-muted-foreground/20" />
-                                            }
-                                            <span className={`text-[9px] font-mono truncate ${
-                                              isComplete ? 'text-emerald-400/60'
-                                                : isActive ? 'text-blue-400/80'
-                                                : isFailed ? 'text-rose-400/60'
-                                                : 'text-muted-foreground/30'
-                                            }`}>
-                                              {stepNum}_{stepNote}.md
-                                            </span>
-                                          </div>
-                                        );
-                                      })
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Save to Library */}
-                                <button
-                                  onClick={() => saveFileTreeToLibrary(sys)}
-                                  className="w-full flex items-center gap-1.5 px-1 py-1 mt-1 rounded hover:bg-primary/10 hover:border-primary/20 border border-transparent text-muted-foreground/30 hover:text-primary transition-all group"
-                                >
-                                  <Save className="w-3 h-3 shrink-0" />
-                                  <span className="text-[9px] font-mono">Save tree to Library</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                          <button
+                            key={m.id}
+                            disabled={!!isLocked}
+                            onClick={() => !isLocked && setAiMode(m.id)}
+                            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[10px] font-mono font-bold transition-all border ${
+                              isActive ? `${m.color} border-current bg-white/4`
+                                : 'text-white/28 border-white/8 hover:border-white/18 hover:text-white/55'
+                            } ${isLocked ? 'opacity-22 cursor-not-allowed' : ''}`}
+                          >
+                            <MIcon className="w-3 h-3" />
+                            {m.label}
+                          </button>
                         );
                       })}
                     </div>
-                  </div>
-
-                  <div className="border-t border-white/6 mx-2 my-1" />
-
-                  {/* ── QUICK START ── */}
-                  <div className="px-2 py-1">
-                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1 px-1">Quick Start</p>
-                    <div className="space-y-0.5">
-                      {STARTER_PROMPTS.map((prompt, i) => (
-                        <button
-                          key={i}
-                          onClick={() => { setMode('custom'); sendMessage(prompt); }}
-                          className="w-full flex items-center gap-2 px-2 py-1 rounded text-[10px] text-muted-foreground/45 hover:text-foreground hover:bg-white/5 transition-colors text-left"
+                    {/* Active mode description */}
+                    {activeMode && (
+                      <p className={`text-[10px] leading-relaxed ${activeMode.color} opacity-55 mb-3`}>{activeMode.description}</p>
+                    )}
+                    {/* Replit-style toggles */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] text-white/55 font-mono">App testing</p>
+                          <p className="text-[9px] text-white/22 truncate">Agent tests your build automatically</p>
+                        </div>
+                        <div className={`w-9 h-5 rounded-full shrink-0 flex items-center px-0.5 transition-colors ${
+                          phase === 'building' ? 'bg-primary/80' : 'bg-white/12'
+                        }`}>
+                          <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                            phase === 'building' ? 'translate-x-4' : 'translate-x-0'
+                          }`} />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] text-white/55 font-mono">High effort <span className="text-[9px] text-amber-400/55">·+$</span></p>
+                          <p className="text-[9px] text-white/22 truncate">Powered by stronger model for harder tasks</p>
+                        </div>
+                        <div
+                          onClick={() => aiMode === 'fast' ? setAiMode('business') : setAiMode('fast')}
+                          className={`w-9 h-5 rounded-full shrink-0 flex items-center px-0.5 transition-colors cursor-pointer ${
+                            aiMode !== 'fast' ? 'bg-amber-500/65' : 'bg-white/12'
+                          }`}
                         >
-                          <Zap className="w-2.5 h-2.5 shrink-0 text-primary/35" />
-                          <span className="truncate">{prompt}</span>
-                        </button>
-                      ))}
+                          <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                            aiMode !== 'fast' ? 'translate-x-4' : 'translate-x-0'
+                          }`} />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 opacity-32">
+                        <div className="min-w-0">
+                          <p className="text-[11px] text-white/55 font-mono">Turbo <span className="text-[9px] text-violet-400/55">· Pro</span></p>
+                          <p className="text-[9px] text-white/22 truncate">Upgrade to Pro to unlock the fastest models.</p>
+                        </div>
+                        <div className="w-9 h-5 rounded-full shrink-0 bg-white/10 flex items-center px-0.5 cursor-not-allowed">
+                          <div className="w-4 h-4 rounded-full bg-white/38 shadow-sm" />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* ── ACTIVE BUILD OUTPUT ── */}
-                  {buildData && (
-                    <>
-                      <div className="border-t border-white/6 mx-2 my-1" />
-                      <div className="px-2 py-1">
-                        <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1 px-1">Active Build</p>
-                        <div className="space-y-0.5">
-                          {buildData.steps?.map((step, i) => {
-                            const isDone = i < currentStepIdx;
-                            const isRunning = i === currentStepIdx && phase === 'building';
+                    {/* Business type + revenue goal */}
+                    <div className="mt-3 pt-2.5 border-t border-white/8 space-y-2">
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono mb-1.5 flex items-center gap-1">
+                          <Building2 className="w-2.5 h-2.5" /> Business Type
+                        </p>
+                        <div className="grid grid-cols-4 gap-1">
+                          {BUSINESS_TYPES.slice(0, 4).map(bt => {
+                            const BIcon = bt.icon;
+                            const isActive = businessType === bt.id;
                             return (
-                              <div
-                                key={step.id}
-                                className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-mono ${
-                                  isDone ? 'text-emerald-400/65' : isRunning ? 'text-primary' : 'text-muted-foreground/22'
+                              <button
+                                key={bt.id}
+                                onClick={() => setBusinessType(isActive ? null : bt.id)}
+                                className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg border text-[9px] font-mono transition-all ${
+                                  isActive ? `${bt.bg} ${bt.color}` : 'bg-white/3 border-white/8 hover:border-white/18 text-white/35'
                                 }`}
                               >
-                                {isDone
-                                  ? <CheckCircle className="w-2.5 h-2.5 shrink-0" />
-                                  : isRunning
-                                  ? <PlayCircle className="w-2.5 h-2.5 shrink-0 animate-pulse" />
-                                  : <Circle className="w-2.5 h-2.5 shrink-0" />
-                                }
-                                <span className="truncate">{step.notes}</span>
-                              </div>
+                                <BIcon className={`w-3.5 h-3.5 ${isActive ? bt.color : ''}`} />
+                                {bt.label}
+                              </button>
                             );
                           })}
                         </div>
                       </div>
-                    </>
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono mb-1 flex items-center gap-1">
+                          <Target className="w-2.5 h-2.5" /> Revenue Goal
+                        </p>
+                        {showRevenueGoalInput ? (
+                          <div className="flex gap-1">
+                            <input
+                              type="text"
+                              value={revenueGoal}
+                              onChange={e => setRevenueGoal(e.target.value)}
+                              placeholder="e.g. $5,000/mo"
+                              className="flex-1 text-[11px] bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white placeholder:text-white/22 focus:outline-none focus:border-primary/45 font-mono"
+                              onKeyDown={e => { if (e.key === 'Enter') setShowRevenueGoalInput(false); }}
+                              autoFocus
+                            />
+                            <button onClick={() => setShowRevenueGoalInput(false)} className="text-primary hover:text-primary/80 px-2 text-sm">✓</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowRevenueGoalInput(true)}
+                            className="w-full flex items-center justify-between text-[11px] px-2 py-1.5 rounded-lg border border-white/8 bg-white/3 hover:border-white/18 transition-colors"
+                          >
+                            <span className="text-white/35 font-mono">{revenueGoal || 'Set monthly goal…'}</span>
+                            {revenueGoal && <span className="text-emerald-400 font-mono font-bold text-[10px]">{revenueGoal}/mo</span>}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Bottom filter/mode bar */}
+            <div className="flex items-center justify-between px-3 py-2">
+              <div className="flex items-center gap-2.5">
+                <button className="flex items-center gap-1 text-[9px] font-mono text-white/32 hover:text-white/55 transition-colors">
+                  <Grid3x3 className="w-3 h-3" /> Plans
+                </button>
+                <button className="flex items-center gap-1 text-[9px] font-mono text-white/32 hover:text-white/55 transition-colors">
+                  <CheckCircle2 className="w-3 h-3" /> Tasks
+                </button>
+                <button className="flex items-center gap-1 text-[9px] font-mono text-white/32 hover:text-white/55 transition-colors">
+                  <Users className="w-3 h-3" /> Created by
+                </button>
+              </div>
+              {/* Agent mode toggle button */}
+              <button
+                onClick={() => setShowAgentModes(p => !p)}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-mono font-bold transition-all ${
+                  showAgentModes
+                    ? `${activeMode?.color ?? 'text-primary'} border-current bg-white/4`
+                    : 'text-white/32 border-white/10 hover:border-white/22 hover:text-white/55'
+                }`}
+              >
+                {activeMode && <activeMode.icon className="w-3 h-3" />}
+                {activeMode?.label ?? 'Fast'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════
+            CENTER PANEL (flex-1) — ASH Chat + Build Terminal
+        ═══════════════════════════════════════════════════════════════ */}
+        <div className="flex-1 min-w-0 flex flex-col bg-[#04040c]">
+
+          {/* Chat header / ASH identity bar */}
+          <div className="shrink-0 border-b border-white/8 px-4 py-2 bg-black/70 flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-primary/20 flex items-center justify-center">
+                <Wand2 className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-white">ASH</span>
+                  <Badge variant="outline" className="text-[8px] border-primary/30 text-primary bg-primary/5 font-mono px-1 py-0">AI</Badge>
+                  {activeMode && (
+                    <span className={`text-[9px] font-mono ${activeMode.color} opacity-55`}>· {activeMode.modelLabel}</span>
                   )}
-
-                  {/* ── CHECKPOINTS ── */}
-                  <div className="border-t border-white/6 mx-2 my-1" />
-                  <div className="px-2 py-1">
-                    <div className="flex items-center justify-between px-1 mb-1.5">
-                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono">Checkpoints</p>
-                      {checkpoints.length > 0 && (
-                        <button
-                          onClick={() => {
-                            try { localStorage.removeItem(checkpointsKey(currentUser?.id)); } catch {}
-                            setCheckpoints([]);
-                          }}
-                          className="text-[9px] text-muted-foreground/25 hover:text-rose-400/60 transition-colors font-mono"
-                        >
-                          clear
-                        </button>
-                      )}
-                    </div>
-                    {checkpoints.length === 0 ? (
-                      <p className="text-[9px] text-muted-foreground/20 font-mono px-1">
-                        Auto-saved after each AI reply.
-                      </p>
-                    ) : (
-                      <div className="space-y-0.5">
-                        {checkpoints.map((cp) => (
-                          <div
-                            key={cp.id}
-                            className="group flex items-start gap-1.5 px-1 py-1.5 rounded hover:bg-white/5 transition-colors"
-                          >
-                            <RotateCcw className="w-2.5 h-2.5 shrink-0 text-primary/30 mt-0.5" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[9px] text-foreground/60 truncate font-mono leading-tight">{cp.summary}</p>
-                              <p className="text-[8px] text-muted-foreground/25 font-mono mt-0.5">
-                                {formatTs(cp.ts)} · {cp.messageCount}msg
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => restoreCheckpoint(cp)}
-                              title="Roll back to this checkpoint"
-                              className="shrink-0 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 text-[8px] text-primary/70 hover:text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 rounded px-1.5 py-0.5 font-mono transition-all"
-                            >
-                              <RotateCcw className="w-2 h-2" />
-                              rollback
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
-              )}
+                <p className="text-[9px] text-white/28 font-mono">Autonomous Business Builder</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 ml-auto">
+              <PhaseBar phase={phase} />
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                </span>
+                <span className="text-[10px] text-emerald-400">Online</span>
+              </div>
+            </div>
+          </div>
 
-              {/* ── BLUEPRINTS ── */}
-              {activeSidePanel === 'blueprints' && (
-                <div className="flex-1 flex flex-col min-h-0">
-                  <div className="p-2 border-b border-white/6 flex flex-wrap gap-1 shrink-0">
-                    <button
-                      onClick={() => setActiveCatId(null)}
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-mono transition-colors ${
-                        activeCatId === null
-                          ? 'bg-primary/20 text-primary border border-primary/30'
-                          : 'bg-white/4 text-muted-foreground/45 border border-white/8 hover:text-foreground'
-                      }`}
-                    >
-                      All
-                    </button>
-                    {categories.map(cat => (
-                      <button
-                        key={cat.id}
-                        onClick={() => setActiveCatId(activeCatId === cat.id ? null : cat.id)}
-                        className={`px-2 py-0.5 rounded-full text-[9px] font-mono transition-colors ${
-                          activeCatId === cat.id
-                            ? 'bg-primary/20 text-primary border border-primary/30'
-                            : 'bg-white/4 text-muted-foreground/45 border border-white/8 hover:text-foreground'
-                        }`}
-                      >
-                        {cat.name}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-                    {bpLoading ? (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                      </div>
-                    ) : filteredBps.length === 0 ? (
-                      <p className="text-center py-6 text-muted-foreground/30 text-xs">No blueprints found</p>
-                    ) : filteredBps.map(bp => (
-                      <BlueprintCard key={bp.id} bp={bp} selected={selectedBp?.id === bp.id} onSelect={setSelectedBp} />
-                    ))}
-                  </div>
-                  <div className="p-2.5 border-t border-white/8 shrink-0">
-                    <Button
-                      className="w-full h-9 gap-2 text-xs font-semibold"
-                      disabled={!selectedBp || phase === 'building' || phase === 'complete' || chatLoading}
-                      onClick={handleBlueprintLaunch}
-                    >
-                      {chatLoading || executeLoading
-                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Planning…</>
-                        : <><Sparkles className="w-3.5 h-3.5" /> Plan Blueprint</>}
-                    </Button>
-                    {!selectedBp && (
-                      <p className="text-[9px] text-muted-foreground/25 text-center mt-1.5 font-mono">
-                        Select a blueprint above
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* ── TOOLS ── */}
-              {activeSidePanel === 'tools' && (
-                <div className="flex-1 overflow-y-auto">
-                  <div className="px-3 pt-2.5 pb-1">
-                    <p className="text-[10px] text-muted-foreground/40 leading-relaxed">
-                      Connect tools so ASH can build with them automatically.
-                    </p>
-                  </div>
-                  {TOOLS_CATALOG.map(({ category, items }) => (
-                    <div key={category} className="px-3 py-2">
-                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-mono mb-1">{category}</p>
-                      <div className="space-y-0.5">
-                        {items.map(tool => (
-                          <div key={tool} className="flex items-center justify-between px-2 py-1 rounded hover:bg-white/4 transition-colors">
-                            <span className="text-[11px] text-muted-foreground/60">{tool}</span>
-                            <button
-                              onClick={() => navigate('/connections')}
-                              className="text-[9px] font-mono text-primary/50 hover:text-primary transition-colors"
-                            >
-                              Connect →
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="border-t border-white/5 mt-2" />
-                    </div>
-                  ))}
-                  <div className="p-3 pt-1">
-                    <button
-                      onClick={() => navigate('/connections')}
-                      className="w-full py-2 px-3 text-xs font-semibold text-primary bg-primary/8 hover:bg-primary/15 border border-primary/20 rounded-lg transition-colors"
-                    >
-                      Open Connections Hub →
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* ── SETTINGS ── */}
-              {activeSidePanel === 'settings' && (
-                <div className="flex-1 overflow-y-auto py-3 px-3 space-y-5">
-                  {/* Business type */}
-                  <div>
-                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-mono mb-2 flex items-center gap-1">
-                      <Building2 className="w-2.5 h-2.5" /> Business Type
-                    </p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {BUSINESS_TYPES.map(bt => {
-                        const BIcon = bt.icon;
-                        const isActive = businessType === bt.id;
-                        return (
-                          <button
-                            key={bt.id}
-                            onClick={() => setBusinessType(isActive ? null : bt.id)}
-                            className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs font-medium transition-all ${
-                              isActive ? `${bt.bg} ${bt.color}` : 'bg-white/3 border-white/8 hover:border-white/20 text-muted-foreground/50'
-                            }`}
-                          >
-                            <BIcon className={`w-3.5 h-3.5 shrink-0 ${isActive ? bt.color : 'text-muted-foreground/35'}`} />
-                            {bt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Revenue goal */}
-                  <div>
-                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-mono mb-2 flex items-center gap-1">
-                      <Target className="w-2.5 h-2.5" /> Revenue Goal
-                    </p>
-                    {showRevenueGoalInput ? (
-                      <div className="flex gap-1.5">
-                        <input
-                          type="text"
-                          value={revenueGoal}
-                          onChange={e => setRevenueGoal(e.target.value)}
-                          placeholder="e.g. $5,000/mo"
-                          className="flex-1 text-xs bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 font-mono"
-                          onKeyDown={e => { if (e.key === 'Enter') setShowRevenueGoalInput(false); }}
-                          autoFocus
-                        />
-                        <button onClick={() => setShowRevenueGoalInput(false)} className="text-primary hover:text-primary/80 px-2 text-sm">✓</button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setShowRevenueGoalInput(true)}
-                        className="w-full flex items-center justify-between text-xs px-2.5 py-2 rounded-lg border border-white/8 bg-white/3 hover:border-white/20 transition-colors"
-                      >
-                        <span className="text-muted-foreground/45">{revenueGoal || 'Set monthly goal…'}</span>
-                        {revenueGoal && <span className="text-emerald-400 font-mono font-bold">{revenueGoal}/mo</span>}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* AI Power Mode */}
-                  <div>
-                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-mono mb-2 flex items-center gap-1">
-                      <Brain className="w-2.5 h-2.5" /> Agent Power Mode
-                    </p>
-                    <div className="space-y-1.5">
-                      {AI_MODES.map(m => {
-                        const Icon = m.icon;
-                        const isLocked = m.requiredTier && !isEmpireTier;
-                        const isActive = aiMode === m.id;
-                        return (
-                          <button
-                            key={m.id}
-                            disabled={isLocked}
-                            onClick={() => !isLocked && setAiMode(m.id)}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs transition-all ${
-                              isLocked
-                                ? 'opacity-35 cursor-not-allowed border-white/8 bg-white/2'
-                                : isActive ? m.activeBg : m.inactiveBg
-                            }`}
-                          >
-                            <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? m.color : 'text-muted-foreground/45'}`} />
-                            <div className="flex-1 text-left min-w-0">
-                              <div className={`font-semibold font-mono text-[11px] ${isActive ? m.color : 'text-muted-foreground/55'}`}>{m.label}</div>
-                              <div className="text-[9px] text-muted-foreground/35 truncate">{m.subtitle}</div>
-                            </div>
-                            <span className={`font-mono text-[9px] shrink-0 ${isActive ? m.color : 'text-muted-foreground/25'}`}>{m.creditHint}</span>
-                            {isLocked && <Lock className="w-3 h-3 text-muted-foreground/25 shrink-0" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {activeMode && (
-                      <div className={`mt-2 p-2.5 rounded-lg border ${activeMode.activeBg}`}>
-                        <p className={`text-[10px] leading-relaxed ${activeMode.color} opacity-70`}>{activeMode.description}</p>
-                        <div className="mt-1.5">
-                          <div className="w-full h-0.5 rounded-full bg-white/8">
-                            <div className={`h-0.5 rounded-full ${activeMode.barColor} ${activeMode.barWidth}`} />
-                          </div>
-                          <p className={`text-[9px] font-mono mt-1 ${activeMode.color} opacity-50`}>{activeMode.creditsPerBuild} per build</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── CENTER: Build Terminal ───────────────────────────────────── */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          {/* Agent team status strip */}
+          {/* Agent team status (when building/collecting/complete) */}
           {(phase === 'building' || phase === 'collecting' || phase === 'complete') && (
-            <div className="shrink-0 border-b border-white/8 px-4 py-2 bg-black/88 flex items-center gap-3 flex-wrap">
-              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/35 font-mono flex items-center gap-1 shrink-0">
+            <div className="shrink-0 border-b border-white/8 px-4 py-2 bg-black/50 flex items-center gap-3 flex-wrap">
+              <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono flex items-center gap-1 shrink-0">
                 <Globe className="w-2.5 h-2.5" /> Agents
               </p>
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -2016,18 +1802,12 @@ const BuilderPage = () => {
                   const isActive = agent.phases.includes(phase);
                   const isDone = phase === 'complete';
                   return (
-                    <span
-                      key={agent.id}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-mono transition-all ${
-                        isDone
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                          : isActive && phase === 'building'
-                          ? 'bg-primary/10 border-primary/30 text-primary'
-                          : isActive
-                          ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-                          : 'bg-white/3 border-white/8 text-muted-foreground/20'
-                      }`}
-                    >
+                    <span key={agent.id} className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-mono transition-all ${
+                      isDone ? 'bg-emerald-500/10 border-emerald-500/28 text-emerald-400'
+                      : isActive && phase === 'building' ? 'bg-primary/10 border-primary/28 text-primary'
+                      : isActive ? 'bg-blue-500/10 border-blue-500/28 text-blue-400'
+                      : 'bg-white/3 border-white/8 text-white/18'
+                    }`}>
                       <AIcon className="w-2.5 h-2.5" />
                       {agent.label}
                       {isActive && phase === 'building' && !isDone && (
@@ -2038,24 +1818,24 @@ const BuilderPage = () => {
                 })}
               </div>
               {phase === 'building' && buildData?.steps && (
-                <span className="ml-auto text-[9px] font-mono text-primary/60 shrink-0">
+                <span className="ml-auto text-[9px] font-mono text-primary/55 shrink-0">
                   {currentStepIdx}/{buildData.steps.length} steps
                 </span>
               )}
             </div>
           )}
 
-          {/* Credential status (inline, no sidebar clutter) */}
+          {/* Credential status bar */}
           {phase === 'collecting' && pendingCreds.length > 0 && (
             <div className="shrink-0 border-b border-white/8 px-4 py-2 bg-amber-500/5 flex items-center gap-4 flex-wrap">
-              <p className="text-[9px] text-amber-400/70 font-mono uppercase tracking-widest shrink-0">Credentials needed</p>
+              <p className="text-[9px] text-amber-400/65 font-mono uppercase tracking-widest shrink-0">Credentials needed</p>
               <div className="flex items-center gap-3 flex-wrap">
                 {pendingCreds.map(cred => {
                   const isStored = !!storedCredKeys[cred.key];
                   return (
                     <span key={cred.key} className="flex items-center gap-1.5 text-[11px]">
                       <span className={`w-1.5 h-1.5 rounded-full ${isStored ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                      <span className="text-muted-foreground/60">{cred.name || cred.key}</span>
+                      <span className="text-white/55">{cred.name || cred.key}</span>
                       {!isStored && (
                         <a href={`/connections?connect=${encodeURIComponent(cred.key)}`} className="text-amber-400 hover:text-amber-300 underline text-[9px] font-mono">connect</a>
                       )}
@@ -2074,46 +1854,8 @@ const BuilderPage = () => {
             </div>
           )}
 
-          {/* Terminal fills remaining space */}
-          <div className="flex-1 min-h-0 p-4">
-            <BuildTerminal
-              steps={buildData?.steps ?? []}
-              outputs={stepOutputs}
-              currentIdx={currentStepIdx}
-              instanceId={buildData?.instanceId}
-              phase={phase}
-            />
-          </div>
-        </div>
-
-        {/* ── RIGHT: Chat Panel (320px) ────────────────────────────────── */}
-        <div className="w-[300px] xl:w-[320px] shrink-0 flex flex-col border-l border-white/10 bg-[#080810]">
-
-          {/* Chat header */}
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10 shrink-0 bg-black/95">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-primary/20 flex items-center justify-center">
-                <Wand2 className="w-3.5 h-3.5 text-primary" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-foreground">ASH</span>
-                  <Badge variant="outline" className="text-[8px] border-primary/30 text-primary bg-primary/5 font-mono px-1 py-0">AI</Badge>
-                </div>
-                <p className="text-[9px] text-muted-foreground/35 font-mono">Autonomous Business Builder</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-              </span>
-              <span className="text-[10px] text-emerald-400">Online</span>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 scrollbar-thin scrollbar-thumb-white/10 bg-[#06060e]">
+          {/* Main scrollable chat area */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-thin scrollbar-thumb-white/10">
             <SkillActivationPanel activatedSkills={activatedSkills} />
 
             {messages.map(m => <MessageBubble key={m.id} msg={m} />)}
@@ -2132,7 +1874,7 @@ const BuilderPage = () => {
             {chatLoading && (
               <div className="flex items-start gap-2">
                 <div className="bg-black/75 border border-white/12 rounded-xl rounded-tl-sm px-3 py-2">
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="flex items-center gap-2 text-white/38">
                     <Loader2 className="w-3 h-3 animate-spin text-primary" />
                     <span className="font-mono text-[11px]">ASH is analyzing…</span>
                   </div>
@@ -2148,16 +1890,16 @@ const BuilderPage = () => {
             )}
 
             {messages.length === 1 && phase === 'idle' && (
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/35 font-mono mb-2">Quick start</p>
-                <div className="space-y-1">
+              <div className="mt-2">
+                <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono mb-2">Quick start</p>
+                <div className="grid grid-cols-1 gap-1.5">
                   {STARTER_PROMPTS.map((g, i) => (
                     <button
                       key={i}
                       onClick={() => sendMessage(g)}
-                      className="w-full text-left text-[11px] px-3 py-2 rounded-lg border border-white/12 bg-black/60 hover:bg-black/80 hover:border-white/20 text-white/60 hover:text-white transition-colors flex items-center gap-2"
+                      className="w-full text-left text-[11px] px-3 py-2 rounded-lg border border-white/10 bg-black/35 hover:bg-black/55 hover:border-white/18 text-white/42 hover:text-white transition-colors flex items-center gap-2"
                     >
-                      <Zap className="w-3 h-3 text-primary/50 shrink-0" />
+                      <Zap className="w-3 h-3 text-primary/45 shrink-0" />
                       {g}
                     </button>
                   ))}
@@ -2168,12 +1910,25 @@ const BuilderPage = () => {
             <div ref={chatBottomRef} />
           </div>
 
+          {/* Build terminal — slides in when building */}
+          {buildData && (phase === 'building' || phase === 'complete') && (
+            <div className="shrink-0 border-t border-white/8 h-52">
+              <BuildTerminal
+                steps={buildData?.steps ?? []}
+                outputs={stepOutputs}
+                currentIdx={currentStepIdx}
+                instanceId={buildData?.instanceId}
+                phase={phase}
+              />
+            </div>
+          )}
+
           {/* Input bar */}
-          <div className="p-3 border-t border-white/12 bg-black/95 shrink-0">
+          <div className="p-3 border-t border-white/10 bg-black/90 shrink-0">
             {phase === 'building' ? (
               <div className="flex items-center justify-center gap-2 py-1.5">
                 <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                <span className="font-mono text-[11px] text-muted-foreground/50">Building — {buildData?.steps?.length ?? 0} steps</span>
+                <span className="font-mono text-[11px] text-white/42">Building — {buildData?.steps?.length ?? 0} steps in progress</span>
               </div>
             ) : phase === 'complete' ? (
               <div className="flex items-center justify-center gap-2 py-1.5 text-emerald-400">
@@ -2188,14 +1943,14 @@ const BuilderPage = () => {
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKey}
-                    placeholder={phase === 'collecting' ? 'Fill credentials above…' : 'Describe your income goal…'}
+                    placeholder={phase === 'collecting' ? 'Fill credentials above…' : 'Describe your income goal to ASH…'}
                     disabled={isInputDisabled}
-                    className="flex-1 resize-none text-xs bg-black/70 border border-white/18 rounded-xl px-3 py-2 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/60 transition-colors disabled:opacity-40"
+                    className="flex-1 resize-none text-xs bg-black/50 border border-white/12 rounded-xl px-3 py-2 text-white placeholder:text-white/22 focus:outline-none focus:border-primary/45 transition-colors disabled:opacity-40"
                     rows={1}
-                    style={{ minHeight: '36px', maxHeight: '88px' }}
+                    style={{ minHeight: '36px', maxHeight: '120px' }}
                     onInput={e => {
                       e.target.style.height = 'auto';
-                      e.target.style.height = Math.min(e.target.scrollHeight, 88) + 'px';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
                     }}
                   />
                   <Button
@@ -2209,11 +1964,255 @@ const BuilderPage = () => {
                       : <Send className="w-4 h-4" />}
                   </Button>
                 </div>
-                <p className="text-[9px] text-muted-foreground/20 mt-1.5 text-center font-mono">
-                  ASH builds autonomously · Credentials encrypted at rest
+                <p className="text-[9px] text-white/16 mt-1.5 text-center font-mono">
+                  ASH builds autonomously · Credentials encrypted · {activeMode?.modelLabel ?? 'GPT-4o Mini'}
                 </p>
               </>
             )}
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════
+            RIGHT PANEL (240px) — Library / Resources
+        ═══════════════════════════════════════════════════════════════ */}
+        <div className="w-[240px] shrink-0 flex flex-col border-l border-white/8 bg-[#060608]">
+
+          {/* Library header */}
+          <div className="px-3 py-2.5 border-b border-white/8 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-1.5">
+              <BookOpen className="w-3.5 h-3.5 text-white/38" />
+              <span className="text-xs font-bold text-white/55">Library</span>
+            </div>
+            <button
+              onClick={() => setRightPanel(p => p === 'files' ? 'blueprints' : 'files')}
+              className={`text-[9px] font-mono transition-colors ${rightPanel === 'files' ? 'text-primary' : 'text-primary/45 hover:text-primary'}`}
+            >
+              File tree
+            </button>
+          </div>
+
+          {/* Search + New */}
+          <div className="px-2 py-2 border-b border-white/6 shrink-0 flex items-center gap-1.5">
+            <div className="flex-1 flex items-center gap-1.5 bg-white/4 border border-white/8 rounded-lg px-2 py-1.5">
+              <MessageSquare className="w-3 h-3 text-white/22 shrink-0" />
+              <input
+                type="text"
+                placeholder="Search"
+                className="flex-1 bg-transparent text-[11px] text-white/55 placeholder:text-white/22 focus:outline-none font-mono min-w-0"
+              />
+            </div>
+            <button
+              onClick={clearSession}
+              disabled={phase === 'building'}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-primary/12 hover:bg-primary/22 border border-primary/22 text-primary text-[10px] font-mono font-bold transition-all disabled:opacity-28"
+            >
+              <PlusCircle className="w-3 h-3" /> New
+            </button>
+          </div>
+
+          {/* Resource tabs */}
+          <div className="flex border-b border-white/8 shrink-0">
+            {[
+              { id: 'blueprints', label: 'Blueprints', icon: Grid3x3 },
+              { id: 'tools',      label: 'Tools',      icon: Layers },
+              { id: 'files',      label: 'Apps',       icon: FolderOpen },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setRightPanel(tab.id)}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[9px] font-mono transition-colors border-b-2 ${
+                  rightPanel === tab.id
+                    ? 'text-primary border-primary bg-primary/4'
+                    : 'text-white/28 border-transparent hover:text-white/52'
+                }`}
+              >
+                <tab.icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+
+            {/* ── BLUEPRINTS ── */}
+            {rightPanel === 'blueprints' && (
+              <div className="flex flex-col h-full">
+                <div className="p-2 flex flex-wrap gap-1 border-b border-white/6 shrink-0">
+                  <button
+                    onClick={() => setActiveCatId(null)}
+                    className={`px-2 py-0.5 rounded-full text-[9px] font-mono transition-colors ${activeCatId === null ? 'bg-primary/20 text-primary border border-primary/28' : 'bg-white/4 text-white/32 border border-white/8 hover:text-white'}`}
+                  >All</button>
+                  {categories.map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setActiveCatId(activeCatId === cat.id ? null : cat.id)}
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-mono transition-colors ${activeCatId === cat.id ? 'bg-primary/20 text-primary border border-primary/28' : 'bg-white/4 text-white/32 border border-white/8 hover:text-white'}`}
+                    >{cat.name}</button>
+                  ))}
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+                  {bpLoading ? (
+                    <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+                  ) : filteredBps.length === 0 ? (
+                    <p className="text-center py-6 text-white/22 text-xs">No blueprints found</p>
+                  ) : filteredBps.map(bp => (
+                    <BlueprintCard key={bp.id} bp={bp} selected={selectedBp?.id === bp.id} onSelect={setSelectedBp} />
+                  ))}
+                </div>
+                <div className="p-2 border-t border-white/8 shrink-0">
+                  <Button
+                    className="w-full h-9 gap-2 text-xs font-semibold"
+                    disabled={!selectedBp || phase === 'building' || phase === 'complete' || chatLoading}
+                    onClick={handleBlueprintLaunch}
+                  >
+                    {chatLoading || executeLoading
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Planning…</>
+                      : <><Sparkles className="w-3.5 h-3.5" /> Plan Blueprint</>}
+                  </Button>
+                  {!selectedBp && <p className="text-[9px] text-white/22 text-center mt-1.5 font-mono">Select a blueprint above</p>}
+                </div>
+              </div>
+            )}
+
+            {/* ── TOOLS ── */}
+            {rightPanel === 'tools' && (
+              <div>
+                <div className="px-3 pt-2.5 pb-1">
+                  <p className="text-[10px] text-white/32 leading-relaxed">Connect tools so ASH can build with them automatically.</p>
+                </div>
+                {TOOLS_CATALOG.map(({ category, items }) => (
+                  <div key={category} className="px-3 py-2">
+                    <p className="text-[9px] uppercase tracking-widest text-white/20 font-mono mb-1">{category}</p>
+                    <div className="space-y-0.5">
+                      {items.map(tool => (
+                        <div key={tool} className="flex items-center justify-between px-2 py-1 rounded hover:bg-white/4 transition-colors">
+                          <span className="text-[11px] text-white/48">{tool}</span>
+                          <button onClick={() => navigate('/connections')} className="text-[9px] font-mono text-primary/45 hover:text-primary transition-colors">Connect →</button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t border-white/5 mt-2" />
+                  </div>
+                ))}
+                <div className="p-3 pt-1">
+                  <button onClick={() => navigate('/connections')} className="w-full py-2 px-3 text-xs font-semibold text-primary bg-primary/8 hover:bg-primary/15 border border-primary/18 rounded-lg transition-colors">
+                    Open Connections Hub →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── APPS / FILE TREE ── */}
+            {rightPanel === 'files' && (
+              <div className="py-1 select-none">
+                <div className="px-3 py-1.5 flex items-center gap-2">
+                  <p className="text-[9px] uppercase tracking-widest text-white/20 font-mono">Apps</p>
+                  {systemsLoading && <Loader2 className="w-2.5 h-2.5 text-white/28 animate-spin" />}
+                </div>
+
+                {!systemsLoading && userSystems.length === 0 && (
+                  <div className="px-3 py-5 text-center">
+                    <Server className="w-6 h-6 text-white/10 mx-auto mb-2" />
+                    <p className="text-[10px] text-white/22 font-mono">No apps yet.</p>
+                    <p className="text-[9px] text-white/15 font-mono mt-0.5">Build one with ASH →</p>
+                  </div>
+                )}
+
+                <div className="px-2 space-y-2">
+                  {userSystems.map(sys => {
+                    const status = (sys.buildStatus || '').toLowerCase();
+                    const health = (sys.healthStatus || '').toLowerCase();
+                    const isOpen = !!expandedSystems[sys.id];
+                    const stepsOpen = !!expandedFolders[`${sys.id}_steps`];
+                    const dotColor = status === 'active' || status === 'completed' || health === 'healthy'
+                      ? 'bg-emerald-400'
+                      : status === 'building' ? 'bg-blue-400 animate-pulse'
+                      : status === 'paused' ? 'bg-amber-400'
+                      : health === 'unhealthy' || status === 'failed' ? 'bg-rose-400'
+                      : 'bg-white/18';
+                    const steps = Array.isArray(sys.steps) ? sys.steps : [];
+                    return (
+                      <div key={sys.id} className="rounded-xl border border-white/8 bg-black/35 overflow-hidden">
+                        <button
+                          onClick={() => setExpandedSystems(prev => ({ ...prev, [sys.id]: !prev[sys.id] }))}
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/4 transition-colors"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-primary/12 border border-primary/18 flex items-center justify-center shrink-0">
+                            <Rocket className="w-4 h-4 text-primary/65" />
+                          </div>
+                          <div className="flex-1 min-w-0 text-left">
+                            <p className="text-[11px] text-white/65 font-mono truncate">{sys.name || 'Unnamed System'}</p>
+                            <p className="text-[9px] text-white/28 font-mono">Website</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                            {isOpen ? <ChevronDown className="w-3 h-3 text-white/22" /> : <ChevronRight className="w-3 h-3 text-white/22" />}
+                          </div>
+                        </button>
+                        {isOpen && (
+                          <div className="border-t border-white/6 bg-black/18">
+                            <div className="py-1">
+                              <button onClick={() => navigate(`/systems/${sys.id}`)} className="w-full flex items-center gap-1.5 px-3 py-1 hover:bg-white/5 transition-colors group">
+                                <FileText className="w-3 h-3 shrink-0 text-sky-400/55" />
+                                <span className="text-[10px] text-white/42 font-mono group-hover:text-sky-300/75 truncate">README.md</span>
+                                <ExternalLink className="w-2.5 h-2.5 text-white/12 opacity-0 group-hover:opacity-100 ml-auto shrink-0" />
+                              </button>
+                              <div className="flex items-center gap-1.5 px-3 py-1">
+                                <FileJson2 className="w-3 h-3 shrink-0 text-amber-400/50" />
+                                <span className="text-[10px] text-white/28 font-mono truncate">config.json</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 px-3 py-1">
+                                <FileText className="w-3 h-3 shrink-0 text-violet-400/42" />
+                                <span className="text-[10px] text-white/22 font-mono truncate">activity.log</span>
+                              </div>
+                              {steps.length > 0 && (
+                                <>
+                                  <button
+                                    onClick={() => setExpandedFolders(prev => ({ ...prev, [`${sys.id}_steps`]: !prev[`${sys.id}_steps`] }))}
+                                    className="w-full flex items-center gap-1 px-3 py-1 hover:bg-white/5 transition-colors"
+                                  >
+                                    {stepsOpen ? <ChevronDown className="w-2.5 h-2.5 text-white/20 shrink-0" /> : <ChevronRight className="w-2.5 h-2.5 text-white/20 shrink-0" />}
+                                    <Folder className="w-3 h-3 shrink-0 text-orange-400/50" />
+                                    <span className="text-[10px] text-white/32 font-mono">build-steps/</span>
+                                    <span className="ml-auto text-[8px] font-mono text-white/18">{steps.length}</span>
+                                  </button>
+                                  {stepsOpen && (
+                                    <div className="ml-5 border-l border-white/5 pl-2 py-0.5 space-y-0.5">
+                                      {steps.map((step, i) => {
+                                        const stepNum = String(i + 1).padStart(2, '0');
+                                        const stepNote = (step.notes || step.name || `step_${i + 1}`).toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 20);
+                                        const isComplete = step.status === 'completed' || step.completedAt;
+                                        const isActive = step.status === 'in_progress' || step.status === 'running';
+                                        return (
+                                          <div key={step.id || i} className="flex items-center gap-1.5 px-1 py-0.5">
+                                            {isComplete ? <CheckCircle className="w-2.5 h-2.5 shrink-0 text-emerald-400/60" />
+                                              : isActive ? <PlayCircle className="w-2.5 h-2.5 shrink-0 text-blue-400 animate-pulse" />
+                                              : <Circle className="w-2.5 h-2.5 shrink-0 text-white/16" />}
+                                            <span className={`text-[9px] font-mono truncate ${isComplete ? 'text-emerald-400/52' : isActive ? 'text-blue-400/72' : 'text-white/22'}`}>
+                                              {stepNum}_{stepNote}.md
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                              <button onClick={() => saveFileTreeToLibrary(sys)} className="w-full flex items-center gap-1.5 px-3 py-1 mt-0.5 text-white/22 hover:text-primary hover:bg-primary/8 transition-all">
+                                <Save className="w-3 h-3 shrink-0" />
+                                <span className="text-[9px] font-mono">Save to Library</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
 

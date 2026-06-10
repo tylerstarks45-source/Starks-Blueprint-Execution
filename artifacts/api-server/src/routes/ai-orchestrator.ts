@@ -224,6 +224,9 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       content: z.string(),
     })).optional().default([]),
     systemInstanceId: z.number().int().optional(),
+    agentMode: z.string().optional().default("fast"),
+    businessType: z.string().optional(),
+    revenueGoal: z.string().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -257,10 +260,23 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
         parsed.data.history.map((h) => `${h.role === "user" ? "User" : "STARK"}: ${h.content}`).join("\n")
       : "";
 
+    const modelMap: Record<string, string> = {
+      fast:     "openai/gpt-4o-mini",
+      business: "openai/gpt-4o",
+      expert:   "anthropic/claude-3.5-sonnet",
+      empire:   "anthropic/claude-3-opus",
+    };
+    const model = modelMap[parsed.data.agentMode ?? "fast"] ?? "openai/gpt-4o-mini";
+
+    const contextNote = [
+      parsed.data.businessType ? `User's business focus: ${parsed.data.businessType}` : "",
+      parsed.data.revenueGoal  ? `User's revenue goal: ${parsed.data.revenueGoal}` : "",
+    ].filter(Boolean).join("\n");
+
     const result = await complete({
-      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + skillAdditions,
+      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : ""),
       prompt: `${historyCtx}\n\nUser: ${parsed.data.message}`,
-      model: "openai/gpt-4o-mini",
+      model,
       userId,
       systemInstanceId: parsed.data.systemInstanceId,
     });

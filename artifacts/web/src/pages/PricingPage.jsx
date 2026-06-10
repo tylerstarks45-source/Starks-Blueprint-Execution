@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import { motion } from 'framer-motion';
 import {
   Check, Zap, Crown, Gift, Loader2, Package,
@@ -291,6 +292,7 @@ const PricingPage = () => {
 
   return (
     <VideoBackground>
+      <CanonicalUrl />
       <Helmet>
         <title>Pricing | Starks Global Group</title>
         <meta name="description" content="Choose the plan that fits your goals. Free, Pro, or Empire — build and scale AI-powered business systems." />

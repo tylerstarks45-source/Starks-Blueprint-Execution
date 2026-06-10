@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { toast } from 'sonner';
 import Header from '@/components/Header.jsx';
@@ -152,8 +153,11 @@ const SignupPage = () => {
 
   return (
     <VideoBackground>
+      <CanonicalUrl />
       <Helmet>
         <title>Create Account | Starks Global Group</title>
+        <meta name="description" content="Create your free Starks Global Group account and start building AI-powered automated income systems today." />
+        <meta name="robots" content="noindex, follow" />
       </Helmet>
 
       <Header />

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Helmet } from 'react-helmet';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import { motion } from 'framer-motion';
 import { ShieldCheck, CheckCircle2, User, Target, Zap, Youtube } from 'lucide-react';
 import Header from '@/components/Header.jsx';
@@ -11,6 +12,7 @@ import VideoBackground from '@/components/VideoBackground.jsx';
 const AboutPage = () => {
   return (
     <VideoBackground>
+      <CanonicalUrl />
       <Helmet>
         <title>About Us | Starks Global Group</title>
         <meta name="description" content="Learn about Tyler Starks and our commitment to building real automated systems using AI tools." />

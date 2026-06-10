@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Mail, MessageSquare, Wrench, HeartHandshake as Handshake, ArrowRight, Building2, Clock, ShieldCheck } from 'lucide-react';
@@ -71,6 +72,7 @@ const ContactPage = () => {
 
   return (
     <VideoBackground>
+      <CanonicalUrl />
       <Helmet>
         <title>Contact Us | Starks Global Group</title>
         <meta name="description" content="Contact Starks Global Group for questions about AI tools, automation systems, and platform recommendations." />

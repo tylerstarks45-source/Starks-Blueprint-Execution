@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams, Link } from 'react-router-dom';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import pb from '@/lib/pocketbaseClient.js';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -50,9 +51,17 @@ const ToolDetailPage = () => {
     );
   }
 
+  const description = tool.description
+    ? tool.description.slice(0, 155).replace(/\s+\S*$/, '') + (tool.description.length > 155 ? '…' : '')
+    : `${tool.name} — an AI tool curated by Starks Global Group for building automated income systems.`;
+
   return (
     <div className="min-h-screen bg-background flex flex-col bg-grid-pattern">
-      <Helmet><title>{tool.name} | AI Tool Marketplace</title></Helmet>
+      <CanonicalUrl />
+      <Helmet>
+        <title>{tool.name} | AI Tool Marketplace</title>
+        <meta name="description" content={description} />
+      </Helmet>
       <Header />
       
       <main className="flex-grow pt-24 pb-20 container mx-auto px-4 max-w-4xl">

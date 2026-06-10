@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Helmet } from 'react-helmet';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { motion } from 'framer-motion';
@@ -49,6 +50,7 @@ const articles = [
 const ResearchLabPage = () => {
   return (
     <VideoBackground>
+      <CanonicalUrl />
       <Helmet>
         <title>Research & Testing Lab | Starks Global Group</title>
         <meta name="description" content="We test, compare, and break down AI tools so you know what actually works." />

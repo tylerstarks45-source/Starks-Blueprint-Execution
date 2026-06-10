@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle, Rocket, Clock, Target, Layers, ArrowRight,
@@ -151,10 +152,16 @@ const BlueprintDetailPage = () => {
     }
   ];
 
+  const bpDescription = blueprint.description
+    ? blueprint.description.slice(0, 155).replace(/\s+\S*$/, '') + (blueprint.description.length > 155 ? '…' : '')
+    : `${blueprint.name} — a step-by-step AI system blueprint from Starks Global Group for building automated income streams.`;
+
   return (
     <div className="min-h-screen bg-background flex flex-col bg-grid-pattern selection:bg-primary/20">
+      <CanonicalUrl />
       <Helmet>
         <title>{`${blueprint.name} | System Blueprint`}</title>
+        <meta name="description" content={bpDescription} />
       </Helmet>
 
       <Header />

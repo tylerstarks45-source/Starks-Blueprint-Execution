@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import pb from '@/lib/pocketbaseClient';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import Header from '@/components/Header.jsx';
 
 const UpdatesPage = () => {
@@ -41,8 +42,10 @@ const UpdatesPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <CanonicalUrl />
       <Helmet>
         <title>Platform Updates | Starks Global Group</title>
+        <meta name="description" content="Stay up to date with the latest tool additions, new AI system blueprints, and platform improvements from Starks Global Group." />
       </Helmet>
       
       <Header />

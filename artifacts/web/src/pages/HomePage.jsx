@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Helmet } from 'react-helmet';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -123,6 +124,7 @@ const HomePage = () => {
 
   return (
     <VideoBackground>
+      <CanonicalUrl />
       <Helmet>
         <title>Starks Global Group — Build. Launch. Run. Scale. With ASH AI.</title>
         <meta name="description" content="The AI Business Operating System that helps entrepreneurs build automated income systems, connect powerful AI tools, deploy business infrastructure, and manage everything from one dashboard." />

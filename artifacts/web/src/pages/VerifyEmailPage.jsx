@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import { CheckCircle2, XCircle, Loader2, Mail } from 'lucide-react';
 
 const VerifyEmailPage = () => {
@@ -37,7 +38,12 @@ const VerifyEmailPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 bg-grid-pattern selection:bg-primary/20">
-      <Helmet><title>Verify Email | Starks Global Group</title></Helmet>
+      <CanonicalUrl />
+      <Helmet>
+        <title>Verify Email | Starks Global Group</title>
+        <meta name="description" content="Verify your email address to complete your Starks Global Group account setup." />
+        <meta name="robots" content="noindex, follow" />
+      </Helmet>
 
       <div className="w-full max-w-md">
         <div className="cinematic-card p-10 text-center">

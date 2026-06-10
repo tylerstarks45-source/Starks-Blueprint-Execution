@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Helmet } from 'react-helmet';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import { motion } from 'framer-motion';
 import { Building2, Scale, CheckSquare, ShieldAlert, AlertTriangle, Unlock, LockKeyhole, Settings, Crosshair, Mail, Info } from 'lucide-react';
 import Header from '@/components/Header.jsx';
@@ -10,6 +11,7 @@ import VideoBackground from '@/components/VideoBackground.jsx';
 const BusinessModelPage = () => {
   return (
     <VideoBackground>
+      <CanonicalUrl />
       <Helmet>
         <title>Our Business Model | Starks Global Group</title>
         <meta name="description" content="A transparent approach to building, testing, and recommending AI-powered automation systems." />

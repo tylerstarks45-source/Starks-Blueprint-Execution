@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Helmet } from 'react-helmet';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ShieldCheck, TestTube2, Link as LinkIcon, Activity, RefreshCw, XCircle, ArrowRight, BadgeDollarSign, AlertTriangle, Target, CheckCircle2 } from 'lucide-react';
@@ -13,6 +14,7 @@ import VideoBackground from '@/components/VideoBackground.jsx';
 const WhyTrustUsPage = () => {
   return (
     <VideoBackground>
+      <CanonicalUrl />
       <Helmet>
         <title>Why Trust Us | Starks Global Group</title>
         <meta name="description" content="Learn how Starks Global Group tests, validates, and deploys AI tools and automation systems before recommending them." />

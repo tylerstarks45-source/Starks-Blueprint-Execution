@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Helmet } from 'react-helmet';
+import CanonicalUrl from '@/components/CanonicalUrl.jsx';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { AlertTriangle } from 'lucide-react';
@@ -9,6 +10,7 @@ import VideoBackground from '@/components/VideoBackground.jsx';
 const EarningsDisclaimer = () => {
   return (
     <VideoBackground>
+      <CanonicalUrl />
       <Helmet>
         <title>Earnings Disclaimer | Starks Global Group</title>
         <meta name="description" content="Important disclaimer regarding earnings, results, and system implementation." />

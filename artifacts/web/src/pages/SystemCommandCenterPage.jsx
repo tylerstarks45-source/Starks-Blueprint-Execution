@@ -213,6 +213,7 @@ const SystemCommandCenterPage = () => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [chartTab, setChartTab] = useState('revenue');
   const [expandedSystem, setExpandedSystem] = useState(null);
+  const [systemRevenue, setSystemRevenue] = useState({});
 
   const user = JSON.parse(localStorage.getItem('sbep_auth_user') || '{}');
 
@@ -276,6 +277,20 @@ const SystemCommandCenterPage = () => {
   }, [user.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const systems = data?.systems;
+    if (!systems?.length) return;
+    const ids = systems.map((s) => s.id);
+    fetch('/api/system-instances/revenue-batch', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ ids }),
+    })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((rev) => setSystemRevenue(rev))
+      .catch(() => {});
+  }, [data]);
 
   const patchSystem = useCallback(async (id, body) => {
     setControlLoading(prev => ({ ...prev, [id]: true }));
@@ -864,7 +879,14 @@ const SystemCommandCenterPage = () => {
 
                       {/* Revenue */}
                       <div className="lg:col-span-1">
-                        <span className="text-xs text-white/30 font-mono">$0.00</span>
+                        {(() => {
+                          const cents = systemRevenue[String(system.id)] ?? 0;
+                          return (
+                            <span className={`text-xs font-mono font-semibold ${cents > 0 ? 'text-emerald-400' : 'text-white/30'}`}>
+                              {fmtCompact(cents)}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Row actions */}

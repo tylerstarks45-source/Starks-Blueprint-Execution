@@ -1778,7 +1778,26 @@ const BuilderPage = () => {
                 <p className="text-[9px] text-white/28 font-mono">Autonomous Business Builder</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 ml-auto">
+            <div className="flex items-center gap-2 ml-auto">
+              {/* Save to Library button */}
+              <button
+                onClick={() => {
+                  const activeId = buildData?.instanceId;
+                  const sys = activeId
+                    ? userSystems.find(s => s.id === activeId) ?? userSystems[0]
+                    : userSystems[0];
+                  if (!sys) {
+                    toast.info('Start a conversation with ASH first, then save your system.');
+                    return;
+                  }
+                  saveFileTreeToLibrary(sys).catch(() => {});
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold font-mono transition-all"
+                title="Save current system to Library"
+              >
+                <Save className="w-3 h-3 shrink-0" />
+                Save to Library
+              </button>
               <PhaseBar phase={phase} />
               <div className="flex items-center gap-1.5">
                 <span className="relative flex h-1.5 w-1.5">

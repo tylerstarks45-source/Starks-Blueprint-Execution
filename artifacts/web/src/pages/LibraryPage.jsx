@@ -5,7 +5,7 @@ import {
   ArrowLeft, Wand2, FolderOpen, Image, Upload, Trash2, Plus,
   ChevronRight, ChevronDown, FileText, FileJson2, Folder,
   X, Download, Eye, Search, Grid3x3, List, Clock, Zap,
-  BookOpen, Save, AlertCircle,
+  BookOpen, Save, AlertCircle, BarChart2, DollarSign,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext.jsx';
@@ -72,13 +72,33 @@ const Lightbox = ({ image, onClose }) => (
   </motion.div>
 );
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('sbep_auth_token');
+  return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : {};
+};
+
+const fmtRevenue = (cents) =>
+  '$' + (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 // ─── Project Card ─────────────────────────────────────────────────────────────
 const ProjectCard = ({ system, onOpen, onUpdate, onDelete }) => {
   const [tab, setTab] = useState('images');
   const [lightbox, setLightbox] = useState(null);
+  const [statsData, setStatsData] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   const fileInputRef = useRef(null);
   const images = system.savedImages || [];
   const fileTree = system.fileTree || null;
+
+  useEffect(() => {
+    if (tab !== 'stats' || statsData) return;
+    setStatsLoading(true);
+    fetch(`/api/system-instances/${system.id}/revenue`, { headers: getAuthHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setStatsData(d))
+      .catch(() => setStatsData(null))
+      .finally(() => setStatsLoading(false));
+  }, [tab, system.id, statsData]);
 
   const handleImageUpload = useCallback((e) => {
     const files = Array.from(e.target.files);
@@ -148,12 +168,13 @@ const ProjectCard = ({ system, onOpen, onUpdate, onDelete }) => {
       <div className="flex border-b border-white/8 shrink-0">
         {[
           { id: 'images', label: 'Images', icon: Image, count: images.length },
-          { id: 'filetree', label: 'File Tree', icon: FolderOpen, count: fileTree ? 1 : 0 },
+          { id: 'filetree', label: 'Files', icon: FolderOpen, count: fileTree ? 1 : 0 },
+          { id: 'stats', label: 'Stats', icon: BarChart2, count: 0 },
         ].map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-mono transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-mono transition-colors ${
               tab === t.id
                 ? 'text-primary border-b-2 border-primary bg-primary/5'
                 : 'text-white/35 hover:text-white/60'
@@ -232,6 +253,44 @@ const ProjectCard = ({ system, onOpen, onUpdate, onDelete }) => {
                 {Array.isArray(fileTree)
                   ? fileTree.map((node, i) => <FileNode key={i} node={node} depth={0} />)
                   : <FileNode node={fileTree} depth={0} />}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'stats' && (
+          <div className="p-4">
+            {statsLoading ? (
+              <div className="flex items-center justify-center py-8 gap-2 text-white/30">
+                <div className="w-4 h-4 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
+                <span className="text-xs font-mono">Loading stats…</span>
+              </div>
+            ) : !statsData ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <BarChart2 className="w-8 h-8 text-white/15 mb-2" />
+                <p className="text-xs text-white/30">No stats available</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {[
+                  { label: 'Today', value: statsData.todayCents ?? 0 },
+                  { label: 'This Week', value: statsData.weekCents ?? 0 },
+                  { label: 'This Month', value: statsData.monthCents ?? 0 },
+                  { label: 'Lifetime', value: statsData.lifetimeCents ?? 0 },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-3 h-3 text-white/25 shrink-0" />
+                      <span className="text-xs text-white/50 font-mono">{label}</span>
+                    </div>
+                    <span className={`text-sm font-bold font-mono ${value > 0 ? 'text-emerald-400' : 'text-white/25'}`}>
+                      {fmtRevenue(value)}
+                    </span>
+                  </div>
+                ))}
+                <p className="text-[10px] text-white/20 font-mono pt-1 text-center">
+                  Revenue events logged by your system
+                </p>
               </div>
             )}
           </div>

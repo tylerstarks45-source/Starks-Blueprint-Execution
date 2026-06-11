@@ -296,8 +296,8 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     const modelMap: Record<string, string> = {
       fast:     "openai/gpt-4o-mini",
       business: "openai/gpt-4o",
-      expert:   "anthropic/claude-3.5-sonnet-20241022",
-      empire:   "anthropic/claude-3-opus-20240229",
+      expert:   "openai/gpt-4o",
+      empire:   "openai/gpt-4o",
     };
     const model = modelMap[parsed.data.agentMode ?? "fast"] ?? "openai/gpt-4o-mini";
 
@@ -306,13 +306,25 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       parsed.data.revenueGoal  ? `User's revenue goal: ${parsed.data.revenueGoal}` : "",
     ].filter(Boolean).join("\n");
 
-    const result = await complete({
+    const completionArgs = {
       systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : ""),
       prompt: `${historyCtx}\n\nUser: ${parsed.data.message}`,
-      model,
       userId,
       systemInstanceId: parsed.data.systemInstanceId,
-    });
+    };
+
+    let result;
+    try {
+      result = await complete({ ...completionArgs, model });
+    } catch (primaryErr: unknown) {
+      const msg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+      if (msg.includes("404") || msg.includes("No endpoints found")) {
+        req.log.warn({ model, fallback: "openai/gpt-4o-mini" }, "Primary model unavailable, falling back");
+        result = await complete({ ...completionArgs, model: "openai/gpt-4o-mini" });
+      } else {
+        throw primaryErr;
+      }
+    }
 
     const raw = result.content;
     const dataMatch = raw.match(/<SBEP_DATA>([\s\S]*?)<\/SBEP_DATA>/);

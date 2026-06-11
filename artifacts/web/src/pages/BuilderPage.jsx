@@ -84,7 +84,7 @@ const AI_MODES = [
     creditsPerBuild: '25–45 credits',
     description: 'Advanced reasoning model. Produces highly detailed plans, complex automations, and thorough analysis.',
     creditWarning: 'High credit usage — 8× more than Fast. Use for complex systems where quality matters most.',
-    model: 'anthropic/claude-3.5-sonnet',
+    model: 'anthropic/claude-3.5-sonnet-20241022',
     modelLabel: 'Claude 3.5 Sonnet',
     speed: '~15 sec / msg',
     useCases: ['Complex automations', 'Deep research', 'Enterprise systems', 'Revenue optimization'],

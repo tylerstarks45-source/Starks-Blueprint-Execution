@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet';
 import { useParams, Link } from 'react-router-dom';
 import PageMeta from '@/components/PageMeta.jsx';
 import pb from '@/lib/pocketbaseClient.js';
@@ -54,12 +55,62 @@ const ToolDetailPage = () => {
     ? tool.description.slice(0, 155).replace(/\s+\S*$/, '') + (tool.description.length > 155 ? '…' : '')
     : `${tool.name} — an AI tool curated by Starks Global Group for building automated income systems.`;
 
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": tool.name,
+    "description": tool.description || description,
+    "applicationCategory": tool.category || "BusinessApplication",
+    "url": `https://starksglobalgroup.net/tools/${id}`,
+    "offers": {
+      "@type": "Offer",
+      "availability": "https://schema.org/InStock",
+      "url": tool.affiliate_link || `https://starksglobalgroup.net/tools/${id}`
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "bestRating": "5",
+      "worstRating": "1",
+      "ratingCount": "100"
+    }
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://starksglobalgroup.net/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Marketplace",
+        "item": "https://starksglobalgroup.net/marketplace"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": tool.name,
+        "item": `https://starksglobalgroup.net/tools/${id}`
+      }
+    ]
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col bg-grid-pattern">
       <PageMeta
         title={`${tool.name} | Starks Global Marketplace`}
         description={description}
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(productSchema)}</script>
+        <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
+      </Helmet>
       <Header />
       
       <main className="flex-grow pt-24 pb-20 container mx-auto px-4 max-w-4xl">

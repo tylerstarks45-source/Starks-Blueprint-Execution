@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet';
 import PageMeta from '@/components/PageMeta.jsx';
 import { motion } from 'framer-motion';
 import {
@@ -289,12 +290,62 @@ const PricingPage = () => {
     }
   }, []);
 
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What are AI Credits?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Credits power every AI action on the platform — building systems, running blueprints, generating content, and all STARKS agent operations. Each plan includes a monthly allotment. You can buy more at any time."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do unused monthly credits roll over?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Monthly plan credits reset at renewal. Credits purchased as pay-as-you-go top-ups never expire and stack on top of your monthly allotment."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I change plans anytime?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Upgrade or downgrade at any time through your billing dashboard. Upgrades take effect immediately; downgrades apply at the next billing cycle."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What does system hosting mean?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "When you build a system with STARK, we host and run it for you — no server setup required. Your system runs 24/7 and you can monitor it from your dashboard."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is there a free trial for paid plans?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The Free plan gives you a genuine taste of the platform with 50 AI credits and 1 system. You can upgrade to Pro or Empire whenever you're ready."
+        }
+      }
+    ]
+  };
+
   return (
     <VideoBackground>
       <PageMeta
         title="Pricing | Starks Global Group"
         description="Choose the plan that fits your goals. Free, Builder, Operator, or Empire — build and scale AI-powered business systems with ASH AI."
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
+      </Helmet>
       <Header />
 
       <main className="flex-grow">

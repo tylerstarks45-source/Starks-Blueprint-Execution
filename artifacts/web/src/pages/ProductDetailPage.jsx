@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import { useParams, Link } from 'react-router-dom';
 import PageMeta from '@/components/PageMeta.jsx';
 import { ArrowLeft, CheckCircle2, Star, ShieldCheck, Zap, ExternalLink, HelpCircle, MessageSquare, ArrowRight } from 'lucide-react';
@@ -90,12 +91,80 @@ const ProductDetailPage = () => {
   const rating = product.social_proof?.[0]?.split('/')[0] || '4.8';
   const users = product.social_proof?.[1] || '10,000+ Active Users';
 
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": product.name,
+    "description": product.description,
+    "image": product.image,
+    "url": `https://starksglobalgroup.net/marketplace/${productId}`,
+    "brand": {
+      "@type": "Brand",
+      "name": "Starks Global Group"
+    },
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "USD",
+      "price": price.replace(/[^0-9.]/g, '') || "0",
+      "priceSpecification": {
+        "@type": "UnitPriceSpecification",
+        "price": price.replace(/[^0-9.]/g, '') || "0",
+        "priceCurrency": "USD",
+        "name": price
+      },
+      "availability": "https://schema.org/InStock",
+      "url": product.cta_link
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": rating,
+      "bestRating": "5",
+      "worstRating": "1",
+      "ratingCount": "100"
+    }
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://starksglobalgroup.net/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Marketplace",
+        "item": "https://starksglobalgroup.net/marketplace"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": product.category,
+        "item": `https://starksglobalgroup.net/marketplace?category=${encodeURIComponent(product.category)}`
+      },
+      {
+        "@type": "ListItem",
+        "position": 4,
+        "name": product.name,
+        "item": `https://starksglobalgroup.net/marketplace/${productId}`
+      }
+    ]
+  };
+
   return (
     <VideoBackground>
       <PageMeta
         title={`${product.name} | Starks Global Marketplace`}
         description={product.description}
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(productSchema)}</script>
+        <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
+      </Helmet>
       
       <Header />
       

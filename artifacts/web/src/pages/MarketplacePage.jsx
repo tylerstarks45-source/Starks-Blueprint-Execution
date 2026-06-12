@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { Helmet } from 'react-helmet';
 import PageMeta from '@/components/PageMeta.jsx';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, Filter, SlidersHorizontal, ShieldCheck, Star, Users, Zap, ArrowRight } from 'lucide-react';
@@ -137,12 +138,72 @@ const MarketplacePage = () => {
 
   const featuredTools = tools.filter(t => t.badges?.includes('💎 Premium') || t.badges?.includes('⭐ Best Value')).slice(0, 4);
 
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Are these tools tested by your team?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Every single tool listed in our marketplace has been rigorously tested in live production environments by the Starks Global team. We only recommend software we actually use or have verified to deliver exceptional results."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I get support for the tools I purchase?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Support for individual tools is provided directly by the software vendor. However, if you purchase a tool as part of one of our Blueprints, we provide guidance on how to integrate it into your overall system."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What if a tool doesn't work for me?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Most of our recommended partners offer a 14 to 30-day money-back guarantee. We specifically select vendors with strong refund policies to ensure your investment is protected."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Are these affiliate links?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, some links in our marketplace are affiliate links. This means we may earn a commission if you purchase through our link, at no additional cost to you. This helps support our research and testing lab."
+        }
+      }
+    ]
+  };
+
+  const itemListSource = tools.length > 0 ? tools : productsData;
+  const itemListSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": "Starks Global Group Premium Tools Marketplace",
+    "description": "Expert-curated AI tools, automation systems, and marketing software to scale your business.",
+    "url": "https://starksglobalgroup.net/marketplace",
+    "numberOfItems": itemListSource.length,
+    "itemListElement": itemListSource.map((tool, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": tool.name,
+      "description": tool.description || "",
+      "url": `https://starksglobalgroup.net/marketplace/${tool.id || tool.name?.toLowerCase().replace(/\s+/g, '-')}`
+    }))
+  };
+
   return (
     <VideoBackground>
       <PageMeta
         title="Premium Tools Marketplace | Starks Global Group"
         description="Discover expert-curated AI tools, automation systems, and marketing software to scale your business."
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
+        <script type="application/ld+json">{JSON.stringify(itemListSchema)}</script>
+      </Helmet>
       
       <Header />
       

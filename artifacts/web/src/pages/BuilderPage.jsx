@@ -407,32 +407,59 @@ const linkify = (text) =>
 const MessageBubble = ({ msg }) => {
   const isUser = msg.role === 'user';
   return (
-    <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} gap-0.5`}>
-      <div className={`max-w-[90%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-        isUser
-          ? 'bg-primary text-primary-foreground rounded-tr-sm shadow-lg shadow-primary/20'
-          : 'bg-[#111120] border border-white/12 text-white/90 rounded-tl-sm shadow-sm'
-      }`}>
-        {msg.content.split('\n').map((line, i) => {
-          if (!line) return <br key={i} />;
-          const boldParts = line.split(/\*\*(.+?)\*\*/);
-          return (
-            <p key={i} className={i > 0 ? 'mt-1' : ''}>
-              {boldParts.map((part, j) =>
-                j % 2 === 1
-                  ? <strong key={j} className="text-primary font-semibold">{linkify(part)}</strong>
-                  : <React.Fragment key={j}>{linkify(part)}</React.Fragment>
-              )}
-            </p>
-          );
-        })}
+    <div className={`flex ${isUser ? 'justify-end' : 'items-start gap-2.5'}`}>
+      {!isUser && (
+        <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 mt-0.5">
+          <Wand2 className="w-3.5 h-3.5 text-primary" />
+        </div>
+      )}
+      <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} gap-0.5 max-w-[82%]`}>
+        {!isUser && <span className="text-[10px] text-white/30 font-mono font-semibold px-1">ASH</span>}
+        <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+          isUser
+            ? 'bg-primary text-primary-foreground rounded-tr-sm shadow-lg shadow-primary/20'
+            : 'bg-[#111120] border border-white/12 text-white/90 rounded-tl-sm shadow-sm'
+        }`}>
+          {msg.content.split('\n').map((line, i) => {
+            if (!line) return <br key={i} />;
+            const boldParts = line.split(/\*\*(.+?)\*\*/);
+            return (
+              <p key={i} className={i > 0 ? 'mt-1' : ''}>
+                {boldParts.map((part, j) =>
+                  j % 2 === 1
+                    ? <strong key={j} className="text-primary font-semibold">{linkify(part)}</strong>
+                    : <React.Fragment key={j}>{linkify(part)}</React.Fragment>
+                )}
+              </p>
+            );
+          })}
+        </div>
+        <span className="text-[10px] text-muted-foreground/30 px-1">
+          {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
       </div>
-      <span className="text-[10px] text-muted-foreground/30 px-1">
-        {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-      </span>
     </div>
   );
 };
+
+// ─── Checkpoint Marker (inline in chat thread) ─────────────────────────────────
+const CheckpointMarker = ({ cp, onRestore }) => (
+  <div className="flex items-center gap-2 py-1">
+    <div className="flex-1 h-px bg-white/8" />
+    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/50 border border-white/12 shrink-0">
+      <RotateCcw className="w-2.5 h-2.5 text-primary/50 shrink-0" />
+      <span className="text-[10px] text-white/40 font-mono font-semibold">Checkpoint v{cp.versionNum}</span>
+      <span className="text-[9px] text-white/22 font-mono">· {formatTs(cp.ts)}</span>
+      <button
+        onClick={onRestore}
+        className="ml-1 text-[9px] text-primary/70 hover:text-primary font-mono font-bold transition-colors underline underline-offset-2"
+      >
+        Restore
+      </button>
+    </div>
+    <div className="flex-1 h-px bg-white/8" />
+  </div>
+);
 
 // ─── Build Terminal ───────────────────────────────────────────────────────────
 const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
@@ -767,6 +794,8 @@ const BuilderPage = () => {
 
   // Checkpoints — loaded from localStorage, refreshed after each save
   const [checkpoints, setCheckpoints] = useState([]);
+  // Right panel search query
+  const [rightSearch, setRightSearch] = useState('');
 
   // DB-backed session history
   const [currentSessionId, setCurrentSessionId] = useState(null);
@@ -1278,9 +1307,16 @@ const BuilderPage = () => {
   };
 
   const isInputDisabled = chatLoading || phase === 'building' || phase === 'complete';
-  const filteredBps = activeCatId
-    ? blueprints.filter(b => b.categoryId === activeCatId)
-    : blueprints;
+  const filteredBps = blueprints.filter(b =>
+    (!activeCatId || b.categoryId === activeCatId) &&
+    (!rightSearch || b.name.toLowerCase().includes(rightSearch.toLowerCase()) || (b.description || '').toLowerCase().includes(rightSearch.toLowerCase()))
+  );
+
+  // Build a map: message index (1-based) → checkpoint with version number for inline markers
+  const checkpointByMsgCount = {};
+  [...checkpoints].reverse().forEach((cp, idx) => {
+    checkpointByMsgCount[cp.messageCount] = { ...cp, versionNum: idx + 1 };
+  });
 
   // ── Restore a checkpoint ───────────────────────────────────────────────────
   const restoreCheckpoint = useCallback((cp) => {
@@ -1411,13 +1447,17 @@ const BuilderPage = () => {
             </button>
           </div>
 
-          {/* Version / context badge */}
+          {/* Session context badge */}
           <div className="px-3 py-1.5 border-b border-white/6 shrink-0">
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-primary/50 shrink-0" />
-              <span className="text-[10px] font-mono text-white/35">Main version</span>
-              {activeMode && (
-                <span className={`ml-auto text-[9px] font-mono ${activeMode.color} opacity-50`}>{activeMode.label}</span>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${phase === 'building' ? 'bg-blue-400 animate-pulse' : phase === 'complete' ? 'bg-emerald-400' : 'bg-primary/50'}`} />
+              <span className="text-[10px] font-mono text-white/30 flex-1 truncate">
+                {phase === 'building' ? 'Building…' : phase === 'complete' ? 'Deployed ✓' : phase === 'collecting' ? 'Collecting credentials' : 'Ready'}
+              </span>
+              {checkpoints.length > 0 && (
+                <span className="text-[9px] font-mono text-primary/45 bg-primary/8 border border-primary/15 rounded-full px-1.5 py-0.5 shrink-0">
+                  v{checkpoints.length}
+                </span>
               )}
             </div>
           </div>
@@ -1434,12 +1474,12 @@ const BuilderPage = () => {
             </button>
           </div>
 
-          {/* Scrollable task list */}
+          {/* Scrollable conversation history */}
           <div className="flex-1 overflow-y-auto py-1 select-none">
 
-            {/* Live/active task (if in-progress) */}
+            {/* Live/active task */}
             {phase !== 'idle' && messages.filter(m => m.role === 'user' && m.id !== 'welcome').length > 0 && (
-              <div className="px-2 pt-1.5 pb-1">
+              <div className="px-2 pt-2 pb-1">
                 <div className={`flex items-start gap-2.5 px-2.5 py-2 rounded-lg border ${
                   phase === 'building' ? 'bg-blue-500/8 border-blue-500/18'
                   : phase === 'complete' ? 'bg-emerald-500/8 border-emerald-500/18'
@@ -1472,9 +1512,50 @@ const BuilderPage = () => {
               </div>
             )}
 
-            {/* Saved sessions as task list */}
+            {/* ── Checkpoints (primary navigation) ── */}
+            {checkpoints.length > 0 && (
+              <div className="px-2 pt-2 pb-1">
+                <div className="flex items-center justify-between px-1 mb-1.5">
+                  <p className="text-[9px] uppercase tracking-widest text-white/35 font-mono font-bold flex items-center gap-1">
+                    <RotateCcw className="w-2.5 h-2.5" /> Checkpoints
+                  </p>
+                  <button
+                    onClick={() => { try { localStorage.removeItem(checkpointsKey(currentUser?.id)); } catch {} setCheckpoints([]); }}
+                    className="text-[9px] text-white/20 hover:text-rose-400/55 transition-colors font-mono"
+                  >clear</button>
+                </div>
+                <div className="space-y-0.5">
+                  {[...checkpoints].reverse().map((cp, idx) => (
+                    <div
+                      key={cp.id}
+                      onClick={() => restoreCheckpoint(cp)}
+                      className="group flex items-center gap-2 px-2 py-1.5 rounded-lg border border-transparent hover:bg-white/5 hover:border-white/8 transition-all cursor-pointer"
+                    >
+                      <div className="w-5 h-5 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                        <span className="text-[8px] text-primary font-bold font-mono">{idx + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-white/55 truncate font-mono leading-tight">{cp.summary}</p>
+                        <p className="text-[9px] text-white/22 font-mono">{formatTs(cp.ts)}</p>
+                      </div>
+                      <span className="shrink-0 opacity-0 group-hover:opacity-100 text-[9px] text-primary font-mono font-bold transition-opacity">
+                        restore
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Divider between checkpoints and sessions */}
+            {checkpoints.length > 0 && savedSessions.length > 0 && (
+              <div className="border-t border-white/6 mx-3 my-1" />
+            )}
+
+            {/* ── Saved sessions ── */}
             {savedSessions.length > 0 && (
               <div className="px-2 pt-1">
+                <p className="text-[9px] uppercase tracking-widest text-white/25 font-mono font-bold px-1 mb-1">Sessions</p>
                 {sessionsLoading && <div className="flex justify-center py-2"><Loader2 className="w-3.5 h-3.5 animate-spin text-white/20" /></div>}
                 {savedSessions.map(s => (
                   <div
@@ -1492,7 +1573,7 @@ const BuilderPage = () => {
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] text-white/55 truncate font-mono leading-snug">{s.title}</p>
                       <p className="text-[9px] text-white/22 font-mono mt-0.5">
-                        {s.phase === 'complete' ? '✓ ' : ''}{formatTs(new Date(s.updatedAt ?? Date.now()).getTime())} · Draft
+                        {s.phase === 'complete' ? '✓ ' : ''}{formatTs(new Date(s.updatedAt ?? Date.now()).getTime())}
                       </p>
                     </div>
                     <button
@@ -1506,23 +1587,23 @@ const BuilderPage = () => {
               </div>
             )}
 
-            {savedSessions.length === 0 && !sessionsLoading && phase === 'idle' && (
-              <p className="text-[9px] text-white/18 font-mono px-4 py-2 leading-relaxed">Sessions auto-save after each reply.</p>
+            {savedSessions.length === 0 && !sessionsLoading && phase === 'idle' && checkpoints.length === 0 && (
+              <p className="text-[9px] text-white/18 font-mono px-4 py-3 leading-relaxed">Checkpoints and sessions will appear here as you work.</p>
             )}
 
-            {/* Active build steps */}
+            {/* ── Active build steps ── */}
             {buildData && (
               <>
                 <div className="border-t border-white/6 mx-3 my-1.5" />
                 <div className="px-3">
-                  <p className="text-[9px] uppercase tracking-widest text-white/18 font-mono mb-1">Build steps</p>
+                  <p className="text-[9px] uppercase tracking-widest text-white/25 font-mono font-bold mb-1.5">Build steps</p>
                   <div className="space-y-0.5">
                     {buildData.steps?.map((step, i) => {
                       const isDone = i < currentStepIdx;
                       const isRunning = i === currentStepIdx && phase === 'building';
                       return (
                         <div key={step.id} className={`flex items-center gap-1.5 px-1 py-0.5 rounded text-[10px] font-mono ${
-                          isDone ? 'text-emerald-400/58' : isRunning ? 'text-primary' : 'text-white/18'
+                          isDone ? 'text-emerald-400/65' : isRunning ? 'text-primary' : 'text-white/18'
                         }`}>
                           {isDone ? <CheckCircle className="w-2.5 h-2.5 shrink-0" />
                             : isRunning ? <PlayCircle className="w-2.5 h-2.5 shrink-0 animate-pulse" />
@@ -1535,55 +1616,6 @@ const BuilderPage = () => {
                 </div>
               </>
             )}
-
-            {/* Checkpoints */}
-            {checkpoints.length > 0 && (
-              <>
-                <div className="border-t border-white/6 mx-3 my-1.5" />
-                <div className="px-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-[9px] uppercase tracking-widest text-white/18 font-mono">Checkpoints</p>
-                    <button
-                      onClick={() => { try { localStorage.removeItem(checkpointsKey(currentUser?.id)); } catch {} setCheckpoints([]); }}
-                      className="text-[9px] text-white/18 hover:text-rose-400/55 transition-colors font-mono"
-                    >clear</button>
-                  </div>
-                  <div className="space-y-0.5">
-                    {checkpoints.map(cp => (
-                      <div key={cp.id} className="group flex items-start gap-1.5 px-1 py-1 rounded hover:bg-white/5 transition-colors">
-                        <RotateCcw className="w-2.5 h-2.5 shrink-0 text-primary/28 mt-0.5" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[9px] text-white/45 truncate font-mono leading-tight">{cp.summary}</p>
-                          <p className="text-[8px] text-white/22 font-mono mt-0.5">{formatTs(cp.ts)}</p>
-                        </div>
-                        <button
-                          onClick={() => restoreCheckpoint(cp)}
-                          className="shrink-0 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 text-[8px] text-primary/65 hover:text-primary bg-primary/8 hover:bg-primary/18 border border-primary/18 rounded px-1.5 py-0.5 font-mono transition-all"
-                        >
-                          <RotateCcw className="w-2 h-2 inline" /> rollback
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Quick start prompts */}
-            <div className="border-t border-white/6 mx-3 my-1.5" />
-            <div className="px-3">
-              <p className="text-[9px] uppercase tracking-widest text-white/18 font-mono mb-1">Quick start</p>
-              {STARTER_PROMPTS.map((prompt, i) => (
-                <button
-                  key={i}
-                  onClick={() => { setMode('custom'); sendMessage(prompt); }}
-                  className="w-full flex items-center gap-2 px-2 py-1 rounded text-[10px] text-white/32 hover:text-white hover:bg-white/5 transition-colors text-left"
-                >
-                  <Zap className="w-2.5 h-2.5 shrink-0 text-primary/32" />
-                  <span className="truncate">{prompt}</span>
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* ── BOTTOM: Agent Modes (Replit-style popup) ── */}
@@ -1727,30 +1759,19 @@ const BuilderPage = () => {
               )}
             </AnimatePresence>
 
-            {/* Bottom filter/mode bar */}
+            {/* Agent mode bar */}
             <div className="flex items-center justify-between px-3 py-2">
-              <div className="flex items-center gap-2.5">
-                <button className="flex items-center gap-1 text-[9px] font-mono text-white/32 hover:text-white/55 transition-colors">
-                  <Grid3x3 className="w-3 h-3" /> Plans
-                </button>
-                <button className="flex items-center gap-1 text-[9px] font-mono text-white/32 hover:text-white/55 transition-colors">
-                  <CheckCircle2 className="w-3 h-3" /> Tasks
-                </button>
-                <button className="flex items-center gap-1 text-[9px] font-mono text-white/32 hover:text-white/55 transition-colors">
-                  <Users className="w-3 h-3" /> Created by
-                </button>
-              </div>
-              {/* Agent mode toggle button */}
+              <span className="text-[9px] font-mono text-white/22">AI Model</span>
               <button
                 onClick={() => setShowAgentModes(p => !p)}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-mono font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[10px] font-mono font-bold transition-all ${
                   showAgentModes
                     ? `${activeMode?.color ?? 'text-primary'} border-current bg-white/4`
                     : 'text-white/32 border-white/10 hover:border-white/22 hover:text-white/55'
                 }`}
               >
                 {activeMode && <activeMode.icon className="w-3 h-3" />}
-                {activeMode?.label ?? 'Fast'}
+                {activeMode?.label ?? 'Fast'} ↑
               </button>
             </div>
           </div>
@@ -1877,7 +1898,15 @@ const BuilderPage = () => {
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-thin scrollbar-thumb-white/10">
             <SkillActivationPanel activatedSkills={activatedSkills} />
 
-            {messages.map(m => <MessageBubble key={m.id} msg={m} />)}
+            {messages.map((m, idx) => {
+              const cp = checkpointByMsgCount[idx + 1];
+              return (
+                <React.Fragment key={m.id}>
+                  <MessageBubble msg={m} />
+                  {cp && <CheckpointMarker cp={cp} onRestore={() => restoreCheckpoint(cp)} />}
+                </React.Fragment>
+              );
+            })}
 
             {phase === 'collecting' && pendingCreds.length > 0 && (
               <CredentialForm
@@ -1891,11 +1920,22 @@ const BuilderPage = () => {
             )}
 
             {chatLoading && (
-              <div className="flex items-start gap-2">
-                <div className="bg-black/75 border border-white/12 rounded-xl rounded-tl-sm px-3 py-2">
-                  <div className="flex items-center gap-2 text-white/38">
-                    <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                    <span className="font-mono text-[11px]">ASH is analyzing…</span>
+              <div className="flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 mt-0.5">
+                  <Wand2 className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <div className="flex flex-col gap-0.5 items-start">
+                  <span className="text-[10px] text-white/30 font-mono font-semibold px-1">ASH</span>
+                  <div className="bg-[#111120] border border-white/12 rounded-2xl rounded-tl-sm px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      {[0, 1, 2].map(i => (
+                        <span
+                          key={i}
+                          className="w-1.5 h-1.5 rounded-full bg-primary/55 animate-bounce"
+                          style={{ animationDelay: `${i * 160}ms`, animationDuration: '0.9s' }}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1922,6 +1962,39 @@ const BuilderPage = () => {
                       {g}
                     </button>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Save & Create Product — shown when build completes */}
+            {phase === 'complete' && buildData?.instanceId && (
+              <div className="border border-emerald-500/25 bg-emerald-500/5 rounded-xl p-4 space-y-3 mt-1">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <p className="text-sm font-bold text-white">System Deployed!</p>
+                  <span className="ml-auto text-[10px] font-mono text-emerald-400/60 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
+                    {buildData?.steps?.length ?? 0} steps complete
+                  </span>
+                </div>
+                <p className="text-xs text-white/45 leading-relaxed">Your system is live and running. Save it to your Library to track it, or create a product listing on the Marketplace.</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const sys = userSystems.find(s => s.id === buildData.instanceId) ?? { id: buildData.instanceId, steps: buildData.steps ?? [] };
+                      saveFileTreeToLibrary(sys);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-primary/12 hover:bg-primary/22 border border-primary/25 text-primary text-xs font-bold transition-colors"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Save to Library
+                  </button>
+                  <button
+                    onClick={() => navigate('/products')}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 text-xs font-bold transition-colors"
+                  >
+                    <ShoppingCart className="w-3.5 h-3.5" />
+                    Create Product
+                  </button>
                 </div>
               </div>
             )}
@@ -2016,7 +2089,9 @@ const BuilderPage = () => {
               <MessageSquare className="w-3 h-3 text-white/22 shrink-0" />
               <input
                 type="text"
-                placeholder="Search"
+                value={rightSearch}
+                onChange={e => setRightSearch(e.target.value)}
+                placeholder="Search blueprints, tools…"
                 className="flex-1 bg-transparent text-[11px] text-white/55 placeholder:text-white/22 focus:outline-none font-mono min-w-0"
               />
             </div>
@@ -2104,7 +2179,7 @@ const BuilderPage = () => {
                   <div key={category} className="px-3 py-2">
                     <p className="text-[9px] uppercase tracking-widest text-white/20 font-mono mb-1">{category}</p>
                     <div className="space-y-0.5">
-                      {items.map(tool => (
+                      {items.filter(t => !rightSearch || t.toLowerCase().includes(rightSearch.toLowerCase())).map(tool => (
                         <div key={tool} className="flex items-center justify-between px-2 py-1 rounded hover:bg-white/4 transition-colors">
                           <span className="text-[11px] text-white/48">{tool}</span>
                           <button onClick={() => navigate('/connections')} className="text-[9px] font-mono text-primary/45 hover:text-primary transition-colors">Connect →</button>

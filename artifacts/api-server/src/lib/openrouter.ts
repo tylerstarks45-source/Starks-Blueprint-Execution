@@ -24,6 +24,122 @@ interface CompletionResult {
   estimatedCost: string | null;
 }
 
+// ─── Streaming completion (async generator) ──────────────────────────────────
+
+export async function* streamCompletion(request: CompletionRequest): AsyncGenerator<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY environment variable is not set");
+
+  const model = request.model ?? DEFAULT_MODEL;
+  const messages: Array<{ role: string; content: string }> = [];
+  if (request.systemPrompt) messages.push({ role: "system", content: request.systemPrompt });
+  messages.push({ role: "user", content: request.prompt });
+
+  // Credit check — same logic as complete()
+  if (request.userId != null) {
+    const [userRow] = await db
+      .select({ role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, request.userId));
+    const isFounder = userRow?.role === "FOUNDER_ADMIN";
+    if (!isFounder) {
+      const bal = await getBalance(request.userId);
+      if (bal.total <= 0) {
+        logger.warn({ userId: request.userId }, "Blocked streaming call: out of credits");
+        throw new OutOfCreditsError();
+      }
+    }
+  }
+
+  logger.info({ model, userId: request.userId, streaming: true }, "Sending streaming OpenRouter request");
+
+  const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": process.env.APP_URL ?? "https://sbep.replit.app",
+      "X-Title": "SBEP - Starks Blueprint Execution Platform",
+    },
+    body: JSON.stringify({ model, messages, stream: true, stream_options: { include_usage: true } }),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    throw new Error(`OpenRouter streaming error ${response.status}: ${errBody}`);
+  }
+
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullContent = "";
+  let finalUsage: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null = null;
+  let success = true;
+  let errorMessage: string | null = null;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const data = line.slice(6).trim();
+        if (data === "[DONE]") break;
+
+        try {
+          const parsed = JSON.parse(data) as {
+            choices?: Array<{ delta?: { content?: string } }>;
+            usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+          };
+
+          const delta = parsed.choices?.[0]?.delta?.content ?? "";
+          if (delta) { fullContent += delta; yield delta; }
+          if (parsed.usage) finalUsage = parsed.usage;
+        } catch { /* skip malformed SSE lines */ }
+      }
+    }
+  } catch (err) {
+    success = false;
+    errorMessage = err instanceof Error ? err.message : String(err);
+    throw err;
+  } finally {
+    try { reader.releaseLock(); } catch { /* ignore */ }
+
+    const totalTokens = finalUsage?.total_tokens ?? Math.ceil(fullContent.length / 3);
+
+    if (request.userId != null && fullContent.length > 0) {
+      try {
+        await deductForUsage(request.userId, totalTokens, model);
+      } catch (err) {
+        logger.error({ alert: "CREDIT_DEDUCTION_FAILED", err, userId: request.userId }, "Streaming credit deduction failed");
+      }
+    }
+
+    try {
+      await db.insert(openrouterUsageTable).values({
+        userId: request.userId ?? null,
+        systemInstanceId: request.systemInstanceId ?? null,
+        model,
+        promptTokens: finalUsage?.prompt_tokens ?? 0,
+        completionTokens: finalUsage?.completion_tokens ?? 0,
+        totalTokens,
+        estimatedCost: null,
+        success: success ? "true" : "false",
+        errorMessage,
+      });
+    } catch (logErr) {
+      logger.error({ err: logErr }, "Failed to log streaming OpenRouter usage");
+    }
+  }
+}
+
+// ─── Non-streaming (original) ─────────────────────────────────────────────────
+
 export async function complete(request: CompletionRequest): Promise<CompletionResult> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {

@@ -411,16 +411,22 @@ const MessageBubble = ({ msg }) => {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'items-start gap-2.5'}`}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 mt-0.5">
-          <Wand2 className="w-3.5 h-3.5 text-primary" />
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${msg.streaming ? 'bg-violet-500/20 border border-violet-500/30' : 'bg-primary/20 border border-primary/30'}`}>
+          <Wand2 className={`w-3.5 h-3.5 ${msg.streaming ? 'text-violet-400 animate-pulse' : 'text-primary'}`} />
         </div>
       )}
       <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} gap-0.5 max-w-[82%]`}>
-        {!isUser && <span className="text-[10px] text-white/30 font-mono font-semibold px-1">ASH</span>}
+        {!isUser && (
+          <span className="text-[10px] text-white/30 font-mono font-semibold px-1">
+            ASH{msg.streaming ? <span className="text-violet-400/60"> · writing…</span> : ''}
+          </span>
+        )}
         <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
           isUser
             ? 'bg-primary text-primary-foreground rounded-tr-sm shadow-lg shadow-primary/20'
-            : 'bg-[#111120] border border-white/12 text-white/90 rounded-tl-sm shadow-sm'
+            : msg.streaming
+              ? 'bg-[#0c0b1c] border border-violet-500/15 text-white/90 rounded-tl-sm shadow-sm shadow-violet-900/10'
+              : 'bg-[#111120] border border-white/12 text-white/90 rounded-tl-sm shadow-sm'
         }`}>
           {msg.content.split('\n').map((line, i) => {
             if (!line) return <br key={i} />;
@@ -435,6 +441,9 @@ const MessageBubble = ({ msg }) => {
               </p>
             );
           })}
+          {msg.streaming && (
+            <span className="inline-block w-0.5 h-[1em] bg-violet-400/80 animate-pulse ml-0.5 align-middle rounded-sm" />
+          )}
         </div>
         <span className="text-[10px] text-muted-foreground/30 px-1">
           {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -443,6 +452,40 @@ const MessageBubble = ({ msg }) => {
     </div>
   );
 };
+
+// ─── Thinking Display ─────────────────────────────────────────────────────────
+const ThinkingDisplay = ({ steps, currentIdx }) => (
+  <div className="flex items-start gap-2.5">
+    <div className="w-7 h-7 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center shrink-0 mt-0.5 shadow-lg shadow-violet-900/20">
+      <Brain className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
+    </div>
+    <div className="flex flex-col gap-0.5 items-start">
+      <span className="text-[10px] text-violet-400/60 font-mono font-semibold px-1">ASH · Deep Thinking</span>
+      <div className="bg-[#0c0b1c] border border-violet-500/20 rounded-2xl rounded-tl-sm px-4 py-3 min-w-[240px] shadow-lg shadow-violet-900/10">
+        <div className="space-y-2">
+          {steps.map((step, i) => (
+            <div key={i} className="flex items-center gap-2.5 text-[12px]">
+              {i < currentIdx ? (
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              ) : i === currentIdx ? (
+                <Loader2 className="w-3.5 h-3.5 text-violet-400 animate-spin shrink-0" />
+              ) : (
+                <div className="w-3.5 h-3.5 rounded-full border border-white/12 shrink-0" />
+              )}
+              <span className={`transition-all duration-300 ${
+                i < currentIdx ? 'text-white/28 line-through decoration-white/15' :
+                i === currentIdx ? 'text-white/90' :
+                'text-white/22'
+              }`}>
+                {step}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 // ─── Checkpoint Marker (inline in chat thread) ─────────────────────────────────
 const CheckpointMarker = ({ cp, onRestore }) => (
@@ -773,6 +816,10 @@ const BuilderPage = () => {
 
   // Browser agent state
   const [activeBrowser, setActiveBrowser] = useState(null); // {task, startUrl, msgId}
+
+  // Streaming + thinking display state
+  const [thinkingSteps, setThinkingSteps] = useState([]);
+  const [thinkingCurrentIdx, setThinkingCurrentIdx] = useState(-1);
 
   // Credential collection
   const [pendingCreds, setPendingCreds] = useState([]);
@@ -1194,7 +1241,7 @@ const BuilderPage = () => {
   const pendingBlueprintRef = useRef(null);
   const pendingSystemNameRef = useRef('');
 
-  // ── Send message to ASH ────────────────────────────────────────────────────
+  // ── Streaming send message to ASH ─────────────────────────────────────────
   const sendMessage = useCallback(async (text) => {
     const msg = (text ?? input).trim();
     if (!msg || chatLoading) return;
@@ -1207,101 +1254,85 @@ const BuilderPage = () => {
 
     setMessages(prev => [...prev, { id: Date.now(), role: 'user', content: msg, ts: Date.now() }]);
     setChatLoading(true);
+    setThinkingSteps([]);
+    setThinkingCurrentIdx(-1);
+
+    const msgId = Date.now() + 1;
+    let doneData = null;
 
     try {
-      const resp = await fetch('/api/ai-orchestrator/chat', {
+      const resp = await fetch('/api/ai-orchestrator/stream', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ message: msg, history, agentMode: aiMode, businessType, revenueGoal }),
       });
+
       if (resp.status === 402) { setError('Out of AI credits. Top up to continue.'); return; }
       if (!resp.ok) throw new Error('ASH request failed');
 
-      const data = await resp.json();
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: data.content,
-        ts: Date.now(),
-      }]);
+      // Add streaming placeholder message
+      setMessages(prev => [...prev, { id: msgId, role: 'assistant', content: '', streaming: true, ts: Date.now() }]);
 
-      // Skill Engine — merge newly activated skills (deduplicate by slug)
-      if (Array.isArray(data.activatedSkills) && data.activatedSkills.length > 0) {
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullStreamContent = '';
+      let firstToken = true;
+
+      outer: while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let event;
+          try { event = JSON.parse(line.slice(6)); } catch { continue; }
+
+          if (event.type === 'thinking') {
+            setThinkingSteps(event.steps ?? []);
+            setThinkingCurrentIdx(event.index ?? 0);
+          } else if (event.type === 'token') {
+            if (firstToken) {
+              firstToken = false;
+              setThinkingSteps([]);
+              setThinkingCurrentIdx(-1);
+            }
+            fullStreamContent += event.delta;
+            // Strip partial SBEP_DATA block from the live display
+            const clean = fullStreamContent
+              .replace(/<SBEP_DATA>[\s\S]*?<\/SBEP_DATA>/g, '')
+              .replace(/<SBEP_DATA>[\s\S]*/g, '')
+              .trim();
+            setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: clean } : m));
+          } else if (event.type === 'done') {
+            doneData = event;
+            const finalContent = event.content ?? fullStreamContent.replace(/<SBEP_DATA>[\s\S]*/g, '').trim();
+            setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: finalContent, streaming: false } : m));
+            setThinkingSteps([]);
+            setThinkingCurrentIdx(-1);
+          } else if (event.type === 'end') {
+            break outer;
+          } else if (event.type === 'error') {
+            throw new Error(event.message ?? 'Stream error');
+          }
+        }
+      }
+
+      // Skill Engine — merge newly activated skills
+      if (Array.isArray(doneData?.activatedSkills) && doneData.activatedSkills.length > 0) {
         setActivatedSkills(prev => {
           const slugs = new Set(prev.map(s => s.slug));
-          const fresh = data.activatedSkills.filter(s => !slugs.has(s.slug));
-          return [...prev, ...fresh];
+          return [...prev, ...doneData.activatedSkills.filter(s => !slugs.has(s.slug))];
         });
       }
 
-      const sd = data.structuredData;
+      const sd = doneData?.structuredData;
       const action = sd?.action;
 
-      if (action === 'present_plan') {
-        pendingBlueprintRef.current = sd.blueprint ?? null;
-        pendingSystemNameRef.current = sd.systemName ?? '';
-        setPendingPlanData({
-          blueprint: sd.blueprint ?? null,
-          systemName: sd.systemName ?? '',
-          buildSteps: sd.buildSteps ?? [],
-          requiredCredentials: sd.requiredCredentials ?? [],
-        });
-        setPhase('planning');
-      } else if (action === 'collect_credentials' && sd?.requiredCredentials?.length > 0) {
-        pendingBlueprintRef.current = sd.blueprint ?? null;
-        pendingSystemNameRef.current = sd.systemName ?? '';
-        setPendingCreds(sd.requiredCredentials);
-        setPendingPlanData(null);
-        setPhase('collecting');
-      } else if (action === 'start_build' && sd?.blueprint) {
-        setPendingPlanData(null);
-        await executeBuild({}, sd.blueprint, sd.systemName ?? '');
-      } else if (action === 'browser_use' && sd?.startUrl) {
-        const browserId = Date.now();
-        setActiveBrowser({ task: sd.task ?? 'Browse the web', startUrl: sd.startUrl, msgId: browserId });
-      }
-
-      // Auto-save checkpoint after each successful AI exchange
-      const updatedMessages = [...messages,
-        { id: Date.now(), role: 'user', content: msg, ts: Date.now() },
-        { id: Date.now() + 1, role: 'assistant', content: data.content, ts: Date.now() },
-      ];
-      saveCheckpoint(currentUser?.id, { messages: updatedMessages, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp });
-      setCheckpoints(getCheckpoints(currentUser?.id));
-    } catch {
-      setError('ASH is temporarily unavailable. Please try again.');
-    } finally {
-      setChatLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-  }, [input, chatLoading, messages, executeBuild, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp, currentUser?.id]);
-
-  // ── Blueprint mode: launch selected blueprint ──────────────────────────────
-  const handleBlueprintLaunch = useCallback(async () => {
-    if (!selectedBp) return;
-    const msg = `Build me a ${selectedBp.name} system`;
-    setMode('custom');
-    const history = messages
-      .filter(m => m.id !== 'welcome')
-      .map(m => ({ role: m.role, content: m.content }));
-
-    setMessages(prev => [...prev, { id: Date.now(), role: 'user', content: msg, ts: Date.now() }]);
-    setChatLoading(true);
-    setError('');
-
-    try {
-      const resp = await fetch('/api/ai-orchestrator/chat', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ message: msg, history, agentMode: aiMode, businessType, revenueGoal }),
-      });
-      if (resp.status === 402) { setError('Out of AI credits.'); return; }
-      if (!resp.ok) throw new Error();
-      const data = await resp.json();
-      setMessages(prev => [...prev, { id: Date.now() + 1, role: 'assistant', content: data.content, ts: Date.now() }]);
-
-      const sd = data.structuredData;
-      const action = sd?.action;
       if (action === 'present_plan') {
         pendingBlueprintRef.current = sd.blueprint ?? null;
         pendingSystemNameRef.current = sd.systemName ?? '';
@@ -1324,12 +1355,33 @@ const BuilderPage = () => {
       } else if (action === 'browser_use' && sd?.startUrl) {
         setActiveBrowser({ task: sd.task ?? 'Browse the web', startUrl: sd.startUrl, msgId: Date.now() });
       }
+
+      // Auto-save checkpoint
+      const finalMsg = doneData?.content ?? '';
+      const updatedMessages = [...messages,
+        { id: Date.now(), role: 'user', content: msg, ts: Date.now() },
+        { id: msgId, role: 'assistant', content: finalMsg, ts: Date.now() },
+      ];
+      saveCheckpoint(currentUser?.id, { messages: updatedMessages, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp });
+      setCheckpoints(getCheckpoints(currentUser?.id));
     } catch {
-      setError('ASH is temporarily unavailable.');
+      setError('ASH is temporarily unavailable. Please try again.');
+      setMessages(prev => prev.filter(m => m.id !== msgId));
     } finally {
       setChatLoading(false);
+      setThinkingSteps([]);
+      setThinkingCurrentIdx(-1);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [selectedBp, messages, executeBuild]);
+  }, [input, chatLoading, messages, executeBuild, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp, currentUser?.id]);
+
+  // ── Blueprint mode: launch selected blueprint ──────────────────────────────
+  const handleBlueprintLaunch = useCallback(async () => {
+    if (!selectedBp) return;
+    // Delegate to sendMessage so it uses the streaming endpoint too
+    setMode('custom');
+    await sendMessage(`Build me a ${selectedBp.name} system`);
+  }, [selectedBp, sendMessage]);
 
   // ── Credential form submit (uses refs to avoid stale state) ───────────────
   const handleCredentialSubmit = useCallback((credValues) => {
@@ -2066,7 +2118,10 @@ const BuilderPage = () => {
               </div>
             )}
 
-            {chatLoading && (
+            {chatLoading && thinkingSteps.length > 0 && thinkingCurrentIdx >= 0 && (
+              <ThinkingDisplay steps={thinkingSteps} currentIdx={thinkingCurrentIdx} />
+            )}
+            {chatLoading && thinkingSteps.length === 0 && !messages.some(m => m.streaming) && (
               <div className="flex items-start gap-2.5">
                 <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 mt-0.5">
                   <Wand2 className="w-3.5 h-3.5 text-primary" />

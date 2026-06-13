@@ -16,7 +16,7 @@ import {
   skillsTable,
   skillActivationsTable,
 } from "@workspace/db";
-import { complete } from "../lib/openrouter";
+import { complete, streamCompletion } from "../lib/openrouter";
 import { hasCredits } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
 import { encrypt, decrypt } from "../lib/crypto";
@@ -416,6 +416,230 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     }
     req.log.error({ err }, "AI orchestrator chat error");
     res.status(500).json({ error: message });
+  }
+});
+
+// ─── Streaming helpers ──────────────────────────────────────────────────────
+
+const sse_sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
+function getThinkingSteps(message: string, agentMode: string): string[] {
+  const lower = message.toLowerCase();
+
+  if (lower.includes("http") || lower.includes("website") || lower.includes("browse") ||
+      lower.includes("visit") || lower.includes("url") || lower.includes("login") ||
+      lower.includes("gmail") || lower.includes("google") || lower.includes(".com") ||
+      lower.includes("page")) {
+    return [
+      "Parsing web browsing request…",
+      "Validating target URL…",
+      "Preparing browser agent…",
+      "Initializing web session…",
+    ];
+  }
+
+  if (lower.includes("build") || lower.includes("income") || lower.includes("money") ||
+      lower.includes("affiliate") || lower.includes("marketing") || lower.includes("dropship") ||
+      lower.includes("business") || lower.includes("revenue") || lower.includes("ecommerce") ||
+      lower.includes("shopify") || lower.includes("tiktok") || lower.includes("youtube") ||
+      lower.includes("saas") || lower.includes("course") || lower.includes("funnel") ||
+      lower.includes("$") || lower.includes("profit")) {
+    const depth = agentMode === "empire" || agentMode === "expert"
+      ? [
+          "Activating deep reasoning mode…",
+          "Analyzing your income goal…",
+          "Searching STARKS blueprint library…",
+          "Evaluating tool stack options…",
+          "Designing system architecture…",
+          "Calculating revenue projections…",
+          "Stress-testing monetisation model…",
+          "Preparing comprehensive build plan…",
+        ]
+      : [
+          "Analyzing your income goal…",
+          "Searching STARKS blueprint library…",
+          "Designing system architecture…",
+          "Calculating revenue projections…",
+          "Preparing build plan…",
+        ];
+    return depth;
+  }
+
+  if (lower.includes("confirm") || lower.includes("proceed") || lower.includes("ready") || lower.includes("plan")) {
+    return [
+      "Processing your confirmation…",
+      "Retrieving build specification…",
+      "Preparing next phase…",
+    ];
+  }
+
+  if (agentMode === "empire" || agentMode === "expert") {
+    return [
+      "Activating deep reasoning…",
+      "Analyzing request complexity…",
+      "Consulting STARKS knowledge base…",
+      "Cross-referencing platform intelligence…",
+      "Synthesizing comprehensive response…",
+    ];
+  }
+
+  return [
+    "Processing your request…",
+    "Consulting STARKS knowledge base…",
+    "Formulating response…",
+  ];
+}
+
+// ─── POST /api/ai-orchestrator/stream ────────────────────────────────────────
+
+router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const schema = z.object({
+    message: z.string().min(1).max(2000),
+    history: z.array(z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string(),
+    })).optional().default([]),
+    systemInstanceId: z.number().int().optional(),
+    agentMode: z.string().optional().default("fast"),
+    businessType: z.string().optional(),
+    revenueGoal: z.string().optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (event: object) => res.write(`data: ${JSON.stringify(event)}\n\n`);
+  const keepAlive = setInterval(() => res.write(": keepalive\n\n"), 20000);
+
+  try {
+    const [{ blueprintKB, toolKB }, storedCreds, activatedSkills] = await Promise.all([
+      buildPlatformKnowledge(),
+      db.select({ credentialKey: userCredentialsTable.credentialKey })
+        .from(userCredentialsTable)
+        .where(eq(userCredentialsTable.userId, userId)),
+      detectAndActivateSkills(parsed.data.message, userId, parsed.data.systemInstanceId),
+    ]);
+
+    const storedKeys = storedCreds.map((c) => c.credentialKey);
+    const storedCredNote = storedKeys.length > 0
+      ? `\n\n=== USER'S STORED CREDENTIALS (ALREADY ON FILE — DO NOT REQUEST THESE) ===\n${storedKeys.join(", ")}\nIf the blueprint you select requires any of these keys, skip them from requiredCredentials.`
+      : "";
+
+    const skillAdditions = activatedSkills
+      .filter((s) => s.systemPromptAddition)
+      .map((s) => `\n\n=== ACTIVATED SKILL: ${s.name.toUpperCase()} ===\n${s.systemPromptAddition}`)
+      .join("");
+
+    const historyCtx = parsed.data.history.length > 0
+      ? "\n\nConversation so far:\n" +
+        parsed.data.history.map((h) => `${h.role === "user" ? "User" : "STARK"}: ${h.content}`).join("\n")
+      : "";
+
+    const modelMap: Record<string, string> = {
+      fast:     "openai/gpt-4o-mini",
+      business: "openai/gpt-4o",
+      expert:   "anthropic/claude-3-5-sonnet",
+      empire:   "anthropic/claude-opus-4",
+    };
+    const model = modelMap[parsed.data.agentMode ?? "fast"] ?? "openai/gpt-4o-mini";
+
+    const contextNote = [
+      parsed.data.businessType ? `User's business focus: ${parsed.data.businessType}` : "",
+      parsed.data.revenueGoal  ? `User's revenue goal: ${parsed.data.revenueGoal}` : "",
+    ].filter(Boolean).join("\n");
+
+    const systemPrompt = buildSystemPrompt(blueprintKB, toolKB) +
+      storedCredNote + skillAdditions +
+      (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "");
+    const prompt = `${historyCtx}\n\nUser: ${parsed.data.message}`;
+
+    // ── Thinking steps (run while AI call is warming up) ──────────────────
+    const thinkingSteps = getThinkingSteps(parsed.data.message, parsed.data.agentMode ?? "fast");
+
+    // Start AI streaming call in parallel with thinking display
+    const tokenBuffer: string[] = [];
+    let aiDone = false;
+    let aiError: Error | null = null;
+
+    const aiTask = (async () => {
+      try {
+        for await (const token of streamCompletion({ systemPrompt, prompt, model, userId })) {
+          tokenBuffer.push(token);
+        }
+      } catch (err) {
+        // Fallback: non-streaming complete
+        try {
+          const fallback = await complete({ systemPrompt, prompt, model: "openai/gpt-4o-mini", userId });
+          for (const char of fallback.content) tokenBuffer.push(char);
+        } catch (fallbackErr) {
+          aiError = fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr));
+        }
+      } finally {
+        aiDone = true;
+      }
+    })();
+
+    // Show thinking steps while AI works (yields to event loop on each sleep)
+    for (let i = 0; i < thinkingSteps.length; i++) {
+      send({ type: "thinking", steps: thinkingSteps, index: i });
+      await sse_sleep(380 + Math.random() * 320);
+    }
+
+    if (aiError) throw aiError;
+
+    // Flush buffered tokens + wait for rest
+    let flushIdx = 0;
+    const flushBuffer = () => {
+      while (flushIdx < tokenBuffer.length) {
+        send({ type: "token", delta: tokenBuffer[flushIdx++] });
+      }
+    };
+
+    while (!aiDone) {
+      flushBuffer();
+      await sse_sleep(8);
+    }
+    await aiTask;
+    flushBuffer();
+
+    // ── Parse SBEP_DATA ───────────────────────────────────────────────────
+    const fullContent = tokenBuffer.join("");
+    const dataMatch = fullContent.match(/<SBEP_DATA>([\s\S]*?)<\/SBEP_DATA>/);
+    let structuredData: Record<string, unknown> | null = null;
+    const displayContent = fullContent.replace(/<SBEP_DATA>[\s\S]*?<\/SBEP_DATA>/g, "").trim();
+
+    if (dataMatch) {
+      try {
+        structuredData = JSON.parse(dataMatch[1].trim());
+        if (structuredData && Array.isArray((structuredData as Record<string, unknown>).requiredCredentials)) {
+          (structuredData as Record<string, unknown>).requiredCredentials =
+            (structuredData.requiredCredentials as { key?: string }[])
+              .filter((c) => !(c.key && storedKeys.includes(c.key)));
+        }
+      } catch { /* ignored */ }
+    }
+
+    send({ type: "done", content: displayContent, structuredData, activatedSkills });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "ASH request failed";
+    const code = (err as { code?: string })?.code;
+    send({ type: "error", message, ...(code ? { code } : {}) });
+  } finally {
+    clearInterval(keepAlive);
+    send({ type: "end" });
+    res.end();
   }
 });
 

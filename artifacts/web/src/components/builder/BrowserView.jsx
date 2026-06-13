@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Globe, ArrowLeft, ArrowRight, RefreshCw, X, CheckCircle, AlertCircle, Loader2, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { Globe, RefreshCw, CheckCircle, AlertCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 export default function BrowserView({ task, startUrl, authToken, onResult, onClose }) {
   const [events, setEvents] = useState([]);
@@ -7,10 +7,18 @@ export default function BrowserView({ task, startUrl, authToken, onResult, onClo
   const [currentTitle, setCurrentTitle] = useState('');
   const [status, setStatus] = useState('loading'); // loading | browsing | done | error
   const [result, setResult] = useState('');
-  const [showIframe, setShowIframe] = useState(true);
+  const [snapshotBlobUrl, setSnapshotBlobUrl] = useState(null);
   const [logCollapsed, setLogCollapsed] = useState(false);
   const logRef = useRef(null);
   const abortRef = useRef(null);
+  const blobUrlRef = useRef(null);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!task || !startUrl || !authToken) return;
@@ -32,7 +40,7 @@ export default function BrowserView({ task, startUrl, authToken, onResult, onClo
 
         if (!resp.ok) {
           setStatus('error');
-          setEvents(prev => [...prev, { type: 'error', message: `Server error ${resp.status}` }]);
+          addEvent({ type: 'error', message: `Server error ${resp.status}` });
           return;
         }
 
@@ -63,27 +71,44 @@ export default function BrowserView({ task, startUrl, authToken, onResult, onClo
       } catch (err) {
         if (err.name !== 'AbortError') {
           setStatus('error');
-          setEvents(prev => [...prev, { type: 'error', message: err.message }]);
+          addEvent({ type: 'error', message: err.message });
         }
       }
     }
 
     stream();
-
     return () => { ctrl.abort(); };
   }, [task, startUrl, authToken]);
 
+  function addEvent(event) {
+    setEvents(prev => [...prev, event].slice(-60));
+  }
+
   function handleEvent(event) {
-    setEvents(prev => {
-      const next = [...prev, event];
-      return next.slice(-50);
-    });
+    addEvent(event);
 
     if (event.type === 'navigate') {
       setCurrentUrl(event.url || '');
       setCurrentTitle(event.title || event.url || '');
       setStatus('browsing');
     }
+
+    if (event.type === 'snapshot' && event.html) {
+      // Inject base tag so relative resources resolve correctly
+      const baseTag = `<base href="${event.url || ''}" target="_blank">`;
+      const injected = event.html.includes('<head>')
+        ? event.html.replace('<head>', `<head>${baseTag}`)
+        : `${baseTag}${event.html}`;
+
+      const blob = new Blob([injected], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+
+      // Revoke old blob URL
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = url;
+      setSnapshotBlobUrl(url);
+    }
+
     if (event.type === 'done') {
       setStatus('done');
       setResult(event.result || '');
@@ -95,155 +120,150 @@ export default function BrowserView({ task, startUrl, authToken, onResult, onClo
   }
 
   useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [events]);
 
   function handleClose() {
     abortRef.current?.abort();
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
     if (onClose) onClose();
   }
 
   const statusIcon = {
-    loading: <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />,
-    browsing: <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />,
-    done: <CheckCircle className="w-3.5 h-3.5 text-green-400" />,
-    error: <AlertCircle className="w-3.5 h-3.5 text-red-400" />,
+    loading: <Loader2 className="w-3 h-3 animate-spin text-blue-400" />,
+    browsing: <Loader2 className="w-3 h-3 animate-spin text-violet-400" />,
+    done: <CheckCircle className="w-3 h-3 text-green-400" />,
+    error: <AlertCircle className="w-3 h-3 text-red-400" />,
   }[status];
 
-  const statusText = {
-    loading: 'Connecting…',
-    browsing: 'Browsing…',
-    done: 'Done',
-    error: 'Error',
-  }[status];
+  const statusLabel = { loading: 'Connecting…', browsing: 'Browsing…', done: 'Done', error: 'Error' }[status];
 
   const faviconUrl = currentUrl
-    ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(currentUrl).hostname)}&sz=16`
+    ? (() => { try { return `https://www.google.com/s2/favicons?domain=${new URL(currentUrl).hostname}&sz=16`; } catch { return null; } })()
     : null;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0d0d14] overflow-hidden w-full font-mono">
-      {/* Browser chrome header */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-[#111118] border-b border-white/8">
+    <div className="rounded-xl border border-white/10 bg-[#0d0d14] overflow-hidden w-full">
+      {/* Browser chrome */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-[#0a0a12] border-b border-white/8">
         <div className="flex gap-1.5 shrink-0">
-          <button onClick={handleClose} className="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-500 transition-colors" />
-          <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
-          <div className="w-3 h-3 rounded-full bg-green-500/50" />
+          <button onClick={handleClose} className="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-500 transition-colors flex items-center justify-center group">
+            <X className="w-1.5 h-1.5 text-red-900 opacity-0 group-hover:opacity-100" />
+          </button>
+          <div className="w-3 h-3 rounded-full bg-yellow-500/40" />
+          <div className="w-3 h-3 rounded-full bg-green-500/40" />
         </div>
 
-        <div className="flex-1 flex items-center gap-2 bg-[#0a0a10] border border-white/8 rounded-md px-2.5 py-1 min-w-0">
-          {faviconUrl && (
-            <img src={faviconUrl} alt="" className="w-3.5 h-3.5 shrink-0 rounded-sm" onError={e => e.target.style.display='none'} />
-          )}
-          {!faviconUrl && <Globe className="w-3 h-3 text-white/30 shrink-0" />}
-          <span className="text-[11px] text-white/50 truncate">{currentUrl || startUrl}</span>
-          {(status === 'browsing' || status === 'loading') && (
-            <RefreshCw className="w-3 h-3 text-white/30 animate-spin shrink-0 ml-auto" />
-          )}
-          {status === 'done' && (
+        <div className="flex-1 flex items-center gap-2 bg-black/40 border border-white/8 rounded-md px-2.5 py-1 min-w-0">
+          {faviconUrl && <img src={faviconUrl} alt="" className="w-3.5 h-3.5 shrink-0 rounded-sm" onError={e => e.target.style.display='none'} />}
+          {!faviconUrl && <Globe className="w-3 h-3 text-white/20 shrink-0" />}
+          <span className="text-[11px] text-white/45 font-mono truncate">{currentUrl || startUrl}</span>
+          {status === 'done' && currentUrl && (
             <a href={currentUrl} target="_blank" rel="noopener noreferrer" className="ml-auto shrink-0">
-              <ExternalLink className="w-3 h-3 text-white/30 hover:text-white/60 transition-colors" />
+              <ExternalLink className="w-3 h-3 text-white/25 hover:text-white/60 transition-colors" />
             </a>
+          )}
+          {(status === 'loading' || status === 'browsing') && (
+            <RefreshCw className="w-3 h-3 text-white/25 animate-spin shrink-0 ml-auto" />
           )}
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
           {statusIcon}
-          <span className="text-[10px] text-white/40 font-mono">{statusText}</span>
+          <span className="text-[10px] text-white/35 font-mono">{statusLabel}</span>
         </div>
       </div>
 
-      {/* Main area: iframe + log */}
-      <div className="flex flex-col gap-0">
-        {/* Iframe view */}
-        {showIframe && currentUrl && (
-          <div className="relative w-full bg-white" style={{ height: '320px' }}>
-            <iframe
-              key={currentUrl}
-              src={currentUrl}
-              title={currentTitle}
-              className="w-full h-full border-0"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-              onError={() => setShowIframe(false)}
-            />
-            {(status === 'loading' || status === 'browsing') && (
-              <div className="absolute inset-0 bg-[#0d0d14]/60 flex items-center justify-center pointer-events-none">
-                <div className="flex items-center gap-2 bg-[#111118]/90 border border-white/10 rounded-lg px-3 py-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
-                  <span className="text-xs text-white/70">ASH is browsing…</span>
-                </div>
+      {/* Page viewport — shows blob-rendered HTML snapshot */}
+      <div className="relative bg-white" style={{ height: '380px' }}>
+        {snapshotBlobUrl ? (
+          <iframe
+            key={snapshotBlobUrl}
+            src={snapshotBlobUrl}
+            title={currentTitle}
+            className="w-full h-full border-0"
+            sandbox="allow-scripts allow-same-origin"
+          />
+        ) : (
+          <div className="w-full h-full bg-[#0d0d14] flex flex-col items-center justify-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+              <Globe className="w-5 h-5 text-blue-400 animate-pulse" />
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-white/50 font-mono">ASH Browser</p>
+              <p className="text-[11px] text-white/25 mt-0.5 max-w-[200px] text-center">{status === 'loading' ? `Loading ${startUrl}…` : 'Navigating…'}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Overlay while actively browsing */}
+        {status === 'browsing' && snapshotBlobUrl && (
+          <div className="absolute bottom-2 left-2 flex items-center gap-2 bg-black/80 border border-white/15 backdrop-blur-sm rounded-lg px-2.5 py-1.5">
+            <Loader2 className="w-3 h-3 animate-spin text-violet-400" />
+            <span className="text-[11px] text-white/70 font-mono">ASH is browsing…</span>
+          </div>
+        )}
+      </div>
+
+      {/* Action log */}
+      <div className="border-t border-white/8">
+        <button
+          onClick={() => setLogCollapsed(p => !p)}
+          className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-white/3 transition-colors"
+        >
+          <span className="text-[10px] text-white/35 font-mono uppercase tracking-wider">ASH Activity Log</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-white/25">{events.length} events</span>
+            {logCollapsed ? <ChevronDown className="w-3 h-3 text-white/25" /> : <ChevronUp className="w-3 h-3 text-white/25" />}
+          </div>
+        </button>
+
+        {!logCollapsed && (
+          <div ref={logRef} className="max-h-36 overflow-y-auto px-3 pb-3 space-y-1">
+            {events.length === 0 && <div className="text-[11px] text-white/25 italic pt-1">Starting browser session…</div>}
+            {events.map((ev, i) => (
+              <div key={i} className="flex items-start gap-2 text-[11px] leading-snug">
+                <span className="mt-0.5 shrink-0 w-3.5">
+                  {ev.type === 'navigate' && <Globe className="w-3 h-3 text-blue-400" />}
+                  {ev.type === 'snapshot' && <span className="text-green-400 text-[9px] font-bold">📸</span>}
+                  {ev.type === 'thinking' && <Loader2 className="w-3 h-3 text-violet-400 animate-spin" />}
+                  {ev.type === 'action' && <span className="text-yellow-300 font-bold">→</span>}
+                  {ev.type === 'content' && <span className="text-white/20 text-[9px]">●</span>}
+                  {ev.type === 'done' && <CheckCircle className="w-3 h-3 text-green-400" />}
+                  {ev.type === 'error' && <AlertCircle className="w-3 h-3 text-red-400" />}
+                </span>
+                <span className={
+                  ev.type === 'navigate' ? 'text-blue-300' :
+                  ev.type === 'snapshot' ? 'text-green-300' :
+                  ev.type === 'thinking' ? 'text-violet-300' :
+                  ev.type === 'action' ? 'text-yellow-200' :
+                  ev.type === 'done' ? 'text-green-300' :
+                  ev.type === 'error' ? 'text-red-300' : 'text-white/35'
+                }>
+                  {ev.description || ev.title || ev.message || (ev.result?.slice(0, 100)) || ev.type}
+                  {ev.type === 'snapshot' && ' — Page snapshot captured'}
+                </span>
               </div>
-            )}
-          </div>
-        )}
-        {(!showIframe || !currentUrl) && status !== 'loading' && (
-          <div className="h-48 flex items-center justify-center bg-[#0a0a10] text-white/20 text-xs">
-            {status === 'loading' ? 'Loading…' : 'Preview not available for this site'}
-          </div>
-        )}
-
-        {/* Action log */}
-        <div className="border-t border-white/8">
-          <button
-            onClick={() => setLogCollapsed(p => !p)}
-            className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-white/3 transition-colors"
-          >
-            <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider">ASH Browser Log</span>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-white/30">{events.length} events</span>
-              {logCollapsed ? <ChevronDown className="w-3 h-3 text-white/30" /> : <ChevronUp className="w-3 h-3 text-white/30" />}
-            </div>
-          </button>
-
-          {!logCollapsed && (
-            <div ref={logRef} className="max-h-40 overflow-y-auto px-3 pb-3 space-y-1">
-              {events.length === 0 && (
-                <div className="text-[11px] text-white/30 italic pt-1">Waiting for browser events…</div>
-              )}
-              {events.map((ev, i) => (
-                <div key={i} className="flex items-start gap-2 text-[11px] leading-snug">
-                  <span className="mt-0.5 shrink-0">
-                    {ev.type === 'navigate' && <Globe className="w-3 h-3 text-blue-400" />}
-                    {ev.type === 'thinking' && <Loader2 className="w-3 h-3 text-violet-400 animate-spin" />}
-                    {ev.type === 'action' && <span className="text-yellow-400">→</span>}
-                    {ev.type === 'content' && <span className="text-white/30">📄</span>}
-                    {ev.type === 'done' && <CheckCircle className="w-3 h-3 text-green-400" />}
-                    {ev.type === 'error' && <AlertCircle className="w-3 h-3 text-red-400" />}
-                  </span>
-                  <span className={
-                    ev.type === 'navigate' ? 'text-blue-300' :
-                    ev.type === 'thinking' ? 'text-violet-300' :
-                    ev.type === 'action' ? 'text-yellow-200' :
-                    ev.type === 'done' ? 'text-green-300' :
-                    ev.type === 'error' ? 'text-red-300' :
-                    'text-white/50'
-                  }>
-                    {ev.description || ev.title || ev.message || ev.result?.slice(0, 120) || ev.type}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Result box */}
-        {status === 'done' && result && (
-          <div className="border-t border-green-500/20 bg-green-500/5 px-3 py-3">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <CheckCircle className="w-3.5 h-3.5 text-green-400" />
-              <span className="text-[11px] font-semibold text-green-400 uppercase tracking-wider">Browser Result</span>
-            </div>
-            <p className="text-xs text-white/80 leading-relaxed whitespace-pre-wrap">{result}</p>
-          </div>
-        )}
-        {status === 'error' && (
-          <div className="border-t border-red-500/20 bg-red-500/5 px-3 py-2">
-            <span className="text-[11px] text-red-400">Browser session ended with an error. Check the log above.</span>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Result */}
+      {status === 'done' && result && (
+        <div className="border-t border-green-500/15 bg-green-500/5 px-3 py-3">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+            <span className="text-[11px] font-semibold text-green-400 uppercase tracking-wider font-mono">Browser Result</span>
+          </div>
+          <p className="text-xs text-white/75 leading-relaxed whitespace-pre-wrap">{result}</p>
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="border-t border-red-500/15 bg-red-500/5 px-3 py-2">
+          <span className="text-[11px] text-red-400">Browser session ended with an error. Check the log above.</span>
+        </div>
+      )}
     </div>
   );
 }

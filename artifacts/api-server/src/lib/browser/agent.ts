@@ -6,6 +6,7 @@ export type BrowserEventType =
   | "thinking"
   | "action"
   | "content"
+  | "snapshot"
   | "done"
   | "error";
 
@@ -16,9 +17,15 @@ export interface BrowserEvent {
   description?: string;
   result?: string;
   message?: string;
+  html?: string;
 }
 
 const MAX_STEPS = 8;
+const STEP_DELAY_MS = 2000;
+
+function sleep(ms: number) {
+  return new Promise<void>(r => setTimeout(r, ms));
+}
 
 function formatPageForAI(page: PageData): string {
   const linksText = page.links
@@ -82,7 +89,12 @@ export async function* runBrowserAgent(
   let currentUrl = startUrl;
 
   for (let step = 0; step < MAX_STEPS; step++) {
-    yield { type: "thinking", description: step === 0 ? `Loading ${currentUrl}…` : `Analyzing page and deciding next action…` };
+    yield {
+      type: "thinking",
+      description: step === 0
+        ? `Navigating to ${currentUrl}…`
+        : `Analyzing page and deciding next action…`,
+    };
 
     const page = await fetchPage(currentUrl);
 
@@ -98,19 +110,37 @@ export async function* runBrowserAgent(
       description: `Viewing: ${page.title}`,
     };
 
+    // Emit HTML snapshot so the frontend can render the actual page
+    if (page.html) {
+      yield {
+        type: "snapshot",
+        url: page.finalUrl,
+        title: page.title,
+        html: page.html,
+      };
+    }
+
     yield {
       type: "content",
       url: page.finalUrl,
-      description: `Page loaded — ${page.text.length} chars of content, ${page.links.length} links, ${page.forms.length} forms`,
+      description: `Page loaded — ${page.text.length} chars, ${page.links.length} links, ${page.forms.length} forms`,
     };
 
+    // Pause so the user can watch ASH navigate
+    await sleep(STEP_DELAY_MS);
+
     if (step === MAX_STEPS - 1) {
-      yield { type: "done", result: `Reached maximum steps. Last page viewed: ${page.title} at ${page.finalUrl}. Content: ${page.text.slice(0, 500)}` };
+      yield {
+        type: "done",
+        result: `Reached maximum navigation steps. Last page: "${page.title}" at ${page.finalUrl}.\n\n${page.text.slice(0, 600)}`,
+      };
       return;
     }
 
     const pageInfo = formatPageForAI(page);
     const decisionPrompt = buildDecisionPrompt(pageInfo, task, steps);
+
+    yield { type: "thinking", description: "Deciding next action…" };
 
     let decisionText = "";
     try {
@@ -154,9 +184,8 @@ export async function* runBrowserAgent(
         yield { type: "done", result: "No URL to navigate to — task may be complete." };
         return;
       }
-      const step_desc = `Navigated to: ${targetUrl}`;
-      steps.push(step_desc);
-      yield { type: "action", description: `Navigating → ${targetUrl}${decision.reason ? ` (${decision.reason})` : ""}` };
+      steps.push(`Navigated to: ${targetUrl}`);
+      yield { type: "action", description: `Going to → ${targetUrl}${decision.reason ? ` (${decision.reason})` : ""}` };
       currentUrl = targetUrl;
       continue;
     }
@@ -165,8 +194,10 @@ export async function* runBrowserAgent(
       const formAction = decision.formAction ?? currentUrl;
       const method = decision.method ?? "POST";
       const fields = decision.fields ?? {};
-      yield { type: "action", description: `Filling form at ${formAction}: ${Object.entries(fields).map(([k, v]) => `${k}="${v}"`).join(", ")}` };
+      yield { type: "action", description: `Filling form: ${Object.entries(fields).map(([k, v]) => `${k}="${v}"`).join(", ")}` };
       steps.push(`Submitted form to ${formAction}`);
+
+      await sleep(1000);
       const result = await submitForm(formAction, method, fields);
       if (result.error) {
         yield { type: "error", message: `Form submission failed: ${result.error}` };
@@ -176,7 +207,7 @@ export async function* runBrowserAgent(
       continue;
     }
 
-    yield { type: "done", result: `Browser task complete. Visited: ${currentUrl}` };
+    yield { type: "done", result: `Browser task complete. Last visited: ${currentUrl}` };
     return;
   }
 }

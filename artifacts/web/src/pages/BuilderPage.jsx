@@ -13,6 +13,7 @@ import {
   AlertTriangle, CheckCircle, PlayCircle, PauseCircle, BookOpen, Save,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
+import BrowserView from '@/components/builder/BrowserView.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -770,6 +771,9 @@ const BuilderPage = () => {
   // Skill Engine
   const [activatedSkills, setActivatedSkills] = useState([]);
 
+  // Browser agent state
+  const [activeBrowser, setActiveBrowser] = useState(null); // {task, startUrl, msgId}
+
   // Credential collection
   const [pendingCreds, setPendingCreds] = useState([]);
   const [pendingPlanData, setPendingPlanData] = useState(null);
@@ -1252,6 +1256,9 @@ const BuilderPage = () => {
       } else if (action === 'start_build' && sd?.blueprint) {
         setPendingPlanData(null);
         await executeBuild({}, sd.blueprint, sd.systemName ?? '');
+      } else if (action === 'browser_use' && sd?.startUrl) {
+        const browserId = Date.now();
+        setActiveBrowser({ task: sd.task ?? 'Browse the web', startUrl: sd.startUrl, msgId: browserId });
       }
 
       // Auto-save checkpoint after each successful AI exchange
@@ -1314,6 +1321,8 @@ const BuilderPage = () => {
       } else if (action === 'start_build' && sd?.blueprint) {
         setPendingPlanData(null);
         await executeBuild({}, sd.blueprint, sd.systemName ?? '');
+      } else if (action === 'browser_use' && sd?.startUrl) {
+        setActiveBrowser({ task: sd.task ?? 'Browse the web', startUrl: sd.startUrl, msgId: Date.now() });
       }
     } catch {
       setError('ASH is temporarily unavailable.');
@@ -2030,6 +2039,31 @@ const BuilderPage = () => {
                 prefill={storedCredKeys}
                 onValuesChange={setLiftedCredValues}
               />
+            )}
+
+            {activeBrowser && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <Globe className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="text-[11px] text-white/50 font-mono">ASH Browser — {activeBrowser.task}</span>
+                </div>
+                <BrowserView
+                  task={activeBrowser.task}
+                  startUrl={activeBrowser.startUrl}
+                  authToken={localStorage.getItem('sbep_auth_token')}
+                  onResult={(result) => {
+                    setActiveBrowser(null);
+                    const resultMsg = `Here is what I found while browsing:\n\n${result}`;
+                    setMessages(prev => [...prev, {
+                      id: Date.now(),
+                      role: 'assistant',
+                      content: resultMsg,
+                      ts: Date.now(),
+                    }]);
+                  }}
+                  onClose={() => setActiveBrowser(null)}
+                />
+              </div>
             )}
 
             {chatLoading && (

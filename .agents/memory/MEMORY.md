@@ -7,3 +7,4 @@
 - [BuilderPage 3-panel layout](builder-3panel-layout.md) — Replit-style layout: LEFT tasks+agent modes, CENTER chat+terminal, RIGHT library; file truncation fix for large edit replacements.
 - [Runtime job worker raw SQL](runtime-job-worker.md) — pool.query() returns snake_case columns; always mapRow() snake→camelCase. complete() takes {prompt,model?,systemPrompt?} not a messages array. Startup must call resetOrphanedJobs() before polling.
 - [ASH Planning Phase](ash-planning-phase.md) — 3-phase build flow: present_plan → collect_credentials → start_build; planning phase uses violet theme.
+- [Browser Agent Architecture](browser-agent.md) — ASH browser control: fetch+cheerio (no chromium), SSE via fetch ReadableStream, browser_use SBEP action, CompletionResult.content not .text.

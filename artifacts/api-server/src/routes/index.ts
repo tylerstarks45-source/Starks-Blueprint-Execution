@@ -28,6 +28,7 @@ import skillsRouter from "./skills";
 import connectorsRouter from "./connectors";
 import runtimeRouter from "./runtime";
 import chatSessionsRouter from "./chat-sessions";
+import browserAgentRouter from "./browser-agent";
 
 const router: IRouter = Router();
 
@@ -60,5 +61,6 @@ router.use(skillsRouter);
 router.use(connectorsRouter);
 router.use(runtimeRouter);
 router.use(chatSessionsRouter);
+router.use(browserAgentRouter);
 
 export default router;

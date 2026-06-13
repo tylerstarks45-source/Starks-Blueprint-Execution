@@ -118,6 +118,8 @@ You can build systems across the full spectrum:
 - Local business automation (GMB, reviews, lead gen)
 - And ANY other system the user wants
 
+You also have a **live web browser**. When a user asks you to visit a website, check pricing, search for something online, or interact with a web page — use the browser_use action and you will browse it in real time, showing results back to the user.
+
 ## MANDATORY THINKING PROTOCOL
 
 Before EVERY response to a build goal, you MUST internally reason through:
@@ -280,13 +282,19 @@ For starting build (PHASE 3 — after credentials submitted):
 { "action": "start_build", "blueprint": { "slug": "...", "name": "..." }, "systemName": "..." }
 </SBEP_DATA>
 
+For browsing the web (when user asks to visit a site, search online, check a URL, find pricing, etc.):
+<SBEP_DATA>
+{ "action": "browser_use", "task": "<detailed description of what to do on the web>", "startUrl": "https://..." }
+</SBEP_DATA>
+
 For general questions (not a build goal):
 <SBEP_DATA>
 { "action": "general" }
 </SBEP_DATA>
 
 CRITICAL: When user says "I confirm the plan", "let's proceed", "I'm ready", or similar → return "collect_credentials" (NEVER "present_plan" again).
-CRITICAL: When user explicitly provides credentials or asks to start building → return "start_build".`;
+CRITICAL: When user explicitly provides credentials or asks to start building → return "start_build".
+CRITICAL: When user asks to visit a website, search the web, check a URL, find pricing/info online, or interact with a web page → return "browser_use".`;
 }
 
 function defaultBuildPlan(blueprintName: string): string[] {

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import os from "node:os";
 import { serialize } from "../lib/serialize";
-import { desc, sql, eq, and, or, ilike, gte } from "drizzle-orm";
+import { desc, sql, eq, and, or, ilike, gte, inArray } from "drizzle-orm";
 import {
   db,
   adminUsersTable,
@@ -15,13 +15,16 @@ import {
   openrouterUsageTable,
   creditTransactionsTable,
   chatSessionsTable,
+  subscriptionsTable,
   systemActivityEventsTable,
   userCredentialsTable,
   platformSettingsTable,
   encryptionKeyRotationsTable,
 } from "@workspace/db";
+import { z } from "zod/v4";
 import { requireAdmin } from "../lib/auth";
-import { adjustCredits, TIER_PRICES } from "../lib/credits";
+import { adjustCredits, TIER_PRICES, tierAllotment } from "../lib/credits";
+import { getUncachableStripeClient } from "../lib/stripe";
 import { getKeyRotationStatus, setKeyRotatedAt, setActiveKey, encryptWithKey, decryptWithKeyHex } from "../lib/crypto";
 import {
   ListAdminUsersResponse,
@@ -829,6 +832,176 @@ router.get("/admin/platform-users", async (req, res): Promise<void> => {
   ]);
 
   res.json(ListPlatformUsersResponse.parse(serialize({ items, total: totalRow.total, page, perPage })));
+});
+
+// ── Stripe live data ──────────────────────────────────────────────────────────
+router.get("/admin/stripe/overview", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+  try {
+    const stripe = await getUncachableStripeClient();
+
+    const [charges, customers, subscriptions] = await Promise.all([
+      stripe.charges.list({ limit: 50 }),
+      stripe.customers.list({ limit: 50 }),
+      stripe.subscriptions.list({ limit: 50, status: "all" }),
+    ]);
+
+    // Cross-reference Stripe customers with local DB by stripeCustomerId
+    const customerIds = customers.data.map((c) => c.id);
+    const localSubRows = customerIds.length > 0
+      ? await db
+          .select({
+            userId: subscriptionsTable.userId,
+            stripeCustomerId: subscriptionsTable.stripeCustomerId,
+            tier: subscriptionsTable.tier,
+            status: subscriptionsTable.status,
+          })
+          .from(subscriptionsTable)
+          .where(inArray(subscriptionsTable.stripeCustomerId, customerIds))
+      : [];
+    const localSubByCustId: Record<string, typeof localSubRows[0]> = {};
+    for (const s of localSubRows) { if (s.stripeCustomerId) localSubByCustId[s.stripeCustomerId] = s; }
+
+    // Also cross-ref by email for customers not yet in subscriptions table
+    const emails = customers.data.map((c) => c.email).filter((e): e is string => !!e);
+    const localUserRows = emails.length > 0
+      ? await db
+          .select({ id: usersTable.id, email: usersTable.email, membershipTier: usersTable.membershipTier, membershipStatus: usersTable.membershipStatus })
+          .from(usersTable)
+          .where(inArray(usersTable.email, emails))
+      : [];
+    const localUserByEmail: Record<string, typeof localUserRows[0]> = {};
+    for (const u of localUserRows) localUserByEmail[u.email] = u;
+
+    const enrichedCustomers = customers.data.map((c) => {
+      const localSub  = localSubByCustId[c.id];
+      const localUser = localUserByEmail[c.email ?? ""];
+      return {
+        stripeCustomerId: c.id,
+        email: c.email,
+        name: c.name,
+        created: c.created,
+        hasLocalAccount: !!(localUser || localSub),
+        localUserId: localUser?.id ?? null,
+        localTier: localUser?.membershipTier ?? localSub?.tier ?? null,
+        localStatus: localUser?.membershipStatus ?? localSub?.status ?? null,
+      };
+    });
+
+    const successfulCharges = charges.data.filter((c) => c.status === "succeeded");
+    const totalRevenueCents = successfulCharges.reduce((s, c) => s + c.amount, 0);
+    const activeSubs = subscriptions.data.filter((s) => s.status === "active");
+    const mrrCents = activeSubs.reduce((s, sub) => s + (sub.items.data[0]?.price?.unit_amount ?? 0), 0);
+
+    res.json(
+      serialize({
+        summary: {
+          totalRevenueCents,
+          activeSubscriptions: activeSubs.length,
+          mrrCents,
+          totalCustomers: customers.data.length,
+        },
+        recentCharges: charges.data.map((c) => ({
+          id: c.id,
+          amount: c.amount,
+          currency: c.currency,
+          status: c.status,
+          customerEmail: (c.billing_details as { email?: string | null })?.email ?? null,
+          customerId: typeof c.customer === "string" ? c.customer : (c.customer as { id?: string } | null)?.id ?? null,
+          description: c.description,
+          created: c.created,
+          refunded: c.refunded,
+        })),
+        customers: enrichedCustomers,
+        activeSubscriptions: activeSubs.map((s) => {
+          const stripeAny = s as any;
+          return {
+            id: s.id,
+            customerId: typeof s.customer === "string" ? s.customer : (s.customer as { id?: string } | null)?.id ?? null,
+            status: s.status,
+            currentPeriodEnd: stripeAny.current_period_end ?? null,
+            cancelAtPeriodEnd: stripeAny.cancel_at_period_end ?? false,
+            amount: s.items.data[0]?.price?.unit_amount ?? 0,
+            interval: s.items.data[0]?.price?.recurring?.interval ?? "month",
+          };
+        }),
+      }),
+    );
+  } catch (err: unknown) {
+    req.log.error({ err }, "Stripe overview error");
+    const msg = err instanceof Error ? err.message : "Failed to fetch Stripe data";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// ── POST /admin/stripe/provision-user — create/link local user from Stripe ───
+router.post("/admin/stripe/provision-user", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const schema = z.object({
+    stripeCustomerId: z.string().min(1),
+    email: z.string().email(),
+    name: z.string().optional(),
+    tier: z.enum(["builder", "operator", "empire"]),
+    stripeSubscriptionId: z.string().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid body", issues: parsed.error.issues });
+    return;
+  }
+  const { stripeCustomerId, email, name, tier, stripeSubscriptionId } = parsed.data;
+
+  // Find or create the local user
+  const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  let userId: number;
+  let action: "created" | "updated";
+
+  if (existingUser) {
+    userId = existingUser.id;
+    action  = "updated";
+    await db.update(usersTable)
+      .set({ membershipTier: tier, membershipStatus: "active" })
+      .where(eq(usersTable.id, userId));
+  } else {
+    const bcrypt = (await import("bcryptjs")).default;
+    const tempPass = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    const passwordHash = await bcrypt.hash(tempPass, 10);
+    const [newUser] = await db.insert(usersTable).values({
+      email,
+      name: name ?? null,
+      passwordHash,
+      role: "USER",
+      membershipTier: tier,
+      membershipStatus: "active",
+      active: true,
+      creditsBalance: 0,
+    }).returning();
+    userId = newUser.id;
+    action  = "created";
+  }
+
+  // Upsert subscription record
+  const [existingSub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+  const subData = {
+    stripeCustomerId,
+    stripeSubscriptionId: stripeSubscriptionId ?? null,
+    tier,
+    status: "active" as const,
+  };
+  if (existingSub) {
+    await db.update(subscriptionsTable).set(subData).where(eq(subscriptionsTable.userId, userId));
+  } else {
+    await db.insert(subscriptionsTable).values({ userId, ...subData });
+  }
+
+  // Grant credits only for newly created users
+  if (action === "created") {
+    await adjustCredits(userId, tierAllotment(tier), "tier_grant", { reason: `Manual provision: ${tier} plan` });
+  }
+
+  const [finalUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  res.json(serialize({ user: finalUser, action }));
 });
 
 // ── GET /admin/platform-users/:id — full user detail for admin monitoring ────

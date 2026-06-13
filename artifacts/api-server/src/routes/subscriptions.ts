@@ -195,10 +195,32 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as any;
-      const userId = Number(session.metadata?.userId);
+      let userId = Number(session.metadata?.userId) || 0;
       const tier = session.metadata?.tier as string;
       const customerId = session.customer as string;
       const subscriptionId = session.subscription as string;
+
+      // Fallback: if no userId in metadata, look up user by Stripe customer email.
+      // This handles payments made outside the normal logged-in checkout flow.
+      if (!userId && customerId) {
+        try {
+          const stripeCust = await stripe.customers.retrieve(customerId);
+          if (stripeCust && !("deleted" in stripeCust) && stripeCust.email) {
+            const [found] = await db
+              .select({ id: usersTable.id })
+              .from(usersTable)
+              .where(eq(usersTable.email, stripeCust.email));
+            if (found) {
+              userId = found.id;
+              req.log.info({ userId, email: stripeCust.email, customerId }, "Resolved userId from Stripe customer email (no metadata userId)");
+            } else {
+              req.log.warn({ email: stripeCust.email, customerId }, "checkout.session.completed: Stripe customer email not found in users table — manual provisioning required");
+            }
+          }
+        } catch (lookupErr) {
+          req.log.warn({ lookupErr, customerId }, "Could not resolve userId from Stripe customer");
+        }
+      }
 
       if (session.metadata?.kind === "wallet_purchase") {
         const credits = Number(session.metadata?.credits);

@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AdminDataProvider } from '@/contexts/AdminDataContext.jsx';
 import {
   LayoutDashboard, DollarSign, BrainCircuit, Server, TrendingUp,
-  Users, Bell, ShieldCheck,
+  Users, Bell, ShieldCheck, CreditCard,
 } from 'lucide-react';
 
 import AdminPlatformMetricsCard from './AdminPlatformMetricsCard.jsx';
@@ -31,6 +31,7 @@ import AdminAIAnalyticsDashboard from './AdminAIAnalyticsDashboard.jsx';
 import AdminProfitabilityPanel from './AdminProfitabilityPanel.jsx';
 import AdminSystemMonitoringPanel from './AdminSystemMonitoringPanel.jsx';
 import AdminSkillEnginePanel from '@/components/admin/AdminSkillEnginePanel.jsx';
+import AdminStripePanel from './AdminStripePanel.jsx';
 
 import CreditBalanceCard from '@/components/admin/CreditBalanceCard.jsx';
 import UsageOverviewCard from '@/components/admin/UsageOverviewCard.jsx';
@@ -40,6 +41,7 @@ const TABS = [
   { key: 'overview',      label: 'Overview',       icon: LayoutDashboard, path: '/admin' },
   { key: 'users',         label: 'Users',           icon: Users,           path: '/admin/users' },
   { key: 'revenue',       label: 'Revenue',         icon: DollarSign,      path: '/admin/revenue' },
+  { key: 'stripe',        label: 'Stripe',          icon: CreditCard,      path: '/admin/stripe' },
   { key: 'ai-analytics',  label: 'AI Analytics',    icon: BrainCircuit,    path: '/admin/ai-analytics' },
   { key: 'profitability', label: 'Profitability',   icon: TrendingUp,      path: '/admin/profitability' },
   { key: 'systems',       label: 'Systems',         icon: Server,          path: '/admin/systems' },
@@ -144,6 +146,11 @@ const AdminDashboardLayout = () => {
           <div className="space-y-6">
             <AdminRevenueActivityPanel />
           </div>
+        )}
+
+        {/* ── Stripe tab ───────────────────────────────────────────────────── */}
+        {activeTab === 'stripe' && (
+          <AdminStripePanel />
         )}
 
         {/* ── AI Analytics tab ─────────────────────────────────────────────── */}

@@ -1341,14 +1341,27 @@ const BuilderPage = () => {
     { id: 'settings',   icon: Brain,        title: 'Settings' },
   ];
 
-  const TOOLS_CATALOG = [
-    { category: 'Email & CRM',   items: ['Mailchimp', 'ConvertKit', 'ActiveCampaign', 'HubSpot'] },
-    { category: 'Payments',      items: ['Stripe', 'PayPal', 'Gumroad'] },
-    { category: 'Social Media',  items: ['Twitter/X', 'Instagram', 'TikTok', 'YouTube'] },
-    { category: 'Ecommerce',     items: ['Shopify', 'WooCommerce', 'Etsy'] },
-    { category: 'Automation',    items: ['Zapier', 'Make', 'n8n'] },
-    { category: 'AI & Content',  items: ['OpenAI', 'Claude', 'Midjourney'] },
-  ];
+  const [marketplaceTools, setMarketplaceTools] = useState([]);
+  const [toolCategoryMap, setToolCategoryMap] = useState({});
+  const [toolsLoading, setToolsLoading] = useState(false);
+
+  useEffect(() => {
+    setToolsLoading(true);
+    Promise.all([
+      fetch('/api/tools?limit=200', { headers: authHeaders() }).then(r => r.ok ? r.json() : []),
+      fetch('/api/tool-categories', { headers: authHeaders() }).then(r => r.ok ? r.json() : []),
+    ])
+      .then(([toolsData, catsData]) => {
+        const tools = Array.isArray(toolsData) ? toolsData : (toolsData?.items ?? []);
+        const cats = Array.isArray(catsData) ? catsData : [];
+        const catMap = {};
+        cats.forEach(c => { catMap[c.id] = c.name; });
+        setToolCategoryMap(catMap);
+        setMarketplaceTools(tools);
+      })
+      .catch(() => { setMarketplaceTools([]); setToolCategoryMap({}); })
+      .finally(() => setToolsLoading(false));
+  }, []);
 
   const activeMode = AI_MODES.find(m => m.id === aiMode);
 
@@ -1976,25 +1989,34 @@ const BuilderPage = () => {
                     {buildData?.steps?.length ?? 0} steps complete
                   </span>
                 </div>
-                <p className="text-xs text-white/45 leading-relaxed">Your system is live and running. Save it to your Library to track it, or create a product listing on the Marketplace.</p>
-                <div className="flex gap-2">
+                <p className="text-xs text-white/45 leading-relaxed">Your system is live and running. Open the system dashboard to track revenue and activity, or save it to your Library.</p>
+                <div className="flex flex-col gap-2">
                   <button
-                    onClick={() => {
-                      const sys = userSystems.find(s => s.id === buildData.instanceId) ?? { id: buildData.instanceId, steps: buildData.steps ?? [] };
-                      saveFileTreeToLibrary(sys);
-                    }}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-primary/12 hover:bg-primary/22 border border-primary/25 text-primary text-xs font-bold transition-colors"
+                    onClick={() => navigate(`/systems/${buildData.instanceId}`)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-emerald-500/18 hover:bg-emerald-500/28 border border-emerald-500/35 text-emerald-300 text-xs font-bold transition-colors"
                   >
-                    <Save className="w-3.5 h-3.5" />
-                    Save to Library
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Open System Dashboard
                   </button>
-                  <button
-                    onClick={() => navigate('/products')}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 text-xs font-bold transition-colors"
-                  >
-                    <ShoppingCart className="w-3.5 h-3.5" />
-                    Create Product
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const sys = userSystems.find(s => s.id === buildData.instanceId) ?? { id: buildData.instanceId, steps: buildData.steps ?? [] };
+                        saveFileTreeToLibrary(sys);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-primary/12 hover:bg-primary/22 border border-primary/25 text-primary text-xs font-bold transition-colors"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      Save to Library
+                    </button>
+                    <button
+                      onClick={() => navigate('/products')}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/12 text-white/55 text-xs font-bold transition-colors"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5" />
+                      Create Product
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -2175,23 +2197,56 @@ const BuilderPage = () => {
                 <div className="px-3 pt-2.5 pb-1">
                   <p className="text-[10px] text-white/32 leading-relaxed">Connect tools so ASH can build with them automatically.</p>
                 </div>
-                {TOOLS_CATALOG.map(({ category, items }) => (
-                  <div key={category} className="px-3 py-2">
-                    <p className="text-[9px] uppercase tracking-widest text-white/20 font-mono mb-1">{category}</p>
-                    <div className="space-y-0.5">
-                      {items.filter(t => !rightSearch || t.toLowerCase().includes(rightSearch.toLowerCase())).map(tool => (
-                        <div key={tool} className="flex items-center justify-between px-2 py-1 rounded hover:bg-white/4 transition-colors">
-                          <span className="text-[11px] text-white/48">{tool}</span>
-                          <button onClick={() => navigate('/connections')} className="text-[9px] font-mono text-primary/45 hover:text-primary transition-colors">Connect →</button>
+                {toolsLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+                ) : marketplaceTools.length === 0 ? (
+                  <p className="text-center py-6 text-white/22 text-xs font-mono">No tools found</p>
+                ) : (
+                  (() => {
+                    const filtered = marketplaceTools.filter(t =>
+                      !rightSearch || (t.name || '').toLowerCase().includes(rightSearch.toLowerCase())
+                    );
+                    const grouped = filtered.reduce((acc, t) => {
+                      const cat = toolCategoryMap[t.categoryId] || 'Other';
+                      if (!acc[cat]) acc[cat] = [];
+                      acc[cat].push(t);
+                      return acc;
+                    }, {});
+                    return Object.entries(grouped).map(([catName, tools]) => (
+                      <div key={catName} className="px-3 py-2">
+                        <p className="text-[9px] uppercase tracking-widest text-white/20 font-mono mb-1">{catName}</p>
+                        <div className="space-y-0.5">
+                          {tools.map(tool => (
+                            <div key={tool.id} className="flex items-center justify-between px-2 py-1 rounded hover:bg-white/4 transition-colors gap-2">
+                              <span className="text-[11px] text-white/48 truncate">{tool.name}</span>
+                              {tool.affiliateLink ? (
+                                <a
+                                  href={tool.affiliateLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[9px] font-mono text-emerald-400/60 hover:text-emerald-300 transition-colors shrink-0"
+                                >
+                                  Get →
+                                </a>
+                              ) : (
+                                <button
+                                  onClick={() => navigate('/connections')}
+                                  className="text-[9px] font-mono text-primary/45 hover:text-primary transition-colors shrink-0"
+                                >
+                                  Connect →
+                                </button>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                    <div className="border-t border-white/5 mt-2" />
-                  </div>
-                ))}
+                        <div className="border-t border-white/5 mt-2" />
+                      </div>
+                    ));
+                  })()
+                )}
                 <div className="p-3 pt-1">
-                  <button onClick={() => navigate('/connections')} className="w-full py-2 px-3 text-xs font-semibold text-primary bg-primary/8 hover:bg-primary/15 border border-primary/18 rounded-lg transition-colors">
-                    Open Connections Hub →
+                  <button onClick={() => navigate('/marketplace')} className="w-full py-2 px-3 text-xs font-semibold text-primary bg-primary/8 hover:bg-primary/15 border border-primary/18 rounded-lg transition-colors">
+                    Browse Full Marketplace →
                   </button>
                 </div>
               </div>

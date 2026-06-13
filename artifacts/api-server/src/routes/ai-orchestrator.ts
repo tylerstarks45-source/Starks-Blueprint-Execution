@@ -297,7 +297,7 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       fast:     "openai/gpt-4o-mini",
       business: "openai/gpt-4o",
       expert:   "openai/gpt-4o",
-      empire:   "openai/gpt-4o",
+      empire:   "anthropic/claude-3-opus",
     };
     const model = modelMap[parsed.data.agentMode ?? "fast"] ?? "openai/gpt-4o-mini";
 

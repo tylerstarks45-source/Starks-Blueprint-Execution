@@ -29,3 +29,13 @@ backend `requireAdmin()` (DB-backed role lookup), `ProtectedAdminRoute`, and `Da
 wrong layout.
 **How to apply:** if you add/rename an admin role, update all three places together. If ADMIN vs
 SUPER_ADMIN ever need distinct privilege tiers, enforce that explicitly on mutation endpoints.
+
+## Admin email list (updated)
+Both `tylerstarks45@gmail.com` and `tylerstarks77@gmail.com` are authorised admins.
+There are 4 places that enforce this — all must be kept in sync when adding/removing admin accounts:
+1. `artifacts/web/src/components/security/ProtectedAdminRoute.jsx` — ADMIN_EMAILS array
+2. `artifacts/web/src/components/dashboard/DashboardRouter.jsx` — ADMIN_EMAILS array
+3. `artifacts/web/src/components/security/SubscriptionGate.jsx` — ADMIN_EMAILS array
+4. `artifacts/api-server/src/lib/auth.ts` — ADMIN_EMAILS Set (requireAdmin function)
+
+**Why:** Single-email constant was in 4 separate files; adding a second admin email required all 4 to be updated simultaneously.

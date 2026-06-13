@@ -6,8 +6,7 @@ import { Loader2 } from 'lucide-react';
 import AdminDashboardLayout from './admin/AdminDashboardLayout.jsx';
 import UserDashboardLayout from './user/UserDashboardLayout.jsx';
 
-// Only this specific email may see the admin dashboard.
-const ADMIN_EMAIL = 'tylerstarks45@gmail.com';
+const ADMIN_EMAILS = ['tylerstarks45@gmail.com', 'tylerstarks77@gmail.com'];
 const ADMIN_ROLES = ['admin', 'ADMIN', 'SUPER_ADMIN', 'FOUNDER_ADMIN'];
 
 const DashboardRouter = () => {
@@ -31,10 +30,9 @@ const DashboardRouter = () => {
     );
   }
 
-  // Admin layout ONLY for the authorised founder email — role alone is not enough
   const isAdminUser =
     ADMIN_ROLES.includes(role) &&
-    currentUser?.email === ADMIN_EMAIL;
+    ADMIN_EMAILS.includes(currentUser?.email);
 
   if (isAdminUser) {
     return <AdminDashboardLayout />;

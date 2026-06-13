@@ -4,9 +4,7 @@ import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Only this specific email may access the admin control center.
-// Role checks alone are not sufficient — the email lock is the authoritative gate.
-const ADMIN_EMAIL = 'tylerstarks45@gmail.com';
+const ADMIN_EMAILS = ['tylerstarks45@gmail.com', 'tylerstarks77@gmail.com'];
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'];
 
 const ProtectedAdminRoute = ({ children }) => {
@@ -16,7 +14,7 @@ const ProtectedAdminRoute = ({ children }) => {
 
   const isAuthorisedAdmin =
     isAuthenticated &&
-    currentUser?.email === ADMIN_EMAIL &&
+    ADMIN_EMAILS.includes(currentUser?.email) &&
     ADMIN_ROLES.includes(currentUserRole);
 
   useEffect(() => {

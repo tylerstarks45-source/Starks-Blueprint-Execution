@@ -14,6 +14,7 @@ import {
   affiliateLinksTable,
   openrouterUsageTable,
   creditTransactionsTable,
+  chatSessionsTable,
   systemActivityEventsTable,
   userCredentialsTable,
   platformSettingsTable,
@@ -828,6 +829,83 @@ router.get("/admin/platform-users", async (req, res): Promise<void> => {
   ]);
 
   res.json(ListPlatformUsersResponse.parse(serialize({ items, total: totalRow.total, page, perPage })));
+});
+
+// ── GET /admin/platform-users/:id — full user detail for admin monitoring ────
+router.get("/admin/platform-users/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+  const userId = Number(req.params.id);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    res.status(400).json({ error: "Invalid user id" });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const [systems, sessions, usageRows, recentUsage, creditHistory] = await Promise.all([
+    db
+      .select({
+        id: systemInstancesTable.id,
+        name: systemInstancesTable.name,
+        blueprintId: systemInstancesTable.blueprintId,
+        buildStatus: systemInstancesTable.buildStatus,
+        healthStatus: systemInstancesTable.healthStatus,
+        createdAt: systemInstancesTable.createdAt,
+        updatedAt: systemInstancesTable.updatedAt,
+      })
+      .from(systemInstancesTable)
+      .where(eq(systemInstancesTable.userId, userId))
+      .orderBy(desc(systemInstancesTable.createdAt))
+      .limit(50),
+    db
+      .select({
+        id: chatSessionsTable.id,
+        title: chatSessionsTable.title,
+        messageCount: chatSessionsTable.messageCount,
+        phase: chatSessionsTable.phase,
+        createdAt: chatSessionsTable.createdAt,
+        updatedAt: chatSessionsTable.updatedAt,
+      })
+      .from(chatSessionsTable)
+      .where(eq(chatSessionsTable.userId, userId))
+      .orderBy(desc(chatSessionsTable.updatedAt))
+      .limit(50),
+    db
+      .select({
+        requests: sql<number>`count(*)::int`,
+        tokens: sql<number>`coalesce(sum(${openrouterUsageTable.totalTokens}), 0)::int`,
+        costUsd: sql<number>`coalesce(sum(${openrouterUsageTable.estimatedCost}::numeric), 0)::float`,
+      })
+      .from(openrouterUsageTable)
+      .where(eq(openrouterUsageTable.userId, userId)),
+    db
+      .select()
+      .from(openrouterUsageTable)
+      .where(eq(openrouterUsageTable.userId, userId))
+      .orderBy(desc(openrouterUsageTable.createdAt))
+      .limit(30),
+    db
+      .select()
+      .from(creditTransactionsTable)
+      .where(eq(creditTransactionsTable.userId, userId))
+      .orderBy(desc(creditTransactionsTable.createdAt))
+      .limit(30),
+  ]);
+
+  res.json(
+    serialize({
+      user,
+      systems,
+      sessions,
+      usageSummary: usageRows[0] ?? { requests: 0, tokens: 0, costUsd: 0 },
+      recentUsage,
+      creditHistory,
+    }),
+  );
 });
 
 router.patch("/admin/platform-users/:id", async (req, res): Promise<void> => {

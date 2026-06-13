@@ -16,11 +16,12 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
-import { Users, MoreHorizontal, Search, ShieldCheck, Ban, CheckCircle2, Coins, Loader2, Pencil, TrendingUp } from 'lucide-react';
+import { Users, MoreHorizontal, Search, ShieldCheck, Ban, CheckCircle2, Coins, Loader2, Pencil, TrendingUp, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import adminApi from '@/lib/adminApi.js';
 import { useAdminData } from '@/contexts/AdminDataContext.jsx';
 import { num, compact, usd } from '@/lib/adminFormat.js';
+import AdminUserDetailPanel from './AdminUserDetailPanel.jsx';
 
 const ROLE_OPTIONS = ['USER', 'ADMIN', 'SUPER_ADMIN', 'FOUNDER_ADMIN'];
 const TIER_OPTIONS = ['free', 'starter', 'builder', 'operator', 'empire'];
@@ -52,6 +53,8 @@ const AdminUserManagementPanel = () => {
   const [editMembershipTier, setEditMembershipTier] = useState('');
   const [editMembershipStatus, setEditMembershipStatus] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+
+  const [detailUserId, setDetailUserId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -309,6 +312,9 @@ const AdminUserManagementPanel = () => {
                               </DropdownMenuItem>
                             ))}
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => setDetailUserId(user.id)}>
+                              <Eye className="w-4 h-4 mr-2" /> View Full Detail
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => viewRevenue(user)}>
                               <TrendingUp className="w-4 h-4 mr-2" /> View Revenue
                             </DropdownMenuItem>
@@ -427,6 +433,14 @@ const AdminUserManagementPanel = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* User Detail Panel */}
+      <AdminUserDetailPanel
+        userId={detailUserId}
+        onClose={() => setDetailUserId(null)}
+        onEdit={(user) => { setDetailUserId(null); openEditDialog(user); }}
+        onAdjustCredits={(user) => { setDetailUserId(null); setCreditUser(user); setCreditDelta(''); setCreditReason(''); }}
+      />
     </Card>
   );
 };

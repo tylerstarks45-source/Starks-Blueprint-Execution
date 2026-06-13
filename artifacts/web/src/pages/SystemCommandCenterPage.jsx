@@ -444,6 +444,43 @@ const SystemCommandCenterPage = () => {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* HERO BUILD CTA — shown prominently when no systems or always          */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {systems.length === 0 && (
+        <div className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-black/60 to-violet-900/20 backdrop-blur-md px-6 py-6"
+          style={{ boxShadow: '0 0 40px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+          <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, rgba(14,165,233,0.15) 0%, transparent 60%)' }} />
+          <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(14,165,233,0.8)]" />
+                <span className="text-[10px] font-mono font-bold text-primary uppercase tracking-widest">ASH Agent Ready</span>
+              </div>
+              <h2 className="text-xl font-bold text-white leading-tight" style={{ textShadow: '0 0 30px rgba(0,0,0,0.9)' }}>
+                Build Your First Income System
+              </h2>
+              <p className="text-sm text-white/55 leading-relaxed max-w-lg">
+                Tell ASH what you want to earn. It will design a complete system — tools, steps, credentials — and build it autonomously in minutes.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5 shrink-0 w-full sm:w-auto">
+              <Button onClick={() => navigate('/builder')} className="gap-2 font-bold h-11 px-6 text-sm bg-primary hover:bg-primary/90 shadow-[0_0_20px_rgba(14,165,233,0.3)]">
+                <Bot className="w-4 h-4" /> Ask ASH to Build
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => navigate('/blueprints')} className="flex-1 gap-1.5 h-8 text-xs border-white/15 text-white/60 hover:text-white bg-transparent">
+                  <Layers className="w-3 h-3" /> Blueprints
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/marketplace')} className="flex-1 gap-1.5 h-8 text-xs border-white/15 text-white/60 hover:text-white bg-transparent">
+                  <Globe className="w-3 h-3" /> Marketplace
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
       {/* KPI STRIP — 8 METRICS                                                */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">

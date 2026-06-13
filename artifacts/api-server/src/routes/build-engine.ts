@@ -228,15 +228,18 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
 
   try {
     const result = await complete({
-      systemPrompt: `You are SBEP's AI Build Agent executing automated income systems.
+      systemPrompt: `You are ASH — SBEP's elite AI Build Agent executing automated income systems autonomously.
 
-For each step, write 2-3 technical sentences describing what you executed, then append a <SBEP_REVENUE> JSON block.
+For each step, write 3-5 technical sentences describing EXACTLY what you executed (specific actions, tool configurations, API calls made, data structures created, webhook URLs deployed, etc.), then append a <SBEP_REVENUE> JSON block.
+
+Write like a real build log: be specific about what was configured, which endpoints were hit, what values were set, what outputs were produced. Make it feel real and detailed.
 
 Revenue rules — set revenueCents > 0 ONLY if this specific step directly produces measurable income:
 - Deploying an affiliate link tracker or recording an affiliate click: 100–800 cents
 - Publishing monetised content (email campaign sent, post published to audience): 50–400 cents
 - Completing a sales funnel, checkout flow, or lead capture: 200–1200 cents
 - Setting up ad placements or sponsored slots that go live: 150–600 cents
+- Activating a subscription billing flow or payment processor: 300–1500 cents
 - Infrastructure/config steps (APIs wired, workflows created, accounts connected): 0 cents
 - Testing/validation steps with no live traffic: 0 cents
 
@@ -245,10 +248,11 @@ Revenue rules — set revenueCents > 0 ONLY if this specific step directly produ
 </SBEP_REVENUE>
 
 Always include the block. Use "description" to write a short human-readable label like "Affiliate click recorded — $4.50 earned".`,
-      prompt: `Blueprint: ${parsed.data.blueprintName}
+      prompt: `System: ${parsed.data.blueprintName}
 Step ${parsed.data.stepNumber}/${parsed.data.totalSteps}: ${parsed.data.stepDescription}
-Describe what you are executing now, then emit the <SBEP_REVENUE> block.`,
-      model: "openai/gpt-4o-mini",
+
+Execute this step now. Write detailed output describing exactly what was configured, deployed, and activated. Then emit the <SBEP_REVENUE> block.`,
+      model: "openai/gpt-4o",
       userId: instance.userId ?? undefined,
       systemInstanceId: instance.id,
     });

@@ -27,11 +27,12 @@ const authHeaders = () => {
 };
 
 const STARTER_PROMPTS = [
-  'TikTok affiliate business',
-  'YouTube automation channel',
-  'AI lead gen agency',
-  'Email marketing system',
-  'Shopify automation',
+  'TikTok affiliate marketing machine',
+  'YouTube automation channel with AI content',
+  'AI lead generation agency for local businesses',
+  'Shopify dropshipping store with email automation',
+  'Digital course funnel with email sequences',
+  'LinkedIn B2B outreach & client acquisition system',
 ];
 
 // ── AI Agent Power Modes ──────────────────────────────────────────────────────
@@ -84,8 +85,8 @@ const AI_MODES = [
     creditsPerBuild: '25–45 credits',
     description: 'Advanced reasoning model. Produces highly detailed plans, complex automations, and thorough analysis.',
     creditWarning: 'High credit usage — 8× more than Fast. Use for complex systems where quality matters most.',
-    model: 'openai/gpt-4o',
-    modelLabel: 'GPT-4o Expert',
+    model: 'anthropic/claude-3-5-sonnet',
+    modelLabel: 'Claude 3.5 Sonnet',
     speed: '~15 sec / msg',
     useCases: ['Complex automations', 'Deep research', 'Enterprise systems', 'Revenue optimization'],
     icon: Cpu,
@@ -104,8 +105,8 @@ const AI_MODES = [
     creditsPerBuild: '80–150 credits',
     description: 'Full multi-agent orchestration. Parallel sub-agents research, plan, build, and validate simultaneously.',
     creditWarning: 'Maximum credit usage — 25× more than Fast. Reserved for flagship income systems and large deployments.',
-    model: 'anthropic/claude-3-opus',
-    modelLabel: 'Multi-Model Orchestration',
+    model: 'anthropic/claude-opus-4',
+    modelLabel: 'Claude Opus 4',
     speed: '~30+ sec / msg',
     useCases: ['Flagship systems', 'Multi-agent builds', 'Maximum quality', '$10k+/mo revenue targets'],
     icon: Gauge,
@@ -771,6 +772,7 @@ const BuilderPage = () => {
 
   // Credential collection
   const [pendingCreds, setPendingCreds] = useState([]);
+  const [pendingPlanData, setPendingPlanData] = useState(null);
   const [executeLoading, setExecuteLoading] = useState(false);
   const [liftedCredValues, setLiftedCredValues] = useState({});
 
@@ -929,7 +931,7 @@ const BuilderPage = () => {
       const state = JSON.parse(data.stateJson || '{}');
       if (Array.isArray(state.messages) && state.messages.length > 0) {
         setMessages(state.messages);
-        setPhase(state.phase === 'complete' ? 'idle' : (state.phase ?? 'idle'));
+        setPhase(['complete', 'planning'].includes(state.phase) ? 'idle' : (state.phase ?? 'idle'));
         setActivatedSkills(state.activatedSkills ?? []);
         setBuildData(state.buildData ?? null);
         setStepOutputs(state.stepOutputs ?? {});
@@ -981,6 +983,7 @@ const BuilderPage = () => {
     setMode('custom');
     setSelectedBp(null);
     setPendingCreds([]);
+    setPendingPlanData(null);
     setError('');
     setInput('');
     pendingBlueprintRef.current = null;
@@ -1230,12 +1233,24 @@ const BuilderPage = () => {
       const sd = data.structuredData;
       const action = sd?.action;
 
-      if (action === 'collect_credentials' && sd?.requiredCredentials?.length > 0) {
+      if (action === 'present_plan') {
+        pendingBlueprintRef.current = sd.blueprint ?? null;
+        pendingSystemNameRef.current = sd.systemName ?? '';
+        setPendingPlanData({
+          blueprint: sd.blueprint ?? null,
+          systemName: sd.systemName ?? '',
+          buildSteps: sd.buildSteps ?? [],
+          requiredCredentials: sd.requiredCredentials ?? [],
+        });
+        setPhase('planning');
+      } else if (action === 'collect_credentials' && sd?.requiredCredentials?.length > 0) {
         pendingBlueprintRef.current = sd.blueprint ?? null;
         pendingSystemNameRef.current = sd.systemName ?? '';
         setPendingCreds(sd.requiredCredentials);
+        setPendingPlanData(null);
         setPhase('collecting');
       } else if (action === 'start_build' && sd?.blueprint) {
+        setPendingPlanData(null);
         await executeBuild({}, sd.blueprint, sd.systemName ?? '');
       }
 
@@ -1280,12 +1295,24 @@ const BuilderPage = () => {
 
       const sd = data.structuredData;
       const action = sd?.action;
-      if (action === 'collect_credentials' && sd?.requiredCredentials?.length > 0) {
+      if (action === 'present_plan') {
+        pendingBlueprintRef.current = sd.blueprint ?? null;
+        pendingSystemNameRef.current = sd.systemName ?? '';
+        setPendingPlanData({
+          blueprint: sd.blueprint ?? null,
+          systemName: sd.systemName ?? '',
+          buildSteps: sd.buildSteps ?? [],
+          requiredCredentials: sd.requiredCredentials ?? [],
+        });
+        setPhase('planning');
+      } else if (action === 'collect_credentials' && sd?.requiredCredentials?.length > 0) {
         pendingBlueprintRef.current = sd.blueprint ?? null;
         pendingSystemNameRef.current = sd.systemName ?? '';
         setPendingCreds(sd.requiredCredentials);
+        setPendingPlanData(null);
         setPhase('collecting');
       } else if (action === 'start_build' && sd?.blueprint) {
+        setPendingPlanData(null);
         await executeBuild({}, sd.blueprint, sd.systemName ?? '');
       }
     } catch {
@@ -1306,7 +1333,7 @@ const BuilderPage = () => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const isInputDisabled = chatLoading || phase === 'building' || phase === 'complete';
+  const isInputDisabled = chatLoading || phase === 'building' || phase === 'complete' || (phase === 'planning' && !!pendingPlanData);
   const filteredBps = blueprints.filter(b =>
     (!activeCatId || b.categoryId === activeCatId) &&
     (!rightSearch || b.name.toLowerCase().includes(rightSearch.toLowerCase()) || (b.description || '').toLowerCase().includes(rightSearch.toLowerCase()))
@@ -1321,7 +1348,7 @@ const BuilderPage = () => {
   // ── Restore a checkpoint ───────────────────────────────────────────────────
   const restoreCheckpoint = useCallback((cp) => {
     setMessages(cp.messages);
-    setPhase(cp.phase === 'complete' ? 'idle' : (cp.phase ?? 'idle'));
+    setPhase(['complete', 'planning'].includes(cp.phase) ? 'idle' : (cp.phase ?? 'idle'));
     setActivatedSkills(cp.activatedSkills ?? []);
     setBuildData(cp.buildData ?? null);
     setStepOutputs(cp.stepOutputs ?? {});
@@ -1463,9 +1490,9 @@ const BuilderPage = () => {
           {/* Session context badge */}
           <div className="px-3 py-1.5 border-b border-white/6 shrink-0">
             <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${phase === 'building' ? 'bg-blue-400 animate-pulse' : phase === 'complete' ? 'bg-emerald-400' : 'bg-primary/50'}`} />
+              <span className={`w-2 h-2 rounded-full shrink-0 ${phase === 'building' ? 'bg-blue-400 animate-pulse' : phase === 'complete' ? 'bg-emerald-400' : phase === 'planning' ? 'bg-violet-400 animate-pulse' : 'bg-primary/50'}`} />
               <span className="text-[10px] font-mono text-white/30 flex-1 truncate">
-                {phase === 'building' ? 'Building…' : phase === 'complete' ? 'Deployed ✓' : phase === 'collecting' ? 'Collecting credentials' : 'Ready'}
+                {phase === 'building' ? 'Building…' : phase === 'complete' ? 'Deployed ✓' : phase === 'collecting' ? 'Collecting credentials' : phase === 'planning' ? 'Reviewing build plan' : 'Ready'}
               </span>
               {checkpoints.length > 0 && (
                 <span className="text-[9px] font-mono text-primary/45 bg-primary/8 border border-primary/15 rounded-full px-1.5 py-0.5 shrink-0">
@@ -1497,12 +1524,14 @@ const BuilderPage = () => {
                   phase === 'building' ? 'bg-blue-500/8 border-blue-500/18'
                   : phase === 'complete' ? 'bg-emerald-500/8 border-emerald-500/18'
                   : phase === 'collecting' ? 'bg-amber-500/8 border-amber-500/18'
+                  : phase === 'planning' ? 'bg-violet-500/8 border-violet-500/18'
                   : 'bg-primary/8 border-primary/18'
                 }`}>
                   <span className={`w-2 h-2 rounded-full shrink-0 mt-1 ${
                     phase === 'building' ? 'bg-blue-400 animate-pulse'
                     : phase === 'complete' ? 'bg-emerald-400'
                     : phase === 'collecting' ? 'bg-amber-400 animate-pulse'
+                    : phase === 'planning' ? 'bg-violet-400 animate-pulse'
                     : 'bg-primary'
                   }`} />
                   <div className="flex-1 min-w-0">
@@ -1843,8 +1872,8 @@ const BuilderPage = () => {
             </div>
           </div>
 
-          {/* Agent team status (when building/collecting/complete) */}
-          {(phase === 'building' || phase === 'collecting' || phase === 'complete') && (
+          {/* Agent team status (when building/collecting/planning/complete) */}
+          {(phase === 'building' || phase === 'collecting' || phase === 'complete' || phase === 'planning') && (
             <div className="shrink-0 border-b border-white/8 px-4 py-2 bg-black/50 flex items-center gap-3 flex-wrap">
               <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono flex items-center gap-1 shrink-0">
                 <Globe className="w-2.5 h-2.5" /> Agents
@@ -1875,6 +1904,27 @@ const BuilderPage = () => {
                   {currentStepIdx}/{buildData.steps.length} steps
                 </span>
               )}
+            </div>
+          )}
+
+          {/* Plan review status bar */}
+          {phase === 'planning' && pendingPlanData && (
+            <div className="shrink-0 border-b border-white/8 px-4 py-2 bg-violet-500/5 flex items-center gap-4 flex-wrap">
+              <p className="text-[9px] text-violet-400/65 font-mono uppercase tracking-widest shrink-0">Build plan ready</p>
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-[11px] text-white/55 truncate">{pendingPlanData.systemName || pendingPlanData.blueprint?.name || 'Custom System'}</span>
+                {pendingPlanData.buildSteps?.length > 0 && (
+                  <span className="text-[10px] text-white/30 font-mono shrink-0">· {pendingPlanData.buildSteps.length} steps</span>
+                )}
+              </div>
+              <Button
+                className="ml-auto h-7 gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-semibold border-0 shrink-0"
+                onClick={() => sendMessage("I've reviewed the plan and I'm ready to proceed with the build.")}
+                disabled={chatLoading}
+              >
+                {chatLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Rocket className="w-3 h-3" />}
+                Confirm Plan
+              </Button>
             </div>
           )}
 
@@ -1920,6 +1970,56 @@ const BuilderPage = () => {
                 </React.Fragment>
               );
             })}
+
+            {phase === 'planning' && pendingPlanData && (
+              <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-5 space-y-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center shrink-0">
+                    <Brain className="w-3.5 h-3.5 text-violet-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white">Build Plan Ready</p>
+                    <p className="text-[10px] text-white/40 font-mono truncate">
+                      {pendingPlanData.systemName || 'Custom System'} · {pendingPlanData.blueprint?.name ?? 'Custom Build'}
+                    </p>
+                  </div>
+                  <span className="text-[9px] font-mono text-violet-400/65 bg-violet-500/10 border border-violet-500/20 rounded-full px-2 py-0.5 shrink-0">
+                    PHASE 1 COMPLETE
+                  </span>
+                </div>
+
+                {pendingPlanData.buildSteps?.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-white/35 font-mono uppercase tracking-widest">Execution Roadmap</p>
+                    {pendingPlanData.buildSteps.map((step, i) => (
+                      <div key={i} className="flex items-start gap-2.5 text-xs text-white/60">
+                        <span className="shrink-0 w-5 h-5 rounded-full bg-white/6 border border-white/12 flex items-center justify-center text-[9px] font-bold font-mono text-white/40 mt-0.5">{i + 1}</span>
+                        <span className="leading-relaxed pt-0.5">{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2.5 pt-1 border-t border-white/8">
+                  <Button
+                    onClick={() => sendMessage("I've reviewed the plan and I'm ready to proceed with the build.")}
+                    disabled={chatLoading}
+                    className="flex-1 gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold h-10 text-sm"
+                  >
+                    {chatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+                    Confirm Plan — Proceed to Build
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => sendMessage("I want to adjust this plan. Can you change something about the approach or tool stack?")}
+                    disabled={chatLoading}
+                    className="h-10 text-xs border-white/15 text-white/50 hover:text-white hover:border-white/30 bg-transparent"
+                  >
+                    Adjust Plan
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {phase === 'collecting' && pendingCreds.length > 0 && (
               <CredentialForm
@@ -2057,7 +2157,7 @@ const BuilderPage = () => {
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKey}
-                    placeholder={phase === 'collecting' ? 'Fill credentials above…' : 'Describe your income goal to ASH…'}
+                    placeholder={phase === 'collecting' ? 'Fill credentials above…' : phase === 'planning' ? 'Plan ready — confirm above or ask to adjust…' : 'Describe your income goal to ASH…'}
                     disabled={isInputDisabled}
                     className="flex-1 resize-none text-xs bg-black/50 border border-white/12 rounded-xl px-3 py-2 text-white placeholder:text-white/22 focus:outline-none focus:border-primary/45 transition-colors disabled:opacity-40"
                     rows={1}

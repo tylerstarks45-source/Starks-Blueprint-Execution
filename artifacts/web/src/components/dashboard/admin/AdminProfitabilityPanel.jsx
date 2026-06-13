@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, DollarSign, Minus, Server, BarChart3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { TrendingUp, DollarSign, BarChart3, Server, Pencil, Check, X } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAdminData } from '@/contexts/AdminDataContext.jsx';
 import adminApi from '@/lib/adminApi.js';
@@ -40,39 +42,48 @@ const AdminProfitabilityPanel = () => {
   const [aiData, setAiData] = useState(null);
   const [aiLoading, setAiLoading] = useState(true);
 
+  const [infraCents, setInfraCents] = useState(null);
+  const [infraLoading, setInfraLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [infraInput, setInfraInput] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+
   useEffect(() => {
     adminApi.getAiAnalytics({ days: 30 })
       .then(setAiData)
       .catch(() => {})
       .finally(() => setAiLoading(false));
+
+    adminApi.getPlatformConfig()
+      .then((cfg) => {
+        setInfraCents(cfg.monthlyInfraCents ?? 0);
+        setInfraInput(String((cfg.monthlyInfraCents ?? 0) / 100));
+      })
+      .catch(() => setInfraCents(0))
+      .finally(() => setInfraLoading(false));
   }, []);
 
-  const isLoading = analyticsLoading || revenueLoading || aiLoading;
+  const isLoading = analyticsLoading || revenueLoading || aiLoading || infraLoading;
 
-  // Revenue metrics (in cents)
   const allTimeRevCents  = revenue?.stats?.allTimeCents ?? 0;
-  const monthRevCents    = revenue?.stats?.thisMonthCents ?? 0;
+  const monthRevCents    = revenue?.stats?.thisMonthCents ?? revenue?.stats?.monthCents ?? 0;
   const todayRevCents    = revenue?.stats?.todayCents ?? 0;
 
-  // AI cost metrics (USD → convert to cents for consistent math)
   const allTimeAiCents  = Math.round((aiData?.totals?.totalCostUsd ?? 0) * 100);
   const monthAiCents    = Math.round((aiData?.thisMonth?.costUsd ?? 0) * 100);
   const todayAiCents    = Math.round((aiData?.today?.costUsd ?? 0) * 100);
 
-  // Infrastructure cost (Replit hosting — fixed estimate)
-  const MONTHLY_INFRA_CENTS = 0; // Update when Replit deployment cost is known
+  const MONTHLY_INFRA_CENTS = infraCents ?? 0;
 
-  // Net profit calculations
-  const monthNetCents = monthRevCents - monthAiCents - MONTHLY_INFRA_CENTS;
+  const monthNetCents   = monthRevCents - monthAiCents - MONTHLY_INFRA_CENTS;
   const allTimeNetCents = allTimeRevCents - allTimeAiCents;
-  const todayNetCents  = todayRevCents - todayAiCents;
+  const todayNetCents   = todayRevCents - todayAiCents;
 
-  // Margin
   const monthMarginPct = monthRevCents > 0
     ? Math.round((monthNetCents / monthRevCents) * 100)
     : null;
 
-  // Daily profit chart: zip revenue daily data and AI daily data by date
   const revDaily = revenue?.dailyRevenue ?? [];
   const aiDaily  = aiData?.daily ?? [];
   const aiByDate = Object.fromEntries(aiDaily.map((r) => [r.date, r.costUsd]));
@@ -87,6 +98,29 @@ const AdminProfitabilityPanel = () => {
     };
   });
 
+  async function saveInfra() {
+    const dollars = parseFloat(infraInput);
+    if (isNaN(dollars) || dollars < 0) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const cents = Math.round(dollars * 100);
+      await adminApi.updatePlatformConfig({ monthlyInfraCents: cents });
+      setInfraCents(cents);
+      setEditing(false);
+    } catch (e) {
+      setSaveError(e.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function cancelEdit() {
+    setInfraInput(String((infraCents ?? 0) / 100));
+    setEditing(false);
+    setSaveError(null);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -99,7 +133,6 @@ const AdminProfitabilityPanel = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Today */}
         <Card className="border-border/50">
           <CardHeader className="pb-1">
             <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Today</CardTitle>
@@ -120,7 +153,6 @@ const AdminProfitabilityPanel = () => {
           </CardContent>
         </Card>
 
-        {/* This Month */}
         <Card className="border-border/50">
           <CardHeader className="pb-1">
             <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">This Month</CardTitle>
@@ -146,7 +178,6 @@ const AdminProfitabilityPanel = () => {
           </CardContent>
         </Card>
 
-        {/* All Time */}
         <Card className="border-border/50">
           <CardHeader className="pb-1">
             <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">All Time</CardTitle>
@@ -168,7 +199,6 @@ const AdminProfitabilityPanel = () => {
         </Card>
       </div>
 
-      {/* P&L breakdown */}
       <Card className="border-border/50">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -182,7 +212,45 @@ const AdminProfitabilityPanel = () => {
             <div>
               <MetricRow label="Subscription Revenue" value={usd(monthRevCents)} color="text-emerald-400" sign="+" />
               <MetricRow label="OpenRouter AI Cost" value={usd(monthAiCents)} color="text-rose-400" sign="−" />
-              <MetricRow label="Infrastructure Cost" value={MONTHLY_INFRA_CENTS > 0 ? usd(MONTHLY_INFRA_CENTS) : '$0.00'} color="text-rose-400" sign="−" />
+
+              {/* Infrastructure cost row — editable */}
+              <div className="flex justify-between items-center py-3 border-b border-border/30">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <Server className="w-3.5 h-3.5" /> Infrastructure Cost
+                  </span>
+                  {!editing && (
+                    <button
+                      onClick={() => { setEditing(true); setInfraInput(String((infraCents ?? 0) / 100)); }}
+                      className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                      title="Set monthly hosting/infra cost"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                {editing ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">$</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="h-7 w-24 text-xs font-mono"
+                      value={infraInput}
+                      onChange={(e) => setInfraInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveInfra(); if (e.key === 'Escape') cancelEdit(); }}
+                      autoFocus
+                    />
+                    <button onClick={saveInfra} disabled={saving} className="text-emerald-500 hover:text-emerald-400 transition-colors"><Check className="w-4 h-4" /></button>
+                    <button onClick={cancelEdit} disabled={saving} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-4 h-4" /></button>
+                  </div>
+                ) : (
+                  <span className="font-mono font-bold text-sm text-rose-400">−{usd(MONTHLY_INFRA_CENTS)}</span>
+                )}
+              </div>
+              {saveError && <p className="text-xs text-destructive mt-1">{saveError}</p>}
+
               <MetricRow
                 label="Net Platform Profit"
                 value={usd(Math.abs(monthNetCents))}
@@ -195,7 +263,6 @@ const AdminProfitabilityPanel = () => {
         </CardContent>
       </Card>
 
-      {/* Daily profit chart */}
       {profitChart.length > 0 && (
         <Card className="border-border/50">
           <CardHeader className="pb-2">

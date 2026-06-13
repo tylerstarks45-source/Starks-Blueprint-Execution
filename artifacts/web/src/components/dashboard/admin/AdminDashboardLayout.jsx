@@ -2,6 +2,30 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AdminDataProvider } from '@/contexts/AdminDataContext.jsx';
+
+class AdminErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 gap-4 text-muted-foreground">
+          <p className="text-sm">Something went wrong loading the admin panel.</p>
+          <button
+            className="text-xs px-4 py-2 rounded border border-border hover:bg-muted/30 transition-colors"
+            onClick={() => window.location.reload()}
+          >
+            Reload
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import {
   LayoutDashboard, DollarSign, BrainCircuit, Server, TrendingUp,
   Users, Bell, ShieldCheck, CreditCard,
@@ -61,6 +85,7 @@ const AdminDashboardLayout = () => {
   const activeTab = useActiveTab();
 
   return (
+    <AdminErrorBoundary>
     <AdminDataProvider>
       <div className="space-y-6 animate-in fade-in duration-500 relative z-10">
 
@@ -203,6 +228,7 @@ const AdminDashboardLayout = () => {
 
       </div>
     </AdminDataProvider>
+    </AdminErrorBoundary>
   );
 };
 

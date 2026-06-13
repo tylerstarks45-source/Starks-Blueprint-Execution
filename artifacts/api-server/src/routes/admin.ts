@@ -23,7 +23,7 @@ import {
 } from "@workspace/db";
 import { z } from "zod/v4";
 import { requireAdmin } from "../lib/auth";
-import { adjustCredits, TIER_PRICES, tierAllotment } from "../lib/credits";
+import { adjustCredits, TIER_PRICES, TIER_ALLOTMENTS, TIER_SYSTEM_LIMITS, TIER_NAMES, tierAllotment } from "../lib/credits";
 import { getUncachableStripeClient } from "../lib/stripe";
 import { getKeyRotationStatus, setKeyRotatedAt, setActiveKey, encryptWithKey, decryptWithKeyHex } from "../lib/crypto";
 import {
@@ -1252,6 +1252,54 @@ router.get("/admin/ai-analytics", async (req, res): Promise<void> => {
     byTier:    tierRows,
     days,
   });
+});
+
+// ── Platform configuration (tier limits, infra cost) ─────────────────────────
+router.get("/admin/platform-config", requireAdmin, async (req, res): Promise<void> => {
+  const [row] = await db
+    .select({ value: platformSettingsTable.value })
+    .from(platformSettingsTable)
+    .where(eq(platformSettingsTable.key, "monthly_infra_cents"));
+
+  const monthlyInfraCents = row ? parseInt(row.value, 10) : 0;
+
+  // Only expose canonical tiers (exclude legacy aliases)
+  const canonicalTiers = ["free", "builder", "operator", "empire"] as const;
+  const tierSystemLimits: Record<string, number> = {};
+  const tierAllotments: Record<string, number> = {};
+  const tierPrices: Record<string, number> = {};
+  const tierNames: Record<string, string> = {};
+
+  for (const tier of canonicalTiers) {
+    tierSystemLimits[tier] = TIER_SYSTEM_LIMITS[tier] ?? 1;
+    tierAllotments[tier]   = TIER_ALLOTMENTS[tier]   ?? 0;
+    tierPrices[tier]       = TIER_PRICES[tier]        ?? 0;
+    tierNames[tier]        = TIER_NAMES[tier]         ?? tier;
+  }
+
+  res.json({ tierSystemLimits, tierAllotments, tierPrices, tierNames, monthlyInfraCents });
+});
+
+router.patch("/admin/platform-config", requireAdmin, async (req, res): Promise<void> => {
+  const Body = z.object({
+    monthlyInfraCents: z.number().int().min(0).max(100_000_00),
+  });
+  const parsed = Body.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "monthlyInfraCents must be a non-negative integer (cents)" });
+    return;
+  }
+  const { monthlyInfraCents } = parsed.data;
+
+  await db
+    .insert(platformSettingsTable)
+    .values({ key: "monthly_infra_cents", value: String(monthlyInfraCents) })
+    .onConflictDoUpdate({
+      target: platformSettingsTable.key,
+      set: { value: String(monthlyInfraCents), updatedAt: new Date() },
+    });
+
+  res.json({ monthlyInfraCents });
 });
 
 export default router;

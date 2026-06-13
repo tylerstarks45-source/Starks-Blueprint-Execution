@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Server, Activity, CheckCircle2, XCircle, PauseCircle, Wrench, BarChart3 } from 'lucide-react';
+import { Server, Activity, CheckCircle2, Wrench, BarChart3 } from 'lucide-react';
 import { useAdminData } from '@/contexts/AdminDataContext.jsx';
+import adminApi from '@/lib/adminApi.js';
 
 const num = (n) => (n ?? 0).toLocaleString();
 const usd = (cents) => `$${((cents ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -27,32 +28,53 @@ const StatCard = ({ icon: Icon, label, value, color = 'text-muted-foreground', l
   </Card>
 );
 
+const TIER_COLORS = {
+  empire:   'text-amber-400',
+  operator: 'text-violet-400',
+  starter:  'text-blue-400',
+  builder:  'text-blue-300',
+  free:     'text-muted-foreground',
+  none:     'text-muted-foreground',
+};
+
 const AdminSystemMonitoringPanel = () => {
   const { analytics, loading, revenue, revenueLoading } = useAdminData();
 
+  const [platformConfig, setPlatformConfig] = useState(null);
+  const [configLoading, setConfigLoading] = useState(true);
+
+  useEffect(() => {
+    adminApi.getPlatformConfig()
+      .then(setPlatformConfig)
+      .catch(() => {})
+      .finally(() => setConfigLoading(false));
+  }, []);
+
   const platform = analytics?.platform ?? {};
 
-  const totalSystems   = platform.totalSystemInstances ?? 0;
-  const activeSystems  = platform.activeSystemInstances ?? 0;
+  const totalSystems    = platform.totalSystemInstances ?? 0;
+  const activeSystems   = platform.activeSystemInstances ?? 0;
   const buildingSystems = platform.buildingSystemInstances ?? 0;
-  const otherSystems   = Math.max(0, totalSystems - activeSystems - buildingSystems);
+  const otherSystems    = Math.max(0, totalSystems - activeSystems - buildingSystems);
 
-  // Revenue by blueprint — use the existing byBlueprint array from the revenue endpoint
   const byBlueprint = revenue?.byBlueprint ?? [];
 
-  // Subscription distribution for system context
   const subscriptions = analytics?.subscriptions ?? [];
   const tierOrder = ['empire', 'operator', 'starter', 'builder', 'free', 'none'];
   const sortedTiers = [...subscriptions].sort((a, b) => tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier));
 
-  const TIER_COLORS = {
-    empire: 'text-amber-400',
-    operator: 'text-violet-400',
-    starter: 'text-blue-400',
-    builder: 'text-blue-300',
-    none: 'text-muted-foreground',
-  };
-  const TIER_LABELS = { empire: 'Empire', operator: 'Operator', starter: 'Starter', builder: 'Starter (legacy)', none: 'No Tier' };
+  const tierSystemLimits = platformConfig?.tierSystemLimits ?? {};
+  const tierNames        = platformConfig?.tierNames        ?? {};
+
+  function tierLimitLabel(tier) {
+    const n = tierSystemLimits[tier];
+    if (n === undefined) return '';
+    return `${n} system${n === 1 ? '' : 's'}`;
+  }
+
+  function tierDisplayName(tier) {
+    return tierNames[tier] ?? tier;
+  }
 
   return (
     <div className="space-y-6">
@@ -63,16 +85,14 @@ const AdminSystemMonitoringPanel = () => {
         <p className="text-sm text-muted-foreground mt-0.5">Platform-wide system status and performance</p>
       </div>
 
-      {/* System count KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={Server}       label="Total Systems Built"  value={num(totalSystems)}    color="text-primary"    loading={loading} />
-        <StatCard icon={CheckCircle2} label="Active Systems"        value={num(activeSystems)}   color="text-emerald-400" loading={loading} />
-        <StatCard icon={Wrench}       label="Building / In Progress" value={num(buildingSystems)} color="text-amber-400"  loading={loading} />
-        <StatCard icon={Activity}     label="Idle / Paused"         value={num(otherSystems)}    color="text-muted-foreground" loading={loading} />
+        <StatCard icon={Server}       label="Total Systems Built"   value={num(totalSystems)}    color="text-primary"          loading={loading} />
+        <StatCard icon={CheckCircle2} label="Active Systems"         value={num(activeSystems)}   color="text-emerald-400"      loading={loading} />
+        <StatCard icon={Wrench}       label="Building / In Progress" value={num(buildingSystems)} color="text-amber-400"        loading={loading} />
+        <StatCard icon={Activity}     label="Idle / Paused"          value={num(otherSystems)}    color="text-muted-foreground" loading={loading} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue by blueprint */}
         <Card className="border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -109,7 +129,6 @@ const AdminSystemMonitoringPanel = () => {
           </CardContent>
         </Card>
 
-        {/* Active subscribers by tier (system context) */}
         <Card className="border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -117,20 +136,20 @@ const AdminSystemMonitoringPanel = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {loading || configLoading ? (
               <div className="space-y-3"><Skeleton className="h-6 w-full" /><Skeleton className="h-6 w-full" /></div>
             ) : sortedTiers.length === 0 ? (
               <p className="text-sm text-muted-foreground italic">No active subscriptions.</p>
             ) : (
               <div className="space-y-4">
                 {sortedTiers.map((s) => {
-                  const limits = { empire: '10 systems', operator: '10 systems', builder: '5 systems', starter: '5 systems', free: '1 system' };
                   const colorClass = TIER_COLORS[s.tier] ?? 'text-muted-foreground';
+                  const limitLabel = tierLimitLabel(s.tier);
                   return (
                     <div key={s.tier} className="flex items-center justify-between border-b border-border/30 pb-3">
                       <div>
-                        <span className={`text-sm font-semibold ${colorClass}`}>{TIER_LABELS[s.tier] ?? s.tier}</span>
-                        <div className="text-xs text-muted-foreground">{limits[s.tier] ?? ''}</div>
+                        <span className={`text-sm font-semibold ${colorClass}`}>{tierDisplayName(s.tier)}</span>
+                        {limitLabel && <div className="text-xs text-muted-foreground">{limitLabel}</div>}
                       </div>
                       <div className="text-right">
                         <div className="font-mono font-bold">{num(s.count)}</div>
@@ -145,7 +164,6 @@ const AdminSystemMonitoringPanel = () => {
         </Card>
       </div>
 
-      {/* Platform aggregate stats */}
       <Card className="border-border/50">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Platform Stats</CardTitle>

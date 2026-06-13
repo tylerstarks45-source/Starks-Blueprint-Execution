@@ -1,3 +1,4 @@
+// @refresh reset
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import adminApi from '@/lib/adminApi.js';
 
@@ -123,4 +124,3 @@ export const AdminDataProvider = ({ children }) => {
   return <AdminDataContext.Provider value={value}>{children}</AdminDataContext.Provider>;
 };
 
-export default AdminDataContext;

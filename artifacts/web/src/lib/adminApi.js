@@ -72,6 +72,9 @@ export const adminApi = {
     request('/admin/stripe/provision-user', { method: 'POST', body: JSON.stringify(body) }),
   rotateKey: (newKeyHex) =>
     request('/admin/credentials/rotate-key', { method: 'POST', body: JSON.stringify({ newKeyHex }) }),
+  getPlatformConfig: () => request('/admin/platform-config'),
+  updatePlatformConfig: (body) =>
+    request('/admin/platform-config', { method: 'PATCH', body: JSON.stringify(body) }),
 };
 
 export default adminApi;

@@ -408,6 +408,37 @@ const linkify = (text) =>
 // ─── Message Bubble ───────────────────────────────────────────────────────────
 const MessageBubble = ({ msg }) => {
   const isUser = msg.role === 'user';
+
+  // Generated files card
+  if (msg.type === 'files') {
+    return (
+      <div className="flex items-start gap-2.5 my-0.5">
+        <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 mt-0.5">
+          <FolderOpen className="w-3.5 h-3.5 text-emerald-400" />
+        </div>
+        <div className="flex flex-col gap-0.5 items-start">
+          <span className="text-[10px] text-emerald-400/55 font-mono font-semibold px-1">ASH · File Generation Log</span>
+          <div className="bg-[#040d07] border border-emerald-500/15 rounded-2xl rounded-tl-sm px-4 py-3 min-w-[260px]">
+            <p className="text-[9px] text-white/28 font-mono font-semibold mb-2.5 uppercase tracking-widest">Generated for this build</p>
+            <div className="space-y-1.5">
+              {msg.files.map((f, i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="text-[12px] text-white/65">{f.name}</span>
+                  <span className="text-[9px] text-white/22 font-mono ml-auto">{f.tag}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[9px] text-white/18 font-mono mt-3 border-t border-white/5 pt-2">Saved to your build history · accessible from the timeline</p>
+          </div>
+          <span className="text-[10px] text-muted-foreground/30 px-1">
+            {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'items-start gap-2.5'}`}>
       {!isUser && (
@@ -586,23 +617,62 @@ const ProgressTracker = ({ phase }) => {
 };
 
 // ─── Checkpoint Marker (inline in chat thread) ─────────────────────────────────
-const CheckpointMarker = ({ cp, onRestore }) => (
-  <div className="flex items-center gap-2 py-1">
-    <div className="flex-1 h-px bg-white/8" />
-    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/50 border border-white/12 shrink-0">
-      <RotateCcw className="w-2.5 h-2.5 text-primary/50 shrink-0" />
-      <span className="text-[10px] text-white/40 font-mono font-semibold">Checkpoint v{cp.versionNum}</span>
-      <span className="text-[9px] text-white/22 font-mono">· {formatTs(cp.ts)}</span>
-      <button
-        onClick={onRestore}
-        className="ml-1 text-[9px] text-primary/70 hover:text-primary font-mono font-bold transition-colors underline underline-offset-2"
-      >
-        Restore
+const CheckpointMarker = ({ cp, onRestore }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="my-2">
+      <button onClick={() => setOpen(v => !v)} className="w-full flex items-center gap-2 group">
+        <div className="flex-1 h-px bg-white/8 group-hover:bg-emerald-500/20 transition-colors" />
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 border border-emerald-500/20 hover:border-emerald-500/35 transition-all shrink-0">
+          <CheckCircle className="w-2.5 h-2.5 text-emerald-400/60" />
+          <span className="text-[10px] text-white/45 font-mono font-semibold">Build v{cp.versionNum}</span>
+          <span className="text-[9px] text-white/22 font-mono">· {formatTs(cp.ts)}</span>
+          {open
+            ? <ChevronDown className="w-2.5 h-2.5 text-white/25" />
+            : <ChevronRight className="w-2.5 h-2.5 text-white/25" />}
+        </div>
+        <div className="flex-1 h-px bg-white/8 group-hover:bg-emerald-500/20 transition-colors" />
       </button>
+      {open && (
+        <div className="mx-2 mt-2 rounded-xl border border-emerald-500/15 bg-[#030d06] p-3.5 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
+                <Save className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-[12px] text-white/70 font-semibold">Checkpoint v{cp.versionNum}</p>
+                <p className="text-[9px] text-white/30 font-mono">{new Date(cp.ts).toLocaleString()}</p>
+              </div>
+            </div>
+            <span className="text-[9px] font-mono text-emerald-400/70 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0">
+              {cp.msgCount} messages
+            </span>
+          </div>
+          <p className="text-[10px] text-white/28 font-mono leading-relaxed border-t border-white/5 pt-2.5">
+            ASH saved the full conversation state here. Redo from this point to rebuild everything after it, or restore to continue from here.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={onRestore}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-violet-500/30 bg-violet-500/8 hover:bg-violet-500/14 transition-all text-[11px] text-violet-300 font-semibold"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Redo From Here
+            </button>
+            <button
+              onClick={onRestore}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/12 bg-white/4 hover:bg-white/6 transition-all text-[11px] text-white/45 font-semibold"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Restore State
+            </button>
+          </div>
+        </div>
+      )}
     </div>
-    <div className="flex-1 h-px bg-white/8" />
-  </div>
-);
+  );
+};
 
 // ─── Build Terminal ───────────────────────────────────────────────────────────
 const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
@@ -919,6 +989,7 @@ const BuilderPage = () => {
   const [thinkingSteps, setThinkingSteps] = useState([]);
   const [thinkingCurrentIdx, setThinkingCurrentIdx] = useState(-1);
   const [expandedSteps, setExpandedSteps] = useState(new Set());
+  const [lastGenFiles, setLastGenFiles] = useState([]);
 
   // Credential collection
   const [pendingCreds, setPendingCreds] = useState([]);
@@ -1443,6 +1514,15 @@ const BuilderPage = () => {
           requiredCredentials: sd.requiredCredentials ?? [],
         });
         setPhase('planning');
+        // Push generated files card into chat
+        const genFiles = [
+          { name: `Build Plan: ${sd.systemName || sd.blueprint?.name || 'Custom System'}`, tag: 'plan' },
+        ];
+        if (sd.buildSteps?.length) genFiles.push({ name: `System Architecture (${sd.buildSteps.length} steps)`, tag: 'arch' });
+        if (sd.requiredCredentials?.length) genFiles.push({ name: `Connection Map (${sd.requiredCredentials.length} integrations)`, tag: 'conn' });
+        genFiles.push({ name: 'Revenue Model Analysis', tag: 'model' });
+        genFiles.push({ name: 'Deployment Workflow', tag: 'deploy' });
+        setMessages(prev => [...prev, { id: Date.now() + 2, role: 'assistant', type: 'files', files: genFiles, ts: Date.now() }]);
       } else if (action === 'collect_credentials' && sd?.requiredCredentials?.length > 0) {
         pendingBlueprintRef.current = sd.blueprint ?? null;
         pendingSystemNameRef.current = sd.systemName ?? '';
@@ -1755,43 +1835,93 @@ const BuilderPage = () => {
               <div className="border-t border-white/6 mx-3 my-1" />
             )}
 
-            {/* ── Saved sessions ── */}
+            {/* ── Build Timeline ── */}
             {savedSessions.length > 0 && (
               <div className="px-2 pt-1">
-                <p className="text-[9px] uppercase tracking-widest text-white/25 font-mono font-bold px-1 mb-1">Sessions</p>
+                <div className="flex items-center justify-between px-1 mb-2">
+                  <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono font-bold flex items-center gap-1">
+                    <Clock className="w-2.5 h-2.5" /> Build Timeline
+                  </p>
+                  <span className="text-[9px] text-white/20 font-mono">{savedSessions.length} builds</span>
+                </div>
                 {sessionsLoading && <div className="flex justify-center py-2"><Loader2 className="w-3.5 h-3.5 animate-spin text-white/20" /></div>}
-                {savedSessions.map(s => (
-                  <div
-                    key={s.id}
-                    onClick={() => restoreSession(s)}
-                    className={`group flex items-start gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-white/5 transition-colors ${
-                      currentSessionId === s.id ? 'bg-primary/8 border-l-2 border-primary/35 pl-1.5' : ''
-                    }`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
-                      s.phase === 'complete' ? 'bg-emerald-400'
-                      : s.phase === 'building' ? 'bg-blue-400'
-                      : 'bg-white/18'
-                    }`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-white/55 truncate font-mono leading-snug">{s.title}</p>
-                      <p className="text-[9px] text-white/22 font-mono mt-0.5">
-                        {s.phase === 'complete' ? '✓ ' : ''}{formatTs(new Date(s.updatedAt ?? Date.now()).getTime())}
-                      </p>
+                <div className="space-y-1.5">
+                  {savedSessions.map(s => (
+                    <div key={s.id} className={`group rounded-lg border transition-all overflow-hidden ${
+                      currentSessionId === s.id
+                        ? 'bg-primary/5 border-primary/20'
+                        : 'border-white/6 bg-white/2 hover:bg-white/4 hover:border-white/12'
+                    }`}>
+                      <div className="flex items-start gap-2 px-2.5 pt-2 pb-1.5 cursor-pointer" onClick={() => restoreSession(s)}>
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
+                          s.phase === 'complete' ? 'bg-emerald-400'
+                          : s.phase === 'building' ? 'bg-blue-400 animate-pulse'
+                          : s.phase === 'planning' ? 'bg-violet-400 animate-pulse'
+                          : 'bg-white/22'
+                        }`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] text-white/60 truncate font-mono leading-snug">{s.title}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded-full ${
+                              s.phase === 'complete' ? 'text-emerald-400/80 bg-emerald-500/10 border border-emerald-500/20'
+                              : s.phase === 'building' ? 'text-blue-400/80 bg-blue-500/10 border border-blue-500/20'
+                              : s.phase === 'planning' ? 'text-violet-400/80 bg-violet-500/10 border border-violet-500/20'
+                              : 'text-white/30 bg-white/5 border border-white/10'
+                            }`}>
+                              {s.phase === 'complete' ? '✓ complete' : s.phase === 'building' ? '⟳ building' : s.phase || 'active'}
+                            </span>
+                            <span className="text-[9px] text-white/18 font-mono">
+                              {formatTs(new Date(s.updatedAt ?? Date.now()).getTime())}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => deleteSession(s.id, e)}
+                          className="shrink-0 opacity-0 group-hover:opacity-100 text-white/18 hover:text-rose-400/65 transition-all p-0.5 rounded mt-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <div className="flex gap-1.5 px-2.5 pb-2">
+                        <button
+                          onClick={() => restoreSession(s)}
+                          className="flex-1 text-[9px] font-mono font-semibold text-white/35 hover:text-white/60 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-md py-1 transition-all"
+                        >
+                          Resume
+                        </button>
+                        {s.phase === 'complete' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const blob = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url; a.download = `ash-build-${s.id.slice(0,8)}.json`;
+                              a.click(); URL.revokeObjectURL(url);
+                            }}
+                            className="flex-1 text-[9px] font-mono font-semibold text-white/35 hover:text-white/60 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-md py-1 transition-all"
+                          >
+                            Export
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => deleteSession(s.id, e)}
+                          className="text-[9px] font-mono text-rose-400/40 hover:text-rose-400/70 bg-white/3 hover:bg-rose-500/8 border border-white/8 hover:border-rose-500/20 rounded-md py-1 px-2 transition-all"
+                        >
+                          Del
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={(e) => deleteSession(s.id, e)}
-                      className="shrink-0 opacity-0 group-hover:opacity-100 text-white/18 hover:text-rose-400/65 transition-all p-0.5 rounded"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
 
             {savedSessions.length === 0 && !sessionsLoading && phase === 'idle' && checkpoints.length === 0 && (
-              <p className="text-[9px] text-white/18 font-mono px-4 py-3 leading-relaxed">Checkpoints and sessions will appear here as you work.</p>
+              <div className="px-4 py-4 space-y-1">
+                <p className="text-[10px] text-white/30 font-mono font-semibold">No builds yet</p>
+                <p className="text-[9px] text-white/18 font-mono leading-relaxed">Your build timeline will appear here as you work with ASH.</p>
+              </div>
             )}
 
             {/* ── Active build steps ── */}

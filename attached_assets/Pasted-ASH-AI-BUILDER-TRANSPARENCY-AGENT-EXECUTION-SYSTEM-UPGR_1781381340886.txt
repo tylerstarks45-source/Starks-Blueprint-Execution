@@ -1,0 +1,227 @@
+ASH AI BUILDER TRANSPARENCY + AGENT EXECUTION SYSTEM UPGRADE
+
+MISSION
+
+Transform ASH from a simple chatbot response system into a fully transparent autonomous AI agent similar to the Replit AI Agent experience.
+
+The goal is for users to see every action ASH performs while building systems in real time.
+
+=========================================
+REAL-TIME AGENT EXECUTION PANEL
+===============================
+
+When a user submits a goal, ASH should NOT immediately return a final response.
+
+Instead ASH should begin displaying a live execution feed.
+
+Examples:
+
+Analyzing user goal...
+
+Searching blueprint library...
+
+Calculating business requirements...
+
+Selecting optimal architecture...
+
+Identifying required AI tools...
+
+Checking marketplace tools...
+
+Preparing build plan...
+
+Creating system workflow...
+
+Validating dependencies...
+
+Testing deployment requirements...
+
+Every step should appear live while ASH is working.
+
+=========================================
+LIVE THINKING PANEL
+===================
+
+Create a dedicated execution stream similar to Replit Agent.
+
+Each step should:
+
+Show status icon
+
+Pending
+
+Running
+
+Completed
+
+Failed
+
+Each step should automatically update as work progresses.
+
+Example:
+
+✓ Goal analyzed
+
+✓ Blueprint selected
+
+✓ Revenue model identified
+
+✓ Required tools identified
+
+✓ Workflow generated
+
+✓ System architecture completed
+
+✓ Deployment package created
+
+=========================================
+BUILD TIMELINE
+==============
+
+Every completed task should be saved.
+
+Create a permanent Build Timeline.
+
+Store:
+
+Timestamp
+
+Goal
+
+Blueprint used
+
+Tools selected
+
+Connections required
+
+Systems generated
+
+Build outcome
+
+Users should always be able to revisit old builds.
+
+=========================================
+EXPANDABLE EXECUTION LOGS
+=========================
+
+Every completed step should become expandable.
+
+Example:
+
+▼ Blueprint Selection
+
+ASH selected the YouTube Automation Blueprint because:
+
+* User requested passive income
+* Content automation matches requirements
+* Revenue potential scored 91%
+
+When expanded, users can read the full reasoning.
+
+=========================================
+REVERT SYSTEM
+=============
+
+Allow users to restore any previous build state.
+
+Example:
+
+Restore Build Plan
+
+Restore Architecture
+
+Restore Tool Selection
+
+Restore Deployment Plan
+
+This creates a true version history.
+
+=========================================
+BUILD MEMORY
+============
+
+Every build should be permanently saved.
+
+Users should be able to:
+
+View Build History
+
+Duplicate Build
+
+Resume Build
+
+Continue Build
+
+Export Build
+
+Archive Build
+
+Delete Build
+
+=========================================
+FILE GENERATION LOG
+===================
+
+Whenever ASH creates:
+
+Blueprints
+
+Workflows
+
+System Maps
+
+Deployment Plans
+
+Connection Plans
+
+Scripts
+
+Automations
+
+Show them in the execution stream.
+
+Example:
+
+✓ Generated Deployment Plan
+
+✓ Generated Automation Workflow
+
+✓ Generated Connection Map
+
+=========================================
+VISUAL PROGRESS TRACKER
+=======================
+
+Add a progress tracker.
+
+Example:
+
+Goal Analysis 100%
+
+Blueprint Selection 100%
+
+Architecture Design 100%
+
+System Build 100%
+
+Deployment Prep 100%
+
+Testing 100%
+
+Users should always know where ASH is in the process.
+
+=========================================
+UI REQUIREMENTS
+===============
+
+Model this experience after Replit Agent.
+
+Users should feel like they are watching an autonomous AI employee working in real time.
+
+The experience should be transparent, educational, and trustworthy.
+
+ASH should show what it is doing, why it is doing it, and what it completed.
+
+Nothing should feel like a black box.
+
+The final result should feel like a professional AI operating system with complete execution visibility and permanent build history.

@@ -453,39 +453,137 @@ const MessageBubble = ({ msg }) => {
   );
 };
 
-// ─── Thinking Display ─────────────────────────────────────────────────────────
-const ThinkingDisplay = ({ steps, currentIdx }) => (
-  <div className="flex items-start gap-2.5">
-    <div className="w-7 h-7 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center shrink-0 mt-0.5 shadow-lg shadow-violet-900/20">
-      <Brain className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
-    </div>
-    <div className="flex flex-col gap-0.5 items-start">
-      <span className="text-[10px] text-violet-400/60 font-mono font-semibold px-1">ASH · Deep Thinking</span>
-      <div className="bg-[#0c0b1c] border border-violet-500/20 rounded-2xl rounded-tl-sm px-4 py-3 min-w-[240px] shadow-lg shadow-violet-900/10">
-        <div className="space-y-2">
-          {steps.map((step, i) => (
-            <div key={i} className="flex items-center gap-2.5 text-[12px]">
-              {i < currentIdx ? (
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              ) : i === currentIdx ? (
-                <Loader2 className="w-3.5 h-3.5 text-violet-400 animate-spin shrink-0" />
-              ) : (
-                <div className="w-3.5 h-3.5 rounded-full border border-white/12 shrink-0" />
-              )}
-              <span className={`transition-all duration-300 ${
-                i < currentIdx ? 'text-white/28 line-through decoration-white/15' :
-                i === currentIdx ? 'text-white/90' :
-                'text-white/22'
-              }`}>
-                {step}
-              </span>
+// ─── Execution Stream ─────────────────────────────────────────────────────────
+const ExecutionStream = ({ steps, currentIdx, expandedSteps, onToggle }) => {
+  const pct = steps.length > 0 ? Math.round((Math.min(currentIdx, steps.length) / steps.length) * 100) : 0;
+  return (
+    <div className="flex items-start gap-2.5">
+      <div className="w-7 h-7 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center shrink-0 mt-0.5 shadow-lg shadow-violet-900/20">
+        <Zap className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
+      </div>
+      <div className="flex flex-col gap-0.5 items-start flex-1 min-w-0">
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-[10px] text-violet-400/60 font-mono font-semibold">ASH · Execution Engine</span>
+          <span className="text-[9px] text-white/18 font-mono">
+            step {Math.min(currentIdx + 1, steps.length)}/{steps.length}
+          </span>
+        </div>
+        <div className="bg-[#0c0b1c] border border-violet-500/20 rounded-2xl rounded-tl-sm px-4 py-3 w-full shadow-lg shadow-violet-900/10">
+          <div className="space-y-1">
+            {steps.map((step, i) => {
+              const done = i < currentIdx;
+              const active = i === currentIdx;
+              const isExpanded = expandedSteps?.has(i);
+              const label = typeof step === 'string' ? step : step.label;
+              const reasoning = typeof step === 'string' ? null : step.reasoning;
+              return (
+                <div key={i}>
+                  <button
+                    onClick={() => done && reasoning && onToggle(i)}
+                    className={`flex items-center gap-2.5 w-full text-left rounded-lg px-2 py-1 transition-all duration-150 ${
+                      done && reasoning ? 'hover:bg-white/4 cursor-pointer group' : 'cursor-default'
+                    }`}
+                  >
+                    <span className="shrink-0 w-4 flex items-center justify-center">
+                      {done ? (
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : active ? (
+                        <Loader2 className="w-3.5 h-3.5 text-violet-400 animate-spin" />
+                      ) : (
+                        <Circle className="w-3 h-3 text-white/15" />
+                      )}
+                    </span>
+                    <span className={`text-[12px] flex-1 transition-colors duration-300 ${
+                      done ? 'text-white/35' : active ? 'text-white/90' : 'text-white/18'
+                    }`}>
+                      {label}
+                    </span>
+                    {done && reasoning && (
+                      <span className="shrink-0 ml-1 opacity-0 group-hover:opacity-60 transition-opacity">
+                        {isExpanded
+                          ? <ChevronDown className="w-3 h-3 text-violet-400" />
+                          : <ChevronRight className="w-3 h-3 text-white/30" />}
+                      </span>
+                    )}
+                  </button>
+                  {done && isExpanded && reasoning && (
+                    <div className="ml-9 mr-2 mb-1.5 px-3 py-2 rounded-lg bg-violet-500/6 border border-violet-500/15 text-[11px] text-white/45 leading-relaxed">
+                      {reasoning}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 pt-3 border-t border-white/6">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[9px] font-mono text-white/18 uppercase tracking-wider">Execution Progress</span>
+              <span className="text-[9px] font-mono text-violet-400/50">{pct}%</span>
             </div>
-          ))}
+            <div className="h-0.5 bg-white/6 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-violet-600 to-violet-400 rounded-full transition-all duration-500"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <p className="text-[9px] text-white/15 font-mono mt-2">↑ Click completed steps to see ASH reasoning</p>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
+
+// ─── Progress Tracker ─────────────────────────────────────────────────────────
+const TRACKER_PHASES = [
+  { label: 'Goal Analysis', Icon: Target },
+  { label: 'Blueprint',     Icon: BookOpen },
+  { label: 'Architecture',  Icon: Building2 },
+  { label: 'System Build',  Icon: Cpu },
+  { label: 'Deploy',        Icon: Rocket },
+];
+
+const ProgressTracker = ({ phase }) => {
+  const activeIdx =
+    phase === 'complete'   ? 5 :
+    phase === 'building'   ? 3 :
+    phase === 'collecting' ? 2 :
+    phase === 'planning'   ? 1 : 0;
+
+  return (
+    <div className="shrink-0 border-b border-white/8 bg-black/30 px-5 py-2.5">
+      <div className="flex items-center">
+        {TRACKER_PHASES.map(({ label, Icon }, i) => {
+          const done    = i < activeIdx;
+          const active  = i === activeIdx && phase !== 'idle';
+          const pending = !done && !active;
+          return (
+            <React.Fragment key={i}>
+              {i > 0 && (
+                <div className={`flex-1 h-px mx-2 transition-colors duration-500 ${done ? 'bg-emerald-500/30' : active ? 'bg-violet-500/20' : 'bg-white/8'}`} />
+              )}
+              <div className="flex flex-col items-center gap-1 shrink-0">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-500 ${
+                  done    ? 'bg-emerald-500/15 border border-emerald-500/40' :
+                  active  ? 'bg-violet-500/20 border border-violet-500/50' :
+                            'bg-white/4 border border-white/10'
+                }`}>
+                  {done
+                    ? <CheckCircle className="w-3 h-3 text-emerald-400" />
+                    : <Icon className={`w-3 h-3 ${active ? 'text-violet-400 animate-pulse' : 'text-white/18'}`} />
+                  }
+                </div>
+                <span className={`text-[8px] font-mono font-semibold text-center leading-tight ${
+                  done ? 'text-emerald-400/50' : active ? 'text-violet-400/80' : 'text-white/18'
+                }`}>{label}</span>
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 // ─── Checkpoint Marker (inline in chat thread) ─────────────────────────────────
 const CheckpointMarker = ({ cp, onRestore }) => (
@@ -820,6 +918,7 @@ const BuilderPage = () => {
   // Streaming + thinking display state
   const [thinkingSteps, setThinkingSteps] = useState([]);
   const [thinkingCurrentIdx, setThinkingCurrentIdx] = useState(-1);
+  const [expandedSteps, setExpandedSteps] = useState(new Set());
 
   // Credential collection
   const [pendingCreds, setPendingCreds] = useState([]);
@@ -1256,6 +1355,7 @@ const BuilderPage = () => {
     setChatLoading(true);
     setThinkingSteps([]);
     setThinkingCurrentIdx(-1);
+    setExpandedSteps(new Set());
 
     const msgId = Date.now() + 1;
     let doneData = null;
@@ -2018,6 +2118,8 @@ const BuilderPage = () => {
             </div>
           )}
 
+          {phase !== 'idle' && <ProgressTracker phase={phase} />}
+
           {/* Main scrollable chat area */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-thin scrollbar-thumb-white/10">
             <SkillActivationPanel activatedSkills={activatedSkills} />
@@ -2119,7 +2221,16 @@ const BuilderPage = () => {
             )}
 
             {chatLoading && thinkingSteps.length > 0 && thinkingCurrentIdx >= 0 && (
-              <ThinkingDisplay steps={thinkingSteps} currentIdx={thinkingCurrentIdx} />
+              <ExecutionStream
+                steps={thinkingSteps}
+                currentIdx={thinkingCurrentIdx}
+                expandedSteps={expandedSteps}
+                onToggle={i => setExpandedSteps(prev => {
+                  const next = new Set(prev);
+                  next.has(i) ? next.delete(i) : next.add(i);
+                  return next;
+                })}
+              />
             )}
             {chatLoading && thinkingSteps.length === 0 && !messages.some(m => m.streaming) && (
               <div className="flex items-start gap-2.5">

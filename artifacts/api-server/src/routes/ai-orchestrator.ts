@@ -423,7 +423,12 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
 
 const sse_sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
-function getThinkingSteps(message: string, agentMode: string): string[] {
+interface ThinkingStep {
+  label: string;
+  reasoning: string;
+}
+
+function getThinkingSteps(message: string, agentMode: string): ThinkingStep[] {
   const lower = message.toLowerCase();
 
   if (lower.includes("http") || lower.includes("website") || lower.includes("browse") ||
@@ -431,10 +436,10 @@ function getThinkingSteps(message: string, agentMode: string): string[] {
       lower.includes("gmail") || lower.includes("google") || lower.includes(".com") ||
       lower.includes("page")) {
     return [
-      "Parsing web browsing request…",
-      "Validating target URL…",
-      "Preparing browser agent…",
-      "Initializing web session…",
+      { label: "Parsing web request…", reasoning: "Identifying the target URL and browsing objectives from your message to configure the ASH browser agent correctly." },
+      { label: "Validating target URL…", reasoning: "Verifying the URL format and protocol to ensure the browser agent can navigate to the intended destination safely." },
+      { label: "Preparing browser agent…", reasoning: "Initializing the ASH web crawler with task context, navigation rules, and content extraction settings." },
+      { label: "Initializing web session…", reasoning: "Opening a secure browser session with appropriate headers and request configuration. The agent will capture page snapshots at each step." },
     ];
   }
 
@@ -444,49 +449,49 @@ function getThinkingSteps(message: string, agentMode: string): string[] {
       lower.includes("shopify") || lower.includes("tiktok") || lower.includes("youtube") ||
       lower.includes("saas") || lower.includes("course") || lower.includes("funnel") ||
       lower.includes("$") || lower.includes("profit")) {
-    const depth = agentMode === "empire" || agentMode === "expert"
-      ? [
-          "Activating deep reasoning mode…",
-          "Analyzing your income goal…",
-          "Searching STARKS blueprint library…",
-          "Evaluating tool stack options…",
-          "Designing system architecture…",
-          "Calculating revenue projections…",
-          "Stress-testing monetisation model…",
-          "Preparing comprehensive build plan…",
-        ]
-      : [
-          "Analyzing your income goal…",
-          "Searching STARKS blueprint library…",
-          "Designing system architecture…",
-          "Calculating revenue projections…",
-          "Preparing build plan…",
-        ];
-    return depth;
+    if (agentMode === "empire" || agentMode === "expert") {
+      return [
+        { label: "Activating deep reasoning mode…", reasoning: "Switching to extended context analysis using a more capable reasoning model to handle complex multi-variable goal evaluation." },
+        { label: "Analyzing your income goal…", reasoning: "Breaking down your revenue target into component sub-goals — identifying time horizon, risk tolerance, and required automation depth." },
+        { label: "Searching STARKS blueprint library…", reasoning: "Running multi-factor blueprint scoring across all 8 blueprints in 6 categories to find the optimal architecture match for your stated goal." },
+        { label: "Evaluating tool stack options…", reasoning: "Analyzing tool compatibility, API rate limits, and cost structures across the 17 STARKS marketplace tools to identify the most efficient stack." },
+        { label: "Designing system architecture…", reasoning: "Creating a multi-stage automation pipeline with fallback paths, monitoring hooks, and revenue attribution tracking built in from the start." },
+        { label: "Calculating revenue projections…", reasoning: "Running probabilistic revenue modeling based on historical conversion rates, traffic estimates, and market saturation data for your niche." },
+        { label: "Stress-testing monetisation model…", reasoning: "Identifying edge cases, market downside scenarios, and optimization levers in the proposed revenue model to give you realistic expectations." },
+        { label: "Preparing comprehensive build plan…", reasoning: "Assembling the full deployment specification: ordered build steps, credential requirements, integration sequence, and success metrics." },
+      ];
+    }
+    return [
+      { label: "Analyzing your income goal…", reasoning: "Processing your revenue target, business type preferences, and timeline to identify the right blueprint category for your situation." },
+      { label: "Searching STARKS blueprint library…", reasoning: "Scanning all 8 available blueprints across 6 categories — scoring each against your goal and selecting the highest-probability match." },
+      { label: "Designing system architecture…", reasoning: "Mapping the data flow, automation triggers, and revenue attribution chain for your selected blueprint's deployment." },
+      { label: "Calculating revenue projections…", reasoning: "Estimating realistic income timelines based on the monetization model, typical traffic patterns, and conversion benchmarks for this blueprint." },
+      { label: "Preparing build plan…", reasoning: "Generating a step-by-step deployment sequence with time estimates, required credentials, and tool integration order." },
+    ];
   }
 
   if (lower.includes("confirm") || lower.includes("proceed") || lower.includes("ready") || lower.includes("plan")) {
     return [
-      "Processing your confirmation…",
-      "Retrieving build specification…",
-      "Preparing next phase…",
+      { label: "Processing your confirmation…", reasoning: "Registering your decision to proceed and retrieving the cached build specification from the planning phase." },
+      { label: "Retrieving build specification…", reasoning: "Loading blueprint configuration, required credentials list, and build step sequence from the planning context." },
+      { label: "Preparing next phase…", reasoning: "Transitioning to the credential collection phase. ASH will need your API keys and tool access to begin construction." },
     ];
   }
 
   if (agentMode === "empire" || agentMode === "expert") {
     return [
-      "Activating deep reasoning…",
-      "Analyzing request complexity…",
-      "Consulting STARKS knowledge base…",
-      "Cross-referencing platform intelligence…",
-      "Synthesizing comprehensive response…",
+      { label: "Activating deep reasoning…", reasoning: "Switching to an extended reasoning model to give you a comprehensive, nuanced response." },
+      { label: "Analyzing request complexity…", reasoning: "Breaking down your question into components to ensure every aspect is addressed thoroughly." },
+      { label: "Consulting STARKS knowledge base…", reasoning: "Searching platform knowledge — blueprints, tools, income models, and deployment patterns — for relevant context." },
+      { label: "Cross-referencing platform intelligence…", reasoning: "Combining blueprint data, marketplace tool specs, and revenue patterns to formulate the most accurate and actionable response." },
+      { label: "Synthesizing comprehensive response…", reasoning: "Assembling all findings into a structured, actionable answer tailored to your specific situation and goals." },
     ];
   }
 
   return [
-    "Processing your request…",
-    "Consulting STARKS knowledge base…",
-    "Formulating response…",
+    { label: "Processing your request…", reasoning: "Parsing your message and identifying the intent, entities, and required context to answer accurately." },
+    { label: "Consulting STARKS knowledge base…", reasoning: "Searching platform knowledge — blueprints, tools, income models, and automation patterns — for the most relevant information." },
+    { label: "Formulating response…", reasoning: "Composing a clear, actionable response aligned with your goals and the STARKS platform capabilities." },
   ];
 }
 

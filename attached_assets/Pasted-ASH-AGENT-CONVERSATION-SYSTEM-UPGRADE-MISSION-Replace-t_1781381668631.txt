@@ -1,0 +1,251 @@
+ASH AGENT CONVERSATION SYSTEM UPGRADE
+
+MISSION
+
+Replace the current ASH chat experience with a true autonomous agent interface modeled after the Replit AI Agent experience.
+
+The goal is for users to visually watch ASH work in real time instead of receiving a single completed response.
+
+ASH should feel like a real AI employee performing work step-by-step.
+
+======================================================
+REAL-TIME AGENT RESPONSE PANEL
+==============================
+
+When a user submits a request, ASH should immediately begin working.
+
+Instead of waiting and returning a final answer, ASH should display a live execution stream.
+
+Examples:
+
+Analyzing request...
+
+Reviewing blueprint library...
+
+Searching marketplace tools...
+
+Selecting architecture...
+
+Designing workflow...
+
+Preparing deployment plan...
+
+Validating requirements...
+
+Generating system...
+
+Testing build...
+
+Build completed.
+
+Each step should appear live as ASH works.
+
+======================================================
+TYPEWRITER EXECUTION EFFECT
+===========================
+
+Every action should be typed onto the screen in real time.
+
+Users should literally see ASH writing and thinking.
+
+Example:
+
+"Analyzing user goal..."
+
+"Identifying revenue model..."
+
+"Reviewing available blueprints..."
+
+"Selecting optimal system architecture..."
+
+"Generating deployment workflow..."
+
+The experience should feel alive.
+
+======================================================
+CHECKPOINT SYSTEM
+=================
+
+When ASH completes a major stage, create a permanent checkpoint.
+
+Examples:
+
+✓ Goal Analysis Complete
+
+✓ Blueprint Selected
+
+✓ Architecture Designed
+
+✓ Tool Stack Selected
+
+✓ Deployment Plan Complete
+
+✓ Build Complete
+
+Each checkpoint becomes part of the build history.
+
+======================================================
+EXPANDABLE CHECKMARK DROPDOWNS
+==============================
+
+Every completed checkpoint must become expandable.
+
+Example:
+
+✓ Blueprint Selection Complete
+
+User clicks dropdown
+
+ASH reveals:
+
+Why the blueprint was selected
+
+What alternatives were considered
+
+Expected revenue model
+
+Required tools
+
+Build strategy
+
+Nothing should disappear after completion.
+
+Everything should remain accessible forever.
+
+======================================================
+REPLAY BUILD HISTORY
+====================
+
+Users should be able to reopen any checkpoint and review exactly what ASH did.
+
+This includes:
+
+Agent reasoning
+
+Actions taken
+
+Files generated
+
+Connections selected
+
+Blueprints used
+
+Deployment recommendations
+
+The user should never lose visibility into the build process.
+
+======================================================
+REDO FROM CHECKPOINT
+====================
+
+Add a "Redo From Here" button on every checkpoint.
+
+Example:
+
+✓ Architecture Design Complete
+
+[ View Details ]
+
+[ Redo From Here ]
+
+If clicked:
+
+ASH rolls the project back to that stage.
+
+Everything after that checkpoint is discarded.
+
+ASH starts rebuilding from that exact point.
+
+This should function similarly to version rollback.
+
+======================================================
+BUILD VERSIONING
+================
+
+Every major build action becomes a version.
+
+Version 1
+
+Version 2
+
+Version 3
+
+Version 4
+
+Users can restore any version at any time.
+
+This creates true project history.
+
+======================================================
+FILE GENERATION HISTORY
+=======================
+
+Whenever ASH generates:
+
+Workflows
+
+Blueprints
+
+System plans
+
+Automation maps
+
+Deployment plans
+
+Connection requirements
+
+Business strategies
+
+Store them under the checkpoint where they were created.
+
+Users can revisit them later.
+
+======================================================
+REPLIT-STYLE AGENT EXPERIENCE
+=============================
+
+The final experience should feel extremely similar to the Replit AI Agent workflow.
+
+Users should feel like they are watching a highly skilled AI operator perform work in real time.
+
+The interface should provide:
+
+Live progress
+
+Live typing
+
+Completed checkpoints
+
+Expandable reasoning
+
+Version history
+
+Rollback controls
+
+Project history
+
+Redo functionality
+
+Permanent transparency
+
+======================================================
+FINAL RESULT
+============
+
+ASH should no longer feel like a chatbot.
+
+ASH should feel like a true autonomous AI agent that plans, thinks, builds, explains, remembers, and allows users to review every step of the process at any point in the future.
+
+The user should always understand:
+
+What ASH did
+
+Why ASH did it
+
+What was created
+
+How to restore previous stages
+
+How to continue from previous stages
+
+Nothing should operate as a black box.

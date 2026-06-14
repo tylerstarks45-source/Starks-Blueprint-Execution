@@ -28,3 +28,4 @@ export * from "./encryption_key_rotations";
 export * from "./system_connectors";
 export * from "./runtime_jobs";
 export * from "./chat_sessions";
+export * from "./generated_files";

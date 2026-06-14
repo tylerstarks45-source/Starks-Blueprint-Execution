@@ -53,6 +53,8 @@ const ConnectionsHubPage    = lazy(() => import('@/pages/ConnectionsHubPage.jsx'
 const SystemsListPage       = lazy(() => import('@/pages/SystemsListPage.jsx'));
 const MyStackPage           = lazy(() => import('@/pages/MyStackPage.jsx'));
 const CreditsPage           = lazy(() => import('@/pages/CreditsPage.jsx'));
+const WorkspacePage         = lazy(() => import('@/pages/WorkspacePage.jsx'));
+const MemoryPage            = lazy(() => import('@/pages/MemoryPage.jsx'));
 
 // Admin pages — never needed outside admin session
 const AdminDashboard        = lazy(() => import('@/pages/AdminDashboard.jsx'));
@@ -181,6 +183,12 @@ const App = () => {
               } />
               <Route path="/credits" element={
                 <ProtectedRoute><CreditsPage /></ProtectedRoute>
+              } />
+              <Route path="/workspace" element={
+                <ProtectedRoute><WorkspacePage /></ProtectedRoute>
+              } />
+              <Route path="/memory" element={
+                <ProtectedRoute><MemoryPage /></ProtectedRoute>
               } />
 
               {/* Admin routes — lazy */}

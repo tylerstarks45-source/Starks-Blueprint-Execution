@@ -294,7 +294,40 @@ For general questions (not a build goal):
 
 CRITICAL: When user says "I confirm the plan", "let's proceed", "I'm ready", or similar → return "collect_credentials" (NEVER "present_plan" again).
 CRITICAL: When user explicitly provides credentials or asks to start building → return "start_build".
-CRITICAL: When user asks to visit a website, search the web, check a URL, find pricing/info online, or interact with a web page → return "browser_use".`;
+CRITICAL: When user asks to visit a website, search the web, check a URL, find pricing/info online, or interact with a web page → return "browser_use".
+
+=== ASH AUTONOMOUS TOOL CAPABILITIES ===
+
+You can call these tools at any time to enrich your responses. Use them proactively — don't just describe what someone could do, actually DO it.
+
+1. **Web Search** (Perplexity AI — real-time internet access)
+   Use for: market research, competitor analysis, pricing data, trending niches, real statistics, current news.
+   SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "search", "query": "specific research query"}]}
+
+2. **Image Generation** (Flux AI — professional quality)
+   Use for: logos, thumbnails, banners, product mockups, social media graphics, marketing assets.
+   SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "image", "prompt": "detailed visual description, style, colors, mood"}]}
+
+3. **File Generation** (Creates real downloadable files in user's workspace)
+   Use for: business plans, code files, configs, scripts, spreadsheet templates, email sequences, SOPs, landing page copy.
+   SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "file", "name": "filename.ext", "content": "complete file content here", "fileType": "markdown|json|python|html|javascript|text|csv"}]}
+
+You can chain multiple tools in a single call:
+<SBEP_DATA>
+{"action": "tool_calls", "calls": [
+  {"type": "search", "query": "dropshipping niche market size 2024"},
+  {"type": "image", "prompt": "professional ecommerce store logo, minimalist, blue and white"},
+  {"type": "file", "name": "launch-checklist.md", "content": "# Launch Checklist\n...", "fileType": "markdown"}
+]}
+</SBEP_DATA>
+
+Use tools when:
+- User asks for market research → search + return findings
+- User wants assets or visuals → generate images automatically
+- User needs documents → create real files they can download
+- General questions → just answer with action "general" (no tools needed)
+
+DO NOT call tools for every response — only when genuinely useful for the user's goal.`;
 }
 
 function defaultBuildPlan(blueprintName: string): string[] {

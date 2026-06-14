@@ -29,6 +29,7 @@ import connectorsRouter from "./connectors";
 import runtimeRouter from "./runtime";
 import chatSessionsRouter from "./chat-sessions";
 import browserAgentRouter from "./browser-agent";
+import ashToolsRouter from "./ash-tools";
 
 const router: IRouter = Router();
 
@@ -62,5 +63,6 @@ router.use(connectorsRouter);
 router.use(runtimeRouter);
 router.use(chatSessionsRouter);
 router.use(browserAgentRouter);
+router.use(ashToolsRouter);
 
 export default router;

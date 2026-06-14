@@ -1,0 +1,67 @@
+Replit's AI agent is an autonomous coding assistant that can plan, write, debug, and deploy full applications without you needing to write a single line of code. You describe what you want in plain language, and it does the work.
+
+What It Can Do
+1. Build Full Applications
+
+Create web apps, APIs, databases, mobile apps, slide decks, games — from scratch
+Works in any language: JavaScript/TypeScript, Python, Go, Rust, etc.
+Scaffolds entire project structures (monorepos, packages, configs)
+2. Read & Edit Code
+
+Reads existing files to understand context before making changes
+Makes targeted edits (not just rewrites) to preserve your work
+Manages imports, dependencies, and file structure
+3. Run Commands
+
+Executes shell commands (installs packages, runs migrations, builds code)
+Starts/stops/restarts development servers (workflows)
+Runs tests and reads their output
+4. Database Operations
+
+Creates and manages PostgreSQL schemas with Drizzle ORM
+Pushes schema changes to development and production databases
+Runs read-only queries against production to debug live issues
+5. Search & Navigate Codebases
+
+Uses grep/glob to find relevant code before editing
+Understands large multi-package monorepos
+Traces data flows across files
+6. Web Search & External Info
+
+Searches the web for docs, APIs, current events
+Screenshots external websites for design reference
+Fetches API documentation to use it correctly
+7. Generate Images & Media
+
+AI-generated images (logos, illustrations, backgrounds)
+Removes image backgrounds
+Creates animated videos with code
+8. Integrations
+
+Connects to third-party services: Stripe, Clerk Auth, GitHub, Linear, Google Sheets, Slack, Shopify, and 40+ more — without you needing to copy API keys around
+Uses Replit-managed OAuth/credentials
+9. Deploy to Production
+
+Pushes apps live to a .replit.app domain (or your custom domain)
+Handles TLS, health checks, and scaling automatically
+Can investigate production logs and fix live bugs
+10. Plan & Delegate Work
+
+Breaks large features into isolated tasks
+Can spawn background task agents to work in parallel on different parts of a project
+Coordinates merges when parallel agents finish
+How It Thinks
+The agent follows a loop:
+
+Understand — reads files, runs searches, checks logs to build context
+Plan — decides what to change and in what order
+Act — edits files, runs commands, restarts servers
+Verify — takes screenshots, runs e2e tests with Playwright, checks logs
+Iterate — fixes issues found during verification before handing back to you
+It has persistent memory across sessions — it remembers non-obvious decisions, quirks, and conventions it discovered in your project.
+
+What It Can't Do
+It can't access your local machine (everything runs in Replit's cloud container)
+It can't interact with paywalled/external sites that require human login
+It won't make destructive git operations (force push, rebase, delete branches) without your explicit approval
+It can't make purchases or send emails/notifications without confirming with you first

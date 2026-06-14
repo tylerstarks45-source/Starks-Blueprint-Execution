@@ -11,6 +11,9 @@ import {
   Megaphone, Cog, Wand2, FlaskConical, Globe,
   Folder, FolderOpen, FileText, FileJson2, Circle, Server,
   AlertTriangle, CheckCircle, PlayCircle, PauseCircle, BookOpen, Save,
+  Search, ImageIcon, Download, Copy, Check, Code2, FileCode2,
+  CloudUpload, Package, Hash, Database, Star, Info,
+  RefreshCw, Pencil, Trash2,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import BrowserView from '@/components/builder/BrowserView.jsx';
@@ -405,6 +408,175 @@ const linkify = (text) =>
     ) : part
   );
 
+// ─── Tool Result Cards ────────────────────────────────────────────────────────
+
+const ToolCallCard = ({ tool, label }) => (
+  <div className="flex items-start gap-2.5 my-0.5">
+    <div className="w-7 h-7 rounded-full bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0 mt-0.5">
+      {tool === 'search' ? <Search className="w-3.5 h-3.5 text-violet-400" /> : tool === 'image' ? <ImageIcon className="w-3.5 h-3.5 text-violet-400" /> : <Cpu className="w-3.5 h-3.5 text-violet-400" />}
+    </div>
+    <div className="flex flex-col gap-0.5 items-start">
+      <span className="text-[10px] text-violet-400/55 font-mono font-semibold px-1">ASH · Tool Call</span>
+      <div className="bg-[#0a0816] border border-violet-500/15 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2.5">
+        <Loader2 className="w-3.5 h-3.5 text-violet-400 animate-spin shrink-0" />
+        <p className="text-xs text-white/55 font-mono">{label || 'Executing…'}</p>
+      </div>
+    </div>
+  </div>
+);
+
+const SearchResultsCard = ({ data }) => {
+  const [expanded, setExpanded] = React.useState(false);
+  const findings = Array.isArray(data?.findings) ? data.findings : [];
+  return (
+    <div className="flex items-start gap-2.5 my-0.5">
+      <div className="w-7 h-7 rounded-full bg-sky-500/15 border border-sky-500/25 flex items-center justify-center shrink-0 mt-0.5">
+        <Search className="w-3.5 h-3.5 text-sky-400" />
+      </div>
+      <div className="flex flex-col gap-0.5 items-start max-w-[85%]">
+        <span className="text-[10px] text-sky-400/55 font-mono font-semibold px-1">ASH · Web Search</span>
+        <div className="bg-[#040a10] border border-sky-500/15 rounded-2xl rounded-tl-sm px-4 py-3 w-full">
+          {data?.query && <p className="text-[9px] text-white/30 font-mono font-semibold mb-2 uppercase tracking-widest">Query: {data.query}</p>}
+          {data?.summary && <p className="text-xs text-white/70 leading-relaxed mb-2">{data.summary}</p>}
+          {findings.length > 0 && (
+            <div className="space-y-1.5 mt-2">
+              {(expanded ? findings : findings.slice(0, 3)).map((f, i) => (
+                <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-sky-500/5 border border-sky-500/10">
+                  <Hash className="w-3 h-3 text-sky-400/50 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-white/65">{f.point}</p>
+                    {f.source && <p className="text-[9px] text-sky-400/45 font-mono mt-0.5 truncate">{f.source}</p>}
+                  </div>
+                </div>
+              ))}
+              {findings.length > 3 && (
+                <button onClick={() => setExpanded(e => !e)} className="text-[9px] text-sky-400/55 hover:text-sky-400 font-mono transition-colors">
+                  {expanded ? 'Show less' : `+ ${findings.length - 3} more findings`}
+                </button>
+              )}
+            </div>
+          )}
+          {data?.marketOpportunity && (
+            <div className="mt-2 pt-2 border-t border-white/5">
+              <p className="text-[10px] text-emerald-400/60 font-mono leading-relaxed">💡 {data.marketOpportunity}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ImageResultCard = ({ data }) => {
+  const [loaded, setLoaded] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+  const downloadImage = () => {
+    const a = document.createElement('a');
+    a.href = data.url;
+    a.download = `ash-image-${Date.now()}.jpg`;
+    a.target = '_blank';
+    a.click();
+  };
+  return (
+    <div className="flex items-start gap-2.5 my-0.5">
+      <div className="w-7 h-7 rounded-full bg-purple-500/15 border border-purple-500/25 flex items-center justify-center shrink-0 mt-0.5">
+        <ImageIcon className="w-3.5 h-3.5 text-purple-400" />
+      </div>
+      <div className="flex flex-col gap-0.5 items-start max-w-[80%]">
+        <span className="text-[10px] text-purple-400/55 font-mono font-semibold px-1">ASH · Image Generation</span>
+        <div className="bg-[#080410] border border-purple-500/15 rounded-2xl rounded-tl-sm p-3 w-full">
+          {data?.prompt && <p className="text-[9px] text-white/28 font-mono mb-2 italic">"{data.prompt}"</p>}
+          <div className="relative rounded-xl overflow-hidden bg-white/4 border border-white/8">
+            {!loaded && <div className="h-36 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-white/20" /></div>}
+            <img
+              src={data.url}
+              alt={data.prompt || 'Generated image'}
+              onLoad={() => setLoaded(true)}
+              className={`w-full object-cover rounded-xl transition-opacity ${loaded ? 'opacity-100' : 'opacity-0 h-0'}`}
+            />
+          </div>
+          <div className="flex gap-2 mt-2">
+            <button onClick={downloadImage} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/18 border border-purple-500/20 text-purple-300 text-[10px] font-mono transition-colors">
+              <Download className="w-3 h-3" />
+              Download
+            </button>
+            <button
+              onClick={() => { navigator.clipboard.writeText(data.url); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/8 border border-white/10 text-white/42 text-[10px] font-mono transition-colors"
+            >
+              {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+              {copied ? 'Copied!' : 'Copy URL'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CodeFileCard = ({ data }) => {
+  const [copied, setCopied] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
+  const fileExt = (data?.name || '').split('.').pop() || 'txt';
+  const lines = (data?.content || '').split('\n');
+  const preview = expanded ? lines : lines.slice(0, 12);
+  const copyContent = () => {
+    navigator.clipboard.writeText(data?.content || '');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  const downloadFile = () => {
+    const blob = new Blob([data?.content || ''], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = data?.name || 'file.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <div className="flex items-start gap-2.5 my-0.5">
+      <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 mt-0.5">
+        <FileCode2 className="w-3.5 h-3.5 text-emerald-400" />
+      </div>
+      <div className="flex flex-col gap-0.5 items-start max-w-[88%]">
+        <span className="text-[10px] text-emerald-400/55 font-mono font-semibold px-1">ASH · File Generated</span>
+        <div className="bg-[#030d06] border border-emerald-500/15 rounded-2xl rounded-tl-sm w-full overflow-hidden">
+          <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/5">
+            <div className="flex items-center gap-2">
+              <Code2 className="w-3.5 h-3.5 text-emerald-400/70" />
+              <span className="text-[11px] font-mono text-white/65 font-semibold">{data?.name || 'file'}</span>
+              <span className="text-[9px] font-mono text-white/22 bg-white/5 px-1.5 py-0.5 rounded">{fileExt}</span>
+            </div>
+            <div className="flex gap-1.5">
+              <button onClick={copyContent} className="flex items-center gap-1 px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/38 text-[9px] font-mono transition-colors">
+                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+              </button>
+              <button onClick={downloadFile} className="flex items-center gap-1 px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/38 text-[9px] font-mono transition-colors">
+                <Download className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <pre className="text-[11px] font-mono text-white/60 leading-relaxed px-4 py-3 whitespace-pre">
+              {preview.join('\n')}
+              {!expanded && lines.length > 12 && <span className="text-white/25">{'\n'}…</span>}
+            </pre>
+          </div>
+          {lines.length > 12 && (
+            <button onClick={() => setExpanded(e => !e)} className="w-full py-1.5 text-[9px] font-mono text-emerald-400/45 hover:text-emerald-400 transition-colors border-t border-white/5 bg-black/20">
+              {expanded ? 'Collapse' : `Show all ${lines.length} lines`}
+            </button>
+          )}
+          {data?.description && (
+            <p className="px-4 pb-2.5 text-[9px] text-white/25 font-mono border-t border-white/5 pt-2 mt-0">{data.description}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Message Bubble ───────────────────────────────────────────────────────────
 const MessageBubble = ({ msg }) => {
   const isUser = msg.role === 'user';
@@ -438,6 +610,15 @@ const MessageBubble = ({ msg }) => {
       </div>
     );
   }
+
+  // Tool call in progress
+  if (msg.type === 'tool_call') return <ToolCallCard tool={msg.tool} label={msg.label} />;
+  // Web search result
+  if (msg.type === 'search') return <SearchResultsCard data={msg.data} />;
+  // Generated image
+  if (msg.type === 'image') return <ImageResultCard data={msg.data} />;
+  // Generated file/code
+  if (msg.type === 'code') return <CodeFileCard data={msg.data} />;
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'items-start gap-2.5'}`}>
@@ -1031,6 +1212,12 @@ const BuilderPage = () => {
   const [expandedSystems, setExpandedSystems] = useState({});   // { [id]: true }
   const [expandedFolders, setExpandedFolders] = useState({});   // { [id+folder]: true }
 
+  // ASH Workspace state
+  const [generatedFiles, setGeneratedFiles] = useState([]);
+  const [ashMemory, setAshMemory] = useState([]);
+  const [leftSideTab, setLeftSideTab] = useState('tasks');
+  const [filesCopied, setFilesCopied] = useState(null);
+
   // Track whether we've loaded (or decided not to load) a saved session
   const sessionLoadedRef = useRef(false);
 
@@ -1534,6 +1721,47 @@ const BuilderPage = () => {
         await executeBuild({}, sd.blueprint, sd.systemName ?? '');
       } else if (action === 'browser_use' && sd?.startUrl) {
         setActiveBrowser({ task: sd.task ?? 'Browse the web', startUrl: sd.startUrl, msgId: Date.now() });
+      } else if (action === 'tool_calls' && Array.isArray(sd?.calls)) {
+        for (const call of sd.calls) {
+          if (call.type === 'search') {
+            const toolMsgId = Date.now() + Math.random();
+            setMessages(prev => [...prev, { id: toolMsgId, role: 'assistant', type: 'tool_call', tool: 'search', label: `Searching: ${call.query}`, ts: Date.now() }]);
+            try {
+              const res = await fetch('/api/ash/search', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ query: call.query }) });
+              if (res.ok) {
+                const data = await res.json();
+                setMessages(prev => prev.map(m => m.id === toolMsgId ? { ...m, type: 'search', data, tool: undefined, label: undefined } : m));
+              } else {
+                setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+              }
+            } catch {
+              setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+            }
+          } else if (call.type === 'image') {
+            const toolMsgId = Date.now() + Math.random();
+            setMessages(prev => [...prev, { id: toolMsgId, role: 'assistant', type: 'tool_call', tool: 'image', label: `Generating image: ${(call.prompt || '').slice(0, 40)}…`, ts: Date.now() }]);
+            try {
+              const res = await fetch('/api/ash/image', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ prompt: call.prompt }) });
+              if (res.ok) {
+                const data = await res.json();
+                setMessages(prev => prev.map(m => m.id === toolMsgId ? { ...m, type: 'image', data, tool: undefined, label: undefined } : m));
+              } else {
+                setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+              }
+            } catch {
+              setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+            }
+          } else if (call.type === 'file') {
+            try {
+              const res = await fetch('/api/ash/files', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name: call.name, content: call.content, fileType: call.fileType || 'text', description: call.description || '' }) });
+              if (res.ok) {
+                const data = await res.json();
+                setGeneratedFiles(prev => [data, ...prev]);
+                setMessages(prev => [...prev, { id: Date.now() + Math.random(), role: 'assistant', type: 'code', data, ts: Date.now() }]);
+              }
+            } catch { /* non-fatal */ }
+          }
+        }
       }
 
       // Auto-save checkpoint
@@ -1630,6 +1858,24 @@ const BuilderPage = () => {
       .catch(() => { setMarketplaceTools([]); setToolCategoryMap({}); })
       .finally(() => setToolsLoading(false));
   }, []);
+
+  // Load generated files when user is known
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    fetch('/api/ash/files', { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setGeneratedFiles(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [currentUser?.id]);
+
+  // Load ASH memory
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    fetch(`/api/user-memory?userId=${currentUser.id}`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setAshMemory(Array.isArray(data) ? data : (data?.items ?? [])))
+      .catch(() => {});
+  }, [currentUser?.id]);
 
   const activeMode = AI_MODES.find(m => m.id === aiMode);
 
@@ -1755,8 +2001,30 @@ const BuilderPage = () => {
             </button>
           </div>
 
-          {/* Scrollable conversation history */}
-          <div className="flex-1 overflow-y-auto py-1 select-none">
+          {/* ── Left sidebar tabs: Tasks | Files | Memory ── */}
+          <div className="flex border-b border-white/8 shrink-0">
+            {[
+              { id: 'tasks',  label: 'Tasks',  icon: Activity },
+              { id: 'files',  label: 'Files',  icon: FileCode2 },
+              { id: 'memory', label: 'Memory', icon: Brain },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setLeftSideTab(tab.id)}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 text-[8px] font-mono transition-colors border-b-2 ${
+                  leftSideTab === tab.id
+                    ? 'text-primary border-primary bg-primary/4'
+                    : 'text-white/25 border-transparent hover:text-white/50'
+                }`}
+              >
+                <tab.icon className="w-3 h-3" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── TASKS PANEL ── */}
+          <div className={`flex-1 overflow-y-auto py-1 select-none${leftSideTab !== 'tasks' ? ' hidden' : ''}`}>
 
             {/* Live/active task */}
             {phase !== 'idle' && messages.filter(m => m.role === 'user' && m.id !== 'welcome').length > 0 && (
@@ -1950,6 +2218,89 @@ const BuilderPage = () => {
               </>
             )}
           </div>
+
+          {/* ── FILES PANEL ── */}
+          {leftSideTab === 'files' && (
+            <div className="flex-1 overflow-y-auto py-1 min-h-0">
+              <div className="px-2 pt-2 pb-1 flex items-center justify-between">
+                <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono font-bold flex items-center gap-1">
+                  <FileCode2 className="w-2.5 h-2.5" /> Generated Files
+                </p>
+                <button onClick={() => navigate('/workspace')} className="text-[8px] text-primary/55 hover:text-primary font-mono transition-colors">
+                  Open workspace →
+                </button>
+              </div>
+              {generatedFiles.length === 0 ? (
+                <div className="px-3 py-6 text-center">
+                  <FileCode2 className="w-6 h-6 text-white/8 mx-auto mb-2" />
+                  <p className="text-[10px] text-white/20 font-mono">No files yet</p>
+                  <p className="text-[9px] text-white/12 font-mono mt-0.5">Ask ASH to generate files</p>
+                </div>
+              ) : (
+                <div className="px-2 space-y-0.5">
+                  {generatedFiles.slice(0, 20).map(file => {
+                    const extColor = file.fileType === 'markdown' ? 'text-sky-400' : file.fileType === 'json' ? 'text-amber-400' : file.fileType === 'python' ? 'text-blue-400' : 'text-emerald-400';
+                    return (
+                      <div key={file.id} className="group flex items-center gap-2 px-2 py-1.5 rounded-lg border border-transparent hover:bg-white/5 hover:border-white/8 transition-all cursor-pointer" onClick={() => navigate('/workspace')}>
+                        <FileCode2 className={`w-3 h-3 shrink-0 ${extColor}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-mono text-white/48 truncate">{file.name}</p>
+                          <p className="text-[8px] text-white/20 font-mono">{file.fileType}</p>
+                        </div>
+                        <ExternalLink className="w-2.5 h-2.5 text-white/12 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" />
+                      </div>
+                    );
+                  })}
+                  {generatedFiles.length > 20 && (
+                    <p className="text-[9px] text-white/22 font-mono text-center py-1">+{generatedFiles.length - 20} more in workspace</p>
+                  )}
+                </div>
+              )}
+              <div className="p-2 border-t border-white/6 mt-2 shrink-0">
+                <button onClick={() => navigate('/workspace')} className="w-full py-2 text-[10px] font-mono text-primary/55 hover:text-primary bg-primary/5 hover:bg-primary/10 border border-primary/15 rounded-lg transition-all">
+                  Open Full Workspace →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── MEMORY PANEL ── */}
+          {leftSideTab === 'memory' && (
+            <div className="flex-1 overflow-y-auto py-1 min-h-0">
+              <div className="px-2 pt-2 pb-1 flex items-center justify-between">
+                <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono font-bold flex items-center gap-1">
+                  <Brain className="w-2.5 h-2.5" /> ASH Memory
+                </p>
+                <button onClick={() => navigate('/memory')} className="text-[8px] text-primary/55 hover:text-primary font-mono transition-colors">
+                  Manage →
+                </button>
+              </div>
+              {ashMemory.length === 0 ? (
+                <div className="px-3 py-6 text-center">
+                  <Brain className="w-6 h-6 text-white/8 mx-auto mb-2" />
+                  <p className="text-[10px] text-white/20 font-mono">No memory yet</p>
+                  <p className="text-[9px] text-white/12 font-mono mt-0.5">ASH learns as you chat</p>
+                </div>
+              ) : (
+                <div className="px-2 space-y-0.5">
+                  {ashMemory.slice(0, 15).map(entry => (
+                    <div key={entry.id} className="px-2 py-1.5 rounded-lg border border-white/5 bg-white/2 hover:bg-white/4 transition-all">
+                      <p className="text-[9px] font-mono text-primary/55 font-bold truncate">{entry.key}</p>
+                      <p className="text-[10px] text-white/40 font-mono truncate mt-0.5">{entry.value || '—'}</p>
+                    </div>
+                  ))}
+                  {ashMemory.length > 15 && (
+                    <p className="text-[9px] text-white/22 font-mono text-center py-1">+{ashMemory.length - 15} more</p>
+                  )}
+                </div>
+              )}
+              <div className="p-2 border-t border-white/6 mt-2 shrink-0">
+                <button onClick={() => navigate('/memory')} className="w-full py-2 text-[10px] font-mono text-primary/55 hover:text-primary bg-primary/5 hover:bg-primary/10 border border-primary/15 rounded-lg transition-all">
+                  Manage Memory →
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── BOTTOM: Agent Modes (Replit-style popup) ── */}
           <div className="shrink-0 border-t border-white/8 bg-black/85">
@@ -2562,6 +2913,7 @@ const BuilderPage = () => {
               { id: 'blueprints', label: 'Blueprints', icon: Grid3x3 },
               { id: 'tools',      label: 'Tools',      icon: Layers },
               { id: 'files',      label: 'Apps',       icon: FolderOpen },
+              { id: 'deploy',     label: 'Deploy',     icon: CloudUpload },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -2788,6 +3140,65 @@ const BuilderPage = () => {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* ── DEPLOY ── */}
+            {rightPanel === 'deploy' && (
+              <div className="p-3 flex flex-col gap-3">
+                <div className="rounded-xl border border-white/8 bg-black/25 p-3">
+                  <p className="text-[9px] uppercase tracking-widest text-white/25 font-mono font-bold mb-2.5 flex items-center gap-1.5">
+                    <CloudUpload className="w-3 h-3" /> Deploy Checklist
+                  </p>
+                  {[
+                    { label: 'Blueprint selected',   done: !!selectedBlueprint },
+                    { label: 'Credentials connected', done: userCredentials.length > 0 },
+                    { label: 'System built',          done: userSystems.some(s => s.buildStatus === 'completed' || s.buildStatus === 'active') },
+                    { label: 'API server ready',      done: true },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-2.5 py-1.5 border-b border-white/4 last:border-0">
+                      {item.done
+                        ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        : <Circle className="w-3.5 h-3.5 text-white/18 shrink-0" />}
+                      <span className={`text-[11px] font-mono ${item.done ? 'text-white/55' : 'text-white/25'}`}>{item.label}</span>
+                      {item.done && <span className="ml-auto text-[8px] font-mono text-emerald-400/50">✓</span>}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-xl border border-white/8 bg-black/25 p-3">
+                  <p className="text-[9px] uppercase tracking-widest text-white/25 font-mono font-bold mb-2.5 flex items-center gap-1.5">
+                    <Activity className="w-3 h-3" /> Active Systems
+                  </p>
+                  {userSystems.filter(s => s.buildStatus === 'active' || s.buildStatus === 'completed').length === 0 ? (
+                    <p className="text-[10px] text-white/18 font-mono text-center py-3">No active systems yet</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {userSystems.filter(s => s.buildStatus === 'active' || s.buildStatus === 'completed').map(sys => (
+                        <div key={sys.id} className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/12">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                          <span className="text-[10px] font-mono text-white/48 flex-1 truncate">{sys.name}</span>
+                          <button onClick={() => navigate(`/systems/${sys.id}`)} className="text-[8px] font-mono text-emerald-400/55 hover:text-emerald-400 transition-colors">View →</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => navigate('/systems')}
+                  className="w-full py-2.5 rounded-xl bg-primary/10 hover:bg-primary/18 border border-primary/22 text-primary text-[11px] font-mono font-semibold transition-all flex items-center justify-center gap-2"
+                >
+                  <Rocket className="w-3.5 h-3.5" />
+                  View All Systems
+                </button>
+
+                <div className="rounded-xl border border-violet-500/15 bg-violet-500/4 p-3">
+                  <p className="text-[9px] text-violet-400/55 font-mono font-bold mb-1.5 flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3" /> One-Click Deploy
+                  </p>
+                  <p className="text-[10px] text-white/28 font-mono leading-relaxed">Tell ASH "deploy my system" in the chat to trigger automated deployment with live URL generation.</p>
                 </div>
               </div>
             )}

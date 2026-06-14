@@ -299,4 +299,56 @@ router.post("/auth/resend-verification", resetLimiter, async (req, res) => {
   return res.json(GENERIC);
 });
 
+// POST /api/auth/admin-bootstrap
+// One-time emergency endpoint to reset a user's password and/or role.
+// Completely disabled unless ADMIN_BOOTSTRAP_TOKEN env var is set.
+// Protected by the token — NEVER remove this check.
+const BootstrapInput = z.object({
+  email: z.string().email(),
+  newPassword: z.string().min(8),
+  role: z.enum(["USER", "ADMIN", "SUPER_ADMIN", "FOUNDER_ADMIN"]).optional(),
+});
+
+router.post("/auth/admin-bootstrap", async (req, res) => {
+  const bootstrapToken = process.env["ADMIN_BOOTSTRAP_TOKEN"];
+  if (!bootstrapToken) {
+    return res.status(404).json({ error: "Not found." });
+  }
+
+  const authHeader = req.headers["authorization"];
+  const provided = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!provided || !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(bootstrapToken))) {
+    return res.status(401).json({ error: "Unauthorized." });
+  }
+
+  const parsed = BootstrapInput.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid input." });
+  }
+
+  const { email, newPassword, role } = parsed.data;
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const users = await db.select({ id: usersTable.id, email: usersTable.email })
+    .from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
+
+  if (users.length === 0) {
+    return res.status(404).json({ error: "User not found." });
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const updateData: {
+    passwordHash: string;
+    resetToken: null;
+    resetTokenExpiry: null;
+    role?: "USER" | "ADMIN" | "SUPER_ADMIN" | "FOUNDER_ADMIN";
+  } = { passwordHash, resetToken: null, resetTokenExpiry: null };
+  if (role) updateData.role = role;
+
+  await db.update(usersTable).set(updateData).where(eq(usersTable.id, users[0].id));
+
+  req.log.info({ userId: users[0].id, email: normalizedEmail, roleSet: role ?? "unchanged" }, "Admin bootstrap: user updated");
+  return res.json({ success: true, email: normalizedEmail, roleSet: role ?? "unchanged" });
+});
+
 export default router;

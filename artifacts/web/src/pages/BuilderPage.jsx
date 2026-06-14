@@ -1666,6 +1666,20 @@ const BuilderPage = () => {
               .replace(/<SBEP_DATA>[\s\S]*/g, '')
               .trim();
             setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: clean } : m));
+          } else if (event.type === 'tool_result') {
+            const toolMsgId = Date.now() + Math.random();
+            const newMsg = event.tool === 'search'
+              ? { id: toolMsgId, role: 'assistant', type: 'search', data: event.data, ts: Date.now() }
+              : event.tool === 'image'
+              ? { id: toolMsgId, role: 'assistant', type: 'image', data: event.data, ts: Date.now() }
+              : null;
+            if (newMsg) {
+              setMessages(prev => {
+                const idx = prev.findIndex(m => m.id === msgId);
+                if (idx === -1) return [...prev, newMsg];
+                return [...prev.slice(0, idx), newMsg, ...prev.slice(idx)];
+              });
+            }
           } else if (event.type === 'done') {
             doneData = event;
             const finalContent = event.content ?? fullStreamContent.replace(/<SBEP_DATA>[\s\S]*/g, '').trim();

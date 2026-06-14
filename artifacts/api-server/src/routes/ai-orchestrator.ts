@@ -528,6 +528,80 @@ function getThinkingSteps(message: string, agentMode: string): ThinkingStep[] {
   ];
 }
 
+// ─── Auto-tool detection helpers ────────────────────────────────────────────
+
+const SEARCH_PATTERNS = [
+  /\b(search for|research|look up|look for|find out|what(?:'s| is) the (?:latest|current|recent)|trending|news about|statistics (?:for|on)|market (?:size|data) for|how much (?:does|is|are)|prices? of|current price|latest (?:data|stats|numbers))\b/i,
+  /\b(who (?:are|is) the|what companies|what tools|what platforms|competitors? (?:for|of))\b/i,
+  /\b(find (?:me )?(?:the )?(?:best|top|cheapest|most popular))\b/i,
+];
+
+const IMAGE_PATTERNS = [
+  /\b(generate|create|make|design|draw|produce)\b.{0,25}\b(image|picture|photo|logo|visual|graphic|banner|thumbnail|icon|poster|mockup)\b/i,
+  /\b(image|logo|banner|graphic|visual|thumbnail|mockup)\b.{0,20}\b(for|of|showing|with|that)\b/i,
+];
+
+function detectAutoTools(message: string): { search?: string; image?: string } {
+  const result: { search?: string; image?: string } = {};
+  if (SEARCH_PATTERNS.some(p => p.test(message))) {
+    result.search = message.slice(0, 200);
+  }
+  if (IMAGE_PATTERNS.some(p => p.test(message))) {
+    result.image = message.slice(0, 300);
+  }
+  return result;
+}
+
+async function runAutoSearch(query: string, userId: number): Promise<Record<string, unknown>> {
+  const result = await complete({
+    systemPrompt: `You are a business research assistant. Given a search query, provide concise, factual research results.
+Return ONLY valid JSON in this exact format (no markdown, no extra text):
+{
+  "query": "the search query",
+  "summary": "2-3 sentence overview of findings",
+  "findings": [
+    {"point": "key finding", "source": "source name or URL if known"},
+    {"point": "key finding", "source": "source name or URL if known"},
+    {"point": "key finding", "source": "source name or URL if known"}
+  ],
+  "marketOpportunity": "1 sentence on the business opportunity or relevance"
+}`,
+    prompt: `Research this for a business automation context: ${query}`,
+    model: "perplexity/llama-3.1-sonar-large-128k-online",
+    userId,
+  });
+
+  try {
+    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+    return jsonMatch ? JSON.parse(jsonMatch[0]) : {
+      query,
+      summary: result.content.slice(0, 500),
+      findings: [],
+      marketOpportunity: "",
+    };
+  } catch {
+    return {
+      query,
+      summary: result.content.slice(0, 500),
+      findings: [],
+      marketOpportunity: "",
+    };
+  }
+}
+
+function buildAutoImageUrl(prompt: string): Record<string, unknown> {
+  const seed = Math.floor(Math.random() * 999999);
+  const encodedPrompt = encodeURIComponent(
+    `${prompt}, professional, high quality, business marketing style, cinematic`
+  );
+  return {
+    url: `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=576&seed=${seed}&nologo=true&model=flux`,
+    prompt,
+    aspectRatio: "landscape",
+    seed,
+  };
+}
+
 // ─── POST /api/ai-orchestrator/stream ────────────────────────────────────────
 
 router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
@@ -603,6 +677,23 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
       (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "");
     const prompt = `${historyCtx}\n\nUser: ${parsed.data.message}`;
 
+    // ── Auto-tool detection (runs in parallel with AI + thinking) ─────────
+    const autoTools = detectAutoTools(parsed.data.message);
+    const autoToolResults: Array<{ tool: string; data: Record<string, unknown> }> = [];
+    const autoToolTasks: Promise<void>[] = [];
+
+    if (autoTools.image) {
+      autoToolResults.push({ tool: "image", data: buildAutoImageUrl(autoTools.image) });
+    }
+    if (autoTools.search) {
+      const searchQuery = autoTools.search;
+      autoToolTasks.push(
+        runAutoSearch(searchQuery, userId)
+          .then(data => { autoToolResults.push({ tool: "search", data }); })
+          .catch(() => { /* non-fatal */ })
+      );
+    }
+
     // ── Thinking steps (run while AI call is warming up) ──────────────────
     const thinkingSteps = getThinkingSteps(parsed.data.message, parsed.data.agentMode ?? "fast");
 
@@ -633,6 +724,19 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
     for (let i = 0; i < thinkingSteps.length; i++) {
       send({ type: "thinking", steps: thinkingSteps, index: i });
       await sse_sleep(380 + Math.random() * 320);
+    }
+
+    // Wait for auto-tool tasks (search usually finishes during thinking steps)
+    if (autoToolTasks.length > 0) {
+      await Promise.race([
+        Promise.all(autoToolTasks),
+        new Promise<void>(r => setTimeout(r, 4000)),
+      ]);
+    }
+
+    // Send auto-tool results as SSE events before first token
+    for (const tr of autoToolResults) {
+      send({ type: "tool_result", tool: tr.tool, data: tr.data });
     }
 
     if (aiError) throw aiError;

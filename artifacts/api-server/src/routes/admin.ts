@@ -1,6 +1,8 @@
 import { Router, type IRouter } from "express";
 import os from "node:os";
+import crypto from "node:crypto";
 import { serialize } from "../lib/serialize";
+import { sendPasswordResetEmail } from "../lib/email";
 import { desc, sql, eq, and, or, ilike, gte, inArray } from "drizzle-orm";
 import {
   db,
@@ -1114,7 +1116,6 @@ router.patch("/admin/platform-users/:id", async (req, res): Promise<void> => {
   }
 
   await db.insert(adminActivityTable).values({
-    adminId: admin.id,
     action: "update_user",
     resourceType: "user",
     resourceId: String(params.data.id),
@@ -1149,7 +1150,6 @@ router.post("/admin/platform-users/:id/credits", async (req, res): Promise<void>
   });
 
   await db.insert(adminActivityTable).values({
-    adminId: admin.id,
     action: "adjust_credits",
     resourceType: "user",
     resourceId: String(params.data.id),
@@ -1159,6 +1159,48 @@ router.post("/admin/platform-users/:id/credits", async (req, res): Promise<void>
   res.json(
     AdjustPlatformUserCreditsResponse.parse({ userId: params.data.id, balance, delta: body.data.delta }),
   );
+});
+
+// ── POST /admin/platform-users/:id/send-reset — admin-triggered password reset ─
+router.post("/admin/platform-users/:id/send-reset", async (req, res): Promise<void> => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+
+  const userId = Number(req.params.id);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    res.status(400).json({ error: "Invalid user id" });
+    return;
+  }
+
+  const [user] = await db.select({ id: usersTable.id, email: usersTable.email, name: usersTable.name })
+    .from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await db.update(usersTable)
+    .set({ resetToken: tokenHash, resetTokenExpiry: expiry })
+    .where(eq(usersTable.id, userId));
+
+  const sent = await sendPasswordResetEmail(user.email, rawToken);
+  if (!sent) {
+    res.status(502).json({ error: "Failed to send reset email — check Resend configuration" });
+    return;
+  }
+
+  await db.insert(adminActivityTable).values({
+    action: "send_password_reset",
+    resourceType: "user",
+    resourceId: String(userId),
+    details: JSON.stringify({ by: admin.id, to: user.email }),
+  });
+
+  res.json({ ok: true, email: user.email });
 });
 
 // ── AI cost analytics (dedicated endpoint for the AI Analytics tab) ──────────

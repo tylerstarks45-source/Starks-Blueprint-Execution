@@ -16,7 +16,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
-import { Users, MoreHorizontal, Search, ShieldCheck, Ban, CheckCircle2, Coins, Loader2, Pencil, TrendingUp, Eye } from 'lucide-react';
+import { Users, MoreHorizontal, Search, ShieldCheck, Ban, CheckCircle2, Coins, Loader2, Pencil, TrendingUp, Eye, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import adminApi from '@/lib/adminApi.js';
 import { useAdminData } from '@/contexts/AdminDataContext.jsx';
@@ -176,6 +176,18 @@ const AdminUserManagementPanel = () => {
     }
   };
 
+  const sendReset = async (user) => {
+    setBusyId(user.id);
+    try {
+      await adminApi.sendResetEmail(user.id);
+      toast.success(`Password reset email sent to ${user.email}`);
+    } catch (e) {
+      toast.error(e.message || 'Failed to send reset email');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const viewRevenue = (user) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -323,6 +335,9 @@ const AdminUserManagementPanel = () => {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => { setCreditUser(user); setCreditDelta(''); setCreditReason(''); }}>
                               <Coins className="w-4 h-4 mr-2" /> Adjust Credits
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => sendReset(user)}>
+                              <Mail className="w-4 h-4 mr-2" /> Send Password Reset
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toggleSuspend(user)} className={user.active ? 'text-destructive' : 'text-emerald-600'}>
                               {user.active ? <><Ban className="w-4 h-4 mr-2" /> Suspend</> : <><CheckCircle2 className="w-4 h-4 mr-2" /> Reactivate</>}

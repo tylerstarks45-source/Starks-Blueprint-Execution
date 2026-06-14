@@ -376,22 +376,21 @@ const SystemCommandCenterPage = () => {
   ).length;
 
   return (
-    <div className="animate-in fade-in duration-500 pb-20 space-y-4">
+    <div className="animate-in fade-in duration-500 pb-20 space-y-6">
 
       {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-primary/12 border border-primary/25 flex items-center justify-center">
-            <Cpu className="w-5 h-5 text-primary" />
+      <div className="flex items-center justify-between gap-4 pt-1">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/30 to-primary/8 border border-primary/30 flex items-center justify-center shadow-[0_0_20px_rgba(14,165,233,0.18)]">
+            <Cpu className="w-4 h-4 text-primary" />
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold text-white font-mono tracking-tight">Command Center</h1>
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-emerald-500/25 bg-emerald-500/8">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[9px] font-mono font-bold text-emerald-400 uppercase tracking-widest">Live</span>
-              </div>
-              <span className="text-[10px] font-mono text-white/28 px-2 py-0.5 rounded-full bg-white/4 border border-white/8 uppercase tracking-wide">
+              <h1 className="text-lg font-bold text-white tracking-tight">Command Center</h1>
+              <span className="flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5 uppercase tracking-widest">
+                <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" /> Live
+              </span>
+              <span className="text-[9px] font-mono text-white/22 bg-white/4 border border-white/8 rounded-full px-2 py-0.5 uppercase tracking-wide">
                 {user.subscriptionTier ?? 'free'}
               </span>
             </div>
@@ -399,55 +398,122 @@ const SystemCommandCenterPage = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {lastRefresh && (
-            <span className="text-[10px] text-white/20 font-mono hidden lg:block">
-              {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
-          <button onClick={load} className="p-2 rounded-lg text-white/30 hover:text-white hover:bg-white/6 border border-white/8 hover:border-white/16 transition-all" title="Refresh">
+          {lastRefresh && <span className="text-[10px] text-white/18 font-mono hidden lg:block">{lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+          <button onClick={load} className="p-1.5 rounded-lg text-white/28 hover:text-white hover:bg-white/6 border border-white/8 transition-all">
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => navigate('/connections')} className="flex items-center gap-1.5 h-8 px-3 text-[11px] font-mono border border-white/12 text-white/45 bg-white/3 hover:bg-white/8 hover:text-white rounded-lg transition-all">
+          <button onClick={() => navigate('/connections')} className="flex items-center gap-1.5 h-8 px-3 text-[11px] font-mono border border-white/10 text-white/40 bg-white/2 hover:bg-white/6 hover:text-white rounded-lg transition-all">
             <Key className="w-3 h-3" /> Connections
           </button>
           {(user.subscriptionTier ?? 'free').toLowerCase() !== 'empire' && (
-            <button onClick={() => navigate('/pricing')} className="flex items-center gap-1.5 h-8 px-3 text-[11px] font-mono border border-amber-500/30 text-amber-300/75 bg-amber-500/6 hover:bg-amber-500/12 hover:text-amber-300 rounded-lg transition-all">
+            <button onClick={() => navigate('/pricing')} className="flex items-center gap-1.5 h-8 px-3 text-[11px] font-mono border border-amber-500/25 text-amber-300/65 bg-amber-500/5 hover:bg-amber-500/10 hover:text-amber-300 rounded-lg transition-all">
               <Crown className="w-3 h-3" /> Upgrade
             </button>
           )}
-          <button onClick={() => navigate('/builder')} className="flex items-center gap-1.5 h-8 px-4 text-[11px] font-bold bg-primary hover:bg-primary/90 text-white rounded-lg transition-all shadow-[0_0_16px_rgba(14,165,233,0.2)]">
+          <button onClick={() => navigate('/builder')} className="flex items-center gap-1.5 h-8 px-4 text-[11px] font-bold bg-primary hover:bg-primary/90 text-white rounded-lg transition-all shadow-[0_0_16px_rgba(14,165,233,0.22)]">
             <Plus className="w-3.5 h-3.5" /> New System
           </button>
         </div>
       </div>
 
+      {/* ══ KPI RIBBON — connected cells with colored top accents ═══════════ */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/6 rounded-2xl overflow-hidden border border-white/10">
+
+        {/* Revenue */}
+        <div className="relative bg-[#08080f] p-5 flex flex-col hover:bg-[#0b0b16] transition-colors group">
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-emerald-500/0 via-emerald-400 to-emerald-500/0" />
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-mono font-bold text-white/35 uppercase tracking-widest">Revenue</span>
+            <DollarSign className="w-3.5 h-3.5 text-emerald-400/55" />
+          </div>
+          <p className="text-[38px] font-black font-mono text-emerald-400 leading-none tabular-nums">{fmtCompact(monthCents)}</p>
+          <p className="text-[10px] text-white/25 font-mono mt-1 mb-3">this month</p>
+          <div className="flex items-center gap-3 mt-auto pt-3 border-t border-white/6">
+            <div><p className="text-[8px] text-white/22 font-mono">Today</p><p className="text-[11px] font-mono font-bold text-white/55">{fmtCompact(todayCents)}</p></div>
+            <div className="w-px h-4 bg-white/8" />
+            <div><p className="text-[8px] text-white/22 font-mono">Week</p><p className="text-[11px] font-mono font-bold text-white/55">{fmtCompact(weekCents)}</p></div>
+            <div className="w-px h-4 bg-white/8" />
+            <div><p className="text-[8px] text-white/22 font-mono">All time</p><p className="text-[11px] font-mono font-bold text-white/55">{fmtCompact(lifetimeCents)}</p></div>
+          </div>
+        </div>
+
+        {/* Systems */}
+        <div className="relative bg-[#08080f] p-5 flex flex-col hover:bg-[#0b0b16] transition-colors">
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-sky-500/0 via-sky-400 to-sky-500/0" />
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-mono font-bold text-white/35 uppercase tracking-widest">Systems</span>
+            <Server className="w-3.5 h-3.5 text-sky-400/55" />
+          </div>
+          <p className="text-[38px] font-black font-mono text-sky-400 leading-none tabular-nums">{activeSystems}</p>
+          <p className="text-[10px] text-white/25 font-mono mt-1 mb-3">active of {totalSystems} total</p>
+          <div className="flex items-center gap-3 mt-auto pt-3 border-t border-white/6 flex-wrap">
+            {[{val: building, label: 'Building', cls: 'text-blue-400'}, {val: paused, label: 'Paused', cls: 'text-amber-400'}, {val: failed, label: 'Failed', cls: 'text-rose-400'}].map(s => (
+              <div key={s.label}>
+                <p className="text-[8px] text-white/22 font-mono">{s.label}</p>
+                <p className={`text-[11px] font-mono font-bold ${s.cls}`}>{s.val}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Credits */}
+        <div className="relative bg-[#08080f] p-5 flex flex-col hover:bg-[#0b0b16] transition-colors">
+          <div className={`absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-amber-500/0 ${credPct > 30 ? 'via-amber-400' : 'via-rose-400'} to-amber-500/0`} />
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-mono font-bold text-white/35 uppercase tracking-widest">AI Credits</span>
+            <Coins className="w-3.5 h-3.5 text-amber-400/55" />
+          </div>
+          <p className={`text-[38px] font-black font-mono leading-none tabular-nums ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>{credBalance.toLocaleString()}</p>
+          <p className="text-[10px] text-white/25 font-mono mt-1 mb-3">credits remaining</p>
+          <div className="mt-auto pt-3 border-t border-white/6 space-y-1.5">
+            <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all duration-700 ${credPct > 60 ? 'bg-amber-400' : credPct > 30 ? 'bg-orange-400' : 'bg-rose-500'}`} style={{width: `${credPct}%`}} />
+            </div>
+            <div className="flex justify-between text-[8px] font-mono text-white/22">
+              <span>{credUsed.toLocaleString()} used</span><span>{credPct}% left</span>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Activity */}
+        <div className="relative bg-[#08080f] p-5 flex flex-col hover:bg-[#0b0b16] transition-colors">
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-violet-500/0 via-violet-400 to-violet-500/0" />
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-mono font-bold text-white/35 uppercase tracking-widest">AI Activity</span>
+            <Bot className="w-3.5 h-3.5 text-violet-400/55" />
+          </div>
+          <p className="text-[38px] font-black font-mono text-violet-400 leading-none tabular-nums">{aiActivity?.totalRequests ?? 0}</p>
+          <p className="text-[10px] text-white/25 font-mono mt-1 mb-3">total requests</p>
+          <div className="flex items-center gap-2 mt-auto pt-3 border-t border-white/6">
+            <span className={`w-2 h-2 rounded-full ${orStatus === 'operational' ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-zinc-600'}`} />
+            <span className="text-[10px] font-mono text-white/30 flex-1">OpenRouter {orStatus === 'operational' ? 'operational' : 'offline'}</span>
+            <span className="text-[9px] font-mono font-bold text-white/22 bg-white/4 px-1.5 py-0.5 rounded">{connectedToolCount} tools</span>
+          </div>
+        </div>
+      </div>
+
       {/* ══ HERO (no systems) or ASH STATUS STRIP ═══════════════════════════ */}
       {systems.length === 0 ? (
-        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/8 via-black/60 to-violet-900/15 backdrop-blur-md px-6 py-7"
-          style={{ boxShadow: '0 0 40px rgba(14,165,233,0.05)' }}>
-          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 75% 50%, rgba(14,165,233,0.12) 0%, transparent 55%)' }} />
-          <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-6">
+        <div className="relative overflow-hidden rounded-2xl border border-primary/18 bg-[#06060f]" style={{boxShadow: '0 0 60px rgba(14,165,233,0.06) inset'}}>
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-primary/0 via-primary to-primary/0" />
+          <div className="px-7 py-6 flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <div className="flex-1 space-y-2.5">
               <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(14,165,233,0.8)]" />
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(14,165,233,0.8)]" />
                 <span className="text-[10px] font-mono font-bold text-primary uppercase tracking-widest">ASH Agent Ready</span>
               </div>
-              <h2 className="text-2xl font-bold text-white leading-tight">
-                Build Your First <span className="text-primary">Income System</span>
-              </h2>
-              <p className="text-sm text-white/40 leading-relaxed max-w-md">
-                Tell ASH what you want to earn. It designs a complete system — tools, credentials, steps — and builds it autonomously.
-              </p>
+              <h2 className="text-2xl font-bold text-white leading-snug">Build Your First <span className="text-primary">Income System</span></h2>
+              <p className="text-sm text-white/38 leading-relaxed max-w-lg">Tell ASH what you want to earn. It designs a complete system — tools, credentials, steps — and builds it autonomously.</p>
             </div>
             <div className="flex flex-col gap-2.5 shrink-0 w-full sm:w-auto min-w-[192px]">
-              <button onClick={() => navigate('/builder')} className="flex items-center justify-center gap-2 font-bold h-11 px-6 text-sm bg-primary hover:bg-primary/90 text-white rounded-xl shadow-[0_0_24px_rgba(14,165,233,0.28)] transition-all">
+              <button onClick={() => navigate('/builder')} className="flex items-center justify-center gap-2 font-bold h-10 px-6 text-sm bg-primary hover:bg-primary/90 text-white rounded-xl shadow-[0_0_20px_rgba(14,165,233,0.3)] transition-all">
                 <Bot className="w-4 h-4" /> Ask ASH to Build
               </button>
               <div className="flex gap-2">
-                <button onClick={() => navigate('/blueprints')} className="flex-1 flex items-center justify-center gap-1.5 h-8 text-[11px] font-mono border border-white/10 text-white/40 hover:text-white bg-white/3 hover:bg-white/6 rounded-lg transition-all">
+                <button onClick={() => navigate('/blueprints')} className="flex-1 flex items-center justify-center gap-1.5 h-8 text-[11px] font-mono border border-white/10 text-white/38 hover:text-white hover:bg-white/5 rounded-lg transition-all">
                   <Layers className="w-3 h-3" /> Blueprints
                 </button>
-                <button onClick={() => navigate('/marketplace')} className="flex-1 flex items-center justify-center gap-1.5 h-8 text-[11px] font-mono border border-white/10 text-white/40 hover:text-white bg-white/3 hover:bg-white/6 rounded-lg transition-all">
+                <button onClick={() => navigate('/marketplace')} className="flex-1 flex items-center justify-center gap-1.5 h-8 text-[11px] font-mono border border-white/10 text-white/38 hover:text-white hover:bg-white/5 rounded-lg transition-all">
                   <Globe className="w-3 h-3" /> Tools
                 </button>
               </div>
@@ -455,232 +521,128 @@ const SystemCommandCenterPage = () => {
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-white/6 bg-white/2">
-          <div className="w-6 h-6 rounded-md bg-primary/12 border border-primary/22 flex items-center justify-center shrink-0">
-            <Bot className="w-3.5 h-3.5 text-primary" />
-          </div>
-          <p className="text-[11px] font-mono text-white/40 flex-1">
-            ASH is monitoring <span className="text-white/60">{activeSystems} active system{activeSystems !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-white/6 bg-[#08080f]">
+          <span className="w-2 h-2 rounded-full bg-primary/80 animate-pulse" />
+          <p className="text-[11px] font-mono text-white/38 flex-1">
+            ASH monitoring <span className="text-white/65">{activeSystems} active system{activeSystems !== 1 ? 's' : ''}</span>
             {building > 0 && <> · <span className="text-blue-400">{building} building</span></>}
           </p>
-          <button onClick={() => navigate('/builder')} className="shrink-0 text-[10px] font-mono text-primary/60 hover:text-primary transition-colors">
-            Open Builder →
-          </button>
+          <button onClick={() => navigate('/builder')} className="shrink-0 text-[10px] font-mono text-primary/65 hover:text-primary transition-colors font-semibold">Open Builder →</button>
         </div>
       )}
 
-      {/* ══ 4 KPI CARDS ════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-
-        {/* Revenue */}
-        <div className={`${CARD} p-5 relative overflow-hidden`} style={{ boxShadow: '0 0 24px rgba(52,211,153,0.04)' }}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">Revenue</p>
-            <DollarSign className="w-3.5 h-3.5 text-emerald-400/40" />
-          </div>
-          <p className="text-[32px] font-bold font-mono text-emerald-400 tabular-nums leading-none">{fmtCompact(monthCents)}</p>
-          <p className="text-[10px] text-white/25 font-mono mt-1">this month</p>
-          <div className="flex items-center gap-3 mt-3.5 pt-3 border-t border-white/5">
-            <div>
-              <p className="text-[9px] text-white/20 font-mono">Today</p>
-              <p className="text-[11px] font-mono font-bold text-white/45">{fmtCompact(todayCents)}</p>
-            </div>
-            <div className="w-px h-5 bg-white/6" />
-            <div>
-              <p className="text-[9px] text-white/20 font-mono">Week</p>
-              <p className="text-[11px] font-mono font-bold text-white/45">{fmtCompact(weekCents)}</p>
-            </div>
-            <div className="w-px h-5 bg-white/6" />
-            <div>
-              <p className="text-[9px] text-white/20 font-mono">All time</p>
-              <p className="text-[11px] font-mono font-bold text-white/45">{fmtCompact(lifetimeCents)}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Systems */}
-        <div className={`${CARD} p-5`}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">Systems</p>
-            <Server className="w-3.5 h-3.5 text-white/20" />
-          </div>
-          <p className="text-[32px] font-bold font-mono text-white tabular-nums leading-none">{activeSystems}</p>
-          <p className="text-[10px] text-white/25 font-mono mt-1">active of {totalSystems} total</p>
-          <div className="flex items-center gap-3 mt-3.5 pt-3 border-t border-white/5 flex-wrap">
-            {[
-              { val: building, label: 'Building', dot: 'bg-blue-400' },
-              { val: paused, label: 'Paused', dot: 'bg-amber-400' },
-              { val: failed, label: 'Failed', dot: 'bg-rose-400' },
-            ].map(s => (
-              <div key={s.label} className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                <span className="text-[10px] font-mono text-white/30">{s.val} {s.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Credits */}
-        <div className={`${CARD} p-5`} style={credPct <= 30 ? { borderColor: 'rgba(244,63,94,0.2)' } : {}}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">AI Credits</p>
-            <Coins className="w-3.5 h-3.5 text-amber-400/40" />
-          </div>
-          <p className={`text-[32px] font-bold font-mono tabular-nums leading-none ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>
-            {credBalance.toLocaleString()}
-          </p>
-          <p className="text-[10px] text-white/25 font-mono mt-1">credits remaining</p>
-          <div className="mt-3.5 pt-3 border-t border-white/5">
-            <div className="h-1.5 bg-white/6 rounded-full overflow-hidden mb-1.5">
-              <div
-                className={`h-full rounded-full transition-all duration-700 ${credPct > 60 ? 'bg-amber-400' : credPct > 30 ? 'bg-orange-400' : 'bg-rose-500'}`}
-                style={{ width: `${credPct}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-[9px] text-white/20 font-mono">
-              <span>{credUsed.toLocaleString()} used</span>
-              <span>{credPct}% left</span>
-            </div>
-          </div>
-        </div>
-
-        {/* AI Activity */}
-        <div className={`${CARD} p-5`} style={{ boxShadow: '0 0 20px rgba(139,92,246,0.04)' }}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">AI Activity</p>
-            <Bot className="w-3.5 h-3.5 text-violet-400/40" />
-          </div>
-          <p className="text-[32px] font-bold font-mono text-violet-400 tabular-nums leading-none">
-            {aiActivity?.totalRequests ?? 0}
-          </p>
-          <p className="text-[10px] text-white/25 font-mono mt-1">total requests</p>
-          <div className="flex items-center gap-2 mt-3.5 pt-3 border-t border-white/5">
-            <span className={`w-1.5 h-1.5 rounded-full ${orStatus === 'operational' ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
-            <span className="text-[10px] font-mono text-white/25">
-              OpenRouter {orStatus === 'operational' ? 'operational' : 'offline'}
-            </span>
-            <span className="ml-auto text-[10px] font-mono text-white/20">{connectedToolCount} tools</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ══ ANALYTICS + SIDE PANEL ══════════════════════════════════════════ */}
+      {/* ══ ANALYTICS + QUICK ACTIONS ═══════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-        {/* Chart */}
-        <div className={`lg:col-span-3 ${CARD} p-5`}>
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-[11px] font-bold text-white/55 uppercase tracking-widest font-mono">Analytics</h2>
-              <p className="text-[10px] text-white/22 font-mono mt-0.5">7-day window</p>
+        {/* Chart panel */}
+        <div className="lg:col-span-3 bg-[#08080f] border border-white/8 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/6">
+            <div className="flex items-center gap-2.5">
+              <div className="w-[3px] h-5 bg-primary rounded-full" />
+              <div>
+                <h2 className="text-sm font-bold text-white/75">Analytics</h2>
+                <p className="text-[10px] text-white/25 font-mono">7-day window</p>
+              </div>
             </div>
-            <div className="flex items-center gap-0.5 bg-white/3 border border-white/6 rounded-lg p-0.5">
+            <div className="flex items-center bg-white/4 border border-white/8 rounded-xl p-1 gap-0.5">
               {CHART_TABS.map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setChartTab(tab.key)}
-                  className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all font-mono ${
-                    chartTab === tab.key ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/55'
+                <button key={tab.key} onClick={() => setChartTab(tab.key)}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-semibold font-mono transition-all ${
+                    chartTab === tab.key ? 'bg-white/12 text-white shadow-sm' : 'text-white/28 hover:text-white/55'
                   }`}
-                >
-                  {tab.label}
-                </button>
+                >{tab.label}</button>
               ))}
             </div>
           </div>
-
-          <div className="flex items-end gap-4 mb-5">
-            <div>
-              <p className="text-[10px] text-white/22 font-mono uppercase tracking-widest mb-1">
-                {chartTab === 'revenue' ? 'Today' : chartTab === 'ai' ? 'Total Requests' : 'Total Systems'}
-              </p>
-              <p className="text-3xl font-bold font-mono tabular-nums" style={{ color: chartCfg.color }}>
+          <div className="px-5 pt-4 pb-3">
+            <div className="flex items-baseline gap-3 mb-4">
+              <p className="text-[32px] font-black font-mono tabular-nums leading-none" style={{color: chartCfg.color}}>
                 {chartTab === 'revenue' ? fmtCompact(todayCents) : chartTab === 'ai' ? (aiActivity?.totalRequests ?? 0) : totalSystems}
               </p>
+              <p className="text-[10px] text-white/28 font-mono uppercase tracking-widest">
+                {chartTab === 'revenue' ? 'today' : chartTab === 'ai' ? 'total requests' : 'total systems'}
+              </p>
+              {chartTab === 'revenue' && weekCents > 0 && (
+                <span className="ml-auto flex items-center gap-1 text-emerald-400 text-sm font-bold font-mono">
+                  <ArrowUpRight className="w-4 h-4" />{fmtCompact(weekCents)}/wk
+                </span>
+              )}
             </div>
-            {chartTab === 'revenue' && weekCents > 0 && (
-              <div className="flex items-center gap-1 text-emerald-400 mb-0.5">
-                <ArrowUpRight className="w-4 h-4" />
-                <span className="text-sm font-bold font-mono">{fmtCompact(weekCents)} wk</span>
-              </div>
-            )}
-          </div>
-
-          <div className="h-[148px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-                <defs>
-                  <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartCfg.color} stopOpacity={0.18} />
-                    <stop offset="100%" stopColor={chartCfg.color} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.28)', fontSize: 10, fontFamily: 'monospace' }} tickLine={false} axisLine={false} />
-                <Tooltip
-                  content={chartTab === 'revenue' ? <RevenueTooltip /> : <GenericTooltip suffix={chartTab === 'ai' ? ' req' : ' sys'} />}
-                  cursor={{ stroke: 'rgba(255,255,255,0.06)', strokeWidth: 1 }}
-                />
-                <Area type="monotone" dataKey={chartDataKey} stroke={chartCfg.color} strokeWidth={2} fill="url(#chartFill)" dot={false} activeDot={{ r: 4, fill: chartCfg.color, strokeWidth: 0 }} />
-              </AreaChart>
-            </ResponsiveContainer>
+            <div className="h-[148px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{top: 4, right: 0, bottom: 0, left: 0}}>
+                  <defs>
+                    <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={chartCfg.color} stopOpacity={0.22} />
+                      <stop offset="100%" stopColor={chartCfg.color} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <XAxis dataKey="day" tick={{fill: 'rgba(255,255,255,0.28)', fontSize: 10, fontFamily: 'monospace'}} tickLine={false} axisLine={false} />
+                  <Tooltip content={chartTab === 'revenue' ? <RevenueTooltip /> : <GenericTooltip suffix={chartTab === 'ai' ? ' req' : ' sys'} />} cursor={{stroke: 'rgba(255,255,255,0.06)', strokeWidth: 1}} />
+                  <Area type="monotone" dataKey={chartDataKey} stroke={chartCfg.color} strokeWidth={2} fill="url(#chartFill)" dot={false} activeDot={{r: 4, fill: chartCfg.color, strokeWidth: 0}} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
-        {/* Quick Actions + Platform */}
+        {/* Side: Quick Actions + Platform */}
         <div className="lg:col-span-2 flex flex-col gap-4">
 
           {/* Quick Actions */}
-          <div className={`${CARD} p-4`}>
-            <h2 className="text-[10px] font-bold text-white/40 uppercase tracking-widest font-mono mb-3">Quick Actions</h2>
+          <div className="bg-[#08080f] border border-white/8 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3.5">
+              <div className="w-[3px] h-4 bg-amber-400 rounded-full" />
+              <h2 className="text-[10px] font-bold text-white/50 uppercase tracking-widest font-mono">Quick Actions</h2>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: 'Launch Builder', icon: Rocket, onClick: () => navigate('/builder'), accent: 'text-primary', hover: 'hover:bg-primary/8 hover:border-primary/20' },
-                { label: 'Connect Tools', icon: Key, onClick: () => navigate('/connections'), accent: 'text-amber-400', hover: 'hover:bg-amber-500/8 hover:border-amber-500/20' },
-                { label: 'Blueprints', icon: Layers, onClick: () => navigate('/blueprints'), accent: 'text-violet-400', hover: 'hover:bg-violet-500/8 hover:border-violet-500/20' },
-                { label: 'Buy Credits', icon: Coins, onClick: () => navigate('/credits'), accent: 'text-emerald-400', hover: 'hover:bg-emerald-500/8 hover:border-emerald-500/20' },
+                {label: 'Builder', icon: Rocket, onClick: () => navigate('/builder'), border: 'border-primary/25', bg: 'hover:bg-primary/10', text: 'text-primary', glow: 'rgba(14,165,233,0.1)'},
+                {label: 'Connect Tools', icon: Key, onClick: () => navigate('/connections'), border: 'border-amber-500/25', bg: 'hover:bg-amber-500/10', text: 'text-amber-400', glow: null},
+                {label: 'Blueprints', icon: Layers, onClick: () => navigate('/blueprints'), border: 'border-violet-500/25', bg: 'hover:bg-violet-500/10', text: 'text-violet-400', glow: null},
+                {label: 'Buy Credits', icon: Coins, onClick: () => navigate('/credits'), border: 'border-emerald-500/25', bg: 'hover:bg-emerald-500/10', text: 'text-emerald-400', glow: null},
               ].map(a => (
-                <button
-                  key={a.label}
-                  onClick={a.onClick}
-                  className={`flex flex-col items-center gap-2 py-3.5 px-2 rounded-xl border border-white/6 bg-white/2 text-center transition-all ${a.hover} group`}
+                <button key={a.label} onClick={a.onClick}
+                  className={`flex flex-col items-center gap-2.5 py-4 px-2 rounded-xl border ${a.border} bg-white/2 ${a.bg} transition-all group`}
                 >
-                  <a.icon className={`w-4 h-4 ${a.accent} group-hover:scale-110 transition-transform`} />
-                  <span className="text-[10px] font-mono text-white/40 group-hover:text-white/70 transition-colors uppercase tracking-wide leading-tight">{a.label}</span>
+                  <a.icon className={`w-5 h-5 ${a.text} group-hover:scale-110 transition-transform`} />
+                  <span className={`text-[9px] font-mono font-semibold ${a.text} uppercase tracking-wide leading-tight`}>{a.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Platform Status */}
-          <div className={`${CARD} p-4 flex-1`}>
-            <h2 className="text-[10px] font-bold text-white/40 uppercase tracking-widest font-mono mb-3">Platform</h2>
-            <div className="space-y-1">
+          <div className="bg-[#08080f] border border-white/8 rounded-2xl p-4 flex-1">
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="flex items-center gap-2">
+                <div className="w-[3px] h-4 bg-emerald-400 rounded-full" />
+                <h2 className="text-[10px] font-bold text-white/50 uppercase tracking-widest font-mono">Platform</h2>
+              </div>
+              <span className="text-[9px] font-mono font-bold text-white/22 bg-white/4 px-1.5 py-0.5 rounded border border-white/6">{connectedToolCount} online</span>
+            </div>
+            <div className="space-y-1.5">
               {[
-                { name: 'OpenRouter AI', key: 'openrouter', icon: Bot },
-                { name: 'PostgreSQL DB', key: 'database', icon: Database },
-                { name: 'Stripe', key: 'stripe', icon: CreditCard },
-                { name: 'Cloudflare', key: 'cloudflare', icon: Shield },
-                { name: 'Make.com', key: 'make.com', icon: Settings },
+                {name: 'OpenRouter AI', key: 'openrouter', icon: Bot},
+                {name: 'PostgreSQL DB', key: 'database', icon: Database},
+                {name: 'Stripe', key: 'stripe', icon: CreditCard},
+                {name: 'Cloudflare', key: 'cloudflare', icon: Shield},
+                {name: 'Make.com', key: 'make.com', icon: Settings},
               ].map(tool => {
                 const connected = toolConnected(tool.name, storedKeys, orStatus);
                 return (
-                  <div key={tool.key} className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white/2 border border-white/4">
+                  <div key={tool.key} className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all ${connected ? 'bg-emerald-500/4 border-emerald-500/15' : 'bg-white/[0.02] border-white/5'}`}>
                     <div className="flex items-center gap-2">
-                      <tool.icon className="w-3 h-3 text-white/25" />
+                      <tool.icon className={`w-3 h-3 ${connected ? 'text-emerald-400/70' : 'text-white/18'}`} />
                       <span className="text-[11px] font-mono text-white/45">{tool.name}</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400' : 'bg-zinc-700'}`} />
-                      <span className={`text-[9px] font-mono ${connected ? 'text-emerald-400' : 'text-zinc-600'}`}>
-                        {connected ? 'Online' : 'Off'}
-                      </span>
-                    </div>
+                    <span className={`text-[9px] font-mono font-bold ${connected ? 'text-emerald-400' : 'text-zinc-600'}`}>{connected ? '● Online' : '○ Off'}</span>
                   </div>
                 );
               })}
             </div>
-            <button onClick={() => navigate('/connections')} className="mt-3 w-full text-[10px] font-mono text-white/22 hover:text-white/50 py-1.5 rounded-lg border border-white/4 hover:bg-white/3 transition-all">
+            <button onClick={() => navigate('/connections')} className="mt-3 w-full text-[10px] font-mono text-white/22 hover:text-white/50 py-1.5 rounded-lg border border-white/6 hover:bg-white/3 transition-all">
               Manage Connections →
             </button>
           </div>
@@ -688,43 +650,46 @@ const SystemCommandCenterPage = () => {
       </div>
 
       {/* ══ SYSTEMS FLEET ════════════════════════════════════════════════════ */}
-      <div className={`${CARD} p-5`}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-[11px] font-bold text-white/55 uppercase tracking-widest font-mono">Systems Fleet</h2>
-            <p className="text-[10px] text-white/22 font-mono mt-0.5">{systems.length} deployed · {activeSystems} active</p>
+      <div className="bg-[#08080f] border border-white/8 rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/6">
+          <div className="flex items-center gap-2.5">
+            <div className="w-[3px] h-5 bg-sky-400 rounded-full" />
+            <div>
+              <h2 className="text-sm font-bold text-white/75">Systems Fleet</h2>
+              <p className="text-[10px] text-white/25 font-mono">{systems.length} deployed · {activeSystems} active</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate('/systems')} className="h-7 px-2.5 text-[10px] font-mono text-white/30 hover:text-white hover:bg-white/5 border border-white/6 hover:border-white/12 rounded-lg transition-all flex items-center gap-1">
+            <button onClick={() => navigate('/systems')} className="h-7 px-3 text-[10px] font-mono text-white/32 hover:text-white hover:bg-white/5 border border-white/8 rounded-lg transition-all flex items-center gap-1.5">
               View All <ChevronRight className="w-3 h-3" />
             </button>
-            <button onClick={() => navigate('/builder')} className="h-7 px-3 text-[10px] font-bold bg-primary/10 hover:bg-primary/18 text-primary border border-primary/20 hover:border-primary/32 rounded-lg transition-all flex items-center gap-1">
+            <button onClick={() => navigate('/builder')} className="h-7 px-3 text-[10px] font-bold bg-primary/12 hover:bg-primary/22 text-primary border border-primary/22 hover:border-primary/35 rounded-lg transition-all flex items-center gap-1.5">
               <Plus className="w-3 h-3" /> Deploy
             </button>
           </div>
         </div>
 
         {systems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 gap-4 rounded-xl border border-dashed border-white/6">
-            <div className="w-12 h-12 rounded-2xl bg-white/3 border border-white/6 flex items-center justify-center">
-              <Server className="w-5 h-5 text-white/15" />
+          <div className="flex flex-col items-center justify-center py-16 gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-white/2 border border-white/6 flex items-center justify-center">
+              <Server className="w-6 h-6 text-white/10" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-bold text-white/45">No Systems Deployed</p>
-              <p className="text-[11px] text-white/25 font-mono mt-1">Build your first system with ASH</p>
+              <p className="text-sm font-semibold text-white/40">No Systems Deployed</p>
+              <p className="text-[11px] text-white/22 font-mono mt-1">Build your first system with ASH</p>
             </div>
-            <button onClick={() => navigate('/builder')} className="flex items-center gap-1.5 px-4 py-2 bg-primary/10 hover:bg-primary/18 border border-primary/20 text-primary text-[11px] font-mono rounded-xl transition-all">
+            <button onClick={() => navigate('/builder')} className="flex items-center gap-1.5 px-4 py-2 bg-primary/10 hover:bg-primary/18 border border-primary/22 text-primary text-xs font-mono font-semibold rounded-xl transition-all">
               <Zap className="w-3.5 h-3.5" /> Launch Builder
             </button>
           </div>
         ) : (
           <div>
-            <div className="hidden lg:grid grid-cols-12 gap-3 pb-2 border-b border-white/5 mb-1 px-2">
-              {[['System','col-span-4'],['Status','col-span-2'],['Health','col-span-2'],['Uptime','col-span-1'],['Revenue','col-span-2'],['','col-span-1 text-right']].map(([h,cls]) => (
-                <div key={h} className={`${cls} text-[9px] uppercase tracking-widest text-white/18 font-bold font-mono`}>{h}</div>
+            <div className="hidden lg:grid grid-cols-12 gap-3 px-5 py-2.5 bg-white/[0.025] border-b border-white/5">
+              {[['col-span-4','System'],['col-span-2','Status'],['col-span-2','Health'],['col-span-1','Uptime'],['col-span-2','Revenue'],['col-span-1 text-right','']].map(([cls, h]) => (
+                <div key={h} className={`${cls} text-[9px] uppercase tracking-widest text-white/22 font-bold font-mono`}>{h}</div>
               ))}
             </div>
-            {systems.map(system => {
+            {systems.map((system, idx) => {
               const isLoading  = controlLoading[system.id];
               const isPaused   = system.buildStatus === 'paused';
               const isBuilding = system.buildStatus === 'building';
@@ -734,65 +699,60 @@ const SystemCommandCenterPage = () => {
               return (
                 <div
                   key={system.id}
-                  className="group py-3 px-2 rounded-xl border border-transparent hover:bg-white/[0.02] hover:border-white/5 transition-all cursor-pointer"
+                  className={`group grid grid-cols-1 lg:grid-cols-12 gap-3 items-center px-5 py-3.5 border-b border-white/4 last:border-0 hover:bg-white/[0.025] transition-colors cursor-pointer ${idx % 2 === 0 ? '' : 'bg-white/[0.012]'}`}
                   onClick={() => navigate(`/systems/${system.id}`)}
                 >
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
-                    <div className="lg:col-span-4 flex items-center gap-3 min-w-0">
-                      <StatusDot status={system.buildStatus === 'completed' ? 'active' : (system.buildStatus ?? 'pending')} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white/70 truncate group-hover:text-white/90 transition-colors">{system.name}</p>
-                        <p className="text-[10px] text-white/25 font-mono truncate">{system.blueprint?.name ?? 'Custom Blueprint'}</p>
-                      </div>
+                  <div className="lg:col-span-4 flex items-center gap-3 min-w-0">
+                    <StatusDot status={system.buildStatus === 'completed' ? 'active' : (system.buildStatus ?? 'pending')} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white/72 truncate group-hover:text-white transition-colors">{system.name}</p>
+                      <p className="text-[10px] text-white/28 font-mono truncate">{system.blueprint?.name ?? 'Custom Blueprint'}</p>
                     </div>
-                    <div className="lg:col-span-2">
-                      <StatusBadge buildStatus={system.buildStatus} healthStatus={system.healthStatus} />
+                  </div>
+                  <div className="lg:col-span-2"><StatusBadge buildStatus={system.buildStatus} healthStatus={system.healthStatus} /></div>
+                  <div className="lg:col-span-2 flex items-center gap-2">
+                    <div className="flex-1 h-1 bg-white/6 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${hpColor}`} style={{width: `${hp}%`}} />
                     </div>
-                    <div className="lg:col-span-2 flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all duration-700 ${hpColor}`} style={{ width: `${hp}%` }} />
-                      </div>
-                      <span className={`text-[10px] font-mono font-bold shrink-0 ${hpText}`}>{hp}%</span>
-                    </div>
-                    <div className="lg:col-span-1 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-white/18" />
-                      <span className="text-[10px] text-white/35 font-mono">{uptimeLabel(system.createdAt, system.buildStatus)}</span>
-                    </div>
-                    <div className="lg:col-span-2">
-                      {(() => {
-                        const cents = systemRevenue[String(system.id)] ?? 0;
-                        return <span className={`text-xs font-mono font-semibold ${cents > 0 ? 'text-emerald-400' : 'text-white/18'}`}>{fmtCompact(cents)}</span>;
-                      })()}
-                    </div>
-                    <div className="lg:col-span-1 flex items-center gap-0.5 lg:justify-end" onClick={e => e.stopPropagation()}>
-                      {isPaused ? (
-                        <button onClick={() => patchSystem(system.id, { buildStatus: 'active' })} disabled={isLoading} title="Resume"
-                          className="p-1.5 rounded-lg text-emerald-400/35 hover:text-emerald-400 hover:bg-emerald-500/8 transition-colors disabled:opacity-20 border border-transparent hover:border-emerald-500/15">
-                          <Play className="w-3.5 h-3.5" />
-                        </button>
-                      ) : (
-                        <button onClick={() => patchSystem(system.id, { buildStatus: 'paused' })} disabled={isLoading || isBuilding} title="Pause"
-                          className="p-1.5 rounded-lg text-amber-400/35 hover:text-amber-400 hover:bg-amber-500/8 transition-colors disabled:opacity-20 border border-transparent hover:border-amber-500/15">
-                          <Pause className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <button onClick={() => patchSystem(system.id, { buildStatus: 'building' })} disabled={isLoading} title="Restart"
-                        className="p-1.5 rounded-lg text-blue-400/35 hover:text-blue-400 hover:bg-blue-500/8 transition-colors disabled:opacity-20 border border-transparent">
-                        <RotateCcw className="w-3.5 h-3.5" />
+                    <span className={`text-[10px] font-mono font-bold shrink-0 ${hpText}`}>{hp}%</span>
+                  </div>
+                  <div className="lg:col-span-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-white/15" />
+                    <span className="text-[10px] text-white/32 font-mono">{uptimeLabel(system.createdAt, system.buildStatus)}</span>
+                  </div>
+                  <div className="lg:col-span-2">
+                    {(() => {
+                      const cents = systemRevenue[String(system.id)] ?? 0;
+                      return <span className={`text-xs font-mono font-bold ${cents > 0 ? 'text-emerald-400' : 'text-white/15'}`}>{fmtCompact(cents)}</span>;
+                    })()}
+                  </div>
+                  <div className="lg:col-span-1 flex items-center gap-0.5 lg:justify-end" onClick={e => e.stopPropagation()}>
+                    {isPaused ? (
+                      <button onClick={() => patchSystem(system.id, {buildStatus: 'active'})} disabled={isLoading}
+                        className="p-1.5 rounded text-emerald-400/35 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors border border-transparent hover:border-emerald-500/18">
+                        <Play className="w-3.5 h-3.5" />
                       </button>
-                      {deleteConfirm === system.id ? (
-                        <span className="flex items-center gap-0.5 ml-0.5">
-                          <button onClick={() => deleteSystem(system.id)} disabled={isLoading} className="text-[10px] px-1.5 py-0.5 rounded text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 font-bold">Y</button>
-                          <button onClick={() => setDeleteConfirm(null)} className="text-[10px] px-1.5 py-0.5 rounded text-white/30 hover:bg-white/5 border border-white/8">N</button>
-                        </span>
-                      ) : (
-                        <button onClick={() => setDeleteConfirm(system.id)} disabled={isLoading} title="Delete"
-                          className="p-1.5 rounded-lg text-rose-400/22 hover:text-rose-400 hover:bg-rose-500/8 transition-colors disabled:opacity-20">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <ChevronRight className="w-3.5 h-3.5 text-white/12 group-hover:text-white/35 transition-colors ml-0.5 hidden lg:block" />
-                    </div>
+                    ) : (
+                      <button onClick={() => patchSystem(system.id, {buildStatus: 'paused'})} disabled={isLoading || isBuilding}
+                        className="p-1.5 rounded text-amber-400/35 hover:text-amber-400 hover:bg-amber-500/10 transition-colors border border-transparent hover:border-amber-500/18">
+                        <Pause className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button onClick={() => patchSystem(system.id, {buildStatus: 'building'})} disabled={isLoading}
+                      className="p-1.5 rounded text-blue-400/35 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                    {deleteConfirm === system.id ? (
+                      <span className="flex items-center gap-0.5 ml-0.5">
+                        <button onClick={() => deleteSystem(system.id)} disabled={isLoading} className="text-[10px] px-1.5 py-0.5 rounded text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 font-bold">Y</button>
+                        <button onClick={() => setDeleteConfirm(null)} className="text-[10px] px-1.5 py-0.5 rounded text-white/30 hover:bg-white/5 border border-white/8">N</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => setDeleteConfirm(system.id)} disabled={isLoading}
+                        className="p-1.5 rounded text-rose-400/22 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -805,104 +765,103 @@ const SystemCommandCenterPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* Activity Timeline */}
-        <div className={`${CARD} p-5`}>
-          <h2 className="text-[10px] font-bold text-white/40 uppercase tracking-widest font-mono mb-4">Activity Log</h2>
-          {timeline.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <Brain className="w-7 h-7 text-white/8" />
-              <p className="text-[11px] text-white/25 font-mono text-center">No activity yet.<br />Deploy a system to see logs here.</p>
-            </div>
-          ) : (
-            <div className="relative overflow-y-auto max-h-[260px] pr-1">
-              <div className="absolute left-[5px] top-2 bottom-2 w-px bg-white/5" />
-              <div className="space-y-0">
-                {timeline.map(evt => (
-                  <div key={evt.id} className="relative flex gap-4 pb-3.5 pl-6">
-                    <span className={`absolute left-0 top-[5px] w-[11px] h-[11px] rounded-full border-2 border-[#0a0a0f] ${evt.dot}`} />
-                    <div className="flex-1 min-w-0 pt-0.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className={`text-[11px] font-semibold truncate ${evt.color}`}>{evt.label}</p>
-                        <span className="text-[9px] text-white/20 font-mono shrink-0">{timeAgo(evt.ts)}</span>
-                      </div>
-                      {evt.detail && <p className="text-[10px] text-white/30 truncate mt-0.5">{evt.detail}</p>}
-                    </div>
-                  </div>
-                ))}
+        <div className="bg-[#08080f] border border-white/8 rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-white/6">
+            <div className="w-[3px] h-4 bg-violet-400 rounded-full" />
+            <h2 className="text-[10px] font-bold text-white/50 uppercase tracking-widest font-mono">Activity Log</h2>
+          </div>
+          <div className="p-4">
+            {timeline.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <Brain className="w-7 h-7 text-white/6" />
+                <p className="text-[11px] text-white/22 font-mono text-center">No activity yet.<br />Deploy a system to see logs here.</p>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="relative overflow-y-auto max-h-[260px] pr-1">
+                <div className="absolute left-[5px] top-2 bottom-2 w-px bg-white/6" />
+                <div className="space-y-0">
+                  {timeline.map(evt => (
+                    <div key={evt.id} className="relative flex gap-4 pb-3.5 pl-6">
+                      <span className={`absolute left-0 top-[5px] w-[11px] h-[11px] rounded-full border-2 border-[#08080f] ${evt.dot}`} />
+                      <div className="flex-1 min-w-0 pt-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-[11px] font-semibold truncate ${evt.color}`}>{evt.label}</p>
+                          <span className="text-[9px] text-white/18 font-mono shrink-0">{timeAgo(evt.ts)}</span>
+                        </div>
+                        {evt.detail && <p className="text-[10px] text-white/28 truncate mt-0.5">{evt.detail}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Credits + Alerts */}
-        <div className={`${CARD} p-5`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[10px] font-bold text-white/40 uppercase tracking-widest font-mono">Credits & Alerts</h2>
-            <button onClick={() => navigate('/credits')} className="text-[10px] font-mono text-amber-400/45 hover:text-amber-400 transition-colors">
-              Top Up →
-            </button>
-          </div>
-
-          {/* Credit summary */}
-          <div className="flex items-center gap-4 mb-4 pb-4 border-b border-white/5">
-            <div>
-              <p className={`text-3xl font-bold font-mono tabular-nums ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>
-                {credBalance.toLocaleString()}
-              </p>
-              <p className="text-[10px] text-white/22 font-mono">credits left</p>
+        <div className="bg-[#08080f] border border-white/8 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/6">
+            <div className="flex items-center gap-2.5">
+              <div className="w-[3px] h-4 bg-amber-400 rounded-full" />
+              <h2 className="text-[10px] font-bold text-white/50 uppercase tracking-widest font-mono">Credits & Alerts</h2>
             </div>
-            <div className="flex-1">
-              <div className="h-2 bg-white/5 rounded-full overflow-hidden mb-1.5">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${credPct > 60 ? 'bg-amber-400' : credPct > 30 ? 'bg-orange-400' : 'bg-rose-500'}`}
-                  style={{ width: `${credPct}%` }}
-                />
+            <button onClick={() => navigate('/credits')} className="text-[10px] font-mono font-semibold text-amber-400/55 hover:text-amber-400 transition-colors">Top Up →</button>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="flex items-center gap-4 pb-4 border-b border-white/5">
+              <div>
+                <p className={`text-3xl font-black font-mono tabular-nums ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>{credBalance.toLocaleString()}</p>
+                <p className="text-[10px] text-white/22 font-mono">credits left</p>
               </div>
-              <p className="text-[9px] text-white/20 font-mono">{credPct}% of {credAllotment.toLocaleString()} remaining</p>
+              <div className="flex-1 space-y-1.5">
+                <div className="h-2 bg-white/6 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all duration-700 ${credPct > 60 ? 'bg-amber-400' : credPct > 30 ? 'bg-orange-400' : 'bg-rose-500'}`} style={{width: `${credPct}%`}} />
+                </div>
+                <p className="text-[9px] text-white/18 font-mono">{credPct}% of {credAllotment.toLocaleString()} remaining</p>
+              </div>
             </div>
-          </div>
 
-          {/* Alerts */}
-          {alertNotifs.length > 0 ? (
-            <div className="space-y-2 mb-3">
-              {alertNotifs.slice(0, 3).map(n => {
-                const isError = (n.notificationType || '').toLowerCase() === 'error';
-                return (
-                  <div key={n.id} className={`flex items-start gap-2 p-2.5 rounded-lg border ${isError ? 'bg-rose-500/5 border-rose-500/15' : 'bg-amber-500/5 border-amber-500/15'}`}>
-                    <AlertTriangle className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isError ? 'text-rose-400' : 'text-amber-400'}`} />
-                    <div className="min-w-0">
-                      <p className={`text-[11px] font-semibold truncate ${isError ? 'text-rose-400' : 'text-amber-400'}`}>{n.title || n.message}</p>
-                      {n.message && n.title && <p className="text-[10px] text-white/30 truncate mt-0.5">{n.message}</p>}
+            {alertNotifs.length > 0 ? (
+              <div className="space-y-2">
+                {alertNotifs.slice(0, 3).map(n => {
+                  const isError = (n.notificationType || '').toLowerCase() === 'error';
+                  return (
+                    <div key={n.id} className={`flex items-start gap-2 p-2.5 rounded-xl border ${isError ? 'bg-rose-500/5 border-rose-500/18' : 'bg-amber-500/5 border-amber-500/18'}`}>
+                      <AlertTriangle className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isError ? 'text-rose-400' : 'text-amber-400'}`} />
+                      <div className="min-w-0">
+                        <p className={`text-[11px] font-semibold truncate ${isError ? 'text-rose-400' : 'text-amber-400'}`}>{n.title || n.message}</p>
+                        {n.message && n.title && <p className="text-[10px] text-white/28 truncate mt-0.5">{n.message}</p>}
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div>
+                  <p className="text-[11px] font-semibold text-emerald-400">All Systems Nominal</p>
+                  <p className="text-[10px] text-white/25 font-mono mt-0.5">No active alerts</p>
+                </div>
+              </div>
+            )}
+
+            <div className="border-t border-white/5 pt-3 space-y-0.5">
+              {notifications.slice(0, 4).map(n => {
+                const tk = (n.notificationType || 'info').toLowerCase();
+                const cfg = NOTIF_TYPE_MAP[tk] ?? NOTIF_TYPE_MAP.info;
+                return (
+                  <div key={n.id} className="flex items-center gap-2 py-1.5 border-b border-white/4 last:border-0">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+                    <p className="text-[11px] text-white/40 truncate flex-1">{n.title || n.message}</p>
+                    <span className="text-[9px] text-white/18 font-mono shrink-0">{timeAgo(n.createdAt)}</span>
                   </div>
                 );
               })}
+              {notifications.length === 0 && (
+                <p className="text-[10px] text-white/18 font-mono text-center py-2">No notifications yet</p>
+              )}
             </div>
-          ) : (
-            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-emerald-500/4 border border-emerald-500/10 mb-3">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <div>
-                <p className="text-[11px] font-semibold text-emerald-400">All Systems Nominal</p>
-                <p className="text-[10px] text-white/28 font-mono mt-0.5">No active alerts</p>
-              </div>
-            </div>
-          )}
-
-          {/* Notification list */}
-          <div className="space-y-0.5">
-            {notifications.slice(0, 4).map(n => {
-              const tk = (n.notificationType || 'info').toLowerCase();
-              const cfg = NOTIF_TYPE_MAP[tk] ?? NOTIF_TYPE_MAP.info;
-              return (
-                <div key={n.id} className="flex items-center gap-2 py-1.5 border-b border-white/4 last:border-0">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
-                  <p className="text-[11px] text-white/40 truncate flex-1">{n.title || n.message}</p>
-                  <span className="text-[9px] text-white/18 font-mono shrink-0">{timeAgo(n.createdAt)}</span>
-                </div>
-              );
-            })}
-            {notifications.length === 0 && (
-              <p className="text-[10px] text-white/18 font-mono text-center py-3">No notifications yet</p>
-            )}
           </div>
         </div>
       </div>

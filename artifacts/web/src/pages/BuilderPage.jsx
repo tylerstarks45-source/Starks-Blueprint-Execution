@@ -1960,22 +1960,33 @@ const BuilderPage = () => {
         {/* ═══════════════════════════════════════════════════════════════
             LEFT PANEL (260px) — Sessions as Tasks + Agent Modes
         ═══════════════════════════════════════════════════════════════ */}
-        <div className="w-[260px] shrink-0 flex flex-col border-r border-white/8 bg-[#060608] relative">
+        <div className="w-[260px] shrink-0 flex flex-col border-r border-white/8 bg-[#05050c] relative">
 
-          {/* Header */}
-          <div className="px-3 py-2 border-b border-white/6 flex items-center gap-2 shrink-0">
-            <div className="w-5 h-5 rounded bg-primary/15 flex items-center justify-center shrink-0">
-              <Wand2 className="w-3 h-3 text-primary" />
+          {/* Header — gradient top section */}
+          <div className="relative px-3 pt-3 pb-2.5 border-b border-white/6 shrink-0 bg-gradient-to-b from-primary/8 to-transparent">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(14,165,233,0.2)]">
+                <Wand2 className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-bold text-white/75 font-mono tracking-tight">ASH Workspace</p>
+                <p className="text-[9px] font-mono text-white/28 leading-tight">
+                  {phase === 'building' ? 'Building…'
+                    : phase === 'complete' ? 'Build complete'
+                    : phase === 'planning' ? 'Reviewing plan…'
+                    : phase === 'collecting' ? 'Awaiting credentials'
+                    : 'Ready'}
+                </p>
+              </div>
+              {phase !== 'idle' && (
+                <span className={`w-2 h-2 rounded-full shrink-0 shadow-lg ${
+                  phase === 'building' ? 'bg-blue-400 animate-pulse shadow-blue-400/40'
+                  : phase === 'complete' ? 'bg-emerald-400 shadow-emerald-400/40'
+                  : phase === 'planning' ? 'bg-violet-400 animate-pulse shadow-violet-400/40'
+                  : 'bg-amber-400 animate-pulse shadow-amber-400/40'
+                }`} />
+              )}
             </div>
-            <span className="flex-1 text-[11px] font-semibold text-white/45 font-mono truncate">ASH Workspace</span>
-            {phase !== 'idle' && (
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                phase === 'building' ? 'bg-blue-400 animate-pulse'
-                : phase === 'complete' ? 'bg-emerald-400'
-                : phase === 'planning' ? 'bg-violet-400 animate-pulse'
-                : 'bg-amber-400 animate-pulse'
-              }`} />
-            )}
           </div>
 
           {/* + New task button */}
@@ -1983,15 +1994,15 @@ const BuilderPage = () => {
             <button
               onClick={clearSession}
               disabled={phase === 'building'}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-white/8 bg-white/2 hover:bg-primary/6 hover:border-primary/18 text-white/30 hover:text-primary/80 text-[11px] font-mono transition-all disabled:opacity-25 disabled:cursor-not-allowed"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-white/8 bg-white/3 hover:bg-primary/8 hover:border-primary/22 text-white/35 hover:text-primary text-[11px] font-mono font-medium transition-all disabled:opacity-25 disabled:cursor-not-allowed group"
             >
-              <PlusCircle className="w-3 h-3 shrink-0" />
+              <PlusCircle className="w-3.5 h-3.5 shrink-0 group-hover:rotate-90 transition-transform duration-200" />
               New task
             </button>
           </div>
 
           {/* ── Left sidebar tabs: Tasks | Files | Memory ── */}
-          <div className="flex border-b border-white/6 shrink-0 px-1 gap-0.5 pb-1">
+          <div className="flex border-b border-white/6 shrink-0 px-2 gap-1 pb-2">
             {[
               { id: 'tasks',  label: 'Tasks',  icon: Activity },
               { id: 'files',  label: 'Files',  icon: FileCode2 },
@@ -2000,10 +2011,10 @@ const BuilderPage = () => {
               <button
                 key={tab.id}
                 onClick={() => setLeftSideTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-1 py-1 text-[9px] font-mono transition-all rounded-md ${
+                className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono font-semibold transition-all rounded-lg ${
                   leftSideTab === tab.id
-                    ? 'text-primary bg-primary/8 border border-primary/15'
-                    : 'text-white/22 hover:text-white/45 border border-transparent'
+                    ? 'text-primary bg-primary/10 border border-primary/22 shadow-[0_0_8px_rgba(14,165,233,0.1)]'
+                    : 'text-white/28 hover:text-white/55 border border-transparent hover:bg-white/4'
                 }`}
               >
                 <tab.icon className="w-2.5 h-2.5" />
@@ -2103,73 +2114,51 @@ const BuilderPage = () => {
                 </div>
                 {sessionsLoading && <div className="flex justify-center py-2"><Loader2 className="w-3.5 h-3.5 animate-spin text-white/20" /></div>}
                 <div className="space-y-1.5">
-                  {savedSessions.map(s => (
-                    <div key={s.id} className={`group rounded-lg border transition-all overflow-hidden ${
-                      currentSessionId === s.id
-                        ? 'bg-primary/5 border-primary/20'
-                        : 'border-white/6 bg-white/2 hover:bg-white/4 hover:border-white/12'
+                  {savedSessions.map(s => {
+                    const isActive = currentSessionId === s.id;
+                    const phaseDot = s.phase === 'complete' ? 'bg-emerald-400' : s.phase === 'building' ? 'bg-blue-400 animate-pulse' : s.phase === 'planning' ? 'bg-violet-400 animate-pulse' : 'bg-white/22';
+                    const phasePill = s.phase === 'complete'
+                      ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/22'
+                      : s.phase === 'building' ? 'text-blue-400 bg-blue-500/10 border-blue-500/22'
+                      : s.phase === 'planning' ? 'text-violet-400 bg-violet-500/10 border-violet-500/22'
+                      : 'text-white/30 bg-white/5 border-white/10';
+                    return (
+                    <div key={s.id} className={`group rounded-xl border transition-all relative ${
+                      isActive
+                        ? 'bg-primary/6 border-primary/22 shadow-[0_0_12px_rgba(14,165,233,0.08)]'
+                        : 'border-white/6 bg-white/[0.025] hover:bg-white/[0.04] hover:border-white/12'
                     }`}>
-                      <div className="flex items-start gap-2 px-2.5 pt-2 pb-1.5 cursor-pointer" onClick={() => restoreSession(s)}>
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
-                          s.phase === 'complete' ? 'bg-emerald-400'
-                          : s.phase === 'building' ? 'bg-blue-400 animate-pulse'
-                          : s.phase === 'planning' ? 'bg-violet-400 animate-pulse'
-                          : 'bg-white/22'
-                        }`} />
+                      {isActive && <div className="absolute left-0 top-3 bottom-3 w-[2px] bg-primary rounded-full" />}
+                      <div className={`flex items-start gap-2 pt-2 pb-1.5 cursor-pointer ${isActive ? 'pl-4 pr-2.5' : 'px-2.5'}`} onClick={() => restoreSession(s)}>
+                        <span className={`w-2 h-2 rounded-full shrink-0 mt-1 ${phaseDot}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] text-white/60 truncate font-mono leading-snug">{s.title}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded-full ${
-                              s.phase === 'complete' ? 'text-emerald-400/80 bg-emerald-500/10 border border-emerald-500/20'
-                              : s.phase === 'building' ? 'text-blue-400/80 bg-blue-500/10 border border-blue-500/20'
-                              : s.phase === 'planning' ? 'text-violet-400/80 bg-violet-500/10 border border-violet-500/20'
-                              : 'text-white/30 bg-white/5 border border-white/10'
-                            }`}>
-                              {s.phase === 'complete' ? '✓ complete' : s.phase === 'building' ? '⟳ building' : s.phase || 'active'}
+                          <p className={`text-[11px] truncate font-mono leading-snug font-medium ${isActive ? 'text-white/80' : 'text-white/55'}`}>{s.title}</p>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded-full border ${phasePill}`}>
+                              {s.phase === 'complete' ? '✓ done' : s.phase === 'building' ? '⟳ building' : s.phase || 'active'}
                             </span>
-                            <span className="text-[9px] text-white/18 font-mono">
-                              {formatTs(new Date(s.updatedAt ?? Date.now()).getTime())}
-                            </span>
+                            <span className="text-[9px] text-white/18 font-mono">{formatTs(new Date(s.updatedAt ?? Date.now()).getTime())}</span>
                           </div>
                         </div>
-                        <button
-                          onClick={(e) => deleteSession(s.id, e)}
-                          className="shrink-0 opacity-0 group-hover:opacity-100 text-white/18 hover:text-rose-400/65 transition-all p-0.5 rounded mt-0.5"
-                        >
+                        <button onClick={(e) => deleteSession(s.id, e)} className="shrink-0 opacity-0 group-hover:opacity-100 text-white/18 hover:text-rose-400/65 transition-all p-0.5 rounded mt-0.5">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
-                      <div className="flex gap-1.5 px-2.5 pb-2">
-                        <button
-                          onClick={() => restoreSession(s)}
-                          className="flex-1 text-[9px] font-mono font-semibold text-white/35 hover:text-white/60 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-md py-1 transition-all"
-                        >
+                      <div className={`flex gap-1.5 pb-2 ${isActive ? 'pl-4 pr-2.5' : 'px-2.5'}`}>
+                        <button onClick={() => restoreSession(s)} className={`flex-1 text-[9px] font-mono font-semibold rounded-md py-1 transition-all ${isActive ? 'text-primary bg-primary/10 hover:bg-primary/18 border border-primary/22' : 'text-white/35 hover:text-white/60 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15'}`}>
                           Resume
                         </button>
                         {s.phase === 'complete' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const blob = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement('a');
-                              a.href = url; a.download = `ash-build-${s.id.slice(0,8)}.json`;
-                              a.click(); URL.revokeObjectURL(url);
-                            }}
-                            className="flex-1 text-[9px] font-mono font-semibold text-white/35 hover:text-white/60 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-md py-1 transition-all"
-                          >
+                          <button onClick={(e) => { e.stopPropagation(); const blob = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ash-build-${s.id.slice(0,8)}.json`; a.click(); URL.revokeObjectURL(url); }}
+                            className="flex-1 text-[9px] font-mono font-semibold text-white/35 hover:text-white/60 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-md py-1 transition-all">
                             Export
                           </button>
                         )}
-                        <button
-                          onClick={(e) => deleteSession(s.id, e)}
-                          className="text-[9px] font-mono text-rose-400/40 hover:text-rose-400/70 bg-white/3 hover:bg-rose-500/8 border border-white/8 hover:border-rose-500/20 rounded-md py-1 px-2 transition-all"
-                        >
-                          Del
-                        </button>
+                        <button onClick={(e) => deleteSession(s.id, e)} className="text-[9px] font-mono text-rose-400/40 hover:text-rose-400/70 bg-white/3 hover:bg-rose-500/8 border border-white/8 hover:border-rose-500/20 rounded-md py-1 px-2 transition-all">Del</button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -3140,8 +3129,8 @@ const BuilderPage = () => {
                     <CloudUpload className="w-3 h-3" /> Deploy Checklist
                   </p>
                   {[
-                    { label: 'Blueprint selected',   done: !!selectedBlueprint },
-                    { label: 'Credentials connected', done: userCredentials.length > 0 },
+                    { label: 'Blueprint selected',   done: !!selectedBp },
+                    { label: 'Credentials connected', done: Object.keys(storedCredKeys).length > 0 },
                     { label: 'System built',          done: userSystems.some(s => s.buildStatus === 'completed' || s.buildStatus === 'active') },
                     { label: 'API server ready',      done: true },
                   ].map((item, i) => (

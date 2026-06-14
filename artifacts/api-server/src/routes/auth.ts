@@ -77,7 +77,8 @@ router.post("/auth/register", authLimiter, async (req, res) => {
     return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
   }
 
-  const { email, password, name } = parsed.data;
+  const { email: rawEmail, password, name } = parsed.data;
+  const email = rawEmail.toLowerCase().trim();
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing.length > 0) {
@@ -123,7 +124,8 @@ router.post("/auth/login", authLimiter, async (req, res) => {
     return res.status(400).json({ error: "Invalid credentials." });
   }
 
-  const { email, password } = parsed.data;
+  const { email: rawEmail, password } = parsed.data;
+  const email = rawEmail.toLowerCase().trim();
 
   const users = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (users.length === 0) {

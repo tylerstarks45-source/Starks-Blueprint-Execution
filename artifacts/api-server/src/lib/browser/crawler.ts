@@ -45,14 +45,31 @@ export async function createBrowserContext(): Promise<BrowserContext> {
   });
 }
 
-export async function getPageData(page: Page, originalUrl: string): Promise<PageData> {
-  const finalUrl = page.url();
-  const title = await page.title();
-  const statusCode = 200;
+function isPageClosedError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes("Target page, context or browser has been closed") ||
+    msg.includes("Target closed") ||
+    msg.includes("has been closed") ||
+    msg.includes("Session closed")
+  );
+}
 
-  const screenshot = await page.screenshot({ type: "jpeg", quality: 60 })
-    .then(buf => buf.toString("base64"))
-    .catch(() => undefined);
+export async function getPageData(page: Page, originalUrl: string): Promise<PageData> {
+  let finalUrl = originalUrl;
+  let title = "";
+  let screenshot: string | undefined;
+
+  try { finalUrl = page.url(); } catch { /* page may be navigating */ }
+
+  try { title = await page.title(); } catch { title = "(loading)"; }
+
+  try {
+    screenshot = await page
+      .screenshot({ type: "jpeg", quality: 60 })
+      .then(buf => buf.toString("base64"))
+      .catch(() => undefined);
+  } catch { /* ignore screenshot failures */ }
 
   type EvalResult = {
     text: string;
@@ -61,46 +78,59 @@ export async function getPageData(page: Page, originalUrl: string): Promise<Page
     forms: Array<{ action: string; method: string; fields: Array<{ name: string; type: string; placeholder?: string; value?: string; label?: string }> }>;
   };
 
-  const { text, html, links, forms } = await page.evaluate<EvalResult>(
-    // Passed as a string so TypeScript never type-checks the browser-side DOM code
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    new Function(`
-      var d = document;
-      var w = window;
-      var bodyText = (d.body ? d.body.innerText : "").replace(/\\s+/g, " ").trim();
-      var rawHtml = (d.documentElement ? d.documentElement.outerHTML : "").slice(0, 20000);
-      var rawLinks = [];
-      d.querySelectorAll("a[href]").forEach(function(el) {
-        var href = el.href || "";
-        var txt = (el.innerText || "").trim().slice(0, 120);
-        if (href && txt && !href.startsWith("javascript:") && rawLinks.length < 30) {
-          rawLinks.push({ text: txt, url: href });
-        }
-      });
-      var rawForms = [];
-      d.querySelectorAll("form").forEach(function(form) {
-        var fields = [];
-        form.querySelectorAll("input, textarea, select").forEach(function(el) {
-          var name = el.name || el.id || "";
-          if (!name) return;
-          var labelEl = d.querySelector('label[for="' + el.id + '"]');
-          fields.push({
-            name: name,
-            type: el.type || "text",
-            placeholder: el.placeholder || undefined,
-            value: el.value || undefined,
-            label: labelEl ? labelEl.textContent.trim() : undefined
+  let text = "";
+  let html = "";
+  let links: EvalResult["links"] = [];
+  let forms: EvalResult["forms"] = [];
+
+  try {
+    const result = await page.evaluate<EvalResult>(
+      new Function(`
+        var d = document;
+        var w = window;
+        var bodyText = (d.body ? d.body.innerText : "").replace(/\\s+/g, " ").trim();
+        var rawHtml = (d.documentElement ? d.documentElement.outerHTML : "").slice(0, 20000);
+        var rawLinks = [];
+        d.querySelectorAll("a[href]").forEach(function(el) {
+          var href = el.href || "";
+          var txt = (el.innerText || "").trim().slice(0, 120);
+          if (href && txt && !href.startsWith("javascript:") && rawLinks.length < 30) {
+            rawLinks.push({ text: txt, url: href });
+          }
+        });
+        var rawForms = [];
+        d.querySelectorAll("form").forEach(function(form) {
+          var fields = [];
+          form.querySelectorAll("input, textarea, select").forEach(function(el) {
+            var name = el.name || el.id || "";
+            if (!name) return;
+            var labelEl = d.querySelector('label[for="' + el.id + '"]');
+            fields.push({
+              name: name,
+              type: el.type || "text",
+              placeholder: el.placeholder || undefined,
+              value: el.value || undefined,
+              label: labelEl ? labelEl.textContent.trim() : undefined
+            });
+          });
+          rawForms.push({
+            action: form.action || w.location.href,
+            method: (form.method || "GET").toUpperCase(),
+            fields: fields
           });
         });
-        rawForms.push({
-          action: form.action || w.location.href,
-          method: (form.method || "GET").toUpperCase(),
-          fields: fields
-        });
-      });
-      return { text: bodyText.slice(0, 8000), html: rawHtml, links: rawLinks, forms: rawForms };
-    `) as () => EvalResult
-  );
+        return { text: bodyText.slice(0, 8000), html: rawHtml, links: rawLinks, forms: rawForms };
+      `) as () => EvalResult
+    );
+    text = result.text;
+    html = result.html;
+    links = result.links;
+    forms = result.forms;
+  } catch (err) {
+    if (!isPageClosedError(err)) {
+      text = "(page content unavailable)";
+    }
+  }
 
   return {
     url: originalUrl,
@@ -110,7 +140,7 @@ export async function getPageData(page: Page, originalUrl: string): Promise<Page
     html,
     links,
     forms,
-    statusCode,
+    statusCode: 200,
     screenshot,
   };
 }

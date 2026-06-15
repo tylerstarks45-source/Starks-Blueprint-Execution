@@ -28,6 +28,44 @@ function sleep(ms: number) {
   return new Promise<void>(r => setTimeout(r, ms));
 }
 
+function isPageClosedError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes("Target page, context or browser has been closed") ||
+    msg.includes("Target closed") ||
+    msg.includes("has been closed") ||
+    msg.includes("Session closed") ||
+    msg.includes("page.title:")
+  );
+}
+
+/**
+ * After an action that may trigger navigation (click, navigate, key),
+ * wait for load state to settle and return the currently active page.
+ * If the original page was replaced by a redirect, pick the newest page
+ * in the context instead.
+ */
+async function settleNavigation(context: BrowserContext, page: Page): Promise<Page> {
+  // Wait for any in-flight navigation to finish
+  try {
+    await page.waitForLoadState("domcontentloaded", { timeout: 6000 });
+  } catch { /* navigation may have already finished or page replaced */ }
+
+  await sleep(800);
+
+  // Check if the original page is still alive
+  try {
+    page.url(); // synchronous — throws if context is destroyed
+    await page.title(); // async — throws if page closed
+    return page;
+  } catch {
+    // Page was closed/replaced — find the newest live page
+    const pages = context.pages();
+    if (pages.length === 0) return page; // nothing we can do
+    return pages[pages.length - 1];
+  }
+}
+
 function formatPageForAI(page: {
   finalUrl: string;
   title: string;
@@ -117,10 +155,16 @@ RULES:
 - For Google login the password field is typically: input[type="password"] or [name="password"]  
 - After typing credentials, click Next/Sign In button or press Enter
 - If the current page already has the information needed → return done immediately
-- Be specific and precise with selectors — prefer id, name, or type attributes`;
+- Be specific and precise with selectors — prefer id, name, or type attributes
+- IMPORTANT: After navigation or clicking links, the page URL will change automatically — do NOT re-navigate to the same URL`;
 }
 
+/**
+ * Execute a single browser action. Returns the (possibly new) active page
+ * alongside ok/description/error — because navigation can replace the page.
+ */
 async function executeAction(
+  context: BrowserContext,
   page: Page,
   decision: {
     action: string;
@@ -136,76 +180,112 @@ async function executeAction(
     reason?: string;
     result?: string;
   }
-): Promise<{ ok: boolean; description: string; error?: string }> {
+): Promise<{ ok: boolean; description: string; error?: string; page: Page }> {
   try {
     switch (decision.action) {
       case "navigate": {
-        await page.goto(decision.url!, { waitUntil: "domcontentloaded", timeout: 20000 });
-        await sleep(1500);
-        return { ok: true, description: `Navigated to ${decision.url}` };
+        await page.goto(decision.url!, { waitUntil: "domcontentloaded", timeout: 25000 });
+        const activePage = await settleNavigation(context, page);
+        return { ok: true, description: `Navigated to ${decision.url}`, page: activePage };
       }
 
       case "click": {
         const sel = decision.selector!;
-        await page.waitForSelector(sel, { timeout: 8000 });
-        await page.click(sel);
-        await sleep(1500);
-        return { ok: true, description: `Clicked: ${sel}` };
+        // waitForSelector can throw if page navigates away — treat as soft error
+        try {
+          await page.waitForSelector(sel, { timeout: 8000, state: "visible" });
+        } catch (waitErr) {
+          if (isPageClosedError(waitErr)) {
+            const activePage = await settleNavigation(context, page);
+            return { ok: true, description: `Page navigated while waiting for ${sel}`, page: activePage };
+          }
+          // Selector not found — try click anyway (may be in shadow DOM or lazy-rendered)
+        }
+        try { await page.click(sel, { timeout: 5000 }); } catch { /* ignore click errors — page may navigate */ }
+        const activePage = await settleNavigation(context, page);
+        return { ok: true, description: `Clicked: ${sel}`, page: activePage };
       }
 
       case "click_text": {
         const txt = decision.text!;
         const locator = page.getByText(txt, { exact: false }).first();
-        await locator.waitFor({ timeout: 8000 });
-        await locator.click();
-        await sleep(1500);
-        return { ok: true, description: `Clicked text: "${txt}"` };
+        try {
+          await locator.waitFor({ timeout: 8000 });
+          await locator.click({ timeout: 5000 });
+        } catch (err) {
+          if (!isPageClosedError(err)) {
+            const activePage = await settleNavigation(context, page);
+            return { ok: false, description: `Could not click "${txt}"`, error: err instanceof Error ? err.message : String(err), page: activePage };
+          }
+        }
+        const activePage = await settleNavigation(context, page);
+        return { ok: true, description: `Clicked text: "${txt}"`, page: activePage };
       }
 
       case "type": {
         const sel = decision.selector!;
-        await page.waitForSelector(sel, { timeout: 8000 });
-        await page.fill(sel, decision.value ?? "");
-        await sleep(500);
-        return { ok: true, description: `Typed into ${sel}: "${decision.value}"` };
+        try {
+          await page.waitForSelector(sel, { timeout: 8000, state: "visible" });
+          await page.fill(sel, decision.value ?? "");
+        } catch (err) {
+          if (isPageClosedError(err)) {
+            const activePage = await settleNavigation(context, page);
+            return { ok: false, description: `Page closed while typing into ${sel}`, page: activePage };
+          }
+          return { ok: false, description: `Could not type into ${sel}`, error: err instanceof Error ? err.message : String(err), page };
+        }
+        await sleep(400);
+        return { ok: true, description: `Typed into ${sel}: "${decision.value}"`, page };
       }
 
       case "type_label": {
         const label = decision.label!;
         const labelEl = page.getByLabel(label, { exact: false }).first();
-        await labelEl.waitFor({ timeout: 8000 });
-        await labelEl.fill(decision.value ?? "");
-        await sleep(500);
-        return { ok: true, description: `Typed "${decision.value}" into field labeled "${label}"` };
+        try {
+          await labelEl.waitFor({ timeout: 8000 });
+          await labelEl.fill(decision.value ?? "");
+        } catch (err) {
+          return { ok: false, description: `Could not type into label "${label}"`, error: err instanceof Error ? err.message : String(err), page };
+        }
+        await sleep(400);
+        return { ok: true, description: `Typed "${decision.value}" into field labeled "${label}"`, page };
       }
 
       case "key": {
-        await page.keyboard.press(decision.key!);
-        await sleep(1000);
-        return { ok: true, description: `Pressed key: ${decision.key}` };
+        try { await page.keyboard.press(decision.key!); } catch { /* ignore */ }
+        const activePage = await settleNavigation(context, page);
+        return { ok: true, description: `Pressed key: ${decision.key}`, page: activePage };
       }
 
       case "scroll": {
         const px = decision.pixels ?? 500;
         const dir = decision.direction === "up" ? -px : px;
-        await page.evaluate(new Function("dy", "window.scrollBy(0, dy)") as (dy: number) => void, dir);
-        await sleep(500);
-        return { ok: true, description: `Scrolled ${decision.direction ?? "down"} ${px}px` };
+        try {
+          await page.evaluate(new Function("dy", "window.scrollBy(0, dy)") as (dy: number) => void, dir);
+        } catch { /* ignore */ }
+        await sleep(400);
+        return { ok: true, description: `Scrolled ${decision.direction ?? "down"} ${px}px`, page };
       }
 
       case "wait": {
         await sleep(decision.ms ?? 2000);
-        return { ok: true, description: `Waited ${decision.ms ?? 2000}ms` };
+        return { ok: true, description: `Waited ${decision.ms ?? 2000}ms`, page };
       }
 
       default:
-        return { ok: false, description: `Unknown action: ${decision.action}`, error: "Unknown action" };
+        return { ok: false, description: `Unknown action: ${decision.action}`, error: "Unknown action", page };
     }
   } catch (err: unknown) {
+    // Catch-all — recover the active page and continue
+    let activePage = page;
+    if (isPageClosedError(err)) {
+      try { activePage = await settleNavigation(context, page); } catch { /* best effort */ }
+    }
     return {
       ok: false,
       description: `Action failed: ${decision.action}`,
       error: err instanceof Error ? err.message : String(err),
+      page: activePage,
     };
   }
 }
@@ -226,11 +306,38 @@ export async function* runBrowserAgent(
     page = await context.newPage();
 
     yield { type: "thinking", description: `Navigating to ${startUrl}…` };
-    await page.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
-    await sleep(1500);
+    try {
+      await page.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 25000 });
+    } catch (err) {
+      // domcontentloaded may time out on heavy JS sites — continue anyway
+      if (!isPageClosedError(err)) {
+        yield { type: "thinking", description: "Page slow to load, continuing…" };
+      }
+    }
+    page = await settleNavigation(context, page);
 
     for (let step = 0; step < MAX_STEPS; step++) {
-      const pageData = await getPageData(page, page.url());
+      // Always use the live active page
+      const activePage = context.pages().at(-1) ?? page;
+      page = activePage;
+
+      let pageData;
+      try {
+        pageData = await getPageData(page, page.url());
+      } catch (err) {
+        // If we can't even get page data, try to recover
+        if (isPageClosedError(err)) {
+          const pages = context.pages();
+          if (pages.length === 0) {
+            yield { type: "error", message: "Browser session ended unexpectedly." };
+            return;
+          }
+          page = pages[pages.length - 1];
+          pageData = await getPageData(page, page.url());
+        } else {
+          throw err;
+        }
+      }
 
       yield {
         type: "navigate",
@@ -308,7 +415,10 @@ export async function* runBrowserAgent(
         return;
       }
 
-      const actionResult = await executeAction(page, decision);
+      const actionResult = await executeAction(context, page, decision);
+
+      // Always track the live page after any action
+      page = actionResult.page;
 
       yield {
         type: "action",
@@ -321,12 +431,12 @@ export async function* runBrowserAgent(
         steps.push(`  ⚠ Error: ${actionResult.error}`);
         yield {
           type: "thinking",
-          description: `Action failed (${actionResult.error}) — trying to recover…`,
+          description: `Action had an issue (${actionResult.error.slice(0, 80)}) — recovering and continuing…`,
         };
       }
     }
 
-    yield { type: "done", result: `Task reached maximum steps. Final page: ${page.url()}` };
+    yield { type: "done", result: `Task reached maximum steps. Final page: ${page?.url() ?? "unknown"}` };
   } catch (err: unknown) {
     yield { type: "error", message: err instanceof Error ? err.message : "Browser agent failed" };
   } finally {

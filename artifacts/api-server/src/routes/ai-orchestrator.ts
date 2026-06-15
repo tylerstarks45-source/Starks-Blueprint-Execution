@@ -369,6 +369,7 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     agentMode: z.string().optional().default("fast"),
     businessType: z.string().nullish(),
     revenueGoal: z.string().nullish(),
+    planMode: z.boolean().optional().default(false),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -415,8 +416,12 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       parsed.data.revenueGoal  ? `User's revenue goal: ${parsed.data.revenueGoal}` : "",
     ].filter(Boolean).join("\n");
 
+    const planModeNote = parsed.data.planMode
+      ? `\n\n=== PLAN MODE ACTIVE ===\nThe user is in Plan Mode. Your role right now is to discuss, explain, strategize, and help them understand their options — NOT to execute or build anything. Do NOT emit any SBEP_DATA block with action "start_build", "collect_credentials", or any build-triggering action. You may still use "browser_use" if the user explicitly requests research. Focus on being a knowledgeable advisor: explain how systems work, which blueprints might fit their goals, what the steps would involve, estimated timelines and revenue potential. When the user is ready to build they will switch to Build Mode.`
+      : "";
+
     const completionArgs = {
-      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : ""),
+      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + planModeNote,
       prompt: `${historyCtx}\n\nUser: ${parsed.data.message}`,
       userId,
       systemInstanceId: parsed.data.systemInstanceId,
@@ -631,6 +636,7 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
     agentMode: z.string().optional().default("fast"),
     businessType: z.string().nullish(),
     revenueGoal: z.string().nullish(),
+    planMode: z.boolean().optional().default(false),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -685,9 +691,13 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
       parsed.data.revenueGoal  ? `User's revenue goal: ${parsed.data.revenueGoal}` : "",
     ].filter(Boolean).join("\n");
 
+    const planModeNote = parsed.data.planMode
+      ? `\n\n=== PLAN MODE ACTIVE ===\nThe user is in Plan Mode. Your role right now is to discuss, explain, strategize, and help them understand their options — NOT to execute or build anything. Do NOT emit any SBEP_DATA block with action "start_build", "collect_credentials", or any build-triggering action. You may still use "browser_use" if the user explicitly requests research. Focus on being a knowledgeable advisor: explain how systems work, which blueprints might fit their goals, what the steps would involve, estimated timelines and revenue potential. When the user is ready to build they will switch to Build Mode.`
+      : "";
+
     const systemPrompt = buildSystemPrompt(blueprintKB, toolKB) +
       storedCredNote + skillAdditions +
-      (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "");
+      (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + planModeNote;
     const prompt = `${historyCtx}\n\nUser: ${parsed.data.message}`;
 
     // ── Auto-tool detection (runs in parallel with AI + thinking) ─────────

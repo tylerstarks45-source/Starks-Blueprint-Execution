@@ -145,6 +145,7 @@ const MULTI_AGENTS = [
 ];
 
 const aiModeStorageKey = (userId) => `sbep_ai_mode_${userId}`;
+const chatModeStorageKey = (userId) => `sbep_chat_mode_${userId}`;
 
 const DIFFICULTY_COLOR = {
   beginner: 'text-emerald-400 border-emerald-400/30 bg-emerald-400/8',
@@ -1128,6 +1129,17 @@ const BuilderPage = () => {
     try { localStorage.setItem(aiModeStorageKey(currentUser.id), aiMode); } catch {}
   }, [aiMode, currentUser?.id]);
 
+  // Plan / Build chat mode
+  const [chatMode, setChatMode] = useState(() => {
+    try { return localStorage.getItem(chatModeStorageKey(currentUser?.id)) || 'build'; } catch { return 'build'; }
+  });
+  const isPlanMode = chatMode === 'plan';
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try { localStorage.setItem(chatModeStorageKey(currentUser.id), chatMode); } catch {}
+  }, [chatMode, currentUser?.id]);
+
   const userTier = (currentUser?.membershipTier || 'free').toLowerCase();
   const isEmpireTier = userTier === 'empire' || userTier === 'operator';
   const isFounderAdmin = currentUser?.role === 'FOUNDER_ADMIN';
@@ -1622,7 +1634,7 @@ const BuilderPage = () => {
       const resp = await fetch('/api/ai-orchestrator/stream', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ message: msg, history, agentMode: aiMode, businessType, revenueGoal }),
+        body: JSON.stringify({ message: msg, history, agentMode: aiMode, businessType, revenueGoal, planMode: isPlanMode }),
       });
 
       if (resp.status === 402) { setError('Out of AI credits. Top up to continue.'); return; }
@@ -1724,13 +1736,13 @@ const BuilderPage = () => {
         genFiles.push({ name: 'Revenue Model Analysis', tag: 'model' });
         genFiles.push({ name: 'Deployment Workflow', tag: 'deploy' });
         setMessages(prev => [...prev, { id: Date.now() + 2, role: 'assistant', type: 'files', files: genFiles, ts: Date.now() }]);
-      } else if (action === 'collect_credentials' && sd?.requiredCredentials?.length > 0) {
+      } else if (action === 'collect_credentials' && sd?.requiredCredentials?.length > 0 && !isPlanMode) {
         pendingBlueprintRef.current = sd.blueprint ?? null;
         pendingSystemNameRef.current = sd.systemName ?? '';
         setPendingCreds(sd.requiredCredentials);
         setPendingPlanData(null);
         setPhase('collecting');
-      } else if (action === 'start_build' && sd?.blueprint) {
+      } else if (action === 'start_build' && sd?.blueprint && !isPlanMode) {
         setPendingPlanData(null);
         await executeBuild({}, sd.blueprint, sd.systemName ?? '');
       } else if (action === 'browser_use' && sd?.startUrl) {
@@ -2476,6 +2488,34 @@ const BuilderPage = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 ml-auto">
+              {/* Plan / Build mode toggle */}
+              <div className="flex items-center bg-black/50 border border-white/10 rounded-lg p-0.5 gap-0.5">
+                <button
+                  onClick={() => setChatMode('plan')}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold font-mono transition-all ${
+                    isPlanMode
+                      ? 'bg-violet-500/25 border border-violet-500/40 text-violet-300'
+                      : 'text-white/30 hover:text-white/55'
+                  }`}
+                  title="Plan mode — discuss and explore without building"
+                >
+                  <Brain className="w-3 h-3" />
+                  Plan
+                </button>
+                <button
+                  onClick={() => setChatMode('build')}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold font-mono transition-all ${
+                    !isPlanMode
+                      ? 'bg-primary/20 border border-primary/35 text-primary'
+                      : 'text-white/30 hover:text-white/55'
+                  }`}
+                  title="Build mode — ASH builds and activates systems"
+                >
+                  <Cpu className="w-3 h-3" />
+                  Build
+                </button>
+              </div>
+
               {/* Save to Library button */}
               <button
                 onClick={() => {
@@ -2829,7 +2869,7 @@ const BuilderPage = () => {
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKey}
-                    placeholder={phase === 'collecting' ? 'Fill credentials above…' : phase === 'planning' ? 'Plan ready — confirm above or ask to adjust…' : 'Describe your income goal to ASH…'}
+                    placeholder={phase === 'collecting' ? 'Fill credentials above…' : phase === 'planning' ? 'Plan ready — confirm above or ask to adjust…' : isPlanMode ? 'Ask ASH anything — explore ideas, understand systems, or plan a build…' : 'Describe your income goal to ASH…'}
                     disabled={isInputDisabled}
                     className="flex-1 resize-none text-xs bg-black/50 border border-white/12 rounded-xl px-3 py-2 text-white placeholder:text-white/22 focus:outline-none focus:border-primary/45 transition-colors disabled:opacity-40"
                     rows={1}

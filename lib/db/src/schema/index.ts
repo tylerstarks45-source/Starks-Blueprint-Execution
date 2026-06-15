@@ -29,3 +29,4 @@ export * from "./system_connectors";
 export * from "./runtime_jobs";
 export * from "./chat_sessions";
 export * from "./generated_files";
+export * from "./credit_usage_events";

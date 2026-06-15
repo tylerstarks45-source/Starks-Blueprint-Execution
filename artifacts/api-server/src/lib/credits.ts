@@ -2,15 +2,15 @@ import { sql, eq, desc } from "drizzle-orm";
 import { db, usersTable, creditTransactionsTable } from "@workspace/db";
 
 // ── Tier allotments (monthly credits that reset each billing cycle) ───────────
-// These MUST match PricingPage.jsx and subscriptions.ts TIER_CONFIG exactly.
+// Temporary Phase 1 allocations — final pricing to be set after real-usage data.
 export const TIER_ALLOTMENTS: Record<string, number> = {
-  free:     100,
-  builder:  1000,
-  operator: 5000,
-  empire:   25000,
+  free:     250,
+  builder:  2500,
+  operator: 10000,
+  empire:   50000,
   // legacy aliases — map to canonical tiers
-  pro:      1000,
-  starter:  1000,
+  pro:      2500,
+  starter:  2500,
 };
 
 export const TIER_NAMES: Record<string, string> = {
@@ -36,14 +36,20 @@ export const TIER_PRICES: Record<string, number> = {
 export const TIER_SYSTEM_LIMITS: Record<string, number> = {
   free:     1,
   builder:  5,
-  operator: 10,
-  empire:   10,
+  operator: 20,
+  empire:   999,  // effectively unlimited
   // legacy aliases
   pro:      5,
   starter:  5,
 };
 
-export const SIGNUP_GRANT = 100; // credits granted to creditsBalance on new account creation
+export const SIGNUP_GRANT = 250; // credits granted to creditsBalance on new account creation
+
+// ── Credit rate for custom top-ups ────────────────────────────────────────────
+// Base rate: $10 = 500 credits → 50 credits per dollar.
+// Preset tiers offer bonus credits for larger purchases.
+export const BASE_CREDITS_PER_DOLLAR = 50;
+export const MIN_CUSTOM_PURCHASE_DOLLARS = 10;
 
 // ── Credit Wallet Tiers ───────────────────────────────────────────────────────
 // Dollar-amount-based wallet top-ups. Purchased credits go to walletBalance
@@ -56,12 +62,20 @@ export const WALLET_TIERS: Record<string, {
   priceCents: number;
   saving: string | null;
 }> = {
-  ten:       { id: "ten",       name: "$10 Wallet Top-up",  dollarAmount: 10,  credits: 250,   priceCents: 1000,  saving: null },
-  twentyfive: { id: "twentyfive", name: "$25 Wallet Top-up",  dollarAmount: 25,  credits: 700,   priceCents: 2500,  saving: "Save 13%" },
-  fifty:     { id: "fifty",     name: "$50 Wallet Top-up",  dollarAmount: 50,  credits: 1500,  priceCents: 5000,  saving: "Save 25%" },
-  hundred:   { id: "hundred",   name: "$100 Wallet Top-up", dollarAmount: 100, credits: 3500,  priceCents: 10000, saving: "Save 42%" },
-  twofifty:  { id: "twofifty",  name: "$250 Wallet Top-up", dollarAmount: 250, credits: 10000, priceCents: 25000, saving: "Save 60%" },
+  ten:       { id: "ten",       name: "$10 Wallet Top-up",  dollarAmount: 10,  credits: 500,   priceCents: 1000,  saving: null },
+  twentyfive: { id: "twentyfive", name: "$25 Wallet Top-up",  dollarAmount: 25,  credits: 1500,  priceCents: 2500,  saving: "Save 20%" },
+  fifty:     { id: "fifty",     name: "$50 Wallet Top-up",  dollarAmount: 50,  credits: 3500,  priceCents: 5000,  saving: "Save 40%" },
+  hundred:   { id: "hundred",   name: "$100 Wallet Top-up", dollarAmount: 100, credits: 8000,  priceCents: 10000, saving: "Save 60%" },
+  twofifty:  { id: "twofifty",  name: "$250 Wallet Top-up", dollarAmount: 250, credits: 25000, priceCents: 25000, saving: "Save 100%" },
 };
+
+/**
+ * Calculate how many credits a custom dollar amount earns.
+ * Uses base rate (50 cr/$). Preset tiers already offer bonuses above this.
+ */
+export function creditsForDollars(dollars: number): number {
+  return Math.floor(dollars) * BASE_CREDITS_PER_DOLLAR;
+}
 
 export type CreditTxType = "signup_grant" | "tier_grant" | "purchase" | "wallet_purchase" | "usage" | "admin_adjust";
 
@@ -228,7 +242,8 @@ export class SystemLimitError extends Error {
   code = "system_limit_reached" as const;
   limit: number;
   constructor(limit: number) {
-    super(`Your plan allows a maximum of ${limit} system${limit === 1 ? "" : "s"}. Upgrade to create more.`);
+    const displayLimit = limit >= 999 ? "unlimited" : String(limit);
+    super(`Your plan allows a maximum of ${displayLimit} system${limit === 1 ? "" : "s"}. Upgrade to create more.`);
     this.name = "SystemLimitError";
     this.limit = limit;
   }

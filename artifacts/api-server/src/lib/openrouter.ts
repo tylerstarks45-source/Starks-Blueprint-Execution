@@ -1,8 +1,8 @@
 import { logger } from "./logger";
 import { db, usersTable } from "@workspace/db";
-import { openrouterUsageTable } from "@workspace/db";
+import { openrouterUsageTable, creditUsageEventsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { getBalance, deductForUsage, OutOfCreditsError } from "./credits";
+import { getBalance, deductForUsage, creditsForTokens, OutOfCreditsError } from "./credits";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const DEFAULT_MODEL = "openai/gpt-4o-mini";
@@ -115,6 +115,15 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
     if (request.userId != null && fullContent.length > 0) {
       try {
         await deductForUsage(request.userId, totalTokens, model);
+        // Phase 3: log granular credit usage event
+        db.insert(creditUsageEventsTable).values({
+          userId: request.userId,
+          systemInstanceId: request.systemInstanceId ?? null,
+          eventType: "ai_call",
+          creditsConsumed: creditsForTokens(totalTokens),
+          tokensUsed: totalTokens,
+          model,
+        }).catch(() => { /* non-critical */ });
       } catch (err) {
         logger.error({ alert: "CREDIT_DEDUCTION_FAILED", err, userId: request.userId }, "Streaming credit deduction failed");
       }
@@ -222,6 +231,15 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
     if (request.userId != null) {
       try {
         await deductForUsage(request.userId, result.totalTokens, result.model);
+        // Phase 3: log granular credit usage event
+        db.insert(creditUsageEventsTable).values({
+          userId: request.userId,
+          systemInstanceId: request.systemInstanceId ?? null,
+          eventType: "ai_call",
+          creditsConsumed: creditsForTokens(result.totalTokens),
+          tokensUsed: result.totalTokens,
+          model: result.model,
+        }).catch(() => { /* non-critical */ });
       } catch (deductErr) {
         logger.error(
           {

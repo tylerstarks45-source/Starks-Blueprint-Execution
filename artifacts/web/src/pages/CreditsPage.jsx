@@ -4,13 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import {
   Coins, Zap, Crown, Building2, Gift, Check, ArrowLeft,
   TrendingUp, Star, Flame, Shield, Clock,
-  ChevronRight, Loader2, BarChart2, Wallet,
+  ChevronRight, Loader2, BarChart2, Wallet, Sparkles, DollarSign,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import VideoBackground from '@/components/VideoBackground.jsx';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 
 const authHeaders = () => {
@@ -19,18 +18,19 @@ const authHeaders = () => {
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Wallet Tiers — matches server WALLET_TIERS exactly
-   $10=250cr, $25=700cr, $50=1500cr, $100=3500cr, $250=10000cr
+   Wallet Tiers — Phase 2 rates (updated)
+   $10=500cr, $25=1500cr, $50=3500cr, $100=8000cr, $250=25000cr
    Permanent credits — never expire — consume monthly credits first
 ───────────────────────────────────────────────────────────────────────────── */
 const WALLET_TIERS = [
   {
     id: 'ten',
     name: '$10',
-    credits: 250,
+    credits: 500,
     priceCents: 1000,
     dollarAmount: 10,
-    perCredit: '$0.040',
+    perCredit: '$0.020',
+    creditsPerDollar: 50,
     saving: null,
     color: 'text-blue-400',
     border: 'border-blue-500/30',
@@ -44,11 +44,12 @@ const WALLET_TIERS = [
   {
     id: 'twentyfive',
     name: '$25',
-    credits: 700,
+    credits: 1500,
     priceCents: 2500,
     dollarAmount: 25,
-    perCredit: '$0.036',
-    saving: 'Save 13%',
+    perCredit: '$0.0167',
+    creditsPerDollar: 60,
+    saving: 'Save 20%',
     color: 'text-violet-400',
     border: 'border-violet-500/30',
     bg: 'bg-violet-500/8',
@@ -61,11 +62,12 @@ const WALLET_TIERS = [
   {
     id: 'fifty',
     name: '$50',
-    credits: 1500,
+    credits: 3500,
     priceCents: 5000,
     dollarAmount: 50,
-    perCredit: '$0.033',
-    saving: 'Save 25%',
+    perCredit: '$0.0143',
+    creditsPerDollar: 70,
+    saving: 'Save 40%',
     color: 'text-emerald-400',
     border: 'border-emerald-500/30',
     bg: 'bg-emerald-500/8',
@@ -78,11 +80,12 @@ const WALLET_TIERS = [
   {
     id: 'hundred',
     name: '$100',
-    credits: 3500,
+    credits: 8000,
     priceCents: 10000,
     dollarAmount: 100,
-    perCredit: '$0.029',
-    saving: 'Save 42%',
+    perCredit: '$0.0125',
+    creditsPerDollar: 80,
+    saving: 'Save 60%',
     color: 'text-amber-400',
     border: 'border-amber-500/30',
     bg: 'bg-amber-500/8',
@@ -95,11 +98,12 @@ const WALLET_TIERS = [
   {
     id: 'twofifty',
     name: '$250',
-    credits: 10000,
+    credits: 25000,
     priceCents: 25000,
     dollarAmount: 250,
-    perCredit: '$0.025',
-    saving: 'Save 60%',
+    perCredit: '$0.010',
+    creditsPerDollar: 100,
+    saving: 'Save 100%',
     color: 'text-rose-400',
     border: 'border-rose-500/30',
     bg: 'bg-rose-500/8',
@@ -117,13 +121,13 @@ const PLANS = [
     name: 'Free',
     price: '$0',
     period: '/mo',
-    credits: 100,
+    credits: 250,
     systems: 1,
     icon: Gift,
     color: 'text-white/60',
     border: 'border-white/15',
     bg: 'bg-white/5',
-    features: ['100 AI credits / month', '1 active system', 'Blueprint library access', 'Marketplace access'],
+    features: ['250 AI credits / month', '1 active system', 'Blueprint library access', 'Marketplace access', 'Connection Hub access'],
     cta: 'Current (Free)',
     ctaStyle: 'bg-white/10 text-white/50 cursor-default',
     disabled: true,
@@ -133,7 +137,7 @@ const PLANS = [
     name: 'Builder',
     price: '$29',
     period: '/mo',
-    credits: 1000,
+    credits: 2500,
     systems: 5,
     icon: Zap,
     color: 'text-blue-400',
@@ -142,7 +146,7 @@ const PLANS = [
     badge: 'Most Popular',
     badgeColor: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     features: [
-      '1,000 AI credits / month',
+      '2,500 AI credits / month',
       'Up to 5 active systems',
       'Full ASH AI Build Agent',
       'Revenue tracking & analytics',
@@ -156,8 +160,8 @@ const PLANS = [
     name: 'Operator',
     price: '$99',
     period: '/mo',
-    credits: 5000,
-    systems: 10,
+    credits: 10000,
+    systems: 20,
     icon: Zap,
     color: 'text-violet-400',
     border: 'border-violet-500/40',
@@ -165,8 +169,8 @@ const PLANS = [
     badge: 'Scale Faster',
     badgeColor: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
     features: [
-      '5,000 AI credits / month',
-      'Up to 10 active systems',
+      '10,000 AI credits / month',
+      'Up to 20 active systems',
       'Priority build queue',
       'Team management features',
       'Email & chat support',
@@ -179,8 +183,8 @@ const PLANS = [
     name: 'Empire',
     price: '$499',
     period: '/mo',
-    credits: 25000,
-    systems: 10,
+    credits: 50000,
+    systems: 999,
     icon: Building2,
     color: 'text-amber-400',
     border: 'border-amber-400/50',
@@ -188,8 +192,8 @@ const PLANS = [
     badge: 'For Founders & Agencies',
     badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
     features: [
-      '25,000 AI credits / month',
-      'Up to 10 active systems',
+      '50,000 AI credits / month',
+      'Unlimited active systems',
       'Priority AI processing',
       'API access + white label',
       'Custom onboarding',
@@ -200,6 +204,8 @@ const PLANS = [
   },
 ];
 
+const BASE_CREDITS_PER_DOLLAR = 50; // custom purchase rate
+
 const PANEL = 'bg-black/80 backdrop-blur-md border border-white/10 rounded-xl';
 
 const CreditsPage = () => {
@@ -209,6 +215,19 @@ const CreditsPage = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingKey, setLoadingKey] = useState(null);
+  const [customDollars, setCustomDollars] = useState('');
+  const [customLoading, setCustomLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('wallet_topped_up') === '1') {
+      toast.success('Credits added to your wallet! Balance will update shortly.');
+      window.history.replaceState({}, '', '/credits');
+    } else if (params.get('wallet_canceled') === '1') {
+      toast.info('Purchase canceled. No charges were made.');
+      window.history.replaceState({}, '', '/credits');
+    }
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -251,6 +270,28 @@ const CreditsPage = () => {
     }
   };
 
+  const handleBuyCustom = async () => {
+    if (!currentUser) { navigate('/login'); return; }
+    const dollars = parseInt(customDollars, 10);
+    if (!dollars || dollars < 10) { toast.error('Minimum purchase is $10.'); return; }
+    if (dollars > 10000) { toast.error('Maximum purchase is $10,000 per transaction.'); return; }
+    setCustomLoading(true);
+    try {
+      const resp = await fetch('/api/credits/checkout/custom', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ dollars }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { toast.error(data.error || 'Failed to start checkout'); return; }
+      if (data.url) window.location.href = data.url;
+    } catch {
+      toast.error('Could not connect to payment provider. Please try again.');
+    } finally {
+      setCustomLoading(false);
+    }
+  };
+
   const handleUpgradePlan = async (planKey) => {
     if (!currentUser) { navigate('/login'); return; }
     setLoadingKey(planKey);
@@ -269,6 +310,10 @@ const CreditsPage = () => {
       setLoadingKey(null);
     }
   };
+
+  const customCredits = customDollars && parseInt(customDollars, 10) >= 10
+    ? parseInt(customDollars, 10) * BASE_CREDITS_PER_DOLLAR
+    : null;
 
   const monthlyBalance = credits?.balance      ?? 0;
   const walletBalance  = credits?.walletBalance ?? 0;
@@ -367,7 +412,7 @@ const CreditsPage = () => {
                       credPct > 25 ? 'bg-gradient-to-r from-orange-500 to-amber-400' :
                       'bg-gradient-to-r from-rose-600 to-rose-400'
                     }`}
-                    style={{ width: `${credPct}%` }}
+                    style={{ width: `${Math.min(100, credPct)}%` }}
                   />
                 </div>
               )}
@@ -388,15 +433,15 @@ const CreditsPage = () => {
           </div>
         )}
 
-        {/* ── Credit Wallet Top-ups ────────────────────────────────────────────── */}
+        {/* ── Buy Additional Credits ───────────────────────────────────────────── */}
         <div className={`${PANEL} p-5 mb-6`}>
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-base font-bold text-white uppercase tracking-widest font-mono"
                 style={{ textShadow: '0 0 10px rgba(0,0,0,0.9)' }}>
-                Credit Wallet Top-ups
+                Buy Additional Credits
               </h2>
-              <p className="text-xs text-white/40 font-mono mt-0.5">One-time purchase · permanent credits · stack on any plan · bigger = better value</p>
+              <p className="text-xs text-white/40 font-mono mt-0.5">Permanent wallet credits · never expire · stack on any plan · credits never expire</p>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
               <Shield className="w-3.5 h-3.5 text-emerald-400" />
@@ -404,14 +449,15 @@ const CreditsPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* ─ Preset tiers ─────────────────────────────────────────────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-5">
             {WALLET_TIERS.map(wt => {
               const isLoading = loadingKey === wt.id;
               return (
                 <div
                   key={wt.id}
                   className={`relative flex flex-col rounded-2xl border p-5 transition-all duration-200 ${wt.border} ${wt.bg} ${wt.hoverBg} cursor-pointer group`}
-                  onClick={() => !loadingKey && handleBuyWallet(wt.id)}
+                  onClick={() => !loadingKey && !customLoading && handleBuyWallet(wt.id)}
                 >
                   {wt.badge && (
                     <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full border text-[10px] font-bold font-mono uppercase tracking-wide whitespace-nowrap ${wt.badgeColor}`}>
@@ -443,7 +489,7 @@ const CreditsPage = () => {
                   <p className="text-[11px] text-white/50 mb-4 leading-relaxed">{wt.description}</p>
 
                   <button
-                    disabled={!!loadingKey}
+                    disabled={!!loadingKey || customLoading}
                     className={`w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all border ${wt.border}
                       bg-black/40 group-hover:bg-black/60 disabled:opacity-50 flex items-center justify-center gap-2`}
                   >
@@ -456,6 +502,55 @@ const CreditsPage = () => {
                 </div>
               );
             })}
+          </div>
+
+          {/* ─ Custom amount ────────────────────────────────────────────────── */}
+          <div className="rounded-2xl border border-primary/25 bg-primary/5 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <span className="text-sm font-bold font-mono text-white">Custom Amount</span>
+              <span className="text-[10px] font-mono text-white/40 ml-1">· minimum $10 · 50 credits per dollar</span>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative flex-1 min-w-[160px]">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <input
+                  type="number"
+                  min="10"
+                  max="10000"
+                  placeholder="Enter amount"
+                  value={customDollars}
+                  onChange={e => setCustomDollars(e.target.value)}
+                  className="w-full bg-black/60 border border-white/15 rounded-xl pl-9 pr-4 py-2.5 text-sm font-mono text-white placeholder:text-white/25 focus:outline-none focus:border-primary/50 transition-colors"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                {customCredits ? (
+                  <div className="px-4 py-2.5 rounded-xl bg-primary/10 border border-primary/25">
+                    <span className="text-sm font-bold font-mono text-primary tabular-nums">{customCredits.toLocaleString()}</span>
+                    <span className="text-xs text-white/40 font-mono ml-1">credits</span>
+                  </div>
+                ) : (
+                  <div className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <span className="text-xs text-white/25 font-mono">— credits</span>
+                  </div>
+                )}
+                <button
+                  onClick={handleBuyCustom}
+                  disabled={!customCredits || customLoading || !!loadingKey}
+                  className="px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold font-mono hover:bg-primary/90 transition-all disabled:opacity-40 flex items-center gap-2"
+                >
+                  {customLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : 'Buy Credits'}
+                </button>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-white/25 font-mono mt-3">
+              Custom credits use the base rate (50 cr/$). Preset tiers above offer up to 100 cr/$ for larger purchases.
+            </p>
           </div>
 
           <div className="mt-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
@@ -475,7 +570,7 @@ const CreditsPage = () => {
             <p className="text-xs text-white/40 font-mono mt-0.5">Monthly credits that reset every billing cycle · cancel anytime</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {PLANS.map(plan => {
               const isCurrentTier = tier === plan.key;
               const isLoading = loadingKey === plan.key;
@@ -508,7 +603,7 @@ const CreditsPage = () => {
                       <span className="text-sm text-white/40 font-mono">{plan.period}</span>
                     </div>
                     <p className="text-xs text-white/50 font-mono mt-0.5">
-                      {plan.credits.toLocaleString()} credits/mo · {plan.systems === 999 ? '∞' : plan.systems} systems
+                      {plan.credits.toLocaleString()} credits/mo · {plan.systems >= 999 ? '∞' : plan.systems} systems
                     </p>
                   </div>
 

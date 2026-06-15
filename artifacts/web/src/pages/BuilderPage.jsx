@@ -2675,6 +2675,30 @@ const BuilderPage = () => {
                   </div>
                 )}
 
+                {/* ── ASH Credit Estimator (Phase 5) ──────────────────────── */}
+                {(() => {
+                  const modeMultipliers = { fast: 1.0, business: 1.5, expert: 2.5, empire: 4.0 };
+                  const stepCount = pendingPlanData?.buildSteps?.length ?? 5;
+                  const mult = modeMultipliers[aiMode] ?? 1.0;
+                  const raw = Math.round((50 + stepCount * 20) * mult);
+                  const estimate = Math.ceil(raw / 25) * 25;
+                  const minMin = Math.round(stepCount * (aiMode === 'fast' ? 1.5 : aiMode === 'business' ? 2.5 : aiMode === 'expert' ? 4 : 6));
+                  const maxMin = Math.round(stepCount * (aiMode === 'fast' ? 3 : aiMode === 'business' ? 5 : aiMode === 'expert' ? 8 : 12));
+                  return (
+                    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/15">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="text-[11px] text-white/50 font-mono">Estimated build cost</span>
+                        <span className="text-[10px] text-white/25 font-mono hidden sm:inline">· {stepCount} steps · {aiMode} mode</span>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-[12px] font-bold font-mono text-amber-400 tabular-nums">~{estimate.toLocaleString()} credits</span>
+                        <span className="text-[10px] text-white/30 font-mono">{minMin}–{maxMin} min</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="flex items-center gap-2.5 pt-1 border-t border-white/8">
                   <Button
                     onClick={() => sendMessage("I've reviewed the plan and I'm ready to proceed with the build.")}

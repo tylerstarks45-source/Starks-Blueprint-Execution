@@ -1,0 +1,207 @@
+STARKS GLOBAL GROUP – CREDIT SYSTEM, PRICING, AND BILLING STABILIZATION UPDATE
+
+MISSION
+
+We are NOT ready to finalize long-term credit pricing because we do not yet have enough real-world ASH usage data.
+
+The platform must remain fully operational while we collect usage analytics and continue onboarding users.
+
+DO NOT pause subscriptions.
+DO NOT remove existing plans.
+DO NOT break Stripe.
+DO NOT interrupt current users.
+
+=================================================
+PHASE 1 – TEMPORARY CREDIT STRUCTURE
+====================================
+
+Update all current plans to the following temporary allocations:
+
+FREE
+$0/month
+
+Includes:
+
+• Marketplace Access
+• Blueprint Library Access
+• Connection Hub Access
+• Build 1 Starter System
+• Limited ASH Access
+• 250 Monthly Credits
+
+Purpose:
+Allow users to fully test ASH and complete at least one basic system build.
+
+---
+
+BUILDER
+$29/month
+
+Includes:
+
+• Everything in Free
+• Full Blueprint Access
+• Build Up To 5 Active Systems
+• Enhanced ASH Access
+• Connection Hub
+• Hosting Access
+• Analytics Access
+• 2,500 Monthly Credits
+
+Purpose:
+Small creators and entrepreneurs.
+
+---
+
+OPERATOR
+$99/month
+
+Includes:
+
+• Everything in Builder
+• Build Up To 20 Systems
+• Priority Processing
+• Advanced Automation
+• Enhanced Monitoring
+• Team Features
+• 10,000 Monthly Credits
+
+Purpose:
+Serious operators and agencies.
+
+---
+
+EMPIRE
+$499/month
+
+Includes:
+
+• Unlimited Systems
+• Full ASH Access
+• Priority Queue
+• Team Management
+• Enterprise Features
+• Advanced Analytics
+• White Label Features
+• 50,000 Monthly Credits
+
+Purpose:
+Power users, agencies, and founders.
+
+=================================================
+PHASE 2 – REPLACE CREDIT PACKS
+==============================
+
+Remove all fixed credit-pack cards currently displayed.
+
+Replace with:
+
+"Buy Additional Credits"
+
+Users can purchase credits in any amount.
+
+Minimum Purchase:
+$10
+
+Credit Rate:
+
+$10 = 500 Credits
+$25 = 1,500 Credits
+$50 = 3,500 Credits
+$100 = 8,000 Credits
+$250 = 25,000 Credits
+
+Credits Never Expire.
+
+Users should be able to enter a custom dollar amount and receive credits automatically based on the current conversion rate.
+
+=================================================
+PHASE 3 – CREDIT USAGE ANALYTICS
+================================
+
+Build a complete Credit Usage Profiler.
+
+Track:
+
+• User ID
+• System ID
+• Credits Consumed
+• OpenRouter Tokens Used
+• OpenRouter Cost
+• Browser Actions
+• AI Calls
+• Tool Executions
+• Workflow Generations
+• Blueprint Generations
+• Hosting Actions
+
+Store every usage event.
+
+=================================================
+PHASE 4 – BUILD COST ANALYTICS
+==============================
+
+Create admin reporting showing:
+
+• Average Credits Per Build
+• Average OpenRouter Cost Per Build
+• Average Browser Cost Per Build
+• Average Credits Per User
+• Most Expensive Systems
+• Cheapest Systems
+• Total Platform Cost
+• Total Revenue
+
+We need real data before finalizing permanent pricing.
+
+=================================================
+PHASE 5 – ASH CREDIT ESTIMATOR
+==============================
+
+Before ASH starts a build:
+
+Display:
+
+Estimated Credits Required
+Estimated Time Required
+Estimated AI Usage
+
+Example:
+
+"This build is estimated to require 420 credits."
+
+User confirms before build begins.
+
+=================================================
+PHASE 6 – STRIPE UPDATE
+=======================
+
+Update Stripe integration to match new plans.
+
+Do NOT break existing billing.
+
+After implementation provide a report containing:
+
+1. New Stripe Products Required
+2. New Stripe Prices Required
+3. Existing Stripe Products That Can Be Reused
+4. Environment Variables That Need Updating
+5. Any Webhook Changes Required
+
+Do NOT require manual rebuilding later.
+
+=================================================
+PHASE 7 – KEEP PLATFORM LIVE
+============================
+
+The platform must remain operational during this transition.
+
+Current users keep access.
+
+Current subscriptions remain active.
+
+New users see the updated plans.
+
+Collect real-world usage data over the next 30–60 days so future pricing can be based on actual ASH costs instead of assumptions.
+
+The goal is fair pricing for users while ensuring the platform remains profitable and scalable.

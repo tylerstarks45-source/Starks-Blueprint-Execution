@@ -16,6 +16,7 @@ import {
   affiliateLinksTable,
   openrouterUsageTable,
   creditTransactionsTable,
+  creditUsageEventsTable,
   chatSessionsTable,
   subscriptionsTable,
   systemActivityEventsTable,
@@ -1293,6 +1294,66 @@ router.get("/admin/ai-analytics", async (req, res): Promise<void> => {
     models:    modelRows,
     byTier:    tierRows,
     days,
+  });
+});
+
+// ── Credit cost analytics (Phase 4) ──────────────────────────────────────────
+// Aggregates credit consumption, revenue, and per-event-type breakdown.
+router.get("/admin/analytics/credit-costs", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const [
+    [txSummary],
+    eventTypeRows,
+    topConsumers,
+    [monthlyRevenue],
+  ] = await Promise.all([
+    // All-time credit consumption summary from transaction ledger
+    db.select({
+      totalConsumed:  sql<number>`coalesce(sum(case when ${creditTransactionsTable.amount} < 0 then -${creditTransactionsTable.amount} else 0 end), 0)::int`,
+      totalGranted:   sql<number>`coalesce(sum(case when ${creditTransactionsTable.type} in ('signup_grant','tier_grant') and ${creditTransactionsTable.amount} > 0 then ${creditTransactionsTable.amount} else 0 end), 0)::int`,
+      totalPurchased: sql<number>`coalesce(sum(case when ${creditTransactionsTable.type} = 'wallet_purchase' and ${creditTransactionsTable.amount} > 0 then ${creditTransactionsTable.amount} else 0 end), 0)::int`,
+    }).from(creditTransactionsTable),
+
+    // Credits consumed broken down by event type (ai_call, browser_action, etc.)
+    db.select({
+      eventType:    creditUsageEventsTable.eventType,
+      totalCredits: sql<number>`coalesce(sum(${creditUsageEventsTable.creditsConsumed}), 0)::int`,
+      totalCalls:   sql<number>`count(*)::int`,
+      avgCredits:   sql<number>`round(avg(${creditUsageEventsTable.creditsConsumed}), 1)::float`,
+    }).from(creditUsageEventsTable)
+      .groupBy(creditUsageEventsTable.eventType)
+      .orderBy(desc(sql`sum(${creditUsageEventsTable.creditsConsumed})`)),
+
+    // Top 10 credit consumers by usage type
+    db.select({
+      userId:        creditTransactionsTable.userId,
+      email:         usersTable.email,
+      tier:          usersTable.membershipTier,
+      totalConsumed: sql<number>`coalesce(sum(case when ${creditTransactionsTable.amount} < 0 then -${creditTransactionsTable.amount} else 0 end), 0)::int`,
+    }).from(creditTransactionsTable)
+      .innerJoin(usersTable, eq(creditTransactionsTable.userId, usersTable.id))
+      .where(eq(creditTransactionsTable.type, "usage"))
+      .groupBy(creditTransactionsTable.userId, usersTable.email, usersTable.membershipTier)
+      .orderBy(desc(sql`sum(case when ${creditTransactionsTable.amount} < 0 then -${creditTransactionsTable.amount} else 0 end)`))
+      .limit(10),
+
+    // This month's credit wallet revenue (wallet purchases only)
+    db.select({
+      creditsRevenue: sql<number>`coalesce(sum(case when ${creditTransactionsTable.type} = 'wallet_purchase' and ${creditTransactionsTable.amount} > 0 then ${creditTransactionsTable.amount} else 0 end), 0)::int`,
+    }).from(creditTransactionsTable)
+      .where(gte(creditTransactionsTable.createdAt, sql`date_trunc('month', now())`)),
+  ]);
+
+  res.json({
+    allTime: txSummary,
+    byEventType: eventTypeRows,
+    topConsumers,
+    thisMonth: { walletCreditsRevenue: monthlyRevenue?.creditsRevenue ?? 0 },
+    rateInfo: {
+      baseCreditsPerDollar: 50,
+      note: "Custom purchase rate. Preset tiers offer 60–100 cr/$ for larger amounts.",
+    },
   });
 });
 

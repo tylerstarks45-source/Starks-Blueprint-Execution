@@ -260,3 +260,87 @@
   background-size: 200% 200%;
   animation: gradient-shift 15s ease infinite;
 }
+/* ══ HOLOGRAPHIC HUD SYSTEM (Year 4000 dashboard) ════════════════════════ */
+
+/* Animated conic gradient border ring — sits behind glass panels */
+@keyframes holo-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Slow vertical scan line drifting across a panel */
+@keyframes holo-scan {
+  0%   { transform: translateY(-120%); opacity: 0; }
+  12%  { opacity: 0.55; }
+  88%  { opacity: 0.55; }
+  100% { transform: translateY(2200%); opacity: 0; }
+}
+
+/* Pulsing glow for live indicators / accent rings */
+@keyframes holo-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* Subtle drift for ambient grid */
+@keyframes holo-grid-drift {
+  0%   { background-position: 0 0, 0 0; }
+  100% { background-position: 60px 60px, 60px 60px; }
+}
+
+/* Shimmer sweep used on KPI numbers / headline metrics */
+@keyframes holo-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@layer utilities {
+  /* Holographic glass panel — lets the video background glow through */
+  .holo-glass {
+    background:
+      linear-gradient(180deg, rgba(10,12,24,0.72) 0%, rgba(6,7,16,0.66) 100%);
+    backdrop-filter: blur(20px) saturate(135%);
+    -webkit-backdrop-filter: blur(20px) saturate(135%);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow:
+      0 18px 50px -22px rgba(0,0,0,0.85),
+      inset 0 1px 0 0 rgba(255,255,255,0.05);
+  }
+
+  /* Deeper inset variant for KPI / instrument cells */
+  .holo-cell {
+    background:
+      radial-gradient(120% 140% at 50% 0%, rgba(255,255,255,0.04) 0%, rgba(6,7,16,0.0) 55%),
+      linear-gradient(180deg, rgba(9,10,20,0.62) 0%, rgba(5,6,14,0.62) 100%);
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+  }
+
+  .holo-scanline {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 14%;
+    background: linear-gradient(180deg, rgba(56,189,248,0) 0%, rgba(56,189,248,0.10) 50%, rgba(56,189,248,0) 100%);
+    animation: holo-scan 7s linear infinite;
+    pointer-events: none;
+  }
+
+  .holo-grid-bg {
+    background-image:
+      linear-gradient(rgba(120,160,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120,160,255,0.05) 1px, transparent 1px);
+    background-size: 60px 60px, 60px 60px;
+    animation: holo-grid-drift 18s linear infinite;
+  }
+
+  .holo-pulse { animation: holo-pulse 2.4s ease-in-out infinite; }
+
+  /* Shimmering metric text */
+  .holo-shimmer-text {
+    background: linear-gradient(100deg, currentColor 30%, rgba(255,255,255,0.95) 50%, currentColor 70%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: holo-shimmer 4.5s linear infinite;
+  }
+}

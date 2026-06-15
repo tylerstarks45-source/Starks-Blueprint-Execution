@@ -9,3 +9,4 @@
 - [ASH Planning Phase](ash-planning-phase.md) — 3-phase build flow: present_plan → collect_credentials → start_build; planning phase uses violet theme.
 - [Browser Agent Architecture](browser-agent.md) — ASH browser control: fetch+cheerio (no chromium), SSE via fetch ReadableStream, browser_use SBEP action, CompletionResult.content not .text.
 - [ASH auto-tool SSE pattern](ash-auto-tool-sse.md) — stream endpoint detects search/image keywords, runs tools in parallel with AI, sends tool_result SSE before first token; frontend inserts result card before streaming placeholder.
+- [Notification ID key collisions](notification-id-keys.md) — notification ids are timestamp-based and can collide; key React lists with `${n.id}-${i}`, not `n.id` alone.

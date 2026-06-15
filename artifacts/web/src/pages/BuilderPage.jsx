@@ -2678,8 +2678,8 @@ const BuilderPage = () => {
                   startUrl={activeBrowser.startUrl}
                   authToken={localStorage.getItem('sbep_auth_token')}
                   onResult={(result) => {
-                    setActiveBrowser(null);
-                    const resultMsg = `Here is what I found while browsing:\n\n${result}`;
+                    // Do NOT close the browser — user closes it themselves
+                    const resultMsg = `**Browser session complete.** Here is what I found:\n\n${result}`;
                     setMessages(prev => [...prev, {
                       id: Date.now(),
                       role: 'assistant',

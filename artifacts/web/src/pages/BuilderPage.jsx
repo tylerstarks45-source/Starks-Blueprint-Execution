@@ -1618,7 +1618,7 @@ const BuilderPage = () => {
     setError('');
 
     const history = messages
-      .filter(m => m.id !== 'welcome')
+      .filter(m => m.id !== 'welcome' && typeof m.content === 'string' && m.content.length > 0)
       .map(m => ({ role: m.role, content: m.content }));
 
     setMessages(prev => [...prev, { id: Date.now(), role: 'user', content: msg, ts: Date.now() }]);

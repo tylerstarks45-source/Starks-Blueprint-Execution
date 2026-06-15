@@ -354,8 +354,8 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     })).optional().default([]),
     systemInstanceId: z.number().int().optional(),
     agentMode: z.string().optional().default("fast"),
-    businessType: z.string().optional(),
-    revenueGoal: z.string().optional(),
+    businessType: z.string().nullish(),
+    revenueGoal: z.string().nullish(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -616,8 +616,8 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
     })).optional().default([]),
     systemInstanceId: z.number().int().optional(),
     agentMode: z.string().optional().default("fast"),
-    businessType: z.string().optional(),
-    revenueGoal: z.string().optional(),
+    businessType: z.string().nullish(),
+    revenueGoal: z.string().nullish(),
   });
 
   const parsed = schema.safeParse(req.body);

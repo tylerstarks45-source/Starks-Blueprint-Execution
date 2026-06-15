@@ -1134,7 +1134,7 @@ const BuilderPage = () => {
 
   // Business context
   const [businessType, setBusinessType] = useState(() => {
-    try { return localStorage.getItem(`sbep_biz_${currentUser?.id}`) || null; } catch { return null; }
+    try { return localStorage.getItem(`sbep_biz_${currentUser?.id}`) || undefined; } catch { return undefined; }
   });
   const [revenueGoal, setRevenueGoal] = useState(() => {
     try { return localStorage.getItem(`sbep_goal_${currentUser?.id}`) || ''; } catch { return ''; }

@@ -141,7 +141,7 @@ const MULTI_AGENTS = [
   { id: 'research',   label: 'Research',   icon: FlaskConical, phases: ['building'] },
   { id: 'builder',    label: 'Builder',    icon: Cog,          phases: ['building'] },
   { id: 'tester',     label: 'Tester',     icon: Target,       phases: ['building', 'complete'] },
-  { id: 'deploy',     label: 'Deploy',     icon: Rocket,       phases: ['complete'] },
+  { id: 'deploy',     label: 'Activate',   icon: Rocket,       phases: ['complete'] },
 ];
 
 const aiModeStorageKey = (userId) => `sbep_ai_mode_${userId}`;
@@ -752,7 +752,7 @@ const TRACKER_PHASES = [
   { label: 'Blueprint',     Icon: BookOpen },
   { label: 'Architecture',  Icon: Building2 },
   { label: 'System Build',  Icon: Cpu },
-  { label: 'Deploy',        Icon: Rocket },
+  { label: 'Activate',      Icon: Rocket },
 ];
 
 const ProgressTracker = ({ phase }) => {
@@ -1495,7 +1495,7 @@ const BuilderPage = () => {
     if (phase !== 'building' || !buildData || stepExecuting) return;
     if (currentStepIdx >= buildData.steps.length) {
       setPhase('complete');
-      toast.success('System deployed and live!', {
+      toast.success('System activated and live!', {
         description: `${buildData.blueprint?.name ?? 'Your system'} is ready.`,
       });
       // Save a checkpoint for the completed build before redirecting
@@ -2068,7 +2068,7 @@ const BuilderPage = () => {
                       : 'text-primary/65'
                     }`}>
                       {phase === 'building' ? `Building · ${currentStepIdx}/${buildData?.steps?.length ?? 0} steps`
-                        : phase === 'complete' ? 'Deployed ✓'
+                        : phase === 'complete' ? 'Activated ✓'
                         : phase === 'collecting' ? 'Awaiting credentials'
                         : 'Active'}
                     </p>
@@ -2756,7 +2756,7 @@ const BuilderPage = () => {
               <div className="border border-emerald-500/25 bg-emerald-500/5 rounded-xl p-4 space-y-3 mt-1">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <p className="text-sm font-bold text-white">System Deployed!</p>
+                  <p className="text-sm font-bold text-white">System Activated!</p>
                   <span className="ml-auto text-[10px] font-mono text-emerald-400/60 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
                     {buildData?.steps?.length ?? 0} steps complete
                   </span>
@@ -2819,7 +2819,7 @@ const BuilderPage = () => {
             ) : phase === 'complete' ? (
               <div className="flex items-center justify-center gap-2 py-1.5 text-emerald-400">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span className="font-mono text-[11px]">Deployed — redirecting…</span>
+                <span className="font-mono text-[11px]">Activated — redirecting…</span>
               </div>
             ) : (
               <>
@@ -3140,7 +3140,7 @@ const BuilderPage = () => {
               <div className="p-3 flex flex-col gap-3">
                 <div className="rounded-xl border border-white/8 bg-black/25 p-3">
                   <p className="text-[9px] uppercase tracking-widest text-white/25 font-mono font-bold mb-2.5 flex items-center gap-1.5">
-                    <CloudUpload className="w-3 h-3" /> Deploy Checklist
+                    <CloudUpload className="w-3 h-3" /> Activation Checklist
                   </p>
                   {[
                     { label: 'Blueprint selected',   done: !!selectedBp },
@@ -3187,9 +3187,9 @@ const BuilderPage = () => {
 
                 <div className="rounded-xl border border-violet-500/15 bg-violet-500/4 p-3">
                   <p className="text-[9px] text-violet-400/55 font-mono font-bold mb-1.5 flex items-center gap-1.5">
-                    <Sparkles className="w-3 h-3" /> One-Click Deploy
+                    <Sparkles className="w-3 h-3" /> One-Click Activate
                   </p>
-                  <p className="text-[10px] text-white/28 font-mono leading-relaxed">Tell ASH "deploy my system" in the chat to trigger automated deployment with live URL generation.</p>
+                  <p className="text-[10px] text-white/28 font-mono leading-relaxed">Tell ASH "activate my system" in the chat to trigger automated activation with live tracking enabled.</p>
                 </div>
               </div>
             )}

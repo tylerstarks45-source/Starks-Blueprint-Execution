@@ -1,4 +1,4 @@
-import { load } from "cheerio";
+import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
 
 export interface PageData {
   url: string;
@@ -10,103 +10,128 @@ export interface PageData {
   forms: Array<{
     action: string;
     method: string;
-    fields: Array<{ name: string; type: string; placeholder?: string; value?: string }>;
+    fields: Array<{ name: string; type: string; placeholder?: string; value?: string; label?: string }>;
   }>;
   statusCode: number;
+  screenshot?: string;
   error?: string;
 }
 
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+let _browser: Browser | null = null;
 
-export async function fetchPage(url: string, options?: {
-  method?: string;
-  body?: string;
-  headers?: Record<string, string>;
-  timeout?: number;
-}): Promise<PageData> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), options?.timeout ?? 12000);
+async function getBrowser(): Promise<Browser> {
+  if (_browser && _browser.isConnected()) return _browser;
+  _browser = await chromium.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--no-first-run",
+    ],
+  });
+  _browser.on("disconnected", () => { _browser = null; });
+  return _browser;
+}
 
-  let finalUrl = url;
-  let statusCode = 0;
-  let html = "";
+export async function createBrowserContext(): Promise<BrowserContext> {
+  const browser = await getBrowser();
+  return browser.newContext({
+    userAgent:
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    viewport: { width: 1280, height: 800 },
+    locale: "en-US",
+  });
+}
 
+export async function getPageData(page: Page, originalUrl: string): Promise<PageData> {
+  const finalUrl = page.url();
+  const title = await page.title();
+  const statusCode = 200;
+
+  const screenshot = await page.screenshot({ type: "jpeg", quality: 60 })
+    .then(buf => buf.toString("base64"))
+    .catch(() => undefined);
+
+  type EvalResult = {
+    text: string;
+    html: string;
+    links: Array<{ text: string; url: string }>;
+    forms: Array<{ action: string; method: string; fields: Array<{ name: string; type: string; placeholder?: string; value?: string; label?: string }> }>;
+  };
+
+  const { text, html, links, forms } = await page.evaluate<EvalResult>(
+    // Passed as a string so TypeScript never type-checks the browser-side DOM code
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    new Function(`
+      var d = document;
+      var w = window;
+      var bodyText = (d.body ? d.body.innerText : "").replace(/\\s+/g, " ").trim();
+      var rawHtml = (d.documentElement ? d.documentElement.outerHTML : "").slice(0, 20000);
+      var rawLinks = [];
+      d.querySelectorAll("a[href]").forEach(function(el) {
+        var href = el.href || "";
+        var txt = (el.innerText || "").trim().slice(0, 120);
+        if (href && txt && !href.startsWith("javascript:") && rawLinks.length < 30) {
+          rawLinks.push({ text: txt, url: href });
+        }
+      });
+      var rawForms = [];
+      d.querySelectorAll("form").forEach(function(form) {
+        var fields = [];
+        form.querySelectorAll("input, textarea, select").forEach(function(el) {
+          var name = el.name || el.id || "";
+          if (!name) return;
+          var labelEl = d.querySelector('label[for="' + el.id + '"]');
+          fields.push({
+            name: name,
+            type: el.type || "text",
+            placeholder: el.placeholder || undefined,
+            value: el.value || undefined,
+            label: labelEl ? labelEl.textContent.trim() : undefined
+          });
+        });
+        rawForms.push({
+          action: form.action || w.location.href,
+          method: (form.method || "GET").toUpperCase(),
+          fields: fields
+        });
+      });
+      return { text: bodyText.slice(0, 8000), html: rawHtml, links: rawLinks, forms: rawForms };
+    `) as () => EvalResult
+  );
+
+  return {
+    url: originalUrl,
+    finalUrl,
+    title,
+    text,
+    html,
+    links,
+    forms,
+    statusCode,
+    screenshot,
+  };
+}
+
+export async function fetchPage(url: string): Promise<PageData> {
+  let context: BrowserContext | null = null;
   try {
-    const resp = await fetch(url, {
-      method: options?.method ?? "GET",
-      headers: {
-        "User-Agent": USER_AGENT,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        ...(options?.headers ?? {}),
-      },
-      body: options?.body,
-      redirect: "follow",
-      signal: controller.signal,
-    });
-
-    finalUrl = resp.url || url;
-    statusCode = resp.status;
-    html = await resp.text();
+    context = await createBrowserContext();
+    const page = await context.newPage();
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
+    await page.waitForTimeout(1500);
+    return await getPageData(page, url);
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Fetch failed";
+    const message = err instanceof Error ? err.message : String(err);
     return {
       url, finalUrl: url, title: "Error", text: "", html: "",
       links: [], forms: [], statusCode: 0, error: message,
     };
   } finally {
-    clearTimeout(timer);
+    await context?.close().catch(() => undefined);
   }
-
-  const $ = load(html);
-
-  const title = $("title").first().text().trim() || finalUrl;
-
-  $("script, style, noscript, svg, [aria-hidden='true']").remove();
-  const text = $("body").text().replace(/\s+/g, " ").trim().slice(0, 6000);
-
-  const links: PageData["links"] = [];
-  $("a[href]").each((_, el) => {
-    const href = $(el).attr("href") ?? "";
-    const linkText = $(el).text().trim().slice(0, 120);
-    if (!href || href.startsWith("#") || href.startsWith("javascript:") || !linkText) return;
-    try {
-      const abs = new URL(href, finalUrl).toString();
-      if (links.length < 25) links.push({ text: linkText, url: abs });
-    } catch { /* skip malformed */ }
-  });
-
-  const forms: PageData["forms"] = [];
-  $("form").each((_, formEl) => {
-    const action = $(formEl).attr("action") ?? "";
-    const method = ($(formEl).attr("method") ?? "GET").toUpperCase();
-    const fields: PageData["forms"][0]["fields"] = [];
-    $(formEl).find("input, textarea, select").each((_, f) => {
-      const name = $(f).attr("name") ?? $(f).attr("id") ?? "";
-      if (!name) return;
-      fields.push({
-        name,
-        type: $(f).attr("type") ?? "text",
-        placeholder: $(f).attr("placeholder"),
-        value: $(f).attr("value"),
-      });
-    });
-    try {
-      forms.push({ action: action ? new URL(action, finalUrl).toString() : finalUrl, method, fields });
-    } catch { /* skip */ }
-  });
-
-  return {
-    url,
-    finalUrl,
-    title,
-    text,
-    html: html.slice(0, 15000),
-    links,
-    forms,
-    statusCode,
-  };
 }
 
 export async function submitForm(
@@ -114,13 +139,37 @@ export async function submitForm(
   method: string,
   fields: Record<string, string>
 ): Promise<PageData> {
-  if (method.toUpperCase() === "GET") {
-    const params = new URLSearchParams(fields);
-    return fetchPage(`${formAction}?${params}`);
+  let context: BrowserContext | null = null;
+  try {
+    context = await createBrowserContext();
+    const page = await context.newPage();
+    await page.goto(formAction, { waitUntil: "domcontentloaded", timeout: 20000 });
+
+    for (const [name, value] of Object.entries(fields)) {
+      const selector = `[name="${name}"], [id="${name}"]`;
+      const el = page.locator(selector).first();
+      if (await el.count() > 0) {
+        await el.fill(value);
+      }
+    }
+
+    const submitBtn = page.locator('button[type="submit"], input[type="submit"]').first();
+    if (await submitBtn.count() > 0) {
+      await submitBtn.click();
+    } else {
+      await page.keyboard.press("Enter");
+    }
+
+    await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+    await page.waitForTimeout(1500);
+    return await getPageData(page, formAction);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      url: formAction, finalUrl: formAction, title: "Error", text: "", html: "",
+      links: [], forms: [], statusCode: 0, error: message,
+    };
+  } finally {
+    await context?.close().catch(() => undefined);
   }
-  return fetchPage(formAction, {
-    method: "POST",
-    body: new URLSearchParams(fields).toString(),
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  });
 }

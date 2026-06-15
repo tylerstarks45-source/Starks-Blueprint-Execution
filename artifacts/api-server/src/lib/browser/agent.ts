@@ -27,6 +27,81 @@ function sleep(ms: number) {
   return new Promise<void>(r => setTimeout(r, ms));
 }
 
+// Domains / patterns that require authentication, JavaScript, or actively block bots
+const AUTH_WALL_PATTERNS = [
+  /accounts\.google\.com/,
+  /mail\.google\.com/,
+  /google\.com\/accounts/,
+  /login\.microsoftonline\.com/,
+  /outlook\.live\.com/,
+  /outlook\.office\.com/,
+  /login\.live\.com/,
+  /facebook\.com\/login/,
+  /instagram\.com\/accounts\//,
+  /twitter\.com\/i\/flow/,
+  /x\.com\/i\/flow/,
+  /linkedin\.com\/login/,
+  /linkedin\.com\/checkpoint/,
+  /apple\.com\/sign-in/,
+  /appleid\.apple\.com/,
+  /github\.com\/login/,
+  /github\.com\/session/,
+];
+
+// Pages that are pure SPAs — they return empty/minimal HTML without JavaScript
+const SPA_SIGNALS = [
+  "<noscript>",
+  "enable javascript",
+  "you need to enable javascript",
+  "requires javascript",
+  "javascript is disabled",
+  "please enable javascript",
+  "your browser does not support javascript",
+];
+
+function detectAuthWall(url: string): string | null {
+  for (const pattern of AUTH_WALL_PATTERNS) {
+    if (pattern.test(url)) {
+      return `This page requires you to be logged in to an account. The ASH browser agent can only access **public web pages** — it cannot log into Gmail, Google, Microsoft, Facebook, or any other service that requires authentication. It has no way to enter your account credentials.
+
+**What ASH can do instead:**
+- Search for publicly available information on any topic
+- Read and summarize public websites, pricing pages, or documentation
+- Help you understand how to set up Gmail automation using tools like Zapier or Make — which can access your Gmail with proper OAuth permissions
+
+Would you like help setting up an automation that connects to Gmail through a proper integration?`;
+    }
+  }
+  return null;
+}
+
+function detectSPAPage(html: string, text: string): boolean {
+  const htmlLower = html.toLowerCase();
+  const textLower = text.toLowerCase();
+  for (const signal of SPA_SIGNALS) {
+    if (htmlLower.includes(signal) || textLower.includes(signal)) return true;
+  }
+  // Very short text on a page with a large HTML payload = likely SPA
+  if (html.length > 5000 && text.length < 200) return true;
+  return false;
+}
+
+function httpErrorMessage(statusCode: number, url: string): string {
+  if (statusCode === 400) {
+    return `The server at ${url} rejected the request with a **400 Bad Request** error. This typically means the site detected that the request did not come from a real browser (Google and other major services actively block automated HTTP access). The ASH browser agent cannot bypass this — it uses standard HTTP requests, not a full browser with JavaScript.`;
+  }
+  if (statusCode === 401 || statusCode === 403) {
+    return `Access to ${url} was denied (HTTP ${statusCode}). This page requires authentication or the site is blocking automated access. The ASH browser agent can only read public pages without authentication.`;
+  }
+  if (statusCode === 404) {
+    return `The page at ${url} was not found (HTTP 404). The URL may be incorrect or the page may have moved.`;
+  }
+  if (statusCode >= 500) {
+    return `The server at ${url} returned an error (HTTP ${statusCode}). The site may be temporarily unavailable.`;
+  }
+  return `The server at ${url} returned HTTP ${statusCode}.`;
+}
+
 function formatPageForAI(page: PageData): string {
   const linksText = page.links
     .slice(0, 15)
@@ -88,6 +163,13 @@ export async function* runBrowserAgent(
   const steps: string[] = [];
   let currentUrl = startUrl;
 
+  // Pre-flight: check if the starting URL is an auth wall
+  const authWallMsg = detectAuthWall(startUrl);
+  if (authWallMsg) {
+    yield { type: "done", result: authWallMsg };
+    return;
+  }
+
   for (let step = 0; step < MAX_STEPS; step++) {
     yield {
       type: "thinking",
@@ -99,7 +181,47 @@ export async function* runBrowserAgent(
     const page = await fetchPage(currentUrl);
 
     if (page.error) {
-      yield { type: "error", message: `Failed to load ${currentUrl}: ${page.error}` };
+      yield { type: "done", result: `Could not load ${currentUrl}: ${page.error}. The site may be blocking automated access or temporarily unavailable.` };
+      return;
+    }
+
+    // Check if we were redirected to an auth wall
+    const redirectAuthWall = detectAuthWall(page.finalUrl);
+    if (redirectAuthWall) {
+      yield {
+        type: "navigate",
+        url: page.finalUrl,
+        title: page.title,
+        description: `Redirected to: ${page.title}`,
+      };
+      yield { type: "done", result: redirectAuthWall };
+      return;
+    }
+
+    // Handle non-2xx status codes immediately rather than passing to AI
+    if (page.statusCode >= 400) {
+      yield {
+        type: "navigate",
+        url: page.finalUrl,
+        title: page.title,
+        description: `Received HTTP ${page.statusCode}`,
+      };
+      yield { type: "done", result: httpErrorMessage(page.statusCode, page.finalUrl) };
+      return;
+    }
+
+    // Detect JavaScript-only SPAs with no meaningful content
+    if (detectSPAPage(page.html, page.text)) {
+      yield {
+        type: "navigate",
+        url: page.finalUrl,
+        title: page.title || page.finalUrl,
+        description: `Page requires JavaScript to load`,
+      };
+      yield {
+        type: "done",
+        result: `This page (${page.finalUrl}) requires JavaScript to render its content. The ASH browser agent uses plain HTTP requests and cannot execute JavaScript. Sites like Gmail, Twitter, Facebook, and other modern web apps need a full browser with JavaScript support.\n\nIf you need to automate actions on this site, I can help you set up an automation using tools like Zapier, Make, or n8n that have proper integrations with built-in authentication.`,
+      };
       return;
     }
 
@@ -110,7 +232,6 @@ export async function* runBrowserAgent(
       description: `Viewing: ${page.title}`,
     };
 
-    // Emit HTML snapshot so the frontend can render the actual page
     if (page.html) {
       yield {
         type: "snapshot",
@@ -126,7 +247,6 @@ export async function* runBrowserAgent(
       description: `Page loaded — ${page.text.length} chars, ${page.links.length} links, ${page.forms.length} forms`,
     };
 
-    // Pause so the user can watch ASH navigate
     await sleep(STEP_DELAY_MS);
 
     if (step === MAX_STEPS - 1) {
@@ -184,6 +304,12 @@ export async function* runBrowserAgent(
         yield { type: "done", result: "No URL to navigate to — task may be complete." };
         return;
       }
+      // Check auth wall before navigating
+      const nextAuthWall = detectAuthWall(targetUrl);
+      if (nextAuthWall) {
+        yield { type: "done", result: nextAuthWall };
+        return;
+      }
       steps.push(`Navigated to: ${targetUrl}`);
       yield { type: "action", description: `Going to → ${targetUrl}${decision.reason ? ` (${decision.reason})` : ""}` };
       currentUrl = targetUrl;
@@ -200,7 +326,7 @@ export async function* runBrowserAgent(
       await sleep(1000);
       const result = await submitForm(formAction, method, fields);
       if (result.error) {
-        yield { type: "error", message: `Form submission failed: ${result.error}` };
+        yield { type: "done", result: `Form submission failed: ${result.error}. The site may require JavaScript or authentication to process form submissions.` };
         return;
       }
       currentUrl = result.finalUrl;

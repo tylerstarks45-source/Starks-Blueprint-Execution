@@ -31,6 +31,10 @@ import chatSessionsRouter from "./chat-sessions";
 import browserAgentRouter from "./browser-agent";
 import ashToolsRouter from "./ash-tools";
 import mediaGenRouter from "./media-gen";
+import landingPagesRouter from "./landing-pages";
+import userAffiliateLinksRouter from "./user-affiliate-links";
+import emailMarketingRouter from "./email-marketing";
+import publicPagesRouter from "./public-pages";
 
 const router: IRouter = Router();
 
@@ -66,5 +70,9 @@ router.use(chatSessionsRouter);
 router.use(browserAgentRouter);
 router.use(ashToolsRouter);
 router.use(mediaGenRouter);
+router.use(landingPagesRouter);
+router.use(userAffiliateLinksRouter);
+router.use(emailMarketingRouter);
+router.use(publicPagesRouter);
 
 export default router;

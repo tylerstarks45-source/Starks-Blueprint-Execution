@@ -56,6 +56,9 @@ const MyStackPage           = lazy(() => import('@/pages/MyStackPage.jsx'));
 const CreditsPage           = lazy(() => import('@/pages/CreditsPage.jsx'));
 const WorkspacePage         = lazy(() => import('@/pages/WorkspacePage.jsx'));
 const MemoryPage            = lazy(() => import('@/pages/MemoryPage.jsx'));
+const LandingPagesPage      = lazy(() => import('@/pages/LandingPagesPage.jsx'));
+const AffiliateLinkManagerPage = lazy(() => import('@/pages/AffiliateLinkManagerPage.jsx'));
+const EmailMarketingPage    = lazy(() => import('@/pages/EmailMarketingPage.jsx'));
 
 // Admin pages — never needed outside admin session
 const AdminDashboard        = lazy(() => import('@/pages/AdminDashboard.jsx'));
@@ -193,6 +196,15 @@ const App = () => {
               } />
               <Route path="/memory" element={
                 <ProtectedRoute><MemoryPage /></ProtectedRoute>
+              } />
+              <Route path="/landing-pages" element={
+                <ProtectedRoute><LandingPagesPage /></ProtectedRoute>
+              } />
+              <Route path="/affiliate-links" element={
+                <ProtectedRoute><AffiliateLinkManagerPage /></ProtectedRoute>
+              } />
+              <Route path="/email-marketing" element={
+                <ProtectedRoute><EmailMarketingPage /></ProtectedRoute>
               } />
 
               {/* Admin routes — lazy */}

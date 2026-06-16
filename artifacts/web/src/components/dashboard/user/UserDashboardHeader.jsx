@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Layers, Server, Coins, Crown, Zap, ArrowRight, KeyRound, LayoutList } from 'lucide-react';
+import { Layers, Server, Coins, Crown, Zap, ArrowRight, KeyRound, LayoutList, Globe, Link2, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 
@@ -121,6 +121,27 @@ const UserDashboardHeader = () => {
           >
             <KeyRound className="w-4 h-4 text-primary" />
             Connections
+          </button>
+          <button
+            onClick={() => navigate('/landing-pages')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/6 border border-white/10 text-foreground font-semibold text-sm hover:bg-white/10 active:scale-[0.97] transition-all whitespace-nowrap"
+          >
+            <Globe className="w-4 h-4 text-violet-400" />
+            Pages
+          </button>
+          <button
+            onClick={() => navigate('/affiliate-links')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/6 border border-white/10 text-foreground font-semibold text-sm hover:bg-white/10 active:scale-[0.97] transition-all whitespace-nowrap"
+          >
+            <Link2 className="w-4 h-4 text-emerald-400" />
+            Affiliate
+          </button>
+          <button
+            onClick={() => navigate('/email-marketing')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/6 border border-white/10 text-foreground font-semibold text-sm hover:bg-white/10 active:scale-[0.97] transition-all whitespace-nowrap"
+          >
+            <Mail className="w-4 h-4 text-sky-400" />
+            Email
           </button>
           <button
             onClick={() => navigate('/builder')}

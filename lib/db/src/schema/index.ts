@@ -30,3 +30,6 @@ export * from "./runtime_jobs";
 export * from "./chat_sessions";
 export * from "./generated_files";
 export * from "./credit_usage_events";
+export * from "./landing_pages";
+export * from "./user_affiliate_links";
+export * from "./email_marketing";

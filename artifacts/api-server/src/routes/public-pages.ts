@@ -5,7 +5,7 @@
  */
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, or } from "drizzle-orm";
 import { db, landingPagesTable, userAffiliateLinksTable } from "@workspace/db";
 
 const router: IRouter = Router();

@@ -34,6 +34,7 @@ import mediaGenRouter from "./media-gen";
 import landingPagesRouter from "./landing-pages";
 import userAffiliateLinksRouter from "./user-affiliate-links";
 import emailMarketingRouter from "./email-marketing";
+import domainsRouter from "./domains";
 import publicPagesRouter from "./public-pages";
 
 const router: IRouter = Router();
@@ -73,6 +74,7 @@ router.use(mediaGenRouter);
 router.use(landingPagesRouter);
 router.use(userAffiliateLinksRouter);
 router.use(emailMarketingRouter);
+router.use(domainsRouter);
 router.use(publicPagesRouter);
 
 export default router;

@@ -124,7 +124,7 @@ const UserActivityFeedPanel = () => {
             <p className="text-xs text-muted-foreground/60 mt-1">Events will appear here as your systems run.</p>
           </div>
         ) : (
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+          <div className="space-y-3 max-h-80 overflow-y-auto pr-1 ash-scroll">
             {events.map((e) => (
               <EventRow key={e.id} event={e} />
             ))}

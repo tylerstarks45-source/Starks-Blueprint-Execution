@@ -523,7 +523,7 @@ const AdminRevenueActivityPanel = () => {
                 ) : recentEvents.length === 0 ? (
                   <p className="text-sm text-muted-foreground italic">No revenue events in this period.</p>
                 ) : (
-                  <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                  <div className="space-y-3 max-h-64 overflow-y-auto pr-1 ash-scroll">
                     {recentEvents.map((e) => (
                       <div key={e.id} className="flex items-start gap-3 pb-2 border-b border-border/20 last:border-0 last:pb-0">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />

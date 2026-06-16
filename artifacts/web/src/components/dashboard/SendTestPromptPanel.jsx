@@ -140,7 +140,7 @@ const SendTestPromptPanel = () => {
                     <Badge variant="outline" className="text-[10px]">{result.usage?.total || 0} tokens</Badge>
                   </div>
                 </div>
-                <div className="text-sm text-foreground whitespace-pre-wrap font-mono overflow-y-auto max-h-[300px]">
+                <div className="text-sm text-foreground whitespace-pre-wrap font-mono overflow-y-auto max-h-[300px] ash-scroll">
                   {result.content || result.response || 'No content returned.'}
                 </div>
               </div>

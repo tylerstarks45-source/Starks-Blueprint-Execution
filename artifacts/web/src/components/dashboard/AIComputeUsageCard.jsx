@@ -105,7 +105,7 @@ const AIComputeUsageCard = () => {
             <div>
               <h4 className="text-sm font-semibold text-foreground tracking-tight mb-3">Network Breakdown</h4>
               {stats?.modelBreakdown && stats.modelBreakdown.length > 0 ? (
-                <div className="overflow-auto max-h-[160px] border border-border/30 rounded-lg custom-scrollbar">
+                <div className="overflow-auto max-h-[160px] border border-border/30 rounded-lg ash-scroll">
                   <Table>
                     <TableHeader>
                       <TableRow className="hover:bg-transparent border-border/20">

@@ -95,7 +95,7 @@ const UserBlueprintLauncherCard = () => {
       ) : (
         <div className="flex flex-1 overflow-hidden">
           {/* Blueprint list */}
-          <div className="w-48 border-r border-white/8 overflow-y-auto shrink-0">
+          <div className="w-48 border-r border-white/8 overflow-y-auto shrink-0 ash-scroll">
             {blueprints.map((bp, i) => {
               const isSelected = selected === bp.id;
               return (
@@ -126,7 +126,7 @@ const UserBlueprintLauncherCard = () => {
 
           {/* Blueprint detail */}
           {activeBlueprint && (
-            <div className="flex-1 p-5 flex flex-col overflow-y-auto min-w-0">
+            <div className="flex-1 p-5 flex flex-col overflow-y-auto min-w-0 ash-scroll">
               <motion.div
                 key={activeBlueprint.id}
                 initial={{ opacity: 0, x: 10 }}

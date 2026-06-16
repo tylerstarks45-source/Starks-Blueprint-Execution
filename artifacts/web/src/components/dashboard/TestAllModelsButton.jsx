@@ -92,7 +92,7 @@ const TestAllModelsButton = () => {
                 </div>
               </div>
 
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 ash-scroll">
                 {results.results?.map((res, idx) => (
                   <div key={idx} className="flex items-center justify-between p-3 bg-muted/20 border border-border/50 rounded-lg">
                     <div className="flex items-center gap-3">

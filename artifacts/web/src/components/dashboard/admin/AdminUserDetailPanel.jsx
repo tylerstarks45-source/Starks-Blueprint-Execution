@@ -180,7 +180,7 @@ const AdminUserDetailPanel = ({ userId, onClose, onEdit, onAdjustCredits }) => {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5 min-h-0">
+        <div className="flex-1 overflow-y-auto p-5 min-h-0 ash-scroll">
           {error && (
             <div className="flex items-center gap-2 text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-4 py-3 text-sm">
               <AlertTriangle className="w-4 h-4 shrink-0" /> {error}

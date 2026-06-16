@@ -44,7 +44,7 @@ const AvailableModelsCard = () => {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="pt-4 flex-grow overflow-auto max-h-[300px]">
+      <CardContent className="pt-4 flex-grow overflow-auto max-h-[300px] ash-scroll">
         {loading && models.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
             <Loader2 className="w-6 h-6 animate-spin mb-2" />

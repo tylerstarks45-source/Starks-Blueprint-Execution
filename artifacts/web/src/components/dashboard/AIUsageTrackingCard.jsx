@@ -105,7 +105,7 @@ const AIUsageTrackingCard = () => {
             <div>
               <h4 className="text-sm font-bold text-foreground mb-3">Model Breakdown</h4>
               {stats?.modelBreakdown && stats.modelBreakdown.length > 0 ? (
-                <div className="overflow-auto max-h-[150px] border border-border/50 rounded-lg">
+                <div className="overflow-auto max-h-[150px] border border-border/50 rounded-lg ash-scroll">
                   <Table>
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">

@@ -158,7 +158,7 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, onComplete }) =
       </div>
 
       {/* Terminal output */}
-      <div className="p-4 space-y-3 max-h-72 overflow-y-auto text-xs">
+      <div className="p-4 space-y-3 max-h-72 overflow-y-auto text-xs ash-scroll">
         {steps.map((step, i) => {
           const isDone = step.status === 'completed' || (outputs[step.id] && i < currentIdx);
           const isActive = i === currentIdx;
@@ -501,7 +501,7 @@ const UserAIChatCard = () => {
       </CardHeader>
 
       {/* Scroll area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 ash-scroll">
 
         {/* Chat messages */}
         {messages.map(m => <MessageBubble key={m.id} msg={m} />)}

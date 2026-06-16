@@ -92,7 +92,7 @@ const TestAINetworkButton = () => {
                 </div>
               </div>
 
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 ash-scroll">
                 {results.results?.map((res, idx) => (
                   <div key={idx} className="flex items-center justify-between p-4 bg-muted/10 border border-border/30 rounded-xl hover:bg-muted/20 transition-colors">
                     <div className="flex items-center gap-3.5">

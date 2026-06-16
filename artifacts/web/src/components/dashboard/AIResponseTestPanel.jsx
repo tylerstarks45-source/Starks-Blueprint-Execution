@@ -140,7 +140,7 @@ const AIResponseTestPanel = () => {
                     <Badge variant="secondary" className="text-[10px] font-mono bg-background/50 text-muted-foreground">{result.usage?.total || 0} compute units</Badge>
                   </div>
                 </div>
-                <div className="text-sm text-foreground/90 whitespace-pre-wrap font-mono overflow-y-auto max-h-[350px] custom-scrollbar leading-relaxed">
+                <div className="text-sm text-foreground/90 whitespace-pre-wrap font-mono overflow-y-auto max-h-[350px] ash-scroll leading-relaxed">
                   {result.content || result.response || 'No content returned.'}
                 </div>
               </div>

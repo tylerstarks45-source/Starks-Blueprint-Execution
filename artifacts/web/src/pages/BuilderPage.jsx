@@ -1169,7 +1169,7 @@ const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, 
       <div className="flex flex-1 min-h-0">
         {/* Step sidebar */}
         {steps.length > 0 && (
-          <div className="w-40 shrink-0 border-r border-white/8 bg-black/40 overflow-y-auto py-3 px-2 space-y-1">
+          <div className="w-40 shrink-0 border-r border-white/8 bg-black/40 overflow-y-auto py-3 px-2 space-y-1 ash-scroll">
             <p className="text-[9px] text-muted-foreground/30 uppercase tracking-widest px-2 mb-2">Steps</p>
             {steps.map((step, i) => {
               const isDone = i < currentIdx;
@@ -1199,7 +1199,7 @@ const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, 
         )}
 
         {/* Output area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-1.5 text-xs">
+        <div className="flex-1 overflow-y-auto p-4 space-y-1.5 text-xs ash-scroll">
 
           {/* Idle placeholder */}
           {phase === 'idle' && steps.length === 0 && (
@@ -2459,7 +2459,7 @@ const BuilderPage = () => {
           </div>
 
           {/* ── TASKS PANEL ── */}
-          <div className={`flex-1 overflow-y-auto py-1 select-none${leftSideTab !== 'tasks' ? ' hidden' : ''}`}>
+          <div className={`flex-1 overflow-y-auto py-1 select-none ash-scroll${leftSideTab !== 'tasks' ? ' hidden' : ''}`}>
 
             {/* Live/active task */}
             {phase !== 'idle' && messages.filter(m => m.role === 'user' && m.id !== 'welcome').length > 0 && (
@@ -2634,7 +2634,7 @@ const BuilderPage = () => {
 
           {/* ── FILES PANEL ── */}
           {leftSideTab === 'files' && (
-            <div className="flex-1 overflow-y-auto py-1 min-h-0">
+            <div className="flex-1 overflow-y-auto py-1 min-h-0 ash-scroll">
               <div className="px-2 pt-2 pb-1 flex items-center justify-between">
                 <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono font-bold flex items-center gap-1">
                   <FileCode2 className="w-2.5 h-2.5" /> Generated Files
@@ -2679,7 +2679,7 @@ const BuilderPage = () => {
 
           {/* ── MEMORY PANEL ── */}
           {leftSideTab === 'memory' && (
-            <div className="flex-1 overflow-y-auto py-1 min-h-0">
+            <div className="flex-1 overflow-y-auto py-1 min-h-0 ash-scroll">
               <div className="px-2 pt-2 pb-1 flex items-center justify-between">
                 <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono font-bold flex items-center gap-1">
                   <Brain className="w-2.5 h-2.5" /> ASH Memory
@@ -3423,7 +3423,7 @@ const BuilderPage = () => {
                     >{cat.name}</button>
                   ))}
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+                <div className="flex-1 overflow-y-auto p-2 space-y-1.5 ash-scroll">
                   {bpLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
                   ) : filteredBps.length === 0 ? (

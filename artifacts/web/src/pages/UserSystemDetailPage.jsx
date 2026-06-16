@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import VideoBackground from '@/components/VideoBackground.jsx';
 import { toast } from 'sonner';
 import {
@@ -376,7 +376,7 @@ function DeleteModal({ systemName, onConfirm, onCancel, loading }) {
 
 // ─── REVENUE SECTION ──────────────────────────────────────────────────────────
 
-function RevenueSection({ instanceId, buildStatus }) {
+function RevenueSection({ instanceId, buildStatus, buildRevenueCents = 0 }) {
   const [revenue, setRevenue] = useState(null);
   const [activity, setActivity] = useState([]);
   const [loadingRevenue, setLoadingRevenue] = useState(true);
@@ -425,11 +425,13 @@ function RevenueSection({ instanceId, buildStatus }) {
     return () => clearInterval(interval);
   }, [fetchActivity, buildStatus]);
 
+  // Use the build-time total as a floor for Lifetime until the API catches up.
+  const effectiveLifetimeCents = Math.max(revenue?.lifetimeCents ?? 0, buildRevenueCents);
   const revenueCards = [
     { label: 'Today',      value: revenue ? centsToDisplay(revenue.todayCents)    : '$0', accent: 'emerald' },
     { label: 'This Week',  value: revenue ? centsToDisplay(revenue.weekCents)     : '$0', accent: 'emerald' },
     { label: 'This Month', value: revenue ? centsToDisplay(revenue.monthCents)    : '$0', accent: 'emerald' },
-    { label: 'Lifetime',   value: revenue ? centsToDisplay(revenue.lifetimeCents) : '$0', accent: 'emerald' },
+    { label: 'Lifetime',   value: centsToDisplay(effectiveLifetimeCents),                 accent: 'emerald' },
   ];
 
   return (
@@ -448,7 +450,7 @@ function RevenueSection({ instanceId, buildStatus }) {
             {revenueCards.map(({ label, value }) => (
               <div key={label} className="rounded-lg bg-white/3 border border-white/5 p-3 text-center">
                 <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono mb-1">{label}</p>
-                <p className={`text-xl font-bold font-mono ${revenue && (label === 'Today' ? revenue.todayCents : label === 'This Week' ? revenue.weekCents : label === 'This Month' ? revenue.monthCents : revenue.lifetimeCents) > 0 ? 'text-emerald-400' : 'text-white'}`}>
+                <p className={`text-xl font-bold font-mono ${(label === 'Lifetime' ? effectiveLifetimeCents : revenue && (label === 'Today' ? revenue.todayCents : label === 'This Week' ? revenue.weekCents : revenue.monthCents)) > 0 ? 'text-emerald-400' : 'text-white'}`}>
                   {value}
                 </p>
               </div>
@@ -517,6 +519,8 @@ function RevenueSection({ instanceId, buildStatus }) {
 export default function UserSystemDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const buildRevenueCents = location.state?.buildRevenueCents ?? 0;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1126,7 +1130,7 @@ export default function UserSystemDetailPage() {
         </div>
 
         {/* ── Revenue + Live Activity ── */}
-        <RevenueSection instanceId={id} buildStatus={instance?.buildStatus} />
+        <RevenueSection instanceId={id} buildStatus={instance?.buildStatus} buildRevenueCents={buildRevenueCents} />
 
       </div>
     </div>

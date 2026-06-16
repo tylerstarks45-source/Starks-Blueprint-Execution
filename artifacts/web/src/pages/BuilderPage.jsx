@@ -1074,7 +1074,7 @@ const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, 
                   All {steps.length} build steps completed. Your system is live and running.
                 </p>
                 <button
-                  onClick={() => navigate(`/systems/${instanceId}`)}
+                  onClick={() => navigate(`/systems/${instanceId}`, { state: { buildRevenueCents: totalRevenueCents } })}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/30 transition-colors"
                 >
                   View System <ExternalLink className="w-3 h-3" />
@@ -1575,8 +1575,9 @@ const BuilderPage = () => {
       saveCheckpoint(currentUser?.id, { messages, phase: 'complete', buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp });
       setCheckpoints(getCheckpoints(currentUser?.id));
       // Auto-redirect after 3 seconds — keep session so user can return to history
+      const buildRevenueCents = Object.values(stepRevenues).reduce((s, v) => s + (v ?? 0), 0);
       const timer = setTimeout(() => {
-        navigate(`/systems/${buildData.instanceId}`);
+        navigate(`/systems/${buildData.instanceId}`, { state: { buildRevenueCents } });
       }, 3000);
       return () => clearTimeout(timer);
     }
@@ -2902,7 +2903,10 @@ const BuilderPage = () => {
                 <p className="text-xs text-white/45 leading-relaxed">Your system is live and running. Open the system dashboard to track revenue and activity, or save it to your Library.</p>
                 <div className="flex flex-col gap-2">
                   <button
-                    onClick={() => navigate(`/systems/${buildData.instanceId}`)}
+                    onClick={() => {
+                      const buildRevenueCents = Object.values(stepRevenues).reduce((s, v) => s + (v ?? 0), 0);
+                      navigate(`/systems/${buildData.instanceId}`, { state: { buildRevenueCents } });
+                    }}
                     className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-emerald-500/18 hover:bg-emerald-500/28 border border-emerald-500/35 text-emerald-300 text-xs font-bold transition-colors"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />

@@ -38,9 +38,26 @@ router.get("/pages/:slug", async (req, res): Promise<void> => {
     .where(eq(landingPagesTable.id, page.id))
     .catch(() => {});
 
+  // Sanitize: strip <script> tags and event handlers before serving.
+  // Defense-in-depth against stored XSS — the CSP header below is the primary control.
+  const rawHtml = page.htmlContent || `<!DOCTYPE html><html><head><title>${page.title}</title></head><body style="background:#0a0a0a;color:#fff;font-family:sans-serif;padding:40px"><h1>${page.title}</h1><p>Page content coming soon.</p></body></html>`;
+  const safeHtml = rawHtml
+    // Remove <script> blocks (including src= variants)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<script\b[^>]*\/>/gi, "")
+    // Remove inline event handlers (onclick, onerror, onload, etc.)
+    .replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, "");
+
   res.setHeader("Content-Type", "text/html; charset=utf-8");
+  // Strict CSP: no scripts allowed, images/styles from anywhere, no framing from third parties.
+  // This is the primary XSS control — even if a script tag slips through sanitization, the browser blocks it.
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'none'; style-src 'unsafe-inline' https: data:; img-src * data:; font-src * data:; frame-ancestors 'self'; base-uri 'none'; form-action 'self' https:"
+  );
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
-  res.send(page.htmlContent || `<!DOCTYPE html><html><head><title>${page.title}</title></head><body style="background:#0a0a0a;color:#fff;font-family:sans-serif;padding:40px"><h1>${page.title}</h1><p>Page content coming soon.</p></body></html>`);
+  res.send(safeHtml);
 });
 
 // ── GET /api/go/:slug ── affiliate link redirect + click tracking ───────────

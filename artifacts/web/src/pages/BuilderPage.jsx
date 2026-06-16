@@ -13,7 +13,7 @@ import {
   AlertTriangle, CheckCircle, PlayCircle, PauseCircle, BookOpen, Save,
   Search, ImageIcon, Download, Copy, Check, Code2, FileCode2,
   CloudUpload, Package, Hash, Database, Star, Info,
-  RefreshCw, Pencil, Trash2,
+  RefreshCw, Pencil, Trash2, Film, Music,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import BrowserView from '@/components/builder/BrowserView.jsx';
@@ -414,7 +414,7 @@ const linkify = (text) =>
 const ToolCallCard = ({ tool, label }) => (
   <div className="flex items-start gap-2.5 my-0.5">
     <div className="w-7 h-7 rounded-full bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0 mt-0.5">
-      {tool === 'search' ? <Search className="w-3.5 h-3.5 text-violet-400" /> : tool === 'image' ? <ImageIcon className="w-3.5 h-3.5 text-violet-400" /> : <Cpu className="w-3.5 h-3.5 text-violet-400" />}
+      {tool === 'search' ? <Search className="w-3.5 h-3.5 text-violet-400" /> : tool === 'image' ? <ImageIcon className="w-3.5 h-3.5 text-violet-400" /> : tool === 'video' ? <Film className="w-3.5 h-3.5 text-violet-400" /> : tool === 'music' || tool === 'tts' ? <Music className="w-3.5 h-3.5 text-violet-400" /> : <Cpu className="w-3.5 h-3.5 text-violet-400" />}
     </div>
     <div className="flex flex-col gap-0.5 items-start">
       <span className="text-[10px] text-violet-400/55 font-mono font-semibold px-1">ASH · Tool Call</span>
@@ -509,6 +509,82 @@ const ImageResultCard = ({ data }) => {
               {copied ? 'Copied!' : 'Copy URL'}
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const GeneratedVideoCard = ({ data }) => (
+  <div className="flex items-start gap-2.5 my-0.5">
+    <div className="w-7 h-7 rounded-full bg-rose-500/15 border border-rose-500/25 flex items-center justify-center shrink-0 mt-0.5">
+      <Film className="w-3.5 h-3.5 text-rose-400" />
+    </div>
+    <div className="flex flex-col gap-0.5 items-start max-w-[85%]">
+      <span className="text-[10px] text-rose-400/55 font-mono font-semibold px-1">ASH · Video Generation</span>
+      <div className="bg-[#100408] border border-rose-500/15 rounded-2xl rounded-tl-sm px-4 py-3 w-full">
+        {data?.prompt && <p className="text-[9px] text-white/28 font-mono mb-2 italic">"{(data.prompt || '').slice(0, 80)}{data.prompt?.length > 80 ? '…' : ''}"</p>}
+        {data?.status === 'needs_credentials' && (
+          <div className="space-y-2">
+            <p className="text-xs text-white/65 leading-relaxed">{data.message}</p>
+            {Array.isArray(data?.providers) && data.providers.map((p, i) => (
+              <a key={i} href="/connections" className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/6 border border-rose-500/12 hover:border-rose-500/25 transition-colors">
+                <span className="text-[11px] text-white/70 font-semibold">{p.name}</span>
+                <span className="text-[10px] text-white/35 ml-auto">{p.desc}</span>
+                <ExternalLink className="w-2.5 h-2.5 text-rose-400/50 shrink-0" />
+              </a>
+            ))}
+            <a href="/connections" className="inline-flex items-center gap-1.5 text-[11px] text-rose-400 hover:text-rose-300 mt-1 transition-colors">Connect video tool →</a>
+          </div>
+        )}
+        {data?.status === 'queued' && (
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-3.5 h-3.5 text-rose-400 animate-spin" />
+            <p className="text-xs text-white/60">{data.message}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
+const GeneratedAudioCard = ({ data, label }) => {
+  const audioSrc = data?.audioBase64 ? `data:${data.mimeType ?? 'audio/mpeg'};base64,${data.audioBase64}` : null;
+  return (
+    <div className="flex items-start gap-2.5 my-0.5">
+      <div className="w-7 h-7 rounded-full bg-fuchsia-500/15 border border-fuchsia-500/25 flex items-center justify-center shrink-0 mt-0.5">
+        <Music className="w-3.5 h-3.5 text-fuchsia-400" />
+      </div>
+      <div className="flex flex-col gap-0.5 items-start max-w-[85%]">
+        <span className="text-[10px] text-fuchsia-400/55 font-mono font-semibold px-1">{label ?? 'ASH · Audio Generation'}</span>
+        <div className="bg-[#0e0410] border border-fuchsia-500/15 rounded-2xl rounded-tl-sm px-4 py-3 w-full">
+          {data?.status === 'needs_credentials' ? (
+            <div className="space-y-2">
+              <p className="text-xs text-white/65 leading-relaxed">{data.message}</p>
+              {Array.isArray(data?.providers) && data.providers.map((p, i) => (
+                <a key={i} href="/connections" className="flex items-center gap-2 p-2 rounded-lg bg-fuchsia-500/6 border border-fuchsia-500/12 hover:border-fuchsia-500/25 transition-colors">
+                  <span className="text-[11px] text-white/70 font-semibold">{p.name}</span>
+                  <span className="text-[10px] text-white/35 ml-auto">{p.desc}</span>
+                </a>
+              ))}
+              <a href="/connections" className="inline-flex items-center gap-1.5 text-[11px] text-fuchsia-400 hover:text-fuchsia-300 mt-1 transition-colors">Connect audio tool →</a>
+            </div>
+          ) : audioSrc ? (
+            <div className="space-y-2">
+              {data?.voice && <p className="text-[9px] text-white/35 font-mono">Voice: {data.voice} · {data.characterCount} chars</p>}
+              <audio controls src={audioSrc} className="w-full h-8 rounded-lg" style={{ colorScheme: 'dark' }} />
+              <a
+                href={audioSrc}
+                download={`ash-audio-${Date.now()}.mp3`}
+                className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-fuchsia-500/10 hover:bg-fuchsia-500/18 border border-fuchsia-500/20 text-fuchsia-300 text-[10px] font-mono transition-colors"
+              >
+                <Download className="w-3 h-3" />
+                Download Audio
+              </a>
+            </div>
+          ) : (
+            <p className="text-xs text-white/50">{data?.note ?? 'Audio generation complete.'}</p>
+          )}
         </div>
       </div>
     </div>
@@ -620,6 +696,10 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
   if (msg.type === 'image') return <ImageResultCard data={msg.data} />;
   // Generated file/code
   if (msg.type === 'code') return <CodeFileCard data={msg.data} />;
+  // Generated video
+  if (msg.type === 'generated_video') return <GeneratedVideoCard data={msg.data} />;
+  // Generated audio (TTS or music)
+  if (msg.type === 'generated_audio') return <GeneratedAudioCard data={msg.data} label={msg.label} />;
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'items-start gap-2.5'}`}>
@@ -1965,6 +2045,48 @@ const BuilderPage = () => {
               if (res.ok) {
                 const data = await res.json();
                 setMessages(prev => prev.map(m => m.id === toolMsgId ? { ...m, type: 'image', data, tool: undefined, label: undefined } : m));
+              } else {
+                setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+              }
+            } catch {
+              setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+            }
+          } else if (call.type === 'generate_video') {
+            const toolMsgId = Date.now() + Math.random();
+            setMessages(prev => [...prev, { id: toolMsgId, role: 'assistant', type: 'tool_call', tool: 'video', label: `Generating video: ${(call.prompt || '').slice(0, 40)}…`, ts: Date.now() }]);
+            try {
+              const res = await fetch('/api/media-gen/video', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ prompt: call.prompt, aspectRatio: call.aspectRatio || '9:16', durationSeconds: call.durationSeconds || 6 }) });
+              if (res.ok) {
+                const data = await res.json();
+                setMessages(prev => prev.map(m => m.id === toolMsgId ? { ...m, type: 'generated_video', data, tool: undefined, label: undefined } : m));
+              } else {
+                setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+              }
+            } catch {
+              setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+            }
+          } else if (call.type === 'generate_music') {
+            const toolMsgId = Date.now() + Math.random();
+            setMessages(prev => [...prev, { id: toolMsgId, role: 'assistant', type: 'tool_call', tool: 'music', label: `Generating music: ${(call.prompt || '').slice(0, 40)}…`, ts: Date.now() }]);
+            try {
+              const res = await fetch('/api/media-gen/music', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ prompt: call.prompt, durationSeconds: call.durationSeconds || 30, style: call.style }) });
+              if (res.ok) {
+                const data = await res.json();
+                setMessages(prev => prev.map(m => m.id === toolMsgId ? { ...m, type: 'generated_audio', data, label: 'ASH · Music Generation', tool: undefined } : m));
+              } else {
+                setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+              }
+            } catch {
+              setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+            }
+          } else if (call.type === 'text_to_speech') {
+            const toolMsgId = Date.now() + Math.random();
+            setMessages(prev => [...prev, { id: toolMsgId, role: 'assistant', type: 'tool_call', tool: 'tts', label: `Converting to speech: ${(call.text || '').slice(0, 40)}…`, ts: Date.now() }]);
+            try {
+              const res = await fetch('/api/media-gen/tts', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ text: call.text, voice: call.voice || 'warm narrator' }) });
+              if (res.ok) {
+                const data = await res.json();
+                setMessages(prev => prev.map(m => m.id === toolMsgId ? { ...m, type: 'generated_audio', data, label: 'ASH · Text-to-Speech', tool: undefined } : m));
               } else {
                 setMessages(prev => prev.filter(m => m.id !== toolMsgId));
               }

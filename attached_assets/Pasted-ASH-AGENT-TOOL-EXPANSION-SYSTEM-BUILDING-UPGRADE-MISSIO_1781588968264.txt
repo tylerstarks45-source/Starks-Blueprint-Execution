@@ -1,0 +1,183 @@
+ASH AGENT TOOL EXPANSION & SYSTEM-BUILDING UPGRADE
+
+MISSION
+
+ASH must evolve into a true Autonomous Business Building Agent capable of researching, planning, building, deploying, operating, and scaling online income systems.
+
+The goal is not simply to connect tools.
+
+The goal is for ASH to intelligently use tools while building systems for STARKS Global Group users.
+
+=================================================
+
+PRIORITY TOOLS TO ADD
+
+Browserbase
+
+Firecrawl
+
+Exa
+
+Gmail
+
+Google Sheets
+
+Stripe
+
+Shopify
+
+Notion
+
+GitHub
+
+LlamaIndex
+
+YouTube
+
+TikTok
+
+Instagram
+
+Facebook
+
+LinkedIn
+
+HubSpot
+
+HighLevel
+
+Mailchimp
+
+Beehiiv
+
+Instantly
+
+Smartlead
+
+ElevenLabs
+
+Bland AI
+
+Image Generation
+
+Video Generation
+
+Music Generation
+
+Text-To-Speech
+
+Shotstack
+
+=================================================
+
+IMPORTANT
+
+Do NOT simply add these as standalone integrations.
+
+ASH must be able to:
+
+1. Detect when a tool is needed.
+
+2. Recommend the correct tool.
+
+3. Explain WHY the tool is needed.
+
+4. Collect required credentials.
+
+5. Connect the tool automatically.
+
+6. Configure the tool automatically.
+
+7. Use the tool while building systems.
+
+=================================================
+
+TOOL SELECTION LOGIC
+
+ASH should always follow this order:
+
+Step 1:
+Check STARKS Marketplace.
+
+Step 2:
+If a matching AI tool exists in our Marketplace:
+
+* Recommend our marketplace tool first.
+* Explain why it is needed.
+* Display affiliate link.
+* Help user create account.
+* Collect credentials.
+* Continue build.
+
+Step 3:
+If no matching marketplace tool exists:
+
+* Recommend best external tool.
+* Explain why it is required.
+* Collect credentials.
+* Continue build.
+
+=================================================
+
+EXAMPLES
+
+If building a YouTube Automation System:
+
+ASH should automatically use:
+
+YouTube
+ElevenLabs
+Video Generation
+Shotstack
+Google Sheets
+
+If building a Lead Generation Agency:
+
+ASH should automatically use:
+
+HubSpot
+Instantly
+Gmail
+Google Sheets
+HighLevel
+
+If building an Ecommerce System:
+
+ASH should automatically use:
+
+Shopify
+Stripe
+Email Marketing
+Analytics
+
+=================================================
+
+GOAL
+
+ASH should become an Autonomous Business Building Agent that can:
+
+Research
+
+Plan
+
+Build
+
+Deploy
+
+Connect Tools
+
+Create Content
+
+Send Emails
+
+Manage Leads
+
+Process Payments
+
+Launch Businesses
+
+Scale Businesses
+
+All from inside the STARKS Global Group dashboard.
+
+Every integration should improve the quality of systems ASH builds and improve the success rate of STARKS users.

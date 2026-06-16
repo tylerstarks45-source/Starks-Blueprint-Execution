@@ -33,6 +33,7 @@ const Header = () => {
   const privateNav = [
     { name: 'Dashboard', path: '/dashboard' },
     { name: 'Builder', path: '/builder' },
+    { name: 'Social', path: '/social-accounts' },
     { name: 'Connections', path: '/connections' },
     { name: 'My Systems', path: '/systems' },
     { name: 'Marketplace', path: '/marketplace' },

@@ -359,11 +359,23 @@ You can call these tools at any time to enrich your responses. Use them proactiv
    Use for: market research, competitor analysis, pricing data, trending niches, real statistics, current news.
    SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "search", "query": "specific research query"}]}
 
-2. **Image Generation** (Flux AI — professional quality)
-   Use for: logos, thumbnails, banners, product mockups, social media graphics, marketing assets.
+2. **Image Generation** (AI — professional quality visuals, logos, thumbnails, banners, mockups)
+   Use for: brand logos, YouTube thumbnails, social media graphics, product mockups, ad creatives, marketing banners.
    SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "image", "prompt": "detailed visual description, style, colors, mood"}]}
 
-3. **File Generation** (Creates real downloadable files in user's workspace)
+3. **Video Generation** (AI — short-form video clips for TikTok/Reels/YouTube Shorts)
+   Use for: content clips, product demos, ad creatives, intro sequences. Requires HeyGen or Runway API key.
+   SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "generate_video", "prompt": "detailed scene description", "aspectRatio": "9:16", "durationSeconds": 6}]}
+
+4. **Music Generation** (AI — original background tracks and soundbeds)
+   Use for: video background music, podcast intros, ad soundbeds, content creation. Requires ElevenLabs API key.
+   SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "generate_music", "prompt": "upbeat hip-hop instrumental, energetic, motivational", "durationSeconds": 30}]}
+
+5. **Text-to-Speech** (ElevenLabs — ultra-realistic AI voiceovers)
+   Use for: podcast episodes, YouTube narration, ad scripts, course content, audiobooks. Requires ElevenLabs API key.
+   SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "text_to_speech", "text": "complete script text here", "voice": "warm narrator"}]}
+
+6. **File Generation** (Creates real downloadable files in the user's workspace)
    Use for: business plans, code files, configs, scripts, spreadsheet templates, email sequences, SOPs, landing page copy.
    SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "file", "name": "filename.ext", "content": "complete file content here", "fileType": "markdown|json|python|html|javascript|text|csv"}]}
 
@@ -378,11 +390,57 @@ You can chain multiple tools in a single call:
 
 Use tools when:
 - User asks for market research → search + return findings
-- User wants assets or visuals → generate images automatically
+- User wants visuals or brand assets → generate images automatically
 - User needs documents → create real files they can download
+- User wants audio content → text_to_speech or generate_music (note: ElevenLabs key required)
+- User wants video clips → generate_video (note: HeyGen/Runway key required)
 - General questions → just answer with action "general" (no tools needed)
 
-DO NOT call tools for every response — only when genuinely useful for the user's goal.`;
+DO NOT call tools for every response — only when genuinely useful for the user's goal.
+
+=== BLUEPRINT-TO-TOOLS INTELLIGENCE ===
+
+When a user's goal matches one of these patterns, ASH proactively uses these tools and recommends these credentials:
+
+**YouTube / Long-Form Video:**
+→ Auto-generate: images (thumbnails + channel art), file (scripts, video descriptions, SEO titles), search (keyword + niche research)
+→ Recommend connecting: HEYGEN_API_KEY (AI avatar videos), ELEVENLABS_API_KEY (voiceover), YOUTUBE_API_KEY
+→ Revenue: AdSense + affiliate commissions + sponsorships
+
+**TikTok / Short-Form Social:**
+→ Auto-generate: images (graphic overlays), file (content calendar, 30-day hook ideas), search (trending sounds + niches)
+→ Recommend connecting: TIKTOK_ACCESS_TOKEN, INSTAGRAM_ACCESS_TOKEN, SNAPCHAT_ACCESS_TOKEN
+→ Revenue: Creator Fund + affiliate links + brand deals
+
+**Newsletter / Email Publishing:**
+→ Auto-generate: file (welcome series, 10-email nurture sequence), search (niche authority content)
+→ Recommend connecting: BEEHIIV_API_KEY, MAILCHIMP_API_KEY, CONVERTKIT_API_KEY
+→ Revenue: Paid subscriptions + sponsorships + affiliate commissions
+
+**Cold Outreach / Lead Generation:**
+→ Auto-generate: file (personalized email sequences, LinkedIn scripts, objection handling), search (prospect research)
+→ Recommend connecting: INSTANTLY_API_KEY or SMARTLEAD_API_KEY, HUBSPOT_API_KEY, GMAIL_REFRESH_TOKEN
+→ Revenue: B2B consulting/agency retainers ($2k-20k/month)
+
+**E-commerce / Dropshipping:**
+→ Auto-generate: images (product mockups, lifestyle photos), file (product descriptions, ad copy), search (winning products)
+→ Recommend connecting: SHOPIFY_API_KEY, STRIPE_SECRET_KEY, KLAVIYO_API_KEY
+→ Revenue: Product margins (30-70%) + email marketing upsells
+
+**Podcast / Audio Content:**
+→ Auto-generate: file (episode scripts, show notes, chapter markers), search (topic + guest research)
+→ Recommend connecting: ELEVENLABS_API_KEY (AI host voice), BEEHIIV_API_KEY (newsletter companion)
+→ Revenue: Sponsorships ($20-50 CPM) + premium episodes + affiliate
+
+**AI Phone / Outreach Agent:**
+→ Auto-generate: file (call scripts, objection handling, FAQs), search (lead prospects)
+→ Recommend connecting: BLAND_AI_API_KEY (AI calls), TWILIO_AUTH_TOKEN (SMS follow-up), HUBSPOT_API_KEY (CRM)
+→ Revenue: Sales commissions + SaaS licensing
+
+**Social Media Management Agency:**
+→ Auto-generate: images (content templates per platform), file (content calendars, client pitch decks, monthly reports)
+→ Recommend connecting: All social platform tokens + GOHIGHLEVEL_API_KEY or N8N_API_KEY
+→ Revenue: Monthly management fees ($500-5000/client)`;
 }
 
 function defaultBuildPlan(blueprintName: string): string[] {
@@ -434,6 +492,23 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       ? `\n\n=== USER'S STORED CREDENTIALS (ALREADY ON FILE — DO NOT REQUEST THESE) ===\n${storedKeys.join(", ")}\nIf the blueprint you select requires any of these keys, skip them from requiredCredentials. The system will use the stored values automatically.`
       : "";
 
+    const SOCIAL_PLATFORM_KEYS = [
+      { key: "TIKTOK_ACCESS_TOKEN", name: "TikTok" },
+      { key: "INSTAGRAM_ACCESS_TOKEN", name: "Instagram" },
+      { key: "FACEBOOK_PAGE_TOKEN", name: "Facebook" },
+      { key: "META_ACCESS_TOKEN", name: "Facebook/Meta" },
+      { key: "TWITTER_BEARER_TOKEN", name: "X (Twitter)" },
+      { key: "LINKEDIN_API_KEY", name: "LinkedIn" },
+      { key: "SNAPCHAT_ACCESS_TOKEN", name: "Snapchat" },
+      { key: "YOUTUBE_API_KEY", name: "YouTube" },
+      { key: "THREADS_ACCESS_TOKEN", name: "Threads" },
+      { key: "PINTEREST_API_KEY", name: "Pinterest" },
+    ];
+    const connectedSocials = SOCIAL_PLATFORM_KEYS.filter((p) => storedKeys.includes(p.key)).map((p) => p.name);
+    const socialNote = connectedSocials.length > 0
+      ? `\n\n=== USER'S CONNECTED SOCIAL PLATFORMS ===\nThe user has already connected these social platforms: ${connectedSocials.join(", ")}. You can build social automation for these platforms immediately — no credential requests needed. Proactively include them in build plans, tool stacks, and automation steps.`
+      : "";
+
     // Inject activated skill additions into the system prompt
     const skillAdditions = activatedSkills
       .filter((s) => s.systemPromptAddition)
@@ -463,7 +538,7 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       : "";
 
     const completionArgs = {
-      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + planModeNote,
+      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + planModeNote,
       prompt: `${historyCtx}\n\nUser: ${parsed.data.message}`,
       userId,
       systemInstanceId: parsed.data.systemInstanceId,

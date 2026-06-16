@@ -64,6 +64,11 @@ function PageCard({ page, onEdit, onDelete, onPublishToggle, onPreview, copied, 
           <div>
             <h3 className="text-sm font-bold text-white/85 leading-tight">{page.title}</h3>
             <p className="text-[10px] text-white/35 font-mono mt-0.5">{page.slug}</p>
+            {page.systemName && (
+              <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-mono text-violet-400/70 bg-violet-500/8 border border-violet-500/15 rounded px-1.5 py-0.5">
+                <Zap className="w-2 h-2" />{page.systemName}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase tracking-wider ${

@@ -14,6 +14,7 @@ import {
   Search, ImageIcon, Download, Copy, Check, Code2, FileCode2,
   CloudUpload, Package, Hash, Database, Star, Info,
   RefreshCw, Pencil, Trash2, Film, Music, Share2, Mic2,
+  LayoutTemplate, Unlock,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import BrowserView from '@/components/builder/BrowserView.jsx';
@@ -700,6 +701,37 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
   if (msg.type === 'generated_video') return <GeneratedVideoCard data={msg.data} />;
   // Generated audio (TTS or music)
   if (msg.type === 'generated_audio') return <GeneratedAudioCard data={msg.data} label={msg.label} />;
+  // Landing page created by ASH
+  if (msg.type === 'page_created') return (
+    <div className="flex items-start gap-2.5">
+      <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-violet-500/20 border border-violet-500/30">
+        <LayoutTemplate className="w-3.5 h-3.5 text-violet-400" />
+      </div>
+      <div className="flex-1 bg-violet-500/8 border border-violet-500/18 rounded-xl p-3 max-w-lg">
+        <p className="text-[11px] font-mono font-semibold text-violet-300 mb-1.5 flex items-center gap-1.5">
+          <Sparkles className="w-3 h-3" /> Landing page created!
+        </p>
+        {msg.data && (
+          <>
+            <p className="text-[12px] text-white/75 font-medium mb-1">{msg.data.title}</p>
+            <p className="text-[10px] font-mono text-white/35 mb-2">/{msg.data.slug}</p>
+            <div className="flex gap-2">
+              {msg.data.isPublished && (
+                <a href={`/api/pages/${msg.data.slug}`} target="_blank" rel="noopener noreferrer"
+                  className="text-[10px] font-mono text-sky-400 hover:text-sky-300 flex items-center gap-1 transition-colors">
+                  <ExternalLink className="w-2.5 h-2.5" /> View live
+                </a>
+              )}
+              <button onClick={() => { /* handled by right panel */ }}
+                className="text-[10px] font-mono text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors">
+                <LayoutTemplate className="w-2.5 h-2.5" /> See in Pages tab →
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'items-start gap-2.5'}`}>
@@ -1474,6 +1506,14 @@ const BuilderPage = () => {
   // Right panel search query
   const [rightSearch, setRightSearch] = useState('');
 
+  // Pages panel state
+  const [builderPages, setBuilderPages] = useState([]);
+  const [builderPagesLoading, setBuilderPagesLoading] = useState(false);
+  const [pageEditorPage, setPageEditorPage] = useState(null);
+  const [pageEditorHtml, setPageEditorHtml] = useState('');
+  const [pageEditorSaving, setPageEditorSaving] = useState(false);
+  const [pageEditorPublishing, setPageEditorPublishing] = useState(false);
+
   // DB-backed session history
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [savedSessions, setSavedSessions] = useState([]);
@@ -1740,6 +1780,17 @@ const BuilderPage = () => {
       })
       .catch(() => {});
   }, [currentUser?.id]);
+
+  // Load pages when Pages tab is opened
+  useEffect(() => {
+    if (rightPanel !== 'pages' || !currentUser?.id) return;
+    setBuilderPagesLoading(true);
+    fetch('/api/landing-pages', { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setBuilderPages(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setBuilderPagesLoading(false));
+  }, [rightPanel, currentUser?.id]);
 
   // Load user's system instances for file tree
   useEffect(() => {
@@ -2103,6 +2154,47 @@ const BuilderPage = () => {
               }
             } catch { /* non-fatal */ }
           }
+        }
+      }
+
+      // ── build_landing_page ──────────────────────────────────────────────────
+      if (action === 'build_landing_page') {
+        const pageTitle = sd.pageTitle || 'My Landing Page';
+        const pagePrompt = sd.prompt || msg;
+        const pageType = sd.pageType || 'affiliate';
+
+        const genMsgId = Date.now() + Math.random();
+        setMessages(prev => [...prev, {
+          id: genMsgId, role: 'assistant', type: 'tool_call',
+          tool: 'landing_page', label: `Building landing page: "${pageTitle}"…`, ts: Date.now(),
+        }]);
+
+        try {
+          const createRes = await fetch('/api/landing-pages', {
+            method: 'POST', headers: authHeaders(),
+            body: JSON.stringify({ title: pageTitle }),
+          });
+          if (createRes.ok) {
+            const created = await createRes.json();
+            const genRes = await fetch('/api/landing-pages/generate', {
+              method: 'POST', headers: authHeaders(),
+              body: JSON.stringify({ pageId: created.id, prompt: pagePrompt, pageType }),
+            });
+            if (genRes.ok) {
+              const generated = await genRes.json();
+              setBuilderPages(prev => [generated, ...prev.filter(p => p.id !== generated.id)]);
+              setMessages(prev => prev.map(m => m.id === genMsgId ? {
+                id: genMsgId, role: 'assistant', type: 'page_created',
+                data: generated, label: `Landing page "${pageTitle}" created!`, ts: Date.now(),
+              } : m));
+              setRightPanel('pages');
+            } else {
+              setMessages(prev => prev.filter(m => m.id !== genMsgId));
+              setMessages(prev => [...prev, { id: Date.now() + Math.random(), role: 'assistant', type: 'text', content: 'I had trouble generating the page HTML. Try again or visit the Pages tab to create one manually.', ts: Date.now() }]);
+            }
+          }
+        } catch {
+          setMessages(prev => prev.filter(m => m.id !== genMsgId));
         }
       }
 
@@ -3292,9 +3384,10 @@ const BuilderPage = () => {
               { id: 'blueprints', label: 'BPs',    icon: Grid3x3 },
               { id: 'tools',      label: 'Tools',  icon: Layers },
               { id: 'files',      label: 'Apps',   icon: FolderOpen },
-              { id: 'deploy',     label: 'Deploy', icon: CloudUpload },
+              { id: 'pages',      label: 'Pages',  icon: LayoutTemplate },
               { id: 'social',     label: 'Social', icon: Share2 },
               { id: 'media',      label: 'Media',  icon: Film },
+              { id: 'deploy',     label: 'Deploy', icon: CloudUpload },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -3451,6 +3544,81 @@ const BuilderPage = () => {
                     className="w-full py-2 text-[10px] font-mono text-violet-400/65 hover:text-violet-300 bg-violet-500/6 hover:bg-violet-500/12 border border-violet-500/18 rounded-lg transition-all"
                   >
                     Manage Social Accounts →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── PAGES ── */}
+            {rightPanel === 'pages' && (
+              <div className="py-2 flex flex-col h-full">
+                <div className="px-3 pt-1 pb-2">
+                  <p className="text-[10px] text-white/35 font-mono leading-relaxed mb-2.5">
+                    Your hosted landing pages. Ask ASH to build one or manage them here.
+                  </p>
+
+                  {/* Ask ASH CTA */}
+                  <button
+                    onClick={() => { setRightPanel('blueprints'); sendMessage('Build me a landing page'); }}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-violet-500/10 hover:bg-violet-500/18 border border-violet-500/22 text-[10px] font-mono text-violet-400 hover:text-violet-300 transition-all mb-3"
+                  >
+                    <Sparkles className="w-3 h-3 shrink-0" /> Ask ASH to build a page
+                  </button>
+
+                  {/* Pages list */}
+                  {builderPagesLoading ? (
+                    <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 animate-spin text-white/25" /></div>
+                  ) : builderPages.length === 0 ? (
+                    <div className="text-center py-6">
+                      <LayoutTemplate className="w-7 h-7 text-white/10 mx-auto mb-2" />
+                      <p className="text-[10px] text-white/22 font-mono">No pages yet</p>
+                      <p className="text-[9px] text-white/15 font-mono mt-0.5">Ask ASH to build one above</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 mb-3">
+                      {builderPages.slice(0, 6).map(page => (
+                        <div key={page.id} className={`rounded-lg border transition-all ${page.isPublished ? 'border-emerald-500/15 bg-emerald-500/4' : 'border-white/8 bg-white/2'}`}>
+                          <div className="px-2.5 pt-2 pb-1.5">
+                            <div className="flex items-start gap-2 mb-1">
+                              <span className="text-[11px] font-mono text-white/62 flex-1 leading-snug line-clamp-1">{page.title}</span>
+                              <span className={`text-[8px] font-mono font-bold uppercase shrink-0 mt-0.5 ${page.isPublished ? 'text-emerald-400' : 'text-white/25'}`}>
+                                {page.isPublished ? 'Live' : 'Draft'}
+                              </span>
+                            </div>
+                            {page.systemName && (
+                              <p className="text-[9px] font-mono text-violet-400/55 mb-1 flex items-center gap-1">
+                                <Zap className="w-2 h-2 shrink-0" />{page.systemName}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className="text-[9px] font-mono text-white/20 flex items-center gap-1">
+                                <Globe className="w-2 h-2" />{page.pageViews} views
+                              </span>
+                              <div className="flex items-center gap-1.5 ml-auto">
+                                {page.isPublished && (
+                                  <a href={`/api/pages/${page.slug}`} target="_blank" rel="noopener noreferrer"
+                                    className="text-white/22 hover:text-sky-400 transition-colors">
+                                    <ExternalLink className="w-2.5 h-2.5" />
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => { setPageEditorPage(page); setPageEditorHtml(page.htmlContent || ''); }}
+                                  className="text-white/22 hover:text-violet-400 transition-colors"
+                                  title="Edit HTML"
+                                >
+                                  <Pencil className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button onClick={() => navigate('/landing-pages')}
+                    className="w-full py-2 text-[10px] font-mono text-violet-400/60 hover:text-violet-300 bg-violet-500/5 hover:bg-violet-500/12 border border-violet-500/15 rounded-lg transition-all">
+                    Manage All Pages →
                   </button>
                 </div>
               </div>
@@ -3672,6 +3840,121 @@ const BuilderPage = () => {
 
       </div>
     </div>
+
+    {/* ── Page Editor Modal ─────────────────────────────────────────────────── */}
+    {pageEditorPage && (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={e => { if (e.target === e.currentTarget) setPageEditorPage(null); }}>
+        <div className="w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#0d0d14] border border-white/12 rounded-2xl shadow-2xl overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <LayoutTemplate className="w-4 h-4 text-violet-400" />
+              <div>
+                <p className="text-sm font-semibold text-white/85">{pageEditorPage.title}</p>
+                <p className="text-[10px] font-mono text-white/30">/{pageEditorPage.slug}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Publish/unpublish */}
+              <button
+                disabled={pageEditorPublishing}
+                onClick={async () => {
+                  setPageEditorPublishing(true);
+                  try {
+                    const res = await fetch(`/api/landing-pages/${pageEditorPage.id}/publish`, {
+                      method: 'POST', headers: authHeaders(),
+                      body: JSON.stringify({ publish: !pageEditorPage.isPublished }),
+                    });
+                    if (res.ok) {
+                      const updated = await res.json();
+                      setPageEditorPage(p => ({ ...p, isPublished: updated.isPublished, publishedAt: updated.publishedAt }));
+                      setBuilderPages(prev => prev.map(p => p.id === updated.id ? { ...p, isPublished: updated.isPublished } : p));
+                    }
+                  } finally { setPageEditorPublishing(false); }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-mono font-semibold transition-all ${
+                  pageEditorPage.isPublished
+                    ? 'bg-emerald-500/12 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
+                    : 'bg-white/6 text-white/45 border border-white/12 hover:bg-white/10'
+                }`}
+              >
+                {pageEditorPublishing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
+                {pageEditorPage.isPublished ? 'Published' : 'Publish'}
+              </button>
+              {/* Save HTML */}
+              <button
+                disabled={pageEditorSaving}
+                onClick={async () => {
+                  setPageEditorSaving(true);
+                  try {
+                    const res = await fetch(`/api/landing-pages/${pageEditorPage.id}`, {
+                      method: 'PATCH', headers: authHeaders(),
+                      body: JSON.stringify({ htmlContent: pageEditorHtml }),
+                    });
+                    if (res.ok) {
+                      const updated = await res.json();
+                      setBuilderPages(prev => prev.map(p => p.id === updated.id ? { ...p, htmlContent: updated.htmlContent } : p));
+                      toast.success('Page saved!');
+                    }
+                  } finally { setPageEditorSaving(false); }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-mono font-semibold bg-violet-500/15 text-violet-300 border border-violet-500/25 hover:bg-violet-500/25 transition-all"
+              >
+                {pageEditorSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                Save
+              </button>
+              {pageEditorPage.isPublished && (
+                <a href={`/api/pages/${pageEditorPage.slug}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-mono text-sky-400 border border-sky-500/20 bg-sky-500/8 hover:bg-sky-500/15 transition-all">
+                  <ExternalLink className="w-3 h-3" /> View
+                </a>
+              )}
+              <button onClick={() => setPageEditorPage(null)} className="p-1.5 rounded-lg text-white/35 hover:text-white/65 hover:bg-white/8 transition-all">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs: HTML / Preview */}
+          <div className="flex border-b border-white/8 shrink-0">
+            {['HTML', 'Preview'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setPageEditorPage(p => ({ ...p, _editorTab: tab }))}
+                className={`px-5 py-2.5 text-[11px] font-mono transition-all ${
+                  (pageEditorPage._editorTab || 'HTML') === tab
+                    ? 'text-violet-300 border-b-2 border-violet-400 bg-violet-500/5'
+                    : 'text-white/35 hover:text-white/55'
+                }`}
+              >
+                {tab === 'HTML' ? <><Code2 className="w-3 h-3 inline mr-1.5" />HTML Editor</> : <><Eye className="w-3 h-3 inline mr-1.5" />Preview</>}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-hidden">
+            {(pageEditorPage._editorTab || 'HTML') === 'HTML' ? (
+              <textarea
+                className="w-full h-full min-h-[400px] bg-[#090910] text-emerald-300/80 font-mono text-[11px] p-4 resize-none outline-none border-0 leading-relaxed"
+                value={pageEditorHtml}
+                onChange={e => setPageEditorHtml(e.target.value)}
+                spellCheck={false}
+                placeholder="<!-- Your page HTML goes here -->"
+              />
+            ) : (
+              <iframe
+                srcDoc={pageEditorHtml || '<p style="font-family:sans-serif;color:#888;padding:2rem;">No HTML content yet.</p>'}
+                className="w-full h-full min-h-[400px] border-0 bg-white"
+                title="Page preview"
+                sandbox="allow-scripts"
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
     </VideoBackground>
   );
 };

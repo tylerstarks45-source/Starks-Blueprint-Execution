@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { db, landingPagesTable } from "@workspace/db";
+import { eq, and, desc } from "drizzle-orm";
+import { db, landingPagesTable, systemInstancesTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
 import { z } from "zod";
@@ -42,7 +42,27 @@ function generateSlug(title: string): string {
 router.get("/landing-pages", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
-  const rows = await db.select().from(landingPagesTable)
+  const rows = await db
+    .select({
+      id: landingPagesTable.id,
+      userId: landingPagesTable.userId,
+      systemInstanceId: landingPagesTable.systemInstanceId,
+      title: landingPagesTable.title,
+      slug: landingPagesTable.slug,
+      description: landingPagesTable.description,
+      htmlContent: landingPagesTable.htmlContent,
+      metaTitle: landingPagesTable.metaTitle,
+      metaDescription: landingPagesTable.metaDescription,
+      isPublished: landingPagesTable.isPublished,
+      publishedAt: landingPagesTable.publishedAt,
+      pageViews: landingPagesTable.pageViews,
+      customDomain: landingPagesTable.customDomain,
+      createdAt: landingPagesTable.createdAt,
+      updatedAt: landingPagesTable.updatedAt,
+      systemName: systemInstancesTable.name,
+    })
+    .from(landingPagesTable)
+    .leftJoin(systemInstancesTable, eq(landingPagesTable.systemInstanceId, systemInstancesTable.id))
     .where(eq(landingPagesTable.userId, userId))
     .orderBy(desc(landingPagesTable.updatedAt));
   res.json(serialize(rows));

@@ -1252,7 +1252,7 @@ const getCheckpoints = (userId) => {
   } catch { return []; }
 };
 
-const saveCheckpoint = (userId, { messages, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp }) => {
+const saveCheckpoint = (userId, { messages, phase, buildData, stepOutputs, stepRevenues, currentStepIdx, activatedSkills, mode, selectedBp }) => {
   if (!userId) return;
   const userMsgs = messages.filter(m => m.id !== 'welcome' && m.role === 'user');
   if (userMsgs.length === 0) return;
@@ -1266,6 +1266,7 @@ const saveCheckpoint = (userId, { messages, phase, buildData, stepOutputs, curre
     messages,
     buildData,
     stepOutputs,
+    stepRevenues,
     currentStepIdx,
     activatedSkills,
     mode,
@@ -1425,6 +1426,7 @@ const BuilderPage = () => {
       setActivatedSkills(saved.activatedSkills ?? []);
       if (saved.buildData) setBuildData(saved.buildData);
       if (saved.stepOutputs) setStepOutputs(saved.stepOutputs);
+      if (saved.stepRevenues) setStepRevenues(saved.stepRevenues);
       if (typeof saved.currentStepIdx === 'number') setCurrentStepIdx(saved.currentStepIdx);
       if (saved.mode) setMode(saved.mode);
       if (saved.selectedBp) setSelectedBp(saved.selectedBp);
@@ -1450,6 +1452,7 @@ const BuilderPage = () => {
           activatedSkills,
           buildData,
           stepOutputs,
+          stepRevenues,
           currentStepIdx,
           mode,
           selectedBp,
@@ -1461,7 +1464,7 @@ const BuilderPage = () => {
     }, 400);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, phase, activatedSkills, buildData, stepOutputs, currentStepIdx, mode, selectedBp, pendingCreds, currentUser?.id]);
+  }, [messages, phase, activatedSkills, buildData, stepOutputs, stepRevenues, currentStepIdx, mode, selectedBp, pendingCreds, currentUser?.id]);
 
   // ── Load saved sessions from DB ───────────────────────────────────────────
   const loadSavedSessions = useCallback(async () => {
@@ -1691,7 +1694,7 @@ const BuilderPage = () => {
         description: `${buildData.blueprint?.name ?? 'Your system'} is ready.`,
       });
       // Save a checkpoint for the completed build before redirecting
-      saveCheckpoint(currentUser?.id, { messages, phase: 'complete', buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp });
+      saveCheckpoint(currentUser?.id, { messages, phase: 'complete', buildData, stepOutputs, stepRevenues, currentStepIdx, activatedSkills, mode, selectedBp });
       setCheckpoints(getCheckpoints(currentUser?.id));
       // Auto-redirect after 3 seconds — keep session so user can return to history
       const buildRevenueCents = Object.values(stepRevenues).reduce((s, v) => s + (v ?? 0), 0);
@@ -1987,7 +1990,7 @@ const BuilderPage = () => {
         { id: Date.now(), role: 'user', content: msg, ts: Date.now() },
         { id: msgId, role: 'assistant', content: finalMsg, ts: Date.now() },
       ];
-      saveCheckpoint(currentUser?.id, { messages: updatedMessages, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp });
+      saveCheckpoint(currentUser?.id, { messages: updatedMessages, phase, buildData, stepOutputs, stepRevenues, currentStepIdx, activatedSkills, mode, selectedBp });
       setCheckpoints(getCheckpoints(currentUser?.id));
     } catch {
       setError('ASH is temporarily unavailable. Please try again.');
@@ -2038,6 +2041,7 @@ const BuilderPage = () => {
     setActivatedSkills(cp.activatedSkills ?? []);
     setBuildData(cp.buildData ?? null);
     setStepOutputs(cp.stepOutputs ?? {});
+    setStepRevenues(cp.stepRevenues ?? {});
     setCurrentStepIdx(cp.currentStepIdx ?? 0);
     setMode(cp.mode ?? 'custom');
     setSelectedBp(cp.selectedBp ?? null);

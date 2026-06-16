@@ -3042,7 +3042,7 @@ const BuilderPage = () => {
           {phase !== 'idle' && <ProgressTracker phase={phase} />}
 
           {/* Main scrollable chat area */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-thin scrollbar-thumb-white/10">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 ash-scroll">
             <SkillActivationPanel activatedSkills={activatedSkills} />
 
             {messages.map((m, idx) => {
@@ -3405,7 +3405,7 @@ const BuilderPage = () => {
           </div>
 
           {/* Tab content */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="flex-1 overflow-y-auto min-h-0 ash-scroll">
 
             {/* ── BLUEPRINTS ── */}
             {rightPanel === 'blueprints' && (

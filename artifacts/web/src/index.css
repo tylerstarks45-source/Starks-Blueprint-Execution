@@ -344,3 +344,23 @@
     animation: holo-shimmer 4.5s linear infinite;
   }
 }
+
+/* ── Replit-style scrollbars for the Builder page ───────────────────────── */
+.ash-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.ash-scroll::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 3px;
+}
+.ash-scroll::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+.ash-scroll::-webkit-scrollbar-thumb:hover {
+  background: #6e6e6e;
+}
+.ash-scroll::-webkit-scrollbar-corner {
+  background: #1a1a1a;
+}

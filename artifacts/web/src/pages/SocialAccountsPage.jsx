@@ -398,8 +398,7 @@ export default function SocialAccountsPage() {
   const connectedCount = SOCIAL_PLATFORMS.filter(p => credentials[p.key]).length;
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative overflow-hidden">
-      <VideoBackground />
+    <VideoBackground>
       <Header />
 
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24">
@@ -479,6 +478,6 @@ export default function SocialAccountsPage() {
       )}
 
       <Footer />
-    </div>
+    </VideoBackground>
   );
 }

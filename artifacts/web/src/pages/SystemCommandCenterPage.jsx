@@ -9,7 +9,7 @@ import {
   ChevronRight, Shield, BarChart2, Bot,
   Rocket, Settings, ArrowUpRight, Layers,
   Globe, Key, Database, ShieldCheck,
-  Crown, Radio, Signal,
+  Crown, Radio, Signal, Share2, Film,
 } from 'lucide-react';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
@@ -770,12 +770,14 @@ const SystemCommandCenterPage = () => {
               <div className="w-[3px] h-4 bg-amber-400 rounded-full" />
               <h2 className="text-[10px] font-bold text-white/55 uppercase tracking-widest font-mono">Quick Actions</h2>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {[
                 {label: 'Builder', icon: Rocket, onClick: () => navigate('/builder'), border: 'border-primary/25', bg: 'hover:bg-primary/10', text: 'text-primary'},
                 {label: 'Connect Tools', icon: Key, onClick: () => navigate('/connections'), border: 'border-amber-500/25', bg: 'hover:bg-amber-500/10', text: 'text-amber-400'},
                 {label: 'Blueprints', icon: Layers, onClick: () => navigate('/blueprints'), border: 'border-violet-500/25', bg: 'hover:bg-violet-500/10', text: 'text-violet-400'},
                 {label: 'Buy Credits', icon: Coins, onClick: () => navigate('/credits'), border: 'border-emerald-500/25', bg: 'hover:bg-emerald-500/10', text: 'text-emerald-400'},
+                {label: 'Social Hub', icon: Share2, onClick: () => navigate('/social-accounts'), border: 'border-violet-400/25', bg: 'hover:bg-violet-400/10', text: 'text-violet-400'},
+                {label: 'Media Lab', icon: Film, onClick: () => navigate('/builder'), border: 'border-pink-500/25', bg: 'hover:bg-pink-500/10', text: 'text-pink-400'},
               ].map(a => (
                 <button key={a.label} onClick={a.onClick}
                   className={`flex flex-col items-center gap-2.5 py-4 px-2 rounded-xl border ${a.border} bg-white/2 ${a.bg} transition-all group`}
@@ -822,6 +824,52 @@ const SystemCommandCenterPage = () => {
           </HudPanel>
         </div>
       </div>
+
+      {/* ══ SOCIAL PLATFORM HUB ══════════════════════════════════════════════ */}
+      <HudPanel className="p-5" accent="rgba(124,58,237,0.45)">
+        <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-violet-500/0 via-violet-400 to-violet-500/0" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-[3px] h-5 rounded-full bg-violet-400" />
+            <h2 className="text-sm font-bold text-white/80">Social Platform Hub</h2>
+            <span className="px-2 py-0.5 rounded-full bg-violet-500/12 border border-violet-500/22 text-[9px] font-mono font-bold text-violet-400 uppercase tracking-wider">New</span>
+          </div>
+          <button onClick={() => navigate('/social-accounts')} className="text-[10px] font-mono text-violet-400/60 hover:text-violet-300 transition-colors font-semibold">
+            Manage Accounts →
+          </button>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap mb-3">
+          {[
+            { name: 'TikTok', icon: '🎵', key: 'TIKTOK_ACCESS_TOKEN' },
+            { name: 'Instagram', icon: '📸', key: 'INSTAGRAM_ACCESS_TOKEN' },
+            { name: 'YouTube', icon: '▶️', key: 'YOUTUBE_API_KEY' },
+            { name: 'X / Twitter', icon: '✖️', key: 'TWITTER_BEARER_TOKEN' },
+            { name: 'LinkedIn', icon: '💼', key: 'LINKEDIN_ACCESS_TOKEN' },
+            { name: 'Snapchat', icon: '👻', key: 'SNAPCHAT_ACCESS_TOKEN' },
+            { name: 'Facebook', icon: '👥', key: 'FACEBOOK_PAGE_TOKEN' },
+          ].map(p => {
+            const connected = !!(storedKeys || {})[p.key];
+            return (
+              <button
+                key={p.name}
+                onClick={() => navigate('/social-accounts')}
+                className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-xl border transition-all hover:scale-105 min-w-[68px] ${
+                  connected
+                    ? 'border-emerald-500/25 bg-emerald-500/5 shadow-[0_0_12px_rgba(16,185,129,0.08)]'
+                    : 'border-white/8 bg-white/2 hover:border-white/15 hover:bg-white/4'
+                }`}
+              >
+                <span className="text-xl">{p.icon}</span>
+                <span className="text-[9px] font-mono text-white/45 leading-tight text-center">{p.name}</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.6)]' : 'bg-white/15'}`} />
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-white/30 font-mono leading-relaxed">
+          Connect your social accounts — ASH will automatically post content, track analytics, and grow your audience when building social income systems.
+        </p>
+      </HudPanel>
 
       {/* ══ SYSTEMS FLEET ════════════════════════════════════════════════════ */}
       <HudPanel accent="rgba(56,189,248,0.5)">

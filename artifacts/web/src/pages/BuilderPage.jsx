@@ -13,7 +13,7 @@ import {
   AlertTriangle, CheckCircle, PlayCircle, PauseCircle, BookOpen, Save,
   Search, ImageIcon, Download, Copy, Check, Code2, FileCode2,
   CloudUpload, Package, Hash, Database, Star, Info,
-  RefreshCw, Pencil, Trash2, Film, Music,
+  RefreshCw, Pencil, Trash2, Film, Music, Share2, Mic2,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import BrowserView from '@/components/builder/BrowserView.jsx';
@@ -3287,12 +3287,14 @@ const BuilderPage = () => {
           </div>
 
           {/* Resource tabs */}
-          <div className="flex border-b border-white/6 shrink-0 p-1 gap-0.5">
+          <div className="grid grid-cols-3 border-b border-white/6 shrink-0 p-1 gap-0.5">
             {[
-              { id: 'blueprints', label: 'Blueprints', icon: Grid3x3 },
-              { id: 'tools',      label: 'Tools',      icon: Layers },
-              { id: 'files',      label: 'Apps',       icon: FolderOpen },
-              { id: 'deploy',     label: 'Deploy',     icon: CloudUpload },
+              { id: 'blueprints', label: 'BPs',    icon: Grid3x3 },
+              { id: 'tools',      label: 'Tools',  icon: Layers },
+              { id: 'files',      label: 'Apps',   icon: FolderOpen },
+              { id: 'deploy',     label: 'Deploy', icon: CloudUpload },
+              { id: 'social',     label: 'Social', icon: Share2 },
+              { id: 'media',      label: 'Media',  icon: Film },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -3408,6 +3410,89 @@ const BuilderPage = () => {
                 <div className="p-3 pt-1">
                   <button onClick={() => navigate('/marketplace')} className="w-full py-2 px-3 text-xs font-semibold text-primary bg-primary/8 hover:bg-primary/15 border border-primary/18 rounded-lg transition-colors">
                     Browse Full Marketplace →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── SOCIAL HUB ── */}
+            {rightPanel === 'social' && (
+              <div className="py-2">
+                <div className="px-3 py-2">
+                  <p className="text-[10px] text-white/35 font-mono leading-relaxed mb-3">
+                    Connect social platforms so ASH can automate content across them.
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5 mb-3">
+                    {[
+                      { name: 'TikTok', icon: '🎵', key: 'TIKTOK_ACCESS_TOKEN' },
+                      { name: 'Instagram', icon: '📸', key: 'INSTAGRAM_ACCESS_TOKEN' },
+                      { name: 'YouTube', icon: '▶️', key: 'YOUTUBE_API_KEY' },
+                      { name: 'X / Twitter', icon: '✖️', key: 'TWITTER_BEARER_TOKEN' },
+                      { name: 'LinkedIn', icon: '💼', key: 'LINKEDIN_ACCESS_TOKEN' },
+                      { name: 'Snapchat', icon: '👻', key: 'SNAPCHAT_ACCESS_TOKEN' },
+                      { name: 'Facebook', icon: '👥', key: 'FACEBOOK_PAGE_TOKEN' },
+                    ].map(p => {
+                      const connected = !!storedCredKeys[p.key];
+                      return (
+                        <div key={p.name} className={`flex items-center gap-2 px-2 py-2 rounded-lg border transition-all ${
+                          connected
+                            ? 'border-emerald-500/20 bg-emerald-500/5'
+                            : 'border-white/8 bg-white/2'
+                        }`}>
+                          <span className="text-sm shrink-0">{p.icon}</span>
+                          <span className="text-[10px] font-mono text-white/50 truncate flex-1">{p.name}</span>
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? 'bg-emerald-400' : 'bg-white/15'}`} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={() => navigate('/social-accounts')}
+                    className="w-full py-2 text-[10px] font-mono text-violet-400/65 hover:text-violet-300 bg-violet-500/6 hover:bg-violet-500/12 border border-violet-500/18 rounded-lg transition-all"
+                  >
+                    Manage Social Accounts →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── MEDIA LAB ── */}
+            {rightPanel === 'media' && (
+              <div className="py-2">
+                <div className="px-3 py-2">
+                  <p className="text-[10px] text-white/35 font-mono leading-relaxed mb-3">
+                    ASH uses these during builds. Image gen runs on your OpenRouter key — no extra setup needed.
+                  </p>
+                  <div className="space-y-1.5 mb-3">
+                    {[
+                      { icon: ImageIcon, label: 'Image Generation', desc: 'DALL-E 3 via OpenRouter', key: 'OPENROUTER_API_KEY', color: 'text-pink-400', activeBg: 'border-pink-500/20 bg-pink-500/5' },
+                      { icon: Film, label: 'Video Generation', desc: 'HEYGEN_API_KEY required', key: 'HEYGEN_API_KEY', color: 'text-violet-400', activeBg: 'border-violet-500/20 bg-violet-500/5' },
+                      { icon: Music, label: 'Music Generation', desc: 'ELEVENLABS_API_KEY required', key: 'ELEVENLABS_API_KEY', color: 'text-emerald-400', activeBg: 'border-emerald-500/20 bg-emerald-500/5' },
+                      { icon: Mic2, label: 'Text-to-Speech', desc: 'ELEVENLABS_API_KEY required', key: 'ELEVENLABS_API_KEY', color: 'text-sky-400', activeBg: 'border-sky-500/20 bg-sky-500/5' },
+                    ].map((item, i) => {
+                      const available = !!storedCredKeys[item.key];
+                      return (
+                        <div key={i} className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg border transition-all ${available ? item.activeBg : 'border-white/6 bg-white/2'}`}>
+                          <item.icon className={`w-4 h-4 ${item.color} shrink-0`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-mono text-white/62 font-bold">{item.label}</p>
+                            <p className="text-[9px] font-mono text-white/30 truncate">{item.desc}</p>
+                          </div>
+                          <span className={`text-[9px] font-mono shrink-0 font-bold ${available ? 'text-emerald-400' : 'text-white/22'}`}>
+                            {available ? '✓' : '○'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[9px] font-mono text-white/22 mb-2 leading-relaxed">
+                    ASH will call these tools automatically when your build plan requires them.
+                  </p>
+                  <button
+                    onClick={() => navigate('/connections')}
+                    className="w-full py-2 text-[10px] font-mono text-amber-400/65 hover:text-amber-300 bg-amber-500/6 hover:bg-amber-500/12 border border-amber-500/18 rounded-lg transition-all"
+                  >
+                    Connect API Keys →
                   </button>
                 </div>
               </div>

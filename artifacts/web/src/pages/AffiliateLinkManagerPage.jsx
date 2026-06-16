@@ -1,8 +1,8 @@
-import { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '@/contexts/AuthContext';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import VideoBackground from '@/components/layout/VideoBackground';
+import { useState, useEffect } from 'react';
+
+import Header from '@/components/Header.jsx';
+import Footer from '@/components/Footer.jsx';
+import VideoBackground from '@/components/VideoBackground.jsx';
 import {
   Link2, Plus, Copy, Check, ExternalLink, Trash2, Edit2, BarChart3,
   Tag, Globe, AlertCircle, RefreshCw, Search, Filter, TrendingUp, Zap
@@ -10,12 +10,16 @@ import {
 
 const API = '/api';
 
-function useApi(token) {
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const get = (url) => fetch(`${API}${url}`, { headers }).then(r => r.json());
-  const post = (url, body) => fetch(`${API}${url}`, { method: 'POST', headers, body: JSON.stringify(body) }).then(r => r.json());
-  const patch = (url, body) => fetch(`${API}${url}`, { method: 'PATCH', headers, body: JSON.stringify(body) }).then(r => r.json());
-  const del = (url) => fetch(`${API}${url}`, { method: 'DELETE', headers });
+function getAuthHeaders() {
+  const token = localStorage.getItem('sbep_auth_token');
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+function useApi() {
+  const get = (url) => fetch(`${API}${url}`, { headers: getAuthHeaders() }).then(r => r.json());
+  const post = (url, body) => fetch(`${API}${url}`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) }).then(r => r.json());
+  const patch = (url, body) => fetch(`${API}${url}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(body) }).then(r => r.json());
+  const del = (url) => fetch(`${API}${url}`, { method: 'DELETE', headers: getAuthHeaders() });
   return { get, post, patch, del };
 }
 
@@ -82,7 +86,7 @@ function LinkCard({ link, onDelete, onEdit, copied, onCopy }) {
   );
 }
 
-function LinkModal({ link, token, onClose, onSave }) {
+function LinkModal({ link, onClose, onSave }) {
   const isEdit = !!link;
   const [form, setForm] = useState({
     name: link?.name ?? '',
@@ -94,7 +98,7 @@ function LinkModal({ link, token, onClose, onSave }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const api = useApi(token);
+  const api = useApi();
 
   async function submit(e) {
     e.preventDefault();
@@ -172,8 +176,7 @@ function LinkModal({ link, token, onClose, onSave }) {
 }
 
 export default function AffiliateLinkManagerPage() {
-  const { token } = useContext(AuthContext);
-  const api = useApi(token);
+  const api = useApi();
 
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -295,7 +298,7 @@ export default function AffiliateLinkManagerPage() {
       {showModal && (
         <LinkModal
           link={editLink}
-          token={token}
+          
           onClose={() => { setShowModal(false); setEditLink(null); }}
           onSave={result => {
             if (editLink) setLinks(ls => ls.map(l => l.id === result.id ? result : l));

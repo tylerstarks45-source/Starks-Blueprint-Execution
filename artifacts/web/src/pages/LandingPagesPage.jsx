@@ -1,9 +1,9 @@
-import { useState, useEffect, useContext, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthContext } from '@/contexts/AuthContext';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import VideoBackground from '@/components/layout/VideoBackground';
+
+import Header from '@/components/Header.jsx';
+import Footer from '@/components/Footer.jsx';
+import VideoBackground from '@/components/VideoBackground.jsx';
 import {
   Globe, Plus, Eye, Edit2, Trash2, ExternalLink, Copy, Check, ChevronRight,
   LayoutTemplate, Sparkles, Share2, TrendingUp, MoreHorizontal, AlertCircle,
@@ -12,12 +12,16 @@ import {
 
 const API = '/api';
 
-function useApi(token) {
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const get = (url) => fetch(`${API}${url}`, { headers }).then(r => r.json());
-  const post = (url, body) => fetch(`${API}${url}`, { method: 'POST', headers, body: JSON.stringify(body) }).then(r => r.json());
-  const patch = (url, body) => fetch(`${API}${url}`, { method: 'PATCH', headers, body: JSON.stringify(body) }).then(r => r.json());
-  const del = (url) => fetch(`${API}${url}`, { method: 'DELETE', headers });
+function getAuthHeaders() {
+  const token = localStorage.getItem('sbep_auth_token');
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+function useApi() {
+  const get = (url) => fetch(`${API}${url}`, { headers: getAuthHeaders() }).then(r => r.json());
+  const post = (url, body) => fetch(`${API}${url}`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) }).then(r => r.json());
+  const patch = (url, body) => fetch(`${API}${url}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(body) }).then(r => r.json());
+  const del = (url) => fetch(`${API}${url}`, { method: 'DELETE', headers: getAuthHeaders() });
   return { get, post, patch, del };
 }
 
@@ -115,11 +119,11 @@ function PageCard({ page, onEdit, onDelete, onPublishToggle, onPreview, copied, 
   );
 }
 
-function CreateModal({ token, onClose, onCreate }) {
+function CreateModal({ onClose, onCreate }) {
   const [form, setForm] = useState({ title: '', description: '', slug: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const api = useApi(token);
+  const api = useApi();
 
   async function submit(e) {
     e.preventDefault();
@@ -177,11 +181,11 @@ function CreateModal({ token, onClose, onCreate }) {
   );
 }
 
-function GenerateModal({ page, token, onClose, onGenerated }) {
+function GenerateModal({ page, onClose, onGenerated }) {
   const [form, setForm] = useState({ prompt: '', pageType: 'affiliate', affiliateLinks: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const api = useApi(token);
+  const api = useApi();
 
   async function submit(e) {
     e.preventDefault();
@@ -284,9 +288,8 @@ function PreviewModal({ page, onClose }) {
 }
 
 export default function LandingPagesPage() {
-  const { token } = useContext(AuthContext);
   const navigate = useNavigate();
-  const api = useApi(token);
+  const api = useApi();
 
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -419,8 +422,8 @@ export default function LandingPagesPage() {
       </main>
       <Footer />
 
-      {showCreate && <CreateModal token={token} onClose={() => setShowCreate(false)} onCreate={p => { setPages(ps => [p, ...ps]); setShowCreate(false); setGeneratePage(p); }} />}
-      {generatePage && <GenerateModal page={generatePage} token={token} onClose={() => setGeneratePage(null)} onGenerated={p => { setPages(ps => ps.map(x => x.id === p.id ? p : x)); setGeneratePage(null); }} />}
+      {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreate={p => { setPages(ps => [p, ...ps]); setShowCreate(false); setGeneratePage(p); }} />}
+      {generatePage && <GenerateModal page={generatePage} onClose={() => setGeneratePage(null)} onGenerated={p => { setPages(ps => ps.map(x => x.id === p.id ? p : x)); setGeneratePage(null); }} />}
       {previewPage && <PreviewModal page={previewPage} onClose={() => setPreviewPage(null)} />}
     </VideoBackground>
   );

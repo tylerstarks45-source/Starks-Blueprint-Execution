@@ -1,8 +1,8 @@
-import { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '@/contexts/AuthContext';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import VideoBackground from '@/components/layout/VideoBackground';
+import { useState, useEffect } from 'react';
+
+import Header from '@/components/Header.jsx';
+import Footer from '@/components/Footer.jsx';
+import VideoBackground from '@/components/VideoBackground.jsx';
 import {
   Mail, Users, Plus, Trash2, Edit2, ChevronRight, ChevronDown,
   Upload, Download, Sparkles, AlertCircle, RefreshCw, Search,
@@ -11,12 +11,16 @@ import {
 
 const API = '/api';
 
-function useApi(token) {
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const get = (url) => fetch(`${API}${url}`, { headers }).then(r => r.json());
-  const post = (url, body) => fetch(`${API}${url}`, { method: 'POST', headers, body: JSON.stringify(body) }).then(r => r.json());
-  const patch = (url, body) => fetch(`${API}${url}`, { method: 'PATCH', headers, body: JSON.stringify(body) }).then(r => r.json());
-  const del = (url) => fetch(`${API}${url}`, { method: 'DELETE', headers });
+function getAuthHeaders() {
+  const token = localStorage.getItem('sbep_auth_token');
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+function useApi() {
+  const get = (url) => fetch(`${API}${url}`, { headers: getAuthHeaders() }).then(r => r.json());
+  const post = (url, body) => fetch(`${API}${url}`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) }).then(r => r.json());
+  const patch = (url, body) => fetch(`${API}${url}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(body) }).then(r => r.json());
+  const del = (url) => fetch(`${API}${url}`, { method: 'DELETE', headers: getAuthHeaders() });
   return { get, post, patch, del };
 }
 
@@ -160,7 +164,7 @@ function ListCard({ list, isOpen, onToggle, onDelete, onAddSubscriber, subscribe
 }
 
 // ── Sequence Card ─────────────────────────────────────────────────────────────
-function SequenceCard({ seq, token, api, onDelete }) {
+function SequenceCard({ seq, api, onDelete }) {
   const [steps, setSteps] = useState(null);
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -279,8 +283,7 @@ function SequenceCard({ seq, token, api, onDelete }) {
 }
 
 export default function EmailMarketingPage() {
-  const { token } = useContext(AuthContext);
-  const api = useApi(token);
+  const api = useApi();
 
   const [tab, setTab] = useState('lists');
   const [lists, setLists] = useState([]);
@@ -487,7 +490,7 @@ export default function EmailMarketingPage() {
                 </button>
               </div>
             ) : (
-              sequences.map(seq => <SequenceCard key={seq.id} seq={seq} token={token} api={api} onDelete={deleteSeq} />)
+              sequences.map(seq => <SequenceCard key={seq.id} seq={seq} api={api} onDelete={deleteSeq} />)
             )}
           </div>
         )}

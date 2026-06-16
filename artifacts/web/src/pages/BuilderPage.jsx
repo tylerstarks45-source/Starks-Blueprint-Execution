@@ -579,7 +579,7 @@ const CodeFileCard = ({ data }) => {
 };
 
 // ─── Message Bubble ───────────────────────────────────────────────────────────
-const MessageBubble = ({ msg }) => {
+const MessageBubble = ({ msg, onConfirmPlan }) => {
   const isUser = msg.role === 'user';
 
   // Generated files card
@@ -656,6 +656,17 @@ const MessageBubble = ({ msg }) => {
           })}
           {msg.streaming && (
             <span className="inline-block w-0.5 h-[1em] bg-violet-400/80 animate-pulse ml-0.5 align-middle rounded-sm" />
+          )}
+          {msg.missingPlan && onConfirmPlan && (
+            <div className="mt-3 pt-3 border-t border-violet-500/20">
+              <button
+                onClick={onConfirmPlan}
+                className="flex items-center gap-1.5 text-xs font-semibold text-violet-300 hover:text-violet-100 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/25 rounded-lg px-3 py-1.5 transition-colors"
+              >
+                <span>Confirm this plan</span>
+                <span className="text-violet-400">→</span>
+              </button>
+            </div>
           )}
         </div>
         <span className="text-[10px] text-muted-foreground/30 px-1">
@@ -1695,7 +1706,13 @@ const BuilderPage = () => {
           } else if (event.type === 'done') {
             doneData = event;
             const finalContent = event.content ?? fullStreamContent.replace(/<SBEP_DATA>[\s\S]*/g, '').trim();
-            setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: finalContent, streaming: false } : m));
+            const upperContent = finalContent.toUpperCase();
+            const missingPlan = !event.structuredData && (
+              upperContent.includes('BUILD PLAN') ||
+              upperContent.includes('SYSTEM ANALYSIS') ||
+              (upperContent.includes('BLUEPRINT') && upperContent.includes('STEP'))
+            );
+            setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: finalContent, streaming: false, missingPlan: missingPlan || undefined } : m));
             setThinkingSteps([]);
             setThinkingCurrentIdx(-1);
           } else if (event.type === 'end') {
@@ -2640,7 +2657,10 @@ const BuilderPage = () => {
               const cp = checkpointByMsgCount[idx + 1];
               return (
                 <React.Fragment key={m.id}>
-                  <MessageBubble msg={m} />
+                  <MessageBubble
+                    msg={m}
+                    onConfirmPlan={m.missingPlan ? () => sendMessage('Please output the SBEP_DATA plan block for the system you just described. Include action, blueprint, systemName, buildSteps, and requiredCredentials.') : undefined}
+                  />
                   {cp && <CheckpointMarker cp={cp} onRestore={() => restoreCheckpoint(cp)} />}
                 </React.Fragment>
               );

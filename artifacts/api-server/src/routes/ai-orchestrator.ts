@@ -24,6 +24,48 @@ import { z } from "zod";
 
 const router: IRouter = Router();
 
+// ─── Plan-recovery helpers ────────────────────────────────────────────────────
+
+/**
+ * Returns true when an AI response looks like a build-plan description but
+ * is missing the machine-readable <SBEP_DATA> block.
+ */
+function isPlanWithoutData(content: string, structuredData: Record<string, unknown> | null): boolean {
+  if (structuredData !== null) return false;
+  const upper = content.toUpperCase();
+  return (
+    upper.includes("BUILD PLAN") ||
+    upper.includes("SYSTEM ANALYSIS") ||
+    (upper.includes("BLUEPRINT") && upper.includes("STEP"))
+  );
+}
+
+/**
+ * Makes a short follow-up completion to extract the SBEP_DATA block that the
+ * primary response forgot to include.  Returns null on any failure so callers
+ * can treat it as a non-fatal no-op.
+ */
+async function recoverSbepData(planText: string, userId: number): Promise<Record<string, unknown> | null> {
+  try {
+    const followUp = await complete({
+      systemPrompt:
+        "You are a JSON extractor. Output ONLY the raw JSON object — no prose, no markdown fences, no SBEP_DATA wrapper tags.",
+      prompt:
+        `You previously described a build plan but forgot to include the SBEP_DATA block.\n\nHere is what you wrote:\n\n${planText.slice(0, 3000)}\n\nNow output ONLY the JSON object for that plan. It must have "action": "present_plan" and include blueprint (with slug/name/description/category), systemName, buildSteps (array of strings), and requiredCredentials (array of {key, label, description}).`,
+      model: "openai/gpt-4o-mini",
+      userId,
+    });
+    const raw = followUp.content.trim();
+    const dataTagMatch = raw.match(/<SBEP_DATA>([\s\S]*?)<\/SBEP_DATA>/);
+    const jsonMatch = dataTagMatch
+      ? dataTagMatch[1].trim()
+      : (raw.match(/\{[\s\S]*\}/) ?? [raw])[0];
+    return JSON.parse(jsonMatch);
+  } catch {
+    return null;
+  }
+}
+
 // ─── Skill Engine ─────────────────────────────────────────────────────────────
 
 async function detectAndActivateSkills(
@@ -458,6 +500,22 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       } catch { /* ignored */ }
     }
 
+    // Recovery: if the response looks like a build plan but is missing the
+    // SBEP_DATA block, make one short follow-up call to extract it.
+    if (isPlanWithoutData(displayContent, structuredData)) {
+      req.log.warn({ model }, "Build plan response missing SBEP_DATA — attempting recovery");
+      const recovered = await recoverSbepData(displayContent, userId);
+      if (recovered) {
+        structuredData = recovered;
+        if (Array.isArray((structuredData as Record<string, unknown>).requiredCredentials)) {
+          (structuredData as Record<string, unknown>).requiredCredentials =
+            (structuredData.requiredCredentials as { key?: string }[])
+              .filter((c) => !(c.key && storedKeys.includes(c.key)));
+        }
+        req.log.info({ action: (structuredData as Record<string, unknown>).action }, "SBEP_DATA recovered successfully");
+      }
+    }
+
     res.json({ content: displayContent, structuredData, tokens: result.totalTokens, activatedSkills });
   } catch (err) {
     const message = err instanceof Error ? err.message : "STARK request failed";
@@ -794,6 +852,23 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
               .filter((c) => !(c.key && storedKeys.includes(c.key)));
         }
       } catch { /* ignored */ }
+    }
+
+    // Recovery: if the response looks like a build plan but is missing the
+    // SBEP_DATA block, make one short follow-up call to extract it.
+    if (isPlanWithoutData(displayContent, structuredData)) {
+      req.log.warn({ model }, "Stream: build plan response missing SBEP_DATA — attempting recovery");
+      send({ type: "thinking", steps: [{ label: "Extracting plan data…", reasoning: "The plan was generated but the structured data block was missing. Recovering it now." }], index: 0 });
+      const recovered = await recoverSbepData(displayContent, userId);
+      if (recovered) {
+        structuredData = recovered;
+        if (Array.isArray((structuredData as Record<string, unknown>).requiredCredentials)) {
+          (structuredData as Record<string, unknown>).requiredCredentials =
+            (structuredData.requiredCredentials as { key?: string }[])
+              .filter((c) => !(c.key && storedKeys.includes(c.key)));
+        }
+        req.log.info({ action: (structuredData as Record<string, unknown>).action }, "Stream: SBEP_DATA recovered successfully");
+      }
     }
 
     send({ type: "done", content: displayContent, structuredData, activatedSkills });

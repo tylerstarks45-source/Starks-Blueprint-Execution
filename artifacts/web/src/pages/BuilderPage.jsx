@@ -868,14 +868,28 @@ const CheckpointMarker = ({ cp, onRestore }) => {
 };
 
 // ─── Build Terminal ───────────────────────────────────────────────────────────
-const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
+const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, phase }) => {
   const bottomRef = useRef(null);
   const navigate = useNavigate();
   const isComplete = currentIdx >= steps.length && steps.length > 0 && phase === 'complete';
+  const [flashTotal, setFlashTotal] = useState(false);
+  const prevTotalRef = useRef(0);
+
+  const totalRevenueCents = Object.values(revenues).reduce((sum, v) => sum + (v ?? 0), 0);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [outputs, currentIdx, isComplete]);
+
+  useEffect(() => {
+    if (totalRevenueCents > prevTotalRef.current) {
+      setFlashTotal(true);
+      const t = setTimeout(() => setFlashTotal(false), 1200);
+      prevTotalRef.current = totalRevenueCents;
+      return () => clearTimeout(t);
+    }
+    prevTotalRef.current = totalRevenueCents;
+  }, [totalRevenueCents]);
 
   return (
     <div className="flex flex-col h-full bg-black/90 rounded-xl border border-white/10 overflow-hidden font-mono">
@@ -890,7 +904,21 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
           <Terminal className="w-3 h-3" />
           ASH Build Engine · Autonomous Mode
         </span>
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-3">
+          {totalRevenueCents > 0 && (
+            <motion.div
+              animate={flashTotal ? { scale: [1, 1.18, 1], opacity: [1, 1, 1] } : {}}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-bold transition-all ${
+                flashTotal
+                  ? 'bg-emerald-500/30 border-emerald-400/60 text-emerald-300 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
+                  : 'bg-emerald-500/12 border-emerald-500/25 text-emerald-400'
+              }`}
+            >
+              <DollarSign className="w-2.5 h-2.5" />
+              Total earned: ${(totalRevenueCents / 100).toFixed(2)}
+            </motion.div>
+          )}
           {phase === 'building' ? (
             <>
               <Activity className="w-3 h-3 text-emerald-400 animate-pulse" />
@@ -1003,6 +1031,27 @@ const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase }) => {
                     className="ml-6 pl-3 border-l-2 border-white/8 text-muted-foreground/60 leading-relaxed py-0.5"
                   >
                     <TypedText text={outputs[step.id]} speed={12} />
+                  </motion.div>
+                )}
+
+                {/* Revenue badge */}
+                {revenues[step.id] > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -6, scale: 0.85 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className="ml-6 mt-0.5 mb-0.5"
+                  >
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                      <DollarSign className="w-2.5 h-2.5" />
+                      ${(revenues[step.id] / 100).toFixed(2)} earned
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: [0, 1, 0] }}
+                        transition={{ duration: 0.8, delay: 0.1 }}
+                        className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"
+                      />
+                    </span>
                   </motion.div>
                 )}
               </React.Fragment>
@@ -1204,6 +1253,7 @@ const BuilderPage = () => {
   // Build execution
   const [buildData, setBuildData] = useState(null);
   const [stepOutputs, setStepOutputs] = useState({});
+  const [stepRevenues, setStepRevenues] = useState({});
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [stepExecuting, setStepExecuting] = useState(false);
 
@@ -1557,6 +1607,9 @@ const BuilderPage = () => {
         }
         const data = resp.ok ? await resp.json() : { output: `Completed: ${step.notes}` };
         setStepOutputs(prev => ({ ...prev, [step.id]: data.output ?? `Completed: ${step.notes}` }));
+        if (data.revenueCents > 0) {
+          setStepRevenues(prev => ({ ...prev, [step.id]: data.revenueCents }));
+        }
         setCurrentStepIdx(i => i + 1);
       } catch {
         setStepOutputs(prev => ({ ...prev, [step.id]: `Completed: ${step.notes}` }));
@@ -1603,6 +1656,7 @@ const BuilderPage = () => {
       });
       setCurrentStepIdx(0);
       setStepOutputs({});
+      setStepRevenues({});
       setPhase('building');
       setMessages(prev => [...prev, {
         id: Date.now() + 2,
@@ -2886,6 +2940,7 @@ const BuilderPage = () => {
               <BuildTerminal
                 steps={buildData?.steps ?? []}
                 outputs={stepOutputs}
+                revenues={stepRevenues}
                 currentIdx={currentStepIdx}
                 instanceId={buildData?.instanceId}
                 phase={phase}

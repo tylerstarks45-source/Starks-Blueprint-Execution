@@ -66,6 +66,7 @@ function userResponse(user: typeof usersTable.$inferSelect) {
     membershipStatus: user.membershipStatus,
     membershipTier: user.membershipTier,
     creditsBalance: user.creditsBalance ?? 0,
+    walletBalance: user.walletBalance ?? 0,
     createdAt: user.createdAt,
   };
 }

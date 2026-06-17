@@ -1859,6 +1859,7 @@ const BuilderPage = () => {
           }),
         });
         if (resp.status === 402) {
+          window.dispatchEvent(new CustomEvent('sbep:out-of-credits', { detail: { code: 'out_of_credits' } }));
           setError('Out of AI credits. Top up to continue building.');
           setPhase('idle');
           return;
@@ -1937,6 +1938,17 @@ const BuilderPage = () => {
   const sendMessage = useCallback(async (text) => {
     const msg = (text ?? input).trim();
     if (!msg || chatLoading) return;
+
+    // Proactive block: show the credits modal immediately before any API call
+    // Admins (isFounderAdmin) bypass this check so testing is never blocked
+    if (!isFounderAdmin) {
+      const totalCredits = (currentUser?.creditsBalance ?? 0) + (currentUser?.walletBalance ?? 0);
+      if (totalCredits <= 0) {
+        window.dispatchEvent(new CustomEvent('sbep:out-of-credits', { detail: { code: 'out_of_credits' } }));
+        return;
+      }
+    }
+
     setInput('');
     setError('');
 
@@ -1960,7 +1972,11 @@ const BuilderPage = () => {
         body: JSON.stringify({ message: msg, history, agentMode: aiMode, businessType, revenueGoal, planMode: isPlanMode }),
       });
 
-      if (resp.status === 402) { setError('Out of AI credits. Top up to continue.'); return; }
+      if (resp.status === 402) {
+        window.dispatchEvent(new CustomEvent('sbep:out-of-credits', { detail: { code: 'out_of_credits' } }));
+        setError('Out of AI credits. Top up to continue.');
+        return;
+      }
       if (!resp.ok) throw new Error('ASH request failed');
 
       // Add streaming placeholder message

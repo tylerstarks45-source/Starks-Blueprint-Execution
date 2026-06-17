@@ -24,17 +24,25 @@ export const AuthProvider = ({ children }) => {
   const updateReactState = useCallback((model) => {
     if (model) {
       const role = model.role || localStorage.getItem('userRole') || 'USER';
+      const creditsBalance = model.creditsBalance ?? 0;
+      const walletBalance = model.walletBalance ?? 0;
       setCurrentUser({
         id: model.id,
         email: model.email,
         name: model.name || model.email?.split('@')[0] || '',
         role: role,
         membershipTier: model.membershipTier || model.membership_tier || 'free',
-        creditsBalance: model.creditsBalance ?? 0,
+        creditsBalance,
+        walletBalance,
       });
       setCurrentUserRole(role);
       setIsAuthenticated(true);
       localStorage.setItem('userRole', role);
+      // Fire out-of-credits event for everyone when total balance hits zero
+      // (admins can dismiss the modal; regular users get hard-blocked by the modal)
+      if (creditsBalance + walletBalance <= 0) {
+        window.dispatchEvent(new CustomEvent('sbep:out-of-credits', { detail: { code: 'out_of_credits' } }));
+      }
     } else {
       setCurrentUser(null);
       setCurrentUserRole(null);
@@ -111,6 +119,27 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const refreshCredits = useCallback(async () => {
+    const token = localStorage.getItem('sbep_auth_token');
+    if (!token) return;
+    try {
+      const res = await fetch('/api/credits/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const creditsBalance = data.balance ?? 0;
+      const walletBalance = data.walletBalance ?? 0;
+      setCurrentUser(prev => {
+        if (!prev) return prev;
+        return { ...prev, creditsBalance, walletBalance };
+      });
+      if (creditsBalance + walletBalance <= 0) {
+        window.dispatchEvent(new CustomEvent('sbep:out-of-credits', { detail: { code: 'out_of_credits' } }));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   const value = useMemo(() => ({
     currentUser,
     currentUserRole,
@@ -119,8 +148,9 @@ export const AuthProvider = ({ children }) => {
     login,
     signup,
     logout,
-    resetPassword
-  }), [currentUser, currentUserRole, isAuthenticated, isLoading, login, signup, logout, resetPassword]);
+    resetPassword,
+    refreshCredits,
+  }), [currentUser, currentUserRole, isAuthenticated, isLoading, login, signup, logout, resetPassword, refreshCredits]);
 
   return (
     <AuthContext.Provider value={value}>

@@ -7,7 +7,7 @@
 - [BuilderPage 3-panel layout](builder-3panel-layout.md) — Replit-style layout: LEFT tasks+agent modes, CENTER chat+terminal, RIGHT library; file truncation fix for large edit replacements.
 - [Runtime job worker raw SQL](runtime-job-worker.md) — pool.query() returns snake_case columns; always mapRow() snake→camelCase. complete() takes {prompt,model?,systemPrompt?} not a messages array. Startup must call resetOrphanedJobs() before polling.
 - [ASH Planning Phase](ash-planning-phase.md) — 3-phase build flow: present_plan → collect_credentials → start_build; planning phase uses violet theme.
-- [Browser Agent Architecture](browser-agent.md) — ASH browser control: fetch+cheerio (no chromium), SSE via fetch ReadableStream, browser_use SBEP action, CompletionResult.content not .text.
+- [Browser Agent Architecture](browser-agent.md) — ASH browser control: Playwright+system Chromium (pkgs.chromium Nix), PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH env var required, SSE stream, CompletionResult.content not .text.
 - [ASH auto-tool SSE pattern](ash-auto-tool-sse.md) — stream endpoint detects search/image keywords, runs tools in parallel with AI, sends tool_result SSE before first token; frontend inserts result card before streaming placeholder.
 - [Notification ID key collisions](notification-id-keys.md) — notification ids are timestamp-based and can collide; key React lists with `${n.id}-${i}`, not `n.id` alone.
 - [Frontend auth token pattern](frontend-auth-token.md) — never use AuthContext.token (doesn't exist); always read localStorage.getItem('sbep_auth_token') directly in fetch helpers.

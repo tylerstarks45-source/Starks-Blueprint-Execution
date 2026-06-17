@@ -1,17 +1,23 @@
 ---
 name: Browser Agent Architecture
-description: ASH browser control — fetch+cheerio AI loop, SSE streaming, BrowserView UI
+description: ASH browser control — Playwright+Chromium via system Nix package, SSE streaming, BrowserView UI
 ---
 
-## Browser agent — no chromium needed
+## Browser agent — system Chromium (Nix)
 
-Chromium binary download timed out in sandbox (~180MB). Use native `fetch` (Node 24 global) + `cheerio` for all web browsing — works in dev and production.
+Chromium is installed via `pkgs.chromium` in `replit.nix` and pointed to by `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` env var.
+All `npx playwright install` downloads are unnecessary and will timeout. The binary is at the Nix store path set in the env var.
 
-**CRITICAL:** Do NOT switch this back to Playwright. The browser binary is not installed and `npx playwright install` will fail/timeout in the Replit sandbox. Any rewrite that imports from `playwright` will break with "Executable doesn't exist".
+**Current approach:** Playwright with system Chromium — full JS execution, real browser, works with Gmail/Google/SPA apps.
+
+**Why Playwright over fetch+cheerio:** fetch+cheerio cannot execute JS, so modern SPA apps (Gmail, Google dashboards, React/Vue apps) render blank. Playwright runs a real browser for full fidelity. RAM usage ~300-500MB per session.
+
+**PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH** must be set in environment secrets to the Nix store path of the installed chromium binary.
+If this env var is missing on restart, Playwright will look for its downloaded binary (which doesn't exist) and fail with "Executable doesn't exist".
 
 **Files:**
-- `artifacts/api-server/src/lib/browser/crawler.ts` — fetchPage(), submitForm() using fetch+cheerio
-- `artifacts/api-server/src/lib/browser/agent.ts` — async generator, AI loop (max 8 steps), streams BrowserEvent objects
+- `artifacts/api-server/src/lib/browser/crawler.ts` — fetchPage(), submitForm(), createBrowserContext() using Playwright+Chromium
+- `artifacts/api-server/src/lib/browser/agent.ts` — async generator AI loop (max 15 steps), streams BrowserEvent objects; uses getPageData(), executeAction()
 - `artifacts/api-server/src/routes/browser-agent.ts` — POST /api/browser-agent/run (SSE stream)
 - `artifacts/web/src/components/builder/BrowserView.jsx` — browser-chrome UI, iframe+action log
 
@@ -26,4 +32,4 @@ SBEP_DATA: `{ "action": "browser_use", "task": "...", "startUrl": "https://..." 
 BuilderPage: sets `activeBrowser` state → renders BrowserView inline in chat area.  
 BrowserView `onResult` callback posts result back as assistant message.
 
-**Why fetch+cheerio:** No binary download, works in any environment, pages with X-Frame-Options show extracted text content, iframe shows real page where CORS allows.
+**Why:** Full browser execution needed for modern web automation (Gmail, Google, any SPA). RAM tradeoff is acceptable in dev; for production scale consider a cloud browser service.

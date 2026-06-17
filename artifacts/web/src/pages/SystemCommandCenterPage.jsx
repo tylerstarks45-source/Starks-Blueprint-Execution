@@ -10,13 +10,12 @@ import {
   Rocket, Settings, ArrowUpRight, Layers,
   Globe, Key, Database, ShieldCheck,
   Crown, Radio, Signal, Share2, Film,
-  LayoutDashboard, Camera, Bell,
 } from 'lucide-react';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
-  PieChart, Pie, Cell,
   ResponsiveContainer, Tooltip, XAxis, CartesianGrid,
 } from 'recharts';
+import { Button } from '@/components/ui/button';
 
 const authHeaders = () => {
   const token = localStorage.getItem('sbep_auth_token');
@@ -62,6 +61,54 @@ const buildSystemsData = (systemStats) => {
   }));
 };
 
+const RevenueTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="holo-glass rounded-lg px-3 py-2 text-xs shadow-2xl">
+      <p className="text-white/45 mb-0.5 font-mono uppercase tracking-wider text-[9px]">{label}</p>
+      <p className="text-white font-mono font-bold">{fmt(payload[0]?.value ?? 0)}</p>
+    </div>
+  );
+};
+
+const GenericTooltip = ({ active, payload, label, suffix = '' }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="holo-glass rounded-lg px-3 py-2 text-xs shadow-2xl">
+      <p className="text-white/45 mb-0.5 font-mono uppercase tracking-wider text-[9px]">{label}</p>
+      <p className="text-white font-mono font-bold">{payload[0]?.value ?? 0}{suffix}</p>
+    </div>
+  );
+};
+
+/* ── HUD corner bracket ──────────────────────────────────────────────── */
+const Corner = ({ pos, color }) => {
+  const map = {
+    tl: 'top-2 left-2 border-t-2 border-l-2 rounded-tl-md',
+    tr: 'top-2 right-2 border-t-2 border-r-2 rounded-tr-md',
+    bl: 'bottom-2 left-2 border-b-2 border-l-2 rounded-bl-md',
+    br: 'bottom-2 right-2 border-b-2 border-r-2 rounded-br-md',
+  };
+  return <span className={`absolute w-3 h-3 pointer-events-none z-20 ${map[pos]}`} style={{ borderColor: color }} />;
+};
+
+/* ── Holographic glass panel with HUD brackets ───────────────────────── */
+const HudPanel = ({ children, className = '', accent = 'rgba(56,189,248,0.55)', scan = false, corners = true }) => (
+  <div className={`relative holo-glass rounded-2xl overflow-hidden ${className}`}>
+    {scan && <span className="holo-scanline" />}
+    {corners && (
+      <>
+        <Corner pos="tl" color={accent} />
+        <Corner pos="tr" color={accent} />
+        <Corner pos="bl" color={accent} />
+        <Corner pos="br" color={accent} />
+      </>
+    )}
+    {children}
+  </div>
+);
+
+/* ── Inline SVG sparkline (real data trend) ──────────────────────────── */
 const Sparkline = ({ values, color, height = 30 }) => {
   const rawId = useId();
   const id = rawId.replace(/:/g, '');
@@ -81,7 +128,7 @@ const Sparkline = ({ values, color, height = 30 }) => {
     <svg viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none" className="w-full" style={{ height }}>
       <defs>
         <linearGradient id={`sp-${id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+          <stop offset="0%" stopColor={color} stopOpacity={0.40} />
           <stop offset="100%" stopColor={color} stopOpacity={0} />
         </linearGradient>
       </defs>
@@ -92,6 +139,7 @@ const Sparkline = ({ values, color, height = 30 }) => {
   );
 };
 
+/* ── Radial gauge (credit balance ring) ──────────────────────────────── */
 const RadialGauge = ({ pct, color, size = 88, stroke = 7, children }) => {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
@@ -118,7 +166,21 @@ const StatusDot = ({ status }) => {
     paused:    'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.5)]',
     failed:    'bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.7)]',
   };
-  return <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${map[status] ?? 'bg-zinc-600'}`} />;
+  return (
+    <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${map[status] ?? 'bg-zinc-600'}`} />
+  );
+};
+
+const StatusBadge = ({ buildStatus, healthStatus }) => {
+  if (buildStatus === 'active' || healthStatus === 'healthy' || buildStatus === 'completed')
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 uppercase tracking-wide">Active</span>;
+  if (buildStatus === 'building')
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-500/15 text-blue-400 border border-blue-500/25 uppercase tracking-wide animate-pulse">Building</span>;
+  if (buildStatus === 'paused')
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/25 uppercase tracking-wide">Paused</span>;
+  if (healthStatus === 'unhealthy')
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/15 text-rose-400 border border-rose-500/25 uppercase tracking-wide">Failed</span>;
+  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/5 text-white/40 border border-white/10 uppercase tracking-wide">Pending</span>;
 };
 
 const TOOL_KEY_HINTS = {
@@ -202,9 +264,15 @@ function buildTimeline(systems, notifications) {
 }
 
 const CHART_TABS = [
-  { key: 'revenue',  label: 'Revenue',  color: '#10b981' },
-  { key: 'ai',       label: 'AI',       color: '#8b5cf6' },
-  { key: 'systems',  label: 'Systems',  color: '#38bdf8' },
+  { key: 'revenue',  label: 'Revenue',  color: '#10b981', icon: DollarSign },
+  { key: 'ai',       label: 'AI',       color: '#8b5cf6', icon: Bot },
+  { key: 'systems',  label: 'Systems',  color: '#38bdf8', icon: Server },
+];
+
+const CHART_TYPES = [
+  { key: 'area', label: 'Area', icon: Activity },
+  { key: 'line', label: 'Line', icon: TrendingUp },
+  { key: 'bar',  label: 'Bars', icon: BarChart2 },
 ];
 
 const SystemCommandCenterPage = () => {
@@ -222,6 +290,7 @@ const SystemCommandCenterPage = () => {
   const [controlLoading, setControlLoading] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [chartTab, setChartTab] = useState('revenue');
+  const [chartType, setChartType] = useState('area');
   const [systemRevenue, setSystemRevenue] = useState({});
 
   const user = JSON.parse(localStorage.getItem('sbep_auth_user') || '{}');
@@ -250,22 +319,9 @@ const SystemCommandCenterPage = () => {
         fetch('/api/user-tool-selections', { headers: authHeaders() }),
         fetch('/api/tools', { headers: authHeaders() }),
       ]);
-
-      // Session expired / invalid token → clear stale auth and send to login.
-      if (statsRes.status === 401) {
-        localStorage.removeItem('sbep_auth_token');
-        localStorage.removeItem('sbep_auth_user');
-        localStorage.removeItem('userRole');
-        toast.error('Session expired. Please sign in again.');
-        navigate('/login', { replace: true });
-        return;
-      }
-
-      // Non-auth failures degrade gracefully: render the dashboard with whatever
-      // loaded successfully (the UI uses safe fallbacks for missing data) instead
-      // of replacing the whole page with a blocking error screen.
+      if (!statsRes.ok) throw new Error('Failed to load platform stats');
       const [statsData, revData, credData, credsData, notifsData, selectionsData, toolsData] = await Promise.all([
-        statsRes.ok ? statsRes.json() : null,
+        statsRes.json(),
         revRes.ok ? revRes.json() : null,
         creditsRes.ok ? creditsRes.json() : null,
         credsRes.ok ? credsRes.json() : [],
@@ -290,16 +346,13 @@ const SystemCommandCenterPage = () => {
         toolMap[sel.systemInstanceId].push(tool);
       });
       setToolsBySystem(toolMap);
-      if (!statsRes.ok) setError('Some live data is temporarily unavailable.');
       setLastRefresh(new Date());
     } catch (err) {
-      // Network/transient error — keep the dashboard visible with safe fallbacks.
-      console.warn('Dashboard load issue:', err);
-      setError('Some live data is temporarily unavailable.');
+      setError(err.message || 'Failed to load data');
     } finally {
       setLoading(false);
     }
-  }, [user.id, navigate]);
+  }, [user.id]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -340,13 +393,35 @@ const SystemCommandCenterPage = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#020810 0%,#030b1a 50%,#020810 100%)' }}>
-        <div style={{ textAlign: 'center' }}>
-          <RadialGauge pct={66} color="#38bdf8" size={72} stroke={5}>
-            <Cpu className="w-6 h-6 text-primary" style={{ animation: 'spin 2s linear infinite' }} />
-          </RadialGauge>
-          <p style={{ fontSize: 11, fontFamily: 'Space Mono, monospace', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 16 }}>Initializing Command Center</p>
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <HudPanel className="p-10 text-center" scan accent="rgba(56,189,248,0.6)">
+          <div className="relative inline-flex items-center justify-center mb-4">
+            <RadialGauge pct={66} color="#38bdf8" size={72} stroke={5}>
+              <Cpu className="w-6 h-6 text-primary holo-pulse" />
+            </RadialGauge>
+          </div>
+          <p className="text-sm text-white/55 font-mono tracking-[0.25em] uppercase">Initializing Command Center</p>
+          <div className="flex items-center justify-center gap-1.5 mt-4">
+            {[0,1,2,3].map(i => (
+              <div key={i} className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse" style={{ animationDelay: `${i * 150}ms` }} />
+            ))}
+          </div>
+        </HudPanel>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <HudPanel className="p-10 text-center max-w-sm" accent="rgba(251,113,133,0.6)">
+          <AlertTriangle className="w-8 h-8 text-rose-400 mx-auto mb-3" />
+          <p className="text-base font-semibold text-white">Connection Error</p>
+          <p className="text-sm text-white/60 mt-1 mb-4">{error}</p>
+          <Button size="sm" onClick={load} className="border-white/20 text-white text-xs bg-white/10 hover:bg-white/20">
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Retry
+          </Button>
+        </HudPanel>
       </div>
     );
   }
@@ -354,6 +429,7 @@ const SystemCommandCenterPage = () => {
   const { systemStats, systems = [], aiActivity, toolHealth } = data ?? {};
   const orStatus = toolHealth?.openrouter?.status;
   const timeline = buildTimeline(systems, notifications);
+  const alertNotifs = notifications.filter(n => ['error', 'warning'].includes((n.notificationType || '').toLowerCase()));
 
   const todayCents    = revenue?.todayCents    ?? 0;
   const weekCents     = revenue?.weekCents     ?? 0;
@@ -364,7 +440,7 @@ const SystemCommandCenterPage = () => {
   const aiData      = buildAIData(aiActivity);
   const systemsData = buildSystemsData(systemStats);
 
-  const chartCfg  = CHART_TABS.find(t => t.key === chartTab);
+  const chartCfg = CHART_TABS.find(t => t.key === chartTab);
   const chartData = chartTab === 'revenue' ? dailyData : chartTab === 'ai' ? aiData : systemsData;
   const chartDataKey = chartTab === 'revenue' ? 'cents' : 'val';
 
@@ -376,614 +452,640 @@ const SystemCommandCenterPage = () => {
 
   const credBalance   = credits?.balance ?? 0;
   const credAllotment = credits?.allotment ?? 0;
+  const credUsed      = credAllotment - credBalance;
   const credPct       = credAllotment > 0 ? Math.round((credBalance / credAllotment) * 100) : 100;
 
   const connectedToolCount = ['openrouter', 'stripe', 'resend', 'cloudflare', 'make.com', 'tiktok', 'youtube', 'meta', 'shopify', 'gmail'].filter(
     k => toolConnected(k, storedKeys, orStatus)
   ).length;
 
-  const avgHealthPct = systems.length > 0
-    ? Math.round(systems.reduce((sum, s) => sum + healthPct(s.buildStatus, s.healthStatus), 0) / systems.length)
-    : 100;
-
-  const alertNotifs = notifications.filter(n => ['error', 'warning'].includes((n.notificationType || '').toLowerCase()));
-
-  const revTotal = monthCents || 1;
-  const revPieces = [
-    { name: 'Subscriptions', value: Math.round(revTotal * 0.501), color: '#38bdf8', pct: '50.1%' },
-    { name: 'Usage Based',   value: Math.round(revTotal * 0.271), color: '#8b5cf6', pct: '27.1%' },
-    { name: 'Marketplace',   value: Math.round(revTotal * 0.138), color: '#10b981', pct: '13.8%' },
-    { name: 'Integrations',  value: Math.round(revTotal * 0.09),  color: '#f59e0b', pct:  '9.0%' },
-  ];
-
-  const agentRows = systems.length > 0
-    ? systems.slice(0, 5).map((s) => ({
-        name: s.name.length > 20 ? s.name.slice(0, 20) + '…' : s.name,
-        pct: healthPct(s.buildStatus, s.healthStatus),
-        color: healthPct(s.buildStatus, s.healthStatus) > 80 ? '#10b981' : '#f59e0b',
-      }))
-    : [
-        { name: 'ASH-ALPHA', pct: 98.7, color: '#38bdf8' },
-        { name: 'ASH-BETA',  pct: 97.1, color: '#38bdf8' },
-        { name: 'ASH-GAMMA', pct: 96.3, color: '#38bdf8' },
-        { name: 'ASH-DELTA', pct: 94.8, color: '#38bdf8' },
-        { name: 'ASH-EPS',   pct: 93.2, color: '#38bdf8' },
-      ];
-
-  const SIDEBAR_NAV = [
-    { icon: LayoutDashboard, label: 'Dashboard',    sub: 'Overview & Analytics', path: '/dashboard', active: true },
-    { icon: Bot,             label: 'Builder',       sub: 'AI System Builder',    path: '/builder' },
-    { icon: Brain,           label: 'AI Agents',     sub: 'Autonomous Workforce', path: '/systems' },
-    { icon: Key,             label: 'Connections',   sub: 'Integrations & APIs',  path: '/connections', arrow: true },
-    { icon: Server,          label: 'My Systems',    sub: 'Deployed Systems',     path: '/systems',     arrow: true },
-    { icon: Globe,           label: 'Marketplace',   sub: 'System Exchange',      path: '/marketplace' },
-    { icon: Layers,          label: 'Blueprints',    sub: 'Architect Templates',  path: '/blueprints' },
-    { icon: Share2,          label: 'Social',        sub: 'Network & Signals',    path: '/social-accounts', arrow: true },
-    { icon: Film,            label: 'Pages',         sub: 'Landing Page Builder', path: '/landing-pages', arrow: true },
-    { icon: Coins,           label: 'Aff. Links',    sub: 'Cloaked Link Mgr',     path: '/affiliate-links', arrow: true },
-    { icon: Radio,           label: 'Email',         sub: 'Lists & Sequences',    path: '/email-marketing', arrow: true },
-    { icon: BarChart2,       label: 'Analytics',     sub: 'Deep Intelligence',    path: '#' },
-  ];
-
-  const card = {
-    background: 'rgba(255,255,255,0.035)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 12,
-  };
-
-  const renderChart = () => (
-    <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-      <defs>
-        <linearGradient id="cf" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={chartCfg.color} stopOpacity={0.28} />
-          <stop offset="100%" stopColor={chartCfg.color} stopOpacity={0} />
-        </linearGradient>
-      </defs>
-      <CartesianGrid strokeDasharray="2 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-      <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.28)', fontSize: 8, fontFamily: 'Space Mono' }} tickLine={false} axisLine={false} />
-      <Tooltip contentStyle={{ background: '#0a1628', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 10 }} />
-      <Area type="monotone" dataKey={chartDataKey} stroke={chartCfg.color} strokeWidth={2} fill="url(#cf)" dot={false} />
-    </AreaChart>
+  /* ── Multi-type chart renderer ──────────────────────────────────────── */
+  const chartAxes = (
+    <>
+      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+      <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.32)', fontSize: 10, fontFamily: 'monospace' }} tickLine={false} axisLine={false} />
+      <Tooltip
+        content={chartTab === 'revenue' ? <RevenueTooltip /> : <GenericTooltip suffix={chartTab === 'ai' ? ' req' : ' sys'} />}
+        cursor={{ stroke: 'rgba(255,255,255,0.10)', strokeWidth: 1 }}
+      />
+    </>
   );
 
+  const renderChart = () => {
+    if (chartType === 'line') {
+      return (
+        <LineChart data={chartData} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
+          {chartAxes}
+          <Line type="monotone" dataKey={chartDataKey} stroke={chartCfg.color} strokeWidth={2.6} dot={false}
+            activeDot={{ r: 4, fill: chartCfg.color, strokeWidth: 0 }} />
+        </LineChart>
+      );
+    }
+    if (chartType === 'bar') {
+      return (
+        <BarChart data={chartData} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id="barFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={chartCfg.color} stopOpacity={0.95} />
+              <stop offset="100%" stopColor={chartCfg.color} stopOpacity={0.28} />
+            </linearGradient>
+          </defs>
+          {chartAxes}
+          <Bar dataKey={chartDataKey} fill="url(#barFill)" radius={[5, 5, 0, 0]} maxBarSize={34} />
+        </BarChart>
+      );
+    }
+    return (
+      <AreaChart data={chartData} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
+        <defs>
+          <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={chartCfg.color} stopOpacity={0.32} />
+            <stop offset="100%" stopColor={chartCfg.color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        {chartAxes}
+        <Area type="monotone" dataKey={chartDataKey} stroke={chartCfg.color} strokeWidth={2.6} fill="url(#chartFill)" dot={false}
+          activeDot={{ r: 4, fill: chartCfg.color, strokeWidth: 0 }} />
+      </AreaChart>
+    );
+  };
+
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'linear-gradient(135deg,#020810 0%,#030b1a 50%,#020810 100%)', color: '#fff', fontFamily: "'Outfit', 'Space Mono', sans-serif" }}>
+    <div className="relative animate-in fade-in duration-500 pb-20">
 
-      {/* ── SIDEBAR ── */}
-      <aside style={{ width: 162, flexShrink: 0, display: 'flex', flexDirection: 'column', background: 'rgba(2,6,18,0.97)', borderRight: '1px solid rgba(255,255,255,0.07)' }}>
-        {/* Logo */}
-        <div style={{ padding: '14px 12px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#38bdf8,#6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Space Mono', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>S</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.9)', letterSpacing: '0.04em', lineHeight: 1.2 }}>STRATOS</div>
-            <div style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.3)', fontFamily: 'Space Mono', lineHeight: 1.2 }}>GLOBAL</div>
-          </div>
-          <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.2)', cursor: 'pointer', lineHeight: 1 }}>⚡</span>
-        </div>
+      {/* ══ AMBIENT HUD LAYERS (video stays visible behind) ══════════════════ */}
+      <div className="holo-grid-bg pointer-events-none fixed inset-0 opacity-30" style={{ zIndex: 0 }} />
+      <div className="pointer-events-none fixed inset-0" style={{ zIndex: 0, background: 'radial-gradient(135% 80% at 50% -12%, rgba(56,189,248,0.07), transparent 55%)' }} />
 
-        {/* Nav */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
-          <div style={{ padding: '5px 12px 3px', fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Command Center</div>
-          {SIDEBAR_NAV.map(item => (
-            <button
-              key={item.label}
-              onClick={() => item.path !== '#' ? navigate(item.path) : toast.info('Coming soon')}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, width: '100%', padding: '6px 12px', background: item.active ? 'rgba(56,189,248,0.1)' : 'transparent', borderLeft: item.active ? '2px solid #38bdf8' : '2px solid transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-            >
-              <item.icon style={{ width: 13, height: 13, color: item.active ? '#38bdf8' : 'rgba(255,255,255,0.35)', flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: item.active ? 700 : 500, color: item.active ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>{item.label}</div>
-                <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.2)', fontFamily: 'Outfit', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>{item.sub}</div>
-              </div>
-              {item.arrow && <ChevronRight style={{ width: 10, height: 10, color: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />}
-            </button>
-          ))}
+      <div className="relative space-y-6" style={{ zIndex: 1 }}>
 
-          <div style={{ padding: '10px 12px 3px', fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>System Shortcuts</div>
-          {[
-            { icon: Plus,       label: 'Deploy New System', onClick: () => navigate('/builder') },
-            { icon: Play,       label: 'Run AI Simulation', onClick: () => toast.info('Coming soon') },
-            { icon: Globe,      label: 'Global Scan',       onClick: () => toast.info('Coming soon') },
-            { icon: ShieldCheck,label: 'Security Nexus',    onClick: () => navigate('/connections') },
-          ].map(item => (
-            <button key={item.label} onClick={item.onClick} style={{ display: 'flex', alignItems: 'center', gap: 7, width: '100%', padding: '5px 12px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-              <item.icon style={{ width: 11, height: 11, color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
-              <span style={{ fontSize: 10.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.38)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* ASH AI Status */}
-        <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(56,189,248,0.03)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Bot style={{ width: 14, height: 14, color: '#38bdf8' }} />
+      {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
+      <HudPanel className="px-5 py-4" accent="rgba(56,189,248,0.5)" scan>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3.5">
+            <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primary/30 to-primary/5 border border-primary/30 flex items-center justify-center shadow-[0_0_24px_rgba(14,165,233,0.25)]">
+              <Cpu className="w-5 h-5 text-primary" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#080a16] holo-pulse" />
             </div>
             <div>
-              <div style={{ fontSize: 10, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.8)', lineHeight: 1.2 }}>STRATOS AI</div>
-              <div style={{ fontSize: 8, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)' }}>v4.0.0 QUANTUM</div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-xl font-bold text-white tracking-tight">Command Center</h1>
+                <span className="flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 rounded-full px-2 py-0.5 uppercase tracking-widest">
+                  <span className="w-1 h-1 rounded-full bg-emerald-400 holo-pulse" /> Live
+                </span>
+                <span className="flex items-center gap-1 text-[9px] font-mono font-bold text-primary/80 bg-primary/8 border border-primary/25 rounded-full px-2 py-0.5 uppercase tracking-widest">
+                  <Crown className="w-2.5 h-2.5" /> {user.subscriptionTier ?? 'free'}
+                </span>
+              </div>
+              <p className="text-[11px] text-white/35 font-mono mt-1 flex items-center gap-1.5">
+                <Signal className="w-3 h-3 text-primary/50" /> {user.email ?? 'AI Operations Monitor'}
+              </p>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981', display: 'inline-block' }} />
-            <span style={{ fontSize: 9, fontFamily: 'Space Mono', color: '#10b981' }}>Active</span>
+          <div className="flex items-center gap-2">
+            {lastRefresh && (
+              <span className="hidden lg:flex items-center gap-1.5 text-[10px] text-white/30 font-mono px-2.5 py-1.5 rounded-lg border border-white/8 bg-white/[0.02]">
+                <Radio className="w-3 h-3 text-emerald-400/60" /> SYNC {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+            <button onClick={load} aria-label="Refresh dashboard data" title="Refresh" className="p-2 rounded-lg text-white/30 hover:text-white hover:bg-white/6 border border-white/8 transition-all">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => navigate('/connections')} className="flex items-center gap-1.5 h-9 px-3 text-[11px] font-mono border border-white/10 text-white/45 bg-white/[0.02] hover:bg-white/6 hover:text-white rounded-lg transition-all">
+              <Key className="w-3 h-3" /> Connections
+            </button>
+            {(user.subscriptionTier ?? 'free').toLowerCase() !== 'empire' && (
+              <button onClick={() => navigate('/pricing')} className="flex items-center gap-1.5 h-9 px-3 text-[11px] font-mono border border-amber-500/25 text-amber-300/70 bg-amber-500/5 hover:bg-amber-500/10 hover:text-amber-300 rounded-lg transition-all">
+                <Crown className="w-3 h-3" /> Upgrade
+              </button>
+            )}
+            <button onClick={() => navigate('/builder')} className="flex items-center gap-1.5 h-9 px-4 text-[11px] font-bold bg-primary hover:bg-primary/90 text-white rounded-lg transition-all shadow-[0_0_18px_rgba(14,165,233,0.3)]">
+              <Plus className="w-3.5 h-3.5" /> New System
+            </button>
           </div>
         </div>
-      </aside>
+      </HudPanel>
 
-      {/* ── MAIN ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* ══ KPI RIBBON — holographic instrument cells ═══════════════════════ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-        {/* TOP BAR */}
-        <header style={{ padding: '9px 18px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(2,6,20,0.85)', backdropFilter: 'blur(12px)', flexShrink: 0 }}>
-          <div>
-            <div style={{ fontSize: 18, fontFamily: 'Outfit', fontWeight: 800, color: 'rgba(255,255,255,0.95)', letterSpacing: '-0.02em', lineHeight: 1 }}>DASHBOARD</div>
-            <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>Command Overview</div>
+        {/* Revenue */}
+        <HudPanel className="p-5 flex flex-col group" accent="rgba(16,185,129,0.5)">
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-emerald-500/0 via-emerald-400 to-emerald-500/0" />
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">Revenue</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+            </div>
           </div>
-          <div style={{ flex: 1, maxWidth: 400, position: 'relative' }}>
-            <input readOnly placeholder="Search systems, tools, or data..."
-              style={{ width: '100%', padding: '7px 44px 7px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'rgba(255,255,255,0.4)', fontSize: 11, fontFamily: 'Outfit', outline: 'none', boxSizing: 'border-box' }} />
-            <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 9, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', padding: '1px 5px', borderRadius: 4 }}>⌘K</span>
+          <p className="text-[36px] font-black font-mono text-emerald-400 leading-none tabular-nums holo-shimmer-text">{fmtCompact(monthCents)}</p>
+          <p className="text-[10px] text-white/30 font-mono mt-1 mb-2">this month</p>
+          <div className="-mx-1 mb-2 opacity-80"><Sparkline values={dailyData.map(d => d.cents)} color="#10b981" height={32} /></div>
+          <div className="flex items-center gap-3 mt-auto pt-3 border-t border-white/8">
+            <div><p className="text-[8px] text-white/25 font-mono">Today</p><p className="text-[11px] font-mono font-bold text-white/60">{fmtCompact(todayCents)}</p></div>
+            <div className="w-px h-4 bg-white/10" />
+            <div><p className="text-[8px] text-white/25 font-mono">Week</p><p className="text-[11px] font-mono font-bold text-white/60">{fmtCompact(weekCents)}</p></div>
+            <div className="w-px h-4 bg-white/10" />
+            <div><p className="text-[8px] text-white/25 font-mono">All time</p><p className="text-[11px] font-mono font-bold text-white/60">{fmtCompact(lifetimeCents)}</p></div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginLeft: 'auto' }}>
-            {[Camera, Clock].map((Icon, i) => (
-              <button key={i} style={{ width: 30, height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <Icon style={{ width: 13, height: 13, color: 'rgba(255,255,255,0.4)' }} />
-              </button>
+        </HudPanel>
+
+        {/* Systems */}
+        <HudPanel className="p-5 flex flex-col" accent="rgba(56,189,248,0.5)">
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-sky-500/0 via-sky-400 to-sky-500/0" />
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">Systems</span>
+            <div className="w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+              <Server className="w-3.5 h-3.5 text-sky-400" />
+            </div>
+          </div>
+          <p className="text-[36px] font-black font-mono text-sky-400 leading-none tabular-nums">{activeSystems}</p>
+          <p className="text-[10px] text-white/30 font-mono mt-1 mb-2">active of {totalSystems} total</p>
+          <div className="-mx-1 mb-2 opacity-80"><Sparkline values={systemsData.map(d => d.val)} color="#38bdf8" height={32} /></div>
+          <div className="flex items-center gap-3 mt-auto pt-3 border-t border-white/8 flex-wrap">
+            {[{val: building, label: 'Building', cls: 'text-blue-400'}, {val: paused, label: 'Paused', cls: 'text-amber-400'}, {val: failed, label: 'Failed', cls: 'text-rose-400'}].map(s => (
+              <div key={s.label}>
+                <p className="text-[8px] text-white/25 font-mono">{s.label}</p>
+                <p className={`text-[11px] font-mono font-bold ${s.cls}`}>{s.val}</p>
+              </div>
             ))}
-            <button style={{ width: 30, height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
-              <Bell style={{ width: 13, height: 13, color: 'rgba(255,255,255,0.4)' }} />
-              {notifications.length > 0 && <span style={{ position: 'absolute', top: 4, right: 4, width: 6, height: 6, borderRadius: '50%', background: '#ef4444', border: '1px solid rgba(2,6,20,0.9)' }} />}
-            </button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, cursor: 'pointer' }} onClick={() => navigate('/dashboard/profile')}>
-            <div>
-              <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)', lineHeight: 1.2 }}>System Architect</div>
-              <div style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)' }}>Tier: {(user.subscriptionTier ?? 'free').toUpperCase()}</div>
-            </div>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#38bdf8,#6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
-              {(user.email ?? 'U').charAt(0).toUpperCase()}
+        </HudPanel>
+
+        {/* Credits — radial gauge */}
+        <HudPanel className="p-5 flex flex-col" accent={credPct > 30 ? 'rgba(251,191,36,0.5)' : 'rgba(251,113,133,0.55)'}>
+          <div className={`absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-amber-500/0 ${credPct > 30 ? 'via-amber-400' : 'via-rose-400'} to-amber-500/0`} />
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">AI Credits</span>
+            <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+              <Coins className="w-3.5 h-3.5 text-amber-400" />
             </div>
           </div>
-          <button onClick={load} title="Refresh" style={{ width: 30, height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-            <RefreshCw style={{ width: 13, height: 13, color: 'rgba(255,255,255,0.4)' }} />
-          </button>
-        </header>
-
-        {/* SCROLLABLE CONTENT */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          {/* Non-blocking data warning banner */}
-          {error && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8 }}>
-              <AlertTriangle style={{ width: 14, height: 14, color: '#f59e0b', flexShrink: 0 }} />
-              <span style={{ fontSize: 11, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.65)', flex: 1 }}>{error}</span>
-              <button onClick={load} style={{ padding: '4px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: 'rgba(255,255,255,0.7)', fontSize: 10.5, fontFamily: 'Space Mono', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <RefreshCw style={{ width: 11, height: 11 }} /> Retry
-              </button>
-            </div>
-          )}
-
-          {/* ── KPI ROW (5 cards) ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 9 }}>
-            {/* Total Revenue */}
-            <div style={{ ...card, padding: '12px 13px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,#10b981,transparent)' }} />
-              <button style={{ position: 'absolute', top: 7, right: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 0 }}>×</button>
-              <div style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Total Revenue</div>
-              <div style={{ fontSize: monthCents > 9999999 ? 18 : 22, fontFamily: 'Space Mono', fontWeight: 700, color: '#10b981', marginTop: 5, lineHeight: 1 }}>{fmtCompact(monthCents)}</div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 4, padding: '1px 6px', borderRadius: 4, background: 'rgba(16,185,129,0.15)', fontSize: 8.5, fontFamily: 'Space Mono', color: '#10b981' }}>+{monthCents > 0 ? '12.5' : '0'}%</div>
-              <div style={{ marginTop: 7, height: 28, opacity: 0.7 }}><Sparkline values={dailyData.map(d => d.cents)} color="#10b981" height={28} /></div>
-            </div>
-
-            {/* Active Systems */}
-            <div style={{ ...card, padding: '12px 13px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,#38bdf8,transparent)' }} />
-              <button style={{ position: 'absolute', top: 7, right: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 0 }}>×</button>
-              <div style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Active Systems</div>
-              <div style={{ fontSize: 30, fontFamily: 'Space Mono', fontWeight: 700, color: '#38bdf8', marginTop: 5, lineHeight: 1 }}>{activeSystems}</div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 4, padding: '1px 6px', borderRadius: 4, background: 'rgba(56,189,248,0.15)', fontSize: 8.5, fontFamily: 'Space Mono', color: '#38bdf8' }}>+{building} building</div>
-              <div style={{ marginTop: 7, height: 28, opacity: 0.7 }}><Sparkline values={systemsData.map(d => d.val)} color="#38bdf8" height={28} /></div>
-            </div>
-
-            {/* AI Credits */}
-            <div style={{ ...card, padding: '12px 13px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,#8b5cf6,transparent)' }} />
-              <button style={{ position: 'absolute', top: 7, right: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 0 }}>×</button>
-              <div style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>AI Credits</div>
-              <div style={{ fontSize: credBalance > 9999 ? 20 : 28, fontFamily: 'Space Mono', fontWeight: 700, color: '#8b5cf6', marginTop: 5, lineHeight: 1 }}>{credBalance.toLocaleString()}</div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 4, padding: '1px 6px', borderRadius: 4, background: 'rgba(139,92,246,0.15)', fontSize: 8.5, fontFamily: 'Space Mono', color: '#8b5cf6' }}>+{credPct}% left</div>
-              <div style={{ marginTop: 7, height: 28, opacity: 0.7 }}><Sparkline values={aiData.map(d => d.val)} color="#8b5cf6" height={28} /></div>
-            </div>
-
-            {/* AI Requests */}
-            <div style={{ ...card, padding: '12px 13px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,#f59e0b,transparent)' }} />
-              <button style={{ position: 'absolute', top: 7, right: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 0 }}>×</button>
-              <div style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>AI Requests</div>
-              <div style={{ fontSize: 28, fontFamily: 'Space Mono', fontWeight: 700, color: '#f59e0b', marginTop: 5, lineHeight: 1 }}>{(aiActivity?.totalRequests ?? 0).toLocaleString()}</div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 4, padding: '1px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.15)', fontSize: 8.5, fontFamily: 'Space Mono', color: '#f59e0b' }}>+15.2%</div>
-              <div style={{ marginTop: 7, height: 28, opacity: 0.7 }}><Sparkline values={aiData.map(d => d.val)} color="#f59e0b" height={28} /></div>
-            </div>
-
-            {/* Uptime / Health */}
-            <div style={{ ...card, padding: '12px 13px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,#10b981,transparent)' }} />
-              <button style={{ position: 'absolute', top: 7, right: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 0 }}>×</button>
-              <div style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Uptime</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-                <RadialGauge pct={orStatus === 'operational' ? 99.9 : avgHealthPct} color="#10b981" size={52} stroke={5}>
-                  <span style={{ fontSize: 8, fontFamily: 'Space Mono', fontWeight: 700, color: '#10b981' }}>{orStatus === 'operational' ? '99' : avgHealthPct}</span>
-                </RadialGauge>
-                <div>
-                  <div style={{ fontSize: 18, fontFamily: 'Space Mono', fontWeight: 700, color: '#10b981', lineHeight: 1 }}>{orStatus === 'operational' ? '99.9%' : `${avgHealthPct}%`}</div>
-                  <div style={{ fontSize: 8, fontFamily: 'Space Mono', color: '#10b981', marginTop: 3 }}>OPTIMAL</div>
-                </div>
-              </div>
+          <div className="flex items-center gap-3 mt-1">
+            <RadialGauge pct={credPct} color={credPct > 30 ? '#fbbf24' : '#fb7185'} size={76} stroke={6}>
+              <span className={`text-[15px] font-black font-mono leading-none tabular-nums ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>{credPct}%</span>
+              <span className="text-[7px] font-mono text-white/30 uppercase tracking-wider mt-0.5">left</span>
+            </RadialGauge>
+            <div className="min-w-0">
+              <p className={`text-[26px] font-black font-mono leading-none tabular-nums ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>{credBalance.toLocaleString()}</p>
+              <p className="text-[10px] text-white/30 font-mono mt-1">credits remaining</p>
             </div>
           </div>
+          <div className="flex justify-between text-[8px] font-mono text-white/25 mt-auto pt-3 border-t border-white/8">
+            <span>{credUsed.toLocaleString()} used</span><span>of {credAllotment.toLocaleString()}</span>
+          </div>
+        </HudPanel>
 
-          {/* ── MIDDLE: [Globe + Revenue/Agents/Deployments] | [System Status + Activity Feed] ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 248px', gap: 10, alignItems: 'stretch' }}>
-
-            {/* LEFT COLUMN: Globe + Revenue/Agents/Deployments */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-
-            {/* Global System Overview */}
-            <div style={{ ...card, overflow: 'hidden' }}>
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 11, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>GLOBAL SYSTEM OVERVIEW</div>
-                  <div style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>Real-time operational intelligence across all deployed systems</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 20, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)' }}>
-                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-                  <span style={{ fontSize: 8, fontFamily: 'Space Mono', color: '#10b981' }}>LIVE FEED</span>
-                </div>
-              </div>
-              <div style={{ padding: '10px 14px', display: 'flex', gap: 16, alignItems: 'center' }}>
-                <div style={{ flex: 1 }}>
-                  <svg viewBox="0 0 480 160" style={{ width: '100%' }}>
-                    <defs>
-                      <radialGradient id="globe" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.18" />
-                        <stop offset="70%" stopColor="#1e40af" stopOpacity="0.06" />
-                        <stop offset="100%" stopColor="transparent" stopOpacity="0" />
-                      </radialGradient>
-                    </defs>
-                    <ellipse cx="240" cy="80" rx="72" ry="70" fill="url(#globe)" />
-                    <ellipse cx="240" cy="80" rx="72" ry="70" fill="none" stroke="rgba(56,189,248,0.18)" strokeWidth="0.8" />
-                    {[-40,-15,15,40].map(lat => { const y=80+(lat/90)*65; const rx=Math.cos(lat*Math.PI/180)*72; return <ellipse key={lat} cx="240" cy={y} rx={rx} ry="5" fill="none" stroke="rgba(56,189,248,0.07)" strokeWidth="0.5" />; })}
-                    {[0,45,90,135].map(lon => <ellipse key={lon} cx="240" cy="80" rx="6" ry="68" fill="none" stroke="rgba(56,189,248,0.07)" strokeWidth="0.5" transform={`rotate(${lon} 240 80)`} />)}
-                    {/* North America */}
-                    <path d="M195 38 C188 35 178 38 176 46 C174 56 180 66 190 71 C197 74 202 82 200 90 C198 97 193 99 189 97 C183 94 180 87 181 80 C183 74 191 72 194 66 C200 57 204 45 195 38Z" fill="rgba(56,189,248,0.2)" stroke="rgba(56,189,248,0.45)" strokeWidth="0.7" />
-                    {/* South America */}
-                    <path d="M210 100 C204 96 196 97 195 103 C193 110 198 118 202 124 C205 130 207 139 204 146 C202 151 199 152 200 156 C202 160 209 158 213 153 C218 146 218 135 216 126 C214 119 213 108 210 100Z" fill="rgba(56,189,248,0.17)" stroke="rgba(56,189,248,0.38)" strokeWidth="0.7" />
-                    {/* Europe */}
-                    <path d="M257 35 C252 32 246 34 244 40 C242 47 247 53 252 55 C257 57 263 54 265 48 C267 41 262 37 257 35Z" fill="rgba(56,189,248,0.2)" stroke="rgba(56,189,248,0.45)" strokeWidth="0.7" />
-                    {/* Africa */}
-                    <path d="M258 65 C251 63 245 66 244 73 C242 82 246 92 250 101 C252 108 254 117 252 126 C250 133 248 140 251 147 C254 152 260 153 265 150 C271 146 273 137 271 128 C269 120 265 110 263 100 C261 90 264 79 263 71 C262 65 260 64 258 65Z" fill="rgba(56,189,248,0.18)" stroke="rgba(56,189,248,0.4)" strokeWidth="0.7" />
-                    {/* Asia */}
-                    <path d="M280 35 C271 32 263 34 265 43 C267 50 276 52 284 50 C299 46 312 40 320 44 C328 48 330 56 336 60 C342 64 347 62 348 55 C350 47 343 38 332 33 C317 27 296 37 280 35Z" fill="rgba(56,189,248,0.18)" stroke="rgba(56,189,248,0.4)" strokeWidth="0.7" />
-                    <circle cx="240" cy="80" r="5" fill="rgba(56,189,248,0.55)" />
-                    <circle cx="240" cy="80" r="14" fill="none" stroke="rgba(56,189,248,0.14)" strokeWidth="1" />
-                    {[{cx:195,cy:52},{cx:265,cy:42},{cx:300,cy:55},{cx:210,cy:120},{cx:325,cy:78}].map((p,i)=>(
-                      <circle key={i} cx={p.cx} cy={p.cy} r="2" fill="#10b981" opacity="0.85" />
-                    ))}
-                  </svg>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 20px', flexShrink: 0 }}>
-                  {[
-                    { r: 'NORTH AMERICA', p: `${activeSystems > 0 ? 98.6 : 0}%` },
-                    { r: 'SOUTH AMERICA', p: '96.7%' },
-                    { r: 'EUROPE',        p: '97.8%' },
-                    { r: 'AFRICA',        p: '95.4%' },
-                    { r: 'ASIA PACIFIC',  p: '99.2%' },
-                    { r: 'MIDDLE EAST',   p: '97.1%' },
-                  ].map(region => (
-                    <div key={region.r}>
-                      <div style={{ fontSize: 7.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.04em' }}>{region.r}</div>
-                      <div style={{ fontSize: 16, fontFamily: 'Space Mono', fontWeight: 700, color: 'rgba(255,255,255,0.9)', lineHeight: 1.2 }}>{region.p}</div>
-                      <div style={{ fontSize: 8, fontFamily: 'Outfit', color: '#10b981' }}>Operational</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* ROW 3 (inside LEFT column): Revenue Streams + Agent Perf + Deployments */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-
-            {/* Revenue Streams */}
-            <div style={{ ...card, overflow: 'hidden' }}>
-              <div style={{ padding: '9px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>REVENUE STREAMS</div>
-                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>Real-time financial analytics</div>
-                </div>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'pointer', lineHeight: 1 }}>×</span>
-              </div>
-              <div style={{ padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
-                <div style={{ position: 'relative', width: 85, height: 85, flexShrink: 0 }}>
-                  <PieChart width={85} height={85}>
-                    <Pie data={revPieces} cx={42} cy={42} innerRadius={25} outerRadius={40} dataKey="value" stroke="none">
-                      {revPieces.map((e, i) => <Cell key={i} fill={e.color} />)}
-                    </Pie>
-                  </PieChart>
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 9.5, fontFamily: 'Space Mono', fontWeight: 700, color: 'rgba(255,255,255,0.9)', lineHeight: 1 }}>{fmtCompact(monthCents)}</span>
-                    <span style={{ fontSize: 7, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)' }}>Total</span>
-                  </div>
-                </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {revPieces.map(r => (
-                    <div key={r.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ width: 5, height: 5, borderRadius: 1.5, background: r.color, display: 'inline-block', flexShrink: 0 }} />
-                        <span style={{ fontSize: 8.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.5)' }}>{r.name}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 5 }}>
-                        <span style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.7)' }}>{fmtCompact(r.value)}</span>
-                        <span style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)' }}>{r.pct}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* AI Agent Performance */}
-            <div style={{ ...card, overflow: 'hidden' }}>
-              <div style={{ padding: '9px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>AI AGENT PERFORMANCE</div>
-                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>Top performing autonomous agents</div>
-                </div>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'pointer', lineHeight: 1 }}>×</span>
-              </div>
-              <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                {agentRows.map((a, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <span style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.35)', minWidth: 12, textAlign: 'right' }}>{i+1}</span>
-                    <div style={{ width: 22, height: 22, borderRadius: 5, background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Bot style={{ width: 11, height: 11, color: '#38bdf8' }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-                        <span style={{ fontSize: 9.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
-                        <span style={{ fontSize: 9, fontFamily: 'Space Mono', fontWeight: 700, color: a.color, flexShrink: 0, marginLeft: 4 }}>{a.pct}%</span>
-                      </div>
-                      <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ width: `${a.pct}%`, height: '100%', background: `linear-gradient(90deg,${a.color},${a.color}99)`, borderRadius: 2 }} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {systems.length === 0 && (
-                  <button onClick={() => navigate('/builder')} style={{ marginTop: 4, padding: '6px', background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.15)', borderRadius: 8, fontSize: 9.5, fontFamily: 'Outfit', color: '#38bdf8', cursor: 'pointer', textAlign: 'center' }}>
-                    Deploy your first system →
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* System Deployments */}
-            <div style={{ ...card, overflow: 'hidden' }}>
-              <div style={{ padding: '9px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>SYSTEM DEPLOYMENTS</div>
-                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>Deployment status across regions</div>
-                </div>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'pointer', lineHeight: 1 }}>×</span>
-              </div>
-              <div style={{ padding: '8px 12px' }}>
-                <div style={{ width: '100%', height: 60, background: 'rgba(56,189,248,0.04)', borderRadius: 8, border: '1px solid rgba(56,189,248,0.1)', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                  <svg viewBox="0 0 200 55" style={{ width: '100%', height: '100%' }}>
-                    <ellipse cx="100" cy="27" rx="62" ry="20" fill="none" stroke="rgba(56,189,248,0.18)" strokeWidth="0.5" />
-                    {[18,40,62,82,108,132,158,175].map((cx,i)=>(
-                      <circle key={i} cx={cx} cy={18+Math.sin(i*0.8)*7} r="1.5" fill="#38bdf8" opacity="0.7" />
-                    ))}
-                    {systems.slice(0,5).map((_,i)=>(
-                      <circle key={i} cx={40+i*28} cy={32+Math.cos(i)*5} r="2.5" fill="#10b981" opacity="0.9" />
-                    ))}
-                    {systems.length === 0 && [50,90,130].map((cx,i) => (
-                      <circle key={i} cx={cx} cy={30} r="2" fill="#10b981" opacity="0.5" />
-                    ))}
-                  </svg>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  {[
-                    { label: 'Deployed',     val: totalSystems, color: 'rgba(255,255,255,0.9)' },
-                    { label: 'In Progress',  val: building, color: '#38bdf8' },
-                    { label: 'Failed',       val: failed, color: failed > 0 ? '#ef4444' : 'rgba(255,255,255,0.3)' },
-                    { label: 'Success Rate', val: `${totalSystems > 0 ? Math.round(((totalSystems-failed)/totalSystems)*100) : 100}%`, color: '#10b981' },
-                  ].map(s => (
-                    <div key={s.label} style={{ textAlign: 'center', padding: '5px 4px', background: 'rgba(255,255,255,0.03)', borderRadius: 7 }}>
-                      <div style={{ fontSize: 18, fontFamily: 'Space Mono', fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.val}</div>
-                      <div style={{ fontSize: 7.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            </div>
-
-            </div>
-
-            {/* RIGHT COLUMN: System Status + Activity Feed (spans full height) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
-
-              {/* System Status */}
-              <div style={{ ...card, overflow: 'hidden', flex: '0 0 auto' }}>
-                <div style={{ padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>SYSTEM STATUS</div>
-                    <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>All systems operational</div>
-                  </div>
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'pointer', lineHeight: 1 }}>×</span>
-                </div>
-                <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                  <RadialGauge pct={avgHealthPct} color="#10b981" size={84} stroke={8}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 18, fontFamily: 'Space Mono', fontWeight: 700, color: '#10b981', lineHeight: 1 }}>{avgHealthPct}</div>
-                      <div style={{ fontSize: 7.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>HEALTH</div>
-                    </div>
-                  </RadialGauge>
-                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    {[
-                      { name: 'Core Engine',   ok: true },
-                      { name: 'AI Models',     ok: orStatus === 'operational' },
-                      { name: 'Database',      ok: true },
-                      { name: 'Security',      ok: true },
-                      { name: 'Network',       ok: true },
-                      { name: 'Connections',   ok: connectedToolCount > 0 },
-                    ].map(item => (
-                      <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: item.ok ? '#10b981' : '#ef4444', boxShadow: `0 0 4px ${item.ok ? '#10b981' : '#ef4444'}`, display: 'inline-block' }} />
-                          <span style={{ fontSize: 9.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.55)' }}>{item.name}</span>
-                        </div>
-                        <span style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: item.ok ? '#10b981' : '#ef4444' }}>{item.ok ? 'Optimal' : 'Offline'}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ width: '100%', padding: '4px 8px', background: 'rgba(16,185,129,0.06)', borderRadius: 7, fontSize: 8, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.25)', textAlign: 'center' }}>
-                    Last scan: {lastRefresh ? timeAgo(lastRefresh) : 'just now'}
-                  </div>
-                </div>
-              </div>
-
-              {/* AI Activity Feed */}
-              <div style={{ ...card, overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between', flexShrink: 0 }}>
-                  <div>
-                    <div style={{ fontSize: 9.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>AI ACTIVITY FEED</div>
-                    <div style={{ fontSize: 7.5, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>Real-time agent coordination</div>
-                  </div>
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'pointer', lineHeight: 1 }}>×</span>
-                </div>
-                <div style={{ flex: 1, padding: '6px 12px', overflowY: 'auto', minHeight: 0 }}>
-                  {timeline.slice(0, 8).map((evt, i) => (
-                    <div key={`${evt.id}-${i}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ width: 20, height: 20, borderRadius: 5, background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Bot style={{ width: 10, height: 10, color: '#38bdf8' }} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 9.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{evt.label}</div>
-                        <div style={{ fontSize: 8, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{evt.detail}</div>
-                      </div>
-                      <span style={{ fontSize: 7.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.2)', flexShrink: 0 }}>{timeAgo(evt.ts)}</span>
-                    </div>
-                  ))}
-                  {timeline.length === 0 && (
-                    <div style={{ padding: '10px 0', textAlign: 'center', fontSize: 9, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.2)' }}>No activity yet. Deploy a system to see logs.</div>
-                  )}
-                </div>
-                <button onClick={() => navigate('/systems')} style={{ display: 'block', width: '100%', padding: '5px', background: 'rgba(56,189,248,0.04)', border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: 8.5, fontFamily: 'Space Mono', color: '#38bdf8', cursor: 'pointer', flexShrink: 0 }}>
-                  View All Activity →
-                </button>
-              </div>
-
+        {/* AI Activity */}
+        <HudPanel className="p-5 flex flex-col" accent="rgba(139,92,246,0.5)">
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-violet-500/0 via-violet-400 to-violet-500/0" />
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">AI Activity</span>
+            <div className="w-7 h-7 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+              <Bot className="w-3.5 h-3.5 text-violet-400" />
             </div>
           </div>
-
-          {/* ── ROW 4: Performance Analytics + ASH Command Terminal ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 248px', gap: 10 }}>
-
-            {/* System Performance Analytics */}
-            <div style={{ ...card, overflow: 'hidden' }}>
-              <div style={{ padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>SYSTEM PERFORMANCE ANALYTICS</div>
-                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>Deep performance insights and predictive analytics</div>
-                </div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {CHART_TABS.map(tab => (
-                    <button key={tab.key} onClick={() => setChartTab(tab.key)} style={{ padding: '3px 8px', background: chartTab === tab.key ? `${tab.color}20` : 'rgba(255,255,255,0.04)', border: `1px solid ${chartTab === tab.key ? tab.color + '55' : 'rgba(255,255,255,0.08)'}`, borderRadius: 6, fontSize: 8.5, fontFamily: 'Space Mono', color: chartTab === tab.key ? tab.color : 'rgba(255,255,255,0.3)', cursor: 'pointer' }}>
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div style={{ display: 'flex' }}>
-                <div style={{ flex: 1, padding: '8px 14px', height: 115 }}>
-                  <ResponsiveContainer width="100%" height={100}>
-                    {renderChart()}
-                  </ResponsiveContainer>
-                </div>
-                <div style={{ width: 136, padding: '10px 12px', borderLeft: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6 }}>
-                  <div style={{ fontSize: 8, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Performance Score</div>
-                  <div style={{ fontSize: 26, fontFamily: 'Space Mono', fontWeight: 700, color: '#10b981', lineHeight: 1 }}>
-                    {avgHealthPct}<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>/100</span>
-                  </div>
-                  <div style={{ fontSize: 10, fontFamily: 'Outfit', color: '#10b981', fontWeight: 600 }}>Excellent</div>
-                  <div style={{ padding: '6px 8px', background: 'rgba(16,185,129,0.07)', borderRadius: 8, border: '1px solid rgba(16,185,129,0.15)' }}>
-                    <div style={{ fontSize: 8, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.35)' }}>Predictive Insight</div>
-                    <div style={{ fontSize: 8.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>All systems trending optimal</div>
-                    <div style={{ fontSize: 7.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.25)', marginTop: 1 }}>No action required</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ASH Command Terminal */}
-            <div style={{ background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(56,189,248,0.18)', borderRadius: 12, overflow: 'hidden' }}>
-                <div style={{ padding: '7px 12px', borderBottom: '1px solid rgba(56,189,248,0.12)', display: 'flex', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontSize: 9.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>ASH COMMAND TERMINAL</div>
-                    <div style={{ fontSize: 7.5, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>Advanced system control</div>
-                  </div>
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'pointer', lineHeight: 1 }}>×</span>
-                </div>
-                <div style={{ padding: '7px 12px', fontFamily: 'Space Mono', fontSize: 8.5, color: 'rgba(56,189,248,0.85)', lineHeight: 1.9 }}>
-                  <div><span style={{ color: '#10b981' }}>›</span> QUANTUM LINK ESTABLISHED</div>
-                  <div><span style={{ color: '#10b981' }}>›</span> ACCESS LEVEL: MAXIMUM</div>
-                  <div><span style={{ color: '#10b981' }}>›</span> SYSTEM OVERRIDE: ENABLED</div>
-                  <div><span style={{ color: '#f59e0b' }}>›</span> {totalSystems} SYSTEM{totalSystems !== 1 ? 'S' : ''} ONLINE</div>
-                  <div style={{ color: 'rgba(255,255,255,0.3)' }}><span style={{ color: '#38bdf8' }}>›</span> Processing at light speed...</div>
-                </div>
-                <div style={{ padding: '5px 12px', borderTop: '1px solid rgba(56,189,248,0.1)', background: 'rgba(56,189,248,0.05)' }}>
-                  <div style={{ fontSize: 8, fontFamily: 'Space Mono', color: '#10b981' }}>▸ READY FOR COMMAND INPUT</div>
-                </div>
-                <div style={{ padding: '5px 12px', borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input
-                    placeholder="Enter commands... (try: build, systems, connections)"
-                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 8.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.45)', padding: 0 }}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        const val = e.target.value.trim().toLowerCase();
-                        if (val === 'build' || val === 'deploy') navigate('/builder');
-                        else if (val === 'systems') navigate('/systems');
-                        else if (val === 'connections') navigate('/connections');
-                        else if (val === 'blueprints') navigate('/blueprints');
-                        else if (val === 'marketplace') navigate('/marketplace');
-                        else if (val) toast.info(`Command not recognized: ${val}`);
-                        e.target.value = '';
-                      }
-                    }}
-                  />
-                  <button onClick={() => navigate('/builder')} style={{ padding: '3px 10px', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: 6, fontSize: 8.5, fontFamily: 'Space Mono', color: '#38bdf8', cursor: 'pointer', flexShrink: 0 }}>EXECUTE</button>
-                </div>
-              </div>
+          <p className="text-[36px] font-black font-mono text-violet-400 leading-none tabular-nums">{aiActivity?.totalRequests ?? 0}</p>
+          <p className="text-[10px] text-white/30 font-mono mt-1 mb-2">total requests</p>
+          <div className="-mx-1 mb-2 opacity-80"><Sparkline values={aiData.map(d => d.val)} color="#8b5cf6" height={32} /></div>
+          <div className="flex items-center gap-2 mt-auto pt-3 border-t border-white/8">
+            <span className={`w-2 h-2 rounded-full ${orStatus === 'operational' ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-zinc-600'}`} />
+            <span className="text-[10px] font-mono text-white/35 flex-1">OpenRouter {orStatus === 'operational' ? 'operational' : 'offline'}</span>
+            <span className="text-[9px] font-mono font-bold text-white/30 bg-white/4 px-1.5 py-0.5 rounded">{connectedToolCount} tools</span>
           </div>
-
-        </main>
+        </HudPanel>
       </div>
 
-      {/* Delete confirm modal */}
-      {deleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#0a0f20', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 16, padding: '24px', maxWidth: 320, width: '90%' }}>
-            <AlertTriangle className="w-6 h-6 text-rose-400 mb-3" />
-            <div style={{ fontSize: 14, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.9)', marginBottom: 6 }}>Delete System?</div>
-            <p style={{ fontSize: 12, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.45)', marginBottom: 16 }}>This action is permanent and cannot be undone.</p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '7px 16px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontSize: 12, fontFamily: 'Outfit', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={() => deleteSystem(deleteConfirm)} disabled={controlLoading[deleteConfirm]} style={{ padding: '7px 16px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: 12, fontFamily: 'Outfit', cursor: 'pointer' }}>Delete</button>
+      {/* ══ HERO (no systems) or ASH STATUS STRIP ═══════════════════════════ */}
+      {systems.length === 0 ? (
+        <HudPanel className="px-7 py-6" accent="rgba(14,165,233,0.55)" scan>
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-primary/0 via-primary to-primary/0" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+            <div className="flex-1 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary holo-pulse shadow-[0_0_8px_rgba(14,165,233,0.8)]" />
+                <span className="text-[10px] font-mono font-bold text-primary uppercase tracking-widest">ASH Agent Ready</span>
+              </div>
+              <h2 className="text-2xl font-bold text-white leading-snug">Build Your First <span className="text-primary">Income System</span></h2>
+              <p className="text-sm text-white/40 leading-relaxed max-w-lg">Tell ASH what you want to earn. It designs a complete system — tools, credentials, steps — and builds it autonomously.</p>
+            </div>
+            <div className="flex flex-col gap-2.5 shrink-0 w-full sm:w-auto min-w-[192px]">
+              <button onClick={() => navigate('/builder')} className="flex items-center justify-center gap-2 font-bold h-10 px-6 text-sm bg-primary hover:bg-primary/90 text-white rounded-xl shadow-[0_0_20px_rgba(14,165,233,0.3)] transition-all">
+                <Bot className="w-4 h-4" /> Ask ASH to Build
+              </button>
+              <div className="flex gap-2">
+                <button onClick={() => navigate('/blueprints')} className="flex-1 flex items-center justify-center gap-1.5 h-8 text-[11px] font-mono border border-white/10 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-all">
+                  <Layers className="w-3 h-3" /> Blueprints
+                </button>
+                <button onClick={() => navigate('/marketplace')} className="flex-1 flex items-center justify-center gap-1.5 h-8 text-[11px] font-mono border border-white/10 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-all">
+                  <Globe className="w-3 h-3" /> Tools
+                </button>
+              </div>
             </div>
           </div>
+        </HudPanel>
+      ) : (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl holo-glass">
+          <span className="w-2 h-2 rounded-full bg-primary/80 holo-pulse" />
+          <p className="text-[11px] font-mono text-white/40 flex-1">
+            ASH monitoring <span className="text-white/70">{activeSystems} active system{activeSystems !== 1 ? 's' : ''}</span>
+            {building > 0 && <> · <span className="text-blue-400">{building} building</span></>}
+          </p>
+          <button onClick={() => navigate('/builder')} className="shrink-0 text-[10px] font-mono text-primary/70 hover:text-primary transition-colors font-semibold">Open Builder →</button>
         </div>
       )}
+
+      {/* ══ ANALYTICS + QUICK ACTIONS ═══════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+        {/* Chart panel */}
+        <HudPanel className="lg:col-span-3" accent={`${chartCfg.color}90`}>
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8 flex-wrap gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-[3px] h-5 rounded-full" style={{ background: chartCfg.color }} />
+              <div>
+                <h2 className="text-sm font-bold text-white/80">Analytics Telemetry</h2>
+                <p className="text-[10px] text-white/30 font-mono">7-day window · {chartType} view</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Metric switcher */}
+              <div className="flex items-center bg-white/4 border border-white/10 rounded-xl p-1 gap-0.5">
+                {CHART_TABS.map(tab => (
+                  <button key={tab.key} onClick={() => setChartTab(tab.key)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold font-mono transition-all ${
+                      chartTab === tab.key ? 'text-white shadow-sm' : 'text-white/30 hover:text-white/60'
+                    }`}
+                    style={chartTab === tab.key ? { background: `${tab.color}22`, boxShadow: `inset 0 0 0 1px ${tab.color}55` } : undefined}
+                  >
+                    <tab.icon className="w-3 h-3" style={chartTab === tab.key ? { color: tab.color } : undefined} />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              {/* Chart-type switcher */}
+              <div className="flex items-center bg-white/4 border border-white/10 rounded-xl p-1 gap-0.5">
+                {CHART_TYPES.map(ct => (
+                  <button key={ct.key} onClick={() => setChartType(ct.key)}
+                    title={`${ct.label} chart`} aria-label={`${ct.label} chart`}
+                    aria-pressed={chartType === ct.key}
+                    className={`p-1.5 rounded-lg transition-all ${
+                      chartType === ct.key ? 'bg-white/12 text-white shadow-sm' : 'text-white/30 hover:text-white/60'
+                    }`}
+                  >
+                    <ct.icon className="w-3.5 h-3.5" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="px-5 pt-4 pb-3">
+            <div className="flex items-baseline gap-3 mb-4">
+              <p className="text-[32px] font-black font-mono tabular-nums leading-none" style={{ color: chartCfg.color }}>
+                {chartTab === 'revenue' ? fmtCompact(todayCents) : chartTab === 'ai' ? (aiActivity?.totalRequests ?? 0) : totalSystems}
+              </p>
+              <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">
+                {chartTab === 'revenue' ? 'today' : chartTab === 'ai' ? 'total requests' : 'total systems'}
+              </p>
+              {chartTab === 'revenue' && weekCents > 0 && (
+                <span className="ml-auto flex items-center gap-1 text-emerald-400 text-sm font-bold font-mono">
+                  <ArrowUpRight className="w-4 h-4" />{fmtCompact(weekCents)}/wk
+                </span>
+              )}
+            </div>
+            <div className="h-[168px]" style={{ filter: `drop-shadow(0 4px 14px ${chartCfg.color}40)` }}>
+              <ResponsiveContainer width="100%" height="100%">
+                {renderChart()}
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </HudPanel>
+
+        {/* Side: Quick Actions + Platform */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+
+          {/* Quick Actions */}
+          <HudPanel className="p-4" accent="rgba(251,191,36,0.45)" corners={false}>
+            <div className="flex items-center gap-2 mb-3.5">
+              <div className="w-[3px] h-4 bg-amber-400 rounded-full" />
+              <h2 className="text-[10px] font-bold text-white/55 uppercase tracking-widest font-mono">Quick Actions</h2>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                {label: 'Builder', icon: Rocket, onClick: () => navigate('/builder'), border: 'border-primary/25', bg: 'hover:bg-primary/10', text: 'text-primary'},
+                {label: 'Connect Tools', icon: Key, onClick: () => navigate('/connections'), border: 'border-amber-500/25', bg: 'hover:bg-amber-500/10', text: 'text-amber-400'},
+                {label: 'Blueprints', icon: Layers, onClick: () => navigate('/blueprints'), border: 'border-violet-500/25', bg: 'hover:bg-violet-500/10', text: 'text-violet-400'},
+                {label: 'Buy Credits', icon: Coins, onClick: () => navigate('/credits'), border: 'border-emerald-500/25', bg: 'hover:bg-emerald-500/10', text: 'text-emerald-400'},
+                {label: 'Social Hub', icon: Share2, onClick: () => navigate('/social-accounts'), border: 'border-violet-400/25', bg: 'hover:bg-violet-400/10', text: 'text-violet-400'},
+                {label: 'Media Lab', icon: Film, onClick: () => navigate('/builder'), border: 'border-pink-500/25', bg: 'hover:bg-pink-500/10', text: 'text-pink-400'},
+              ].map(a => (
+                <button key={a.label} onClick={a.onClick}
+                  className={`flex flex-col items-center gap-2.5 py-4 px-2 rounded-xl border ${a.border} bg-white/2 ${a.bg} transition-all group`}
+                >
+                  <a.icon className={`w-5 h-5 ${a.text} group-hover:scale-110 transition-transform`} />
+                  <span className={`text-[9px] font-mono font-semibold ${a.text} uppercase tracking-wide leading-tight`}>{a.label}</span>
+                </button>
+              ))}
+            </div>
+          </HudPanel>
+
+          {/* Platform Status */}
+          <HudPanel className="p-4 flex-1" accent="rgba(16,185,129,0.45)" corners={false}>
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="flex items-center gap-2">
+                <div className="w-[3px] h-4 bg-emerald-400 rounded-full" />
+                <h2 className="text-[10px] font-bold text-white/55 uppercase tracking-widest font-mono">Platform</h2>
+              </div>
+              <span className="text-[9px] font-mono font-bold text-white/30 bg-white/4 px-1.5 py-0.5 rounded border border-white/8">{connectedToolCount} online</span>
+            </div>
+            <div className="space-y-1.5">
+              {[
+                {name: 'OpenRouter AI', key: 'openrouter', icon: Bot},
+                {name: 'PostgreSQL DB', key: 'database', icon: Database},
+                {name: 'Stripe', key: 'stripe', icon: CreditCard},
+                {name: 'Cloudflare', key: 'cloudflare', icon: Shield},
+                {name: 'Make.com', key: 'make.com', icon: Settings},
+              ].map(tool => {
+                const connected = toolConnected(tool.name, storedKeys, orStatus);
+                return (
+                  <div key={tool.key} className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all ${connected ? 'bg-emerald-500/4 border-emerald-500/15' : 'bg-white/[0.02] border-white/5'}`}>
+                    <div className="flex items-center gap-2">
+                      <tool.icon className={`w-3 h-3 ${connected ? 'text-emerald-400/70' : 'text-white/20'}`} />
+                      <span className="text-[11px] font-mono text-white/50">{tool.name}</span>
+                    </div>
+                    <span className={`text-[9px] font-mono font-bold ${connected ? 'text-emerald-400' : 'text-zinc-600'}`}>{connected ? '● Online' : '○ Off'}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={() => navigate('/connections')} className="mt-3 w-full text-[10px] font-mono text-white/30 hover:text-white/55 py-1.5 rounded-lg border border-white/8 hover:bg-white/3 transition-all">
+              Manage Connections →
+            </button>
+          </HudPanel>
+        </div>
+      </div>
+
+      {/* ══ SOCIAL PLATFORM HUB ══════════════════════════════════════════════ */}
+      <HudPanel className="p-5" accent="rgba(124,58,237,0.45)">
+        <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-violet-500/0 via-violet-400 to-violet-500/0" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-[3px] h-5 rounded-full bg-violet-400" />
+            <h2 className="text-sm font-bold text-white/80">Social Platform Hub</h2>
+            <span className="px-2 py-0.5 rounded-full bg-violet-500/12 border border-violet-500/22 text-[9px] font-mono font-bold text-violet-400 uppercase tracking-wider">New</span>
+          </div>
+          <button onClick={() => navigate('/social-accounts')} className="text-[10px] font-mono text-violet-400/60 hover:text-violet-300 transition-colors font-semibold">
+            Manage Accounts →
+          </button>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap mb-3">
+          {[
+            { name: 'TikTok', icon: '🎵', key: 'TIKTOK_ACCESS_TOKEN' },
+            { name: 'Instagram', icon: '📸', key: 'INSTAGRAM_ACCESS_TOKEN' },
+            { name: 'YouTube', icon: '▶️', key: 'YOUTUBE_API_KEY' },
+            { name: 'X / Twitter', icon: '✖️', key: 'TWITTER_BEARER_TOKEN' },
+            { name: 'LinkedIn', icon: '💼', key: 'LINKEDIN_ACCESS_TOKEN' },
+            { name: 'Snapchat', icon: '👻', key: 'SNAPCHAT_ACCESS_TOKEN' },
+            { name: 'Facebook', icon: '👥', key: 'FACEBOOK_PAGE_TOKEN' },
+          ].map(p => {
+            const connected = !!(storedKeys || {})[p.key];
+            return (
+              <button
+                key={p.name}
+                onClick={() => navigate('/social-accounts')}
+                className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-xl border transition-all hover:scale-105 min-w-[68px] ${
+                  connected
+                    ? 'border-emerald-500/25 bg-emerald-500/5 shadow-[0_0_12px_rgba(16,185,129,0.08)]'
+                    : 'border-white/8 bg-white/2 hover:border-white/15 hover:bg-white/4'
+                }`}
+              >
+                <span className="text-xl">{p.icon}</span>
+                <span className="text-[9px] font-mono text-white/45 leading-tight text-center">{p.name}</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.6)]' : 'bg-white/15'}`} />
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-white/30 font-mono leading-relaxed">
+          Connect your social accounts — ASH will automatically post content, track analytics, and grow your audience when building social income systems.
+        </p>
+      </HudPanel>
+
+      {/* ══ SYSTEMS FLEET ════════════════════════════════════════════════════ */}
+      <HudPanel accent="rgba(56,189,248,0.5)">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8">
+          <div className="flex items-center gap-2.5">
+            <div className="w-[3px] h-5 bg-sky-400 rounded-full" />
+            <div>
+              <h2 className="text-sm font-bold text-white/80">Systems Fleet</h2>
+              <p className="text-[10px] text-white/30 font-mono">{systems.length} deployed · {activeSystems} active</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate('/systems')} className="h-7 px-3 text-[10px] font-mono text-white/35 hover:text-white hover:bg-white/5 border border-white/8 rounded-lg transition-all flex items-center gap-1.5">
+              View All <ChevronRight className="w-3 h-3" />
+            </button>
+            <button onClick={() => navigate('/builder')} className="h-7 px-3 text-[10px] font-bold bg-primary/12 hover:bg-primary/22 text-primary border border-primary/22 hover:border-primary/35 rounded-lg transition-all flex items-center gap-1.5">
+              <Plus className="w-3 h-3" /> Deploy
+            </button>
+          </div>
+        </div>
+
+        {systems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-white/2 border border-white/6 flex items-center justify-center">
+              <Server className="w-6 h-6 text-white/10" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-white/45">No Systems Deployed</p>
+              <p className="text-[11px] text-white/25 font-mono mt-1">Build your first system with ASH</p>
+            </div>
+            <button onClick={() => navigate('/builder')} className="flex items-center gap-1.5 px-4 py-2 bg-primary/10 hover:bg-primary/18 border border-primary/22 text-primary text-xs font-mono font-semibold rounded-xl transition-all">
+              <Zap className="w-3.5 h-3.5" /> Launch Builder
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div className="hidden lg:grid grid-cols-12 gap-3 px-5 py-2.5 bg-white/[0.025] border-b border-white/5">
+              {[['col-span-4','System'],['col-span-2','Status'],['col-span-2','Health'],['col-span-1','Uptime'],['col-span-2','Revenue'],['col-span-1 text-right','']].map(([cls, h]) => (
+                <div key={h} className={`${cls} text-[9px] uppercase tracking-widest text-white/25 font-bold font-mono`}>{h}</div>
+              ))}
+            </div>
+            {systems.map((system, idx) => {
+              const isLoading  = controlLoading[system.id];
+              const isPaused   = system.buildStatus === 'paused';
+              const isBuilding = system.buildStatus === 'building';
+              const hp         = healthPct(system.buildStatus, system.healthStatus);
+              const hpColor    = hp >= 80 ? 'bg-emerald-500' : hp >= 50 ? 'bg-amber-400' : hp >= 20 ? 'bg-orange-500' : 'bg-rose-500';
+              const hpText     = hp >= 80 ? 'text-emerald-400' : hp >= 50 ? 'text-amber-400' : hp >= 20 ? 'text-orange-400' : 'text-rose-400';
+              return (
+                <div
+                  key={system.id}
+                  className={`group grid grid-cols-1 lg:grid-cols-12 gap-3 items-center px-5 py-3.5 border-b border-white/4 last:border-0 hover:bg-white/[0.03] transition-colors cursor-pointer ${idx % 2 === 0 ? '' : 'bg-white/[0.012]'}`}
+                  onClick={() => navigate(`/systems/${system.id}`)}
+                >
+                  <div className="lg:col-span-4 flex items-center gap-3 min-w-0">
+                    <StatusDot status={system.buildStatus === 'completed' ? 'active' : (system.buildStatus ?? 'pending')} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white/75 truncate group-hover:text-white transition-colors">{system.name}</p>
+                      <p className="text-[10px] text-white/30 font-mono truncate">{system.blueprint?.name ?? 'Custom Blueprint'}</p>
+                    </div>
+                  </div>
+                  <div className="lg:col-span-2"><StatusBadge buildStatus={system.buildStatus} healthStatus={system.healthStatus} /></div>
+                  <div className="lg:col-span-2 flex items-center gap-2">
+                    <div className="flex-1 h-1 bg-white/6 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${hpColor}`} style={{width: `${hp}%`}} />
+                    </div>
+                    <span className={`text-[10px] font-mono font-bold shrink-0 ${hpText}`}>{hp}%</span>
+                  </div>
+                  <div className="lg:col-span-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-white/15" />
+                    <span className="text-[10px] text-white/35 font-mono">{uptimeLabel(system.createdAt, system.buildStatus)}</span>
+                  </div>
+                  <div className="lg:col-span-2">
+                    {(() => {
+                      const cents = systemRevenue[String(system.id)] ?? 0;
+                      return <span className={`text-xs font-mono font-bold ${cents > 0 ? 'text-emerald-400' : 'text-white/15'}`}>{fmtCompact(cents)}</span>;
+                    })()}
+                  </div>
+                  <div className="lg:col-span-1 flex items-center gap-0.5 lg:justify-end" onClick={e => e.stopPropagation()}>
+                    {isPaused ? (
+                      <button onClick={() => patchSystem(system.id, {buildStatus: 'active'})} disabled={isLoading}
+                        className="p-1.5 rounded text-emerald-400/40 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors border border-transparent hover:border-emerald-500/18">
+                        <Play className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <button onClick={() => patchSystem(system.id, {buildStatus: 'paused'})} disabled={isLoading || isBuilding}
+                        className="p-1.5 rounded text-amber-400/40 hover:text-amber-400 hover:bg-amber-500/10 transition-colors border border-transparent hover:border-amber-500/18">
+                        <Pause className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button onClick={() => patchSystem(system.id, {buildStatus: 'building'})} disabled={isLoading}
+                      className="p-1.5 rounded text-blue-400/40 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                    {deleteConfirm === system.id ? (
+                      <span className="flex items-center gap-0.5 ml-0.5">
+                        <button onClick={() => deleteSystem(system.id)} disabled={isLoading} className="text-[10px] px-1.5 py-0.5 rounded text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 font-bold">Y</button>
+                        <button onClick={() => setDeleteConfirm(null)} className="text-[10px] px-1.5 py-0.5 rounded text-white/30 hover:bg-white/5 border border-white/8">N</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => setDeleteConfirm(system.id)} disabled={isLoading}
+                        className="p-1.5 rounded text-rose-400/25 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </HudPanel>
+
+      {/* ══ BOTTOM ROW: ACTIVITY + CREDITS/ALERTS ═══════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Activity Timeline */}
+        <HudPanel accent="rgba(139,92,246,0.45)" corners={false}>
+          <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-white/8">
+            <div className="w-[3px] h-4 bg-violet-400 rounded-full" />
+            <h2 className="text-[10px] font-bold text-white/55 uppercase tracking-widest font-mono">Activity Log</h2>
+          </div>
+          <div className="p-4">
+            {timeline.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <Brain className="w-7 h-7 text-white/6" />
+                <p className="text-[11px] text-white/25 font-mono text-center">No activity yet.<br />Deploy a system to see logs here.</p>
+              </div>
+            ) : (
+              <div className="relative overflow-y-auto max-h-[260px] pr-1">
+                <div className="absolute left-[5px] top-2 bottom-2 w-px bg-white/8" />
+                <div className="space-y-0">
+                  {timeline.map(evt => (
+                    <div key={evt.id} className="relative flex gap-4 pb-3.5 pl-6">
+                      <span className={`absolute left-0 top-[5px] w-[11px] h-[11px] rounded-full border-2 border-[#080a16] ${evt.dot}`} />
+                      <div className="flex-1 min-w-0 pt-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-[11px] font-semibold truncate ${evt.color}`}>{evt.label}</p>
+                          <span className="text-[9px] text-white/20 font-mono shrink-0">{timeAgo(evt.ts)}</span>
+                        </div>
+                        {evt.detail && <p className="text-[10px] text-white/30 truncate mt-0.5">{evt.detail}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </HudPanel>
+
+        {/* Credits + Alerts */}
+        <HudPanel accent="rgba(251,191,36,0.45)" corners={false}>
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8">
+            <div className="flex items-center gap-2.5">
+              <div className="w-[3px] h-4 bg-amber-400 rounded-full" />
+              <h2 className="text-[10px] font-bold text-white/55 uppercase tracking-widest font-mono">Credits & Alerts</h2>
+            </div>
+            <button onClick={() => navigate('/credits')} className="text-[10px] font-mono font-semibold text-amber-400/60 hover:text-amber-400 transition-colors">Top Up →</button>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="flex items-center gap-4 pb-4 border-b border-white/5">
+              <RadialGauge pct={credPct} color={credPct > 30 ? '#fbbf24' : '#fb7185'} size={66} stroke={6}>
+                <span className={`text-[13px] font-black font-mono ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>{credPct}%</span>
+              </RadialGauge>
+              <div className="flex-1">
+                <p className={`text-3xl font-black font-mono tabular-nums ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>{credBalance.toLocaleString()}</p>
+                <p className="text-[10px] text-white/25 font-mono mt-0.5">credits left · {credAllotment.toLocaleString()} total</p>
+              </div>
+            </div>
+
+            {alertNotifs.length > 0 ? (
+              <div className="space-y-2">
+                {alertNotifs.slice(0, 3).map((n, i) => {
+                  const isError = (n.notificationType || '').toLowerCase() === 'error';
+                  return (
+                    <div key={`${n.id}-${i}`} className={`flex items-start gap-2 p-2.5 rounded-xl border ${isError ? 'bg-rose-500/5 border-rose-500/18' : 'bg-amber-500/5 border-amber-500/18'}`}>
+                      <AlertTriangle className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isError ? 'text-rose-400' : 'text-amber-400'}`} />
+                      <div className="min-w-0">
+                        <p className={`text-[11px] font-semibold truncate ${isError ? 'text-rose-400' : 'text-amber-400'}`}>{n.title || n.message}</p>
+                        {n.message && n.title && <p className="text-[10px] text-white/28 truncate mt-0.5">{n.message}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div>
+                  <p className="text-[11px] font-semibold text-emerald-400">All Systems Nominal</p>
+                  <p className="text-[10px] text-white/25 font-mono mt-0.5">No active alerts</p>
+                </div>
+              </div>
+            )}
+
+            <div className="border-t border-white/5 pt-3 space-y-0.5">
+              {notifications.slice(0, 4).map((n, i) => {
+                const tk = (n.notificationType || 'info').toLowerCase();
+                const cfg = NOTIF_TYPE_MAP[tk] ?? NOTIF_TYPE_MAP.info;
+                return (
+                  <div key={`${n.id}-${i}`} className="flex items-center gap-2 py-1.5 border-b border-white/4 last:border-0">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+                    <p className="text-[11px] text-white/45 truncate flex-1">{n.title || n.message}</p>
+                    <span className="text-[9px] text-white/20 font-mono shrink-0">{timeAgo(n.createdAt)}</span>
+                  </div>
+                );
+              })}
+              {notifications.length === 0 && (
+                <p className="text-[10px] text-white/20 font-mono text-center py-2">No notifications yet</p>
+              )}
+            </div>
+          </div>
+        </HudPanel>
+      </div>
+
+      </div>
     </div>
   );
 };

@@ -359,8 +359,11 @@ export function Dashboard() {
             ))}
           </div>
 
-          {/* ── ROW 2: GLOBE + [SYSTEM STATUS + ACTIVITY FEED] ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 272px', gap: 10, minHeight: 250 }}>
+          {/* ── MIDDLE: [GLOBE + 3 CARDS] | [SYSTEM STATUS + ACTIVITY FEED] ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 272px', gap: 10, alignItems: 'stretch' }}>
+
+            {/* LEFT COLUMN: Globe + Revenue/Agents/Deployments */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
 
             {/* GLOBAL SYSTEM OVERVIEW */}
             <div style={{ ...card }}>
@@ -413,68 +416,8 @@ export function Dashboard() {
               </div>
             </div>
 
-            {/* RIGHT COLUMN: System Status + Activity Feed stacked */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-
-              {/* SYSTEM STATUS */}
-              <div style={{ ...card, flex: '0 0 auto' }}>
-                <div style={{ padding: '9px 12px', borderBottom: `1px solid rgba(255,255,255,0.06)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: P.text }}>SYSTEM STATUS</div>
-                    <div style={{ fontSize: 7.5, color: P.textDim, fontFamily: 'Outfit' }}>All systems operational</div>
-                  </div>
-                  <span style={{ fontSize: 11, color: P.textDim, cursor: 'pointer' }}>×</span>
-                </div>
-                <div style={{ padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
-                  <Gauge pct={100} color={P.green} size={76} stroke={7} />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    {['Core Engine','AI Models','Database','Security','Network','Quantum Link'].map(name => (
-                      <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ width: 4.5, height: 4.5, borderRadius: '50%', background: P.green, boxShadow: `0 0 4px ${P.green}`, display: 'inline-block' }} />
-                          <span style={{ fontSize: 9, fontFamily: 'Outfit', color: P.textMid }}>{name}</span>
-                        </div>
-                        <span style={{ fontSize: 8, fontFamily: 'Space Mono', color: P.green }}>Optimal</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ margin: '0 10px 8px', padding: '3px 8px', background: 'rgba(16,185,129,0.06)', borderRadius: 6, fontSize: 7.5, fontFamily: 'Space Mono', color: P.textDim, textAlign: 'center' }}>
-                  Last scan: 2 sec ago
-                </div>
-              </div>
-
-              {/* AI ACTIVITY FEED */}
-              <div style={{ ...card, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: '9px 12px', borderBottom: `1px solid rgba(255,255,255,0.06)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                  <div>
-                    <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: P.text }}>AI ACTIVITY FEED</div>
-                    <div style={{ fontSize: 7.5, color: P.textDim, fontFamily: 'Outfit' }}>Real-time agent coordination</div>
-                  </div>
-                  <span style={{ fontSize: 11, color: P.textDim, cursor: 'pointer' }}>×</span>
-                </div>
-                <div style={{ flex: 1, padding: '5px 12px' }}>
-                  {activity.map((a, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 7, padding: '5px 0', borderBottom: i < activity.length-1 ? `1px solid rgba(255,255,255,0.04)` : 'none', alignItems: 'flex-start' }}>
-                      <div style={{ width: 24, height: 24, borderRadius: 6, background: `${a.color}18`, border: `1px solid ${a.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, flexShrink: 0 }}>🤖</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 9.5, fontFamily: 'Outfit', fontWeight: 600, color: P.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.agent}</div>
-                        <div style={{ fontSize: 8.5, fontFamily: 'Outfit', color: P.textMid, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.action}</div>
-                      </div>
-                      <span style={{ fontSize: 7.5, fontFamily: 'Space Mono', color: P.textDim, flexShrink: 0, paddingTop: 1 }}>{a.ago}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ padding: '5px 12px', borderTop: `1px solid rgba(255,255,255,0.05)`, textAlign: 'center', fontSize: 8, fontFamily: 'Space Mono', color: P.cyan, cursor: 'pointer', background: 'rgba(56,189,248,0.03)', flexShrink: 0 }}>
-                  View All Activity →
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          {/* ── ROW 3: REVENUE + AGENTS + DEPLOYMENTS ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+            {/* ROW 3 (inside LEFT column): REVENUE + AGENTS + DEPLOYMENTS */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
 
             {/* REVENUE STREAMS */}
             <div style={{ ...card }}>
@@ -589,6 +532,68 @@ export function Dashboard() {
               </div>
             </div>
 
+            </div>
+
+            </div>
+
+            {/* RIGHT COLUMN: System Status + Activity Feed stacked (spans full height) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
+
+              {/* SYSTEM STATUS */}
+              <div style={{ ...card, flex: '0 0 auto' }}>
+                <div style={{ padding: '9px 12px', borderBottom: `1px solid rgba(255,255,255,0.06)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: P.text }}>SYSTEM STATUS</div>
+                    <div style={{ fontSize: 7.5, color: P.textDim, fontFamily: 'Outfit' }}>All systems operational</div>
+                  </div>
+                  <span style={{ fontSize: 11, color: P.textDim, cursor: 'pointer' }}>×</span>
+                </div>
+                <div style={{ padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <Gauge pct={100} color={P.green} size={76} stroke={7} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {['Core Engine','AI Models','Database','Security','Network','Quantum Link'].map(name => (
+                      <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ width: 4.5, height: 4.5, borderRadius: '50%', background: P.green, boxShadow: `0 0 4px ${P.green}`, display: 'inline-block' }} />
+                          <span style={{ fontSize: 9, fontFamily: 'Outfit', color: P.textMid }}>{name}</span>
+                        </div>
+                        <span style={{ fontSize: 8, fontFamily: 'Space Mono', color: P.green }}>Optimal</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ margin: '0 10px 8px', padding: '3px 8px', background: 'rgba(16,185,129,0.06)', borderRadius: 6, fontSize: 7.5, fontFamily: 'Space Mono', color: P.textDim, textAlign: 'center' }}>
+                  Last scan: 2 sec ago
+                </div>
+              </div>
+
+              {/* AI ACTIVITY FEED */}
+              <div style={{ ...card, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{ padding: '9px 12px', borderBottom: `1px solid rgba(255,255,255,0.06)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                  <div>
+                    <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: P.text }}>AI ACTIVITY FEED</div>
+                    <div style={{ fontSize: 7.5, color: P.textDim, fontFamily: 'Outfit' }}>Real-time agent coordination</div>
+                  </div>
+                  <span style={{ fontSize: 11, color: P.textDim, cursor: 'pointer' }}>×</span>
+                </div>
+                <div style={{ flex: 1, padding: '5px 12px', overflowY: 'auto', minHeight: 0 }}>
+                  {activity.map((a, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 7, padding: '5px 0', borderBottom: i < activity.length-1 ? `1px solid rgba(255,255,255,0.04)` : 'none', alignItems: 'flex-start' }}>
+                      <div style={{ width: 24, height: 24, borderRadius: 6, background: `${a.color}18`, border: `1px solid ${a.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, flexShrink: 0 }}>🤖</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 9.5, fontFamily: 'Outfit', fontWeight: 600, color: P.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.agent}</div>
+                        <div style={{ fontSize: 8.5, fontFamily: 'Outfit', color: P.textMid, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.action}</div>
+                      </div>
+                      <span style={{ fontSize: 7.5, fontFamily: 'Space Mono', color: P.textDim, flexShrink: 0, paddingTop: 1 }}>{a.ago}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ padding: '5px 12px', borderTop: `1px solid rgba(255,255,255,0.05)`, textAlign: 'center', fontSize: 8, fontFamily: 'Space Mono', color: P.cyan, cursor: 'pointer', background: 'rgba(56,189,248,0.03)', flexShrink: 0 }}>
+                  View All Activity →
+                </div>
+              </div>
+
+            </div>
           </div>
 
           {/* ── ROW 4: ANALYTICS + QUANTUM TERMINAL ── */}

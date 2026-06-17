@@ -250,9 +250,22 @@ const SystemCommandCenterPage = () => {
         fetch('/api/user-tool-selections', { headers: authHeaders() }),
         fetch('/api/tools', { headers: authHeaders() }),
       ]);
-      if (!statsRes.ok) throw new Error('Failed to load platform stats');
+
+      // Session expired / invalid token → clear stale auth and send to login.
+      if (statsRes.status === 401) {
+        localStorage.removeItem('sbep_auth_token');
+        localStorage.removeItem('sbep_auth_user');
+        localStorage.removeItem('userRole');
+        toast.error('Session expired. Please sign in again.');
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      // Non-auth failures degrade gracefully: render the dashboard with whatever
+      // loaded successfully (the UI uses safe fallbacks for missing data) instead
+      // of replacing the whole page with a blocking error screen.
       const [statsData, revData, credData, credsData, notifsData, selectionsData, toolsData] = await Promise.all([
-        statsRes.json(),
+        statsRes.ok ? statsRes.json() : null,
         revRes.ok ? revRes.json() : null,
         creditsRes.ok ? creditsRes.json() : null,
         credsRes.ok ? credsRes.json() : [],
@@ -277,13 +290,16 @@ const SystemCommandCenterPage = () => {
         toolMap[sel.systemInstanceId].push(tool);
       });
       setToolsBySystem(toolMap);
+      if (!statsRes.ok) setError('Some live data is temporarily unavailable.');
       setLastRefresh(new Date());
     } catch (err) {
-      setError(err.message || 'Failed to load data');
+      // Network/transient error — keep the dashboard visible with safe fallbacks.
+      console.warn('Dashboard load issue:', err);
+      setError('Some live data is temporarily unavailable.');
     } finally {
       setLoading(false);
     }
-  }, [user.id]);
+  }, [user.id, navigate]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -330,21 +346,6 @@ const SystemCommandCenterPage = () => {
             <Cpu className="w-6 h-6 text-primary" style={{ animation: 'spin 2s linear infinite' }} />
           </RadialGauge>
           <p style={{ fontSize: 11, fontFamily: 'Space Mono, monospace', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 16 }}>Initializing Command Center</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#020810 0%,#030b1a 50%,#020810 100%)' }}>
-        <div style={{ textAlign: 'center', padding: 32, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 16, maxWidth: 320 }}>
-          <AlertTriangle className="w-8 h-8 text-rose-400 mx-auto mb-3" />
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.9)', marginBottom: 8 }}>Connection Error</p>
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 16 }}>{error}</p>
-          <button onClick={load} style={{ padding: '8px 20px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: 'rgba(255,255,255,0.7)', fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <RefreshCw className="w-3.5 h-3.5" /> Retry
-          </button>
         </div>
       </div>
     );
@@ -552,6 +553,17 @@ const SystemCommandCenterPage = () => {
         {/* SCROLLABLE CONTENT */}
         <main style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
+          {/* Non-blocking data warning banner */}
+          {error && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8 }}>
+              <AlertTriangle style={{ width: 14, height: 14, color: '#f59e0b', flexShrink: 0 }} />
+              <span style={{ fontSize: 11, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.65)', flex: 1 }}>{error}</span>
+              <button onClick={load} style={{ padding: '4px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: 'rgba(255,255,255,0.7)', fontSize: 10.5, fontFamily: 'Space Mono', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <RefreshCw style={{ width: 11, height: 11 }} /> Retry
+              </button>
+            </div>
+          )}
+
           {/* ── KPI ROW (5 cards) ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 9 }}>
             {/* Total Revenue */}
@@ -611,8 +623,11 @@ const SystemCommandCenterPage = () => {
             </div>
           </div>
 
-          {/* ── ROW 2: Global Overview + System Status ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 248px', gap: 10 }}>
+          {/* ── MIDDLE: [Globe + Revenue/Agents/Deployments] | [System Status + Activity Feed] ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 248px', gap: 10, alignItems: 'stretch' }}>
+
+            {/* LEFT COLUMN: Globe + Revenue/Agents/Deployments */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
 
             {/* Global System Overview */}
             <div style={{ ...card, overflow: 'hidden' }}>
@@ -676,49 +691,8 @@ const SystemCommandCenterPage = () => {
               </div>
             </div>
 
-            {/* System Status */}
-            <div style={{ ...card, overflow: 'hidden' }}>
-              <div style={{ padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>SYSTEM STATUS</div>
-                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>All systems operational</div>
-                </div>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'pointer', lineHeight: 1 }}>×</span>
-              </div>
-              <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                <RadialGauge pct={avgHealthPct} color="#10b981" size={84} stroke={8}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 18, fontFamily: 'Space Mono', fontWeight: 700, color: '#10b981', lineHeight: 1 }}>{avgHealthPct}</div>
-                    <div style={{ fontSize: 7.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>HEALTH</div>
-                  </div>
-                </RadialGauge>
-                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  {[
-                    { name: 'Core Engine',   ok: true },
-                    { name: 'AI Models',     ok: orStatus === 'operational' },
-                    { name: 'Database',      ok: true },
-                    { name: 'Security',      ok: true },
-                    { name: 'Network',       ok: true },
-                    { name: 'Connections',   ok: connectedToolCount > 0 },
-                  ].map(item => (
-                    <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: item.ok ? '#10b981' : '#ef4444', boxShadow: `0 0 4px ${item.ok ? '#10b981' : '#ef4444'}`, display: 'inline-block' }} />
-                        <span style={{ fontSize: 9.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.55)' }}>{item.name}</span>
-                      </div>
-                      <span style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: item.ok ? '#10b981' : '#ef4444' }}>{item.ok ? 'Optimal' : 'Offline'}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ width: '100%', padding: '4px 8px', background: 'rgba(16,185,129,0.06)', borderRadius: 7, fontSize: 8, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.25)', textAlign: 'center' }}>
-                  Last scan: {lastRefresh ? timeAgo(lastRefresh) : 'just now'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── ROW 3: Revenue Streams + Agent Perf + Deployments ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            {/* ROW 3 (inside LEFT column): Revenue Streams + Agent Perf + Deployments */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
 
             {/* Revenue Streams */}
             <div style={{ ...card, overflow: 'hidden' }}>
@@ -832,9 +806,88 @@ const SystemCommandCenterPage = () => {
                 </div>
               </div>
             </div>
+            </div>
+
+            </div>
+
+            {/* RIGHT COLUMN: System Status + Activity Feed (spans full height) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
+
+              {/* System Status */}
+              <div style={{ ...card, overflow: 'hidden', flex: '0 0 auto' }}>
+                <div style={{ padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize: 10.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>SYSTEM STATUS</div>
+                    <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>All systems operational</div>
+                  </div>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'pointer', lineHeight: 1 }}>×</span>
+                </div>
+                <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                  <RadialGauge pct={avgHealthPct} color="#10b981" size={84} stroke={8}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 18, fontFamily: 'Space Mono', fontWeight: 700, color: '#10b981', lineHeight: 1 }}>{avgHealthPct}</div>
+                      <div style={{ fontSize: 7.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>HEALTH</div>
+                    </div>
+                  </RadialGauge>
+                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {[
+                      { name: 'Core Engine',   ok: true },
+                      { name: 'AI Models',     ok: orStatus === 'operational' },
+                      { name: 'Database',      ok: true },
+                      { name: 'Security',      ok: true },
+                      { name: 'Network',       ok: true },
+                      { name: 'Connections',   ok: connectedToolCount > 0 },
+                    ].map(item => (
+                      <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: item.ok ? '#10b981' : '#ef4444', boxShadow: `0 0 4px ${item.ok ? '#10b981' : '#ef4444'}`, display: 'inline-block' }} />
+                          <span style={{ fontSize: 9.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.55)' }}>{item.name}</span>
+                        </div>
+                        <span style={{ fontSize: 8.5, fontFamily: 'Space Mono', color: item.ok ? '#10b981' : '#ef4444' }}>{item.ok ? 'Optimal' : 'Offline'}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ width: '100%', padding: '4px 8px', background: 'rgba(16,185,129,0.06)', borderRadius: 7, fontSize: 8, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.25)', textAlign: 'center' }}>
+                    Last scan: {lastRefresh ? timeAgo(lastRefresh) : 'just now'}
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Activity Feed */}
+              <div style={{ ...card, overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between', flexShrink: 0 }}>
+                  <div>
+                    <div style={{ fontSize: 9.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>AI ACTIVITY FEED</div>
+                    <div style={{ fontSize: 7.5, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>Real-time agent coordination</div>
+                  </div>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'pointer', lineHeight: 1 }}>×</span>
+                </div>
+                <div style={{ flex: 1, padding: '6px 12px', overflowY: 'auto', minHeight: 0 }}>
+                  {timeline.slice(0, 8).map((evt, i) => (
+                    <div key={`${evt.id}-${i}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ width: 20, height: 20, borderRadius: 5, background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Bot style={{ width: 10, height: 10, color: '#38bdf8' }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 9.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{evt.label}</div>
+                        <div style={{ fontSize: 8, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{evt.detail}</div>
+                      </div>
+                      <span style={{ fontSize: 7.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.2)', flexShrink: 0 }}>{timeAgo(evt.ts)}</span>
+                    </div>
+                  ))}
+                  {timeline.length === 0 && (
+                    <div style={{ padding: '10px 0', textAlign: 'center', fontSize: 9, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.2)' }}>No activity yet. Deploy a system to see logs.</div>
+                  )}
+                </div>
+                <button onClick={() => navigate('/systems')} style={{ display: 'block', width: '100%', padding: '5px', background: 'rgba(56,189,248,0.04)', border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: 8.5, fontFamily: 'Space Mono', color: '#38bdf8', cursor: 'pointer', flexShrink: 0 }}>
+                  View All Activity →
+                </button>
+              </div>
+
+            </div>
           </div>
 
-          {/* ── ROW 4: Analytics + Activity Feed + Terminal ── */}
+          {/* ── ROW 4: Performance Analytics + ASH Command Terminal ── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 248px', gap: 10 }}>
 
             {/* System Performance Analytics */}
@@ -873,42 +926,8 @@ const SystemCommandCenterPage = () => {
               </div>
             </div>
 
-            {/* Right column: Activity Feed + Terminal */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-
-              {/* AI Activity Feed */}
-              <div style={{ ...card, overflow: 'hidden', flex: 1 }}>
-                <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontSize: 9.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>AI ACTIVITY FEED</div>
-                    <div style={{ fontSize: 7.5, color: 'rgba(255,255,255,0.3)', fontFamily: 'Outfit' }}>Real-time agent coordination</div>
-                  </div>
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', cursor: 'pointer', lineHeight: 1 }}>×</span>
-                </div>
-                <div style={{ padding: '6px 12px', maxHeight: 120, overflowY: 'auto' }}>
-                  {timeline.slice(0, 5).map((evt, i) => (
-                    <div key={`${evt.id}-${i}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ width: 20, height: 20, borderRadius: 5, background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Bot style={{ width: 10, height: 10, color: '#38bdf8' }} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 9.5, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{evt.label}</div>
-                        <div style={{ fontSize: 8, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{evt.detail}</div>
-                      </div>
-                      <span style={{ fontSize: 7.5, fontFamily: 'Space Mono', color: 'rgba(255,255,255,0.2)', flexShrink: 0 }}>{timeAgo(evt.ts)}</span>
-                    </div>
-                  ))}
-                  {timeline.length === 0 && (
-                    <div style={{ padding: '10px 0', textAlign: 'center', fontSize: 9, fontFamily: 'Outfit', color: 'rgba(255,255,255,0.2)' }}>No activity yet. Deploy a system to see logs.</div>
-                  )}
-                </div>
-                <button onClick={() => navigate('/systems')} style={{ display: 'block', width: '100%', padding: '5px', background: 'rgba(56,189,248,0.04)', border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: 8.5, fontFamily: 'Space Mono', color: '#38bdf8', cursor: 'pointer' }}>
-                  View All Activity →
-                </button>
-              </div>
-
-              {/* ASH Command Terminal */}
-              <div style={{ background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(56,189,248,0.18)', borderRadius: 12, overflow: 'hidden' }}>
+            {/* ASH Command Terminal */}
+            <div style={{ background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(56,189,248,0.18)', borderRadius: 12, overflow: 'hidden' }}>
                 <div style={{ padding: '7px 12px', borderBottom: '1px solid rgba(56,189,248,0.12)', display: 'flex', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ fontSize: 9.5, fontFamily: 'Outfit', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>ASH COMMAND TERMINAL</div>
@@ -946,8 +965,6 @@ const SystemCommandCenterPage = () => {
                   <button onClick={() => navigate('/builder')} style={{ padding: '3px 10px', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: 6, fontSize: 8.5, fontFamily: 'Space Mono', color: '#38bdf8', cursor: 'pointer', flexShrink: 0 }}>EXECUTE</button>
                 </div>
               </div>
-
-            </div>
           </div>
 
         </main>

@@ -11,3 +11,4 @@
 - [ASH auto-tool SSE pattern](ash-auto-tool-sse.md) — stream endpoint detects search/image keywords, runs tools in parallel with AI, sends tool_result SSE before first token; frontend inserts result card before streaming placeholder.
 - [Notification ID key collisions](notification-id-keys.md) — notification ids are timestamp-based and can collide; key React lists with `${n.id}-${i}`, not `n.id` alone.
 - [Frontend auth token pattern](frontend-auth-token.md) — never use AuthContext.token (doesn't exist); always read localStorage.getItem('sbep_auth_token') directly in fetch helpers.
+- [E2E test login](e2e-test-login.md) — documented admin seed is stale/missing; register a fresh user via POST /api/auth/register (no email verification) to authenticate in tests.

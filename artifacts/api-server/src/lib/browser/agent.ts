@@ -1,6 +1,12 @@
+/**
+ * Stateful fetch+cheerio browser agent — no Chromium binary required.
+ *
+ * State is just the current URL + fetched PageData. Actions like navigate,
+ * click, type, and form submit are implemented by re-fetching pages.
+ */
+import * as cheerio from "cheerio";
 import { complete } from "../openrouter";
-import { createBrowserContext, getPageData } from "./crawler";
-import type { BrowserContext, Page } from "playwright";
+import { fetchPage, submitForm, type PageData } from "./crawler";
 
 export type BrowserEventType =
   | "navigate"
@@ -22,61 +28,74 @@ export interface BrowserEvent {
   screenshot?: string;
 }
 
-const MAX_STEPS = 15;
+const MAX_STEPS = 12;
 
 function sleep(ms: number) {
   return new Promise<void>(r => setTimeout(r, ms));
 }
 
-function isPageClosedError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return (
-    msg.includes("Target page, context or browser has been closed") ||
-    msg.includes("Target closed") ||
-    msg.includes("has been closed") ||
-    msg.includes("Session closed") ||
-    msg.includes("page.title:")
-  );
+function resolveUrl(href: string, base: string): string {
+  if (!href) return "";
+  if (href.startsWith("http://") || href.startsWith("https://")) return href;
+  try { return new URL(href, base).href; } catch { return ""; }
 }
 
 /**
- * After an action that may trigger navigation (click, navigate, key),
- * wait for load state to settle and return the currently active page.
- * If the original page was replaced by a redirect, pick the newest page
- * in the context instead.
+ * Given a CSS selector hint (e.g. 'a[href*="mail"]', '#signIn', '.btn-primary'),
+ * extract matching href/text from raw HTML via cheerio.
  */
-async function settleNavigation(context: BrowserContext, page: Page): Promise<Page> {
-  // Wait for any in-flight navigation to finish
+function extractLinkFromSelector(html: string, selector: string, baseUrl: string): string | null {
   try {
-    await page.waitForLoadState("domcontentloaded", { timeout: 6000 });
-  } catch { /* navigation may have already finished or page replaced */ }
-
-  await sleep(800);
-
-  // Check if the original page is still alive
-  try {
-    page.url(); // synchronous — throws if context is destroyed
-    await page.title(); // async — throws if page closed
-    return page;
+    const $ = cheerio.load(html);
+    // Try the selector directly
+    const el = $(selector).first();
+    if (el.length) {
+      const href = el.attr("href") || el.find("a").first().attr("href");
+      if (href) return resolveUrl(href, baseUrl);
+    }
+    // If selector looks like a text pattern, search link text
+    const cleanText = selector.replace(/[[\](){}.*+?^$|\\]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    let found: string | null = null;
+    $("a[href]").each((_, el) => {
+      if (found) return;
+      const txt = $(el).text().replace(/\s+/g, " ").trim().toLowerCase();
+      if (txt.includes(cleanText) || cleanText.includes(txt)) {
+        const href = resolveUrl($(el).attr("href") ?? "", baseUrl);
+        if (href) found = href;
+      }
+    });
+    return found;
   } catch {
-    // Page was closed/replaced — find the newest live page
-    const pages = context.pages();
-    if (pages.length === 0) return page; // nothing we can do
-    return pages[pages.length - 1];
+    return null;
   }
 }
 
-function formatPageForAI(page: {
-  finalUrl: string;
-  title: string;
-  text: string;
-  links: Array<{ text: string; url: string }>;
-  forms: Array<{
-    action: string;
-    method: string;
-    fields: Array<{ name: string; type: string; placeholder?: string; value?: string; label?: string }>;
-  }>;
-}): string {
+/**
+ * Find a form field by label text and return its name attribute.
+ */
+function findFieldNameByLabel(html: string, label: string): string | null {
+  try {
+    const $ = cheerio.load(html);
+    const labelLower = label.toLowerCase();
+    let fieldName: string | null = null;
+    $("label").each((_, el) => {
+      if (fieldName) return;
+      const text = $(el).text().replace(/\s+/g, " ").trim().toLowerCase();
+      if (text.includes(labelLower)) {
+        const forAttr = $(el).attr("for");
+        if (forAttr) {
+          const field = $(`[name="${forAttr}"], #${forAttr}`).first();
+          fieldName = field.attr("name") || field.attr("id") || null;
+        }
+      }
+    });
+    return fieldName;
+  } catch {
+    return null;
+  }
+}
+
+function formatPageForAI(page: PageData): string {
   const linksText = page.links
     .slice(0, 20)
     .map((l, i) => `  ${i + 1}. "${l.text}" → ${l.url}`)
@@ -99,195 +118,63 @@ function formatPageForAI(page: {
   return `URL: ${page.finalUrl}
 Title: ${page.title}
 
---- PAGE TEXT (first 5000 chars) ---
-${page.text.slice(0, 5000)}
+--- PAGE TEXT ---
+${page.text.slice(0, 4000)}
 
---- LINKS ON PAGE (top 20) ---
+--- LINKS (top 20) ---
 ${linksText || "  (none found)"}
 
---- FORMS ON PAGE ---
+--- FORMS ---
 ${formsText || "  (none found)"}`;
 }
 
 function buildDecisionPrompt(pageInfo: string, task: string, steps: string[]): string {
-  return `You are a web browsing AI agent with a REAL Chromium browser. You can execute JavaScript, click any element, type text, scroll, and interact with any website including Gmail, Google, and other JS-heavy sites.
+  return `You are an AI web browsing agent using a fetch-based headless browser (no JavaScript execution). You can navigate pages, follow links, type into forms, and submit them.
 
 ${pageInfo}
 
 Previously completed steps:
-${steps.length ? steps.map((s, i) => `  ${i + 1}. ${s}`).join("\n") : "  (none yet — just started)"}
+${steps.length ? steps.map((s, i) => `  ${i + 1}. ${s}`).join("\n") : "  (none yet)"}
 
 USER TASK: ${task}
 
 Decide the NEXT single action. Respond ONLY with valid JSON — no markdown, no explanation:
 
-AVAILABLE ACTIONS:
-
-Navigate to URL:
+Navigate to a URL:
 {"action":"navigate","url":"<full URL>","reason":"<why>"}
 
-Click element by CSS selector or visible text:
+Click a link by partial text match:
+{"action":"click_text","text":"<visible link text>","reason":"<why>"}
+
+Click an element by CSS selector (use for form buttons/links):
 {"action":"click","selector":"<CSS selector>","reason":"<why>"}
-{"action":"click_text","text":"<exact visible button/link text>","reason":"<why>"}
 
-Type into a field (fills and clears first):
-{"action":"type","selector":"<CSS selector or input name>","value":"<text to type>","reason":"<why>"}
+Type into a form field by its name or id attribute:
+{"action":"type","selector":"<field name or id>","value":"<text>","reason":"<why>"}
 
-Type into a field by its label text:
-{"action":"type_label","label":"<label text>","value":"<text to type>","reason":"<why>"}
+Type into a form field by its label text:
+{"action":"type_label","label":"<label text>","value":"<text>","reason":"<why>"}
 
-Press a keyboard key:
-{"action":"key","key":"<key name e.g. Enter, Tab, Escape>","reason":"<why>"}
+Submit accumulated form fields (also triggered by key:Enter):
+{"action":"submit_form","reason":"<why>"}
 
-Scroll the page:
-{"action":"scroll","direction":"down","pixels":500,"reason":"<why>"}
+Press keyboard key (Enter triggers form submit):
+{"action":"key","key":"<Enter|Tab|Escape>","reason":"<why>"}
 
-Wait for something to load:
-{"action":"wait","ms":2000,"reason":"<why>"}
+Wait briefly:
+{"action":"wait","ms":1000,"reason":"<why>"}
 
-Task is complete — return findings:
-{"action":"done","result":"<detailed summary of what was accomplished or found>"}
+Task complete — return findings:
+{"action":"done","result":"<detailed summary>"}
 
 RULES:
-- For login forms: use type actions to fill email/password fields, then click the submit button
-- Use CSS selectors like: input[type="email"], input[type="password"], button[type="submit"], [name="identifier"]
-- For Google login the email field is typically: input[type="email"] or #identifierId
-- For Google login the password field is typically: input[type="password"] or [name="password"]  
-- After typing credentials, click Next/Sign In button or press Enter
-- If the current page already has the information needed → return done immediately
-- Be specific and precise with selectors — prefer id, name, or type attributes
-- IMPORTANT: After navigation or clicking links, the page URL will change automatically — do NOT re-navigate to the same URL`;
-}
-
-/**
- * Execute a single browser action. Returns the (possibly new) active page
- * alongside ok/description/error — because navigation can replace the page.
- */
-async function executeAction(
-  context: BrowserContext,
-  page: Page,
-  decision: {
-    action: string;
-    url?: string;
-    selector?: string;
-    text?: string;
-    label?: string;
-    value?: string;
-    key?: string;
-    direction?: string;
-    pixels?: number;
-    ms?: number;
-    reason?: string;
-    result?: string;
-  }
-): Promise<{ ok: boolean; description: string; error?: string; page: Page }> {
-  try {
-    switch (decision.action) {
-      case "navigate": {
-        await page.goto(decision.url!, { waitUntil: "domcontentloaded", timeout: 25000 });
-        const activePage = await settleNavigation(context, page);
-        return { ok: true, description: `Navigated to ${decision.url}`, page: activePage };
-      }
-
-      case "click": {
-        const sel = decision.selector!;
-        // waitForSelector can throw if page navigates away — treat as soft error
-        try {
-          await page.waitForSelector(sel, { timeout: 8000, state: "visible" });
-        } catch (waitErr) {
-          if (isPageClosedError(waitErr)) {
-            const activePage = await settleNavigation(context, page);
-            return { ok: true, description: `Page navigated while waiting for ${sel}`, page: activePage };
-          }
-          // Selector not found — try click anyway (may be in shadow DOM or lazy-rendered)
-        }
-        try { await page.click(sel, { timeout: 5000 }); } catch { /* ignore click errors — page may navigate */ }
-        const activePage = await settleNavigation(context, page);
-        return { ok: true, description: `Clicked: ${sel}`, page: activePage };
-      }
-
-      case "click_text": {
-        const txt = decision.text!;
-        const locator = page.getByText(txt, { exact: false }).first();
-        try {
-          await locator.waitFor({ timeout: 8000 });
-          await locator.click({ timeout: 5000 });
-        } catch (err) {
-          if (!isPageClosedError(err)) {
-            const activePage = await settleNavigation(context, page);
-            return { ok: false, description: `Could not click "${txt}"`, error: err instanceof Error ? err.message : String(err), page: activePage };
-          }
-        }
-        const activePage = await settleNavigation(context, page);
-        return { ok: true, description: `Clicked text: "${txt}"`, page: activePage };
-      }
-
-      case "type": {
-        const sel = decision.selector!;
-        try {
-          await page.waitForSelector(sel, { timeout: 8000, state: "visible" });
-          await page.fill(sel, decision.value ?? "");
-        } catch (err) {
-          if (isPageClosedError(err)) {
-            const activePage = await settleNavigation(context, page);
-            return { ok: false, description: `Page closed while typing into ${sel}`, page: activePage };
-          }
-          return { ok: false, description: `Could not type into ${sel}`, error: err instanceof Error ? err.message : String(err), page };
-        }
-        await sleep(400);
-        return { ok: true, description: `Typed into ${sel}: "${decision.value}"`, page };
-      }
-
-      case "type_label": {
-        const label = decision.label!;
-        const labelEl = page.getByLabel(label, { exact: false }).first();
-        try {
-          await labelEl.waitFor({ timeout: 8000 });
-          await labelEl.fill(decision.value ?? "");
-        } catch (err) {
-          return { ok: false, description: `Could not type into label "${label}"`, error: err instanceof Error ? err.message : String(err), page };
-        }
-        await sleep(400);
-        return { ok: true, description: `Typed "${decision.value}" into field labeled "${label}"`, page };
-      }
-
-      case "key": {
-        try { await page.keyboard.press(decision.key!); } catch { /* ignore */ }
-        const activePage = await settleNavigation(context, page);
-        return { ok: true, description: `Pressed key: ${decision.key}`, page: activePage };
-      }
-
-      case "scroll": {
-        const px = decision.pixels ?? 500;
-        const dir = decision.direction === "up" ? -px : px;
-        try {
-          await page.evaluate(new Function("dy", "window.scrollBy(0, dy)") as (dy: number) => void, dir);
-        } catch { /* ignore */ }
-        await sleep(400);
-        return { ok: true, description: `Scrolled ${decision.direction ?? "down"} ${px}px`, page };
-      }
-
-      case "wait": {
-        await sleep(decision.ms ?? 2000);
-        return { ok: true, description: `Waited ${decision.ms ?? 2000}ms`, page };
-      }
-
-      default:
-        return { ok: false, description: `Unknown action: ${decision.action}`, error: "Unknown action", page };
-    }
-  } catch (err: unknown) {
-    // Catch-all — recover the active page and continue
-    let activePage = page;
-    if (isPageClosedError(err)) {
-      try { activePage = await settleNavigation(context, page); } catch { /* best effort */ }
-    }
-    return {
-      ok: false,
-      description: `Action failed: ${decision.action}`,
-      error: err instanceof Error ? err.message : String(err),
-      page: activePage,
-    };
-  }
+- IMPORTANT: This is a fetch-based browser — JavaScript-heavy single-page apps (Gmail, Google Docs, Twitter) will only show partial content since JS is not executed. Explain this limitation if the page appears empty.
+- For Google/Gmail login: navigate to https://accounts.google.com/signin/v2/identifier then type into the email field, submit, then type password.
+- Use type_label for form fields when you can see a label in the FORMS section.
+- After typing credentials, use submit_form or key:Enter to submit.
+- If the page already has the information needed, return done immediately.
+- Links shown in LINKS section are navigable — use click_text with the exact link text shown.
+- If a page shows an error or is empty, try a different approach or return done with what you found.`;
 }
 
 export async function* runBrowserAgent(
@@ -296,151 +183,210 @@ export async function* runBrowserAgent(
   userId: number
 ): AsyncGenerator<BrowserEvent> {
   const steps: string[] = [];
-  let context: BrowserContext | null = null;
-  let page: Page | null = null;
+  // Accumulated form field values across type/type_label actions
+  const formFields: Record<string, string> = {};
+
+  let currentPage: PageData | null = null;
 
   try {
-    yield { type: "thinking", description: "Starting browser…" };
+    yield { type: "thinking", description: "Starting browser (fetch mode)…" };
 
-    context = await createBrowserContext();
-    page = await context.newPage();
+    yield { type: "thinking", description: `Fetching ${startUrl}…` };
+    currentPage = await fetchPage(startUrl);
 
-    yield { type: "thinking", description: `Navigating to ${startUrl}…` };
-    try {
-      await page.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 25000 });
-    } catch (err) {
-      // domcontentloaded may time out on heavy JS sites — continue anyway
-      if (!isPageClosedError(err)) {
-        yield { type: "thinking", description: "Page slow to load, continuing…" };
-      }
+    if (currentPage.error) {
+      yield {
+        type: "thinking",
+        description: `Initial page error: ${currentPage.error} — continuing…`,
+      };
     }
-    page = await settleNavigation(context, page);
 
     for (let step = 0; step < MAX_STEPS; step++) {
-      // Always use the live active page
-      const activePage = context.pages().at(-1) ?? page;
-      page = activePage;
-
-      let pageData;
-      try {
-        pageData = await getPageData(page, page.url());
-      } catch (err) {
-        // If we can't even get page data, try to recover
-        if (isPageClosedError(err)) {
-          const pages = context.pages();
-          if (pages.length === 0) {
-            yield { type: "error", message: "Browser session ended unexpectedly." };
-            return;
-          }
-          page = pages[pages.length - 1];
-          pageData = await getPageData(page, page.url());
-        } else {
-          throw err;
-        }
+      if (!currentPage) {
+        yield { type: "error", message: "Lost page state — aborting." };
+        return;
       }
 
       yield {
         type: "navigate",
-        url: pageData.finalUrl,
-        title: pageData.title,
-        description: `Viewing: ${pageData.title}`,
+        url: currentPage.finalUrl,
+        title: currentPage.title,
+        description: `Viewing: ${currentPage.title}`,
       };
-
-      if (pageData.screenshot) {
-        yield {
-          type: "snapshot",
-          url: pageData.finalUrl,
-          title: pageData.title,
-          screenshot: pageData.screenshot,
-        };
-      }
 
       yield {
         type: "content",
-        url: pageData.finalUrl,
-        description: `Page loaded — ${pageData.text.length} chars, ${pageData.links.length} links, ${pageData.forms.length} forms`,
+        url: currentPage.finalUrl,
+        description: `Page: ${currentPage.text.length} chars, ${currentPage.links.length} links, ${currentPage.forms.length} forms`,
       };
 
       if (step === MAX_STEPS - 1) {
         yield {
           type: "done",
-          result: `Reached maximum steps. Last page: "${pageData.title}" at ${pageData.finalUrl}.\n\n${pageData.text.slice(0, 800)}`,
+          result: `Reached step limit. Last page: "${currentPage.title}" at ${currentPage.finalUrl}.\n\n${currentPage.text.slice(0, 600)}`,
         };
         return;
       }
 
       yield { type: "thinking", description: "Deciding next action…" };
 
-      const pageInfo = formatPageForAI(pageData);
-      const decisionPrompt = buildDecisionPrompt(pageInfo, task, steps);
+      const pageInfo = formatPageForAI(currentPage);
+      const prompt = buildDecisionPrompt(pageInfo, task, steps);
 
       let decisionText = "";
       try {
-        const result = await complete({
-          model: "openai/gpt-4o-mini",
-          prompt: decisionPrompt,
-          userId,
-        });
+        const result = await complete({ model: "openai/gpt-4o-mini", prompt, userId });
         decisionText = result.content.trim();
-      } catch (err: unknown) {
-        yield { type: "error", message: "AI decision failed: " + (err instanceof Error ? err.message : String(err)) };
+      } catch (err) {
+        yield { type: "error", message: "AI error: " + (err instanceof Error ? err.message : String(err)) };
         return;
       }
 
-      let decision: {
-        action: string;
-        url?: string;
-        selector?: string;
-        text?: string;
-        label?: string;
-        value?: string;
-        key?: string;
-        direction?: string;
-        pixels?: number;
-        ms?: number;
-        reason?: string;
-        result?: string;
-      };
-
+      let decision: Record<string, unknown>;
       try {
         const cleaned = decisionText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
         decision = JSON.parse(cleaned);
       } catch {
-        yield { type: "error", message: `Could not parse AI decision: ${decisionText.slice(0, 200)}` };
+        yield { type: "error", message: `Could not parse decision: ${decisionText.slice(0, 200)}` };
         return;
       }
 
       if (decision.action === "done") {
-        yield { type: "done", result: decision.result ?? "Task completed." };
+        yield { type: "done", result: String(decision.result ?? "Task completed.") };
         return;
       }
 
-      const actionResult = await executeAction(context, page, decision);
+      // ── Execute action ────────────────────────────────────────────────────
+      const reason = decision.reason ? ` — ${decision.reason}` : "";
+      let actionDesc = "";
+      let nextPage: PageData | null = null;
 
-      // Always track the live page after any action
-      page = actionResult.page;
+      switch (decision.action) {
+        case "navigate": {
+          const url = String(decision.url ?? "");
+          yield { type: "thinking", description: `Navigating to ${url}…` };
+          nextPage = await fetchPage(url);
+          actionDesc = `Navigated to ${url}`;
+          Object.keys(formFields).forEach(k => delete formFields[k]);
+          break;
+        }
+
+        case "click_text": {
+          const text = String(decision.text ?? "").toLowerCase();
+          const match = currentPage.links.find(l =>
+            l.text.toLowerCase().includes(text) || text.includes(l.text.toLowerCase())
+          );
+          if (match) {
+            yield { type: "thinking", description: `Following link: "${match.text}"…` };
+            nextPage = await fetchPage(match.url);
+            actionDesc = `Clicked link: "${match.text}"`;
+            Object.keys(formFields).forEach(k => delete formFields[k]);
+          } else {
+            actionDesc = `Link "${decision.text}" not found on page`;
+            yield { type: "thinking", description: `${actionDesc} — trying to find via HTML…` };
+            const href = extractLinkFromSelector(currentPage.html, String(decision.text ?? ""), currentPage.finalUrl);
+            if (href) {
+              nextPage = await fetchPage(href);
+              actionDesc = `Followed link for "${decision.text}"`;
+              Object.keys(formFields).forEach(k => delete formFields[k]);
+            }
+          }
+          break;
+        }
+
+        case "click": {
+          const selector = String(decision.selector ?? "");
+          const href = extractLinkFromSelector(currentPage.html, selector, currentPage.finalUrl);
+          if (href) {
+            yield { type: "thinking", description: `Clicking ${selector}…` };
+            nextPage = await fetchPage(href);
+            actionDesc = `Clicked: ${selector}`;
+            Object.keys(formFields).forEach(k => delete formFields[k]);
+          } else {
+            actionDesc = `Element "${selector}" not navigable — checking if it's a submit button`;
+            // May be a submit button — try submitting accumulated form
+            if (Object.keys(formFields).length > 0 && currentPage.forms.length > 0) {
+              const form = currentPage.forms[0];
+              nextPage = await submitForm(form.action, form.method, formFields);
+              actionDesc = `Submitted form via ${selector}`;
+              Object.keys(formFields).forEach(k => delete formFields[k]);
+            }
+          }
+          break;
+        }
+
+        case "type": {
+          const sel = String(decision.selector ?? "");
+          const value = String(decision.value ?? "");
+          formFields[sel] = value;
+          actionDesc = `Typed "${value}" into field "${sel}"`;
+          break;
+        }
+
+        case "type_label": {
+          const label = String(decision.label ?? "");
+          const value = String(decision.value ?? "");
+          const fieldName = findFieldNameByLabel(currentPage.html, label) ?? label;
+          formFields[fieldName] = value;
+          actionDesc = `Typed "${value}" into field labeled "${label}"`;
+          break;
+        }
+
+        case "submit_form":
+        case "key": {
+          const key = String((decision.key as string | undefined) ?? "");
+          if (decision.action === "submit_form" || key === "Enter" || key === "Return") {
+            if (currentPage.forms.length > 0 && Object.keys(formFields).length > 0) {
+              const form = currentPage.forms[0];
+              yield { type: "thinking", description: `Submitting form to ${form.action}…` };
+              nextPage = await submitForm(form.action, form.method, formFields);
+              actionDesc = `Submitted form (${Object.keys(formFields).length} fields)`;
+              Object.keys(formFields).forEach(k => delete formFields[k]);
+            } else {
+              actionDesc = `${key || "Submit"} — no form to submit`;
+            }
+          } else {
+            actionDesc = `Key: ${key}`;
+          }
+          break;
+        }
+
+        case "wait": {
+          const ms = Math.min(Number(decision.ms ?? 1000), 3000);
+          await sleep(ms);
+          actionDesc = `Waited ${ms}ms`;
+          break;
+        }
+
+        case "scroll": {
+          actionDesc = `Scroll ${decision.direction ?? "down"} (no-op in fetch mode)`;
+          break;
+        }
+
+        default:
+          actionDesc = `Unknown action: ${decision.action}`;
+      }
 
       yield {
         type: "action",
-        description: `${actionResult.description}${decision.reason ? ` — ${decision.reason}` : ""}`,
+        url: nextPage?.finalUrl ?? currentPage.finalUrl,
+        description: `${actionDesc}${reason}`,
       };
+      steps.push(actionDesc);
 
-      steps.push(actionResult.description);
-
-      if (!actionResult.ok && actionResult.error) {
-        steps.push(`  ⚠ Error: ${actionResult.error}`);
-        yield {
-          type: "thinking",
-          description: `Action had an issue (${actionResult.error.slice(0, 80)}) — recovering and continuing…`,
-        };
+      if (nextPage) {
+        currentPage = nextPage;
+        if (currentPage.error) {
+          yield { type: "thinking", description: `Page error: ${currentPage.error} — will inform AI` };
+        }
       }
     }
 
-    yield { type: "done", result: `Task reached maximum steps. Final page: ${page?.url() ?? "unknown"}` };
+    yield {
+      type: "done",
+      result: `Task ended. Final page: "${currentPage?.title ?? ""}" at ${currentPage?.finalUrl ?? ""}.\n\n${currentPage?.text?.slice(0, 600) ?? ""}`,
+    };
   } catch (err: unknown) {
     yield { type: "error", message: err instanceof Error ? err.message : "Browser agent failed" };
-  } finally {
-    await page?.close().catch(() => undefined);
-    await context?.close().catch(() => undefined);
   }
 }

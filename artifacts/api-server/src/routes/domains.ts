@@ -214,7 +214,7 @@ router.post("/domains/:id/verify-dns", async (req, res): Promise<void> => {
     .where(eq(userDomainsTable.id, domainId))
     .returning();
 
-  res.json({ verified, target, domain: existing.domain, ...serialize(updated) });
+  res.json({ verified, target, ...serialize(updated) });
 });
 
 // ── GET /api/domains/:id/dns-setup ───────────────────────────────────────────

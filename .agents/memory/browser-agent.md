@@ -7,6 +7,8 @@ description: ASH browser control — fetch+cheerio AI loop, SSE streaming, Brows
 
 Chromium binary download timed out in sandbox (~180MB). Use native `fetch` (Node 24 global) + `cheerio` for all web browsing — works in dev and production.
 
+**CRITICAL:** Do NOT switch this back to Playwright. The browser binary is not installed and `npx playwright install` will fail/timeout in the Replit sandbox. Any rewrite that imports from `playwright` will break with "Executable doesn't exist".
+
 **Files:**
 - `artifacts/api-server/src/lib/browser/crawler.ts` — fetchPage(), submitForm() using fetch+cheerio
 - `artifacts/api-server/src/lib/browser/agent.ts` — async generator, AI loop (max 8 steps), streams BrowserEvent objects

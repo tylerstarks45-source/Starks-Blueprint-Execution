@@ -2927,34 +2927,6 @@ const BuilderPage = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 ml-auto">
-              {/* Plan / Build mode toggle */}
-              <div className="flex items-center bg-black/50 border border-white/10 rounded-lg p-0.5 gap-0.5">
-                <button
-                  onClick={() => setChatMode('plan')}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold font-mono transition-all ${
-                    isPlanMode
-                      ? 'bg-violet-500/25 border border-violet-500/40 text-violet-300'
-                      : 'text-white/30 hover:text-white/55'
-                  }`}
-                  title="Plan mode — discuss and explore without building"
-                >
-                  <Brain className="w-3 h-3" />
-                  Plan
-                </button>
-                <button
-                  onClick={() => setChatMode('build')}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold font-mono transition-all ${
-                    !isPlanMode
-                      ? 'bg-primary/20 border border-primary/35 text-primary'
-                      : 'text-white/30 hover:text-white/55'
-                  }`}
-                  title="Build mode — ASH builds and activates systems"
-                >
-                  <Cpu className="w-3 h-3" />
-                  Build
-                </button>
-              </div>
-
               {/* Save to Library button */}
               <button
                 onClick={() => {
@@ -3333,7 +3305,7 @@ const BuilderPage = () => {
               </div>
             ) : (
               <>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-end">
                   <textarea
                     ref={inputRef}
                     value={input}
@@ -3349,6 +3321,33 @@ const BuilderPage = () => {
                       e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
                     }}
                   />
+                  {/* Plan / Build mode toggle — inline beside send */}
+                  <div className="flex items-center bg-black/50 border border-white/10 rounded-xl p-0.5 gap-0.5 shrink-0 h-[36px]">
+                    <button
+                      onClick={() => setChatMode('plan')}
+                      className={`flex items-center gap-1 px-2 h-full rounded-lg text-[10px] font-bold font-mono transition-all ${
+                        isPlanMode
+                          ? 'bg-violet-500/25 border border-violet-500/40 text-violet-300'
+                          : 'text-white/30 hover:text-white/55'
+                      }`}
+                      title="Plan mode — discuss and explore without building"
+                    >
+                      <Brain className="w-3 h-3" />
+                      Plan
+                    </button>
+                    <button
+                      onClick={() => setChatMode('build')}
+                      className={`flex items-center gap-1 px-2 h-full rounded-lg text-[10px] font-bold font-mono transition-all ${
+                        !isPlanMode
+                          ? 'bg-primary/20 border border-primary/35 text-primary'
+                          : 'text-white/30 hover:text-white/55'
+                      }`}
+                      title="Build mode — ASH builds and activates systems"
+                    >
+                      <Cpu className="w-3 h-3" />
+                      Build
+                    </button>
+                  </div>
                   <Button
                     onClick={() => sendMessage()}
                     disabled={!input.trim() || isInputDisabled}

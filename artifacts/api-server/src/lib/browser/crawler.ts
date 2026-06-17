@@ -39,10 +39,12 @@ async function getBrowser(): Promise<Browser> {
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
       "--disable-gpu",
+      "--no-zygote",
       "--no-first-run",
       "--disable-extensions",
       "--disable-background-networking",
-      "--single-process",
+      "--disable-software-rasterizer",
+      "--remote-debugging-port=0",
     ],
   });
   _browser.on("disconnected", () => { _browser = null; });

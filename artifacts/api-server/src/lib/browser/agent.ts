@@ -26,7 +26,7 @@ export interface BrowserEvent {
   screenshot?: string;
 }
 
-const MAX_STEPS = 15;
+const MAX_STEPS = 20;
 
 function sleep(ms: number) {
   return new Promise<void>(r => setTimeout(r, ms));
@@ -34,9 +34,11 @@ function sleep(ms: number) {
 
 async function settleNavigation(context: BrowserContext, page: Page): Promise<Page> {
   try {
-    await page.waitForLoadState("domcontentloaded", { timeout: 6000 });
+    await page.waitForLoadState("domcontentloaded", { timeout: 8000 });
   } catch { /* may have finished or page replaced */ }
-  await sleep(800);
+  // Give JS-heavy SPAs (Gmail, Google, etc.) time to render their forms
+  await page.waitForLoadState("networkidle", { timeout: 4000 }).catch(() => {});
+  await sleep(2000);
   try {
     page.url();
     await page.title();
@@ -54,9 +56,11 @@ function formatPageForAI(page: {
   text: string;
   links: Array<{ text: string; url: string }>;
   forms: Array<{ action: string; method: string; fields: Array<{ name: string; type: string; placeholder?: string; value?: string; label?: string }> }>;
+  inputs: Array<{ tag: string; type: string; name: string; id: string; placeholder: string; label: string; selector: string }>;
 }): string {
   const linksText = page.links.slice(0, 20)
     .map((l, i) => `  ${i + 1}. "${l.text}" → ${l.url}`).join("\n");
+
   const formsText = page.forms
     .map((f, i) =>
       `  Form ${i}: action="${f.action}" method="${f.method}"\n` +
@@ -68,6 +72,16 @@ function formatPageForAI(page: {
       ).join("\n")
     ).join("\n");
 
+  const inputsText = page.inputs.length > 0
+    ? page.inputs.map(inp =>
+        `  - selector="${inp.selector}" type="${inp.type}"` +
+        (inp.label ? ` label="${inp.label}"` : "") +
+        (inp.placeholder ? ` placeholder="${inp.placeholder}"` : "") +
+        (inp.id ? ` id="${inp.id}"` : "") +
+        (inp.name ? ` name="${inp.name}"` : "")
+      ).join("\n")
+    : "  (none detected — page may still be loading)";
+
   return `URL: ${page.finalUrl}
 Title: ${page.title}
 
@@ -78,11 +92,14 @@ ${page.text.slice(0, 5000)}
 ${linksText || "  (none found)"}
 
 --- FORMS ON PAGE ---
-${formsText || "  (none found)"}`;
+${formsText || "  (none found)"}
+
+--- ALL VISIBLE INPUTS (including outside <form> tags — use these selectors to type) ---
+${inputsText}`;
 }
 
 function buildDecisionPrompt(pageInfo: string, task: string, steps: string[]): string {
-  return `You are a web browsing AI agent with a REAL Chromium browser. You can execute JavaScript, click any element, type text, scroll, and interact with any website including Gmail, Google, and other JS-heavy sites.
+  return `You are a web browsing AI agent with a REAL Chromium browser running. You can execute JavaScript, click any element, type text, scroll, and interact with any website including Gmail, Google, and other JS-heavy sites.
 
 ${pageInfo}
 
@@ -102,7 +119,7 @@ Click element by CSS selector:
 Click by visible text:
 {"action":"click_text","text":"<exact visible button/link text>","reason":"<why>"}
 
-Type into a field (clears first):
+Type into a field (clears first) — use selector from "ALL VISIBLE INPUTS" above:
 {"action":"type","selector":"<CSS selector or input name>","value":"<text>","reason":"<why>"}
 
 Type into field by label text:
@@ -111,21 +128,25 @@ Type into field by label text:
 Press a keyboard key:
 {"action":"key","key":"<Enter|Tab|Escape>","reason":"<why>"}
 
+Wait for an element to appear (use when page is still loading):
+{"action":"wait_for_selector","selector":"<CSS selector>","timeout":5000,"reason":"<why>"}
+
 Scroll the page:
 {"action":"scroll","direction":"down","pixels":500,"reason":"<why>"}
 
 Wait for something to load:
 {"action":"wait","ms":2000,"reason":"<why>"}
 
-Task is complete:
-{"action":"done","result":"<detailed summary of what was accomplished or found>"}
+Task is FULLY complete (only use when goal is 100% achieved — NOT just navigated):
+{"action":"done","result":"<detailed summary of what was accomplished>"}
 
-RULES:
-- For Google/Gmail login: email field is input[type="email"] or #identifierId; password is input[type="password"]
-- After typing credentials, click Next/Sign In or press Enter
-- If current page already has the info needed → return done immediately
-- Be specific with selectors — prefer id, name, or type attributes
-- After navigation, the page URL changes automatically — do NOT re-navigate to same URL`;
+CRITICAL RULES:
+- NEVER use "done" just because you navigated to a page — only use "done" when the FULL task goal is achieved (e.g., actually logged in, form submitted, data found)
+- For Google/Gmail login: email field selector is input[type="email"] or #identifierId; after typing email press Enter or click "Next"; then password field is input[type="password"] or #password; press Enter or click "Sign in"
+- If "ALL VISIBLE INPUTS" shows 0 inputs but the page title suggests a form exists, use wait_for_selector to wait for the input before typing
+- After typing credentials, always press Enter or click the Next/Sign In button — do not stop at just entering the email
+- Be specific with selectors — prefer id (#identifierId), name, or type attributes
+- If an action fails, try an alternative selector or approach — do not give up`;
 }
 
 async function executeAction(
@@ -142,6 +163,7 @@ async function executeAction(
     direction?: string;
     pixels?: number;
     ms?: number;
+    timeout?: number;
     reason?: string;
     result?: string;
   }
@@ -218,6 +240,17 @@ async function executeAction(
         try { await page.keyboard.press(decision.key!); } catch { /* ignore */ }
         const activePage = await settleNavigation(context, page);
         return { ok: true, description: `Pressed key: ${decision.key}`, page: activePage };
+      }
+
+      case "wait_for_selector": {
+        const sel = decision.selector!;
+        const timeout = decision.timeout ?? 8000;
+        try {
+          await page.waitForSelector(sel, { timeout, state: "visible" });
+          return { ok: true, description: `Element ready: ${sel}`, page };
+        } catch (err) {
+          return { ok: false, description: `Timed out waiting for ${sel}`, error: err instanceof Error ? err.message : String(err), page };
+        }
       }
 
       case "scroll": {
@@ -298,6 +331,16 @@ export async function* runBrowserAgent(
         }
       }
 
+      // If the page looks sparse (SPA still rendering), wait and re-read once
+      if (pageData.text.length < 400 && pageData.inputs.length === 0 && pageData.forms.length === 0) {
+        yield { type: "thinking", description: "Page still loading — waiting for JS to render…" };
+        await sleep(3000);
+        try {
+          await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+          pageData = await getPageData(page, page.url());
+        } catch { /* best effort */ }
+      }
+
       yield { type: "navigate", url: pageData.finalUrl, title: pageData.title, description: `Viewing: ${pageData.title}` };
 
       if (pageData.screenshot) {
@@ -307,7 +350,7 @@ export async function* runBrowserAgent(
       yield {
         type: "content",
         url: pageData.finalUrl,
-        description: `Page loaded — ${pageData.text.length} chars, ${pageData.links.length} links, ${pageData.forms.length} forms`,
+        description: `Page loaded — ${pageData.text.length} chars, ${pageData.links.length} links, ${pageData.forms.length} forms, ${pageData.inputs.length} inputs`,
       };
 
       if (step === MAX_STEPS - 1) {
@@ -322,7 +365,13 @@ export async function* runBrowserAgent(
 
       let decisionText = "";
       try {
-        const result = await complete({ model: "openai/gpt-4o-mini", prompt: decisionPrompt, userId });
+        // Use gpt-4o with the screenshot so the AI can see what's actually on screen
+        const result = await complete({
+          model: "openai/gpt-4o",
+          prompt: decisionPrompt,
+          userId,
+          imageBase64: pageData.screenshot,
+        });
         decisionText = result.content.trim();
       } catch (err) {
         yield { type: "error", message: "AI decision failed: " + (err instanceof Error ? err.message : String(err)) };

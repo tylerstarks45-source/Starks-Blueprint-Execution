@@ -5,6 +5,16 @@
  */
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 
+export interface InputField {
+  tag: string;
+  type: string;
+  name: string;
+  id: string;
+  placeholder: string;
+  label: string;
+  selector: string;
+}
+
 export interface PageData {
   url: string;
   finalUrl: string;
@@ -17,6 +27,7 @@ export interface PageData {
     method: string;
     fields: Array<{ name: string; type: string; placeholder?: string; value?: string; label?: string }>;
   }>;
+  inputs: InputField[];
   statusCode: number;
   screenshot?: string;
   error?: string;
@@ -25,7 +36,6 @@ export interface PageData {
 let _browser: Browser | null = null;
 
 function getExecutablePath(): string | undefined {
-  // Use system Chromium installed via Nix — no binary download required
   return process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined;
 }
 
@@ -91,11 +101,13 @@ export async function getPageData(page: Page, originalUrl: string): Promise<Page
     html: string;
     links: Array<{ text: string; url: string }>;
     forms: Array<{ action: string; method: string; fields: Array<{ name: string; type: string; placeholder?: string; value?: string; label?: string }> }>;
+    inputs: InputField[];
   };
 
   let text = "", html = "";
   let links: EvalResult["links"] = [];
   let forms: EvalResult["forms"] = [];
+  let inputs: InputField[] = [];
 
   try {
     const result = await page.evaluate<EvalResult>(
@@ -103,6 +115,8 @@ export async function getPageData(page: Page, originalUrl: string): Promise<Page
         var d = document;
         var bodyText = (d.body ? d.body.innerText : "").replace(/\\s+/g, " ").trim();
         var rawHtml = (d.documentElement ? d.documentElement.outerHTML : "").slice(0, 20000);
+
+        // Links
         var rawLinks = [];
         d.querySelectorAll("a[href]").forEach(function(el) {
           var href = el.href || "";
@@ -111,6 +125,8 @@ export async function getPageData(page: Page, originalUrl: string): Promise<Page
             rawLinks.push({ text: txt, url: href });
           }
         });
+
+        // Forms (traditional <form> elements)
         var rawForms = [];
         d.querySelectorAll("form").forEach(function(form) {
           var fields = [];
@@ -128,18 +144,52 @@ export async function getPageData(page: Page, originalUrl: string): Promise<Page
           });
           rawForms.push({ action: form.action || window.location.href, method: (form.method || "GET").toUpperCase(), fields: fields });
         });
-        return { text: bodyText.slice(0, 8000), html: rawHtml, links: rawLinks, forms: rawForms };
+
+        // ALL visible inputs (including those NOT inside <form> elements — e.g. Gmail, Google Sign-In)
+        var rawInputs = [];
+        var seenIds = {};
+        d.querySelectorAll("input, textarea, select").forEach(function(el) {
+          if (el.type === "hidden" || el.type === "submit" || el.type === "button" || el.type === "image" || el.type === "reset") return;
+          var rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+          if (rect && rect.width === 0 && rect.height === 0) return;
+          var uid = el.id || el.name || (el.type + "_" + rawInputs.length);
+          if (seenIds[uid]) return;
+          seenIds[uid] = true;
+          var labelText = "";
+          if (el.id) {
+            var lbl = d.querySelector('label[for="' + el.id + '"]');
+            if (lbl) labelText = lbl.textContent.trim();
+          }
+          if (!labelText && el.getAttribute && el.getAttribute("aria-label")) labelText = el.getAttribute("aria-label");
+          if (!labelText && el.getAttribute && el.getAttribute("aria-labelledby")) {
+            var lblEl = d.getElementById(el.getAttribute("aria-labelledby"));
+            if (lblEl) labelText = lblEl.textContent.trim();
+          }
+          var selector = el.id ? "#" + el.id : (el.name ? '[name="' + el.name + '"]' : el.tagName.toLowerCase() + '[type="' + el.type + '"]');
+          rawInputs.push({
+            tag: el.tagName.toLowerCase(),
+            type: el.type || "text",
+            name: el.name || "",
+            id: el.id || "",
+            placeholder: el.placeholder || el.getAttribute("placeholder") || "",
+            label: labelText,
+            selector: selector
+          });
+        });
+
+        return { text: bodyText.slice(0, 8000), html: rawHtml, links: rawLinks, forms: rawForms, inputs: rawInputs };
       `) as () => EvalResult
     );
     text = result.text;
     html = result.html;
     links = result.links;
     forms = result.forms;
+    inputs = result.inputs ?? [];
   } catch (err) {
     if (!isPageClosedError(err)) text = "(page content unavailable)";
   }
 
-  return { url: originalUrl, finalUrl, title, text, html, links, forms, statusCode: 200, screenshot };
+  return { url: originalUrl, finalUrl, title, text, html, links, forms, inputs, statusCode: 200, screenshot };
 }
 
 export async function fetchPage(url: string): Promise<PageData> {
@@ -148,11 +198,13 @@ export async function fetchPage(url: string): Promise<PageData> {
     context = await createBrowserContext();
     const page = await context.newPage();
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
+    // Give JS-heavy SPAs time to render (Gmail, Google, etc.)
+    await page.waitForLoadState("networkidle", { timeout: 4000 }).catch(() => {});
     await page.waitForTimeout(1500);
     return await getPageData(page, url);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    return { url, finalUrl: url, title: "Error", text: "", html: "", links: [], forms: [], statusCode: 0, error: message };
+    return { url, finalUrl: url, title: "Error", text: "", html: "", links: [], forms: [], inputs: [], statusCode: 0, error: message };
   } finally {
     await context?.close().catch(() => undefined);
   }
@@ -168,6 +220,7 @@ export async function submitForm(
     context = await createBrowserContext();
     const page = await context.newPage();
     await page.goto(formAction, { waitUntil: "domcontentloaded", timeout: 20000 });
+    await page.waitForLoadState("networkidle", { timeout: 4000 }).catch(() => {});
 
     for (const [name, value] of Object.entries(fields)) {
       const selector = `[name="${name}"], [id="${name}"]`;
@@ -187,7 +240,7 @@ export async function submitForm(
     return await getPageData(page, formAction);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    return { url: formAction, finalUrl: formAction, title: "Error", text: "", html: "", links: [], forms: [], statusCode: 0, error: message };
+    return { url: formAction, finalUrl: formAction, title: "Error", text: "", html: "", links: [], forms: [], inputs: [], statusCode: 0, error: message };
   } finally {
     await context?.close().catch(() => undefined);
   }

@@ -13,6 +13,7 @@ interface CompletionRequest {
   systemPrompt?: string;
   userId?: number;
   systemInstanceId?: number;
+  imageBase64?: string;
 }
 
 interface CompletionResult {
@@ -161,7 +162,17 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
   if (request.systemPrompt) {
     messages.push({ role: "system", content: request.systemPrompt });
   }
-  messages.push({ role: "user", content: request.prompt });
+  if (request.imageBase64) {
+    messages.push({
+      role: "user",
+      content: [
+        { type: "text", text: request.prompt },
+        { type: "image_url", image_url: { url: `data:image/jpeg;base64,${request.imageBase64}` } },
+      ],
+    });
+  } else {
+    messages.push({ role: "user", content: request.prompt });
+  }
 
   // Enforce credit balance before spending tokens (only for attributed user calls).
   // FOUNDER_ADMIN bypasses the block so real-world testing is never interrupted,

@@ -1530,6 +1530,8 @@ const BuilderPage = () => {
   const [ashMemory, setAshMemory] = useState([]);
   const [leftSideTab, setLeftSideTab] = useState('tasks');
   const [filesCopied, setFilesCopied] = useState(null);
+  const [showAllCheckpoints, setShowAllCheckpoints] = useState(false);
+  const [expandedSessionId, setExpandedSessionId] = useState(null);
 
   // Track whether we've loaded (or decided not to load) a saved session
   const sessionLoadedRef = useRef(false);
@@ -2461,10 +2463,13 @@ const BuilderPage = () => {
           {/* ── TASKS PANEL ── */}
           <div className={`flex-1 overflow-y-auto py-1 select-none ash-scroll${leftSideTab !== 'tasks' ? ' hidden' : ''}`}>
 
-            {/* Live/active task */}
+            {/* ── Active task ── */}
             {phase !== 'idle' && messages.filter(m => m.role === 'user' && m.id !== 'welcome').length > 0 && (
               <div className="px-2 pt-2 pb-1">
-                <div className={`flex items-start gap-2.5 px-2.5 py-2 rounded-lg border ${
+                <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono font-bold px-1 mb-1.5 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" /> Active
+                </p>
+                <div className={`flex items-start gap-2.5 px-2.5 py-2 rounded-xl border ${
                   phase === 'building' ? 'bg-blue-500/8 border-blue-500/18'
                   : phase === 'complete' ? 'bg-emerald-500/8 border-emerald-500/18'
                   : phase === 'collecting' ? 'bg-amber-500/8 border-amber-500/18'
@@ -2482,151 +2487,176 @@ const BuilderPage = () => {
                     <p className="text-[11px] text-white/72 truncate font-mono leading-snug">
                       {messages.find(m => m.role === 'user' && m.id !== 'welcome')?.content?.slice(0, 44) ?? 'Current task'}
                     </p>
-                    <p className={`text-[9px] font-mono uppercase tracking-widest mt-0.5 ${
+                    <p className={`text-[9px] font-mono mt-0.5 ${
                       phase === 'building' ? 'text-blue-400/65'
                       : phase === 'complete' ? 'text-emerald-400/65'
                       : phase === 'collecting' ? 'text-amber-400/65'
                       : 'text-primary/65'
                     }`}>
                       {phase === 'building' ? `Building · ${currentStepIdx}/${buildData?.steps?.length ?? 0} steps`
-                        : phase === 'complete' ? 'Activated ✓'
+                        : phase === 'complete' ? 'Complete ✓'
                         : phase === 'collecting' ? 'Awaiting credentials'
                         : 'Active'}
                     </p>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* ── Checkpoints (primary navigation) ── */}
-            {checkpoints.length > 0 && (
-              <div className="px-2 pt-2 pb-1">
-                <div className="flex items-center justify-between px-1 mb-1.5">
-                  <p className="text-[9px] uppercase tracking-widest text-white/35 font-mono font-bold flex items-center gap-1">
-                    <RotateCcw className="w-2.5 h-2.5" /> Checkpoints
-                  </p>
-                  <button
-                    onClick={() => { try { localStorage.removeItem(checkpointsKey(currentUser?.id)); } catch {} setCheckpoints([]); }}
-                    className="text-[9px] text-white/20 hover:text-rose-400/55 transition-colors font-mono"
-                  >clear</button>
-                </div>
-                <div className="space-y-0.5">
-                  {[...checkpoints].reverse().map((cp, idx) => (
-                    <div
-                      key={cp.id}
-                      onClick={() => restoreCheckpoint(cp)}
-                      className="group flex items-center gap-2 px-2 py-1.5 rounded-lg border border-transparent hover:bg-white/5 hover:border-white/8 transition-all cursor-pointer"
-                    >
-                      <div className="w-5 h-5 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                        <span className="text-[8px] text-primary font-bold font-mono">{idx + 1}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-white/55 truncate font-mono leading-tight">{cp.summary}</p>
-                        <p className="text-[9px] text-white/22 font-mono">{formatTs(cp.ts)}</p>
-                      </div>
-                      <span className="shrink-0 opacity-0 group-hover:opacity-100 text-[9px] text-primary font-mono font-bold transition-opacity">
-                        restore
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Divider between checkpoints and sessions */}
-            {checkpoints.length > 0 && savedSessions.length > 0 && (
-              <div className="border-t border-white/6 mx-3 my-1" />
-            )}
-
-            {/* ── Build Timeline ── */}
-            {savedSessions.length > 0 && (
-              <div className="px-2 pt-1">
-                <div className="flex items-center justify-between px-1 mb-2">
-                  <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono font-bold flex items-center gap-1">
-                    <Clock className="w-2.5 h-2.5" /> Build Timeline
-                  </p>
-                  <span className="text-[9px] text-white/20 font-mono">{savedSessions.length} builds</span>
-                </div>
-                {sessionsLoading && <div className="flex justify-center py-2"><Loader2 className="w-3.5 h-3.5 animate-spin text-white/20" /></div>}
-                <div className="space-y-1.5">
-                  {savedSessions.map(s => {
-                    const isActive = currentSessionId === s.id;
-                    const phaseDot = s.phase === 'complete' ? 'bg-emerald-400' : s.phase === 'building' ? 'bg-blue-400 animate-pulse' : s.phase === 'planning' ? 'bg-violet-400 animate-pulse' : 'bg-white/22';
-                    const phasePill = s.phase === 'complete'
-                      ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/22'
-                      : s.phase === 'building' ? 'text-blue-400 bg-blue-500/10 border-blue-500/22'
-                      : s.phase === 'planning' ? 'text-violet-400 bg-violet-500/10 border-violet-500/22'
-                      : 'text-white/30 bg-white/5 border-white/10';
-                    return (
-                    <div key={s.id} className={`group rounded-xl border transition-all relative ${
-                      isActive
-                        ? 'bg-primary/6 border-primary/22 shadow-[0_0_12px_rgba(14,165,233,0.08)]'
-                        : 'border-white/6 bg-white/[0.025] hover:bg-white/[0.04] hover:border-white/12'
-                    }`}>
-                      {isActive && <div className="absolute left-0 top-3 bottom-3 w-[2px] bg-primary rounded-full" />}
-                      <div className={`flex items-start gap-2 pt-2 pb-1.5 cursor-pointer ${isActive ? 'pl-4 pr-2.5' : 'px-2.5'}`} onClick={() => restoreSession(s)}>
-                        <span className={`w-2 h-2 rounded-full shrink-0 mt-1 ${phaseDot}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-[11px] truncate font-mono leading-snug font-medium ${isActive ? 'text-white/80' : 'text-white/55'}`}>{s.title}</p>
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded-full border ${phasePill}`}>
-                              {s.phase === 'complete' ? '✓ done' : s.phase === 'building' ? '⟳ building' : s.phase || 'active'}
-                            </span>
-                            <span className="text-[9px] text-white/18 font-mono">{formatTs(new Date(s.updatedAt ?? Date.now()).getTime())}</span>
-                          </div>
-                        </div>
-                        <button onClick={(e) => deleteSession(s.id, e)} className="shrink-0 opacity-0 group-hover:opacity-100 text-white/18 hover:text-rose-400/65 transition-all p-0.5 rounded mt-0.5">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                      <div className={`flex gap-1.5 pb-2 ${isActive ? 'pl-4 pr-2.5' : 'px-2.5'}`}>
-                        <button onClick={() => restoreSession(s)} className={`flex-1 text-[9px] font-mono font-semibold rounded-md py-1 transition-all ${isActive ? 'text-primary bg-primary/10 hover:bg-primary/18 border border-primary/22' : 'text-white/35 hover:text-white/60 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15'}`}>
-                          Resume
-                        </button>
-                        {s.phase === 'complete' && (
-                          <button onClick={(e) => { e.stopPropagation(); const blob = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ash-build-${s.id.slice(0,8)}.json`; a.click(); URL.revokeObjectURL(url); }}
-                            className="flex-1 text-[9px] font-mono font-semibold text-white/35 hover:text-white/60 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-md py-1 transition-all">
-                            Export
-                          </button>
-                        )}
-                        <button onClick={(e) => deleteSession(s.id, e)} className="text-[9px] font-mono text-rose-400/40 hover:text-rose-400/70 bg-white/3 hover:bg-rose-500/8 border border-white/8 hover:border-rose-500/20 rounded-md py-1 px-2 transition-all">Del</button>
-                      </div>
-                    </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {savedSessions.length === 0 && !sessionsLoading && phase === 'idle' && checkpoints.length === 0 && (
-              <div className="px-4 py-4 space-y-1">
-                <p className="text-[10px] text-white/30 font-mono font-semibold">No builds yet</p>
-                <p className="text-[9px] text-white/18 font-mono leading-relaxed">Your build timeline will appear here as you work with ASH.</p>
-              </div>
-            )}
-
-            {/* ── Active build steps ── */}
-            {buildData && (
-              <>
-                <div className="border-t border-white/6 mx-3 my-1.5" />
-                <div className="px-3">
-                  <p className="text-[9px] uppercase tracking-widest text-white/25 font-mono font-bold mb-1.5">Build steps</p>
-                  <div className="space-y-0.5">
+                {/* Build steps inline under active task */}
+                {buildData && (
+                  <div className="mt-1.5 space-y-0.5 px-1">
                     {buildData.steps?.map((step, i) => {
                       const isDone = i < currentStepIdx;
                       const isRunning = i === currentStepIdx && phase === 'building';
                       return (
-                        <div key={step.id} className={`flex items-center gap-1.5 px-1 py-0.5 rounded text-[10px] font-mono ${
-                          isDone ? 'text-emerald-400/65' : isRunning ? 'text-primary' : 'text-white/18'
+                        <div key={step.id} className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[9px] font-mono ${
+                          isDone ? 'text-emerald-400/60' : isRunning ? 'text-primary' : 'text-white/18'
                         }`}>
                           {isDone ? <CheckCircle className="w-2.5 h-2.5 shrink-0" />
                             : isRunning ? <PlayCircle className="w-2.5 h-2.5 shrink-0 animate-pulse" />
-                            : <Circle className="w-2.5 h-2.5 shrink-0" />}
+                            : <Circle className="w-2.5 h-2.5 shrink-0 opacity-30" />}
                           <span className="truncate">{step.notes}</span>
                         </div>
                       );
                     })}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Build History (date-grouped sessions) ── */}
+            {(() => {
+              if (sessionsLoading) return (
+                <div className="flex justify-center py-4"><Loader2 className="w-3.5 h-3.5 animate-spin text-white/20" /></div>
+              );
+              if (!savedSessions.length && phase === 'idle' && !checkpoints.length) return (
+                <div className="px-4 py-6 text-center space-y-1">
+                  <Clock className="w-5 h-5 text-white/10 mx-auto" />
+                  <p className="text-[10px] text-white/28 font-mono font-semibold">No history yet</p>
+                  <p className="text-[9px] text-white/15 font-mono leading-relaxed">Start a task and your build history will appear here.</p>
+                </div>
+              );
+              if (!savedSessions.length) return null;
+
+              // Group sessions by date
+              const now = Date.now();
+              const DAY = 86400000;
+              const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+              const groups = [
+                { label: 'Today',      sessions: [] },
+                { label: 'Yesterday',  sessions: [] },
+                { label: 'This Week',  sessions: [] },
+                { label: 'Older',      sessions: [] },
+              ];
+              savedSessions.forEach(s => {
+                const t = new Date(s.updatedAt ?? now).getTime();
+                const d = todayStart.getTime();
+                if (t >= d)               groups[0].sessions.push(s);
+                else if (t >= d - DAY)    groups[1].sessions.push(s);
+                else if (t >= d - 6*DAY)  groups[2].sessions.push(s);
+                else                      groups[3].sessions.push(s);
+              });
+
+              return (
+                <div className={`px-2 ${phase !== 'idle' ? 'pt-1' : 'pt-2'}`}>
+                  <div className="flex items-center justify-between px-1 mb-2">
+                    <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono font-bold flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5" /> History
+                    </p>
+                    <span className="text-[9px] text-white/18 font-mono">{savedSessions.length} builds</span>
+                  </div>
+                  {groups.filter(g => g.sessions.length > 0).map(group => (
+                    <div key={group.label} className="mb-3">
+                      <p className="text-[8px] uppercase tracking-widest text-white/20 font-mono font-bold px-1 mb-1">{group.label}</p>
+                      <div className="space-y-0.5">
+                        {group.sessions.map(s => {
+                          const isActive = currentSessionId === s.id;
+                          const isExpanded = expandedSessionId === s.id;
+                          const phaseDot = s.phase === 'complete' ? 'bg-emerald-400' : s.phase === 'building' ? 'bg-blue-400 animate-pulse' : s.phase === 'planning' ? 'bg-violet-400 animate-pulse' : 'bg-white/22';
+                          return (
+                            <div key={s.id} className={`rounded-xl border transition-all relative overflow-hidden ${
+                              isActive
+                                ? 'bg-primary/6 border-primary/22 shadow-[0_0_10px_rgba(14,165,233,0.07)]'
+                                : 'border-white/6 bg-white/[0.018] hover:bg-white/[0.035] hover:border-white/10'
+                            }`}>
+                              {isActive && <div className="absolute left-0 top-2 bottom-2 w-[2px] bg-primary rounded-full" />}
+                              {/* Compact row — always visible */}
+                              <div
+                                className={`flex items-center gap-2 px-2.5 py-2 cursor-pointer ${isActive ? 'pl-4' : ''}`}
+                                onClick={() => setExpandedSessionId(isExpanded ? null : s.id)}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${phaseDot}`} />
+                                <p className={`flex-1 min-w-0 text-[10px] truncate font-mono ${isActive ? 'text-white/78' : 'text-white/50'}`}>{s.title}</p>
+                                <span className="text-[8px] text-white/20 font-mono shrink-0">{formatTs(new Date(s.updatedAt ?? now).getTime())}</span>
+                                <ChevronRight className={`w-2.5 h-2.5 text-white/18 shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                              </div>
+                              {/* Expanded actions */}
+                              {isExpanded && (
+                                <div className={`flex gap-1 pb-2 border-t border-white/5 pt-1.5 ${isActive ? 'pl-4 pr-2.5' : 'px-2.5'}`}>
+                                  <button
+                                    onClick={() => { restoreSession(s); setExpandedSessionId(null); }}
+                                    className={`flex-1 text-[9px] font-mono font-semibold rounded-md py-1 transition-all ${isActive ? 'text-primary bg-primary/10 hover:bg-primary/18 border border-primary/22' : 'text-white/40 hover:text-white/65 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15'}`}
+                                  >Resume</button>
+                                  {s.phase === 'complete' && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); const blob = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ash-build-${s.id.slice(0,8)}.json`; a.click(); URL.revokeObjectURL(url); }}
+                                      className="flex-1 text-[9px] font-mono font-semibold text-white/35 hover:text-white/60 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-md py-1 transition-all"
+                                    >Export</button>
+                                  )}
+                                  <button
+                                    onClick={(e) => { deleteSession(s.id, e); setExpandedSessionId(null); }}
+                                    className="text-[9px] font-mono text-rose-400/40 hover:text-rose-400/70 bg-white/3 hover:bg-rose-500/8 border border-white/8 hover:border-rose-500/20 rounded-md py-1 px-2 transition-all"
+                                  >Del</button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* ── Checkpoints ── */}
+            {checkpoints.length > 0 && (
+              <>
+                {savedSessions.length > 0 && <div className="border-t border-white/6 mx-3 mb-2" />}
+                <div className="px-2 pb-2">
+                  <div className="flex items-center justify-between px-1 mb-1.5">
+                    <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono font-bold flex items-center gap-1">
+                      <RotateCcw className="w-2.5 h-2.5" /> Checkpoints <span className="text-white/18 normal-case tracking-normal font-normal">({checkpoints.length})</span>
+                    </p>
+                    <button
+                      onClick={() => { try { localStorage.removeItem(checkpointsKey(currentUser?.id)); } catch {} setCheckpoints([]); setShowAllCheckpoints(false); }}
+                      className="text-[9px] text-white/18 hover:text-rose-400/55 transition-colors font-mono"
+                    >clear</button>
+                  </div>
+                  <div className="space-y-0.5">
+                    {([...checkpoints].reverse().slice(0, showAllCheckpoints ? checkpoints.length : 3)).map((cp, idx) => (
+                      <div
+                        key={`${cp.id}-${idx}`}
+                        onClick={() => restoreCheckpoint(cp)}
+                        className="group flex items-center gap-2 px-2 py-1.5 rounded-lg border border-transparent hover:bg-white/4 hover:border-white/8 transition-all cursor-pointer"
+                      >
+                        <div className="w-4 h-4 rounded bg-primary/10 border border-primary/18 flex items-center justify-center shrink-0">
+                          <span className="text-[7px] text-primary/80 font-bold font-mono">{checkpoints.length - idx}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] text-white/48 truncate font-mono leading-tight">{cp.summary}</p>
+                          <p className="text-[8px] text-white/20 font-mono">{formatTs(cp.ts)}</p>
+                        </div>
+                        <span className="shrink-0 opacity-0 group-hover:opacity-100 text-[8px] text-primary/70 font-mono transition-opacity">↩</span>
+                      </div>
+                    ))}
+                  </div>
+                  {checkpoints.length > 3 && (
+                    <button
+                      onClick={() => setShowAllCheckpoints(v => !v)}
+                      className="w-full mt-1.5 text-[9px] font-mono text-white/22 hover:text-white/45 transition-colors py-1 rounded-lg hover:bg-white/4 border border-transparent hover:border-white/6"
+                    >
+                      {showAllCheckpoints ? 'Show less ↑' : `Show ${checkpoints.length - 3} more ↓`}
+                    </button>
+                  )}
                 </div>
               </>
             )}

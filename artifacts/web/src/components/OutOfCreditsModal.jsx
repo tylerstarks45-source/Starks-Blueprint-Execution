@@ -75,13 +75,9 @@ const OutOfCreditsModal = () => {
   const tier = (currentUser?.membershipTier ?? 'free').toLowerCase();
   const tierDisplay = TIER_DISPLAY[tier] ?? { name: tier, credits: '—' };
 
-  // Admins can always close; regular users are hard-blocked when at zero
-  const canClose = isAdmin || totalCredits > 0;
-
-  const handleClose = () => {
-    if (!canClose) return;
-    hide();
-  };
+  // Anyone can close the modal — but ASH will re-block them the moment they
+  // try to use it (proactive check in BuilderPage fires the modal again)
+  const handleClose = () => hide();
 
   const handleUpgrade = async (planKey) => {
     setLoadingKey(planKey);
@@ -146,15 +142,13 @@ const OutOfCreditsModal = () => {
             className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-red-500/20 bg-card/98 backdrop-blur-xl shadow-2xl"
             style={{ boxShadow: '0 0 80px rgba(239,68,68,0.08), 0 25px 50px rgba(0,0,0,0.5)' }}
           >
-            {/* Close — only shown if canClose */}
-            {canClose && (
-              <button
-                onClick={handleClose}
-                className="absolute top-4 right-4 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors z-10"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
+            {/* Close — always visible; ASH will re-block on next use attempt */}
+            <button
+              onClick={handleClose}
+              className="absolute top-4 right-4 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
 
             <div className="p-6 pb-4">
               {/* Header */}

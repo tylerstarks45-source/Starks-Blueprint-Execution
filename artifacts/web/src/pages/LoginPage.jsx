@@ -52,9 +52,15 @@ const LoginPage = () => {
         const role = userObj?.role || 'USER';
         const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'];
         toast.success("Welcome back. System access granted.");
-        if (from) navigate(from, { replace: true });
-        else if (ADMIN_ROLES.includes(role)) navigate('/admin-dashboard', { replace: true });
-        else navigate('/user-dashboard', { replace: true });
+        // Use window.location.replace instead of navigate() so the page does a
+        // full reload after login. This guarantees AuthContext initialises from
+        // the freshly-written localStorage values (set synchronously by
+        // authStore.save) rather than racing against React's async state batching,
+        // which caused ProtectedAdminRoute to see a stale role and redirect away.
+        const dest = from
+          ? (ADMIN_ROLES.includes(role) ? '/admin-dashboard' : from)
+          : (ADMIN_ROLES.includes(role) ? '/admin-dashboard' : '/user-dashboard');
+        window.location.replace(dest);
       } else {
         toast.error(result?.error || "Invalid credentials. Access denied.");
       }

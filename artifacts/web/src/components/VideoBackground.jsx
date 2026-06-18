@@ -7,8 +7,9 @@ const VideoBackground = ({ children, className = '', videoId = 'Hgg7M3kSqyE' }) 
       {/* Background Video Layer */}
       <div className="fixed inset-0 w-full h-screen z-[-1] overflow-hidden pointer-events-none">
         <iframe
-          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&playsinline=1&rel=0`}
-          className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-[100vh] min-w-[177.77vh] -translate-x-1/2 -translate-y-1/2 object-cover"
+          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&playsinline=1&rel=0&vq=hd1080&hd=1`}
+          className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-[100vh] min-w-[177.77vh] -translate-x-1/2 -translate-y-1/2"
+          style={{ imageRendering: 'auto', willChange: 'transform' }}
           allow="autoplay; encrypted-media"
           frameBorder="0"
           title="Global Background Video"

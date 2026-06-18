@@ -11,7 +11,7 @@ const ADMIN_ROLES = ['admin', 'ADMIN', 'SUPER_ADMIN', 'FOUNDER_ADMIN'];
 
 const DashboardRouter = () => {
   const { role: dashboardRole, isLoading } = useDashboard();
-  const { currentUser } = useAuth();
+  const { currentUser, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Prefer the live role from the auth context (set on login, fully reactive)
@@ -20,14 +20,20 @@ const DashboardRouter = () => {
   // a full page reload.
   const role = currentUser?.role || dashboardRole;
 
+  // Must wait for AuthContext to fully hydrate — currentUser.email is null on
+  // the very first render because AuthContext.isLoading starts true (the useEffect
+  // that reads from localStorage hasn't run yet). DashboardContext.isLoading
+  // starts false, so without this guard the email check always fails on mount.
+  const stillLoading = isLoading || authLoading;
+
   useEffect(() => {
     const validRoles = ['admin', 'ADMIN', 'SUPER_ADMIN', 'FOUNDER_ADMIN', 'USER'];
-    if (!isLoading && role && !validRoles.includes(role)) {
+    if (!stillLoading && role && !validRoles.includes(role)) {
       navigate('/login', { replace: true });
     }
-  }, [isLoading, role, navigate]);
+  }, [stillLoading, role, navigate]);
 
-  if (isLoading) {
+  if (stillLoading) {
     return (
       <div className="flex h-[60vh] w-full flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />

@@ -12,6 +12,8 @@ import {
   usersTable,
   blueprintsTable,
   toolsTable,
+  toolCategoriesTable,
+  userToolSelectionsTable,
   systemInstancesTable,
   affiliateLinksTable,
   openrouterUsageTable,
@@ -1403,6 +1405,51 @@ router.patch("/admin/platform-config", requireAdmin, async (req, res): Promise<v
     });
 
   res.json({ monthlyInfraCents });
+});
+
+// ── GET /api/admin/marketplace-stats ─────────────────────────────────────────
+router.get("/admin/marketplace-stats", requireAdmin, async (req, res): Promise<void> => {
+  const toolStats = await db
+    .select({
+      id: toolsTable.id,
+      name: toolsTable.name,
+      description: toolsTable.description,
+      affiliateLink: toolsTable.affiliateLink,
+      pricing: toolsTable.pricing,
+      activeStatus: toolsTable.activeStatus,
+      categoryName: toolCategoriesTable.name,
+      selectionCount: sql<number>`count(${userToolSelectionsTable.id})::int`,
+    })
+    .from(toolsTable)
+    .leftJoin(toolCategoriesTable, eq(toolsTable.categoryId, toolCategoriesTable.id))
+    .leftJoin(userToolSelectionsTable, eq(toolsTable.id, userToolSelectionsTable.toolId))
+    .groupBy(toolsTable.id, toolCategoriesTable.name)
+    .orderBy(sql`count(${userToolSelectionsTable.id}) desc`);
+
+  const totalSelections = toolStats.reduce((sum, t) => sum + (t.selectionCount ?? 0), 0);
+  const activeTools = toolStats.filter((t) => t.activeStatus).length;
+  const toolsWithAffiliate = toolStats.filter((t) => t.affiliateLink).length;
+
+  const categoryBreakdown: Record<string, { count: number; selections: number }> = {};
+  for (const t of toolStats) {
+    const cat = t.categoryName ?? "Uncategorized";
+    if (!categoryBreakdown[cat]) categoryBreakdown[cat] = { count: 0, selections: 0 };
+    categoryBreakdown[cat].count++;
+    categoryBreakdown[cat].selections += t.selectionCount ?? 0;
+  }
+
+  res.json(
+    serialize({
+      tools: toolStats,
+      summary: {
+        totalTools: toolStats.length,
+        activeTools,
+        toolsWithAffiliate,
+        totalSelections,
+      },
+      categoryBreakdown,
+    }),
+  );
 });
 
 export default router;

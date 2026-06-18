@@ -7,7 +7,7 @@ import VideoBackground from '@/components/VideoBackground.jsx';
 import {
   Globe, Plus, Eye, Edit2, Trash2, ExternalLink, Copy, Check, ChevronRight,
   LayoutTemplate, Sparkles, Share2, TrendingUp, MoreHorizontal, AlertCircle,
-  RefreshCw, FileCode, Zap, Lock, Unlock, BarChart3
+  RefreshCw, FileCode, Zap, Lock, Unlock, BarChart3, PenTool,
 } from 'lucide-react';
 
 const API = '/api';
@@ -25,7 +25,7 @@ function useApi() {
   return { get, post, patch, del };
 }
 
-function PageCard({ page, onEdit, onDelete, onPublishToggle, onPreview, copied, onCopy }) {
+function PageCard({ page, onEdit, onDelete, onPublishToggle, onPreview, copied, onCopy, onCanvas }) {
   const publicUrl = `${window.location.origin}/api/pages/${page.slug}`;
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -83,6 +83,7 @@ function PageCard({ page, onEdit, onDelete, onPublishToggle, onPreview, copied, 
               {menuOpen && (
                 <div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-white/12 bg-[#111] shadow-2xl py-1" onMouseLeave={() => setMenuOpen(false)}>
                   {[
+                    { icon: PenTool, label: 'Canvas Editor', onClick: () => { onCanvas(page); setMenuOpen(false); }, className: 'text-violet-400' },
                     { icon: Eye, label: 'Preview', onClick: () => { onPreview(page); setMenuOpen(false); } },
                     { icon: Edit2, label: 'Edit HTML', onClick: () => { onEdit(page); setMenuOpen(false); } },
                     { icon: page.isPublished ? Lock : Unlock, label: page.isPublished ? 'Unpublish' : 'Publish', onClick: () => { onPublishToggle(page); setMenuOpen(false); } },
@@ -119,6 +120,15 @@ function PageCard({ page, onEdit, onDelete, onPublishToggle, onPreview, copied, 
             </a>
           </div>
         )}
+
+        {/* Canvas Editor CTA */}
+        <button
+          onClick={() => onCanvas(page)}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 mt-1 rounded-xl border border-violet-500/25 bg-violet-500/6 text-violet-400 text-[11px] font-medium hover:bg-violet-500/12 hover:border-violet-500/40 transition-all"
+        >
+          <PenTool className="w-3.5 h-3.5" />
+          Open Canvas Designer
+        </button>
       </div>
     </div>
   );
@@ -394,6 +404,7 @@ export default function LandingPagesPage() {
                 onPreview={setPreviewPage}
                 copied={copied}
                 onCopy={handleCopy}
+                onCanvas={(p) => navigate(`/landing-pages/${p.id}/canvas`)}
               />
             ))}
             {/* Add new card */}

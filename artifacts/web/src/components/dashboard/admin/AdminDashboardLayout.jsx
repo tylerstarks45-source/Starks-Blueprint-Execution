@@ -28,7 +28,7 @@ class AdminErrorBoundary extends React.Component {
 }
 import {
   LayoutDashboard, DollarSign, BrainCircuit, Server, TrendingUp,
-  Users, Bell, ShieldCheck, CreditCard,
+  Users, Bell, ShieldCheck, CreditCard, ShoppingBag,
 } from 'lucide-react';
 
 import AdminPlatformMetricsCard from './AdminPlatformMetricsCard.jsx';
@@ -54,6 +54,7 @@ import AdminRevenueActivityPanel from './AdminRevenueActivityPanel.jsx';
 import AdminAIAnalyticsDashboard from './AdminAIAnalyticsDashboard.jsx';
 import AdminProfitabilityPanel from './AdminProfitabilityPanel.jsx';
 import AdminSystemMonitoringPanel from './AdminSystemMonitoringPanel.jsx';
+import AdminMarketplaceToolsPanel from './AdminMarketplaceToolsPanel.jsx';
 import AdminSkillEnginePanel from '@/components/admin/AdminSkillEnginePanel.jsx';
 import AdminStripePanel from './AdminStripePanel.jsx';
 
@@ -68,6 +69,7 @@ const TABS = [
   { key: 'stripe',        label: 'Stripe',          icon: CreditCard,      path: '/admin/stripe' },
   { key: 'ai-analytics',  label: 'AI Analytics',    icon: BrainCircuit,    path: '/admin/ai-analytics' },
   { key: 'profitability', label: 'Profitability',   icon: TrendingUp,      path: '/admin/profitability' },
+  { key: 'marketplace',   label: 'Marketplace',     icon: ShoppingBag,     path: '/admin/marketplace' },
   { key: 'systems',       label: 'Systems',         icon: Server,          path: '/admin/systems' },
   { key: 'health',        label: 'Platform Health', icon: ShieldCheck,     path: '/admin/health' },
   { key: 'activity',      label: 'Activity',        icon: Bell,            path: '/admin/activity' },
@@ -186,6 +188,13 @@ const AdminDashboardLayout = () => {
         {/* ── Profitability tab ────────────────────────────────────────────── */}
         {activeTab === 'profitability' && (
           <AdminProfitabilityPanel />
+        )}
+
+        {/* ── Marketplace tab ──────────────────────────────────────────────── */}
+        {activeTab === 'marketplace' && (
+          <div className="space-y-6">
+            <AdminMarketplaceToolsPanel />
+          </div>
         )}
 
         {/* ── Systems tab ──────────────────────────────────────────────────── */}

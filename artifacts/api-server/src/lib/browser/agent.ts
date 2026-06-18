@@ -311,8 +311,13 @@ export async function* runBrowserAgent(
     page = await settleNavigation(context, page);
 
     for (let step = 0; step < MAX_STEPS; step++) {
-      const activePage = context.pages().at(-1) ?? page;
+      const activePage: Page = context.pages().at(-1) ?? page!;
       page = activePage;
+
+      if (!page) {
+        yield { type: "error", message: "Browser session ended unexpectedly." };
+        return;
+      }
 
       let pageData;
       try {
@@ -418,7 +423,7 @@ export async function* runBrowserAgent(
         return;
       }
 
-      const actionResult = await executeAction(context, page, decision as Parameters<typeof executeAction>[2]);
+      const actionResult = await executeAction(context, page!, decision as Parameters<typeof executeAction>[2]);
       page = actionResult.page;
 
       yield {

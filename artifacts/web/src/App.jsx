@@ -57,6 +57,7 @@ const CreditsPage           = lazy(() => import('@/pages/CreditsPage.jsx'));
 const WorkspacePage         = lazy(() => import('@/pages/WorkspacePage.jsx'));
 const MemoryPage            = lazy(() => import('@/pages/MemoryPage.jsx'));
 const LandingPagesPage      = lazy(() => import('@/pages/LandingPagesPage.jsx'));
+const UserLandingPageCanvas = lazy(() => import('@/pages/UserLandingPageCanvas.jsx'));
 const AffiliateLinkManagerPage = lazy(() => import('@/pages/AffiliateLinkManagerPage.jsx'));
 const EmailMarketingPage    = lazy(() => import('@/pages/EmailMarketingPage.jsx'));
 
@@ -199,6 +200,9 @@ const App = () => {
               } />
               <Route path="/landing-pages" element={
                 <ProtectedRoute><LandingPagesPage /></ProtectedRoute>
+              } />
+              <Route path="/landing-pages/:id/canvas" element={
+                <ProtectedRoute><UserLandingPageCanvas /></ProtectedRoute>
               } />
               <Route path="/affiliate-links" element={
                 <ProtectedRoute><AffiliateLinkManagerPage /></ProtectedRoute>

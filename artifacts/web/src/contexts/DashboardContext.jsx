@@ -22,10 +22,12 @@ export const DashboardProvider = ({ children }) => {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : null)
-      .then(user => {
-        if (user?.role) {
-          setRole(user.role);
-          localStorage.setItem('userRole', user.role);
+      // /api/auth/me returns { user: { role, ... } } — read the nested user
+      .then(data => {
+        const serverRole = data?.user?.role;
+        if (serverRole) {
+          setRole(serverRole);
+          localStorage.setItem('userRole', serverRole);
         }
       })
       .catch(() => {});

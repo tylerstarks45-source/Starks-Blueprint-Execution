@@ -10,9 +10,15 @@ const ADMIN_EMAILS = ['tylerstarks45@gmail.com', 'tylerstarks77@gmail.com'];
 const ADMIN_ROLES = ['admin', 'ADMIN', 'SUPER_ADMIN', 'FOUNDER_ADMIN'];
 
 const DashboardRouter = () => {
-  const { role, isLoading } = useDashboard();
+  const { role: dashboardRole, isLoading } = useDashboard();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+
+  // Prefer the live role from the auth context (set on login, fully reactive)
+  // and fall back to the dashboard context / localStorage value. This avoids a
+  // stale-role race where a fresh admin login lands on the user dashboard until
+  // a full page reload.
+  const role = currentUser?.role || dashboardRole;
 
   useEffect(() => {
     const validRoles = ['admin', 'ADMIN', 'SUPER_ADMIN', 'FOUNDER_ADMIN', 'USER'];

@@ -30,6 +30,19 @@ wrong layout.
 **How to apply:** if you add/rename an admin role, update all three places together. If ADMIN vs
 SUPER_ADMIN ever need distinct privilege tiers, enforce that explicitly on mutation endpoints.
 
+## DashboardRouter must read role from AuthContext, not DashboardContext
+`DashboardRouter` decides admin-vs-user layout. Its admin check must use the *reactive* role from
+`useAuth().currentUser.role`, NOT `useDashboard().role`. The `DashboardContext` role is seeded once
+from `localStorage.userRole` at mount and only ever updated by a `/api/auth/me` fetch — so a fresh
+admin login lands on the USER dashboard until a full page reload.
+**Why:** two compounding bugs — (1) `DashboardContext` read `data.role` instead of the nested
+`data.user.role` (`/api/auth/me` returns `{ user: {...} }`), so the server correction never fired;
+(2) the localStorage seed is non-reactive, so it stays stale after login. `ProtectedAdminRoute` was
+fine because it already uses `currentUserRole` from AuthContext.
+**How to apply:** gate admin UI on `useAuth()` role (set in `updateReactState` from the shim's saved
+`data.user`), which is correct and reactive. Treat any `/api/auth/me` consumer carefully — the
+payload is wrapped in `{ user }`.
+
 ## Admin email allowlist is duplicated in 4 places
 The set of authorised admin emails is hardcoded as a constant in 4 separate files — all must be
 kept in sync when adding/removing admin accounts (the actual addresses live in those files, not here):

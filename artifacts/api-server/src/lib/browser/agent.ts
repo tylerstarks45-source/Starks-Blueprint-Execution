@@ -363,28 +363,54 @@ export async function* runBrowserAgent(
       const pageInfo = formatPageForAI(pageData);
       const decisionPrompt = buildDecisionPrompt(pageInfo, task, steps);
 
+      // Try up to 3 times: first with vision (gpt-4o + screenshot), then fall
+      // back to text-only if the vision call fails, then try once more text-only.
       let decisionText = "";
-      try {
-        // Use gpt-4o with the screenshot so the AI can see what's actually on screen
-        const result = await complete({
-          model: "openai/gpt-4o",
-          prompt: decisionPrompt,
-          userId,
-          imageBase64: pageData.screenshot,
-        });
-        decisionText = result.content.trim();
-      } catch (err) {
-        yield { type: "error", message: "AI decision failed: " + (err instanceof Error ? err.message : String(err)) };
-        return;
+      let aiError: string | null = null;
+      const attempts: Array<{ model: string; image?: string }> = [
+        { model: "openai/gpt-4o", image: pageData.screenshot },
+        { model: "openai/gpt-4o", image: undefined },
+        { model: "openai/gpt-4o-mini", image: undefined },
+      ];
+      for (const attempt of attempts) {
+        try {
+          const result = await complete({
+            model: attempt.model,
+            prompt: decisionPrompt,
+            userId,
+            imageBase64: attempt.image,
+          });
+          decisionText = result.content.trim();
+          aiError = null;
+          break;
+        } catch (err) {
+          aiError = err instanceof Error ? err.message : String(err);
+          yield { type: "thinking", description: `AI attempt failed, retrying… (${aiError.slice(0, 80)})` };
+          await sleep(1000);
+        }
+      }
+      if (aiError) {
+        // All attempts failed — log and skip this step rather than killing the session
+        steps.push(`  ⚠ AI unavailable: ${aiError.slice(0, 100)}`);
+        yield { type: "thinking", description: "AI temporarily unavailable — waiting before next attempt…" };
+        await sleep(3000);
+        continue;
       }
 
+      // Extract JSON robustly — accept responses that have extra prose around it
       let decision: Record<string, unknown>;
+      const jsonMatch = decisionText.match(/\{[\s\S]*?\}/);
       try {
-        const cleaned = decisionText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+        const cleaned = jsonMatch
+          ? jsonMatch[0]
+          : decisionText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
         decision = JSON.parse(cleaned);
       } catch {
-        yield { type: "error", message: `Could not parse AI decision: ${decisionText.slice(0, 200)}` };
-        return;
+        // Can't parse at all — log and skip (don't kill the session)
+        steps.push(`  ⚠ Could not parse AI response: ${decisionText.slice(0, 120)}`);
+        yield { type: "thinking", description: "Response wasn't valid JSON — retrying next step…" };
+        await sleep(1500);
+        continue;
       }
 
       if (decision.action === "done") {

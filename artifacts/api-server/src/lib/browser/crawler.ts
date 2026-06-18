@@ -55,20 +55,44 @@ async function getBrowser(): Promise<Browser> {
       "--disable-background-networking",
       "--disable-software-rasterizer",
       "--remote-debugging-port=0",
+      // Stealth: suppress the automation info-bar and webdriver flag
+      "--disable-blink-features=AutomationControlled",
+      "--disable-infobars",
+      "--excludeSwitches=enable-automation",
+      "--window-size=1280,800",
     ],
   });
   _browser.on("disconnected", () => { _browser = null; });
   return _browser;
 }
 
+// Script injected into every page to erase obvious bot fingerprints
+const STEALTH_INIT_SCRIPT = `
+  Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] });
+  Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+  window.chrome = { runtime: {} };
+  const origQuery = window.navigator.permissions.query;
+  window.navigator.permissions.query = (p) =>
+    p.name === 'notifications'
+      ? Promise.resolve({ state: Notification.permission })
+      : origQuery(p);
+`;
+
 export async function createBrowserContext(): Promise<BrowserContext> {
   const browser = await getBrowser();
-  return browser.newContext({
+  const ctx = await browser.newContext({
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     viewport: { width: 1280, height: 800 },
     locale: "en-US",
+    extraHTTPHeaders: {
+      "Accept-Language": "en-US,en;q=0.9",
+    },
   });
+  // Remove navigator.webdriver on every new page before any scripts run
+  await ctx.addInitScript(STEALTH_INIT_SCRIPT);
+  return ctx;
 }
 
 export function isPageClosedError(err: unknown): boolean {

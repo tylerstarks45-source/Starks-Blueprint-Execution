@@ -22,12 +22,14 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (authLoading) return;
-    if (isAuthenticated && currentUser) {
+    // Only auto-redirect if the user was bounced here from a protected route
+    // (i.e. from is set). If they navigated to /login directly they may want
+    // to switch accounts, so show the form rather than kicking them away.
+    if (from && isAuthenticated && currentUser) {
       const role = currentUser.role || 'USER';
       const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'];
-      if (from) navigate(from, { replace: true });
-      else if (ADMIN_ROLES.includes(role)) navigate('/admin-dashboard', { replace: true });
-      else navigate('/user-dashboard', { replace: true });
+      if (ADMIN_ROLES.includes(role)) navigate('/admin-dashboard', { replace: true });
+      else navigate(from, { replace: true });
     }
   }, [isAuthenticated, authLoading, currentUser, navigate, from]);
 

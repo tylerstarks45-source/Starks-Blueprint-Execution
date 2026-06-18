@@ -122,7 +122,7 @@ const HomePage = () => {
   if (isLoading || isAuthenticated) return <div className="min-h-screen" />;
 
   return (
-    <VideoBackground videoId="Dt1PTbxhL_U">
+    <VideoBackground videoId="e1mZ2LO1vzQ">
       <PageMeta
         title="Starks Global Group — Build. Launch. Run. Scale. With ASH AI."
         description="The AI Business Operating System that helps entrepreneurs build automated income systems, connect powerful AI tools, deploy business infrastructure, and manage everything from one dashboard."

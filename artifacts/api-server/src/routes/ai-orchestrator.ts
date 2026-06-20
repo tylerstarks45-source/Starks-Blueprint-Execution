@@ -20,6 +20,7 @@ import { complete, streamCompletion } from "../lib/openrouter";
 import { hasCredits } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
 import { encrypt, decrypt } from "../lib/crypto";
+import { getConnector, isKnownConnector } from "../lib/connectors/registry";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -994,6 +995,73 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
               .filter((c) => !(c.key && storedKeys.includes(c.key)));
         }
         req.log.info({ action: (structuredData as Record<string, unknown>).action }, "Stream: SBEP_DATA recovered successfully");
+      }
+    }
+
+    // ── Server-side connector execution ──────────────────────────────────────
+    // If the AI emitted connector_action calls, execute them here on the server
+    // and stream each result as a tool_result SSE event before the done event.
+    // This ensures connector results are delivered in the real-time SSE stream,
+    // and strips the calls from structuredData so the client doesn't re-execute.
+    if (
+      structuredData != null &&
+      structuredData.action === "tool_calls" &&
+      Array.isArray(structuredData.calls)
+    ) {
+      const calls = structuredData.calls as Array<Record<string, unknown>>;
+      const connectorCalls = calls.filter(c => c.type === "connector_action");
+
+      if (connectorCalls.length > 0) {
+        // Fetch and decrypt all user credentials for connector execution
+        const credRows = await db
+          .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue })
+          .from(userCredentialsTable)
+          .where(eq(userCredentialsTable.userId, userId));
+
+        const userCreds: Record<string, string> = {};
+        for (const row of credRows) {
+          if (row.encryptedValue) {
+            try { userCreds[row.credentialKey] = await decrypt(row.encryptedValue); } catch { /* skip */ }
+          }
+        }
+
+        for (const call of connectorCalls) {
+          const connectorId = call.connectorId as string | undefined;
+          const action = call.action as string | undefined;
+          const params = (call.params ?? {}) as Record<string, unknown>;
+
+          if (!connectorId || !action || !isKnownConnector(connectorId)) continue;
+          const connector = getConnector(connectorId, userCreds);
+          if (!connector) continue;
+
+          const startMs = Date.now();
+          let execResult: { ok: boolean; data?: unknown; error?: string };
+          try {
+            execResult = await connector.execute(action, params);
+          } catch (err) {
+            execResult = { ok: false, error: err instanceof Error ? err.message : String(err) };
+          }
+
+          send({
+            type: "tool_result",
+            tool: "connector",
+            data: {
+              connectorId,
+              connectorName: connector.displayName,
+              action,
+              ok: execResult.ok,
+              data: execResult.ok ? execResult.data : undefined,
+              error: execResult.ok ? undefined : execResult.error,
+              latencyMs: Date.now() - startMs,
+            },
+          });
+        }
+
+        // Remove executed connector calls so the client doesn't double-execute
+        (structuredData as Record<string, unknown>).calls = calls.filter(c => c.type !== "connector_action");
+        if ((structuredData.calls as unknown[]).length === 0) {
+          structuredData = null; // No other tool calls remain
+        }
       }
     }
 

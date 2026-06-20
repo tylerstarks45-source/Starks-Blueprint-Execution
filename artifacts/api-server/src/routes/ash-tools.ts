@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, desc } from "drizzle-orm";
-import { db, generatedFilesTable, userCredentialsTable, systemActivityEventsTable } from "@workspace/db";
+import { eq, desc, and } from "drizzle-orm";
+import { db, generatedFilesTable, userCredentialsTable, systemActivityEventsTable, systemInstancesTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
 import { decrypt } from "../lib/crypto";
@@ -284,25 +284,40 @@ router.post("/ash/connector-action", async (req, res): Promise<void> => {
   const latencyMs = Date.now() - startMs;
 
   // Log to activity feed only when we have a system instance to attach to
-  // (systemActivityEventsTable.systemInstanceId is NOT NULL)
+  // (systemActivityEventsTable.systemInstanceId is NOT NULL).
+  // First verify the instance belongs to the authenticated user to prevent
+  // cross-instance event injection.
   if (systemInstanceId != null) {
-    const eventDescription = execResult.ok
-      ? `Connector action executed: ${connector.displayName} → ${action} (${latencyMs}ms)`
-      : `Connector action failed: ${connector.displayName} → ${action} — ${(execResult.error ?? "unknown error").slice(0, 200)}`;
+    const [ownedInstance] = await db
+      .select({ id: systemInstancesTable.id })
+      .from(systemInstancesTable)
+      .where(
+        and(
+          eq(systemInstancesTable.id, systemInstanceId),
+          eq(systemInstancesTable.userId, userId),
+        )
+      )
+      .limit(1);
 
-    db.insert(systemActivityEventsTable).values({
-      systemInstanceId,
-      eventType: execResult.ok ? "action" : "warning",
-      description: eventDescription,
-      metadata: JSON.stringify({
-        connectorId,
-        connectorName: connector.displayName,
-        action,
-        ok: execResult.ok,
-        latencyMs,
-        ...(execResult.ok ? { data: execResult.data } : { error: execResult.error }),
-      }),
-    }).catch(() => { /* non-critical — never crash the response */ });
+    if (ownedInstance) {
+      const eventDescription = execResult.ok
+        ? `Connector action executed: ${connector.displayName} → ${action} (${latencyMs}ms)`
+        : `Connector action failed: ${connector.displayName} → ${action} — ${(execResult.error ?? "unknown error").slice(0, 200)}`;
+
+      db.insert(systemActivityEventsTable).values({
+        systemInstanceId,
+        eventType: execResult.ok ? "action" : "warning",
+        description: eventDescription,
+        metadata: JSON.stringify({
+          connectorId,
+          connectorName: connector.displayName,
+          action,
+          ok: execResult.ok,
+          latencyMs,
+          ...(execResult.ok ? { data: execResult.data } : { error: execResult.error }),
+        }),
+      }).catch(() => { /* non-critical — never crash the response */ });
+    }
   }
 
   res.json({

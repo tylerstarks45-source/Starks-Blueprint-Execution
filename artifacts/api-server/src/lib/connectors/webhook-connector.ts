@@ -1,5 +1,61 @@
 import { BaseConnector, TestResult, ExecResult } from "./base";
 
+// Private / internal network ranges and hostnames that must never be fetched
+// from a server-side request (SSRF protection).
+const BLOCKED_HOSTNAMES = new Set([
+  "localhost",
+  "0.0.0.0",
+  "metadata.google.internal",         // GCP metadata
+  "169.254.169.254",                   // AWS/Azure/GCP IMDS
+  "fd00::ec2",                         // AWS IPv6 IMDS
+]);
+
+function isBlockedUrl(rawUrl: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return true; // Unparseable = blocked
+  }
+
+  // Only allow http and https
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return true;
+
+  // Strongly prefer HTTPS (we block plain http in isBlockedUrl only for
+  // internal/private ranges, not for all http — some webhooks are HTTP-only).
+  const hostname = parsed.hostname.toLowerCase();
+
+  if (BLOCKED_HOSTNAMES.has(hostname)) return true;
+
+  // Block numeric IPv4 loopback / private / link-local ranges
+  const ipv4 = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [, a, b] = ipv4.map(Number);
+    if (
+      a === 127 ||                                   // 127.x.x.x loopback
+      a === 0 ||                                     // 0.x.x.x
+      a === 10 ||                                    // 10.x.x.x private
+      (a === 172 && b >= 16 && b <= 31) ||           // 172.16–31.x.x private
+      (a === 192 && b === 168) ||                    // 192.168.x.x private
+      (a === 169 && b === 254)                       // 169.254.x.x link-local / IMDS
+    ) {
+      return true;
+    }
+  }
+
+  // Block IPv6 loopback and private ranges
+  if (
+    hostname === "::1" ||
+    hostname.startsWith("fe80:") ||         // IPv6 link-local
+    hostname.startsWith("fc") ||            // IPv6 unique local
+    hostname.startsWith("fd")               // IPv6 unique local
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export class WebhookConnector extends BaseConnector {
   readonly id = "webhook";
   readonly displayName = "Custom Webhook";
@@ -8,21 +64,18 @@ export class WebhookConnector extends BaseConnector {
   readonly requiredCredentials = ["WEBHOOK_URL"];
   readonly actions = ["trigger", "triggerWithPayload", "triggerGet"];
 
-  private isValidUrl(url: string): boolean {
-    try {
-      const parsed = new URL(url);
-      return parsed.protocol === "https:" || parsed.protocol === "http:";
-    } catch {
-      return false;
+  private validateUrl(url: string): string | null {
+    if (!url) return "WEBHOOK_URL not configured";
+    if (isBlockedUrl(url)) {
+      return "WEBHOOK_URL targets a private, loopback, or reserved address — only external URLs are allowed";
     }
+    return null;
   }
 
   async testConnection(): Promise<TestResult> {
     const url = this.creds["WEBHOOK_URL"];
-    if (!url) return { ok: false, latencyMs: 0, message: "WEBHOOK_URL not configured" };
-    if (!this.isValidUrl(url)) {
-      return { ok: false, latencyMs: 0, message: "WEBHOOK_URL is not a valid HTTP/HTTPS URL" };
-    }
+    const err = this.validateUrl(url);
+    if (err) return { ok: false, latencyMs: 0, message: err };
 
     const start = Date.now();
     try {
@@ -47,8 +100,8 @@ export class WebhookConnector extends BaseConnector {
 
   async execute(action: string, params: Record<string, unknown>): Promise<ExecResult> {
     const url = this.creds["WEBHOOK_URL"];
-    if (!url) return { ok: false, error: "WEBHOOK_URL not configured" };
-    if (!this.isValidUrl(url)) return { ok: false, error: "WEBHOOK_URL is not a valid HTTP/HTTPS URL" };
+    const urlErr = this.validateUrl(url);
+    if (urlErr) return { ok: false, error: urlErr };
 
     if (action === "trigger" || action === "triggerWithPayload") {
       const method = (params["method"] as string | undefined)?.toUpperCase() ?? "POST";
@@ -110,8 +163,11 @@ export class WebhookConnector extends BaseConnector {
         const queryParams = params["queryParams"] as Record<string, string> | undefined;
         let targetUrl = url;
         if (queryParams) {
+          // Validate the final URL after appending query params
           const qs = new URLSearchParams(queryParams).toString();
           targetUrl = `${url}?${qs}`;
+          const getErr = this.validateUrl(targetUrl);
+          if (getErr) return { ok: false, error: getErr };
         }
         const res = await fetch(targetUrl, {
           headers: { "X-SBEP-Source": "sbep-connector" },

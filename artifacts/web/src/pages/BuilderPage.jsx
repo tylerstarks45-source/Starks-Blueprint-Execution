@@ -2132,6 +2132,8 @@ const BuilderPage = () => {
               ? { id: toolMsgId, role: 'assistant', type: 'search', data: event.data, ts: Date.now() }
               : event.tool === 'image'
               ? { id: toolMsgId, role: 'assistant', type: 'image', data: event.data, ts: Date.now() }
+              : event.tool === 'connector'
+              ? { id: toolMsgId, role: 'assistant', type: 'connector_action', data: event.data, ts: Date.now() }
               : null;
             if (newMsg) {
               setMessages(prev => {

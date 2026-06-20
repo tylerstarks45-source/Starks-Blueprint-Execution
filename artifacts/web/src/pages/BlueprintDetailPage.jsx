@@ -97,8 +97,14 @@ const BlueprintDetailPage = () => {
       setIsLoading(true);
       setError(false);
       try {
-        // Step 1: Resolve slug → ID via list endpoint (lightweight)
-        const slugRes = await fetch(`/api/blueprints?slug=${encodeURIComponent(slug)}`);
+        // Step 1: Resolve slug → ID via list endpoint (lightweight).
+        // Must include auth token so the server applies caller-aware visibility:
+        // pending community blueprints are hidden from anonymous users but visible
+        // to their author and to admins.
+        const token = authToken();
+        const slugRes = await fetch(`/api/blueprints?slug=${encodeURIComponent(slug)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (!slugRes.ok) throw new Error('Blueprint not found');
         const slugData = await slugRes.json();
         const stub = Array.isArray(slugData) ? slugData[0] : slugData;

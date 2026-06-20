@@ -348,59 +348,77 @@ router.post("/blueprints/:id/purchase", async (req, res): Promise<void> => {
     }
   }
 
-  // INSERT purchase record FIRST — idempotency guard.
-  // The unique constraint on (blueprintId, buyerUserId) means concurrent duplicate
-  // requests will fail here before any money moves.
-  const [purchase] = await db
-    .insert(blueprintPurchasesTable)
-    .values({
-      blueprintId: params.data.id,
-      buyerUserId: caller.id,
-      authorUserId: bp.authorUserId ?? null,
-      priceCredits,
-      creatorShareCredits: creatorShare,
-    })
-    .onConflictDoNothing()
-    .returning();
+  // All purchase writes run inside a single DB transaction for financial consistency.
+  // The unique constraint on (blueprintId, buyerUserId) is the idempotency guard —
+  // concurrent duplicates fail at the INSERT before any money moves; the transaction
+  // ensures partial failures on financial ops auto-rollback the purchase record.
+  let purchase: typeof blueprintPurchasesTable.$inferSelect | undefined;
+  try {
+    purchase = await db.transaction(async (tx) => {
+      const [rec] = await tx
+        .insert(blueprintPurchasesTable)
+        .values({
+          blueprintId: params.data.id,
+          buyerUserId: caller.id,
+          authorUserId: bp.authorUserId ?? null,
+          priceCredits,
+          creatorShareCredits: creatorShare,
+        })
+        .onConflictDoNothing()
+        .returning();
+
+      if (!rec) {
+        // Already purchased — signal to the outer scope without throwing (avoids
+        // rolling back; there is nothing to roll back, but we need the flag).
+        return undefined;
+      }
+
+      // Financial ops inside the transaction
+      if (priceCredits > 0) {
+        const balance = await getBalance(caller.id);
+        if (balance.wallet >= priceCredits) {
+          await adjustWalletCredits(caller.id, -priceCredits, { reason: `Purchase blueprint "${bp.name}"` });
+        } else if (balance.wallet > 0) {
+          await adjustWalletCredits(caller.id, -balance.wallet, { reason: `Purchase blueprint "${bp.name}"` });
+          await adjustCredits(caller.id, -(priceCredits - balance.wallet), "admin_adjust", { reason: `Purchase blueprint "${bp.name}"` });
+        } else {
+          await adjustCredits(caller.id, -priceCredits, "admin_adjust", { reason: `Purchase blueprint "${bp.name}"` });
+        }
+        // Pay creator 70%
+        if (bp.authorUserId && creatorShare > 0) {
+          await adjustWalletCredits(bp.authorUserId, creatorShare, { reason: `Blueprint sale: "${bp.name}"` });
+        }
+      }
+
+      // Increment salesCount
+      await tx
+        .update(blueprintsTable)
+        .set({ salesCount: (bp.salesCount ?? 0) + 1 })
+        .where(eq(blueprintsTable.id, params.data.id));
+
+      return rec;
+    });
+  } catch (txErr: any) {
+    req.log.error({ txErr }, "Blueprint purchase transaction failed");
+    res.status(500).json({ error: "Purchase failed — please try again" });
+    return;
+  }
 
   if (!purchase) {
-    // Already purchased (unique constraint prevented insert)
     res.status(409).json({ error: "You have already purchased this blueprint" });
     return;
   }
 
-  // Financial operations only after purchase record is committed
-  if (priceCredits > 0) {
-    const balance = await getBalance(caller.id);
-    // Deduct from wallet first, then monthly
-    if (balance.wallet >= priceCredits) {
-      await adjustWalletCredits(caller.id, -priceCredits, { reason: `Purchase blueprint "${bp.name}"` });
-    } else if (balance.wallet > 0) {
-      await adjustWalletCredits(caller.id, -balance.wallet, { reason: `Purchase blueprint "${bp.name}"` });
-      await adjustCredits(caller.id, -(priceCredits - balance.wallet), "admin_adjust", { reason: `Purchase blueprint "${bp.name}"` });
-    } else {
-      await adjustCredits(caller.id, -priceCredits, "admin_adjust", { reason: `Purchase blueprint "${bp.name}"` });
-    }
-    // Pay creator 70%
-    if (bp.authorUserId && creatorShare > 0) {
-      await adjustWalletCredits(bp.authorUserId, creatorShare, { reason: `Blueprint sale: "${bp.name}"` });
-      try {
-        await db.insert(notificationsTable).values({
-          userId: bp.authorUserId,
-          title: "Blueprint Sold!",
-          message: `Your blueprint "${bp.name}" was purchased. You earned ${creatorShare} credits.`,
-          notificationType: "success",
-          read: false,
-        });
-      } catch { /* Non-fatal */ }
-    }
+  // Creator notification is outside the transaction (non-fatal, no money involved)
+  if (priceCredits > 0 && bp.authorUserId) {
+    db.insert(notificationsTable).values({
+      userId: bp.authorUserId,
+      title: "Blueprint Sold!",
+      message: `Your blueprint "${bp.name}" was purchased. You earned ${creatorShare} credits.`,
+      notificationType: "success",
+      read: false,
+    }).catch(() => {});
   }
-
-  // Increment salesCount
-  await db
-    .update(blueprintsTable)
-    .set({ salesCount: (bp.salesCount ?? 0) + 1 })
-    .where(eq(blueprintsTable.id, params.data.id));
 
   res.status(201).json(serialize(purchase));
 });

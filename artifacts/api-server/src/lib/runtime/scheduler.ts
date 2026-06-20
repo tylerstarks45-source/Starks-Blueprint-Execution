@@ -299,24 +299,32 @@ async function processABTests(): Promise<void> {
   lastAbTestCheck = now;
 
   const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const fortyEightHoursAgo = new Date(now - 48 * 60 * 60 * 1000);
 
-  // Find running tests that either have 100+ total visits OR are older than 7 days
+  // Find running tests ready to conclude:
+  // landing_page: 100+ total visits OR 7 days old
+  // email_subject: 48 hours old (subject line open rate window)
   const candidateTests = await pool.query<{
     id: number;
     user_id: number;
     system_instance_id: number;
     name: string;
+    type: string;
     created_at: Date;
+    config: Record<string, unknown>;
     total_visits: string;
   }>(
-    `SELECT t.id, t.user_id, t.system_instance_id, t.name, t.created_at,
+    `SELECT t.id, t.user_id, t.system_instance_id, t.name, t.type, t.created_at, t.config,
             COALESCE(SUM(v.visits), 0) AS total_visits
      FROM ab_tests t
      LEFT JOIN ab_variants v ON v.test_id = t.id
      WHERE t.status = 'running'
      GROUP BY t.id
-     HAVING COALESCE(SUM(v.visits), 0) >= 100 OR t.created_at <= $1`,
-    [sevenDaysAgo],
+     HAVING
+       (t.type = 'landing_page' AND (COALESCE(SUM(v.visits), 0) >= 100 OR t.created_at <= $1))
+       OR
+       (t.type = 'email_subject' AND t.created_at <= $2)`,
+    [sevenDaysAgo, fortyEightHoursAgo],
   );
 
   if (candidateTests.rowCount === 0) return;
@@ -329,8 +337,9 @@ async function processABTests(): Promise<void> {
       name: string;
       visits: number;
       conversions: number;
+      content_ref: string;
     }>(
-      `SELECT id, name, visits, conversions FROM ab_variants WHERE test_id = $1 ORDER BY id`,
+      `SELECT id, name, visits, conversions, content_ref FROM ab_variants WHERE test_id = $1 ORDER BY id`,
       [row.id],
     );
 
@@ -350,12 +359,26 @@ async function processABTests(): Promise<void> {
       [winnerVariant.id, concludedAt, row.id],
     );
 
+    // For landing_page tests: promote winning variant's HTML to the landing page
+    if (row.type === "landing_page") {
+      const landingPageId = (row.config as Record<string, unknown>)?.landingPageId as number | undefined;
+      if (landingPageId && winnerVariant.content_ref.length > 200) {
+        await pool.query(
+          `UPDATE landing_pages SET html_content = $1 WHERE id = $2`,
+          [winnerVariant.content_ref, landingPageId],
+        ).catch((err: unknown) => {
+          logger.error({ err, testId: row.id, landingPageId }, "Failed to promote winning variant to landing page");
+        });
+      }
+    }
+
     await db.insert(systemActivityEventsTable).values({
       systemInstanceId: row.system_instance_id,
       eventType: "info",
-      description: `A/B Test "${row.name}" concluded — winner: ${winnerVariant.name} (${winnerVariant.conversions}/${Math.max(winnerVariant.visits, 1)} conversions)`,
+      description: `A/B Test "${row.name}" concluded — winner: ${winnerVariant.name} (${winnerVariant.conversions} conv / ${winnerVariant.visits} visits)`,
       metadata: JSON.stringify({
         testId: row.id,
+        testType: row.type,
         winnerVariantId: winnerVariant.id,
         winnerName: winnerVariant.name,
         visits: winnerVariant.visits,
@@ -366,12 +389,12 @@ async function processABTests(): Promise<void> {
     await db.insert(notificationsTable).values({
       userId: row.user_id,
       title: `A/B Test Complete: ${row.name}`,
-      message: `Your A/B test "${row.name}" has concluded. Winner: "${winnerVariant.name}" with a ${((winnerVariant.conversions / Math.max(winnerVariant.visits, 1)) * 100).toFixed(1)}% conversion rate.`,
+      message: `Your ${row.type === "email_subject" ? "email subject" : "landing page"} A/B test "${row.name}" has concluded. Winner: "${winnerVariant.name}" (${((winnerVariant.conversions / Math.max(winnerVariant.visits, 1)) * 100).toFixed(1)}% conversion rate).${row.type === "landing_page" ? " Your landing page has been updated to show the winning variant." : ""}`,
       notificationType: "info",
       read: false,
     });
 
-    logger.info({ testId: row.id, winnerId: winnerVariant.id, winnerName: winnerVariant.name }, "A/B test concluded");
+    logger.info({ testId: row.id, type: row.type, winnerId: winnerVariant.id, winnerName: winnerVariant.name }, "A/B test concluded");
   }
 }
 

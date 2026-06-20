@@ -1,12 +1,11 @@
 /**
  * Public routes — no auth required.
- * /api/pages/:slug  — serves a user's published landing page as HTML
+ * /api/pages/:slug  — serves a user's published landing page as HTML (with A/B test variant serving)
  * /api/go/:slug     — redirects an affiliate link and tracks the click
  */
 import { Router, type IRouter } from "express";
-import { serialize } from "../lib/serialize";
-import { eq, sql, or } from "drizzle-orm";
-import { db, landingPagesTable, userAffiliateLinksTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import { db, pool, landingPagesTable, userAffiliateLinksTable, abVariantsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -32,28 +31,104 @@ router.get("/pages/:slug", async (req, res): Promise<void> => {
     return;
   }
 
-  // Track page view (fire-and-forget)
+  // ── A/B Test variant assignment ──────────────────────────────────────────
+  // Check if there is a running landing_page A/B test linked to this page via config.landingPageId.
+  let activeTestToken: string | null = null;
+  let assignedVariantId: number | null = null;
+  let variantHtml: string | null = null;
+
+  const linkedTestRows = await pool.query<{
+    id: number; token: string;
+  }>(
+    `SELECT id, token FROM ab_tests
+     WHERE status = 'running' AND type = 'landing_page'
+       AND (config->>'landingPageId')::int = $1
+     LIMIT 1`,
+    [page.id],
+  );
+
+  if (linkedTestRows.rowCount && linkedTestRows.rowCount > 0) {
+    const testRow = linkedTestRows.rows[0]!;
+
+    const variantRows = await pool.query<{
+      id: number; name: string; content_ref: string; visits: number;
+    }>(
+      `SELECT id, name, content_ref, visits FROM ab_variants WHERE test_id = $1 ORDER BY id`,
+      [testRow.id],
+    );
+
+    if (variantRows.rowCount && variantRows.rowCount > 0) {
+      const cookieKey = `abtest_${testRow.id}`;
+      const existingCookieRaw = req.headers.cookie
+        ?.split(";")
+        .map((c) => c.trim())
+        .find((c) => c.startsWith(`${cookieKey}=`));
+      const existingVariantId = existingCookieRaw
+        ? parseInt(existingCookieRaw.split("=")[1] ?? "", 10)
+        : NaN;
+
+      let chosen = variantRows.rows.find((v) => v.id === existingVariantId);
+
+      if (!chosen) {
+        // Even split: pick variant with fewest visits
+        chosen = variantRows.rows.reduce((a, b) => (a.visits <= b.visits ? a : b));
+        await pool.query(`UPDATE ab_variants SET visits = visits + 1 WHERE id = $1`, [chosen.id]);
+        res.setHeader(
+          "Set-Cookie",
+          `${cookieKey}=${chosen.id}; Path=/; Max-Age=${7 * 24 * 3600}; SameSite=Lax`,
+        );
+      }
+
+      activeTestToken = testRow.token;
+      assignedVariantId = chosen.id;
+
+      // Serve variant HTML if it looks like full HTML (>200 chars, starts with DOCTYPE/html)
+      if (chosen.content_ref.length > 200 && /^<!DOCTYPE|^<html/i.test(chosen.content_ref.trimStart())) {
+        variantHtml = chosen.content_ref;
+      }
+    }
+  }
+
+  // Track base page view (fire-and-forget)
   db.update(landingPagesTable)
     .set({ pageViews: sql`${landingPagesTable.pageViews} + 1` })
     .where(eq(landingPagesTable.id, page.id))
     .catch(() => {});
 
-  // Sanitize: strip <script> tags and event handlers before serving.
-  // Defense-in-depth against stored XSS — the CSP header below is the primary control.
-  const rawHtml = page.htmlContent || `<!DOCTYPE html><html><head><title>${page.title}</title></head><body style="background:#0a0a0a;color:#fff;font-family:sans-serif;padding:40px"><h1>${page.title}</h1><p>Page content coming soon.</p></body></html>`;
-  const safeHtml = rawHtml
-    // Remove <script> blocks (including src= variants)
+  // ── Determine which HTML to serve ─────────────────────────────────────────
+  const rawHtml = variantHtml
+    ?? page.htmlContent
+    ?? `<!DOCTYPE html><html><head><title>${page.title}</title></head><body style="background:#0a0a0a;color:#fff;font-family:sans-serif;padding:40px"><h1>${page.title}</h1><p>Page content coming soon.</p></body></html>`;
+
+  // Sanitize: strip user-supplied <script> tags and inline event handlers.
+  // Defense-in-depth against stored XSS — CSP is the primary control.
+  // We inject our own trusted tracking snippet AFTER this step.
+  let safeHtml = rawHtml
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<script\b[^>]*\/>/gi, "")
-    // Remove inline event handlers (onclick, onerror, onload, etc.)
     .replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, "");
 
+  // ── Inject A/B tracking snippet (trusted, injected post-sanitization) ─────
+  // Fires page_view event and exposes window.__sbepConvert(eventType) for CTA tracking.
+  if (activeTestToken && assignedVariantId !== null) {
+    const snippet = `<script>
+(function(){
+  var t='${activeTestToken}',v=${assignedVariantId},b='/api/public/ab-tests/'+t+'/convert';
+  fetch(b,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({variantId:v,eventType:'page_view'})}).catch(function(){});
+  window.__sbepConvert=function(et){fetch(b,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({variantId:v,eventType:et||'button_click'})}).catch(function(){})};
+})();
+</script>`;
+    safeHtml = /<\/body>/i.test(safeHtml)
+      ? safeHtml.replace(/<\/body>/i, `${snippet}\n</body>`)
+      : safeHtml + snippet;
+  }
+
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  // Strict CSP: no scripts allowed, images/styles from anywhere, no framing from third parties.
-  // This is the primary XSS control — even if a script tag slips through sanitization, the browser blocks it.
+  // CSP: allow inline scripts only for A/B test pages (trusted snippet injected above).
+  const scriptPolicy = activeTestToken ? "script-src 'unsafe-inline' 'self'; connect-src 'self';" : "";
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'none'; style-src 'unsafe-inline' https: data:; img-src * data:; font-src * data:; frame-ancestors 'self'; base-uri 'none'; form-action 'self' https:"
+    `default-src 'none'; ${scriptPolicy} style-src 'unsafe-inline' https: data:; img-src * data:; font-src * data:; frame-ancestors 'self'; base-uri 'none'; form-action 'self' https:`,
   );
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");

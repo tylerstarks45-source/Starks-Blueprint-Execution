@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { db, pool, abTestsTable, abVariantsTable, landingPagesTable } from "@workspace/db";
+import { db, pool, abTestsTable, abVariantsTable, landingPagesTable, systemInstancesTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
 import { randomBytes } from "crypto";
@@ -18,6 +18,7 @@ const CreateAbTestBody = z.object({
   systemInstanceId: z.number().int(),
   name: z.string().min(1).max(200),
   type: z.enum(["landing_page", "email_subject"]),
+  landingPageId: z.number().int().optional(),
   config: z.record(z.unknown()).optional().default({}),
 });
 
@@ -29,13 +30,39 @@ router.post("/ab-tests", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  // Verify user owns the system instance
+  const [ownedInstance] = await db
+    .select({ id: systemInstancesTable.id })
+    .from(systemInstancesTable)
+    .where(and(eq(systemInstancesTable.id, parsed.data.systemInstanceId), eq(systemInstancesTable.userId, userId)));
+  if (!ownedInstance) {
+    res.status(403).json({ error: "System instance not found or not yours" });
+    return;
+  }
+
+  // For landing_page tests, verify the landing page belongs to this user
+  if (parsed.data.landingPageId != null) {
+    const [ownedPage] = await db
+      .select({ id: landingPagesTable.id })
+      .from(landingPagesTable)
+      .where(and(eq(landingPagesTable.id, parsed.data.landingPageId), eq(landingPagesTable.userId, userId)));
+    if (!ownedPage) {
+      res.status(403).json({ error: "Landing page not found or not yours" });
+      return;
+    }
+  }
+
+  const config: Record<string, unknown> = { ...parsed.data.config };
+  if (parsed.data.landingPageId != null) config.landingPageId = parsed.data.landingPageId;
+
   const [row] = await db.insert(abTestsTable).values({
     userId,
     systemInstanceId: parsed.data.systemInstanceId,
     name: parsed.data.name,
     type: parsed.data.type,
     status: "running",
-    config: parsed.data.config,
+    config,
     token: generateToken(),
   }).returning();
   res.status(201).json(serialize(row));
@@ -72,6 +99,52 @@ router.get("/ab-tests/:id", async (req, res): Promise<void> => {
   res.json({ test: serialize(test), variants: serialize(variants) });
 });
 
+// ── PATCH /api/ab-tests/:id ────────────────────────────────────────────────────
+// Allows manually concluding a test and declaring a winner
+const PatchAbTestBody = z.object({
+  status: z.enum(["running", "concluded", "archived"]).optional(),
+  winnerVariantId: z.number().int().optional(),
+  name: z.string().min(1).max(200).optional(),
+});
+
+router.patch("/ab-tests/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const id = parseInt(req.params.id as string, 10);
+  const parsed = PatchAbTestBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [existing] = await db.select().from(abTestsTable)
+    .where(and(eq(abTestsTable.id, id), eq(abTestsTable.userId, userId)));
+  if (!existing) { res.status(404).json({ error: "A/B test not found" }); return; }
+
+  const updates: Record<string, unknown> = {};
+  if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+  if (parsed.data.status !== undefined) updates.status = parsed.data.status;
+  if (parsed.data.winnerVariantId !== undefined) updates.winnerVariantId = parsed.data.winnerVariantId;
+  if (parsed.data.status === "concluded") updates.concludedAt = new Date();
+
+  const [row] = await db.update(abTestsTable).set(updates)
+    .where(eq(abTestsTable.id, id)).returning();
+
+  // If manually concluding with a winner, promote the winning variant's HTML to the landing page
+  if (parsed.data.status === "concluded" && parsed.data.winnerVariantId && existing.type === "landing_page") {
+    const cfg = (existing.config ?? {}) as Record<string, unknown>;
+    const landingPageId = cfg.landingPageId as number | undefined;
+    if (landingPageId) {
+      const [winner] = await db.select({ contentRef: abVariantsTable.contentRef })
+        .from(abVariantsTable).where(eq(abVariantsTable.id, parsed.data.winnerVariantId));
+      if (winner && winner.contentRef && winner.contentRef.length > 100) {
+        await db.update(landingPagesTable)
+          .set({ htmlContent: winner.contentRef })
+          .where(and(eq(landingPagesTable.id, landingPageId), eq(landingPagesTable.userId, userId)));
+      }
+    }
+  }
+
+  res.json(serialize(row));
+});
+
 // ── DELETE /api/ab-tests/:id ──────────────────────────────────────────────────
 router.delete("/ab-tests/:id", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
@@ -84,7 +157,10 @@ router.delete("/ab-tests/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
-// ── POST /api/ab-tests/:id/generate-variants — ASH generates content variants ─
+// ── POST /api/ab-tests/:id/generate-variants ──────────────────────────────────
+// ASH generates 2–3 content variants.
+// For landing_page tests: generates full HTML variants (like the landing page generator).
+// For email_subject tests: generates alternative subject lines.
 const GenerateVariantsBody = z.object({
   originalContent: z.string().min(1),
   pageTitle: z.string().optional(),
@@ -101,52 +177,103 @@ router.post("/ab-tests/:id/generate-variants", async (req, res): Promise<void> =
   const parsed = GenerateVariantsBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const isEmailSubject = test.type === "email_subject";
+  req.log.info({ testId: id, type: test.type }, "ASH generating A/B test variants");
 
-  const systemPrompt = isEmailSubject
-    ? `You are ASH, an expert email marketer. Generate A/B test variants for email subject lines.
-Return ONLY valid JSON, no markdown:
+  let variantSpecs: Array<{ name: string; content: string }> = [];
+
+  if (test.type === "email_subject") {
+    // Generate alternative email subject lines
+    const result = await complete({
+      systemPrompt: `You are ASH, an expert email marketer. Generate A/B test variants for email subject lines.
+Return ONLY valid JSON, no markdown, no code blocks:
 {
   "variants": [
     { "name": "Variant A", "content": "subject line text" },
     { "name": "Variant B", "content": "subject line text" }
   ]
-}`
-    : `You are ASH, an expert landing page conversion optimizer. Generate A/B test variants.
-For landing page tests, each variant should have a DIFFERENT hook, headline, CTA, or structure from the original.
+}`,
+      prompt: `Generate ${parsed.data.numberOfVariants} subject line variants for this email campaign.
+Original subject: ${parsed.data.originalContent}
+Title/context: ${parsed.data.pageTitle ?? "email campaign"}
+Make each variant test a different angle: curiosity, urgency, social proof, or direct benefit.
+Keep subjects under 60 characters.`,
+      model: "openai/gpt-4o-mini",
+      userId,
+    });
+    try {
+      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+      const data = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+      variantSpecs = data.variants ?? [];
+    } catch {
+      res.status(500).json({ error: "Failed to parse AI response. Please try again." });
+      return;
+    }
+  } else {
+    // For landing_page tests: generate actual full HTML variants
+    // First get the original landing page for context if linked
+    const cfg = (test.config ?? {}) as Record<string, unknown>;
+    const landingPageId = cfg.landingPageId as number | undefined;
+    let baseHtml = parsed.data.originalContent;
+    if (landingPageId) {
+      const [page] = await db.select({ htmlContent: landingPagesTable.htmlContent })
+        .from(landingPagesTable).where(eq(landingPagesTable.id, landingPageId));
+      if (page?.htmlContent && page.htmlContent.length > 50) baseHtml = page.htmlContent;
+    }
+
+    // Generate variant descriptions first (what to change), then full HTML
+    const planResult = await complete({
+      systemPrompt: `You are ASH, an expert conversion rate optimizer. Describe 2 A/B test variant strategies.
 Return ONLY valid JSON, no markdown:
 {
   "variants": [
-    { "name": "Variant A", "content": "brief description of what changes in this variant (headline change, CTA change, etc.)" },
-    { "name": "Variant B", "content": "brief description of what changes in this variant" }
+    { "name": "Variant A", "changeDescription": "one sentence describing the key difference from the control" },
+    { "name": "Variant B", "changeDescription": "one sentence describing the key difference from the control" }
   ]
-}`;
+}`,
+      prompt: `Design 2 A/B test variants for this landing page.
+Page title: ${parsed.data.pageTitle ?? test.name}
+Original content: ${parsed.data.originalContent.slice(0, 300)}
+Each variant should change ONE thing: headline hook, CTA copy, hero section structure, or social proof placement.`,
+      model: "openai/gpt-4o-mini",
+      userId,
+    });
 
-  const prompt = isEmailSubject
-    ? `Generate ${parsed.data.numberOfVariants} subject line variants for this email campaign.
-Original subject: ${parsed.data.originalContent}
-Title/context: ${parsed.data.pageTitle ?? "email campaign"}
-Make each variant test a different angle: curiosity, urgency, social proof, or direct benefit.`
-    : `Generate ${parsed.data.numberOfVariants} landing page variant descriptions for A/B testing.
-Page title: ${parsed.data.pageTitle ?? "landing page"}
-Original content summary: ${parsed.data.originalContent.slice(0, 500)}
-Each variant should test ONE thing differently: headline hook, CTA text/color, hero copy, or page structure.`;
+    let plans: Array<{ name: string; changeDescription: string }> = [];
+    try {
+      const jsonMatch = planResult.content.match(/\{[\s\S]*\}/);
+      const data = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+      plans = data.variants ?? [];
+    } catch {
+      res.status(500).json({ error: "Failed to plan variants. Please try again." });
+      return;
+    }
 
-  req.log.info({ testId: id, type: test.type }, "ASH generating A/B test variants");
+    // Generate full HTML for each variant
+    for (const plan of plans.slice(0, parsed.data.numberOfVariants)) {
+      const htmlResult = await complete({
+        systemPrompt: `You are ASH, an expert web designer and conversion optimizer. Modify an existing landing page HTML to create an A/B test variant.
+REQUIREMENTS:
+- Return ONLY the complete modified HTML document (no markdown, no code blocks, no explanation)
+- Keep the same overall structure and branding
+- Apply ONLY the described change
+- The result must be a complete, self-contained HTML file`,
+        prompt: `Modify this landing page to create variant "${plan.name}".
+Change to apply: ${plan.changeDescription}
 
-  const result = await complete({ systemPrompt, prompt, model: "openai/gpt-4o-mini", userId });
-
-  let variants: Array<{ name: string; content: string }> = [];
-  try {
-    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-    const data = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-    variants = data.variants ?? [];
-  } catch {
-    res.status(500).json({ error: "Failed to parse AI response. Please try again." });
-    return;
+Original HTML:
+${baseHtml.slice(0, 6000)}`,
+        model: "openai/gpt-4o",
+        userId,
+      });
+      const htmlMatch = htmlResult.content.match(/<!DOCTYPE html>[\s\S]*/i) ?? htmlResult.content.match(/<html[\s\S]*/i);
+      variantSpecs.push({
+        name: plan.name,
+        content: htmlMatch ? htmlMatch[0] : htmlResult.content,
+      });
+    }
   }
 
-  if (variants.length === 0) {
+  if (variantSpecs.length === 0) {
     res.status(500).json({ error: "AI returned no variants. Please try again." });
     return;
   }
@@ -161,15 +288,15 @@ Each variant should test ONE thing differently: headline hook, CTA text/color, h
     toInsert.push({
       testId: id,
       name: "Control",
-      contentRef: parsed.data.originalContent.slice(0, 2000),
+      contentRef: parsed.data.originalContent.slice(0, 65535),
     });
   }
 
-  for (const v of variants) {
+  for (const v of variantSpecs) {
     toInsert.push({
       testId: id,
       name: v.name,
-      contentRef: v.content.slice(0, 2000),
+      contentRef: v.content.slice(0, 65535),
     });
   }
 
@@ -179,6 +306,7 @@ Each variant should test ONE thing differently: headline hook, CTA text/color, h
 
 // ── GET /api/public/ab-tests/:token/assign ─────────────────────────────────────
 // Public — assigns a visitor to a variant via cookie and increments visits.
+// Returns the assigned variant's id, name, and whether it has full HTML content.
 router.get("/public/ab-tests/:token/assign", async (req, res): Promise<void> => {
   const token = req.params.token as string;
   const [test] = await db.select().from(abTestsTable).where(eq(abTestsTable.token, token));
@@ -206,11 +334,12 @@ router.get("/public/ab-tests/:token/assign", async (req, res): Promise<void> => 
     : NaN;
 
   let assignedVariant = variants.find((v) => v.id === existingVariantId);
+  let isNewAssignment = false;
 
   if (!assignedVariant) {
-    // Assign to the variant with fewest visits (even split)
+    isNewAssignment = true;
+    // Even split: assign to variant with fewest visits
     assignedVariant = variants.reduce((a, b) => (a.visits <= b.visits ? a : b));
-    // Increment visits atomically
     await pool.query(
       `UPDATE ab_variants SET visits = visits + 1 WHERE id = $1`,
       [assignedVariant.id],
@@ -225,11 +354,21 @@ router.get("/public/ab-tests/:token/assign", async (req, res): Promise<void> => 
     variantId: assignedVariant.id,
     variantName: assignedVariant.name,
     contentRef: assignedVariant.contentRef,
+    hasHtml: assignedVariant.contentRef.length > 100 && assignedVariant.contentRef.trimStart().startsWith("<"),
+    isNewAssignment,
   });
 });
 
 // ── POST /api/public/ab-tests/:token/convert ──────────────────────────────────
-// Public — tracks a conversion event for the assigned variant (identified by cookie).
+// Public — tracks a typed conversion event for the visitor's assigned variant.
+// eventType: 'page_view' | 'button_click' | 'form_submit' | 'email_opt_in'
+// page_view does NOT increment conversions (already counted in visits via assign).
+// All other event types increment the conversions counter.
+const ConvertBody = z.object({
+  variantId: z.number().int().optional(),
+  eventType: z.enum(["page_view", "button_click", "form_submit", "email_opt_in"]).default("button_click"),
+});
+
 router.post("/public/ab-tests/:token/convert", async (req, res): Promise<void> => {
   const token = req.params.token as string;
   const [test] = await db.select().from(abTestsTable).where(eq(abTestsTable.token, token));
@@ -238,33 +377,47 @@ router.post("/public/ab-tests/:token/convert", async (req, res): Promise<void> =
     return;
   }
 
+  const parsed = ConvertBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
   const cookieKey = `abtest_${test.id}`;
   const cookieRaw = req.headers.cookie
     ?.split(";")
     .map((c) => c.trim())
     .find((c) => c.startsWith(`${cookieKey}=`));
-  const variantId = cookieRaw ? parseInt(cookieRaw.split("=")[1] ?? "", 10) : NaN;
-
-  // Also accept variantId in body (for JS snippet that can't rely on cookies cross-origin)
-  const bodyVariantId = typeof req.body?.variantId === "number" ? req.body.variantId : NaN;
-  const targetId = Number.isFinite(variantId) ? variantId : bodyVariantId;
+  const cookieVariantId = cookieRaw ? parseInt(cookieRaw.split("=")[1] ?? "", 10) : NaN;
+  const targetId = parsed.data.variantId ?? (Number.isFinite(cookieVariantId) ? cookieVariantId : NaN);
 
   if (!Number.isFinite(targetId)) {
-    res.status(400).json({ error: "Could not determine variant — no cookie or variantId in body" });
+    res.status(400).json({ error: "Could not determine variant — missing cookie or variantId" });
     return;
   }
 
-  const result = await pool.query(
-    `UPDATE ab_variants SET conversions = conversions + 1 WHERE id = $1 AND test_id = $2 RETURNING id`,
-    [targetId, test.id],
-  );
+  const eventType = parsed.data.eventType;
+  const isConversion = eventType !== "page_view";
 
-  if ((result.rowCount ?? 0) === 0) {
-    res.status(404).json({ error: "Variant not found for this test" });
-    return;
+  // Atomically update conversionEvents jsonb and conversions counter
+  if (isConversion) {
+    await pool.query(
+      `UPDATE ab_variants
+       SET conversions = conversions + 1,
+           conversion_events = COALESCE(conversion_events, '{}')::jsonb ||
+             jsonb_build_object($1::text, (COALESCE((conversion_events->$1)::int, 0) + 1))
+       WHERE id = $2 AND test_id = $3`,
+      [eventType, targetId, test.id],
+    );
+  } else {
+    // page_view: just update the event log (don't count as conversion)
+    await pool.query(
+      `UPDATE ab_variants
+       SET conversion_events = COALESCE(conversion_events, '{}')::jsonb ||
+             jsonb_build_object($1::text, (COALESCE((conversion_events->$1)::int, 0) + 1))
+       WHERE id = $2 AND test_id = $3`,
+      [eventType, targetId, test.id],
+    );
   }
 
-  res.json({ ok: true });
+  res.json({ ok: true, eventType, counted: isConversion });
 });
 
 export default router;

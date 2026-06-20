@@ -153,9 +153,11 @@ class SBEPCollection {
 
   async create(data, _opts = {}) {
     if (this._name === 'users') {
+      const payload = { email: data.email, password: data.password, name: data.name || '' };
+      if (data.referralCode) payload.referralCode = data.referralCode;
       const result = await apiRequest('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email: data.email, password: data.password, name: data.name || '' }),
+        body: JSON.stringify(payload),
       });
       return result.user;
     }

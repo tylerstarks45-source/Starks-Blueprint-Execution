@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, MousePointerClick, Trophy, Coins, Loader2, RefreshCw } from 'lucide-react';
+import { Users, MousePointerClick, Trophy, Coins, Loader2, RefreshCw, TrendingUp } from 'lucide-react';
 
 const AdminReferralsPanel = () => {
   const [data, setData] = useState(null);
@@ -47,6 +47,7 @@ const AdminReferralsPanel = () => {
     { icon: Users,            label: 'Referral Codes',   value: data?.totalCodes ?? 0,         color: 'text-blue-400' },
     { icon: MousePointerClick, label: 'Total Clicks',    value: (data?.totalClicks ?? 0).toLocaleString(), color: 'text-violet-400' },
     { icon: Trophy,           label: 'Conversions',      value: (data?.totalConversions ?? 0).toLocaleString(), color: 'text-amber-400' },
+    { icon: TrendingUp,       label: 'Conversion Rate',  value: `${data?.conversionRate ?? 0}%`, color: 'text-primary' },
     { icon: Coins,            label: 'Credits Awarded',  value: (data?.totalCreditsAwarded ?? 0).toLocaleString(), color: 'text-emerald-400' },
   ];
 
@@ -67,7 +68,7 @@ const AdminReferralsPanel = () => {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {metrics.map(({ icon: Icon, label, value, color }) => (
           <div key={label} className="bg-card/60 border border-border/50 rounded-xl p-4">
             <Icon className={`w-5 h-5 mb-2 ${color}`} />

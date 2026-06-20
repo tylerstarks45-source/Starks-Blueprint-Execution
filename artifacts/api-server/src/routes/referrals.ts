@@ -167,11 +167,16 @@ router.get("/admin/referrals", async (req, res): Promise<void> => {
     .orderBy(desc(referralEventsTable.createdAt))
     .limit(50);
 
+  const totalClicks = totals?.totalClicks ?? 0;
+  const totalConversions = totals?.totalConversions ?? 0;
+  const conversionRate = totalClicks > 0 ? Math.round((totalConversions / totalClicks) * 1000) / 10 : 0;
+
   res.json(
     serialize({
       totalCodes: totals?.totalCodes ?? 0,
-      totalClicks: totals?.totalClicks ?? 0,
-      totalConversions: totals?.totalConversions ?? 0,
+      totalClicks,
+      totalConversions,
+      conversionRate,
       totalCreditsAwarded: creditsRow?.totalCreditsAwarded ?? 0,
       topReferrers,
       recentEvents,

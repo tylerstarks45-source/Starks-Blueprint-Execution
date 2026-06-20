@@ -6,8 +6,7 @@ import { Search, Sparkles, ArrowRight, Box, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useSystemGenerator } from '@/hooks/useSystemGenerator.js';
 
-import Header from '@/components/Header.jsx';
-import Footer from '@/components/Footer.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import SystemPlanCard from '@/components/SystemPlanCard.jsx';
 
 const authHeaders = () => {
@@ -77,14 +76,12 @@ const SystemBuilderPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col bg-grid-pattern">
+    <AuthLayout>
       <Helmet>
         <title>System Builder | Starks Global Group</title>
       </Helmet>
 
-      <Header />
-
-      <main className="flex-grow pt-24 pb-24">
+      <main className="flex-grow pt-8 pb-24">
         <div className="container mx-auto px-4 max-w-5xl">
 
           {/* Hero & Input */}
@@ -231,9 +228,7 @@ const SystemBuilderPage = () => {
 
         </div>
       </main>
-
-      <Footer />
-    </div>
+    </AuthLayout>
   );
 };
 

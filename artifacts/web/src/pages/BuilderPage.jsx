@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import VideoBackground from '@/components/VideoBackground.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bot, Send, Loader2, AlertCircle, Zap, CheckCircle2,
@@ -2524,7 +2524,7 @@ const BuilderPage = () => {
   const activeMode = AI_MODES.find(m => m.id === aiMode);
 
   return (
-    <VideoBackground>
+    <AuthLayout>
     <div className="h-screen flex flex-col overflow-hidden">
 
       {/* ── TOP BAR ─────────────────────────────────────────────────────── */}
@@ -4260,7 +4260,7 @@ const BuilderPage = () => {
       </div>
     )}
 
-    </VideoBackground>
+    </AuthLayout>
   );
 };
 

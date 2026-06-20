@@ -413,6 +413,21 @@ You can call these tools at any time to enrich your responses. Use them proactiv
    Use for: business plans, code files, configs, scripts, spreadsheet templates, email sequences, SOPs, landing page copy.
    SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "file", "name": "filename.ext", "content": "complete file content here", "fileType": "markdown|json|python|html|javascript|text|csv"}]}
 
+7. **Connector Actions** (Execute real API calls on the user's connected services — LIVE actions on real platforms)
+   Use for: actually posting tweets, adding email subscribers, triggering automations, sending Slack messages, sending emails, creating payment links.
+   ONLY call connector actions when the user's system is being built or executed — these make REAL changes.
+   Available connectors and their actions:
+   - twitter → postTweet(text), getUserProfile(), searchTweets(query)
+   - mailchimp → addSubscriber(email, firstName?, lastName?, listId?), getLists()
+   - convertkit → addSubscriber(email, firstName?, formId?), getForms(), tagSubscriber(email, tagId)
+   - zapier → triggerWebhook(…anyPayload), triggerWithPayload(…anyPayload)
+   - gohighlevel → createContact(email?, phone?, firstName?, lastName?, tags?, locationId?), getContacts(), updateContact(contactId, …fields)
+   - slack → postMessage(text, channel?, username?), postRichMessage(blocks, text?)
+   - sendgrid → sendEmail(to, subject, body, from?, fromName?), addContact(email, firstName?, lastName?, listIds?), getStats()
+   - stripe → getBalance(), listPayments(), createCheckout()
+   - webhook → trigger(…anyPayload), triggerGet(queryParams?)
+   SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "connector_action", "connectorId": "slack", "action": "postMessage", "params": {"text": "Your system is now live! 🚀"}}]}
+
 You can chain multiple tools in a single call:
 <SBEP_DATA>
 {"action": "tool_calls", "calls": [
@@ -428,9 +443,11 @@ Use tools when:
 - User needs documents → create real files they can download
 - User wants audio content → text_to_speech or generate_music (note: ElevenLabs key required)
 - User wants video clips → generate_video (note: HeyGen/Runway key required)
+- User wants to post/send/trigger something on a connected service → connector_action (ONLY if user has connected that service)
 - General questions → just answer with action "general" (no tools needed)
 
 DO NOT call tools for every response — only when genuinely useful for the user's goal.
+DO NOT call connector_action unless the user's connected credentials for that connector are available.
 
 === BLUEPRINT-TO-TOOLS INTELLIGENCE ===
 

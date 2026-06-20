@@ -655,6 +655,102 @@ const CodeFileCard = ({ data }) => {
   );
 };
 
+// ─── Connector Action Cards ───────────────────────────────────────────────────
+
+const CONNECTOR_COLORS = {
+  twitter:      { bg: 'bg-sky-500/12',     border: 'border-sky-500/20',     text: 'text-sky-400',     icon: Share2 },
+  mailchimp:    { bg: 'bg-amber-500/12',   border: 'border-amber-500/20',   text: 'text-amber-400',   icon: Users },
+  convertkit:   { bg: 'bg-orange-500/12',  border: 'border-orange-500/20',  text: 'text-orange-400',  icon: Users },
+  zapier:       { bg: 'bg-orange-500/12',  border: 'border-orange-500/20',  text: 'text-orange-400',  icon: Zap },
+  gohighlevel:  { bg: 'bg-blue-500/12',    border: 'border-blue-500/20',    text: 'text-blue-400',    icon: Building2 },
+  slack:        { bg: 'bg-purple-500/12',  border: 'border-purple-500/20',  text: 'text-purple-400',  icon: MessageSquare },
+  sendgrid:     { bg: 'bg-teal-500/12',    border: 'border-teal-500/20',    text: 'text-teal-400',    icon: Send },
+  stripe:       { bg: 'bg-violet-500/12',  border: 'border-violet-500/20',  text: 'text-violet-400',  icon: DollarSign },
+  webhook:      { bg: 'bg-emerald-500/12', border: 'border-emerald-500/20', text: 'text-emerald-400', icon: Globe },
+};
+
+const ConnectorActionCard = ({ data, onRetry }) => {
+  const [expanded, setExpanded] = React.useState(false);
+  const { ok, connectorId, connectorName, action, error, latencyMs } = data || {};
+  const colors = CONNECTOR_COLORS[connectorId] || { bg: 'bg-white/5', border: 'border-white/10', text: 'text-white/70', icon: Cpu };
+  const Icon = colors.icon;
+  const resultData = data?.data;
+  const resultMessage = resultData?.message || (ok ? 'Action completed successfully' : error || 'Action failed');
+
+  if (!ok) {
+    return (
+      <div className="flex items-start gap-2.5 my-0.5">
+        <div className="w-7 h-7 rounded-full bg-rose-500/15 border border-rose-500/25 flex items-center justify-center shrink-0 mt-0.5">
+          <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+        </div>
+        <div className="flex flex-col gap-0.5 items-start max-w-[85%]">
+          <span className="text-[10px] text-rose-400/55 font-mono font-semibold px-1">ASH · Connector Error</span>
+          <div className="bg-[#130208] border border-rose-500/18 rounded-2xl rounded-tl-sm px-4 py-3 w-full">
+            <div className="flex items-center gap-2 mb-2">
+              <Icon className={`w-3.5 h-3.5 ${colors.text}`} />
+              <span className="text-[11px] font-semibold text-white/75">{connectorName || connectorId}</span>
+              <span className="text-[9px] font-mono text-white/30 ml-auto">{action}</span>
+            </div>
+            <p className="text-xs text-rose-300/80 leading-relaxed">{error || 'Action failed'}</p>
+            {latencyMs && <p className="text-[9px] text-white/20 font-mono mt-1">{latencyMs}ms</p>}
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/12 hover:bg-rose-500/20 border border-rose-500/22 text-rose-300 text-[10px] font-mono transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" /> Retry
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-2.5 my-0.5">
+      <div className={`w-7 h-7 rounded-full ${colors.bg} border ${colors.border} flex items-center justify-center shrink-0 mt-0.5`}>
+        <Icon className={`w-3.5 h-3.5 ${colors.text}`} />
+      </div>
+      <div className="flex flex-col gap-0.5 items-start max-w-[85%]">
+        <span className={`text-[10px] ${colors.text} opacity-55 font-mono font-semibold px-1`}>ASH · {connectorName || connectorId}</span>
+        <div className={`${colors.bg} border ${colors.border} rounded-2xl rounded-tl-sm px-4 py-3 w-full`}>
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <p className="text-xs text-white/75 leading-relaxed">{resultMessage}</p>
+          </div>
+          <div className="flex items-center gap-3 text-[9px] font-mono text-white/28">
+            <span className={`${colors.text} opacity-70`}>{action}</span>
+            {latencyMs && <span>{latencyMs}ms</span>}
+          </div>
+          {resultData && Object.keys(resultData).length > 1 && (
+            <button
+              onClick={() => setExpanded(e => !e)}
+              className="mt-2 text-[9px] font-mono text-white/28 hover:text-white/50 flex items-center gap-1 transition-colors"
+            >
+              {expanded ? <ChevronDown className="w-2.5 h-2.5" /> : <ChevronRight className="w-2.5 h-2.5" />}
+              {expanded ? 'Hide details' : 'Show details'}
+            </button>
+          )}
+          {expanded && resultData && (
+            <div className="mt-2 pt-2 border-t border-white/6 space-y-1">
+              {Object.entries(resultData)
+                .filter(([k]) => k !== 'message')
+                .slice(0, 8)
+                .map(([k, v]) => (
+                  <div key={k} className="flex gap-2 text-[9px] font-mono">
+                    <span className="text-white/30 shrink-0">{k}:</span>
+                    <span className="text-white/55 break-all">{typeof v === 'object' ? JSON.stringify(v).slice(0, 80) : String(v).slice(0, 80)}</span>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Message Bubble ───────────────────────────────────────────────────────────
 const MessageBubble = ({ msg, onConfirmPlan }) => {
   const isUser = msg.role === 'user';
@@ -701,6 +797,13 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
   if (msg.type === 'generated_video') return <GeneratedVideoCard data={msg.data} />;
   // Generated audio (TTS or music)
   if (msg.type === 'generated_audio') return <GeneratedAudioCard data={msg.data} label={msg.label} />;
+  // Connector action result (success or failure with retry)
+  if (msg.type === 'connector_action') return (
+    <ConnectorActionCard
+      data={msg.data}
+      onRetry={msg.retryFn ? msg.retryFn : undefined}
+    />
+  );
   // Landing page created by ASH
   if (msg.type === 'page_created') return (
     <div className="flex items-start gap-2.5">
@@ -2179,6 +2282,56 @@ const BuilderPage = () => {
                 setMessages(prev => [...prev, { id: Date.now() + Math.random(), role: 'assistant', type: 'code', data, ts: Date.now() }]);
               }
             } catch { /* non-fatal */ }
+          } else if (call.type === 'connector_action') {
+            const toolMsgId = Date.now() + Math.random();
+            const connLabel = `${call.connectorId} → ${call.action}`;
+            // Show loading state
+            setMessages(prev => [...prev, {
+              id: toolMsgId, role: 'assistant', type: 'tool_call',
+              tool: 'connector', label: `Executing: ${connLabel}…`, ts: Date.now(),
+            }]);
+
+            const executeConnectorAction = async () => {
+              try {
+                const res = await fetch('/api/ash/connector-action', {
+                  method: 'POST',
+                  headers: authHeaders(),
+                  body: JSON.stringify({
+                    connectorId: call.connectorId,
+                    action: call.action,
+                    params: call.params || {},
+                    systemInstanceId: buildData?.instanceId ?? undefined,
+                  }),
+                });
+                const data = await res.json();
+                // Replace loading card with result card (includes retry fn if failed)
+                setMessages(prev => prev.map(m => m.id === toolMsgId ? {
+                  ...m,
+                  type: 'connector_action',
+                  data,
+                  tool: undefined,
+                  label: undefined,
+                  retryFn: !data.ok ? executeConnectorAction : undefined,
+                } : m));
+              } catch (err) {
+                setMessages(prev => prev.map(m => m.id === toolMsgId ? {
+                  ...m,
+                  type: 'connector_action',
+                  data: {
+                    ok: false,
+                    connectorId: call.connectorId,
+                    connectorName: call.connectorId,
+                    action: call.action,
+                    error: err?.message || 'Network error',
+                  },
+                  tool: undefined,
+                  label: undefined,
+                  retryFn: executeConnectorAction,
+                } : m));
+              }
+            };
+
+            await executeConnectorAction();
           }
         }
       }

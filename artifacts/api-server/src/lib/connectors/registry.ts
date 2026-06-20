@@ -2,6 +2,14 @@ import { BaseConnector, ConnectorMeta } from "./base";
 import { OpenRouterConnector } from "./openrouter-connector";
 import { StripeConnector } from "./stripe-connector";
 import { EmailConnector } from "./email-connector";
+import { TwitterConnector } from "./twitter-connector";
+import { MailchimpConnector } from "./mailchimp-connector";
+import { ConvertKitConnector } from "./convertkit-connector";
+import { ZapierConnector } from "./zapier-connector";
+import { GoHighLevelConnector } from "./gohighlevel-connector";
+import { SlackConnector } from "./slack-connector";
+import { SendGridConnector } from "./sendgrid-connector";
+import { WebhookConnector } from "./webhook-connector";
 import {
   GmailStub,
   GoogleSheetsStub,
@@ -18,6 +26,14 @@ const REGISTRY: Record<string, ConnectorCtor> = {
   openrouter: OpenRouterConnector,
   stripe: StripeConnector,
   email: EmailConnector,
+  twitter: TwitterConnector,
+  mailchimp: MailchimpConnector,
+  convertkit: ConvertKitConnector,
+  zapier: ZapierConnector,
+  gohighlevel: GoHighLevelConnector,
+  slack: SlackConnector,
+  sendgrid: SendGridConnector,
+  webhook: WebhookConnector,
   gmail: GmailStub,
   google_sheets: GoogleSheetsStub,
   tiktok: TikTokStub,

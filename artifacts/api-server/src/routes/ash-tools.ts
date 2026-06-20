@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, desc } from "drizzle-orm";
-import { db, generatedFilesTable } from "@workspace/db";
+import { db, generatedFilesTable, userCredentialsTable, systemActivityEventsTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
+import { decrypt } from "../lib/crypto";
+import { getConnector, isKnownConnector, listConnectors } from "../lib/connectors/registry";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -217,6 +219,129 @@ router.delete("/ash/files/:id", async (req, res): Promise<void> => {
     .where(eq(generatedFilesTable.id, fileId));
 
   res.status(204).end();
+});
+
+// ─── POST /api/ash/connector-action — execute a real connector action ─────────
+// Fetches the user's stored credentials, decrypts them, calls the connector's
+// execute() method, logs the result to the activity feed, and returns the result.
+
+router.post("/ash/connector-action", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const schema = z.object({
+    connectorId: z.string().min(1).max(64),
+    action: z.string().min(1).max(64),
+    params: z.record(z.unknown()).optional().default({}),
+    systemInstanceId: z.number().int().optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { connectorId, action, params, systemInstanceId } = parsed.data;
+
+  if (!isKnownConnector(connectorId)) {
+    res.status(404).json({ error: `Unknown connector: ${connectorId}` });
+    return;
+  }
+
+  // Fetch all credentials for this user, decrypt them
+  const credRows = await db
+    .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue })
+    .from(userCredentialsTable)
+    .where(eq(userCredentialsTable.userId, userId));
+
+  const creds: Record<string, string> = {};
+  for (const row of credRows) {
+    if (row.encryptedValue) {
+      try {
+        creds[row.credentialKey] = await decrypt(row.encryptedValue);
+      } catch {
+        // Skip malformed entries — connector will report missing cred gracefully
+      }
+    }
+  }
+
+  const connector = getConnector(connectorId, creds);
+  if (!connector) {
+    res.status(404).json({ error: `Connector ${connectorId} not available` });
+    return;
+  }
+
+  const startMs = Date.now();
+  let execResult: { ok: boolean; data?: unknown; error?: string };
+
+  try {
+    execResult = await connector.execute(action, params as Record<string, unknown>);
+  } catch (err: unknown) {
+    execResult = { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+
+  const latencyMs = Date.now() - startMs;
+
+  // Log to activity feed only when we have a system instance to attach to
+  // (systemActivityEventsTable.systemInstanceId is NOT NULL)
+  if (systemInstanceId != null) {
+    const eventDescription = execResult.ok
+      ? `Connector action executed: ${connector.displayName} → ${action} (${latencyMs}ms)`
+      : `Connector action failed: ${connector.displayName} → ${action} — ${(execResult.error ?? "unknown error").slice(0, 200)}`;
+
+    db.insert(systemActivityEventsTable).values({
+      systemInstanceId,
+      eventType: execResult.ok ? "action" : "warning",
+      description: eventDescription,
+      metadata: JSON.stringify({
+        connectorId,
+        connectorName: connector.displayName,
+        action,
+        ok: execResult.ok,
+        latencyMs,
+        ...(execResult.ok ? { data: execResult.data } : { error: execResult.error }),
+      }),
+    }).catch(() => { /* non-critical — never crash the response */ });
+  }
+
+  res.json({
+    connectorId,
+    connectorName: connector.displayName,
+    action,
+    ok: execResult.ok,
+    data: execResult.ok ? execResult.data : undefined,
+    error: execResult.ok ? undefined : execResult.error,
+    latencyMs,
+  });
+});
+
+// ─── GET /api/ash/connectors — list connected connectors for the current user ──
+
+router.get("/ash/connectors", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  // Get all credential keys stored for this user
+  const credRows = await db
+    .select({ credentialKey: userCredentialsTable.credentialKey, status: userCredentialsTable.status })
+    .from(userCredentialsTable)
+    .where(eq(userCredentialsTable.userId, userId));
+
+  const storedKeys = new Set(credRows.map(r => r.credentialKey));
+
+  // listConnectors is statically imported from registry above
+  const allConnectors = listConnectors();
+
+  const connected = allConnectors
+    .filter(c => !c.stubOnly && c.requiredCredentials.length > 0)
+    .map(c => ({
+      ...c,
+      isConnected: c.requiredCredentials.every(key => storedKeys.has(key)),
+      missingCredentials: c.requiredCredentials.filter(key => !storedKeys.has(key)),
+    }));
+
+  res.json({ connectors: connected });
 });
 
 export default router;

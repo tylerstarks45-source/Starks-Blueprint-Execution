@@ -128,40 +128,44 @@ router.get("/pages/:slug", async (req, res): Promise<void> => {
       : NaN;
 
     if (!Number.isFinite(existingVariantId)) {
-      // New visitor: randomly assign to control (no redirect) or a treatment slug (redirect).
-      // Control variant has slug = NULL; treatments have slugs like "{page-slug}-vb".
-      const treatmentRows = await pool.query<{ id: number; slug: string; visits: number }>(
+      // New visitor: true 1/N even allocator — pick the active variant with the fewest visits.
+      // Control has slug=NULL (stays on this URL); treatments have a slug (get a 302 redirect).
+      const allVariants = await pool.query<{ id: number; slug: string | null; visits: number }>(
         `SELECT id, slug, visits FROM ab_variants
-         WHERE test_id = $1 AND slug IS NOT NULL AND status = 'active'
-         ORDER BY visits ASC LIMIT 1`,
-        [testRow.id],
-      );
-      const controlRows = await pool.query<{ id: number; visits: number }>(
-        `SELECT id, visits FROM ab_variants
-         WHERE test_id = $1 AND slug IS NULL
-         ORDER BY id ASC LIMIT 1`,
+         WHERE test_id = $1 AND status = 'active'
+         ORDER BY visits ASC, id ASC
+         LIMIT 1`,
         [testRow.id],
       );
 
-      const hasTreatment = treatmentRows.rowCount && treatmentRows.rowCount > 0;
-      const treatment = hasTreatment ? treatmentRows.rows[0]! : null;
-      const control = controlRows.rowCount && controlRows.rowCount > 0 ? controlRows.rows[0]! : null;
+      if (allVariants.rowCount && allVariants.rowCount > 0) {
+        const chosen = allVariants.rows[0]!;
+        await pool.query(`UPDATE ab_variants SET visits = visits + 1 WHERE id = $1`, [chosen.id]);
+        res.setHeader("Set-Cookie", `${cookieKey}=${chosen.id}; Path=/; Max-Age=${7 * 24 * 3600}; SameSite=Lax`);
 
-      // 50/50 split: redirect to treatment if coin flip AND treatment has a slug
-      if (treatment && Math.random() < 0.5) {
-        await pool.query(`UPDATE ab_variants SET visits = visits + 1 WHERE id = $1`, [treatment.id]);
-        res.setHeader("Set-Cookie", `${cookieKey}=${treatment.id}; Path=/; Max-Age=${7 * 24 * 3600}; SameSite=Lax`);
-        res.redirect(302, `/api/pages/${treatment.slug}`);
-        return;
-      } else if (control) {
-        // Stay on this URL (control group)
-        await pool.query(`UPDATE ab_variants SET visits = visits + 1 WHERE id = $1`, [control.id]);
-        res.setHeader("Set-Cookie", `${cookieKey}=${control.id}; Path=/; Max-Age=${7 * 24 * 3600}; SameSite=Lax`);
+        if (chosen.slug) {
+          // Treatment variant: redirect to its own URL
+          res.redirect(302, `/api/pages/${chosen.slug}`);
+          return;
+        }
+        // Control: serve here
         activeTestToken = testRow.token;
-        assignedVariantId = control.id;
+        assignedVariantId = chosen.id;
       }
     } else {
-      // Returning visitor: already assigned; serve control content here (treatment redirects are handled above at variant slug)
+      // Returning visitor: check if their assigned variant is a treatment (has a slug).
+      // If so, redirect to ensure consistent URL exposure and valid attribution.
+      const assignedVariantRow = await pool.query<{ slug: string | null }>(
+        `SELECT slug FROM ab_variants WHERE id = $1 AND test_id = $2 LIMIT 1`,
+        [existingVariantId, testRow.id],
+      );
+      const assignedSlug = assignedVariantRow.rows[0]?.slug ?? null;
+      if (assignedSlug) {
+        // Treatment variant: redirect to assigned variant slug
+        res.redirect(302, `/api/pages/${assignedSlug}`);
+        return;
+      }
+      // Control variant: serve here
       activeTestToken = testRow.token;
       assignedVariantId = existingVariantId;
     }

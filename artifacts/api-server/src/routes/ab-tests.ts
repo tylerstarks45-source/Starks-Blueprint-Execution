@@ -19,6 +19,8 @@ const CreateAbTestBody = z.object({
   name: z.string().min(1).max(200),
   type: z.enum(["landing_page", "email_subject"]),
   landingPageId: z.number().int().optional(),
+  /** For email_subject tests: links the test to a specific email sequence */
+  sequenceId: z.number().int().optional(),
   config: z.record(z.unknown()).optional().default({}),
 });
 
@@ -55,6 +57,7 @@ router.post("/ab-tests", async (req, res): Promise<void> => {
 
   const config: Record<string, unknown> = { ...parsed.data.config };
   if (parsed.data.landingPageId != null) config.landingPageId = parsed.data.landingPageId;
+  if (parsed.data.sequenceId != null) config.sequenceId = parsed.data.sequenceId;
 
   const [row] = await db.insert(abTestsTable).values({
     userId,

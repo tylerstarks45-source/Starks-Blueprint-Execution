@@ -36,6 +36,7 @@ import userAffiliateLinksRouter from "./user-affiliate-links";
 import emailMarketingRouter from "./email-marketing";
 import domainsRouter from "./domains";
 import publicPagesRouter from "./public-pages";
+import scheduledTasksRouter from "./scheduled-tasks";
 
 const router: IRouter = Router();
 
@@ -76,5 +77,6 @@ router.use(userAffiliateLinksRouter);
 router.use(emailMarketingRouter);
 router.use(domainsRouter);
 router.use(publicPagesRouter);
+router.use(scheduledTasksRouter);
 
 export default router;

@@ -374,6 +374,375 @@ function DeleteModal({ systemName, onConfirm, onCancel, loading }) {
   );
 }
 
+// ─── AUTOMATION SCHEDULE PANEL ────────────────────────────────────────────────
+
+const SCHEDULE_TYPE_LABELS = {
+  every_n_minutes: (cfg) => `Every ${cfg.intervalMinutes ?? 15} min`,
+  every_n_hours:   (cfg) => `Every ${cfg.intervalHours ?? 1}h`,
+  daily:           (cfg) => `Daily at ${String(cfg.hour ?? 9).padStart(2,'0')}:${String(cfg.minute ?? 0).padStart(2,'0')} UTC`,
+  weekly:          (cfg) => {
+    const days = ['', 'Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    return `Every ${days[cfg.dayOfWeek ?? 1]} at ${String(cfg.hour ?? 9).padStart(2,'0')}:${String(cfg.minute ?? 0).padStart(2,'0')} UTC`;
+  },
+};
+
+function formatScheduleLabel(scheduleType, scheduleConfig) {
+  const fn = SCHEDULE_TYPE_LABELS[scheduleType];
+  if (!fn) return scheduleType;
+  try { return fn(scheduleConfig ?? {}); } catch { return scheduleType; }
+}
+
+function AddTaskModal({ instanceId, onCreated, onClose }) {
+  const [name, setName] = useState('');
+  const [scheduleType, setScheduleType] = useState('daily');
+  const [intervalMinutes, setIntervalMinutes] = useState(15);
+  const [intervalHours, setIntervalHours] = useState(1);
+  const [hour, setHour] = useState(9);
+  const [minute, setMinute] = useState(0);
+  const [dayOfWeek, setDayOfWeek] = useState(1);
+  const [connectorId, setConnectorId] = useState('webhook');
+  const [action, setAction] = useState('trigger');
+  const [actionPayload, setActionPayload] = useState('{}');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const buildScheduleConfig = () => {
+    if (scheduleType === 'every_n_minutes') return { intervalMinutes: Number(intervalMinutes) };
+    if (scheduleType === 'every_n_hours') return { intervalHours: Number(intervalHours) };
+    if (scheduleType === 'daily') return { hour: Number(hour), minute: Number(minute) };
+    if (scheduleType === 'weekly') return { dayOfWeek: Number(dayOfWeek), hour: Number(hour), minute: Number(minute) };
+    return {};
+  };
+
+  const handleCreate = async () => {
+    if (!name.trim()) { setErr('Task name is required'); return; }
+    let parsedPayload = {};
+    try { parsedPayload = JSON.parse(actionPayload); } catch { setErr('Action payload must be valid JSON'); return; }
+    setLoading(true);
+    setErr('');
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/system-instances/${instanceId}/scheduled-tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          name: name.trim(),
+          scheduleType,
+          scheduleConfig: buildScheduleConfig(),
+          actionType: 'connector',
+          actionParams: { connectorId, action, params: parsedPayload },
+          enabled: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to create task');
+      onCreated(data);
+      onClose();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl border border-violet-500/20 bg-gray-900 p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+        <h3 className="text-base font-bold text-white mb-4 font-mono">Add Scheduled Task</h3>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Task Name</label>
+            <input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Post daily TikTok update"
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500/50"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Schedule</label>
+            <select
+              value={scheduleType}
+              onChange={e => setScheduleType(e.target.value)}
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50"
+            >
+              <option value="every_n_minutes">Every N minutes</option>
+              <option value="every_n_hours">Every N hours</option>
+              <option value="daily">Daily at specific time</option>
+              <option value="weekly">Weekly on specific day</option>
+            </select>
+          </div>
+
+          {scheduleType === 'every_n_minutes' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Interval (minutes)</label>
+              <input type="number" min="1" value={intervalMinutes} onChange={e => setIntervalMinutes(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50" />
+            </div>
+          )}
+          {scheduleType === 'every_n_hours' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Interval (hours)</label>
+              <input type="number" min="1" value={intervalHours} onChange={e => setIntervalHours(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50" />
+            </div>
+          )}
+          {(scheduleType === 'daily' || scheduleType === 'weekly') && (
+            <div className="grid grid-cols-2 gap-2">
+              {scheduleType === 'weekly' && (
+                <div className="col-span-2">
+                  <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Day of Week</label>
+                  <select value={dayOfWeek} onChange={e => setDayOfWeek(e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50">
+                    <option value={1}>Monday</option><option value={2}>Tuesday</option><option value={3}>Wednesday</option>
+                    <option value={4}>Thursday</option><option value={5}>Friday</option><option value={6}>Saturday</option><option value={7}>Sunday</option>
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Hour (UTC)</label>
+                <input type="number" min="0" max="23" value={hour} onChange={e => setHour(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50" />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Minute</label>
+                <input type="number" min="0" max="59" value={minute} onChange={e => setMinute(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50" />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Connector</label>
+            <select value={connectorId} onChange={e => setConnectorId(e.target.value)}
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50">
+              <option value="webhook">Webhook</option>
+              <option value="slack">Slack</option>
+              <option value="twitter">Twitter/X</option>
+              <option value="mailchimp">Mailchimp</option>
+              <option value="convertkit">ConvertKit</option>
+              <option value="sendgrid">SendGrid</option>
+              <option value="zapier">Zapier</option>
+              <option value="gohighlevel">GoHighLevel</option>
+              <option value="stripe">Stripe</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Action</label>
+            <input value={action} onChange={e => setAction(e.target.value)} placeholder="trigger / postTweet / postMessage…"
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500/50" />
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Action Params (JSON)</label>
+            <textarea value={actionPayload} onChange={e => setActionPayload(e.target.value)} rows={3}
+              placeholder='{"text": "Daily update!"}'
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500/50 resize-none" />
+          </div>
+
+          {err && <p className="text-xs text-red-400 font-mono">{err}</p>}
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-white/10 text-gray-400 text-sm hover:text-white transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleCreate} disabled={loading}
+            className="flex-1 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors disabled:opacity-50">
+            {loading ? 'Creating…' : 'Create Task'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AutomationSchedulePanel({ instanceId }) {
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [toggling, setToggling] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+
+  const authHdrs = () => {
+    const token = localStorage.getItem('sbep_auth_token');
+    return token
+      ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+      : { 'Content-Type': 'application/json' };
+  };
+
+  const fetchTasks = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/system-instances/${instanceId}/scheduled-tasks`, { headers: authHdrs() });
+      if (res.ok) setTasks(await res.json());
+    } catch { /* ignore */ } finally {
+      setLoading(false);
+    }
+  }, [instanceId]);
+
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
+
+  const toggleTask = async (task) => {
+    setToggling(task.id);
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/scheduled-tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: authHdrs(),
+        body: JSON.stringify({ enabled: !task.enabled }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setTasks(ts => ts.map(t => t.id === task.id ? updated : t));
+        toast.success(updated.enabled ? 'Task enabled' : 'Task paused');
+      }
+    } catch { toast.error('Failed to update task'); } finally {
+      setToggling(null);
+    }
+  };
+
+  const deleteTask = async (taskId) => {
+    setDeleting(taskId);
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/scheduled-tasks/${taskId}`, {
+        method: 'DELETE',
+        headers: authHdrs(),
+      });
+      if (res.ok || res.status === 204) {
+        setTasks(ts => ts.filter(t => t.id !== taskId));
+        toast.success('Task deleted');
+      }
+    } catch { toast.error('Failed to delete task'); } finally {
+      setDeleting(null);
+    }
+  };
+
+  const STATUS_COLORS = {
+    success:  { text: 'text-emerald-400', dot: 'bg-emerald-400', label: 'OK' },
+    retrying: { text: 'text-yellow-400',  dot: 'bg-yellow-400',  label: 'Retrying' },
+    failed:   { text: 'text-red-400',     dot: 'bg-red-400',     label: 'Failed' },
+    null:     { text: 'text-gray-600',    dot: 'bg-gray-600',    label: 'Never run' },
+  };
+
+  return (
+    <>
+      {showAdd && (
+        <AddTaskModal
+          instanceId={instanceId}
+          onCreated={(task) => { setTasks(ts => [task, ...ts]); toast.success('Scheduled task created'); }}
+          onClose={() => setShowAdd(false)}
+        />
+      )}
+      <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
+        <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse"></span>
+            <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Automation Schedule</span>
+            <span className="text-xs text-gray-600 font-mono">
+              {tasks.filter(t => t.enabled).length} active
+            </span>
+          </div>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-violet-500/30 text-violet-400 text-xs font-mono hover:bg-violet-500/10 transition-colors"
+          >
+            <span>+</span> Add Task
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="p-6 text-center">
+            <div className="w-5 h-5 border border-violet-400/30 border-t-violet-400 rounded-full animate-spin mx-auto" />
+          </div>
+        ) : tasks.length === 0 ? (
+          <div className="p-8 text-center">
+            <p className="text-2xl mb-2">⏰</p>
+            <p className="text-sm text-gray-400 font-mono">No scheduled tasks yet</p>
+            <p className="text-xs text-gray-600 mt-1">Add recurring tasks to automate your system 24/7</p>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="mt-4 px-4 py-2 rounded-lg border border-violet-500/20 bg-violet-500/5 text-xs text-violet-400 hover:bg-violet-500/10 transition-colors font-mono"
+            >
+              Add first task →
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {tasks.map((task) => {
+              const statusKey = task.lastRunStatus ?? 'null';
+              const sColor = STATUS_COLORS[statusKey] ?? STATUS_COLORS['null'];
+              const isDisabled = !task.enabled;
+              return (
+                <div key={task.id} className={`px-4 py-3 flex items-start gap-3 ${isDisabled ? 'opacity-50' : ''}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-white font-mono truncate">{task.name}</span>
+                      {isDisabled && (
+                        <span className="px-1.5 py-0.5 rounded bg-gray-600/20 border border-gray-600/30 text-[9px] font-mono text-gray-500 uppercase">Paused</span>
+                      )}
+                      {task.lastRunStatus === 'failed' && (
+                        <span className="px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-[9px] font-mono text-red-400 uppercase">Failed</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                      <span className="text-[11px] font-mono text-violet-400">
+                        ⏱ {formatScheduleLabel(task.scheduleType, task.scheduleConfig)}
+                      </span>
+                      <span className="text-[10px] font-mono text-gray-600">
+                        {task.actionParams?.connectorId && `${task.actionParams.connectorId} → ${task.actionParams.action}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <span className={`w-1.5 h-1.5 rounded-full ${sColor.dot}`} />
+                        <span className={`text-[10px] font-mono ${sColor.text}`}>{sColor.label}</span>
+                      </div>
+                      {task.lastRunAt && (
+                        <span className="text-[10px] text-gray-700 font-mono">Last: {timeAgo(task.lastRunAt)}</span>
+                      )}
+                      {task.nextRunAt && task.enabled && (
+                        <span className="text-[10px] text-gray-500 font-mono">Next: {timeAgo(task.nextRunAt)}</span>
+                      )}
+                    </div>
+                    {task.lastRunError && task.lastRunStatus === 'failed' && (
+                      <p className="text-[10px] text-red-400 mt-1 truncate font-mono">{task.lastRunError}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => toggleTask(task)}
+                      disabled={toggling === task.id || deleting === task.id}
+                      className={`px-2 py-1 rounded text-[10px] font-mono border transition-colors disabled:opacity-40 ${
+                        task.enabled
+                          ? 'border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10'
+                          : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'
+                      }`}
+                    >
+                      {toggling === task.id ? '…' : task.enabled ? 'Pause' : 'Enable'}
+                    </button>
+                    <button
+                      onClick={() => deleteTask(task.id)}
+                      disabled={deleting === task.id || toggling === task.id}
+                      className="px-2 py-1 rounded text-[10px] font-mono border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                    >
+                      {deleting === task.id ? '…' : '✕'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── REVENUE SECTION ──────────────────────────────────────────────────────────
 
 function RevenueSection({ instanceId, buildStatus, buildRevenueCents = 0 }) {
@@ -1128,6 +1497,9 @@ export default function UserSystemDetailPage() {
               })}
           </div>
         </div>
+
+        {/* ── Automation Schedule ── */}
+        <AutomationSchedulePanel instanceId={id} />
 
         {/* ── Revenue + Live Activity ── */}
         <RevenueSection instanceId={id} buildStatus={instance?.buildStatus} buildRevenueCents={buildRevenueCents} />

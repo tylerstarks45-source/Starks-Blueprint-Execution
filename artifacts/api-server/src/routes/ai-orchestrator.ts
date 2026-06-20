@@ -15,7 +15,9 @@ import {
   systemActivityEventsTable,
   skillsTable,
   skillActivationsTable,
+  scheduledTasksTable,
 } from "@workspace/db";
+import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
 import { complete, streamCompletion } from "../lib/openrouter";
 import { hasCredits } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
@@ -377,6 +379,20 @@ For building a standalone landing page (CATEGORY C — user wants a page, not a 
 { "action": "build_landing_page", "pageTitle": "Descriptive Page Title", "pageType": "affiliate", "prompt": "Detailed description of what the page should contain, promote, and look like" }
 </SBEP_DATA>
 
+For creating a scheduled recurring task on a system (during a build step or when user asks to automate recurring actions):
+<SBEP_DATA>
+{
+  "action": "create_schedule",
+  "taskName": "Post daily TikTok update",
+  "scheduleType": "daily",
+  "scheduleConfig": { "hour": 9, "minute": 0 },
+  "actionType": "connector",
+  "actionParams": { "connectorId": "twitter", "action": "postTweet", "params": { "text": "Daily automated post from my system" } }
+}
+</SBEP_DATA>
+Valid scheduleType values: "every_n_minutes" (scheduleConfig: {intervalMinutes: N}), "every_n_hours" (scheduleConfig: {intervalHours: N}), "daily" (scheduleConfig: {hour: 0-23, minute: 0-59}), "weekly" (scheduleConfig: {dayOfWeek: 1-7 (Mon=1), hour: 0-23, minute: 0-59}).
+Use create_schedule when the user's build plan includes recurring tasks that should run automatically (e.g. "post daily", "check metrics every hour", "send weekly email").
+
 For general questions (not a build goal):
 <SBEP_DATA>
 { "action": "general" }
@@ -385,6 +401,7 @@ For general questions (not a build goal):
 CRITICAL: When user says "I confirm the plan", "let's proceed", "I'm ready", or similar → return "collect_credentials" (NEVER "present_plan" again).
 CRITICAL: When user explicitly provides credentials or asks to start building → return "start_build".
 CRITICAL: When user asks to visit a website, search the web, check a URL, find pricing/info online, or interact with a web page → return "browser_use".
+CRITICAL: When user's system needs to run a task on a recurring schedule (post daily, check hourly, send weekly) → use "create_schedule".
 
 === ASH AUTONOMOUS TOOL CAPABILITIES ===
 
@@ -1093,6 +1110,75 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
         (structuredData as Record<string, unknown>).calls = calls.filter(c => c.type !== "connector_action");
         if ((structuredData.calls as unknown[]).length === 0) {
           structuredData = null; // No other tool calls remain
+        }
+      }
+    }
+
+    // ── Server-side create_schedule handling ─────────────────────────────────
+    // When ASH emits a create_schedule action and we have a verified system
+    // instance, persist the scheduled task immediately and notify the client.
+    if (
+      structuredData != null &&
+      structuredData.action === "create_schedule" &&
+      parsed.data.systemInstanceId != null
+    ) {
+      const instanceId = parsed.data.systemInstanceId;
+      const [owned] = await db
+        .select({ id: systemInstancesTable.id })
+        .from(systemInstancesTable)
+        .where(and(
+          eq(systemInstancesTable.id, instanceId),
+          eq(systemInstancesTable.userId, userId),
+        ))
+        .limit(1);
+
+      if (owned) {
+        try {
+          const schedType = (structuredData.scheduleType as string) ?? "daily";
+          const schedConfig = (structuredData.scheduleConfig as Record<string, unknown>) ?? {};
+          const nextRunAt = _computeNextRunAt(
+            schedType as "every_n_minutes" | "every_n_hours" | "daily" | "weekly",
+            schedConfig,
+            new Date(),
+          );
+
+          const [newTask] = await db.insert(scheduledTasksTable).values({
+            systemInstanceId: instanceId,
+            userId,
+            name: (structuredData.taskName as string) ?? "Scheduled Task",
+            scheduleType: schedType,
+            scheduleConfig: schedConfig,
+            actionType: (structuredData.actionType as string) ?? "connector",
+            actionParams: (structuredData.actionParams as Record<string, unknown>) ?? {},
+            enabled: true,
+            nextRunAt,
+          }).returning();
+
+          send({
+            type: "tool_result",
+            tool: "create_schedule",
+            data: {
+              ok: true,
+              scheduledTask: {
+                id: newTask.id,
+                name: newTask.name,
+                scheduleType: newTask.scheduleType,
+                nextRunAt: newTask.nextRunAt?.toISOString() ?? null,
+              },
+            },
+          });
+
+          await db.insert(systemActivityEventsTable).values({
+            systemInstanceId: instanceId,
+            eventType: "action",
+            description: `Scheduled task created: "${newTask.name}" — runs ${schedType.replace(/_/g, " ")}`,
+            metadata: JSON.stringify({ scheduledTaskId: newTask.id, scheduleType: schedType }),
+          });
+
+          // Clear the structuredData so the client doesn't re-process it
+          structuredData = null;
+        } catch (schedErr) {
+          req.log.warn({ schedErr }, "Failed to create scheduled task from ASH");
         }
       }
     }

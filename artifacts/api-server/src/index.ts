@@ -4,6 +4,7 @@ import { db, platformSettingsTable, encryptionKeyRotationsTable } from "@workspa
 import { desc, eq } from "drizzle-orm";
 import { setKeyRotatedAt } from "./lib/crypto";
 import { startWorker } from "./lib/runtime/worker";
+import { startScheduler } from "./lib/runtime/scheduler";
 
 async function start() {
   const rawPort = process.env["PORT"];
@@ -60,6 +61,8 @@ async function start() {
 
     // Start the runtime job worker loop (polls DB every 5s, no Redis required)
     startWorker();
+    // Start the scheduler loop (polls DB every 60s for due scheduled tasks)
+    startScheduler();
   });
 }
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Server, Activity, CheckCircle2, Wrench, BarChart3 } from 'lucide-react';
+import { Server, Activity, CheckCircle2, Wrench, BarChart3, Clock } from 'lucide-react';
 import { useAdminData } from '@/contexts/AdminDataContext.jsx';
 import adminApi from '@/lib/adminApi.js';
 
@@ -42,12 +42,23 @@ const AdminSystemMonitoringPanel = () => {
 
   const [platformConfig, setPlatformConfig] = useState(null);
   const [configLoading, setConfigLoading] = useState(true);
+  const [schedulerStats, setSchedulerStats] = useState(null);
+  const [schedulerLoading, setSchedulerLoading] = useState(true);
 
   useEffect(() => {
     adminApi.getPlatformConfig()
       .then(setPlatformConfig)
       .catch(() => {})
       .finally(() => setConfigLoading(false));
+
+    const token = localStorage.getItem('sbep_auth_token');
+    fetch('/api/scheduled-tasks/stats', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setSchedulerStats(d); })
+      .catch(() => {})
+      .finally(() => setSchedulerLoading(false));
   }, []);
 
   const platform = analytics?.platform ?? {};
@@ -85,11 +96,12 @@ const AdminSystemMonitoringPanel = () => {
         <p className="text-sm text-muted-foreground mt-0.5">Platform-wide system status and performance</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <StatCard icon={Server}       label="Total Systems Built"   value={num(totalSystems)}    color="text-primary"          loading={loading} />
         <StatCard icon={CheckCircle2} label="Active Systems"         value={num(activeSystems)}   color="text-emerald-400"      loading={loading} />
         <StatCard icon={Wrench}       label="Building / In Progress" value={num(buildingSystems)} color="text-amber-400"        loading={loading} />
         <StatCard icon={Activity}     label="Idle / Paused"          value={num(otherSystems)}    color="text-muted-foreground" loading={loading} />
+        <StatCard icon={Clock}        label="Active Scheduled Tasks" value={num(schedulerStats?.activeScheduledTasksCount)} color="text-violet-400" loading={schedulerLoading} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

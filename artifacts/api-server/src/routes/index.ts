@@ -39,6 +39,7 @@ import publicPagesRouter from "./public-pages";
 import scheduledTasksRouter from "./scheduled-tasks";
 import revenueProvidersRouter from "./revenue-providers";
 import publishingRouter from "./publishing";
+import webhooksRouter from "./webhooks";
 
 const router: IRouter = Router();
 
@@ -82,5 +83,6 @@ router.use(publicPagesRouter);
 router.use(scheduledTasksRouter);
 router.use(revenueProvidersRouter);
 router.use(publishingRouter);
+router.use(webhooksRouter);
 
 export default router;

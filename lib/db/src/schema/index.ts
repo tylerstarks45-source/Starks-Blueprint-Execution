@@ -37,3 +37,5 @@ export * from "./user_domains";
 export * from "./scheduled_tasks";
 export * from "./system_revenue_providers";
 export * from "./published_content";
+export * from "./webhook_endpoints";
+export * from "./webhook_logs";

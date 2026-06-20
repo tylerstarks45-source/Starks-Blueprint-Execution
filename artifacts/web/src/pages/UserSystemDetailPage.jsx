@@ -1570,6 +1570,551 @@ function RevenueSection({ instanceId, buildStatus, buildRevenueCents = 0 }) {
   );
 }
 
+// ─── WEBHOOKS PANEL ───────────────────────────────────────────────────────────
+
+const ACTION_TYPE_META = {
+  log_event:        { label: 'Log Event',        icon: '📋', color: 'text-blue-400',    bg: 'bg-blue-400/10',    border: 'border-blue-400/20' },
+  run_ash_task:     { label: 'Run ASH Task',      icon: '🤖', color: 'text-violet-400',  bg: 'bg-violet-400/10',  border: 'border-violet-400/20' },
+  send_email:       { label: 'Send Email',        icon: '✉',  color: 'text-amber-400',   bg: 'bg-amber-400/10',   border: 'border-amber-400/20' },
+  publish_content:  { label: 'Publish Content',   icon: '📤', color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/20' },
+  connector_action: { label: 'Connector Action',  icon: '⚡', color: 'text-cyan-400',    bg: 'bg-cyan-400/10',    border: 'border-cyan-400/20' },
+};
+
+function webhookUrl(token) {
+  return `${window.location.origin}/api/webhooks/${token}`;
+}
+
+function CopyBtn({ text, label = 'Copy' }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/10 transition-all"
+    >
+      {copied ? '✓ Copied' : label}
+    </button>
+  );
+}
+
+function AddWebhookModal({ instanceId, onCreated, onClose }) {
+  const [name, setName] = useState('');
+  const [actionType, setActionType] = useState('log_event');
+  const [description, setDescription] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [to, setTo] = useState('');
+  const [subject, setSubject] = useState('');
+  const [channel, setChannel] = useState('twitter');
+  const [connectorId, setConnectorId] = useState('');
+  const [connectorAction, setConnectorAction] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const buildActionConfig = () => {
+    if (actionType === 'log_event')        return { description: description || undefined };
+    if (actionType === 'run_ash_task')     return { prompt: prompt || undefined };
+    if (actionType === 'send_email')       return { to, subject };
+    if (actionType === 'publish_content')  return { channel };
+    if (actionType === 'connector_action') return { connectorId, action: connectorAction };
+    return {};
+  };
+
+  const handleCreate = async () => {
+    if (!name.trim()) { setErr('Name is required'); return; }
+    setLoading(true); setErr('');
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/system-instances/${instanceId}/webhooks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ name: name.trim(), actionType, actionConfig: buildActionConfig(), enabled: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to create');
+      onCreated(data);
+      onClose();
+    } catch (e) { setErr(e.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl border border-blue-500/20 bg-gray-900 p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+        <h3 className="text-base font-bold text-white mb-4 font-mono">New Webhook Trigger</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Name</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Stripe payment received"
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-blue-500/50" />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">When fired, do…</label>
+            <select value={actionType} onChange={e => setActionType(e.target.value)}
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500/50">
+              {Object.entries(ACTION_TYPE_META).map(([v, m]) => (
+                <option key={v} value={v}>{m.icon} {m.label}</option>
+              ))}
+            </select>
+          </div>
+          {actionType === 'log_event' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Log description (optional)</label>
+              <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Webhook fired from Zapier"
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-blue-500/50" />
+            </div>
+          )}
+          {actionType === 'run_ash_task' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">ASH prompt (optional)</label>
+              <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={3}
+                placeholder="A payment was received. Follow up with the customer and update the CRM."
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-blue-500/50 resize-none" />
+            </div>
+          )}
+          {actionType === 'send_email' && (
+            <>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">To (email)</label>
+                <input value={to} onChange={e => setTo(e.target.value)} placeholder="you@example.com"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-blue-500/50" />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Subject</label>
+                <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Webhook notification"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-blue-500/50" />
+              </div>
+            </>
+          )}
+          {actionType === 'publish_content' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Channel</label>
+              <select value={channel} onChange={e => setChannel(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500/50">
+                {['twitter','instagram','mailchimp','convertkit','wordpress','ghost'].map(c => (
+                  <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {actionType === 'connector_action' && (
+            <>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Connector ID</label>
+                <input value={connectorId} onChange={e => setConnectorId(e.target.value)} placeholder="stripe"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-blue-500/50" />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Action</label>
+                <input value={connectorAction} onChange={e => setConnectorAction(e.target.value)} placeholder="create_invoice"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-blue-500/50" />
+              </div>
+            </>
+          )}
+          {err && <p className="text-xs text-red-400 font-mono">{err}</p>}
+          <div className="flex gap-2 pt-1">
+            <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-white/10 text-gray-400 text-sm hover:text-white transition-colors">Cancel</button>
+            <button onClick={handleCreate} disabled={loading}
+              className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50">
+              {loading ? 'Creating…' : 'Create Webhook'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WebhookLogRow({ log }) {
+  const [expanded, setExpanded] = useState(false);
+  const isOk = log.responseStatus < 400;
+  return (
+    <div className="px-4 py-2 border-b border-white/5 last:border-0">
+      <div className="flex items-center gap-3 cursor-pointer" onClick={() => setExpanded(v => !v)}>
+        <span className={`text-[10px] font-mono font-bold w-8 shrink-0 ${isOk ? 'text-emerald-400' : 'text-red-400'}`}>
+          {log.responseStatus}
+        </span>
+        <span className="text-[10px] font-mono text-gray-400 flex-1 truncate">
+          {log.responseBody ?? '—'}
+        </span>
+        <span className="text-[9px] text-gray-700 font-mono shrink-0 whitespace-nowrap">{timeAgo(log.receivedAt)}</span>
+        {log.processingMs != null && (
+          <span className="text-[9px] text-gray-700 font-mono shrink-0">{log.processingMs}ms</span>
+        )}
+        <span className="text-[9px] text-gray-700 ml-1">{expanded ? '▲' : '▼'}</span>
+      </div>
+      {expanded && log.payload && (
+        <pre className="mt-2 text-[9px] font-mono text-gray-500 bg-black/60 rounded p-2 overflow-x-auto max-h-32">
+          {JSON.stringify(log.payload, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function WebhookEndpointCard({ endpoint, instanceId, onUpdated, onDeleted }) {
+  const [showLogs, setShowLogs] = useState(false);
+  const [logs, setLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [toggling, setToggling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+
+  const meta = ACTION_TYPE_META[endpoint.actionType] ?? ACTION_TYPE_META.log_event;
+  const url = webhookUrl(endpoint.token);
+
+  const loadLogs = async () => {
+    setLoadingLogs(true);
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/system-instances/${instanceId}/webhooks/${endpoint.id}/logs`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setLogs(await res.json());
+    } finally { setLoadingLogs(false); }
+  };
+
+  const toggleLogs = () => {
+    if (!showLogs) loadLogs();
+    setShowLogs(v => !v);
+  };
+
+  const handleTest = async () => {
+    setTesting(true); setTestResult(null);
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/system-instances/${instanceId}/webhooks/${endpoint.id}/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ test: true, source: 'sbep_ui' }),
+      });
+      const data = await res.json();
+      setTestResult(data);
+      if (data.ok) toast.success('Test webhook fired successfully');
+      else toast.error(`Test failed: ${data.message}`);
+    } catch (e) { toast.error(e.message); }
+    finally { setTesting(false); }
+  };
+
+  const handleToggle = async () => {
+    setToggling(true);
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/system-instances/${instanceId}/webhooks/${endpoint.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ enabled: !endpoint.enabled }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed');
+      onUpdated(data);
+    } catch (e) { toast.error(e.message); }
+    finally { setToggling(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Delete webhook "${endpoint.name}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/system-instances/${instanceId}/webhooks/${endpoint.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      onDeleted(endpoint.id);
+      toast.success('Webhook deleted');
+    } catch (e) { toast.error(e.message); }
+    finally { setDeleting(false); }
+  };
+
+  const handleRegenerate = async () => {
+    if (!confirm('Regenerate token? The old URL will stop working immediately.')) return;
+    setRegenerating(true);
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/system-instances/${instanceId}/webhooks/${endpoint.id}/regenerate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed');
+      onUpdated(data);
+      toast.success('Token regenerated — update your Zapier/Make webhook URL');
+    } catch (e) { toast.error(e.message); }
+    finally { setRegenerating(false); }
+  };
+
+  return (
+    <div className={`rounded-xl border transition-all ${endpoint.enabled ? 'border-white/10 bg-black/60' : 'border-white/5 bg-black/40 opacity-60'}`}>
+      {/* Header row */}
+      <div className="px-4 py-3 flex items-start gap-3 flex-wrap">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 ${meta.bg} ${meta.border} border`}>
+          {meta.icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-white font-mono truncate">{endpoint.name}</span>
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${meta.bg} ${meta.color} ${meta.border} border`}>
+              {meta.label}
+            </span>
+            {endpoint.enabled
+              ? <span className="text-[9px] font-mono text-emerald-400">● active</span>
+              : <span className="text-[9px] font-mono text-gray-600">○ disabled</span>}
+          </div>
+          {/* URL row */}
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <code className="text-[10px] font-mono text-gray-500 truncate max-w-[300px] sm:max-w-[420px] bg-black/60 rounded px-2 py-0.5 border border-white/5">
+              {url}
+            </code>
+            <CopyBtn text={url} />
+          </div>
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-[9px] font-mono text-gray-700">
+              {endpoint.totalFires > 0
+                ? `${endpoint.totalFires} fire${endpoint.totalFires !== 1 ? 's' : ''} · last ${timeAgo(endpoint.lastFiredAt)}`
+                : 'Never fired'}
+            </span>
+          </div>
+        </div>
+        {/* Action buttons */}
+        <div className="flex items-center gap-1 shrink-0 flex-wrap">
+          <button
+            onClick={handleTest}
+            disabled={testing || !endpoint.enabled}
+            title="Send a test payload"
+            className="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/20 transition-all disabled:opacity-40"
+          >
+            {testing ? '…' : '▶ Test'}
+          </button>
+          <button
+            onClick={handleToggle}
+            disabled={toggling}
+            title={endpoint.enabled ? 'Disable' : 'Enable'}
+            className="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-white/5 hover:bg-white/10 text-gray-400 border border-white/10 transition-all disabled:opacity-40"
+          >
+            {toggling ? '…' : endpoint.enabled ? '⏸ Disable' : '▶ Enable'}
+          </button>
+          <button
+            onClick={toggleLogs}
+            title="View logs"
+            className="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-white/5 hover:bg-white/10 text-gray-400 border border-white/10 transition-all"
+          >
+            {showLogs ? '▲ Logs' : '▼ Logs'}
+          </button>
+          <button
+            onClick={handleRegenerate}
+            disabled={regenerating}
+            title="Regenerate token"
+            className="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-amber-500/5 hover:bg-amber-500/15 text-amber-500 border border-amber-500/10 transition-all disabled:opacity-40"
+          >
+            {regenerating ? '…' : '↺'}
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            title="Delete"
+            className="px-2 py-1 rounded-lg text-[10px] font-mono bg-red-500/5 hover:bg-red-500/15 text-red-500 border border-red-500/10 transition-all disabled:opacity-40"
+          >
+            {deleting ? '…' : '✕'}
+          </button>
+        </div>
+      </div>
+
+      {/* Test result banner */}
+      {testResult && (
+        <div className={`mx-4 mb-3 px-3 py-2 rounded-lg text-[10px] font-mono border ${testResult.ok ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' : 'bg-red-500/5 border-red-500/20 text-red-400'}`}>
+          {testResult.ok ? '✓' : '✗'} {testResult.message}
+          {testResult.processingMs != null && <span className="ml-2 text-gray-600">{testResult.processingMs}ms</span>}
+        </div>
+      )}
+
+      {/* Logs panel */}
+      {showLogs && (
+        <div className="border-t border-white/5">
+          <div className="px-4 py-2 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-widest text-gray-600 font-mono">Recent Logs</span>
+            <button onClick={loadLogs} className="text-[10px] font-mono text-gray-600 hover:text-gray-400 transition-colors">↺ Refresh</button>
+          </div>
+          {loadingLogs ? (
+            <div className="px-4 pb-4 text-center">
+              <div className="w-4 h-4 border border-blue-400/30 border-t-blue-400 rounded-full animate-spin mx-auto" />
+            </div>
+          ) : logs.length === 0 ? (
+            <p className="px-4 pb-4 text-[10px] font-mono text-gray-700">No logs yet — fire a test or call the URL from Zapier/Make.</p>
+          ) : (
+            <div className="max-h-48 overflow-y-auto">
+              {logs.map(log => <WebhookLogRow key={log.id} log={log} />)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WebhooksPanel({ instanceId }) {
+  const [endpoints, setEndpoints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/system-instances/${instanceId}/webhooks`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setEndpoints(await res.json());
+    } finally { setLoading(false); }
+  }, [instanceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreated = (ep) => setEndpoints(prev => [ep, ...prev]);
+  const handleUpdated = (ep) => setEndpoints(prev => prev.map(e => e.id === ep.id ? ep : e));
+  const handleDeleted = (id) => setEndpoints(prev => prev.filter(e => e.id !== id));
+
+  const exampleUrl = endpoints.length > 0 ? webhookUrl(endpoints[0].token) : `${window.location.origin}/api/webhooks/<token>`;
+
+  return (
+    <>
+      {showAdd && (
+        <AddWebhookModal instanceId={instanceId} onCreated={handleCreated} onClose={() => setShowAdd(false)} />
+      )}
+
+      <div className="rounded-xl border border-blue-500/20 bg-black/80 backdrop-blur-sm">
+        <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+            <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Webhook Triggers</span>
+            <span className="text-xs text-gray-600 font-mono">{endpoints.length} endpoint{endpoints.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowGuide(v => !v)}
+              className="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-white/5 hover:bg-white/10 text-gray-400 border border-white/10 transition-all"
+            >
+              {showGuide ? '▲ Guide' : '? Zapier/Make Guide'}
+            </button>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="px-3 py-1 rounded-lg text-[10px] font-mono bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all"
+            >
+              + Add Webhook
+            </button>
+          </div>
+        </div>
+
+        {/* Zapier / Make integration guide */}
+        {showGuide && (
+          <div className="border-b border-white/5 px-4 py-4 space-y-3">
+            <p className="text-xs font-semibold text-white font-mono">How to connect from Zapier, Make, or any HTTP tool</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[
+                {
+                  tool: 'Zapier',
+                  icon: '⚡',
+                  steps: [
+                    'Create a new Zap → Choose a trigger (e.g. Stripe Payment, Typeform Submit)',
+                    'Add an Action step → search "Webhooks by Zapier" → pick "POST"',
+                    'Paste your webhook URL in the URL field',
+                    'Set Payload Type to "JSON" and add any data fields',
+                    'Test the Zap — you\'ll see it in the Logs below',
+                  ],
+                },
+                {
+                  tool: 'Make (Integromat)',
+                  icon: '🔄',
+                  steps: [
+                    'Create a new Scenario → Add a trigger module',
+                    'Add an HTTP module → "Make a request"',
+                    'Paste your webhook URL as the URL',
+                    'Set Method to POST, Body type to Raw, Content-type to application/json',
+                    'Map fields from your trigger into the JSON body',
+                  ],
+                },
+                {
+                  tool: 'Any HTTP tool (curl)',
+                  icon: '🖥',
+                  steps: [
+                    `curl -X POST \\`,
+                    `  -H "Content-Type: application/json" \\`,
+                    `  -d '{"event":"payment","amount":4900}' \\`,
+                    `  "${exampleUrl}"`,
+                  ],
+                  isCurl: true,
+                },
+              ].map(({ tool, icon, steps, isCurl }) => (
+                <div key={tool} className="rounded-lg bg-black/60 border border-white/10 p-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span>{icon}</span>
+                    <span className="text-xs font-semibold text-white font-mono">{tool}</span>
+                  </div>
+                  {isCurl ? (
+                    <pre className="text-[9px] font-mono text-gray-400 whitespace-pre-wrap leading-relaxed">{steps.join('\n')}</pre>
+                  ) : (
+                    <ol className="space-y-1">
+                      {steps.map((s, i) => (
+                        <li key={i} className="text-[10px] text-gray-400 leading-snug flex gap-1.5">
+                          <span className="text-gray-700 shrink-0">{i + 1}.</span>
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-600 font-mono">
+              ℹ Webhook payloads can contain any JSON. Access payload fields inside ASH prompts via the <code className="text-gray-500">payload</code> object.
+            </p>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="px-4 py-10 text-center">
+            <div className="w-5 h-5 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-xs text-gray-600 font-mono">Loading webhooks…</p>
+          </div>
+        ) : endpoints.length === 0 ? (
+          <div className="px-4 py-10 text-center">
+            <p className="text-3xl mb-2">🔗</p>
+            <p className="text-sm font-medium text-white mb-1">No webhooks yet</p>
+            <p className="text-xs text-gray-500 mb-4 max-w-xs mx-auto">
+              Create a webhook URL and paste it into Zapier, Make, or any HTTP tool. When it fires, this system reacts.
+            </p>
+            <button onClick={() => setShowAdd(true)}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors font-mono">
+              Create First Webhook
+            </button>
+          </div>
+        ) : (
+          <div className="p-4 space-y-3">
+            {endpoints.map(ep => (
+              <WebhookEndpointCard
+                key={ep.id}
+                endpoint={ep}
+                instanceId={instanceId}
+                onUpdated={handleUpdated}
+                onDeleted={handleDeleted}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function UserSystemDetailPage() {
@@ -2184,6 +2729,9 @@ export default function UserSystemDetailPage() {
               })}
           </div>
         </div>
+
+        {/* ── Webhook Triggers ── */}
+        <WebhooksPanel instanceId={id} />
 
         {/* ── Automation Schedule ── */}
         <AutomationSchedulePanel instanceId={id} />

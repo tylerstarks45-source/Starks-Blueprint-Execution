@@ -151,7 +151,7 @@ const ClientPortalPage = () => {
         </div>
 
         <p className="text-center text-xs text-muted-foreground/60">
-          Powered by Starks Global Group · {agencyName}
+          Managed by {agencyName}
         </p>
       </div>
     </div>

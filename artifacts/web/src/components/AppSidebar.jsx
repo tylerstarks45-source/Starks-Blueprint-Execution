@@ -134,8 +134,8 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
         )}
       </div>
 
-      {/* ── Client workspace banner ───────────────── */}
-      {activeWorkspace && <ClientWorkspaceSwitcher collapsed={collapsed} />}
+      {/* ── Client workspace switcher ─────────────── */}
+      {isAgencyUser && <ClientWorkspaceSwitcher collapsed={collapsed} />}
 
       {/* ── Build with ASH — primary CTA ─────────── */}
       <div className={`px-2 pt-3 pb-1 shrink-0 ${collapsed ? 'flex justify-center' : ''}`}>

@@ -185,15 +185,24 @@ router.post("/user-credentials", async (req, res): Promise<void> => {
   const clientWorkspaceId = await validateClientWorkspaceId(req, userId);
   const safeData = { ...parsed.data, userId, ...(clientWorkspaceId !== null ? { clientWorkspaceId } : {}) };
 
+  // Upsert keyed on (userId, credentialKey, clientWorkspaceId) to keep each
+  // client workspace's credentials isolated from each other and from the
+  // agency owner's own credentials.
+  const upsertConditions = [
+    eq(userCredentialsTable.userId, userId),
+    eq(userCredentialsTable.credentialKey, safeData.credentialKey),
+  ];
+  if (clientWorkspaceId !== null) {
+    upsertConditions.push(eq(userCredentialsTable.clientWorkspaceId, clientWorkspaceId));
+  } else {
+    const { isNull } = await import("drizzle-orm");
+    upsertConditions.push(isNull(userCredentialsTable.clientWorkspaceId));
+  }
+
   const [existing] = await db
     .select({ id: userCredentialsTable.id, connectedAt: userCredentialsTable.connectedAt })
     .from(userCredentialsTable)
-    .where(
-      and(
-        eq(userCredentialsTable.userId, userId),
-        eq(userCredentialsTable.credentialKey, safeData.credentialKey),
-      ),
-    );
+    .where(and(...upsertConditions));
 
   const responseShape = {
     id: userCredentialsTable.id,

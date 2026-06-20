@@ -590,7 +590,7 @@ const SystemCommandCenterPage = () => {
       {/* ══ KPI RIBBON — 6 performance metric cards ══════════════════════════ */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
 
-        {/* 1. Total Revenue */}
+        {/* 1. Total Real Revenue */}
         <HudPanel className="p-4 flex flex-col group" accent="rgba(16,185,129,0.5)">
           <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-emerald-500/0 via-emerald-400 to-emerald-500/0" />
           <div className="flex items-center justify-between mb-2">
@@ -599,13 +599,13 @@ const SystemCommandCenterPage = () => {
               <DollarSign className="w-3 h-3 text-emerald-400" />
             </div>
           </div>
-          <p className="text-[28px] font-black font-mono text-emerald-400 leading-none tabular-nums holo-shimmer-text">{fmtCompact(monthCents)}</p>
-          <p className="text-[9px] text-white/30 font-mono mt-1 mb-2">this month</p>
+          <p className="text-[28px] font-black font-mono text-emerald-400 leading-none tabular-nums holo-shimmer-text">{fmtCompact(revenue?.realRevenueCents ?? lifetimeCents)}</p>
+          <p className="text-[9px] text-white/30 font-mono mt-1 mb-2">total real revenue</p>
           <div className="-mx-1 mb-2 opacity-80"><Sparkline values={dailyData.map(d => d.cents)} color="#10b981" height={26} /></div>
           <div className="flex items-center gap-2 mt-auto pt-2 border-t border-white/8">
-            <div><p className="text-[8px] text-white/25 font-mono">Week</p><p className="text-[10px] font-mono font-bold text-white/60">{fmtCompact(weekCents)}</p></div>
+            <div><p className="text-[8px] text-white/25 font-mono">Month</p><p className="text-[10px] font-mono font-bold text-white/60">{fmtCompact(monthCents)}</p></div>
             <div className="w-px h-3 bg-white/10" />
-            <div><p className="text-[8px] text-white/25 font-mono">Lifetime</p><p className="text-[10px] font-mono font-bold text-white/60">{fmtCompact(lifetimeCents)}</p></div>
+            <div><p className="text-[8px] text-white/25 font-mono">Today</p><p className="text-[10px] font-mono font-bold text-white/60">{fmtCompact(todayCents)}</p></div>
           </div>
         </HudPanel>
 
@@ -1038,71 +1038,100 @@ const SystemCommandCenterPage = () => {
           </div>
         ) : (
           <div>
-            <div className="hidden lg:grid grid-cols-12 gap-3 px-5 py-2.5 bg-white/[0.025] border-b border-white/5">
-              {[['col-span-4','System'],['col-span-2','Status'],['col-span-2','Health'],['col-span-1','Uptime'],['col-span-2','Revenue'],['col-span-1 text-right','']].map(([cls, h]) => (
+            <div className="hidden lg:grid grid-cols-12 gap-2 px-5 py-2.5 bg-white/[0.025] border-b border-white/5">
+              {[['col-span-3','System'],['col-span-2','Status'],['col-span-1','Health'],['col-span-2','Last Activity'],['col-span-2','Revenue'],['col-span-2 text-right','Actions']].map(([cls, h]) => (
                 <div key={h} className={`${cls} text-[9px] uppercase tracking-widest text-white/25 font-bold font-mono`}>{h}</div>
               ))}
             </div>
             {systems.map((system, idx) => {
-              const isLoading  = controlLoading[system.id];
-              const isPaused   = system.buildStatus === 'paused';
-              const isBuilding = system.buildStatus === 'building';
-              const hp         = perfSystemMap.get(system.id)?.healthScore ?? healthPct(system.buildStatus, system.healthStatus);
-              const hpColor    = hp >= 80 ? 'bg-emerald-500' : hp >= 50 ? 'bg-amber-400' : hp >= 20 ? 'bg-orange-500' : 'bg-rose-500';
-              const hpText     = hp >= 80 ? 'text-emerald-400' : hp >= 50 ? 'text-amber-400' : hp >= 20 ? 'text-orange-400' : 'text-rose-400';
+              const isLoading   = controlLoading[system.id];
+              const isPaused    = system.buildStatus === 'paused';
+              const isBuilding  = system.buildStatus === 'building';
+              const perf        = perfSystemMap.get(system.id);
+              const hp          = perf?.healthScore ?? healthPct(system.buildStatus, system.healthStatus);
+              const hpColor     = hp >= 80 ? 'bg-emerald-500' : hp >= 50 ? 'bg-amber-400' : hp >= 20 ? 'bg-orange-500' : 'bg-rose-500';
+              const hpText      = hp >= 80 ? 'text-emerald-400' : hp >= 50 ? 'text-amber-400' : hp >= 20 ? 'text-orange-400' : 'text-rose-400';
+              const lastActAt   = perf?.lastActivityAt ?? null;
+              const lastActLabel = (() => {
+                if (!lastActAt) return '—';
+                const ms = Date.now() - new Date(lastActAt).getTime();
+                const m = Math.floor(ms / 60000);
+                if (m < 2) return 'just now';
+                if (m < 60) return `${m}m ago`;
+                const h = Math.floor(m / 60);
+                if (h < 24) return `${h}h ago`;
+                return `${Math.floor(h / 24)}d ago`;
+              })();
+              const todayCentsSystem    = perf?.todayCents ?? 0;
+              const lifetimeCentsSystem = perf?.lifetimeCents ?? systemRevenue[String(system.id)] ?? 0;
               return (
                 <div
                   key={system.id}
-                  className={`group grid grid-cols-1 lg:grid-cols-12 gap-3 items-center px-5 py-3.5 border-b border-white/4 last:border-0 hover:bg-white/[0.03] transition-colors cursor-pointer ${idx % 2 === 0 ? '' : 'bg-white/[0.012]'}`}
+                  className={`group grid grid-cols-1 lg:grid-cols-12 gap-2 items-center px-5 py-3.5 border-b border-white/4 last:border-0 hover:bg-white/[0.03] transition-colors cursor-pointer ${idx % 2 === 0 ? '' : 'bg-white/[0.012]'}`}
                   onClick={() => navigate(`/systems/${system.id}`)}
                 >
-                  <div className="lg:col-span-4 flex items-center gap-3 min-w-0">
+                  {/* System name */}
+                  <div className="lg:col-span-3 flex items-center gap-2.5 min-w-0">
                     <StatusDot status={system.buildStatus === 'completed' ? 'active' : (system.buildStatus ?? 'pending')} />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-white/75 truncate group-hover:text-white transition-colors">{system.name}</p>
                       <p className="text-[10px] text-white/30 font-mono truncate">{system.blueprint?.name ?? 'Custom Blueprint'}</p>
                     </div>
                   </div>
+                  {/* Status */}
                   <div className="lg:col-span-2"><StatusBadge buildStatus={system.buildStatus} healthStatus={system.healthStatus} /></div>
-                  <div className="lg:col-span-2 flex items-center gap-2">
-                    <div className="flex-1 h-1 bg-white/6 rounded-full overflow-hidden">
+                  {/* Health score */}
+                  <div className="lg:col-span-1 flex items-center gap-1.5">
+                    <div className="w-8 h-1 bg-white/6 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full ${hpColor}`} style={{width: `${hp}%`}} />
                     </div>
                     <span className={`text-[10px] font-mono font-bold shrink-0 ${hpText}`}>{hp}%</span>
                   </div>
-                  <div className="lg:col-span-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-white/15" />
-                    <span className="text-[10px] text-white/35 font-mono">{uptimeLabel(system.createdAt, system.buildStatus)}</span>
+                  {/* Last Activity */}
+                  <div className="lg:col-span-2 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-white/15 shrink-0" />
+                    <span className="text-[10px] text-white/40 font-mono truncate">{lastActLabel}</span>
                   </div>
-                  <div className="lg:col-span-2">
-                    {(() => {
-                      const cents = systemRevenue[String(system.id)] ?? 0;
-                      return <span className={`text-xs font-mono font-bold ${cents > 0 ? 'text-emerald-400' : 'text-white/15'}`}>{fmtCompact(cents)}</span>;
-                    })()}
+                  {/* Revenue today / total */}
+                  <div className="lg:col-span-2 flex flex-col gap-0.5">
+                    <span className={`text-xs font-mono font-bold leading-none ${todayCentsSystem > 0 ? 'text-emerald-400' : 'text-white/15'}`}>{fmtCompact(todayCentsSystem)}<span className="text-[8px] text-white/20 font-normal ml-0.5">today</span></span>
+                    <span className={`text-[10px] font-mono leading-none ${lifetimeCentsSystem > 0 ? 'text-white/45' : 'text-white/12'}`}>{fmtCompact(lifetimeCentsSystem)}<span className="text-[8px] text-white/18 font-normal ml-0.5">total</span></span>
                   </div>
-                  <div className="lg:col-span-1 flex items-center gap-0.5 lg:justify-end" onClick={e => e.stopPropagation()}>
+                  {/* Actions: View, Pause/Resume, Rebuild, Boost, Delete */}
+                  <div className="lg:col-span-2 flex items-center gap-0.5 lg:justify-end" onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => navigate(`/systems/${system.id}`)}
+                      title="View system"
+                      className="p-1.5 rounded text-white/20 hover:text-white/60 hover:bg-white/8 transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
                     {isPaused ? (
-                      <button onClick={() => patchSystem(system.id, {buildStatus: 'active'})} disabled={isLoading}
-                        className="p-1.5 rounded text-emerald-400/40 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors border border-transparent hover:border-emerald-500/18">
+                      <button onClick={() => patchSystem(system.id, {buildStatus: 'active'})} disabled={isLoading} title="Resume"
+                        className="p-1.5 rounded text-emerald-400/40 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors">
                         <Play className="w-3.5 h-3.5" />
                       </button>
                     ) : (
-                      <button onClick={() => patchSystem(system.id, {buildStatus: 'paused'})} disabled={isLoading || isBuilding}
-                        className="p-1.5 rounded text-amber-400/40 hover:text-amber-400 hover:bg-amber-500/10 transition-colors border border-transparent hover:border-amber-500/18">
+                      <button onClick={() => patchSystem(system.id, {buildStatus: 'paused'})} disabled={isLoading || isBuilding} title="Pause"
+                        className="p-1.5 rounded text-amber-400/40 hover:text-amber-400 hover:bg-amber-500/10 transition-colors">
                         <Pause className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <button onClick={() => patchSystem(system.id, {buildStatus: 'building'})} disabled={isLoading}
+                    <button onClick={() => patchSystem(system.id, {buildStatus: 'building'})} disabled={isLoading} title="Rebuild"
                       className="p-1.5 rounded text-blue-400/40 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
                       <RotateCcw className="w-3.5 h-3.5" />
                     </button>
+                    <button onClick={() => patchSystem(system.id, {buildStatus: 'building'})} disabled={isLoading} title="Boost with ASH"
+                      className="p-1.5 rounded text-violet-400/40 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">
+                      <Zap className="w-3.5 h-3.5" />
+                    </button>
                     {deleteConfirm === system.id ? (
-                      <span className="flex items-center gap-0.5 ml-0.5">
-                        <button onClick={() => deleteSystem(system.id)} disabled={isLoading} className="text-[10px] px-1.5 py-0.5 rounded text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 font-bold">Y</button>
-                        <button onClick={() => setDeleteConfirm(null)} className="text-[10px] px-1.5 py-0.5 rounded text-white/30 hover:bg-white/5 border border-white/8">N</button>
+                      <span className="flex items-center gap-0.5">
+                        <button onClick={() => deleteSystem(system.id)} disabled={isLoading} className="text-[10px] px-1 py-0.5 rounded text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 font-bold">Y</button>
+                        <button onClick={() => setDeleteConfirm(null)} className="text-[10px] px-1 py-0.5 rounded text-white/30 hover:bg-white/5 border border-white/8">N</button>
                       </span>
                     ) : (
-                      <button onClick={() => setDeleteConfirm(system.id)} disabled={isLoading}
+                      <button onClick={() => setDeleteConfirm(system.id)} disabled={isLoading} title="Delete"
                         className="p-1.5 rounded text-rose-400/25 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

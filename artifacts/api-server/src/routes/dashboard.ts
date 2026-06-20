@@ -341,6 +341,8 @@ router.get("/dashboard/performance", async (req, res): Promise<void> => {
   thirtyDaysAgo.setHours(0, 0, 0, 0);
   const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
 
   const [
     revenueBySystem,
@@ -349,6 +351,7 @@ router.get("/dashboard/performance", async (req, res): Promise<void> => {
     errorsBySystem7d,
     lastActivityBySystem,
     weekRevBySystem,
+    todayRevBySystem,
     contentPublishedRow,
     leadsRow,
   ] = await Promise.all([
@@ -400,6 +403,14 @@ router.get("/dashboard/performance", async (req, res): Promise<void> => {
     .where(and(inArray(systemActivityEventsTable.systemInstanceId, systemIds), eq(systemActivityEventsTable.eventType, "revenue"), gte(systemActivityEventsTable.createdAt, sevenDaysAgo)))
     .groupBy(systemActivityEventsTable.systemInstanceId),
 
+    db.select({
+      systemInstanceId: systemActivityEventsTable.systemInstanceId,
+      cents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`,
+    })
+    .from(systemActivityEventsTable)
+    .where(and(inArray(systemActivityEventsTable.systemInstanceId, systemIds), eq(systemActivityEventsTable.eventType, "revenue"), gte(systemActivityEventsTable.createdAt, startOfToday)))
+    .groupBy(systemActivityEventsTable.systemInstanceId),
+
     db.select({ count: sql<number>`count(*)::int` })
     .from(publishedContentTable)
     .where(and(inArray(publishedContentTable.systemInstanceId, systemIds), eq(publishedContentTable.status, "published"))),
@@ -424,6 +435,10 @@ router.get("/dashboard/performance", async (req, res): Promise<void> => {
   const weekRevMap = new Map<number, number>();
   for (const r of weekRevBySystem) {
     if (r.systemInstanceId !== null) weekRevMap.set(r.systemInstanceId, Number(r.cents));
+  }
+  const todayRevMap = new Map<number, number>();
+  for (const r of todayRevBySystem) {
+    if (r.systemInstanceId !== null) todayRevMap.set(r.systemInstanceId, Number(r.cents));
   }
 
   const sevenDayMs = 7 * 24 * 60 * 60 * 1000;
@@ -454,6 +469,7 @@ router.get("/dashboard/performance", async (req, res): Promise<void> => {
       healthStatus: s.healthStatus,
       healthScore: score,
       lifetimeCents: rev,
+      todayCents: todayRevMap.get(s.id) ?? 0,
       weekRevCents: weekRevMap.get(s.id) ?? 0,
       lastActivityAt: lastAct ? lastAct.toISOString() : null,
       createdAt: s.createdAt,

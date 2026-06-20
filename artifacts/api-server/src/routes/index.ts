@@ -40,6 +40,7 @@ import scheduledTasksRouter from "./scheduled-tasks";
 import revenueProvidersRouter from "./revenue-providers";
 import publishingRouter from "./publishing";
 import webhooksRouter from "./webhooks";
+import abTestsRouter from "./ab-tests";
 
 const router: IRouter = Router();
 
@@ -84,5 +85,6 @@ router.use(scheduledTasksRouter);
 router.use(revenueProvidersRouter);
 router.use(publishingRouter);
 router.use(webhooksRouter);
+router.use(abTestsRouter);
 
 export default router;

@@ -1570,6 +1570,370 @@ function RevenueSection({ instanceId, buildStatus, buildRevenueCents = 0 }) {
   );
 }
 
+// ─── EXPERIMENTS PANEL ────────────────────────────────────────────────────────
+
+const TEST_TYPE_META = {
+  landing_page:   { icon: '🖥', label: 'Landing Page',   color: 'text-blue-400',   bg: 'bg-blue-400/10',   border: 'border-blue-400/20' },
+  email_subject:  { icon: '✉',  label: 'Email Subject',  color: 'text-amber-400',  bg: 'bg-amber-400/10',  border: 'border-amber-400/20' },
+};
+
+const TEST_STATUS_META = {
+  running:   { label: 'Running',   color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/20', dot: 'bg-emerald-400', pulse: true },
+  concluded: { label: 'Concluded', color: 'text-violet-400',  bg: 'bg-violet-400/10',  border: 'border-violet-400/20', dot: 'bg-violet-400',  pulse: false },
+  archived:  { label: 'Archived',  color: 'text-gray-600',    bg: 'bg-gray-600/10',    border: 'border-gray-600/20',   dot: 'bg-gray-600',    pulse: false },
+};
+
+function convRate(visits, conversions) {
+  if (!visits) return '—';
+  return `${((conversions / visits) * 100).toFixed(1)}%`;
+}
+
+function CreateAbTestModal({ instanceId, onCreated, onClose }) {
+  const [name, setName] = useState('');
+  const [type, setType] = useState('landing_page');
+  const [saving, setSaving] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/ab-tests', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ systemInstanceId: instanceId, name: name.trim(), type }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to create test');
+      }
+      const data = await res.json();
+      toast.success('A/B test created');
+      onCreated(data);
+    } catch (err) {
+      toast.error(err.message);
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-gray-900 p-6 shadow-2xl">
+        <h3 className="text-sm font-bold text-white mb-4">New A/B Test</h3>
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1 font-mono">Test Name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Hero headline test"
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-white/20"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1 font-mono">Test Type</label>
+            <div className="flex gap-2">
+              {[['landing_page', '🖥 Landing Page'], ['email_subject', '✉ Email Subject']].map(([v, l]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setType(v)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-mono border transition-all ${
+                    type === v
+                      ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
+                      : 'border-white/10 text-gray-500 hover:text-gray-300 hover:border-white/20'
+                  }`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg border border-white/10 text-gray-400 text-sm hover:text-white transition-colors">Cancel</button>
+            <button type="submit" disabled={saving || !name.trim()} className="flex-1 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors disabled:opacity-50">
+              {saving ? 'Creating…' : 'Create'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function GenerateVariantsModal({ test, onGenerated, onClose }) {
+  const [originalContent, setOriginalContent] = useState('');
+  const [generating, setGenerating] = useState(false);
+
+  const isEmail = test.type === 'email_subject';
+
+  async function generate(e) {
+    e.preventDefault();
+    if (!originalContent.trim()) return;
+    setGenerating(true);
+    try {
+      const res = await fetch(`/api/ab-tests/${test.id}/generate-variants`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ originalContent: originalContent.trim(), pageTitle: test.name, numberOfVariants: 2 }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Generation failed');
+      }
+      const data = await res.json();
+      toast.success(`${data.variants.length} variants generated`);
+      onGenerated(data.variants);
+    } catch (err) {
+      toast.error(err.message);
+    } finally { setGenerating(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-gray-900 p-6 shadow-2xl">
+        <h3 className="text-sm font-bold text-white mb-1">Generate Variants with ASH</h3>
+        <p className="text-xs text-gray-500 mb-4">
+          {isEmail
+            ? 'Paste your original email subject line and ASH will create 2 alternatives.'
+            : 'Describe your current landing page and ASH will create 2 variant descriptions to test.'}
+        </p>
+        <form onSubmit={generate} className="space-y-4">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1 font-mono">{isEmail ? 'Original Subject Line' : 'Original Content Description'}</label>
+            <textarea
+              value={originalContent}
+              onChange={(e) => setOriginalContent(e.target.value)}
+              rows={isEmail ? 2 : 4}
+              placeholder={isEmail ? 'e.g. "5 tools to grow your audience"' : 'e.g. "Landing page for my affiliate review site with a bold headline promising passive income..."'}
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-white/20 resize-none"
+            />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg border border-white/10 text-gray-400 text-sm hover:text-white transition-colors">Cancel</button>
+            <button type="submit" disabled={generating || !originalContent.trim()} className="flex-1 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors disabled:opacity-50">
+              {generating ? '✨ Generating…' : '✨ Generate'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ExperimentsPanel({ instanceId }) {
+  const [tests, setTests] = useState([]);
+  const [variants, setVariants] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(null);
+  const [expanded, setExpanded] = useState({});
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/ab-tests?systemInstanceId=${instanceId}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Failed to load');
+      const data = await res.json();
+      setTests(data);
+    } catch { /* silently fail */ }
+    finally { setLoading(false); }
+  }, [instanceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function loadVariants(testId) {
+    if (variants[testId]) { setExpanded(prev => ({ ...prev, [testId]: !prev[testId] })); return; }
+    try {
+      const res = await fetch(`/api/ab-tests/${testId}`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      setVariants(prev => ({ ...prev, [testId]: data.variants }));
+      setExpanded(prev => ({ ...prev, [testId]: true }));
+    } catch { /* ignore */ }
+  }
+
+  async function deleteTest(test) {
+    if (!confirm(`Delete A/B test "${test.name}"?`)) return;
+    try {
+      await fetch(`/api/ab-tests/${test.id}`, { method: 'DELETE', headers: authHeaders() });
+      setTests(prev => prev.filter(t => t.id !== test.id));
+      toast.success('Test deleted');
+    } catch { toast.error('Delete failed'); }
+  }
+
+  function onTestCreated(test) {
+    setTests(prev => [test, ...prev]);
+    setShowCreate(false);
+    setShowGenerate(test);
+  }
+
+  function onVariantsGenerated(testId, newVariants) {
+    setVariants(prev => ({ ...prev, [testId]: [...(prev[testId] ?? []), ...newVariants] }));
+    setExpanded(prev => ({ ...prev, [testId]: true }));
+    setShowGenerate(null);
+  }
+
+  const copyCookieSnippet = (test) => {
+    const snippet = `<script>
+// A/B Test: ${test.name}
+fetch('/api/public/ab-tests/${test.token}/assign', { credentials: 'include' })
+  .then(r => r.json())
+  .then(d => {
+    window.__abVariant = d;
+    // Use d.variantId and d.contentRef to show the right variant
+  });
+// Track conversions:
+// fetch('/api/public/ab-tests/${test.token}/convert', { method:'POST', credentials:'include' })
+</script>`;
+    navigator.clipboard.writeText(snippet).then(() => toast.success('Tracking snippet copied'));
+  };
+
+  return (
+    <>
+      {showCreate && (
+        <CreateAbTestModal instanceId={instanceId} onCreated={onTestCreated} onClose={() => setShowCreate(false)} />
+      )}
+      {showGenerate && (
+        <GenerateVariantsModal
+          test={showGenerate}
+          onGenerated={(v) => onVariantsGenerated(showGenerate.id, v)}
+          onClose={() => setShowGenerate(null)}
+        />
+      )}
+      <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
+        <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-violet-400"></span>
+            <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Experiments</span>
+            <span className="text-xs text-gray-600 font-mono">{tests.length} test{tests.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={load} className="px-2 py-1 rounded-lg text-[10px] font-mono text-gray-600 hover:text-gray-400 transition-all">↺</button>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-mono bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/20 transition-all"
+            >
+              + New Test
+            </button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="px-4 py-10 text-center">
+            <div className="w-5 h-5 border-2 border-violet-400/30 border-t-violet-400 rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-xs text-gray-600 font-mono">Loading experiments…</p>
+          </div>
+        ) : tests.length === 0 ? (
+          <div className="px-4 py-10 text-center">
+            <p className="text-2xl mb-2">🧪</p>
+            <p className="text-xs text-gray-500 font-mono mb-1">No A/B tests yet.</p>
+            <p className="text-xs text-gray-700 font-mono">Create a test and let ASH generate variants to find what converts best.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {tests.map(test => {
+              const tm = TEST_TYPE_META[test.type] ?? TEST_TYPE_META.landing_page;
+              const sm = TEST_STATUS_META[test.status] ?? TEST_STATUS_META.running;
+              const testVariants = variants[test.id] ?? [];
+              const isExpanded = expanded[test.id];
+
+              return (
+                <div key={test.id} className="px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 ${tm.bg} ${tm.border} border`}>
+                      {tm.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-white truncate">{test.name}</span>
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border ${sm.color} ${sm.bg} ${sm.border}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${sm.dot} ${sm.pulse ? 'animate-pulse' : ''}`} />
+                          {sm.label}
+                        </span>
+                        <span className={`text-[10px] font-mono ${tm.color}`}>{tm.label}</span>
+                      </div>
+                      <p className="text-[10px] text-gray-600 font-mono mt-0.5">
+                        Created {timeAgo(test.createdAt)}
+                        {test.concludedAt && ` · Concluded ${timeAgo(test.concludedAt)}`}
+                      </p>
+
+                      {/* Variant rows */}
+                      {isExpanded && testVariants.length > 0 && (
+                        <div className="mt-3 space-y-1.5">
+                          {testVariants.map(v => {
+                            const isWinner = test.winnerVariantId === v.id;
+                            return (
+                              <div key={v.id} className={`rounded-lg p-2.5 border ${isWinner ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-white/5 bg-white/2'}`}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className={`text-[10px] font-mono font-semibold ${isWinner ? 'text-emerald-400' : 'text-gray-300'}`}>
+                                    {isWinner ? '🏆 ' : ''}{v.name}
+                                  </span>
+                                  <span className="text-[10px] text-gray-600 font-mono ml-auto">
+                                    {v.visits} visits · {v.conversions} conv · {convRate(v.visits, v.conversions)}
+                                  </span>
+                                </div>
+                                {/* Conversion rate bar */}
+                                <div className="h-1 rounded-full bg-white/5 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${isWinner ? 'bg-emerald-400' : 'bg-violet-400'}`}
+                                    style={{ width: `${Math.min(100, (v.conversions / Math.max(v.visits, 1)) * 100 * 10)}%` }}
+                                  />
+                                </div>
+                                {v.contentRef && (
+                                  <p className="text-[10px] text-gray-600 mt-1.5 line-clamp-2 leading-relaxed">{v.contentRef}</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0 ml-1">
+                      <button
+                        onClick={() => loadVariants(test.id)}
+                        className="px-2 py-1 rounded text-[10px] font-mono text-gray-600 hover:text-gray-400 border border-white/5 hover:border-white/10 transition-all"
+                        title={isExpanded ? 'Hide variants' : 'Show variants'}
+                      >
+                        {isExpanded ? '▲' : '▼'}
+                      </button>
+                      {test.status === 'running' && (
+                        <button
+                          onClick={() => setShowGenerate(test)}
+                          className="px-2 py-1 rounded text-[10px] font-mono text-violet-400 hover:text-violet-300 border border-violet-500/20 hover:border-violet-500/40 bg-violet-500/5 hover:bg-violet-500/10 transition-all"
+                          title="Generate variants with ASH"
+                        >
+                          ✨
+                        </button>
+                      )}
+                      <button
+                        onClick={() => copyCookieSnippet(test)}
+                        className="px-2 py-1 rounded text-[10px] font-mono text-gray-600 hover:text-gray-400 border border-white/5 hover:border-white/10 transition-all"
+                        title="Copy tracking snippet"
+                      >
+                        {'</>'}
+                      </button>
+                      <button
+                        onClick={() => deleteTest(test)}
+                        className="px-2 py-1 rounded text-[10px] font-mono text-red-500 hover:text-red-400 border border-red-500/10 hover:border-red-500/20 bg-red-500/5 hover:bg-red-500/10 transition-all"
+                        title="Delete test"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── WEBHOOKS PANEL ───────────────────────────────────────────────────────────
 
 const ACTION_TYPE_META = {
@@ -2876,6 +3240,9 @@ export default function UserSystemDetailPage() {
               })}
           </div>
         </div>
+
+        {/* ── A/B Experiments ── */}
+        <ExperimentsPanel instanceId={id} />
 
         {/* ── Webhook Triggers ── */}
         <WebhooksPanel instanceId={id} />

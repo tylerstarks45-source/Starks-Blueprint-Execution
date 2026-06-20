@@ -1,4 +1,4 @@
-import { pool, db, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable } from "@workspace/db";
+import { pool, db, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable, abTestsTable, abVariantsTable } from "@workspace/db";
 import { eq, and, lte, sql } from "drizzle-orm";
 import { logger } from "../logger";
 import { getConnector } from "../connectors/registry";
@@ -288,6 +288,93 @@ async function handleTaskFailure(
   }
 }
 
+// ─── A/B Test winner selection (runs nightly) ─────────────────────────────────
+
+const AB_TEST_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+let lastAbTestCheck = 0;
+
+async function processABTests(): Promise<void> {
+  const now = Date.now();
+  if (now - lastAbTestCheck < AB_TEST_CHECK_INTERVAL_MS) return;
+  lastAbTestCheck = now;
+
+  const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+  // Find running tests that either have 100+ total visits OR are older than 7 days
+  const candidateTests = await pool.query<{
+    id: number;
+    user_id: number;
+    system_instance_id: number;
+    name: string;
+    created_at: Date;
+    total_visits: string;
+  }>(
+    `SELECT t.id, t.user_id, t.system_instance_id, t.name, t.created_at,
+            COALESCE(SUM(v.visits), 0) AS total_visits
+     FROM ab_tests t
+     LEFT JOIN ab_variants v ON v.test_id = t.id
+     WHERE t.status = 'running'
+     GROUP BY t.id
+     HAVING COALESCE(SUM(v.visits), 0) >= 100 OR t.created_at <= $1`,
+    [sevenDaysAgo],
+  );
+
+  if (candidateTests.rowCount === 0) return;
+
+  logger.info({ count: candidateTests.rowCount }, "A/B test winner selection running");
+
+  for (const row of candidateTests.rows) {
+    const variants = await pool.query<{
+      id: number;
+      name: string;
+      visits: number;
+      conversions: number;
+    }>(
+      `SELECT id, name, visits, conversions FROM ab_variants WHERE test_id = $1 ORDER BY id`,
+      [row.id],
+    );
+
+    if (variants.rowCount === 0) continue;
+
+    // Pick variant with highest conversion rate (conversions / max(visits, 1))
+    let winnerVariant = variants.rows[0]!;
+    for (const v of variants.rows) {
+      const vRate = v.conversions / Math.max(v.visits, 1);
+      const wRate = winnerVariant.conversions / Math.max(winnerVariant.visits, 1);
+      if (vRate > wRate) winnerVariant = v;
+    }
+
+    const concludedAt = new Date();
+    await pool.query(
+      `UPDATE ab_tests SET status = 'concluded', winner_variant_id = $1, concluded_at = $2 WHERE id = $3`,
+      [winnerVariant.id, concludedAt, row.id],
+    );
+
+    await db.insert(systemActivityEventsTable).values({
+      systemInstanceId: row.system_instance_id,
+      eventType: "info",
+      description: `A/B Test "${row.name}" concluded — winner: ${winnerVariant.name} (${winnerVariant.conversions}/${Math.max(winnerVariant.visits, 1)} conversions)`,
+      metadata: JSON.stringify({
+        testId: row.id,
+        winnerVariantId: winnerVariant.id,
+        winnerName: winnerVariant.name,
+        visits: winnerVariant.visits,
+        conversions: winnerVariant.conversions,
+      }),
+    });
+
+    await db.insert(notificationsTable).values({
+      userId: row.user_id,
+      title: `A/B Test Complete: ${row.name}`,
+      message: `Your A/B test "${row.name}" has concluded. Winner: "${winnerVariant.name}" with a ${((winnerVariant.conversions / Math.max(winnerVariant.visits, 1)) * 100).toFixed(1)}% conversion rate.`,
+      notificationType: "info",
+      read: false,
+    });
+
+    logger.info({ testId: row.id, winnerId: winnerVariant.id, winnerName: winnerVariant.name }, "A/B test concluded");
+  }
+}
+
 // ─── Main scheduler loop ──────────────────────────────────────────────────────
 
 export function startScheduler(): void {
@@ -297,6 +384,7 @@ export function startScheduler(): void {
   async function loop(): Promise<void> {
     try {
       await processDueTasks();
+      await processABTests();
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {

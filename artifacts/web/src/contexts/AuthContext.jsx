@@ -141,33 +141,25 @@ export const AuthProvider = ({ children }) => {
     } catch { /* ignore */ }
   }, []);
 
-  const completeOnboarding = useCallback(async () => {
-    setCurrentUser(prev => prev ? { ...prev, onboardingCompleted: true } : prev);
+  const _patchOnboardingFlag = useCallback(async (value) => {
+    setCurrentUser(prev => prev ? { ...prev, onboardingCompleted: value } : prev);
     const token = localStorage.getItem('sbep_auth_token');
     if (!token) return;
     try {
       await fetch('/api/users/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ onboardingCompleted: true }),
+        body: JSON.stringify({ onboardingCompleted: value }),
       });
-      pb.authStore.model && (pb.authStore.model.onboardingCompleted = true);
+      if (pb.authStore.model) {
+        const updatedModel = { ...pb.authStore.model, onboardingCompleted: value };
+        pb.authStore.save(token, updatedModel);
+      }
     } catch { /* non-blocking */ }
   }, []);
 
-  const resetOnboarding = useCallback(async () => {
-    setCurrentUser(prev => prev ? { ...prev, onboardingCompleted: false } : prev);
-    const token = localStorage.getItem('sbep_auth_token');
-    if (!token) return;
-    try {
-      await fetch('/api/users/me', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ onboardingCompleted: false }),
-      });
-      pb.authStore.model && (pb.authStore.model.onboardingCompleted = false);
-    } catch { /* non-blocking */ }
-  }, []);
+  const completeOnboarding = useCallback(() => _patchOnboardingFlag(true), [_patchOnboardingFlag]);
+  const resetOnboarding = useCallback(() => _patchOnboardingFlag(false), [_patchOnboardingFlag]);
 
   const value = useMemo(() => ({
     currentUser,

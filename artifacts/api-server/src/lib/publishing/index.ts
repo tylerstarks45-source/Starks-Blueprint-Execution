@@ -1,7 +1,7 @@
 /**
  * Autonomous Publishing Engine
  * Dispatches publish_content actions to the correct channel adapter.
- * Channels: twitter, instagram, mailchimp, convertkit, wordpress, ghost, email
+ * Channels: twitter, instagram, mailchimp, convertkit, wordpress, ghost, youtube
  */
 
 export interface PublishParams {
@@ -12,7 +12,54 @@ export interface PublishParams {
   imageUrl?: string;
   listId?: string;
   siteUrl?: string;
+  videoId?: string;           // YouTube: ID of the video to update metadata on
+  tags?: string[];            // YouTube: tags array
+  categoryId?: string;        // YouTube: category numeric ID
   extraParams?: Record<string, unknown>;
+}
+
+/**
+ * SSRF guard — blocks requests to localhost/private IP ranges to prevent
+ * server-side request forgery via user-controlled siteUrl (WordPress/Ghost).
+ * Returns an error string if the URL is dangerous, undefined if safe.
+ */
+function validateSiteUrl(rawUrl: string | undefined): string | undefined {
+  if (!rawUrl) return undefined;
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return "siteUrl is not a valid URL.";
+  }
+  const { hostname, protocol } = parsed;
+  if (protocol !== "https:" && protocol !== "http:") {
+    return "siteUrl must use http or https protocol.";
+  }
+  // Block localhost and loopback
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname.endsWith(".localhost")
+  ) {
+    return "siteUrl must not point to localhost.";
+  }
+  // Block internal IPv4 ranges: 10.x, 172.16-31.x, 192.168.x, 169.254.x (metadata)
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+  if (ipv4) {
+    const [, a, b] = ipv4.map(Number);
+    if (
+      a === 10 ||
+      a === 127 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 169 && b === 254) ||
+      (a === 100 && b >= 64 && b <= 127) // RFC 6598 shared address space
+    ) {
+      return "siteUrl must not point to a private or internal IP address.";
+    }
+  }
+  return undefined; // safe
 }
 
 export interface PublishResult {
@@ -208,6 +255,9 @@ async function publishWordPress(creds: Record<string, string>, params: PublishPa
   if (!wpUrl) return { ok: false, error: "WORDPRESS_SITE_URL credential not found. Add it in Connections Hub." };
   if (!wpUser || !wpAppPw) return { ok: false, error: "WORDPRESS_USERNAME and WORDPRESS_APP_PASSWORD credentials required." };
 
+  const ssrfErr = validateSiteUrl(wpUrl);
+  if (ssrfErr) return { ok: false, error: ssrfErr };
+
   const authHeader = `Basic ${Buffer.from(`${wpUser}:${wpAppPw}`).toString("base64")}`;
   const apiBase = wpUrl.replace(/\/$/, "") + "/wp-json/wp/v2";
 
@@ -240,6 +290,9 @@ async function publishGhost(creds: Record<string, string>, params: PublishParams
 
   if (!ghostUrl) return { ok: false, error: "GHOST_SITE_URL credential not found. Add it in Connections Hub." };
   if (!adminKey) return { ok: false, error: "GHOST_ADMIN_API_KEY credential not found. Add it in Connections Hub." };
+
+  const ssrfErr = validateSiteUrl(ghostUrl);
+  if (ssrfErr) return { ok: false, error: ssrfErr };
 
   // Ghost Admin API Key is in the format id:secret
   const [keyId, keySecret] = adminKey.split(":");
@@ -282,6 +335,62 @@ async function publishGhost(creds: Record<string, string>, params: PublishParams
   }
 }
 
+// ── YouTube ────────────────────────────────────────────────────────────────────
+// Updates an existing YouTube video's metadata (title, description, tags, categoryId).
+// Requires YOUTUBE_OAUTH_TOKEN (an OAuth 2.0 access token with youtube.force-ssl scope).
+// The videoId of the target video must be provided in params.extraParams.videoId or params.videoId.
+async function publishYouTube(creds: Record<string, string>, params: PublishParams): Promise<PublishResult> {
+  const oauthToken = creds["YOUTUBE_OAUTH_TOKEN"] ?? creds["YOUTUBE_ACCESS_TOKEN"];
+  if (!oauthToken) {
+    return { ok: false, error: "YOUTUBE_OAUTH_TOKEN credential not found. Add your YouTube OAuth 2.0 access token in Connections Hub." };
+  }
+
+  const videoId = params.videoId ?? (params.extraParams?.["videoId"] as string | undefined);
+  if (!videoId) {
+    return { ok: false, error: "videoId is required for YouTube metadata update. Provide it as params.videoId." };
+  }
+
+  const title       = (params.title ?? params.content.slice(0, 100)).slice(0, 100);
+  const description = params.content.slice(0, 5000);
+  const tags        = params.tags ?? [];
+  const categoryId  = params.categoryId ?? (params.extraParams?.["categoryId"] as string | undefined) ?? "22"; // 22 = People & Blogs
+
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=snippet`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${oauthToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: videoId,
+          snippet: { title, description, tags, categoryId },
+        }),
+      }
+    );
+    const body = await res.json() as Record<string, unknown>;
+    if (res.ok) {
+      const snippet = (body["snippet"] as Record<string, unknown> | undefined) ?? {};
+      const channelId = snippet["channelId"] as string | undefined;
+      const publishedUrl = channelId
+        ? `https://www.youtube.com/watch?v=${videoId}`
+        : `https://www.youtube.com/watch?v=${videoId}`;
+      return {
+        ok: true,
+        publishedUrl,
+        externalId: videoId,
+        data: { videoId, title, description, channelId },
+      };
+    }
+    const errBody = (body["error"] as Record<string, unknown> | undefined) ?? body;
+    return { ok: false, error: `YouTube API ${res.status}: ${JSON.stringify(errBody).slice(0, 300)}` };
+  } catch (err: unknown) {
+    return { ok: false, error: String(err) };
+  }
+}
+
 // ── Main dispatcher ────────────────────────────────────────────────────────────
 
 export const PUBLISHING_CHANNELS: Record<string, {
@@ -290,12 +399,13 @@ export const PUBLISHING_CHANNELS: Record<string, {
   credentialKeys: string[];
   contentTypes: string[];
 }> = {
-  twitter:    { displayName: "X (Twitter)",  icon: "𝕏",  credentialKeys: ["TWITTER_BEARER_TOKEN"], contentTypes: ["tweet"] },
+  twitter:    { displayName: "X (Twitter)",  icon: "𝕏",  credentialKeys: ["TWITTER_BEARER_TOKEN"],    contentTypes: ["tweet"] },
   instagram:  { displayName: "Instagram",    icon: "📸", credentialKeys: ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID"], contentTypes: ["post"] },
-  mailchimp:  { displayName: "Mailchimp",    icon: "🐒", credentialKeys: ["MAILCHIMP_API_KEY"],     contentTypes: ["email"] },
-  convertkit: { displayName: "ConvertKit",   icon: "✉",  credentialKeys: ["CONVERTKIT_API_KEY"],   contentTypes: ["email"] },
+  mailchimp:  { displayName: "Mailchimp",    icon: "🐒", credentialKeys: ["MAILCHIMP_API_KEY"],        contentTypes: ["email"] },
+  convertkit: { displayName: "ConvertKit",   icon: "✉",  credentialKeys: ["CONVERTKIT_API_KEY"],      contentTypes: ["email"] },
   wordpress:  { displayName: "WordPress",    icon: "🌐", credentialKeys: ["WORDPRESS_SITE_URL", "WORDPRESS_USERNAME", "WORDPRESS_APP_PASSWORD"], contentTypes: ["blog_post"] },
   ghost:      { displayName: "Ghost",        icon: "👻", credentialKeys: ["GHOST_SITE_URL", "GHOST_ADMIN_API_KEY"], contentTypes: ["blog_post"] },
+  youtube:    { displayName: "YouTube",      icon: "▶",  credentialKeys: ["YOUTUBE_OAUTH_TOKEN"],     contentTypes: ["video_metadata"] },
 };
 
 export async function publish(
@@ -310,6 +420,7 @@ export async function publish(
     case "convertkit": return publishConvertKit(creds, params);
     case "wordpress":  return publishWordPress(creds, params);
     case "ghost":      return publishGhost(creds, params);
+    case "youtube":    return publishYouTube(creds, params);
     default:           return { ok: false, error: `Unknown channel: ${channel}. Supported: ${Object.keys(PUBLISHING_CHANNELS).join(", ")}` };
   }
 }

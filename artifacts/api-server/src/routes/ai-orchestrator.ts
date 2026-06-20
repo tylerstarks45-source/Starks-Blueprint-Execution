@@ -448,9 +448,9 @@ You can call these tools at any time to enrich your responses. Use them proactiv
    - webhook → trigger(…anyPayload), triggerGet(queryParams?)
    SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "connector_action", "connectorId": "slack", "action": "postMessage", "params": {"text": "Your system is now live! 🚀"}}]}
 
-8. **Publish Content** (Publish content directly to social media, blogs, and email platforms — LIVE publishing)
-   Use for: posting a tweet/X post, publishing an Instagram post with caption, sending an email broadcast via Mailchimp or ConvertKit, creating a WordPress or Ghost blog post.
-   Channels: twitter, instagram, mailchimp, convertkit, wordpress, ghost
+8. **Publish Content** (Publish content directly to social media, blogs, email platforms, and YouTube — LIVE publishing)
+   Use for: posting a tweet/X post, publishing an Instagram post, sending an email broadcast via Mailchimp or ConvertKit, creating a WordPress or Ghost blog post, updating a YouTube video's title/description/tags.
+   Channels: twitter, instagram, mailchimp, convertkit, wordpress, ghost, youtube
    ONLY publish when the user has the required credentials connected for that channel.
    Required credentials per channel:
    - twitter: TWITTER_BEARER_TOKEN
@@ -459,9 +459,13 @@ You can call these tools at any time to enrich your responses. Use them proactiv
    - convertkit: CONVERTKIT_API_KEY
    - wordpress: WORDPRESS_SITE_URL + WORDPRESS_USERNAME + WORDPRESS_APP_PASSWORD
    - ghost: GHOST_SITE_URL + GHOST_ADMIN_API_KEY
-   SBEP_DATA: {"action": "publish_content", "channel": "twitter", "contentType": "tweet", "title": null, "content": "Your post text here", "imageUrl": null, "listId": null, "siteUrl": null}
-   For email broadcasts, include listId: {"action": "publish_content", "channel": "mailchimp", "contentType": "email", "title": "Subject line here", "content": "Email body text here", "listId": "abc123"}
-   CRITICAL: Use publish_content when user says "post this", "publish to my blog", "send this email to my list", "tweet this", or when a build step requires distributing content to a channel.
+   - youtube: YOUTUBE_OAUTH_TOKEN (OAuth 2.0 access token with youtube.force-ssl scope) + videoId in params
+   Basic post: {"action": "publish_content", "channel": "twitter", "contentType": "tweet", "content": "Your post text here"}
+   Email broadcast: {"action": "publish_content", "channel": "mailchimp", "contentType": "email", "title": "Subject line", "content": "Email body", "listId": "abc123"}
+   YouTube metadata update: {"action": "publish_content", "channel": "youtube", "contentType": "video_metadata", "title": "New video title", "content": "New description", "videoId": "dQw4w9WgXcQ", "tags": ["tag1","tag2"]}
+   Scheduled future post: {"action": "publish_content", "channel": "twitter", "contentType": "tweet", "content": "Scheduled tweet", "scheduledFor": "2026-07-01T09:00:00Z"}
+   CRITICAL: Use publish_content when user says "post this", "publish to my blog", "send this email to my list", "tweet this", "update my YouTube video", or when a build step requires distributing content to a channel.
+   You can also schedule publishing via create_schedule with actionType "publish" and actionParams {channel, contentType, content, title?, listId?, videoId?, tags?}.
 
 You can chain multiple tools in a single call:
 <SBEP_DATA>
@@ -1241,6 +1245,20 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
           const listId      = (structuredData.listId as string | undefined) ?? undefined;
           const siteUrl     = (structuredData.siteUrl as string | undefined) ?? undefined;
 
+          const videoId   = (structuredData.videoId as string | undefined) ?? undefined;
+          const tags      = (structuredData.tags as string[] | undefined) ?? undefined;
+          const categoryId= (structuredData.categoryId as string | undefined) ?? undefined;
+
+          // Persist all params in metadata upfront for deterministic retries
+          const publishMeta = JSON.stringify({
+            ...(imageUrl   ? { imageUrl }   : {}),
+            ...(listId     ? { listId }     : {}),
+            ...(siteUrl    ? { siteUrl }    : {}),
+            ...(videoId    ? { videoId }    : {}),
+            ...(tags       ? { tags }       : {}),
+            ...(categoryId ? { categoryId } : {}),
+          });
+
           // Create pending record
           const [record] = await db.insert(publishedContentTable).values({
             systemInstanceId: instanceId,
@@ -1249,16 +1267,17 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
             title: title ?? null,
             content,
             status: "pending",
+            metadata: publishMeta,
           }).returning();
 
           // Attempt publish
-          const result = await publish(channel, creds, { channel, contentType, title: title ?? undefined, content, imageUrl, listId, siteUrl });
+          const result = await publish(channel, creds, { channel, contentType, title: title ?? undefined, content, imageUrl, listId, siteUrl, videoId, tags, categoryId });
 
           const now = new Date();
           await db.update(publishedContentTable)
             .set(
               result.ok
-                ? { status: "published", publishedUrl: result.publishedUrl ?? null, publishedAt: now, metadata: JSON.stringify(result.data ?? {}) }
+                ? { status: "published", publishedUrl: result.publishedUrl ?? null, publishedAt: now, metadata: JSON.stringify({ ...JSON.parse(publishMeta || "{}"), ...(result.data ?? {}) }) }
                 : { status: "failed", errorMessage: result.error ?? "Unknown error" }
             )
             .where(eq(publishedContentTable.id, record.id));

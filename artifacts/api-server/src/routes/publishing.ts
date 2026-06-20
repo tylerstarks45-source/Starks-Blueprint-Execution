@@ -72,18 +72,31 @@ router.post("/system-instances/:id/publish", async (req, res): Promise<void> => 
     imageUrl: z.string().url().optional(),
     listId: z.string().optional(),
     siteUrl: z.string().optional(),
+    videoId: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    categoryId: z.string().optional(),
     credentialKey: z.string().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const { channel, contentType, title, content, imageUrl, listId, siteUrl } = parsed.data;
+  const { channel, contentType, title, content, imageUrl, listId, siteUrl, videoId, tags, categoryId } = parsed.data;
 
   if (!PUBLISHING_CHANNELS[channel]) {
     res.status(400).json({ error: `Unknown channel: ${channel}. Supported: ${Object.keys(PUBLISHING_CHANNELS).join(", ")}` });
     return;
   }
+
+  // Persist all publish params in metadata so retries are deterministic
+  const publishMeta = JSON.stringify({
+    ...(imageUrl  ? { imageUrl }  : {}),
+    ...(listId    ? { listId }    : {}),
+    ...(siteUrl   ? { siteUrl }   : {}),
+    ...(videoId   ? { videoId }   : {}),
+    ...(tags      ? { tags }      : {}),
+    ...(categoryId? { categoryId }: {}),
+  });
 
   // Create a pending record first
   const [record] = await db.insert(publishedContentTable).values({
@@ -94,6 +107,7 @@ router.post("/system-instances/:id/publish", async (req, res): Promise<void> => 
     content,
     status: "pending",
     credentialKey: parsed.data.credentialKey ?? null,
+    metadata: publishMeta,
   }).returning();
 
   // Load + decrypt user credentials
@@ -110,14 +124,14 @@ router.post("/system-instances/:id/publish", async (req, res): Promise<void> => 
   }
 
   // Attempt publish
-  const result = await publish(channel, creds, { channel, contentType: contentType ?? "post", title, content, imageUrl, listId, siteUrl });
+  const result = await publish(channel, creds, { channel, contentType: contentType ?? "post", title, content, imageUrl, listId, siteUrl, videoId, tags, categoryId });
 
   // Update record with result
   const now = new Date();
   const [updated] = await db.update(publishedContentTable)
     .set(
       result.ok
-        ? { status: "published", publishedUrl: result.publishedUrl ?? null, publishedAt: now, metadata: JSON.stringify(result.data ?? {}) }
+        ? { status: "published", publishedUrl: result.publishedUrl ?? null, publishedAt: now, metadata: JSON.stringify({ ...JSON.parse(publishMeta || "{}"), ...(result.data ?? {}) }) }
         : { status: "failed", errorMessage: result.error ?? "Unknown error" }
     )
     .where(eq(publishedContentTable.id, record.id))

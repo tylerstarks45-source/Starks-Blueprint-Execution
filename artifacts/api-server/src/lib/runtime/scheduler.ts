@@ -1,9 +1,10 @@
-import { pool, db, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable } from "@workspace/db";
+import { pool, db, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable } from "@workspace/db";
 import { eq, and, lte, sql } from "drizzle-orm";
 import { logger } from "../logger";
 import { getConnector } from "../connectors/registry";
 import { decrypt } from "../crypto";
 import { computeNextRunAt as _computeNextRunAt } from "../../routes/scheduled-tasks";
+import { publish, PUBLISHING_CHANNELS } from "../publishing";
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
@@ -62,6 +63,45 @@ async function executeTask(task: typeof scheduledTasksTable.$inferSelect): Promi
   if (task.actionType === "activity_log") {
     const description = (actionParams["description"] as string) ?? "Scheduled task ran";
     return { ok: true, output: description };
+  }
+
+  if (task.actionType === "publish") {
+    const channel     = (actionParams["channel"] as string | undefined) ?? "";
+    const contentType = (actionParams["contentType"] as string | undefined) ?? "post";
+    const title       = (actionParams["title"] as string | undefined) ?? undefined;
+    const content     = (actionParams["content"] as string | undefined) ?? "";
+    const imageUrl    = (actionParams["imageUrl"] as string | undefined) ?? undefined;
+    const listId      = (actionParams["listId"] as string | undefined) ?? undefined;
+    const siteUrl     = (actionParams["siteUrl"] as string | undefined) ?? undefined;
+    const videoId     = (actionParams["videoId"] as string | undefined) ?? undefined;
+    const tags        = (actionParams["tags"] as string[] | undefined) ?? undefined;
+    const categoryId  = (actionParams["categoryId"] as string | undefined) ?? undefined;
+
+    if (!channel) return { ok: false, output: "publish action requires actionParams.channel" };
+    if (!content) return { ok: false, output: "publish action requires actionParams.content" };
+
+    const creds = await loadUserCredentials(task.userId);
+    const result = await publish(channel, creds, { channel, contentType, title, content, imageUrl, listId, siteUrl, videoId, tags, categoryId });
+
+    // Persist publish record
+    const now = new Date();
+    await db.insert(publishedContentTable).values({
+      systemInstanceId: task.systemInstanceId,
+      channel,
+      contentType,
+      title: title ?? null,
+      content,
+      status: result.ok ? "published" : "failed",
+      publishedUrl: result.publishedUrl ?? null,
+      publishedAt: result.ok ? now : null,
+      errorMessage: result.ok ? null : (result.error ?? "Unknown error"),
+      metadata: JSON.stringify(result.data ?? {}),
+    }).catch(() => {});
+
+    if (result.ok) {
+      return { ok: true, output: `Published to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel}${result.publishedUrl ? ": " + result.publishedUrl : ""}` };
+    }
+    return { ok: false, output: result.error ?? `Publish to ${channel} failed` };
   }
 
   return { ok: false, output: `Unknown action type: ${task.actionType}` };

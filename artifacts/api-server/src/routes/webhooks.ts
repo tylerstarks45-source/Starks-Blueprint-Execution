@@ -1,10 +1,13 @@
 import { Router, type IRouter } from "express";
 import crypto from "crypto";
 import { eq, and, desc } from "drizzle-orm";
-import { db, systemInstancesTable, webhookEndpointsTable, webhookLogsTable, systemActivityEventsTable, publishedContentTable } from "@workspace/db";
+import { db, pool, systemInstancesTable, webhookEndpointsTable, webhookLogsTable, systemActivityEventsTable, publishedContentTable } from "@workspace/db";
 import { getActiveCallerPayload } from "../lib/auth";
 import { serialize } from "../lib/serialize";
 import { z } from "zod/v4";
+import { enqueue } from "../lib/runtime/jobs";
+import { getConnector } from "../lib/connectors/registry";
+import { decrypt } from "../lib/crypto";
 
 const router: IRouter = Router();
 
@@ -42,14 +45,40 @@ function generateToken(): string {
   return crypto.randomBytes(24).toString("base64url");
 }
 
+// ─── CREDENTIAL LOADER ────────────────────────────────────────────────────────
+
+async function loadUserCredentials(userId: number): Promise<Record<string, string>> {
+  const rows = await pool.query<{ credential_key: string; encrypted_value: string | null }>(
+    `SELECT credential_key, encrypted_value FROM user_credentials WHERE user_id = $1`,
+    [userId],
+  );
+  const creds: Record<string, string> = {};
+  for (const row of rows.rows) {
+    if (row.encrypted_value) {
+      try { creds[row.credential_key] = await decrypt(row.encrypted_value); } catch { /* skip malformed */ }
+    }
+  }
+  return creds;
+}
+
 // ─── ACTION DISPATCHER ────────────────────────────────────────────────────────
-// All actions execute directly — no job queue dependency. Returns { status, message }.
+// Called fire-and-forget after the receiver has already responded 202.
+// Logs a "webhook fired" activity event for every action so the feed always shows it.
 
 async function dispatchWebhookAction(
   endpoint: { id: number; systemInstanceId: number; actionType: string; actionConfig: Record<string, unknown> },
   payload: Record<string, unknown>,
+  userId: number | null,
 ): Promise<{ status: number; message: string }> {
   const { actionType, actionConfig, systemInstanceId } = endpoint;
+
+  // Always record that the webhook fired — visible in activity feed immediately.
+  await db.insert(systemActivityEventsTable).values({
+    systemInstanceId,
+    eventType: "action",
+    description: `Webhook fired [${actionType}]: ${JSON.stringify(payload).slice(0, 120)}`,
+    metadata: JSON.stringify({ source: "webhook", actionType, endpointId: endpoint.id, payload }),
+  }).catch(() => { /* non-fatal */ });
 
   try {
     // ── log_event ────────────────────────────────────────────────────────────
@@ -66,41 +95,44 @@ async function dispatchWebhookAction(
     }
 
     // ── run_ash_task ─────────────────────────────────────────────────────────
-    // Logs an activity event capturing the prompt and payload so users can see
-    // the trigger in their activity feed. Full ASH execution requires a live
-    // request context and is initiated from the event log by the ASH scheduler.
+    // Enqueues an ash_task job — the worker calls the OpenRouter LLM with the
+    // prompt and logs the response as a system activity event.
     if (actionType === "run_ash_task") {
       const prompt = (actionConfig.prompt as string | undefined)
         ?? `Webhook triggered. Payload: ${JSON.stringify(payload).slice(0, 300)}`;
-      await db.insert(systemActivityEventsTable).values({
+      const jobId = await enqueue("ash_task", {
         systemInstanceId,
-        eventType: "action",
-        description: `ASH task triggered via webhook: ${prompt.slice(0, 120)}`,
-        metadata: JSON.stringify({ actionType: "run_ash_task", prompt, webhookPayload: payload, endpointId: endpoint.id }),
-      });
-      return { status: 202, message: "ASH task queued — check the activity feed" };
+        userId: userId ?? undefined,
+        prompt,
+        webhookPayload: payload,
+        endpointId: endpoint.id,
+      }, { systemInstanceId });
+      return { status: 202, message: `ASH task enqueued (job ${jobId})` };
     }
 
     // ── send_email ───────────────────────────────────────────────────────────
-    // Logs the email intent as an activity event. The email is dispatched by the
-    // email marketing worker polling the activity table.
+    // Enqueues a send_email job — the worker loads credentials and calls the
+    // email/sendgrid connector to deliver the message.
     if (actionType === "send_email") {
-      const to = (actionConfig.to as string | undefined) ?? "user";
+      const to = (actionConfig.to as string | undefined) ?? "";
       const subject = (actionConfig.subject as string | undefined) ?? "Webhook notification";
       const body = (actionConfig.body as string | undefined)
         ?? `Webhook fired with payload: ${JSON.stringify(payload).slice(0, 500)}`;
-      await db.insert(systemActivityEventsTable).values({
+      const jobId = await enqueue("send_email", {
         systemInstanceId,
-        eventType: "action",
-        description: `Email queued to ${to}: "${subject}"`,
-        metadata: JSON.stringify({ actionType: "send_email", to, subject, body, webhookPayload: payload, endpointId: endpoint.id }),
-      });
-      return { status: 202, message: `Email queued to ${to}` };
+        userId: userId ?? undefined,
+        to,
+        subject,
+        body,
+        webhookPayload: payload,
+        endpointId: endpoint.id,
+      }, { systemInstanceId });
+      return { status: 202, message: `Email to "${to}" enqueued (job ${jobId})` };
     }
 
     // ── publish_content ──────────────────────────────────────────────────────
-    // Creates a pending published_content record. The publishing worker picks it
-    // up on its next poll and sends it to the configured channel.
+    // Creates a pending published_content record. The publishing scheduler picks
+    // it up and calls the appropriate channel connector.
     if (actionType === "publish_content") {
       const channel = (actionConfig.channel as string | undefined) ?? "twitter";
       const content = (actionConfig.content as string | undefined)
@@ -117,19 +149,36 @@ async function dispatchWebhookAction(
     }
 
     // ── connector_action ─────────────────────────────────────────────────────
-    // Logs the connector action intent as an activity event with full metadata so
-    // the connector execution engine can process it from the feed.
+    // Executes the connector action inline: load user credentials, call
+    // connector.execute(action, params), and log the result.
     if (actionType === "connector_action") {
-      const connectorId = (actionConfig.connectorId as string | undefined) ?? "unknown";
-      const action = (actionConfig.action as string | undefined) ?? "trigger";
+      const connectorId = (actionConfig.connectorId as string | undefined) ?? "";
+      const action = (actionConfig.action as string | undefined) ?? "";
       const params = (actionConfig.params as Record<string, unknown> | undefined) ?? {};
+
+      if (!connectorId || !action) {
+        return { status: 400, message: "connector_action requires connectorId and action in actionConfig" };
+      }
+
+      const creds = userId != null ? await loadUserCredentials(userId) : {};
+      const connector = getConnector(connectorId, creds);
+      if (!connector) {
+        return { status: 400, message: `Unknown connector: ${connectorId}` };
+      }
+
+      const result = await connector.execute(action, { ...params, payload });
+
       await db.insert(systemActivityEventsTable).values({
         systemInstanceId,
-        eventType: "action",
-        description: `Connector action triggered via webhook: ${connectorId}.${action}`,
-        metadata: JSON.stringify({ actionType: "connector_action", connectorId, action, params, webhookPayload: payload, endpointId: endpoint.id }),
-      });
-      return { status: 202, message: `Connector action ${connectorId}.${action} dispatched` };
+        eventType: result.ok ? "action" : "error",
+        description: result.ok
+          ? `Connector ${connectorId}.${action} executed via webhook`
+          : `Connector ${connectorId}.${action} failed: ${(result.error ?? "unknown").slice(0, 150)}`,
+        metadata: JSON.stringify({ connectorId, action, params, result: result.data ?? result.error, endpointId: endpoint.id }),
+      }).catch(() => { /* non-fatal */ });
+
+      if (result.ok) return { status: 200, message: `${connectorId}.${action} executed` };
+      return { status: 500, message: result.error ?? `${connectorId}.${action} failed` };
     }
 
     return { status: 400, message: `Unknown action type: ${actionType}` };
@@ -163,39 +212,60 @@ router.post("/webhooks/:token", async (req, res): Promise<void> => {
 
   const payload = (req.body ?? {}) as Record<string, unknown>;
 
-  const { status, message } = await dispatchWebhookAction(
-    {
-      id: endpoint.id,
-      systemInstanceId: endpoint.systemInstanceId,
-      actionType: endpoint.actionType,
-      actionConfig: endpoint.actionConfig as Record<string, unknown>,
-    },
-    payload,
-  );
+  // Look up userId for credential loading (needed by connector_action / send_email)
+  const [sysRow] = await db
+    .select({ userId: systemInstancesTable.userId })
+    .from(systemInstancesTable)
+    .where(eq(systemInstancesTable.id, endpoint.systemInstanceId));
+  const userId = sysRow?.userId ?? null;
 
-  const processingMs = Date.now() - start;
+  // Write initial webhook log and update stats synchronously so they're visible
+  // immediately — then return 202 and dispatch in the background.
+  const [logRow] = await db
+    .insert(webhookLogsTable)
+    .values({
+      endpointId: endpoint.id,
+      payload,
+      responseStatus: 202,
+      responseBody: "accepted",
+      processingMs: Date.now() - start,
+      error: null,
+    })
+    .returning({ id: webhookLogsTable.id });
 
-  // Log the incoming request
-  await db.insert(webhookLogsTable).values({
-    endpointId: endpoint.id,
-    payload,
-    responseStatus: status,
-    responseBody: message,
-    processingMs,
-    error: status >= 400 ? message : null,
-  });
-
-  // Update stats
   await db
     .update(webhookEndpointsTable)
-    .set({
-      lastFiredAt: new Date(),
-      totalFires: endpoint.totalFires + 1,
-      updatedAt: new Date(),
-    })
+    .set({ lastFiredAt: new Date(), totalFires: endpoint.totalFires + 1, updatedAt: new Date() })
     .where(eq(webhookEndpointsTable.id, endpoint.id));
 
-  res.status(status).json({ ok: status < 400, message });
+  // Respond immediately — caller is not blocked on action execution.
+  res.status(202).json({ ok: true, message: "accepted" });
+
+  // Dispatch action asynchronously; update log with final status when done.
+  const endpointSnap = {
+    id: endpoint.id,
+    systemInstanceId: endpoint.systemInstanceId,
+    actionType: endpoint.actionType,
+    actionConfig: endpoint.actionConfig as Record<string, unknown>,
+  };
+  setImmediate(() => {
+    dispatchWebhookAction(endpointSnap, payload, userId)
+      .then(({ status, message }) => {
+        const processingMs = Date.now() - start;
+        return db
+          .update(webhookLogsTable)
+          .set({ responseStatus: status, responseBody: message, processingMs, error: status >= 400 ? message : null })
+          .where(eq(webhookLogsTable.id, logRow!.id));
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        req.log?.warn({ err, endpointId: endpoint.id }, "Webhook dispatch error");
+        return db
+          .update(webhookLogsTable)
+          .set({ responseStatus: 500, responseBody: msg, error: msg })
+          .where(eq(webhookLogsTable.id, logRow!.id));
+      });
+  });
 });
 
 // ─── MANAGEMENT API ───────────────────────────────────────────────────────────
@@ -350,6 +420,7 @@ router.post("/system-instances/:id/webhooks/:webhookId/test", async (req, res): 
       actionConfig: endpoint.actionConfig as Record<string, unknown>,
     },
     testPayload,
+    ctx.caller.id,
   );
   const processingMs = Date.now() - start;
 

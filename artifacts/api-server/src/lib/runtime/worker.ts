@@ -1,9 +1,10 @@
 import { claimNextJob, completeJob, failJob, upsertConnectorStatus, resetOrphanedJobs } from "./jobs";
 import { getConnector } from "../connectors/registry";
-import { db, systemInstancesTable, userCredentialsTable } from "@workspace/db";
+import { db, pool, systemInstancesTable, userCredentialsTable, systemActivityEventsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { decrypt } from "../crypto";
 import { logger } from "../logger";
+import { complete } from "../openrouter";
 
 const POLL_INTERVAL_MS = 5_000;
 let running = false;
@@ -102,6 +103,87 @@ async function handleHealthCheck(payload: Record<string, unknown>): Promise<unkn
   return { health, connectors: results };
 }
 
+// ─── Credential loader ────────────────────────────────────────────────────────
+
+async function loadUserCredentialsByUserId(userId: number): Promise<Record<string, string>> {
+  const rows = await pool.query<{ credential_key: string; encrypted_value: string | null }>(
+    `SELECT credential_key, encrypted_value FROM user_credentials WHERE user_id = $1`,
+    [userId],
+  );
+  const creds: Record<string, string> = {};
+  for (const row of rows.rows) {
+    if (row.encrypted_value) {
+      try { creds[row.credential_key] = await decrypt(row.encrypted_value); } catch { /* skip malformed */ }
+    }
+  }
+  return creds;
+}
+
+// ─── ash_task handler ─────────────────────────────────────────────────────────
+// Calls the OpenRouter LLM with the provided prompt and logs the AI response
+// as a system activity event so it surfaces in the user's activity feed.
+
+async function handleAshTask(payload: Record<string, unknown>): Promise<unknown> {
+  const systemInstanceId = payload["systemInstanceId"] as number;
+  const userId = payload["userId"] as number | undefined;
+  const prompt = (payload["prompt"] as string | undefined) ?? "Process this webhook-triggered task.";
+
+  const result = await complete({
+    prompt,
+    systemPrompt:
+      "You are ASH, an AI automation assistant. A webhook has triggered a task for the user's automation system. " +
+      "Process the request concisely and report what you did or recommend.",
+    model: "openai/gpt-4o-mini",
+    userId,
+  });
+
+  const response = result.content?.slice(0, 1000) ?? "(no response)";
+
+  await db.insert(systemActivityEventsTable).values({
+    systemInstanceId,
+    eventType: "action",
+    description: `ASH task completed (webhook): ${response.slice(0, 200)}`,
+    metadata: JSON.stringify({ triggeredBy: "webhook_ash_task", prompt, response }),
+  });
+
+  return { ok: true, response };
+}
+
+// ─── send_email handler ───────────────────────────────────────────────────────
+// Loads user credentials and calls the sendgrid or email connector to deliver
+// the message. Falls back to logging the intent if no API key is configured.
+
+async function handleSendEmail(payload: Record<string, unknown>): Promise<unknown> {
+  const systemInstanceId = payload["systemInstanceId"] as number;
+  const userId = payload["userId"] as number | undefined;
+  const to = (payload["to"] as string | undefined) ?? "";
+  const subject = (payload["subject"] as string | undefined) ?? "Webhook notification";
+  const body = (payload["body"] as string | undefined) ?? "Webhook triggered this email.";
+
+  if (!to) throw new Error("send_email job missing required field: to");
+
+  const creds = userId != null ? await loadUserCredentialsByUserId(userId) : {};
+
+  // Prefer SendGrid if an API key is present, otherwise fall back to the generic email connector.
+  const preferredId = creds["SENDGRID_API_KEY"] || creds["sendgrid_api_key"] ? "sendgrid" : "email";
+  const connector = getConnector(preferredId, creds);
+  if (!connector) throw new Error(`No email connector available (tried ${preferredId})`);
+
+  const result = await connector.execute("sendEmail", { to, subject, body, html: body });
+
+  await db.insert(systemActivityEventsTable).values({
+    systemInstanceId,
+    eventType: result.ok ? "action" : "error",
+    description: result.ok
+      ? `Email sent to ${to}: "${subject}"`
+      : `Email to ${to} failed: ${(result.error ?? "unknown").slice(0, 150)}`,
+    metadata: JSON.stringify({ triggeredBy: "webhook_send_email", to, subject, result: result.data ?? result.error }),
+  });
+
+  if (!result.ok) throw new Error(result.error ?? "Email send failed");
+  return { ok: true, to, subject };
+}
+
 // ─── Main Worker Loop ─────────────────────────────────────────────────────────
 
 async function processJob(): Promise<void> {
@@ -123,6 +205,12 @@ async function processJob(): Promise<void> {
         break;
       case "health_check":
         result = await handleHealthCheck(payload);
+        break;
+      case "ash_task":
+        result = await handleAshTask(payload);
+        break;
+      case "send_email":
+        result = await handleSendEmail(payload);
         break;
       default:
         throw new Error(`Unknown job type: ${job.jobType}`);

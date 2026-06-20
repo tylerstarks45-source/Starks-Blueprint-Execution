@@ -8,7 +8,9 @@ export type JobType =
   | "system_startup"
   | "health_check"
   | "system_shutdown"
-  | "scheduled_task";
+  | "scheduled_task"
+  | "ash_task"
+  | "send_email";
 
 export type JobStatus = "queued" | "active" | "completed" | "failed" | "retrying" | "cancelled";
 

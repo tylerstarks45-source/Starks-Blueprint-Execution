@@ -13,6 +13,17 @@ const authHeaders = () => {
     : { 'Content-Type': 'application/json' };
 };
 
+// ─── PUBLISHING CHANNELS ──────────────────────────────────────────────────────
+// Map credential keys → publishing channel ID so we can show "Publishing Ready" badge.
+const PUBLISHING_CRED_MAP = {
+  TWITTER_BEARER_TOKEN:   'twitter',
+  INSTAGRAM_ACCESS_TOKEN: 'instagram',
+  MAILCHIMP_API_KEY:      'mailchimp',
+  CONVERTKIT_API_KEY:     'convertkit',
+  WORDPRESS_APP_PASSWORD: 'wordpress',
+  GHOST_ADMIN_API_KEY:    'ghost',
+};
+
 // ─── INTEGRATION CATALOG ─────────────────────────────────────────────────────
 // Static definitions of every supported integration, organized by category.
 
@@ -451,6 +462,11 @@ function ConnectionCard({ integration, credData, onConnect, onTest, testing }) {
               <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
               {sc.label}
             </span>
+            {isConnected && PUBLISHING_CRED_MAP[integration.key] && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/25">
+                ✦ Publishing Ready
+              </span>
+            )}
           </div>
           <p className="text-xs text-gray-300 mt-0.5 line-clamp-2">{integration.description}</p>
         </div>

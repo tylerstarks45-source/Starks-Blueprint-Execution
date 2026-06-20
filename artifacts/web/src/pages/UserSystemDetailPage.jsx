@@ -64,6 +64,184 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+// ─── CHANNEL META ──────────────────────────────────────────────────────────────
+const CHANNEL_META = {
+  twitter:    { icon: '𝕏',  label: 'X (Twitter)', color: 'text-violet-400',  bg: 'bg-violet-400/10', border: 'border-violet-400/20' },
+  instagram:  { icon: '📸', label: 'Instagram',   color: 'text-pink-400',    bg: 'bg-pink-400/10',   border: 'border-pink-400/20' },
+  mailchimp:  { icon: '🐒', label: 'Mailchimp',   color: 'text-amber-400',   bg: 'bg-amber-400/10',  border: 'border-amber-400/20' },
+  convertkit: { icon: '✉',  label: 'ConvertKit',  color: 'text-orange-400',  bg: 'bg-orange-400/10', border: 'border-orange-400/20' },
+  wordpress:  { icon: '🌐', label: 'WordPress',   color: 'text-blue-400',    bg: 'bg-blue-400/10',   border: 'border-blue-400/20' },
+  ghost:      { icon: '👻', label: 'Ghost',       color: 'text-gray-300',    bg: 'bg-white/5',       border: 'border-white/10' },
+};
+
+// ─── PUBLISHED CONTENT PANEL ──────────────────────────────────────────────────
+function PublishedContentPanel({ instanceId }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+  const [retrying, setRetrying] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/system-instances/${instanceId}/published-content`, {
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error('Failed to load');
+      const data = await res.json();
+      setItems(data);
+    } catch { /* silently fail — panel just stays empty */ }
+    finally { setLoading(false); }
+  }, [instanceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const retry = async (item) => {
+    setRetrying(item.id);
+    try {
+      const res = await fetch(`/api/system-instances/${instanceId}/published-content/${item.id}/retry`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Retry failed');
+      }
+      toast.success(`Retrying publish to ${CHANNEL_META[item.channel]?.label ?? item.channel}…`);
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally { setRetrying(null); }
+  };
+
+  const remove = async (item) => {
+    if (!confirm(`Delete this content record for "${CHANNEL_META[item.channel]?.label ?? item.channel}"?`)) return;
+    setDeleting(item.id);
+    try {
+      await fetch(`/api/system-instances/${instanceId}/published-content/${item.id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      setItems(prev => prev.filter(x => x.id !== item.id));
+      toast.success('Record removed');
+    } catch (err) {
+      toast.error(err.message);
+    } finally { setDeleting(null); }
+  };
+
+  const filtered = filter === 'all' ? items : items.filter(x => x.status === filter);
+  const counts = { all: items.length, published: items.filter(x => x.status === 'published').length, failed: items.filter(x => x.status === 'failed').length, pending: items.filter(x => x.status === 'pending').length };
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
+      <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Content Calendar</span>
+          <span className="text-xs text-gray-600 font-mono">{counts.all} item{counts.all !== 1 ? 's' : ''}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {['all', 'published', 'failed', 'pending'].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-mono capitalize transition-all ${
+                filter === f
+                  ? 'bg-white/15 text-white'
+                  : 'bg-transparent text-gray-600 hover:text-gray-400'
+              }`}
+            >
+              {f} {f !== 'all' && counts[f] > 0 && <span className="ml-0.5 opacity-60">({counts[f]})</span>}
+            </button>
+          ))}
+          <button onClick={load} className="ml-1 px-2 py-1 rounded-lg text-[10px] font-mono text-gray-600 hover:text-gray-400 transition-all">↺</button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="px-4 py-10 text-center">
+          <div className="w-5 h-5 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-xs text-gray-600 font-mono">Loading content…</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="px-4 py-10 text-center">
+          <p className="text-2xl mb-2">{filter === 'failed' ? '⚠' : filter === 'published' ? '✓' : '📅'}</p>
+          <p className="text-xs text-gray-600 font-mono">
+            {filter === 'all' ? 'No published content yet — ASH will log posts here when it publishes on your behalf.' : `No ${filter} items.`}
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y divide-white/5">
+          {filtered.map(item => {
+            const ch = CHANNEL_META[item.channel] ?? { icon: '📤', label: item.channel, color: 'text-gray-400', bg: 'bg-white/5', border: 'border-white/10' };
+            const statusColors = { published: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', failed: 'text-red-400 bg-red-400/10 border-red-400/20', pending: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20', scheduled: 'text-violet-400 bg-violet-400/10 border-violet-400/20' };
+            const sc = statusColors[item.status] ?? statusColors.pending;
+            return (
+              <div key={item.id} className="px-4 py-3 flex items-start gap-3 hover:bg-white/2 transition-colors">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 ${ch.bg} ${ch.border} border`}>
+                  {ch.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <span className={`text-xs font-mono ${ch.color} shrink-0`}>{ch.label}</span>
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border capitalize ${sc}`}>
+                      {item.status === 'published' ? '✓' : item.status === 'failed' ? '✗' : item.status === 'pending' ? '◉' : '⏱'} {item.status}
+                    </span>
+                    {item.publishedUrl && (
+                      <a
+                        href={item.publishedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-blue-400 hover:text-blue-300 underline truncate max-w-[160px]"
+                      >
+                        View post ↗
+                      </a>
+                    )}
+                  </div>
+                  {item.title && (
+                    <p className="text-xs font-semibold text-white mt-1 truncate">{item.title}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">{item.content}</p>
+                  {item.errorMessage && (
+                    <p className="text-[10px] text-red-400 mt-1 font-mono line-clamp-2">{item.errorMessage}</p>
+                  )}
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <span className="text-[10px] text-gray-700 font-mono">
+                      {item.publishedAt ? `Published ${timeAgo(item.publishedAt)}` : `Created ${timeAgo(item.createdAt)}`}
+                    </span>
+                    {item.retryCount > 0 && (
+                      <span className="text-[10px] text-gray-700 font-mono">{item.retryCount} retry{item.retryCount !== 1 ? 's' : ''}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {item.status === 'failed' && item.retryCount < 3 && (
+                    <button
+                      onClick={() => retry(item)}
+                      disabled={retrying === item.id}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/20 transition-all disabled:opacity-50"
+                    >
+                      {retrying === item.id ? '…' : '↺ Retry'}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => remove(item)}
+                    disabled={deleting === item.id}
+                    className="px-2 py-1 rounded-lg text-[10px] font-mono bg-red-500/5 hover:bg-red-500/15 text-red-500 border border-red-500/10 transition-all disabled:opacity-50"
+                  >
+                    {deleting === item.id ? '…' : '✕'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function timeAgo(iso) {
   if (!iso) return '—';
   const diff = Date.now() - new Date(iso).getTime();
@@ -1992,6 +2170,9 @@ export default function UserSystemDetailPage() {
 
         {/* ── Live Revenue (real provider data) ── */}
         <RealRevenuePanel instanceId={id} />
+
+        {/* ── Content Calendar (Published Content) ── */}
+        <PublishedContentPanel instanceId={id} />
 
         {/* ── Revenue + Live Activity ── */}
         <RevenueSection instanceId={id} buildStatus={instance?.buildStatus} buildRevenueCents={buildRevenueCents} />

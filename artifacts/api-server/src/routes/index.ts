@@ -38,6 +38,7 @@ import domainsRouter from "./domains";
 import publicPagesRouter from "./public-pages";
 import scheduledTasksRouter from "./scheduled-tasks";
 import revenueProvidersRouter from "./revenue-providers";
+import publishingRouter from "./publishing";
 
 const router: IRouter = Router();
 
@@ -80,5 +81,6 @@ router.use(domainsRouter);
 router.use(publicPagesRouter);
 router.use(scheduledTasksRouter);
 router.use(revenueProvidersRouter);
+router.use(publishingRouter);
 
 export default router;

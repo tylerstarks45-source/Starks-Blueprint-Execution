@@ -16,7 +16,9 @@ import {
   skillsTable,
   skillActivationsTable,
   scheduledTasksTable,
+  publishedContentTable,
 } from "@workspace/db";
+import { publish, PUBLISHING_CHANNELS } from "../lib/publishing";
 import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
 import { complete, streamCompletion } from "../lib/openrouter";
 import { hasCredits } from "../lib/credits";
@@ -445,6 +447,21 @@ You can call these tools at any time to enrich your responses. Use them proactiv
    - stripe → getBalance(), listPayments(), createCheckout()
    - webhook → trigger(…anyPayload), triggerGet(queryParams?)
    SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "connector_action", "connectorId": "slack", "action": "postMessage", "params": {"text": "Your system is now live! 🚀"}}]}
+
+8. **Publish Content** (Publish content directly to social media, blogs, and email platforms — LIVE publishing)
+   Use for: posting a tweet/X post, publishing an Instagram post with caption, sending an email broadcast via Mailchimp or ConvertKit, creating a WordPress or Ghost blog post.
+   Channels: twitter, instagram, mailchimp, convertkit, wordpress, ghost
+   ONLY publish when the user has the required credentials connected for that channel.
+   Required credentials per channel:
+   - twitter: TWITTER_BEARER_TOKEN
+   - instagram: INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID
+   - mailchimp: MAILCHIMP_API_KEY (+ listId in params)
+   - convertkit: CONVERTKIT_API_KEY
+   - wordpress: WORDPRESS_SITE_URL + WORDPRESS_USERNAME + WORDPRESS_APP_PASSWORD
+   - ghost: GHOST_SITE_URL + GHOST_ADMIN_API_KEY
+   SBEP_DATA: {"action": "publish_content", "channel": "twitter", "contentType": "tweet", "title": null, "content": "Your post text here", "imageUrl": null, "listId": null, "siteUrl": null}
+   For email broadcasts, include listId: {"action": "publish_content", "channel": "mailchimp", "contentType": "email", "title": "Subject line here", "content": "Email body text here", "listId": "abc123"}
+   CRITICAL: Use publish_content when user says "post this", "publish to my blog", "send this email to my list", "tweet this", or when a build step requires distributing content to a channel.
 
 You can chain multiple tools in a single call:
 <SBEP_DATA>
@@ -1179,6 +1196,99 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
           structuredData = null;
         } catch (schedErr) {
           req.log.warn({ schedErr }, "Failed to create scheduled task from ASH");
+        }
+      }
+    }
+
+    // ── Server-side publish_content handling ─────────────────────────────────
+    // When ASH emits a publish_content action and we have a verified system
+    // instance, persist and dispatch the publish call immediately.
+    if (
+      structuredData != null &&
+      structuredData.action === "publish_content" &&
+      parsed.data.systemInstanceId != null
+    ) {
+      const instanceId = parsed.data.systemInstanceId;
+      const [owned] = await db
+        .select({ id: systemInstancesTable.id })
+        .from(systemInstancesTable)
+        .where(and(
+          eq(systemInstancesTable.id, instanceId),
+          eq(systemInstancesTable.userId, userId),
+        ))
+        .limit(1);
+
+      if (owned) {
+        try {
+          // Load + decrypt user credentials
+          const credRows = await db
+            .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue })
+            .from(userCredentialsTable)
+            .where(eq(userCredentialsTable.userId, userId));
+
+          const creds: Record<string, string> = {};
+          for (const row of credRows) {
+            if (row.encryptedValue) {
+              try { creds[row.credentialKey] = await decrypt(row.encryptedValue); } catch { /* skip */ }
+            }
+          }
+
+          const channel     = (structuredData.channel as string) ?? "";
+          const contentType = (structuredData.contentType as string) ?? "post";
+          const title       = (structuredData.title as string | null) ?? null;
+          const content     = (structuredData.content as string) ?? "";
+          const imageUrl    = (structuredData.imageUrl as string | undefined) ?? undefined;
+          const listId      = (structuredData.listId as string | undefined) ?? undefined;
+          const siteUrl     = (structuredData.siteUrl as string | undefined) ?? undefined;
+
+          // Create pending record
+          const [record] = await db.insert(publishedContentTable).values({
+            systemInstanceId: instanceId,
+            channel,
+            contentType,
+            title: title ?? null,
+            content,
+            status: "pending",
+          }).returning();
+
+          // Attempt publish
+          const result = await publish(channel, creds, { channel, contentType, title: title ?? undefined, content, imageUrl, listId, siteUrl });
+
+          const now = new Date();
+          await db.update(publishedContentTable)
+            .set(
+              result.ok
+                ? { status: "published", publishedUrl: result.publishedUrl ?? null, publishedAt: now, metadata: JSON.stringify(result.data ?? {}) }
+                : { status: "failed", errorMessage: result.error ?? "Unknown error" }
+            )
+            .where(eq(publishedContentTable.id, record.id));
+
+          await db.insert(systemActivityEventsTable).values({
+            systemInstanceId: instanceId,
+            eventType: result.ok ? "action" : "error",
+            description: result.ok
+              ? `Published to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel}: ${(title ?? content).slice(0, 80)}${result.publishedUrl ? ` — ${result.publishedUrl}` : ""}`
+              : `Publish to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel} failed: ${(result.error ?? "").slice(0, 200)}`,
+            metadata: JSON.stringify({ channel, contentId: record.id, ok: result.ok, publishedUrl: result.publishedUrl }),
+          });
+
+          send({
+            type: "tool_result",
+            tool: "publish_content",
+            data: {
+              ok: result.ok,
+              channel,
+              displayName: PUBLISHING_CHANNELS[channel]?.displayName ?? channel,
+              publishedUrl: result.publishedUrl,
+              error: result.error,
+              contentId: record.id,
+            },
+          });
+
+          // Clear so client doesn't re-process
+          structuredData = null;
+        } catch (pubErr) {
+          req.log.warn({ pubErr }, "Failed to publish content from ASH");
         }
       }
     }

@@ -123,16 +123,26 @@ router.post("/system-instances/:id/publish", async (req, res): Promise<void> => 
     }
   }
 
-  // Attempt publish
-  const result = await publish(channel, creds, { channel, contentType: contentType ?? "post", title, content, imageUrl, listId, siteUrl, videoId, tags, categoryId });
+  const publishArgs = { channel, contentType: contentType ?? "post", title, content, imageUrl, listId, siteUrl, videoId, tags, categoryId };
 
-  // Update record with result
+  // Attempt publish — auto-retry once on first failure
+  let result = await publish(channel, creds, publishArgs);
+  let autoRetried = false;
+  if (!result.ok) {
+    // Wait 2s then retry once automatically
+    await new Promise(r => setTimeout(r, 2000));
+    result = await publish(channel, creds, publishArgs);
+    autoRetried = true;
+  }
+
+  // Update record with final result
   const now = new Date();
+  const finalMeta = JSON.stringify({ ...JSON.parse(publishMeta || "{}"), ...(result.data ?? {}) });
   const [updated] = await db.update(publishedContentTable)
     .set(
       result.ok
-        ? { status: "published", publishedUrl: result.publishedUrl ?? null, publishedAt: now, metadata: JSON.stringify({ ...JSON.parse(publishMeta || "{}"), ...(result.data ?? {}) }) }
-        : { status: "failed", errorMessage: result.error ?? "Unknown error" }
+        ? { status: "published", publishedUrl: result.publishedUrl ?? null, publishedAt: now, metadata: finalMeta }
+        : { status: "failed", errorMessage: result.error ?? "Unknown error", retryCount: autoRetried ? 1 : 0 }
     )
     .where(eq(publishedContentTable.id, record.id))
     .returning();
@@ -143,9 +153,19 @@ router.post("/system-instances/:id/publish", async (req, res): Promise<void> => 
     eventType: result.ok ? "action" : "error",
     description: result.ok
       ? `Published to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel}: ${title ?? content.slice(0, 80)}${result.publishedUrl ? ` — ${result.publishedUrl}` : ""}`
-      : `Publish to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel} failed: ${(result.error ?? "").slice(0, 200)}`,
-    metadata: JSON.stringify({ channel, contentId: record.id, ok: result.ok, publishedUrl: result.publishedUrl }),
+      : `Publish to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel} failed${autoRetried ? " (retried once)" : ""}: ${(result.error ?? "").slice(0, 200)}`,
+    metadata: JSON.stringify({ channel, contentId: record.id, ok: result.ok, publishedUrl: result.publishedUrl, autoRetried }),
   }).catch(() => {});
+
+  // Notify user when auto-retry also failed
+  if (!result.ok && autoRetried) {
+    await db.insert(notificationsTable).values({
+      userId: caller.id,
+      notificationType: "error",
+      title: "Content publish failed",
+      message: `Publishing to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel} failed after automatic retry: ${(result.error ?? "").slice(0, 200)}. You can retry manually from the Content Calendar.`,
+    }).catch(() => {});
+  }
 
   res.status(result.ok ? 201 : 422).json(serialize(updated));
 });
@@ -199,9 +219,12 @@ router.post("/system-instances/:id/published-content/:contentId/retry", async (r
     contentType: existing.contentType,
     title: existing.title ?? undefined,
     content: existing.content,
-    imageUrl: (metadata["imageUrl"] as string | undefined),
-    listId: (metadata["listId"] as string | undefined),
-    siteUrl: (metadata["siteUrl"] as string | undefined),
+    imageUrl:   (metadata["imageUrl"]   as string | undefined),
+    listId:     (metadata["listId"]     as string | undefined),
+    siteUrl:    (metadata["siteUrl"]    as string | undefined),
+    videoId:    (metadata["videoId"]    as string | undefined),
+    tags:       (metadata["tags"]       as string[] | undefined),
+    categoryId: (metadata["categoryId"] as string | undefined),
   });
 
   const now = new Date();

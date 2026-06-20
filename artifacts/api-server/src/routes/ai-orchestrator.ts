@@ -1163,17 +1163,48 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
             new Date(),
           );
 
+          const actionType   = (structuredData.actionType as string) ?? "connector";
+          const actionParams = (structuredData.actionParams as Record<string, unknown>) ?? {};
+
           const [newTask] = await db.insert(scheduledTasksTable).values({
             systemInstanceId: instanceId,
             userId,
             name: (structuredData.taskName as string) ?? "Scheduled Task",
             scheduleType: schedType,
             scheduleConfig: schedConfig,
-            actionType: (structuredData.actionType as string) ?? "connector",
-            actionParams: (structuredData.actionParams as Record<string, unknown>) ?? {},
+            actionType,
+            actionParams,
             enabled: true,
             nextRunAt,
           }).returning();
+
+          // When scheduling a publish action, create a calendar record immediately
+          // so the Content Calendar shows upcoming posts before they execute.
+          if (actionType === "publish" && actionParams["content"]) {
+            const apChannel     = (actionParams["channel"]     as string | undefined) ?? "";
+            const apContentType = (actionParams["contentType"] as string | undefined) ?? "post";
+            const apTitle       = (actionParams["title"]       as string | null | undefined) ?? null;
+            const apContent     = actionParams["content"] as string;
+            const apMeta = JSON.stringify({
+              ...(actionParams["imageUrl"]   ? { imageUrl:   actionParams["imageUrl"] }   : {}),
+              ...(actionParams["listId"]     ? { listId:     actionParams["listId"] }     : {}),
+              ...(actionParams["siteUrl"]    ? { siteUrl:    actionParams["siteUrl"] }    : {}),
+              ...(actionParams["videoId"]    ? { videoId:    actionParams["videoId"] }    : {}),
+              ...(actionParams["tags"]       ? { tags:       actionParams["tags"] }       : {}),
+              ...(actionParams["categoryId"] ? { categoryId: actionParams["categoryId"] } : {}),
+              scheduledTaskId: newTask.id,
+            });
+            await db.insert(publishedContentTable).values({
+              systemInstanceId: instanceId,
+              channel:     apChannel,
+              contentType: apContentType,
+              title:       apTitle,
+              content:     apContent,
+              status:      "scheduled",
+              scheduledFor: nextRunAt,
+              metadata:    apMeta,
+            }).catch(() => {});
+          }
 
           send({
             type: "tool_result",

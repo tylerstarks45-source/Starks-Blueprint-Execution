@@ -3,10 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Layers, Bot, Mail, Globe, Link2, Plug, Share2,
   ShoppingBag, BookOpen, CreditCard, ShieldCheck, ChevronLeft, ChevronRight,
-  LogOut, X, Settings, Globe2, Zap,
+  LogOut, X, Settings, Globe2, Zap, Users,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import { useClient } from '@/contexts/ClientContext.jsx';
 import NotificationBell from '@/components/NotificationBell.jsx';
+import ClientWorkspaceSwitcher from '@/components/ClientWorkspaceSwitcher.jsx';
 
 const NAV_GROUPS = [
   {
@@ -42,16 +44,23 @@ const NAV_GROUPS = [
   },
 ];
 
+const AGENCY_TIERS = new Set(['operator', 'empire', 'pro', 'enterprise']);
+
 export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
+  const { activeWorkspace } = useClient();
   const ref = useRef(null);
 
   const isSuperAdmin =
     currentUser?.role === 'admin' ||
     currentUser?.role === 'SUPER_ADMIN' ||
     currentUser?.role === 'FOUNDER_ADMIN';
+
+  const isAgencyUser =
+    isSuperAdmin ||
+    AGENCY_TIERS.has(currentUser?.membershipTier || '');
 
   const isActive = (path) =>
     location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -125,6 +134,9 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
         )}
       </div>
 
+      {/* ── Client workspace banner ───────────────── */}
+      {activeWorkspace && <ClientWorkspaceSwitcher collapsed={collapsed} />}
+
       {/* ── Build with ASH — primary CTA ─────────── */}
       <div className={`px-2 pt-3 pb-1 shrink-0 ${collapsed ? 'flex justify-center' : ''}`}>
         <Link
@@ -185,6 +197,36 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
             })}
           </React.Fragment>
         ))}
+
+        {/* Clients link — agency tiers only */}
+        {isAgencyUser && (
+          <>
+            {!collapsed && (
+              <p className="px-2 pt-4 pb-1 text-[9px] font-mono font-semibold tracking-[0.15em] text-white/25 uppercase select-none">
+                AGENCY
+              </p>
+            )}
+            {collapsed && <div className="h-2" />}
+            <Link
+              to="/clients"
+              onClick={handleNavClick}
+              title={collapsed ? 'Clients' : undefined}
+              className={[
+                'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-150',
+                collapsed ? 'justify-center px-2' : '',
+                isActive('/clients')
+                  ? 'bg-violet-500/12 border border-violet-500/20 text-violet-300'
+                  : 'text-white/45 hover:text-white/85 hover:bg-white/5 border border-transparent',
+              ].join(' ')}
+            >
+              <Users className={`shrink-0 transition-colors ${collapsed ? 'w-5 h-5' : 'w-4 h-4'} ${isActive('/clients') ? 'text-violet-400' : 'text-white/40 group-hover:text-white/70'}`} />
+              {!collapsed && <span className="font-medium truncate leading-none">Clients</span>}
+              {isActive('/clients') && !collapsed && (
+                <span className="ml-auto w-1 h-1 rounded-full bg-violet-400 shrink-0" />
+              )}
+            </Link>
+          </>
+        )}
 
         {/* Admin link */}
         {isSuperAdmin && (

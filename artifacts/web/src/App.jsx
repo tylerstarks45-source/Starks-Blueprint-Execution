@@ -7,6 +7,7 @@ import { Toaster } from 'sonner';
 // Context Providers
 import { AuthProvider } from '@/contexts/AuthContext.jsx';
 import { CreditsModalProvider } from '@/contexts/CreditsModalContext.jsx';
+import { ClientProvider } from '@/contexts/ClientContext.jsx';
 import OutOfCreditsModal from '@/components/OutOfCreditsModal.jsx';
 
 // Security Routes
@@ -62,6 +63,8 @@ const UserLandingPageCanvas = lazy(() => import('@/pages/UserLandingPageCanvas.j
 const AffiliateLinkManagerPage = lazy(() => import('@/pages/AffiliateLinkManagerPage.jsx'));
 const EmailMarketingPage    = lazy(() => import('@/pages/EmailMarketingPage.jsx'));
 const ReferPage             = lazy(() => import('@/pages/ReferPage.jsx'));
+const ClientsPage           = lazy(() => import('@/pages/ClientsPage.jsx'));
+const ClientPortalPage      = lazy(() => import('@/pages/ClientPortalPage.jsx'));
 const RefPage               = lazy(() => import('@/pages/RefPage.jsx'));
 
 // Settings page
@@ -122,6 +125,7 @@ const App = () => {
   return (
     <Router>
       <AuthProvider>
+        <ClientProvider>
         <CreditsModalProvider>
           <Helmet>
             <title>Starks Global Group — Build. Launch. Run. Scale. With ASH AI.</title>
@@ -220,7 +224,11 @@ const App = () => {
               <Route path="/refer" element={
                 <ProtectedRoute><ReferPage /></ProtectedRoute>
               } />
+              <Route path="/clients" element={
+                <ProtectedRoute><ClientsPage /></ProtectedRoute>
+              } />
               <Route path="/ref/:code" element={<RefPage />} />
+              <Route path="/portal/:token" element={<ClientPortalPage />} />
 
               <Route path="/settings" element={
                 <ProtectedRoute><UserSettingsPage /></ProtectedRoute>
@@ -244,6 +252,7 @@ const App = () => {
 
           <Toaster position="bottom-right" />
         </CreditsModalProvider>
+        </ClientProvider>
       </AuthProvider>
     </Router>
   );

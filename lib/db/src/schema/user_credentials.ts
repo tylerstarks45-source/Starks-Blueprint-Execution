@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { toolsTable } from "./tools";
+import { clientWorkspacesTable } from "./client_workspaces";
 
 export const CONNECTION_STATUSES = [
   "connected",
@@ -28,11 +29,13 @@ export const userCredentialsTable = pgTable("user_credentials", {
   usageCount: integer("usage_count").notNull().default(0),
   // Optional JSON metadata (displayName, notes, customCategory, etc.)
   metadata: text("metadata"),
+  clientWorkspaceId: integer("client_workspace_id").references(() => clientWorkspacesTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
   index("user_credentials_user_id_idx").on(t.userId),
   index("user_credentials_user_id_key_idx").on(t.userId, t.credentialKey),
+  index("user_credentials_client_workspace_id_idx").on(t.clientWorkspaceId),
 ]);
 
 export const insertUserCredentialSchema = createInsertSchema(userCredentialsTable).omit({ id: true, createdAt: true, updatedAt: true });

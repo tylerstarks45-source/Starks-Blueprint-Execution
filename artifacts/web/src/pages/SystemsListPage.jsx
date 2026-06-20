@@ -10,9 +10,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import Header from '@/components/Header.jsx';
-import Footer from '@/components/Footer.jsx';
-import VideoBackground from '@/components/VideoBackground.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import { Helmet } from 'react-helmet';
 
 const authHeaders = () => {
@@ -495,10 +493,9 @@ const SystemsListPage = () => {
   };
 
   return (
-    <VideoBackground>
+    <AuthLayout>
       <Helmet><title>My Systems | Starks Global Group</title></Helmet>
-      <Header />
-      <main className="flex-grow pt-8 pb-24 px-4 sm:px-6 lg:px-8 container mx-auto max-w-[1200px]">
+      <main className="pt-6 pb-24 px-4 sm:px-6 lg:px-8 container mx-auto max-w-[1200px]">
 
         {/* Page header */}
         <motion.div
@@ -720,7 +717,6 @@ const SystemsListPage = () => {
           </div>
         )}
       </main>
-      <Footer />
 
       {/* Modals */}
       <AnimatePresence>
@@ -741,7 +737,7 @@ const SystemsListPage = () => {
           />
         )}
       </AnimatePresence>
-    </VideoBackground>
+    </AuthLayout>
   );
 };
 

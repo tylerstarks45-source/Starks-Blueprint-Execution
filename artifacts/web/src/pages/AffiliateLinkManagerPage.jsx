@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 
-import Header from '@/components/Header.jsx';
-import Footer from '@/components/Footer.jsx';
-import VideoBackground from '@/components/VideoBackground.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import {
   Link2, Plus, Copy, Check, ExternalLink, Trash2, Edit2, BarChart3,
   Tag, Globe, AlertCircle, RefreshCw, Search, Filter, TrendingUp, Zap
@@ -217,9 +215,8 @@ export default function AffiliateLinkManagerPage() {
   const totalClicks = links.reduce((a, l) => a + (l.clickCount || 0), 0);
 
   return (
-    <VideoBackground>
-      <Header />
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24">
+    <AuthLayout>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24">
 
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-xs text-violet-400 font-mono font-semibold mb-5">
@@ -294,7 +291,6 @@ export default function AffiliateLinkManagerPage() {
           </div>
         )}
       </main>
-      <Footer />
       {showModal && (
         <LinkModal
           link={editLink}
@@ -307,6 +303,6 @@ export default function AffiliateLinkManagerPage() {
           }}
         />
       )}
-    </VideoBackground>
+    </AuthLayout>
   );
 }

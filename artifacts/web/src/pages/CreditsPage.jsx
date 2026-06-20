@@ -7,9 +7,7 @@ import {
   ChevronRight, Loader2, BarChart2, Wallet, Sparkles, DollarSign,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import Header from '@/components/Header.jsx';
-import Footer from '@/components/Footer.jsx';
-import VideoBackground from '@/components/VideoBackground.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 
 const authHeaders = () => {
@@ -343,9 +341,8 @@ const CreditsPage = () => {
   }[type] ?? type);
 
   return (
-    <VideoBackground>
+    <AuthLayout>
       <Helmet><title>Credits & Plans | Starks Global Group</title></Helmet>
-      <Header />
 
       <main className="flex-grow pt-8 pb-24 px-4 sm:px-6 lg:px-8 container mx-auto max-w-[1200px]">
 
@@ -688,9 +685,7 @@ const CreditsPage = () => {
         </div>
 
       </main>
-
-      <Footer />
-    </VideoBackground>
+    </AuthLayout>
   );
 };
 

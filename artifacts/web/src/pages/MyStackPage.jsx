@@ -3,8 +3,7 @@ import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import pb from '@/lib/pocketbaseClient.js';
-import Header from '@/components/Header.jsx';
-import Footer from '@/components/Footer.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import { toast } from 'sonner';
 import { Search, Link2, Unlink, Key, RefreshCw, AlertTriangle, CheckCircle2, ShieldCheck, Box } from 'lucide-react';
 import CredentialManager from '@/components/CredentialManager.jsx';
@@ -44,9 +43,8 @@ const MyStackPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col selection:bg-primary/20 bg-grid-pattern">
+    <AuthLayout>
       <Helmet><title>Infrastructure | Starks Global Group</title></Helmet>
-      <Header />
       
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-7xl">
         <div className="mb-10 border-b border-border/50 pb-8">
@@ -119,8 +117,7 @@ const MyStackPage = () => {
           )}
         </div>
       </main>
-      <Footer />
-    </div>
+    </AuthLayout>
   );
 };
 

@@ -4,8 +4,7 @@ import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import pb from '@/lib/pocketbaseClient.js';
-import Header from '@/components/Header.jsx';
-import Footer from '@/components/Footer.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import { Search, Activity, Settings, BarChart2, Box } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,7 +13,6 @@ import SystemStateTimeline from '@/components/SystemStateTimeline.jsx';
 import DeploymentQueue from '@/components/DeploymentQueue.jsx';
 import ExecutionMonitor from '@/components/ExecutionMonitor.jsx';
 import CredentialManager from '@/components/CredentialManager.jsx';
-import VideoBackground from '@/components/VideoBackground.jsx';
 
 const SavedSystemsPage = () => {
   const { currentUser } = useAuth();
@@ -55,11 +53,9 @@ const SavedSystemsPage = () => {
   };
 
   return (
-    <VideoBackground>
+    <AuthLayout>
       <Helmet><title>Operations Center | Starks Global Group</title></Helmet>
-      <Header />
-      
-      <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-10 max-w-[1400px] bg-background/30 backdrop-blur-sm min-h-screen">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 max-w-[1400px] min-h-screen">
         <div className="mb-8 border-b border-white/20 pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-card/80 backdrop-blur-xl p-6 rounded-2xl shadow-xl">
           <div>
             <h1 className="text-3xl font-extrabold text-foreground font-mono tracking-tight mb-2 text-shadow-md">Systems Operations</h1>
@@ -225,8 +221,7 @@ const SavedSystemsPage = () => {
 
         </div>
       </main>
-      <Footer />
-    </VideoBackground>
+    </AuthLayout>
   );
 };
 

@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 
-import Header from '@/components/Header.jsx';
-import Footer from '@/components/Footer.jsx';
-import VideoBackground from '@/components/VideoBackground.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import {
   Mail, Users, Plus, Trash2, Edit2, ChevronRight, ChevronDown,
   Upload, Download, Sparkles, AlertCircle, RefreshCw, Search,
@@ -363,9 +361,8 @@ export default function EmailMarketingPage() {
   const totalSubs = lists.reduce((a, l) => a + l.subscriberCount, 0);
 
   return (
-    <VideoBackground>
-      <Header />
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24">
+    <AuthLayout>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24">
 
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-xs text-sky-400 font-mono font-semibold mb-5">
@@ -495,7 +492,6 @@ export default function EmailMarketingPage() {
           </div>
         )}
       </main>
-      <Footer />
-    </VideoBackground>
+    </AuthLayout>
   );
 }

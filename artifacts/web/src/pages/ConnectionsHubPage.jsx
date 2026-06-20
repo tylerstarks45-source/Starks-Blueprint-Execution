@@ -2,9 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import VideoBackground from '@/components/VideoBackground.jsx';
-import Header from '@/components/Header.jsx';
-import Footer from '@/components/Footer.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 
 const authHeaders = () => {
   const token = localStorage.getItem('sbep_auth_token');
@@ -692,20 +690,19 @@ export default function ConnectionsHubPage() {
 
   if (loading) {
     return (
-      <VideoBackground>
-        <Header />
-        <div className="flex-grow flex items-center justify-center">
+      <AuthLayout>
+        <div className="flex-grow flex items-center justify-center min-h-screen">
           <div className="text-center space-y-3">
             <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mx-auto" />
             <p className="text-xs text-gray-500 font-mono">Loading connections…</p>
           </div>
         </div>
-      </VideoBackground>
+      </AuthLayout>
     );
   }
 
   return (
-    <VideoBackground>
+    <AuthLayout>
       {/* Slide-over */}
       {slideOver && (
         <ConnectSlideOver
@@ -726,9 +723,7 @@ export default function ConnectionsHubPage() {
         />
       )}
 
-      <Header />
-
-      <main className="flex-grow pb-24">
+      <main className="pb-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
         {/* ── PAGE HEADER ── */}
@@ -928,7 +923,6 @@ export default function ConnectionsHubPage() {
 
       </div>
       </main>
-      <Footer />
-    </VideoBackground>
+    </AuthLayout>
   );
 }

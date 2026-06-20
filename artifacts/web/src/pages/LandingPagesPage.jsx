@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import Header from '@/components/Header.jsx';
-import Footer from '@/components/Footer.jsx';
-import VideoBackground from '@/components/VideoBackground.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import {
   Globe, Plus, Eye, Edit2, Trash2, ExternalLink, Copy, Check, ChevronRight,
   LayoutTemplate, Sparkles, Share2, TrendingUp, MoreHorizontal, AlertCircle,
@@ -341,9 +339,8 @@ export default function LandingPagesPage() {
   }
 
   return (
-    <VideoBackground>
-      <Header />
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24">
+    <AuthLayout>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24">
 
         {/* Hero */}
         <div className="text-center mb-10">
@@ -436,11 +433,10 @@ export default function LandingPagesPage() {
           ))}
         </div>
       </main>
-      <Footer />
 
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreate={p => { setPages(ps => [p, ...ps]); setShowCreate(false); setGeneratePage(p); }} />}
       {generatePage && <GenerateModal page={generatePage} onClose={() => setGeneratePage(null)} onGenerated={p => { setPages(ps => ps.map(x => x.id === p.id ? p : x)); setGeneratePage(null); }} />}
       {previewPage && <PreviewModal page={previewPage} onClose={() => setPreviewPage(null)} />}
-    </VideoBackground>
+    </AuthLayout>
   );
 }

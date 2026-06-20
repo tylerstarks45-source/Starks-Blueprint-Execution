@@ -2,9 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import VideoBackground from '@/components/VideoBackground.jsx';
-import Header from '@/components/Header.jsx';
-import Footer from '@/components/Footer.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import { CheckCircle, Circle, ExternalLink, Eye, EyeOff, Loader2, X, Zap, Share2, TrendingUp, Users, Film, Music, MessageSquare } from 'lucide-react';
 
 const authHeaders = () => {
@@ -398,10 +396,8 @@ export default function SocialAccountsPage() {
   const connectedCount = SOCIAL_PLATFORMS.filter(p => credentials[p.key]).length;
 
   return (
-    <VideoBackground>
-      <Header />
-
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24">
+    <AuthLayout>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24">
 
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-xs text-violet-400 font-mono font-semibold mb-5">
@@ -477,7 +473,6 @@ export default function SocialAccountsPage() {
         />
       )}
 
-      <Footer />
-    </VideoBackground>
+    </AuthLayout>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import VideoBackground from '@/components/VideoBackground.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import { toast } from 'sonner';
 import {
   AreaChart,
@@ -2892,7 +2892,7 @@ export default function UserSystemDetailPage() {
   const healthMeta = HEALTH_META[instance.healthStatus] ?? HEALTH_META.unknown;
 
   return (
-    <VideoBackground>
+    <AuthLayout>
     <div className="min-h-screen text-white">
       {showDelete && (
         <DeleteModal
@@ -3350,6 +3350,6 @@ export default function UserSystemDetailPage() {
 
       </div>
     </div>
-    </VideoBackground>
+    </AuthLayout>
   );
 }

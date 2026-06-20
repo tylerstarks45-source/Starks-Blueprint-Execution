@@ -338,19 +338,27 @@ async function processABTests(): Promise<void> {
       visits: number;
       conversions: number;
       content_ref: string;
+      conversion_events: Record<string, number> | null;
     }>(
-      `SELECT id, name, visits, conversions, content_ref FROM ab_variants WHERE test_id = $1 ORDER BY id`,
+      `SELECT id, name, visits, conversions, content_ref, conversion_events FROM ab_variants WHERE test_id = $1 ORDER BY id`,
       [row.id],
     );
 
     if (variants.rowCount === 0) continue;
 
-    // Pick variant with highest conversion rate (conversions / max(visits, 1))
+    // Pick winning variant.
+    // - landing_page tests: highest conversion rate (conversions / max(visits, 1))
+    // - email_subject tests: highest open rate (email_open events / max(visits, 1))
     let winnerVariant = variants.rows[0]!;
     for (const v of variants.rows) {
-      const vRate = v.conversions / Math.max(v.visits, 1);
-      const wRate = winnerVariant.conversions / Math.max(winnerVariant.visits, 1);
-      if (vRate > wRate) winnerVariant = v;
+      const scoreOf = (variant: typeof v): number => {
+        if (row.type === "email_subject") {
+          const opens = (variant.conversion_events?.email_open ?? 0);
+          return opens / Math.max(variant.visits, 1);
+        }
+        return variant.conversions / Math.max(variant.visits, 1);
+      };
+      if (scoreOf(v) > scoreOf(winnerVariant)) winnerVariant = v;
     }
 
     const concludedAt = new Date();
@@ -358,6 +366,14 @@ async function processABTests(): Promise<void> {
       `UPDATE ab_tests SET status = 'concluded', winner_variant_id = $1, concluded_at = $2 WHERE id = $3`,
       [winnerVariant.id, concludedAt, row.id],
     );
+
+    // Archive all losing variants
+    await pool.query(
+      `UPDATE ab_variants SET status = 'archived' WHERE test_id = $1 AND id != $2`,
+      [row.id, winnerVariant.id],
+    ).catch((err: unknown) => {
+      logger.warn({ err, testId: row.id }, "Failed to archive losing variants");
+    });
 
     // For landing_page tests: promote winning variant's HTML to the landing page
     if (row.type === "landing_page") {

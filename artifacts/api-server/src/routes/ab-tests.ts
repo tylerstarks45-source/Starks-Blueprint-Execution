@@ -127,6 +127,14 @@ router.patch("/ab-tests/:id", async (req, res): Promise<void> => {
   const [row] = await db.update(abTestsTable).set(updates)
     .where(eq(abTestsTable.id, id)).returning();
 
+  // When concluding with a winner: archive all losing variants
+  if (parsed.data.status === "concluded" && parsed.data.winnerVariantId) {
+    await pool.query(
+      `UPDATE ab_variants SET status = 'archived' WHERE test_id = $1 AND id != $2`,
+      [id, parsed.data.winnerVariantId],
+    );
+  }
+
   // If manually concluding with a winner, promote the winning variant's HTML to the landing page
   if (parsed.data.status === "concluded" && parsed.data.winnerVariantId && existing.type === "landing_page") {
     const cfg = (existing.config ?? {}) as Record<string, unknown>;
@@ -301,6 +309,32 @@ ${baseHtml.slice(0, 6000)}`,
   }
 
   const inserted = await db.insert(abVariantsTable).values(toInsert).returning();
+
+  // For landing_page tests: assign URL slugs to treatment variants so they get their own public URLs.
+  // Control (first variant, named "Control") keeps null slug — it's served at the base page URL.
+  // Treatments get slugs like "{base-slug}-vb", "{base-slug}-vc".
+  if (test.type === "landing_page") {
+    const cfg = (test.config ?? {}) as Record<string, unknown>;
+    const lpId = cfg.landingPageId as number | undefined;
+    if (lpId) {
+      const [pg] = await db
+        .select({ slug: landingPagesTable.slug })
+        .from(landingPagesTable)
+        .where(eq(landingPagesTable.id, lpId));
+      if (pg?.slug) {
+        const treatments = inserted.filter((v) => v.name !== "Control");
+        const suffixes = ["vb", "vc", "vd"];
+        for (let i = 0; i < treatments.length; i++) {
+          const varSlug = `${pg.slug}-${suffixes[i] ?? `v${i + 2}`}`;
+          await pool.query(
+            `UPDATE ab_variants SET slug = $1 WHERE id = $2`,
+            [varSlug, treatments[i]!.id],
+          );
+        }
+      }
+    }
+  }
+
   res.json({ variants: serialize(inserted) });
 });
 
@@ -366,7 +400,7 @@ router.get("/public/ab-tests/:token/assign", async (req, res): Promise<void> => 
 // All other event types increment the conversions counter.
 const ConvertBody = z.object({
   variantId: z.number().int().optional(),
-  eventType: z.enum(["page_view", "button_click", "form_submit", "email_opt_in"]).default("button_click"),
+  eventType: z.enum(["page_view", "button_click", "form_submit", "email_opt_in", "email_open"]).default("button_click"),
 });
 
 router.post("/public/ab-tests/:token/convert", async (req, res): Promise<void> => {
@@ -396,13 +430,14 @@ router.post("/public/ab-tests/:token/convert", async (req, res): Promise<void> =
   const eventType = parsed.data.eventType;
   const isConversion = eventType !== "page_view";
 
-  // Atomically update conversionEvents jsonb and conversions counter
+  // Atomically update conversionEvents jsonb and conversions counter.
+  // Note: ->> extracts jsonb value as text, which can then be cast to int safely.
   if (isConversion) {
     await pool.query(
       `UPDATE ab_variants
        SET conversions = conversions + 1,
            conversion_events = COALESCE(conversion_events, '{}')::jsonb ||
-             jsonb_build_object($1::text, (COALESCE((conversion_events->$1)::int, 0) + 1))
+             jsonb_build_object($1::text, (COALESCE((conversion_events->>$1)::int, 0) + 1))
        WHERE id = $2 AND test_id = $3`,
       [eventType, targetId, test.id],
     );
@@ -411,7 +446,7 @@ router.post("/public/ab-tests/:token/convert", async (req, res): Promise<void> =
     await pool.query(
       `UPDATE ab_variants
        SET conversion_events = COALESCE(conversion_events, '{}')::jsonb ||
-             jsonb_build_object($1::text, (COALESCE((conversion_events->$1)::int, 0) + 1))
+             jsonb_build_object($1::text, (COALESCE((conversion_events->>$1)::int, 0) + 1))
        WHERE id = $2 AND test_id = $3`,
       [eventType, targetId, test.id],
     );

@@ -1588,9 +1588,89 @@ function convRate(visits, conversions) {
   return `${((conversions / visits) * 100).toFixed(1)}%`;
 }
 
-function CreateAbTestModal({ instanceId, onCreated, onClose }) {
-  const [name, setName] = useState('');
-  const [type, setType] = useState('landing_page');
+// LandingPagesPanel — lists landing pages for the system instance with an "A/B Test" button per page.
+// When the user clicks "🧪 A/B Test", the CreateAbTestModal is opened pre-filled for that page.
+function LandingPagesPanel({ instanceId }) {
+  const [pages, setPages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [abTestForPage, setAbTestForPage] = useState(null); // { id, title, slug, htmlContent }
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/landing-pages`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : { items: [] })
+      .then(data => {
+        const list = Array.isArray(data) ? data : (data.items ?? []);
+        setPages(list.filter(p => p.systemInstanceId === instanceId || p.system_instance_id === instanceId));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [instanceId]);
+
+  if (!loading && pages.length === 0) return null;
+
+  return (
+    <>
+      {abTestForPage && (
+        <CreateAbTestModal
+          instanceId={instanceId}
+          prefilledPage={abTestForPage}
+          onCreated={() => setAbTestForPage(null)}
+          onClose={() => setAbTestForPage(null)}
+        />
+      )}
+      <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
+        <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+          <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Landing Pages</span>
+          <span className="text-xs text-gray-600 font-mono">{pages.length} page{pages.length !== 1 ? 's' : ''}</span>
+        </div>
+        {loading ? (
+          <div className="px-4 py-6 text-center">
+            <div className="w-4 h-4 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin mx-auto" />
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {pages.map(page => (
+              <div key={page.id} className="px-4 py-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0 bg-blue-400/10 border border-blue-400/20">🖥</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-white truncate">{page.title}</p>
+                  <p className="text-[10px] text-gray-600 font-mono truncate">
+                    {page.slug ? `/api/pages/${page.slug}` : 'No slug set'}
+                    {page.isPublished ? (
+                      <span className="ml-2 text-emerald-500">● live</span>
+                    ) : (
+                      <span className="ml-2 text-gray-700">● draft</span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {page.slug && (
+                    <a href={`/api/pages/${page.slug}`} target="_blank" rel="noopener noreferrer"
+                      className="px-2 py-1 rounded-lg text-[10px] font-mono text-gray-500 hover:text-gray-300 border border-white/5 hover:border-white/15 transition-all">
+                      View ↗
+                    </a>
+                  )}
+                  <button
+                    onClick={() => setAbTestForPage(page)}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/20 transition-all"
+                  >
+                    🧪 A/B Test
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function CreateAbTestModal({ instanceId, prefilledPage, onCreated, onClose }) {
+  const [name, setName] = useState(prefilledPage ? `${prefilledPage.title} — Headline Test` : '');
+  const [type, setType] = useState(prefilledPage ? 'landing_page' : 'landing_page');
   const [saving, setSaving] = useState(false);
 
   async function submit(e) {
@@ -1598,10 +1678,16 @@ function CreateAbTestModal({ instanceId, onCreated, onClose }) {
     if (!name.trim()) return;
     setSaving(true);
     try {
+      const body = {
+        systemInstanceId: instanceId,
+        name: name.trim(),
+        type,
+        ...(prefilledPage && type === 'landing_page' ? { landingPageId: prefilledPage.id } : {}),
+      };
       const res = await fetch('/api/ab-tests', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ systemInstanceId: instanceId, name: name.trim(), type }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -3240,6 +3326,9 @@ export default function UserSystemDetailPage() {
               })}
           </div>
         </div>
+
+        {/* ── Landing Pages (with A/B Test shortcut) ── */}
+        <LandingPagesPanel instanceId={id} />
 
         {/* ── A/B Experiments ── */}
         <ExperimentsPanel instanceId={id} />

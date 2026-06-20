@@ -4,7 +4,8 @@ import PageMeta from '@/components/PageMeta.jsx';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle, Rocket, Clock, Target, Layers, ArrowRight,
-  Box, Code, Copy, CheckCircle2, Zap, Play, Loader2, ExternalLink
+  Box, Code, Copy, CheckCircle2, Zap, Play, Loader2, ExternalLink,
+  ShoppingBag, Star, MessageSquare, Lock, Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Header from '@/components/Header.jsx';
@@ -22,6 +23,39 @@ const DIFF_COLOR = {
   advanced: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
 };
 
+const SOURCE_BADGE = {
+  platform:  'bg-primary/10 text-primary border-primary/20',
+  community: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+};
+
+const StarPicker = ({ value, onChange }) => (
+  <div className="flex gap-1">
+    {[1,2,3,4,5].map(n => (
+      <button key={n} type="button" onClick={() => onChange(n)}>
+        <Star className={`w-6 h-6 transition-colors ${n <= value ? 'text-amber-400 fill-amber-400' : 'text-zinc-600 hover:text-amber-300'}`} />
+      </button>
+    ))}
+  </div>
+);
+
+const ReviewCard = ({ review }) => (
+  <div className="p-4 bg-muted/20 border border-border/40 rounded-xl">
+    <div className="flex items-center gap-2 mb-2">
+      <div className="flex gap-0.5">
+        {[1,2,3,4,5].map(n => (
+          <Star key={n} className={`w-3.5 h-3.5 ${n <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'}`} />
+        ))}
+      </div>
+      <span className="text-xs text-muted-foreground font-mono">
+        User #{review.userId} · {new Date(review.createdAt).toLocaleDateString()}
+      </span>
+    </div>
+    {review.reviewText && (
+      <p className="text-sm text-foreground/80 leading-relaxed">{review.reviewText}</p>
+    )}
+  </div>
+);
+
 const BlueprintDetailPage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -29,10 +63,19 @@ const BlueprintDetailPage = () => {
 
   const [blueprint, setBlueprint] = useState(null);
   const [tools, setTools] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isBuilding, setIsBuilding] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [hasPurchased, setHasPurchased] = useState(false);
   const [error, setError] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
+
+  // Review form
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -55,6 +98,23 @@ const BlueprintDetailPage = () => {
           const allTools = await toolsRes.json();
           setTools(Array.isArray(allTools) ? allTools.slice(0, 6) : []);
         }
+
+        // Load reviews
+        const revRes = await fetch(`/api/blueprints/${bp.id}/reviews`);
+        if (revRes.ok) setReviews(await revRes.json());
+
+        // Check if already purchased
+        if (currentUser && (bp.priceCredits ?? 0) > 0) {
+          try {
+            // We infer purchase from the purchases endpoint — check user's purchases
+            // Simpler: attempt fetch and track in state (no dedicated "check" endpoint)
+            // Instead, mark as purchased after a successful purchase action or session storage
+            const cached = sessionStorage.getItem(`bp_purchased_${bp.id}`);
+            if (cached === 'true') setHasPurchased(true);
+          } catch { /* ok */ }
+        } else if ((bp.priceCredits ?? 0) === 0) {
+          setHasPurchased(true); // free blueprints auto-accessible
+        }
       } catch (err) {
         setError(true);
       } finally {
@@ -62,7 +122,7 @@ const BlueprintDetailPage = () => {
       }
     };
     fetchData();
-  }, [slug]);
+  }, [slug, currentUser]);
 
   const handleCopy = (text, idx) => {
     navigator.clipboard.writeText(text);
@@ -102,6 +162,66 @@ const BlueprintDetailPage = () => {
     }
   };
 
+  const handlePurchase = async () => {
+    if (!currentUser) {
+      toast.error("Please log in to purchase");
+      navigate('/login', { state: { from: `/blueprints/${slug}` } });
+      return;
+    }
+    setIsPurchasing(true);
+    try {
+      const resp = await fetch(`/api/blueprints/${blueprint.id}/purchase`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || 'Purchase failed');
+      }
+      setHasPurchased(true);
+      sessionStorage.setItem(`bp_purchased_${blueprint.id}`, 'true');
+      toast.success(`Blueprint purchased! ${blueprint.priceCredits} credits deducted.`);
+    } catch (err) {
+      toast.error(err.message || 'Failed to purchase blueprint');
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!currentUser) {
+      toast.error("Please log in to leave a review");
+      return;
+    }
+    setIsSubmittingReview(true);
+    try {
+      const resp = await fetch(`/api/blueprints/${blueprint.id}/reviews`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ rating: reviewRating, reviewText: reviewText.trim() || undefined }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to submit review');
+      }
+      const newReview = await resp.json();
+      setReviews(prev => [newReview, ...prev]);
+      // Update local avg
+      const newCount = reviews.length + 1;
+      const newAvg = (reviews.reduce((s, r) => s + r.rating, 0) + reviewRating) / newCount;
+      setBlueprint(prev => ({ ...prev, ratingCount: newCount, ratingAvg: Math.round(newAvg * 10) / 10 }));
+      setShowReviewForm(false);
+      setReviewText('');
+      setReviewRating(5);
+      toast.success("Review submitted!");
+    } catch (err) {
+      toast.error(err.message || 'Failed to submit review');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -137,8 +257,11 @@ const BlueprintDetailPage = () => {
   }
 
   const steps = blueprint.setupSteps || blueprint.setup_steps || [];
-  const diffKey = (blueprint.difficulty || blueprint.difficultyLevel || 'intermediate').toLowerCase();
+  const diffKey = (blueprint.difficulty || 'intermediate').toLowerCase();
   const diffBadge = DIFF_COLOR[diffKey] || DIFF_COLOR.intermediate;
+  const srcBadgeClass = SOURCE_BADGE[blueprint.source] || SOURCE_BADGE.platform;
+  const isFree = (blueprint.priceCredits ?? 0) === 0;
+  const canAccess = isFree || hasPurchased;
 
   const prompts = [
     {
@@ -153,7 +276,7 @@ const BlueprintDetailPage = () => {
 
   const bpDescription = blueprint.description
     ? blueprint.description.slice(0, 155).replace(/\s+\S*$/, '') + (blueprint.description.length > 155 ? '…' : '')
-    : `${blueprint.name} — a step-by-step AI system blueprint from Starks Global Group for building automated income streams.`;
+    : `${blueprint.name} — a step-by-step AI system blueprint from Starks Global Group.`;
 
   return (
     <div className="min-h-screen bg-background flex flex-col bg-grid-pattern selection:bg-primary/20">
@@ -181,12 +304,22 @@ const BlueprintDetailPage = () => {
               <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary border border-primary/30">
                 <Rocket className="w-6 h-6" />
               </div>
-              <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-mono uppercase tracking-wider border border-primary/20 rounded">
+              <span className="px-3 py-1 text-xs font-mono uppercase tracking-wider border rounded capitalize bg-primary/10 text-primary border-primary/20">
                 System Blueprint
               </span>
+              {blueprint.source === 'community' && (
+                <span className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border rounded ${srcBadgeClass}`}>
+                  Community
+                </span>
+              )}
               {blueprint.difficulty && (
                 <span className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border rounded capitalize ${diffBadge}`}>
                   {blueprint.difficulty}
+                </span>
+              )}
+              {!isFree && (
+                <span className="px-3 py-1 text-xs font-mono uppercase tracking-wider border rounded bg-amber-500/10 text-amber-400 border-amber-500/20">
+                  {blueprint.priceCredits} credits
                 </span>
               )}
             </div>
@@ -194,9 +327,27 @@ const BlueprintDetailPage = () => {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground mb-4 tracking-tight font-mono relative z-10">
               {blueprint.name}
             </h1>
-            <p className="text-xl text-muted-foreground mb-10 max-w-3xl leading-relaxed font-medium relative z-10">
+            <p className="text-xl text-muted-foreground mb-6 max-w-3xl leading-relaxed font-medium relative z-10">
               {blueprint.description}
             </p>
+
+            {/* Rating summary */}
+            {(blueprint.ratingCount ?? 0) > 0 && (
+              <div className="flex items-center gap-2 mb-6 relative z-10">
+                <div className="flex gap-0.5">
+                  {[1,2,3,4,5].map(n => (
+                    <Star key={n} className={`w-4 h-4 ${n <= Math.round(blueprint.ratingAvg ?? 0) ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'}`} />
+                  ))}
+                </div>
+                <span className="text-sm font-bold text-amber-400">{Number(blueprint.ratingAvg).toFixed(1)}</span>
+                <span className="text-sm text-muted-foreground">({blueprint.ratingCount} review{blueprint.ratingCount !== 1 ? 's' : ''})</span>
+                {(blueprint.salesCount ?? 0) > 0 && (
+                  <span className="flex items-center gap-1 text-sm text-muted-foreground ml-2">
+                    <Users className="w-3.5 h-3.5" /> {blueprint.salesCount} purchases
+                  </span>
+                )}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 border-t border-border/50 relative z-10">
               <div>
@@ -204,7 +355,7 @@ const BlueprintDetailPage = () => {
                   <Clock className="w-3.5 h-3.5" /> Setup Time
                 </p>
                 <p className="font-bold text-foreground text-lg">
-                  {blueprint.estimatedTime || blueprint.setup_time || '2-4 Hours'}
+                  {blueprint.estimatedTime || '2-4 Hours'}
                 </p>
               </div>
               <div>
@@ -220,12 +371,12 @@ const BlueprintDetailPage = () => {
                   <Zap className="w-3.5 h-3.5" /> Est. Cost
                 </p>
                 <p className="font-bold text-foreground text-lg">
-                  {blueprint.estimatedCost || blueprint.estimated_cost || '$0-50/mo'}
+                  {blueprint.estimatedCost || '$0-50/mo'}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5" /> Expected Outcome
+                  <Layers className="w-3.5 h-3.5" /> Outcome
                 </p>
                 <p className="font-bold text-emerald-400 text-lg">
                   Automated Pipeline
@@ -274,35 +425,43 @@ const BlueprintDetailPage = () => {
                 </div>
               </section>
 
-              {/* Core Logic */}
+              {/* Core Logic — gated for paid blueprints */}
               <section>
                 <h2 className="text-2xl font-bold flex items-center gap-3 mb-6 font-mono">
                   <span className="w-8 h-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-sm font-bold border border-primary/30">2</span>
                   Core Logic & Templates
                 </h2>
-                <div className="space-y-6">
-                  {prompts.map((prompt, idx) => (
-                    <div key={idx} className="cinematic-card overflow-hidden">
-                      <div className="bg-muted/50 px-4 py-3 border-b border-border/50 flex justify-between items-center">
-                        <span className="text-sm font-bold font-mono text-foreground flex items-center gap-2">
-                          <Code className="w-4 h-4 text-primary" /> {prompt.title}
-                        </span>
-                        <button
-                          onClick={() => handleCopy(prompt.content, idx)}
-                          className="text-xs flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors bg-background px-2 py-1 rounded border border-border"
-                        >
-                          {copiedIndex === idx
-                            ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                            : <Copy className="w-3.5 h-3.5" />}
-                          {copiedIndex === idx ? 'Copied' : 'Copy'}
-                        </button>
+                {canAccess ? (
+                  <div className="space-y-6">
+                    {prompts.map((prompt, idx) => (
+                      <div key={idx} className="cinematic-card overflow-hidden">
+                        <div className="bg-muted/50 px-4 py-3 border-b border-border/50 flex justify-between items-center">
+                          <span className="text-sm font-bold font-mono text-foreground flex items-center gap-2">
+                            <Code className="w-4 h-4 text-primary" /> {prompt.title}
+                          </span>
+                          <button
+                            onClick={() => handleCopy(prompt.content, idx)}
+                            className="text-xs flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors bg-background px-2 py-1 rounded border border-border"
+                          >
+                            {copiedIndex === idx
+                              ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              : <Copy className="w-3.5 h-3.5" />}
+                            {copiedIndex === idx ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <div className="p-4 bg-[#0a0a0a]">
+                          <pre className="text-sm text-emerald-400 font-mono whitespace-pre-wrap leading-relaxed">{prompt.content}</pre>
+                        </div>
                       </div>
-                      <div className="p-4 bg-[#0a0a0a]">
-                        <pre className="text-sm text-emerald-400 font-mono whitespace-pre-wrap leading-relaxed">{prompt.content}</pre>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 border border-amber-500/20 bg-amber-500/5 rounded-xl text-center">
+                    <Lock className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+                    <p className="text-foreground font-semibold mb-1">Purchase to Access</p>
+                    <p className="text-muted-foreground text-sm">Purchase this blueprint to unlock the full templates and logic.</p>
+                  </div>
+                )}
               </section>
 
               {/* Recommended Tools */}
@@ -317,10 +476,7 @@ const BlueprintDetailPage = () => {
                       <div key={tool.id} className="p-4 rounded-xl border border-border/50 bg-card/60 hover:border-primary/40 transition-colors">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <Link
-                              to={`/marketplace/product/${tool.id}`}
-                              className="font-semibold text-sm hover:text-primary transition-colors"
-                            >
+                            <Link to={`/marketplace/product/${tool.id}`} className="font-semibold text-sm hover:text-primary transition-colors">
                               {tool.name}
                             </Link>
                             {tool.pricing && (
@@ -329,19 +485,11 @@ const BlueprintDetailPage = () => {
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{tool.description}</p>
                           </div>
                           <div className="shrink-0 flex flex-col gap-1.5 items-end">
-                            <Link
-                              to={`/marketplace/product/${tool.id}`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-card border border-border text-xs font-semibold hover:bg-primary/10 hover:border-primary/30 transition-colors"
-                            >
+                            <Link to={`/marketplace/product/${tool.id}`} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-card border border-border text-xs font-semibold hover:bg-primary/10 hover:border-primary/30 transition-colors">
                               Details
                             </Link>
                             {tool.affiliateLink && (
-                              <a
-                                href={tool.affiliateLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 border border-primary/20 transition-colors"
-                              >
+                              <a href={tool.affiliateLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 border border-primary/20 transition-colors">
                                 Get <ExternalLink className="w-3 h-3" />
                               </a>
                             )}
@@ -352,12 +500,85 @@ const BlueprintDetailPage = () => {
                   </div>
                 </section>
               )}
+
+              {/* ── Reviews section ──────────────────────────────────────── */}
+              <section id="reviews">
+                <h2 className="text-2xl font-bold flex items-center gap-3 mb-6 font-mono">
+                  <span className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-sm font-bold border border-amber-500/30">
+                    <MessageSquare className="w-4 h-4" />
+                  </span>
+                  Reviews {reviews.length > 0 && <span className="text-muted-foreground text-lg font-normal">({reviews.length})</span>}
+                </h2>
+
+                {/* Submit review CTA */}
+                {currentUser && canAccess && !showReviewForm && (
+                  <button
+                    onClick={() => setShowReviewForm(true)}
+                    className="mb-6 flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg text-sm font-medium hover:bg-amber-500/20 transition-colors"
+                  >
+                    <Star className="w-4 h-4" /> Write a Review
+                  </button>
+                )}
+
+                {/* Review form */}
+                {showReviewForm && (
+                  <motion.form
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    onSubmit={handleSubmitReview}
+                    className="cinematic-card p-6 mb-6"
+                  >
+                    <h3 className="font-semibold text-foreground mb-4">Your Review</h3>
+                    <div className="mb-4">
+                      <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider">Rating</p>
+                      <StarPicker value={reviewRating} onChange={setReviewRating} />
+                    </div>
+                    <textarea
+                      value={reviewText}
+                      onChange={e => setReviewText(e.target.value)}
+                      placeholder="Share your experience with this blueprint (optional)..."
+                      rows={3}
+                      className="w-full bg-muted/20 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none mb-4"
+                    />
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowReviewForm(false)}
+                        className="px-4 py-2 border border-border/50 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/20 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSubmittingReview}
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-2"
+                      >
+                        {isSubmittingReview ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                        Submit Review
+                      </button>
+                    </div>
+                  </motion.form>
+                )}
+
+                {/* Reviews list */}
+                {reviews.length === 0 ? (
+                  <div className="p-8 border border-dashed border-border rounded-xl text-center">
+                    <Star className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-muted-foreground">No reviews yet. Be the first to share your experience!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {reviews.map(r => <ReviewCard key={r.id} review={r} />)}
+                  </div>
+                )}
+              </section>
+
             </div>
 
             {/* Sidebar */}
             <div className="space-y-6">
 
-              {/* Build CTA — PRIMARY ACTION */}
+              {/* Purchase / Build CTA */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -366,36 +587,65 @@ const BlueprintDetailPage = () => {
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent pointer-events-none" />
                 <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-xs text-emerald-400 font-mono">AI Agent Ready</span>
-                  </div>
-                  <h3 className="text-xl font-bold mb-2 font-mono">Build This Blueprint</h3>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    Launch the AI Build Agent to construct this system step by step with your tools and credentials.
-                  </p>
-                  <button
-                    onClick={handleBuildBlueprint}
-                    disabled={isBuilding}
-                    className="w-full py-4 text-base font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-60 disabled:pointer-events-none"
-                  >
-                    {isBuilding ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Launching Agent...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-5 h-5" />
-                        Build This Blueprint
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
-                  {!currentUser && (
-                    <p className="text-xs text-center text-muted-foreground/60 mt-3">
-                      <Link to="/login" className="text-primary hover:underline">Log in</Link> to start building
-                    </p>
+
+                  {/* Purchase gate */}
+                  {!isFree && !hasPurchased ? (
+                    <>
+                      <div className="flex items-center gap-2 mb-3">
+                        <ShoppingBag className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs text-amber-400 font-mono">Premium Blueprint</span>
+                      </div>
+                      <h3 className="text-xl font-bold mb-1 font-mono">Unlock This Blueprint</h3>
+                      <p className="text-3xl font-black text-amber-400 mb-2">{blueprint.priceCredits} <span className="text-base font-semibold text-muted-foreground">credits</span></p>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        One-time purchase. Unlocks full access including templates, logic, and the AI Build Agent.
+                      </p>
+                      <button
+                        onClick={handlePurchase}
+                        disabled={isPurchasing}
+                        className="w-full py-4 text-base font-semibold rounded-xl bg-amber-500 text-black hover:bg-amber-400 active:scale-[0.98] transition-all shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 disabled:opacity-60 disabled:pointer-events-none"
+                      >
+                        {isPurchasing ? (
+                          <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
+                        ) : (
+                          <><ShoppingBag className="w-5 h-5" /> Purchase Blueprint</>
+                        )}
+                      </button>
+                      {!currentUser && (
+                        <p className="text-xs text-center text-muted-foreground/60 mt-3">
+                          <Link to="/login" className="text-primary hover:underline">Log in</Link> to purchase
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-xs text-emerald-400 font-mono">
+                          {hasPurchased && !isFree ? 'Purchased · ' : ''}AI Agent Ready
+                        </span>
+                      </div>
+                      <h3 className="text-xl font-bold mb-2 font-mono">Build This Blueprint</h3>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        Launch the AI Build Agent to construct this system step by step with your tools and credentials.
+                      </p>
+                      <button
+                        onClick={handleBuildBlueprint}
+                        disabled={isBuilding}
+                        className="w-full py-4 text-base font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-60 disabled:pointer-events-none"
+                      >
+                        {isBuilding ? (
+                          <><Loader2 className="w-5 h-5 animate-spin" /> Launching Agent...</>
+                        ) : (
+                          <><Play className="w-5 h-5" /> Build This Blueprint <ArrowRight className="w-4 h-4" /></>
+                        )}
+                      </button>
+                      {!currentUser && (
+                        <p className="text-xs text-center text-muted-foreground/60 mt-3">
+                          <Link to="/login" className="text-primary hover:underline">Log in</Link> to start building
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </motion.div>
@@ -433,6 +683,7 @@ const BlueprintDetailPage = () => {
               >
                 ← Browse All Blueprints
               </Link>
+
             </div>
           </div>
         </div>

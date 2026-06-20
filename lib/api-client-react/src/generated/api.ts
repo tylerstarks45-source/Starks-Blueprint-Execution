@@ -42,9 +42,14 @@ import type {
   BlueprintCategoryInput,
   BlueprintCategoryUpdate,
   BlueprintInput,
+  BlueprintPurchase,
+  BlueprintReview,
+  BlueprintReviewInput,
+  BlueprintReviewStatusInput,
   BlueprintStep,
   BlueprintStepInput,
   BlueprintStepUpdate,
+  BlueprintSubmitInput,
   BlueprintUpdate,
   BuildOutput,
   BuildOutputInput,
@@ -939,6 +944,522 @@ export const useDeleteBlueprint = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteBlueprintMutationOptions(options));
+    }
+
+export const getSubmitBlueprintUrl = () => {
+
+
+
+
+  return `/api/blueprints/submit`
+}
+
+/**
+ * @summary Submit a community blueprint for review
+ */
+export const submitBlueprint = async (blueprintSubmitInput: BlueprintSubmitInput, options?: RequestInit): Promise<Blueprint> => {
+
+  return customFetch<Blueprint>(getSubmitBlueprintUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      blueprintSubmitInput,)
+  }
+);}
+
+
+
+
+export const getSubmitBlueprintMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitBlueprint>>, TError,{data: BodyType<BlueprintSubmitInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitBlueprint>>, TError,{data: BodyType<BlueprintSubmitInput>}, TContext> => {
+
+const mutationKey = ['submitBlueprint'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitBlueprint>>, {data: BodyType<BlueprintSubmitInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitBlueprint(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitBlueprintMutationResult = NonNullable<Awaited<ReturnType<typeof submitBlueprint>>>
+    export type SubmitBlueprintMutationBody = BodyType<BlueprintSubmitInput>
+    export type SubmitBlueprintMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Submit a community blueprint for review
+ */
+export const useSubmitBlueprint = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitBlueprint>>, TError,{data: BodyType<BlueprintSubmitInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitBlueprint>>,
+        TError,
+        {data: BodyType<BlueprintSubmitInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitBlueprintMutationOptions(options));
+    }
+
+export const getListMyBlueprintsUrl = () => {
+
+
+
+
+  return `/api/blueprints/my`
+}
+
+/**
+ * @summary List the caller's own submitted blueprints
+ */
+export const listMyBlueprints = async ( options?: RequestInit): Promise<Blueprint[]> => {
+
+  return customFetch<Blueprint[]>(getListMyBlueprintsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyBlueprintsQueryKey = () => {
+    return [
+    `/api/blueprints/my`
+    ] as const;
+    }
+
+
+export const getListMyBlueprintsQueryOptions = <TData = Awaited<ReturnType<typeof listMyBlueprints>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyBlueprints>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyBlueprintsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyBlueprints>>> = ({ signal }) => listMyBlueprints({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyBlueprints>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyBlueprintsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyBlueprints>>>
+export type ListMyBlueprintsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the caller's own submitted blueprints
+ */
+
+export function useListMyBlueprints<TData = Awaited<ReturnType<typeof listMyBlueprints>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyBlueprints>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyBlueprintsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getPurchaseBlueprintUrl = (id: number,) => {
+
+
+
+
+  return `/api/blueprints/${id}/purchase`
+}
+
+/**
+ * @summary Purchase a blueprint with credits
+ */
+export const purchaseBlueprint = async (id: number, options?: RequestInit): Promise<BlueprintPurchase> => {
+
+  return customFetch<BlueprintPurchase>(getPurchaseBlueprintUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPurchaseBlueprintMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purchaseBlueprint>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof purchaseBlueprint>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['purchaseBlueprint'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof purchaseBlueprint>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  purchaseBlueprint(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PurchaseBlueprintMutationResult = NonNullable<Awaited<ReturnType<typeof purchaseBlueprint>>>
+
+    export type PurchaseBlueprintMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Purchase a blueprint with credits
+ */
+export const usePurchaseBlueprint = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purchaseBlueprint>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof purchaseBlueprint>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getPurchaseBlueprintMutationOptions(options));
+    }
+
+export const getListBlueprintReviewsUrl = (id: number,) => {
+
+
+
+
+  return `/api/blueprints/${id}/reviews`
+}
+
+/**
+ * @summary List reviews for a blueprint
+ */
+export const listBlueprintReviews = async (id: number, options?: RequestInit): Promise<BlueprintReview[]> => {
+
+  return customFetch<BlueprintReview[]>(getListBlueprintReviewsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBlueprintReviewsQueryKey = (id: number,) => {
+    return [
+    `/api/blueprints/${id}/reviews`
+    ] as const;
+    }
+
+
+export const getListBlueprintReviewsQueryOptions = <TData = Awaited<ReturnType<typeof listBlueprintReviews>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBlueprintReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBlueprintReviewsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBlueprintReviews>>> = ({ signal }) => listBlueprintReviews(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBlueprintReviews>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBlueprintReviewsQueryResult = NonNullable<Awaited<ReturnType<typeof listBlueprintReviews>>>
+export type ListBlueprintReviewsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List reviews for a blueprint
+ */
+
+export function useListBlueprintReviews<TData = Awaited<ReturnType<typeof listBlueprintReviews>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBlueprintReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBlueprintReviewsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateBlueprintReviewUrl = (id: number,) => {
+
+
+
+
+  return `/api/blueprints/${id}/reviews`
+}
+
+/**
+ * @summary Submit a review for a blueprint
+ */
+export const createBlueprintReview = async (id: number,
+    blueprintReviewInput: BlueprintReviewInput, options?: RequestInit): Promise<BlueprintReview> => {
+
+  return customFetch<BlueprintReview>(getCreateBlueprintReviewUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      blueprintReviewInput,)
+  }
+);}
+
+
+
+
+export const getCreateBlueprintReviewMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBlueprintReview>>, TError,{id: number;data: BodyType<BlueprintReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBlueprintReview>>, TError,{id: number;data: BodyType<BlueprintReviewInput>}, TContext> => {
+
+const mutationKey = ['createBlueprintReview'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBlueprintReview>>, {id: number;data: BodyType<BlueprintReviewInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createBlueprintReview(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBlueprintReviewMutationResult = NonNullable<Awaited<ReturnType<typeof createBlueprintReview>>>
+    export type CreateBlueprintReviewMutationBody = BodyType<BlueprintReviewInput>
+    export type CreateBlueprintReviewMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Submit a review for a blueprint
+ */
+export const useCreateBlueprintReview = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBlueprintReview>>, TError,{id: number;data: BodyType<BlueprintReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBlueprintReview>>,
+        TError,
+        {id: number;data: BodyType<BlueprintReviewInput>},
+        TContext
+      > => {
+      return useMutation(getCreateBlueprintReviewMutationOptions(options));
+    }
+
+export const getListPendingBlueprintsUrl = () => {
+
+
+
+
+  return `/api/admin/blueprints/pending`
+}
+
+/**
+ * @summary Admin — list blueprints pending review
+ */
+export const listPendingBlueprints = async ( options?: RequestInit): Promise<Blueprint[]> => {
+
+  return customFetch<Blueprint[]>(getListPendingBlueprintsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPendingBlueprintsQueryKey = () => {
+    return [
+    `/api/admin/blueprints/pending`
+    ] as const;
+    }
+
+
+export const getListPendingBlueprintsQueryOptions = <TData = Awaited<ReturnType<typeof listPendingBlueprints>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPendingBlueprints>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPendingBlueprintsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPendingBlueprints>>> = ({ signal }) => listPendingBlueprints({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPendingBlueprints>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPendingBlueprintsQueryResult = NonNullable<Awaited<ReturnType<typeof listPendingBlueprints>>>
+export type ListPendingBlueprintsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Admin — list blueprints pending review
+ */
+
+export function useListPendingBlueprints<TData = Awaited<ReturnType<typeof listPendingBlueprints>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPendingBlueprints>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPendingBlueprintsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getReviewBlueprintUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/blueprints/${id}/review-status`
+}
+
+/**
+ * @summary Admin — approve or reject a submitted blueprint
+ */
+export const reviewBlueprint = async (id: number,
+    blueprintReviewStatusInput: BlueprintReviewStatusInput, options?: RequestInit): Promise<Blueprint> => {
+
+  return customFetch<Blueprint>(getReviewBlueprintUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      blueprintReviewStatusInput,)
+  }
+);}
+
+
+
+
+export const getReviewBlueprintMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewBlueprint>>, TError,{id: number;data: BodyType<BlueprintReviewStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewBlueprint>>, TError,{id: number;data: BodyType<BlueprintReviewStatusInput>}, TContext> => {
+
+const mutationKey = ['reviewBlueprint'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewBlueprint>>, {id: number;data: BodyType<BlueprintReviewStatusInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reviewBlueprint(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewBlueprintMutationResult = NonNullable<Awaited<ReturnType<typeof reviewBlueprint>>>
+    export type ReviewBlueprintMutationBody = BodyType<BlueprintReviewStatusInput>
+    export type ReviewBlueprintMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Admin — approve or reject a submitted blueprint
+ */
+export const useReviewBlueprint = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewBlueprint>>, TError,{id: number;data: BodyType<BlueprintReviewStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewBlueprint>>,
+        TError,
+        {id: number;data: BodyType<BlueprintReviewStatusInput>},
+        TContext
+      > => {
+      return useMutation(getReviewBlueprintMutationOptions(options));
     }
 
 export const getListBlueprintStepsUrl = (id: number,) => {

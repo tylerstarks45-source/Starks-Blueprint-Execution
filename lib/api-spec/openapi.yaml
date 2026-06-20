@@ -271,6 +271,143 @@ paths:
         "204":
           description: Deleted
 
+  /blueprints/submit:
+    post:
+      operationId: submitBlueprint
+      tags: [blueprints]
+      summary: Submit a community blueprint for review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlueprintSubmitInput"
+      responses:
+        "201":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Blueprint"
+
+  /blueprints/my:
+    get:
+      operationId: listMyBlueprints
+      tags: [blueprints]
+      summary: List the caller's own submitted blueprints
+      responses:
+        "200":
+          description: List of blueprints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Blueprint"
+
+  /blueprints/{id}/purchase:
+    post:
+      operationId: purchaseBlueprint
+      tags: [blueprints]
+      summary: Purchase a blueprint with credits
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Purchase record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlueprintPurchase"
+
+  /blueprints/{id}/reviews:
+    get:
+      operationId: listBlueprintReviews
+      tags: [blueprints]
+      summary: List reviews for a blueprint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BlueprintReview"
+    post:
+      operationId: createBlueprintReview
+      tags: [blueprints]
+      summary: Submit a review for a blueprint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlueprintReviewInput"
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlueprintReview"
+
+  /admin/blueprints/pending:
+    get:
+      operationId: listPendingBlueprints
+      tags: [blueprints]
+      summary: Admin — list blueprints pending review
+      responses:
+        "200":
+          description: List of blueprints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Blueprint"
+
+  /admin/blueprints/{id}/review-status:
+    patch:
+      operationId: reviewBlueprint
+      tags: [blueprints]
+      summary: Admin — approve or reject a submitted blueprint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlueprintReviewStatusInput"
+      responses:
+        "200":
+          description: Updated blueprint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Blueprint"
+
   /blueprints/{id}/steps:
     get:
       operationId: listBlueprintSteps
@@ -1924,11 +2061,27 @@ components:
           type: string
         version:
           type: string
+        authorUserId:
+          type: ["integer", "null"]
+        priceCredits:
+          type: integer
+        source:
+          type: string
+        reviewStatus:
+          type: string
+        salesCount:
+          type: integer
+        ratingAvg:
+          type: number
+        ratingCount:
+          type: integer
+        rejectionReason:
+          type: ["string", "null"]
         createdAt:
           type: string
         updatedAt:
           type: string
-      required: [id, slug, name, difficulty, status, version, createdAt, updatedAt]
+      required: [id, slug, name, difficulty, status, version, priceCredits, source, reviewStatus, salesCount, ratingAvg, ratingCount, createdAt, updatedAt]
 
     BlueprintInput:
       type: object
@@ -1974,6 +2127,80 @@ components:
           type: string
         version:
           type: string
+
+    BlueprintSubmitInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        categoryId:
+          type: integer
+        difficulty:
+          type: string
+        estimatedCost:
+          type: string
+        estimatedTime:
+          type: string
+        priceCredits:
+          type: integer
+      required: [name]
+
+    BlueprintReviewInput:
+      type: object
+      properties:
+        rating:
+          type: integer
+        reviewText:
+          type: string
+      required: [rating]
+
+    BlueprintReviewStatusInput:
+      type: object
+      properties:
+        reviewStatus:
+          type: string
+        rejectionReason:
+          type: string
+      required: [reviewStatus]
+
+    BlueprintReview:
+      type: object
+      properties:
+        id:
+          type: integer
+        blueprintId:
+          type: integer
+        userId:
+          type: integer
+        rating:
+          type: integer
+        reviewText:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required: [id, blueprintId, userId, rating, createdAt]
+
+    BlueprintPurchase:
+      type: object
+      properties:
+        id:
+          type: integer
+        blueprintId:
+          type: integer
+        buyerUserId:
+          type: integer
+        authorUserId:
+          type: ["integer", "null"]
+        priceCredits:
+          type: integer
+        creatorShareCredits:
+          type: integer
+        createdAt:
+          type: string
+      required: [id, blueprintId, buyerUserId, priceCredits, creatorShareCredits, createdAt]
 
     # ── Blueprint Steps ─────────────────────────────────────────────────────
     BlueprintStep:

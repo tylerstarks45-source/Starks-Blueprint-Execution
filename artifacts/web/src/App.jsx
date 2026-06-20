@@ -27,6 +27,7 @@ const AboutPage             = lazy(() => import('@/pages/AboutPage.jsx'));
 const ContactPage           = lazy(() => import('@/pages/ContactPage.jsx'));
 const BlueprintsPage        = lazy(() => import('@/pages/BlueprintsPage.jsx'));
 const BlueprintDetailPage   = lazy(() => import('@/pages/BlueprintDetailPage.jsx'));
+const BlueprintSubmitPage   = lazy(() => import('@/pages/BlueprintSubmitPage.jsx'));
 const HowItWorksPage        = lazy(() => import('@/pages/HowItWorksPage.jsx'));
 const BusinessModelPage     = lazy(() => import('@/pages/BusinessModelPage.jsx'));
 const ResearchLabPage       = lazy(() => import('@/pages/ResearchLabPage.jsx'));
@@ -142,6 +143,7 @@ const App = () => {
               <Route path="/about" element={<AboutPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/blueprints" element={<BlueprintsPage />} />
+              <Route path="/blueprints/submit" element={<BlueprintSubmitPage />} />
               <Route path="/blueprints/:slug" element={<BlueprintDetailPage />} />
               <Route path="/how-it-works" element={<HowItWorksPage />} />
               <Route path="/business-model" element={<BusinessModelPage />} />

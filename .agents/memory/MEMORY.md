@@ -11,3 +11,4 @@
 - [ASH auto-tool SSE pattern](ash-auto-tool-sse.md) — stream endpoint detects search/image keywords, runs tools in parallel with AI, sends tool_result SSE before first token; frontend inserts result card before streaming placeholder.
 - [Notification ID key collisions](notification-id-keys.md) — notification ids are timestamp-based and can collide; key React lists with `${n.id}-${i}`, not `n.id` alone.
 - [Frontend auth token pattern](frontend-auth-token.md) — never use AuthContext.token (doesn't exist); always read localStorage.getItem('sbep_auth_token') directly in fetch helpers.
+- [Blueprint source values](blueprint-source-values.md) — seeded rows have source='admin'; treat 'admin' === 'platform' (official) everywhere in frontend filters and badge maps.

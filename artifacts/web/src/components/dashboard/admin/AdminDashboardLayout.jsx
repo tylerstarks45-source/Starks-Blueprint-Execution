@@ -28,7 +28,7 @@ class AdminErrorBoundary extends React.Component {
 }
 import {
   LayoutDashboard, DollarSign, BrainCircuit, Server, TrendingUp,
-  Users, Bell, ShieldCheck, CreditCard, ShoppingBag,
+  Users, Bell, ShieldCheck, CreditCard, ShoppingBag, Globe,
 } from 'lucide-react';
 
 import AdminPlatformMetricsCard from './AdminPlatformMetricsCard.jsx';
@@ -57,6 +57,7 @@ import AdminSystemMonitoringPanel from './AdminSystemMonitoringPanel.jsx';
 import AdminMarketplaceToolsPanel from './AdminMarketplaceToolsPanel.jsx';
 import AdminSkillEnginePanel from '@/components/admin/AdminSkillEnginePanel.jsx';
 import AdminStripePanel from './AdminStripePanel.jsx';
+import AdminCommunityBlueprintsPanel from './AdminCommunityBlueprintsPanel.jsx';
 
 import CreditBalanceCard from '@/components/admin/CreditBalanceCard.jsx';
 import UsageOverviewCard from '@/components/admin/UsageOverviewCard.jsx';
@@ -70,7 +71,8 @@ const TABS = [
   { key: 'ai-analytics',  label: 'AI Analytics',    icon: BrainCircuit,    path: '/admin/ai-analytics' },
   { key: 'profitability', label: 'Profitability',   icon: TrendingUp,      path: '/admin/profitability' },
   { key: 'marketplace',   label: 'Marketplace',     icon: ShoppingBag,     path: '/admin/marketplace' },
-  { key: 'systems',       label: 'Systems',         icon: Server,          path: '/admin/systems' },
+  { key: 'community',    label: 'Community',       icon: Globe,           path: '/admin/community' },
+  { key: 'systems',      label: 'Systems',         icon: Server,          path: '/admin/systems' },
   { key: 'health',        label: 'Platform Health', icon: ShieldCheck,     path: '/admin/health' },
   { key: 'activity',      label: 'Activity',        icon: Bell,            path: '/admin/activity' },
 ];
@@ -195,6 +197,11 @@ const AdminDashboardLayout = () => {
           <div className="space-y-6">
             <AdminMarketplaceToolsPanel />
           </div>
+        )}
+
+        {/* ── Community Blueprints tab ─────────────────────────────────────── */}
+        {activeTab === 'community' && (
+          <AdminCommunityBlueprintsPanel />
         )}
 
         {/* ── Systems tab ──────────────────────────────────────────────────── */}

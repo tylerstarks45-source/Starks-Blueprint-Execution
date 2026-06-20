@@ -49,6 +49,16 @@ export interface Blueprint {
   estimatedTime?: string | null;
   status: string;
   version: string;
+  /** @nullable */
+  authorUserId?: number | null;
+  priceCredits: number;
+  source: string;
+  reviewStatus: string;
+  salesCount: number;
+  ratingAvg: number;
+  ratingCount: number;
+  /** @nullable */
+  rejectionReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,6 +86,48 @@ export interface BlueprintUpdate {
   estimatedTime?: string;
   status?: string;
   version?: string;
+}
+
+export interface BlueprintSubmitInput {
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+  categoryId?: number;
+  difficulty?: string;
+  estimatedCost?: string;
+  estimatedTime?: string;
+  priceCredits?: number;
+}
+
+export interface BlueprintReviewInput {
+  rating: number;
+  reviewText?: string;
+}
+
+export interface BlueprintReviewStatusInput {
+  reviewStatus: string;
+  rejectionReason?: string;
+}
+
+export interface BlueprintReview {
+  id: number;
+  blueprintId: number;
+  userId: number;
+  rating: number;
+  /** @nullable */
+  reviewText?: string | null;
+  createdAt: string;
+}
+
+export interface BlueprintPurchase {
+  id: number;
+  blueprintId: number;
+  buyerUserId: number;
+  /** @nullable */
+  authorUserId?: number | null;
+  priceCredits: number;
+  creatorShareCredits: number;
+  createdAt: string;
 }
 
 export interface BlueprintStep {

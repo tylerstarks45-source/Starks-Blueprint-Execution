@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useId, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
+import UserMyBlueprintsPanel from '@/components/dashboard/user/UserMyBlueprintsPanel.jsx';
 import {
   Activity, Zap, CheckCircle2, AlertTriangle, Clock, Server,
   Brain, Cpu, CreditCard, RefreshCw, TrendingUp,
@@ -1243,6 +1244,11 @@ const SystemCommandCenterPage = () => {
               )}
             </div>
           </div>
+        </HudPanel>
+
+        {/* ══ MY SUBMITTED BLUEPRINTS ══════════════════════════════════════════ */}
+        <HudPanel className="col-span-full p-5" accent="rgba(139,92,246,0.4)">
+          <UserMyBlueprintsPanel />
         </HudPanel>
 
         {/* ══ WHAT'S NEW ═══════════════════════════════════════════════════════ */}

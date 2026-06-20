@@ -21,6 +21,16 @@ export interface Blueprint {
   estimatedTime?: string | null;
   status: string;
   version: string;
+  /** @nullable */
+  authorUserId?: number | null;
+  priceCredits: number;
+  source: string;
+  reviewStatus: string;
+  salesCount: number;
+  ratingAvg: number;
+  ratingCount: number;
+  /** @nullable */
+  rejectionReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }

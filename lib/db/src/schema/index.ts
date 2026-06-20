@@ -41,3 +41,5 @@ export * from "./webhook_endpoints";
 export * from "./webhook_logs";
 export * from "./ab_tests";
 export * from "./ab_variants";
+export * from "./blueprint_reviews";
+export * from "./blueprint_purchases";

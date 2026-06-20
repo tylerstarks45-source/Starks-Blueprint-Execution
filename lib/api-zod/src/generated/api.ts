@@ -110,6 +110,14 @@ export const ListBlueprintsResponseItem = zod.object({
   "estimatedTime": zod.string().nullish(),
   "status": zod.string(),
   "version": zod.string(),
+  "authorUserId": zod.number().nullish(),
+  "priceCredits": zod.number(),
+  "source": zod.string(),
+  "reviewStatus": zod.string(),
+  "salesCount": zod.number(),
+  "ratingAvg": zod.number(),
+  "ratingCount": zod.number(),
+  "rejectionReason": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -154,6 +162,14 @@ export const GetBlueprintResponse = zod.object({
   "estimatedTime": zod.string().nullish(),
   "status": zod.string(),
   "version": zod.string(),
+  "authorUserId": zod.number().nullish(),
+  "priceCredits": zod.number(),
+  "source": zod.string(),
+  "reviewStatus": zod.string(),
+  "salesCount": zod.number(),
+  "ratingAvg": zod.number(),
+  "ratingCount": zod.number(),
+  "rejectionReason": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -188,6 +204,14 @@ export const UpdateBlueprintResponse = zod.object({
   "estimatedTime": zod.string().nullish(),
   "status": zod.string(),
   "version": zod.string(),
+  "authorUserId": zod.number().nullish(),
+  "priceCredits": zod.number(),
+  "source": zod.string(),
+  "reviewStatus": zod.string(),
+  "salesCount": zod.number(),
+  "ratingAvg": zod.number(),
+  "ratingCount": zod.number(),
+  "rejectionReason": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -198,6 +222,154 @@ export const UpdateBlueprintResponse = zod.object({
  */
 export const DeleteBlueprintParams = zod.object({
   "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Submit a community blueprint for review
+ */
+
+
+
+export const SubmitBlueprintBody = zod.object({
+  "name": zod.string().min(1),
+  "description": zod.string().optional(),
+  "categoryId": zod.number().optional(),
+  "difficulty": zod.string().optional(),
+  "estimatedCost": zod.string().optional(),
+  "estimatedTime": zod.string().optional(),
+  "priceCredits": zod.number().optional()
+})
+
+
+/**
+ * @summary List the caller's own submitted blueprints
+ */
+export const ListMyBlueprintsResponseItem = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "categoryId": zod.number().nullish(),
+  "description": zod.string().nullish(),
+  "difficulty": zod.string(),
+  "estimatedCost": zod.string().nullish(),
+  "estimatedTime": zod.string().nullish(),
+  "status": zod.string(),
+  "version": zod.string(),
+  "authorUserId": zod.number().nullish(),
+  "priceCredits": zod.number(),
+  "source": zod.string(),
+  "reviewStatus": zod.string(),
+  "salesCount": zod.number(),
+  "ratingAvg": zod.number(),
+  "ratingCount": zod.number(),
+  "rejectionReason": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListMyBlueprintsResponse = zod.array(ListMyBlueprintsResponseItem)
+
+
+/**
+ * @summary Purchase a blueprint with credits
+ */
+export const PurchaseBlueprintParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary List reviews for a blueprint
+ */
+export const ListBlueprintReviewsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListBlueprintReviewsResponseItem = zod.object({
+  "id": zod.number(),
+  "blueprintId": zod.number(),
+  "userId": zod.number(),
+  "rating": zod.number(),
+  "reviewText": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListBlueprintReviewsResponse = zod.array(ListBlueprintReviewsResponseItem)
+
+
+/**
+ * @summary Submit a review for a blueprint
+ */
+export const CreateBlueprintReviewParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CreateBlueprintReviewBody = zod.object({
+  "rating": zod.number(),
+  "reviewText": zod.string().optional()
+})
+
+
+/**
+ * @summary Admin — list blueprints pending review
+ */
+export const ListPendingBlueprintsResponseItem = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "categoryId": zod.number().nullish(),
+  "description": zod.string().nullish(),
+  "difficulty": zod.string(),
+  "estimatedCost": zod.string().nullish(),
+  "estimatedTime": zod.string().nullish(),
+  "status": zod.string(),
+  "version": zod.string(),
+  "authorUserId": zod.number().nullish(),
+  "priceCredits": zod.number(),
+  "source": zod.string(),
+  "reviewStatus": zod.string(),
+  "salesCount": zod.number(),
+  "ratingAvg": zod.number(),
+  "ratingCount": zod.number(),
+  "rejectionReason": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListPendingBlueprintsResponse = zod.array(ListPendingBlueprintsResponseItem)
+
+
+/**
+ * @summary Admin — approve or reject a submitted blueprint
+ */
+export const ReviewBlueprintParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReviewBlueprintBody = zod.object({
+  "reviewStatus": zod.string(),
+  "rejectionReason": zod.string().optional()
+})
+
+export const ReviewBlueprintResponse = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "categoryId": zod.number().nullish(),
+  "description": zod.string().nullish(),
+  "difficulty": zod.string(),
+  "estimatedCost": zod.string().nullish(),
+  "estimatedTime": zod.string().nullish(),
+  "status": zod.string(),
+  "version": zod.string(),
+  "authorUserId": zod.number().nullish(),
+  "priceCredits": zod.number(),
+  "source": zod.string(),
+  "reviewStatus": zod.string(),
+  "salesCount": zod.number(),
+  "ratingAvg": zod.number(),
+  "ratingCount": zod.number(),
+  "rejectionReason": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
 })
 
 

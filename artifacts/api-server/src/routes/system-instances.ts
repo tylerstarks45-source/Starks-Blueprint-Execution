@@ -4,7 +4,7 @@ import { eq, and, desc, asc, gte, sql, count, ilike, inArray } from "drizzle-orm
 import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable, usersTable, blueprintsTable, blueprintPurchasesTable } from "@workspace/db";
 import { tierSystemLimit } from "../lib/credits";
 import { z } from "zod/v4";
-import { getActiveCallerPayload, requireAuthActive } from "../lib/auth";
+import { getActiveCallerPayload, requireAuthActive, validateClientWorkspaceId } from "../lib/auth";
 import {
   ListSystemInstancesResponse,
   GetSystemInstanceResponse,
@@ -44,6 +44,14 @@ router.get("/system-instances", async (req, res): Promise<void> => {
     conditions.push(eq(systemInstancesTable.userId, Number(req.query.userId)));
   } else {
     conditions.push(eq(systemInstancesTable.userId, caller.id));
+  }
+
+  // Scope to a specific client workspace when the header is present and valid.
+  if (!isAdmin) {
+    const workspaceId = await validateClientWorkspaceId(req, caller.id);
+    if (workspaceId !== null) {
+      conditions.push(eq(systemInstancesTable.clientWorkspaceId, workspaceId));
+    }
   }
 
   if (req.query.blueprintId) {
@@ -148,9 +156,12 @@ router.post("/system-instances", async (req, res): Promise<void> => {
     }
   }
 
+  // Attach to a client workspace if the agency header is present and valid.
+  const clientWorkspaceId = await validateClientWorkspaceId(req, userId);
+
   const [row] = await db
     .insert(systemInstancesTable)
-    .values({ ...parsed.data, userId })
+    .values({ ...parsed.data, userId, ...(clientWorkspaceId !== null ? { clientWorkspaceId } : {}) })
     .returning();
   res.status(201).json(GetSystemInstanceResponse.parse(serialize(row)));
 });

@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response } from "express";
-import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+import { db, usersTable, clientWorkspacesTable } from "@workspace/db";
 
 // Hard fail if SESSION_SECRET is not set — in ANY environment.
 // A missing secret means all tokens would be signed with a known public string,
@@ -119,6 +119,29 @@ export async function getActiveCallerPayload(
     res.status(401).json({ error: "Unauthorized" });
     return null;
   }
+}
+
+// Reads the X-Client-Workspace-Id request header and validates that the workspace
+// belongs to callerId. Returns the validated workspaceId, or null if the header is
+// absent, malformed, or the workspace does not belong to the caller.
+export async function validateClientWorkspaceId(
+  req: Request,
+  callerId: number,
+): Promise<number | null> {
+  const raw = req.headers["x-client-workspace-id"];
+  if (!raw) return null;
+  const id = Number(raw);
+  if (!Number.isFinite(id) || id <= 0) return null;
+
+  const [workspace] = await db
+    .select({ id: clientWorkspacesTable.id })
+    .from(clientWorkspacesTable)
+    .where(and(
+      eq(clientWorkspacesTable.id, id),
+      eq(clientWorkspacesTable.agencyUserId, callerId),
+    ));
+
+  return workspace ? workspace.id : null;
 }
 
 // Accounts authorised for admin access — must have an admin role AND appear in this list.

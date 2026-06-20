@@ -9,7 +9,7 @@ import {
   userToolSelectionsTable,
   systemInstancesTable,
 } from "@workspace/db";
-import { requireAuthActive, getTokenPayload } from "../lib/auth";
+import { requireAuthActive, getTokenPayload, validateClientWorkspaceId } from "../lib/auth";
 import {
   ListUserCredentialsResponse,
   ListUserCredentialsResponseItem,
@@ -114,6 +114,12 @@ router.get("/user-credentials", async (req, res): Promise<void> => {
     }
   }
 
+  // Scope to a specific client workspace when the header is present and valid.
+  const workspaceId = await validateClientWorkspaceId(req, callerId);
+  const credWhere = workspaceId !== null
+    ? and(eq(userCredentialsTable.userId, targetUserId), eq(userCredentialsTable.clientWorkspaceId, workspaceId))
+    : eq(userCredentialsTable.userId, targetUserId);
+
   const rows = await db
     .select({
       id: userCredentialsTable.id,
@@ -127,11 +133,12 @@ router.get("/user-credentials", async (req, res): Promise<void> => {
       expiresAt: userCredentialsTable.expiresAt,
       usageCount: userCredentialsTable.usageCount,
       metadata: userCredentialsTable.metadata,
+      clientWorkspaceId: userCredentialsTable.clientWorkspaceId,
       createdAt: userCredentialsTable.createdAt,
       updatedAt: userCredentialsTable.updatedAt,
     })
     .from(userCredentialsTable)
-    .where(eq(userCredentialsTable.userId, targetUserId))
+    .where(credWhere)
     .orderBy(userCredentialsTable.credentialKey);
 
   // Silently re-encrypt any rows still in legacy base64 format.
@@ -174,7 +181,9 @@ router.post("/user-credentials", async (req, res): Promise<void> => {
     return;
   }
 
-  const safeData = { ...parsed.data, userId };
+  // Attach to a client workspace if the agency header is present and valid.
+  const clientWorkspaceId = await validateClientWorkspaceId(req, userId);
+  const safeData = { ...parsed.data, userId, ...(clientWorkspaceId !== null ? { clientWorkspaceId } : {}) };
 
   const [existing] = await db
     .select({ id: userCredentialsTable.id, connectedAt: userCredentialsTable.connectedAt })

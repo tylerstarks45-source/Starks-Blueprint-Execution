@@ -3,9 +3,7 @@ import { serialize } from "../lib/serialize";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db, scheduledTasksTable, systemInstancesTable } from "@workspace/db";
 import { z } from "zod/v4";
-import { getActiveCallerPayload, requireAuthActive } from "../lib/auth";
-
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "admin"]);
+import { getActiveCallerPayload, requireAuthActive, isAdminRole } from "../lib/auth";
 const router: IRouter = Router();
 
 // ─── Schedule type helpers ────────────────────────────────────────────────────
@@ -13,42 +11,52 @@ const router: IRouter = Router();
 const SCHEDULE_TYPES = ["every_n_minutes", "every_n_hours", "daily", "weekly"] as const;
 type ScheduleType = (typeof SCHEDULE_TYPES)[number];
 
-// Compute next run time from a schedule config
+// Compute next run time from a schedule config.
+// Returns the nearest future occurrence — could be today/this-week if the
+// target time hasn't passed yet, or the next period otherwise.
 export function computeNextRunAt(scheduleType: ScheduleType, scheduleConfig: Record<string, unknown>, from: Date = new Date()): Date {
-  const next = new Date(from);
   switch (scheduleType) {
     case "every_n_minutes": {
       const n = Math.max(1, Number(scheduleConfig["intervalMinutes"] ?? 15));
-      next.setMinutes(next.getMinutes() + n);
-      break;
+      const next = new Date(from);
+      next.setMinutes(next.getMinutes() + n, 0, 0);
+      return next;
     }
     case "every_n_hours": {
       const n = Math.max(1, Number(scheduleConfig["intervalHours"] ?? 1));
-      next.setHours(next.getHours() + n);
-      break;
+      const next = new Date(from);
+      next.setHours(next.getHours() + n, 0, 0, 0);
+      return next;
     }
     case "daily": {
       // scheduleConfig: { hour: 9, minute: 0 }  (UTC)
       const hour = Number(scheduleConfig["hour"] ?? 9);
       const minute = Number(scheduleConfig["minute"] ?? 0);
-      next.setDate(next.getDate() + 1);
-      next.setHours(hour, minute, 0, 0);
-      break;
+      // Try today's occurrence first — use it if it's still in the future
+      const candidate = new Date(from);
+      candidate.setHours(hour, minute, 0, 0);
+      if (candidate > from) return candidate;
+      // Already past today → schedule for tomorrow
+      candidate.setDate(candidate.getDate() + 1);
+      return candidate;
     }
     case "weekly": {
       // scheduleConfig: { dayOfWeek: 1 (Mon=1..Sun=7), hour: 9, minute: 0 }
       const targetDay = Number(scheduleConfig["dayOfWeek"] ?? 1);
       const hour = Number(scheduleConfig["hour"] ?? 9);
       const minute = Number(scheduleConfig["minute"] ?? 0);
-      const curDay = next.getDay() === 0 ? 7 : next.getDay();
-      let daysUntil = targetDay - curDay;
-      if (daysUntil <= 0) daysUntil += 7;
-      next.setDate(next.getDate() + daysUntil);
-      next.setHours(hour, minute, 0, 0);
-      break;
+      const curDay = from.getDay() === 0 ? 7 : from.getDay();
+      // Try this-week's occurrence (daysUntil may be 0 = today, or positive = later this week)
+      const daysUntilThisWeek = targetDay - curDay;
+      const candidate = new Date(from);
+      candidate.setDate(candidate.getDate() + daysUntilThisWeek);
+      candidate.setHours(hour, minute, 0, 0);
+      if (candidate > from) return candidate;
+      // This-week occurrence already passed → advance to next week
+      candidate.setDate(candidate.getDate() + 7);
+      return candidate;
     }
   }
-  return next;
 }
 
 // ─── Zod schemas ─────────────────────────────────────────────────────────────
@@ -103,7 +111,7 @@ router.get("/system-instances/:systemInstanceId/scheduled-tasks", async (req, re
   const systemInstanceId = Number(req.params.systemInstanceId);
   if (isNaN(systemInstanceId)) { res.status(400).json({ error: "Invalid systemInstanceId" }); return; }
 
-  const isAdmin = ADMIN_ROLES.has(caller.role);
+  const isAdmin = isAdminRole(caller.role);
   if (!(await verifySystemOwnership(systemInstanceId, caller.id, isAdmin, res))) return;
 
   const rows = await db
@@ -173,7 +181,7 @@ router.patch("/scheduled-tasks/:id", async (req, res): Promise<void> => {
     .where(eq(scheduledTasksTable.id, taskId));
   if (!existing) { res.status(404).json({ error: "Scheduled task not found" }); return; }
 
-  const isAdmin = ADMIN_ROLES.has(caller.role);
+  const isAdmin = isAdminRole(caller.role);
   if (!isAdmin && existing.userId !== caller.id) { res.status(403).json({ error: "Forbidden" }); return; }
 
   const parsed = UpdateScheduledTaskBody.safeParse(req.body);
@@ -220,7 +228,7 @@ router.delete("/scheduled-tasks/:id", async (req, res): Promise<void> => {
     .where(eq(scheduledTasksTable.id, taskId));
   if (!existing) { res.status(404).json({ error: "Scheduled task not found" }); return; }
 
-  const isAdmin = ADMIN_ROLES.has(caller.role);
+  const isAdmin = isAdminRole(caller.role);
   if (!isAdmin && existing.userId !== caller.id) { res.status(403).json({ error: "Forbidden" }); return; }
 
   await db.delete(scheduledTasksTable).where(eq(scheduledTasksTable.id, taskId));
@@ -233,7 +241,7 @@ router.get("/scheduled-tasks/stats", async (req, res): Promise<void> => {
   const caller = await getActiveCallerPayload(req, res);
   if (!caller) return;
 
-  if (!ADMIN_ROLES.has(caller.role)) { res.status(403).json({ error: "Forbidden" }); return; }
+  if (!isAdminRole(caller.role)) { res.status(403).json({ error: "Forbidden" }); return; }
 
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })

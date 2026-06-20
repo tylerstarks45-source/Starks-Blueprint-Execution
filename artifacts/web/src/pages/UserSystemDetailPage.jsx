@@ -561,10 +561,174 @@ function AddTaskModal({ instanceId, onCreated, onClose }) {
   );
 }
 
+function EditTaskModal({ task, onUpdated, onClose }) {
+  const [name, setName] = useState(task.name ?? '');
+  const [scheduleType, setScheduleType] = useState(task.scheduleType ?? 'daily');
+  const [intervalMinutes, setIntervalMinutes] = useState(task.scheduleConfig?.intervalMinutes ?? 15);
+  const [intervalHours, setIntervalHours] = useState(task.scheduleConfig?.intervalHours ?? 1);
+  const [hour, setHour] = useState(task.scheduleConfig?.hour ?? 9);
+  const [minute, setMinute] = useState(task.scheduleConfig?.minute ?? 0);
+  const [dayOfWeek, setDayOfWeek] = useState(task.scheduleConfig?.dayOfWeek ?? 1);
+  const [connectorId, setConnectorId] = useState(task.actionParams?.connectorId ?? 'webhook');
+  const [action, setAction] = useState(task.actionParams?.action ?? 'trigger');
+  const [actionPayload, setActionPayload] = useState(
+    task.actionParams?.params ? JSON.stringify(task.actionParams.params, null, 2) : '{}'
+  );
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const buildScheduleConfig = () => {
+    if (scheduleType === 'every_n_minutes') return { intervalMinutes: Number(intervalMinutes) };
+    if (scheduleType === 'every_n_hours') return { intervalHours: Number(intervalHours) };
+    if (scheduleType === 'daily') return { hour: Number(hour), minute: Number(minute) };
+    if (scheduleType === 'weekly') return { dayOfWeek: Number(dayOfWeek), hour: Number(hour), minute: Number(minute) };
+    return {};
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) { setErr('Task name is required'); return; }
+    let parsedPayload = {};
+    try { parsedPayload = JSON.parse(actionPayload); } catch { setErr('Action payload must be valid JSON'); return; }
+    setLoading(true);
+    setErr('');
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/scheduled-tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          name: name.trim(),
+          scheduleType,
+          scheduleConfig: buildScheduleConfig(),
+          actionType: 'connector',
+          actionParams: { connectorId, action, params: parsedPayload },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to update task');
+      onUpdated(data);
+      onClose();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl border border-violet-500/20 bg-gray-900 p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+        <h3 className="text-base font-bold text-white mb-4 font-mono">Edit Scheduled Task</h3>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Task Name</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Post daily TikTok update"
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500/50" />
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Schedule</label>
+            <select value={scheduleType} onChange={e => setScheduleType(e.target.value)}
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50">
+              <option value="every_n_minutes">Every N minutes</option>
+              <option value="every_n_hours">Every N hours</option>
+              <option value="daily">Daily at specific time</option>
+              <option value="weekly">Weekly on specific day</option>
+            </select>
+          </div>
+
+          {scheduleType === 'every_n_minutes' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Interval (minutes)</label>
+              <input type="number" min="1" value={intervalMinutes} onChange={e => setIntervalMinutes(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50" />
+            </div>
+          )}
+          {scheduleType === 'every_n_hours' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Interval (hours)</label>
+              <input type="number" min="1" value={intervalHours} onChange={e => setIntervalHours(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50" />
+            </div>
+          )}
+          {(scheduleType === 'daily' || scheduleType === 'weekly') && (
+            <div className="grid grid-cols-2 gap-2">
+              {scheduleType === 'weekly' && (
+                <div className="col-span-2">
+                  <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Day of Week</label>
+                  <select value={dayOfWeek} onChange={e => setDayOfWeek(e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50">
+                    <option value={1}>Monday</option><option value={2}>Tuesday</option><option value={3}>Wednesday</option>
+                    <option value={4}>Thursday</option><option value={5}>Friday</option><option value={6}>Saturday</option><option value={7}>Sunday</option>
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Hour (UTC)</label>
+                <input type="number" min="0" max="23" value={hour} onChange={e => setHour(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50" />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Minute</label>
+                <input type="number" min="0" max="59" value={minute} onChange={e => setMinute(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50" />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Connector</label>
+            <select value={connectorId} onChange={e => setConnectorId(e.target.value)}
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50">
+              <option value="webhook">Webhook</option>
+              <option value="slack">Slack</option>
+              <option value="twitter">Twitter/X</option>
+              <option value="mailchimp">Mailchimp</option>
+              <option value="convertkit">ConvertKit</option>
+              <option value="sendgrid">SendGrid</option>
+              <option value="zapier">Zapier</option>
+              <option value="gohighlevel">GoHighLevel</option>
+              <option value="stripe">Stripe</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Action</label>
+            <input value={action} onChange={e => setAction(e.target.value)} placeholder="trigger / postTweet / postMessage…"
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500/50" />
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Action Params (JSON)</label>
+            <textarea value={actionPayload} onChange={e => setActionPayload(e.target.value)} rows={3}
+              placeholder='{"text": "Daily update!"}'
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500/50 resize-none" />
+          </div>
+
+          {err && <p className="text-xs text-red-400 font-mono">{err}</p>}
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-white/10 text-gray-400 text-sm hover:text-white transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleSave} disabled={loading}
+            className="flex-1 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors disabled:opacity-50">
+            {loading ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AutomationSchedulePanel({ instanceId }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
   const [toggling, setToggling] = useState(null);
   const [deleting, setDeleting] = useState(null);
 
@@ -636,6 +800,17 @@ function AutomationSchedulePanel({ instanceId }) {
           instanceId={instanceId}
           onCreated={(task) => { setTasks(ts => [task, ...ts]); toast.success('Scheduled task created'); }}
           onClose={() => setShowAdd(false)}
+        />
+      )}
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          onUpdated={(updated) => {
+            setTasks(ts => ts.map(t => t.id === updated.id ? updated : t));
+            toast.success('Task updated');
+            setEditingTask(null);
+          }}
+          onClose={() => setEditingTask(null)}
         />
       )}
       <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
@@ -714,6 +889,13 @@ function AutomationSchedulePanel({ instanceId }) {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => setEditingTask(task)}
+                      disabled={toggling === task.id || deleting === task.id}
+                      className="px-2 py-1 rounded text-[10px] font-mono border border-blue-500/20 text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40"
+                    >
+                      Edit
+                    </button>
                     <button
                       onClick={() => toggleTask(task)}
                       disabled={toggling === task.id || deleting === task.id}

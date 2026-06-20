@@ -1336,7 +1336,8 @@ export const GetAdminDashboardResponse = zod.object({
   "needsRotation": zod.boolean().describe('True if the key is overdue for rotation (age unknown or >= threshold)')
 }),
   "insecureCredentialsCount": zod.number().describe('Number of user credentials still in legacy\/unencrypted format (not yet or failed re-encryption)'),
-  "activeScheduledTasksCount": zod.number().describe('Number of enabled scheduled tasks across all users')
+  "activeScheduledTasksCount": zod.number().describe('Number of enabled scheduled tasks across all users'),
+  "platformRealRevenueCents": zod.number().describe('Total confirmed real revenue (cents) from all linked payment providers platform-wide')
 })
 
 

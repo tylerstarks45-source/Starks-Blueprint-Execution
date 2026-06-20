@@ -1,24 +1,46 @@
-import { pool, db, systemRevenueProvidersTable, systemActivityEventsTable, userCredentialsTable } from "@workspace/db";
-import { eq, and, isNull } from "drizzle-orm";
+import { pool, db, systemRevenueProvidersTable, systemActivityEventsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { decrypt } from "../crypto";
 import { getRevenueProvider } from "./registry";
 import { logger } from "../logger";
+import type { RevenueProvider } from "./types";
 
 const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 let running = false;
 
-async function loadUserCredentials(userId: number): Promise<Record<string, string>> {
-  const rows = await pool.query(
-    `SELECT credential_key, encrypted_value FROM user_credentials WHERE user_id = $1`,
-    [userId],
-  );
+// Parse stored credentialKey column — either JSON map (new) or plain key name (legacy).
+// Returns { providerKeyName → decryptedValue }.
+function parseCredentialKeyMap(credentialKey: string, provider: RevenueProvider): Record<string, string> {
+  try {
+    const parsed: unknown = JSON.parse(credentialKey);
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, string>;
+    }
+  } catch {
+    // Old format: single plain-text credential key name
+  }
+  // Backward compat: map plain key to the provider's first required key
+  const firstKey = provider.credentialKeys[0];
+  return firstKey ? { [firstKey]: credentialKey } : {};
+}
+
+// Load and decrypt only the specific credentials needed, remapped to provider key names.
+async function loadMappedCredentials(
+  userId: number,
+  keyMap: Record<string, string>, // { providerKeyName → userStoredCredentialKey }
+): Promise<Record<string, string>> {
   const creds: Record<string, string> = {};
-  for (const row of rows.rows as { credential_key: string; encrypted_value: string | null }[]) {
-    if (row.encrypted_value) {
+  for (const [providerKey, userCredKey] of Object.entries(keyMap)) {
+    const rows = await pool.query<{ encrypted_value: string | null }>(
+      `SELECT encrypted_value FROM user_credentials WHERE user_id = $1 AND credential_key = $2 LIMIT 1`,
+      [userId, userCredKey],
+    );
+    const row = rows.rows[0];
+    if (row?.encrypted_value) {
       try {
-        creds[row.credential_key] = await decrypt(row.encrypted_value);
+        creds[providerKey] = await decrypt(row.encrypted_value);
       } catch {
-        // skip malformed
+        // skip malformed entry
       }
     }
   }
@@ -51,7 +73,10 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
     .set({ syncStatus: "syncing" })
     .where(eq(systemRevenueProvidersTable.id, providerId));
 
-  const creds = await loadUserCredentials(record.userId);
+  // Build credentials using only the keys linked to this provider record
+  const keyMap = parseCredentialKeyMap(record.credentialKey, provider);
+  const creds = await loadMappedCredentials(record.userId, keyMap);
+
   const since = record.lastSyncAt ? new Date(record.lastSyncAt) : new Date(Date.now() - 30 * 86_400_000);
 
   const result = await provider.fetchTransactions(creds, since);
@@ -79,6 +104,8 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
         description: tx.description,
         externalTxId: tx.externalId,
         revenueProvider: record.provider,
+        // Use the actual transaction date so time-series analytics are accurate
+        createdAt: tx.occurredAt,
         metadata: JSON.stringify({ provider: record.provider, currency: tx.currency }),
       });
       synced++;

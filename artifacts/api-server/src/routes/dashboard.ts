@@ -211,15 +211,48 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
   const startOfWeek = new Date(startOfToday);
   startOfWeek.setDate(startOfWeek.getDate() - 6);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-  const revenueBase = and(
-    inArray(systemActivityEventsTable.systemInstanceId, systemIds),
-    eq(systemActivityEventsTable.eventType, "revenue"),
-  );
-
   const sevenDaysAgo = new Date(startOfToday);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
+  // Determine which systems have linked revenue providers so we don't double-count.
+  // For systems WITH linked providers → sum only provider-tagged (real) events.
+  // For systems WITHOUT linked providers → sum all revenue events (simulated).
+  const linkedProviderRows = await db
+    .select({ systemInstanceId: systemRevenueProvidersTable.systemInstanceId })
+    .from(systemRevenueProvidersTable)
+    .where(
+      and(
+        inArray(systemRevenueProvidersTable.systemInstanceId, systemIds),
+        eq(systemRevenueProvidersTable.enabled, true),
+      ),
+    );
+  const linkedSystemIds = [...new Set(linkedProviderRows.map((r) => r.systemInstanceId))];
+  const unlinkedSystemIds = systemIds.filter((id) => !linkedSystemIds.includes(id));
+
+  // Smart base: real-only for linked systems, all events for unlinked systems.
+  const smartRevenueBase = (() => {
+    if (linkedSystemIds.length === 0) {
+      // No linked providers — use all revenue events as before
+      return and(
+        inArray(systemActivityEventsTable.systemInstanceId, systemIds),
+        eq(systemActivityEventsTable.eventType, "revenue"),
+      );
+    }
+    const realPart = and(
+      inArray(systemActivityEventsTable.systemInstanceId, linkedSystemIds),
+      eq(systemActivityEventsTable.eventType, "revenue"),
+      sql`${systemActivityEventsTable.revenueProvider} is not null`,
+    );
+    if (unlinkedSystemIds.length === 0) return realPart;
+    return sql`(
+      ${systemActivityEventsTable.eventType} = 'revenue' AND (
+        (${systemActivityEventsTable.systemInstanceId} = ANY(${sql.raw(`'{${linkedSystemIds.join(",")}}'::int[]`)}) AND ${systemActivityEventsTable.revenueProvider} IS NOT NULL)
+        OR ${systemActivityEventsTable.systemInstanceId} = ANY(${sql.raw(`'{${unlinkedSystemIds.join(",")}}'::int[]`)})
+      )
+    )`;
+  })();
+
+  // realRevenueCents: platform-confirmed total across ALL linked systems (for UI badge)
   const realRevenueBase = and(
     inArray(systemActivityEventsTable.systemInstanceId, systemIds),
     eq(systemActivityEventsTable.eventType, "revenue"),
@@ -230,26 +263,26 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
     db
       .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
       .from(systemActivityEventsTable)
-      .where(and(revenueBase, gte(systemActivityEventsTable.createdAt, startOfToday))),
+      .where(and(smartRevenueBase, gte(systemActivityEventsTable.createdAt, startOfToday))),
     db
       .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
       .from(systemActivityEventsTable)
-      .where(and(revenueBase, gte(systemActivityEventsTable.createdAt, startOfWeek))),
+      .where(and(smartRevenueBase, gte(systemActivityEventsTable.createdAt, startOfWeek))),
     db
       .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
       .from(systemActivityEventsTable)
-      .where(and(revenueBase, gte(systemActivityEventsTable.createdAt, startOfMonth))),
+      .where(and(smartRevenueBase, gte(systemActivityEventsTable.createdAt, startOfMonth))),
     db
       .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
       .from(systemActivityEventsTable)
-      .where(revenueBase),
+      .where(smartRevenueBase),
     db
       .select({
         date: sql<string>`to_char(date_trunc('day', ${systemActivityEventsTable.createdAt}), 'YYYY-MM-DD')`,
         cents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`,
       })
       .from(systemActivityEventsTable)
-      .where(and(revenueBase, gte(systemActivityEventsTable.createdAt, sevenDaysAgo)))
+      .where(and(smartRevenueBase, gte(systemActivityEventsTable.createdAt, sevenDaysAgo)))
       .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`),
     db
       .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })

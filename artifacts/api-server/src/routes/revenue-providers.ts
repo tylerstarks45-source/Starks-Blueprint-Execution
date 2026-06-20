@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db, systemInstancesTable, systemRevenueProvidersTable, systemActivityEventsTable, userCredentialsTable } from "@workspace/db";
 import { z } from "zod/v4";
 import { getActiveCallerPayload } from "../lib/auth";
@@ -8,6 +8,7 @@ import { isAdminRole } from "../lib/auth";
 import { getRevenueProvider, listRevenueProviders } from "../lib/revenue/registry";
 import { syncProvider } from "../lib/revenue/sync";
 import { decrypt } from "../lib/crypto";
+import { inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -55,10 +56,13 @@ router.get("/system-instances/:id/revenue-providers", async (req, res): Promise<
 });
 
 // ─── POST /api/system-instances/:id/revenue-providers ────────────────────────
+// Accepts credentialKeys: { [providerRequiredKey]: userStoredCredentialKey }
+// e.g. stripe:  { stripe_secret_key: "my_stripe_key" }
+//      paypal:  { paypal_client_id: "my_client_id", paypal_client_secret: "my_client_secret" }
 
 const LinkProviderBody = z.object({
   provider: z.enum(["stripe", "gumroad", "paypal"]),
-  credentialKey: z.string().min(1),
+  credentialKeys: z.record(z.string(), z.string().min(1)),
 });
 
 router.post("/system-instances/:id/revenue-providers", async (req, res): Promise<void> => {
@@ -73,40 +77,62 @@ router.post("/system-instances/:id/revenue-providers", async (req, res): Promise
   const parsed = LinkProviderBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const { provider, credentialKey } = parsed.data;
-
-  // Verify the credential exists and belongs to the user, and test it
-  const [credRow] = await db
-    .select()
-    .from(userCredentialsTable)
-    .where(and(
-      eq(userCredentialsTable.userId, caller.id),
-      eq(userCredentialsTable.credentialKey, credentialKey),
-    ));
-
-  if (!credRow) {
-    res.status(400).json({ error: `Credential '${credentialKey}' not found in your Connections Hub` });
-    return;
-  }
+  const { provider, credentialKeys } = parsed.data;
 
   const revenueProvider = getRevenueProvider(provider);
   if (!revenueProvider) { res.status(400).json({ error: `Unknown provider: ${provider}` }); return; }
 
-  // Decrypt the credential and test it
-  let decrypted = "";
-  try {
-    decrypted = await decrypt(credRow.encryptedValue);
-  } catch {
-    res.status(400).json({ error: "Failed to decrypt credential" });
+  // Validate that all required provider keys are mapped
+  const missingKeys = revenueProvider.credentialKeys.filter((k) => !credentialKeys[k]);
+  if (missingKeys.length > 0) {
+    res.status(400).json({
+      error: `Missing required credential mappings: ${missingKeys.join(", ")}`,
+    });
     return;
   }
 
-  const creds: Record<string, string> = { [credentialKey]: decrypted };
-  const testResult = await revenueProvider.testCredentials(creds);
+  // Verify each mapped user credential exists and belongs to this user, then decrypt
+  const userCredKeys = Object.values(credentialKeys);
+  const credRows = await db
+    .select()
+    .from(userCredentialsTable)
+    .where(
+      and(
+        eq(userCredentialsTable.userId, caller.id),
+        inArray(userCredentialsTable.credentialKey, userCredKeys),
+      ),
+    );
+
+  const credMap = new Map(credRows.map((r) => [r.credentialKey, r]));
+  for (const userCredKey of userCredKeys) {
+    if (!credMap.has(userCredKey)) {
+      res.status(400).json({ error: `Credential '${userCredKey}' not found in your Connections Hub` });
+      return;
+    }
+  }
+
+  // Decrypt and assemble creds keyed by provider's expected key names
+  const decryptedCreds: Record<string, string> = {};
+  for (const [providerKey, userCredKey] of Object.entries(credentialKeys)) {
+    const row = credMap.get(userCredKey);
+    if (!row) continue;
+    try {
+      decryptedCreds[providerKey] = await decrypt(row.encryptedValue);
+    } catch {
+      res.status(400).json({ error: `Failed to decrypt credential '${userCredKey}'` });
+      return;
+    }
+  }
+
+  // Test credentials against the live provider
+  const testResult = await revenueProvider.testCredentials(decryptedCreds);
   if (!testResult.ok) {
     res.status(400).json({ error: `Provider test failed: ${testResult.message}` });
     return;
   }
+
+  // Store the mapping as JSON in the credentialKey column
+  const credentialKeyJson = JSON.stringify(credentialKeys);
 
   const [existing] = await db
     .select({ id: systemRevenueProvidersTable.id })
@@ -120,7 +146,7 @@ router.post("/system-instances/:id/revenue-providers", async (req, res): Promise
   if (existing) {
     [row] = await db
       .update(systemRevenueProvidersTable)
-      .set({ credentialKey, enabled: true, syncStatus: "idle", syncMessage: null })
+      .set({ credentialKey: credentialKeyJson, enabled: true, syncStatus: "idle", syncMessage: null })
       .where(eq(systemRevenueProvidersTable.id, existing.id))
       .returning();
   } else {
@@ -130,7 +156,7 @@ router.post("/system-instances/:id/revenue-providers", async (req, res): Promise
         systemInstanceId: instanceId,
         userId: caller.id,
         provider,
-        credentialKey,
+        credentialKey: credentialKeyJson,
         enabled: true,
       })
       .returning();

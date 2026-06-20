@@ -2963,7 +2963,10 @@ components:
         activeScheduledTasksCount:
           type: integer
           description: Number of enabled scheduled tasks across all users
-      required: [totalUsers, totalBlueprints, totalTools, totalSystemInstances, activeSystemInstances, totalAffiliateClicks, openrouterTotalTokens, recentActivity, encryptionKeyStatus, insecureCredentialsCount, activeScheduledTasksCount]
+        platformRealRevenueCents:
+          type: integer
+          description: Total confirmed real revenue (cents) from all linked payment providers platform-wide
+      required: [totalUsers, totalBlueprints, totalTools, totalSystemInstances, activeSystemInstances, totalAffiliateClicks, openrouterTotalTokens, recentActivity, encryptionKeyStatus, insecureCredentialsCount, activeScheduledTasksCount, platformRealRevenueCents]
 
     AdminPlatformStats:
       type: object

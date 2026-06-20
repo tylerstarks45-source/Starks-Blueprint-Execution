@@ -928,14 +928,14 @@ function AutomationSchedulePanel({ instanceId }) {
 // ─── REAL REVENUE PANEL ───────────────────────────────────────────────────────
 
 const PROVIDER_META = {
-  stripe:  { label: 'Stripe',  icon: '💳', color: 'text-violet-400', credential: 'stripe_secret_key',    hint: 'Stripe Secret Key' },
-  gumroad: { label: 'Gumroad', icon: '🟢', color: 'text-emerald-400', credential: 'gumroad_access_token', hint: 'Gumroad Access Token' },
-  paypal:  { label: 'PayPal',  icon: '🔵', color: 'text-blue-400',    credential: 'paypal_client_id',     hint: 'PayPal Client ID + Secret' },
+  stripe:  { label: 'Stripe',  icon: '💳', color: 'text-violet-400', credentialKeys: ['stripe_secret_key'],                              hints: { stripe_secret_key: 'Stripe Secret Key (sk_live_…)' } },
+  gumroad: { label: 'Gumroad', icon: '🟢', color: 'text-emerald-400', credentialKeys: ['gumroad_access_token'],                           hints: { gumroad_access_token: 'Gumroad Access Token' } },
+  paypal:  { label: 'PayPal',  icon: '🔵', color: 'text-blue-400',    credentialKeys: ['paypal_client_id', 'paypal_client_secret'],       hints: { paypal_client_id: 'PayPal Client ID', paypal_client_secret: 'PayPal Client Secret' } },
 };
 
 function LinkProviderModal({ instanceId, onLinked, onClose }) {
   const [provider, setProvider] = useState('stripe');
-  const [credentialKey, setCredentialKey] = useState('');
+  const [credentialKeys, setCredentialKeys] = useState({});
   const [userCreds, setUserCreds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -944,18 +944,23 @@ function LinkProviderModal({ instanceId, onLinked, onClose }) {
     const token = localStorage.getItem('sbep_auth_token');
     fetch('/api/user-credentials/summary', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : [])
-      .then(data => {
-        setUserCreds(Array.isArray(data) ? data : []);
-        const first = Array.isArray(data) ? data[0] : null;
-        if (first) setCredentialKey(first.credentialKey);
-      })
+      .then(data => { setUserCreds(Array.isArray(data) ? data : []); })
       .catch(() => {});
   }, []);
 
-  const providerMeta = PROVIDER_META[provider] ?? {};
+  const providerMeta = PROVIDER_META[provider] ?? { credentialKeys: [], hints: {}, label: provider, icon: '🔑', color: 'text-gray-400' };
+  const requiredKeys = providerMeta.credentialKeys ?? [];
+
+  const setKeyMapping = (providerKey, userCredKey) => {
+    setCredentialKeys(prev => ({ ...prev, [providerKey]: userCredKey }));
+  };
 
   const handleLink = async () => {
-    if (!credentialKey) { setErr('Select a credential from your Connections Hub'); return; }
+    const missingKeys = requiredKeys.filter(k => !credentialKeys[k]);
+    if (missingKeys.length > 0) {
+      setErr(`Select credentials for: ${missingKeys.join(', ')}`);
+      return;
+    }
     setLoading(true);
     setErr('');
     try {
@@ -963,7 +968,7 @@ function LinkProviderModal({ instanceId, onLinked, onClose }) {
       const res = await fetch(`/api/system-instances/${instanceId}/revenue-providers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ provider, credentialKey }),
+        body: JSON.stringify({ provider, credentialKeys }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Failed to link provider');
@@ -976,6 +981,8 @@ function LinkProviderModal({ instanceId, onLinked, onClose }) {
       setLoading(false);
     }
   };
+
+  const canSubmit = requiredKeys.every(k => credentialKeys[k]) && userCreds.length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -991,7 +998,7 @@ function LinkProviderModal({ instanceId, onLinked, onClose }) {
               {Object.entries(PROVIDER_META).map(([pid, meta]) => (
                 <button
                   key={pid}
-                  onClick={() => setProvider(pid)}
+                  onClick={() => { setProvider(pid); setCredentialKeys({}); setErr(''); }}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
                     provider === pid
                       ? 'border-emerald-500/50 bg-emerald-500/10'
@@ -1005,28 +1012,30 @@ function LinkProviderModal({ instanceId, onLinked, onClose }) {
             </div>
           </div>
 
-          <div>
-            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">
-              Credential — <span className="text-gray-600">{providerMeta.hint}</span>
-            </label>
-            {userCreds.length === 0 ? (
-              <p className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
-                No credentials found. Add your {providerMeta.label} key in the{' '}
-                <a href="/connections" className="underline">Connections Hub</a> first.
-              </p>
-            ) : (
-              <select
-                value={credentialKey}
-                onChange={e => setCredentialKey(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-emerald-500/50"
-              >
-                <option value="">— select credential —</option>
-                {userCreds.map(c => (
-                  <option key={c.id} value={c.credentialKey}>{c.credentialKey}</option>
-                ))}
-              </select>
-            )}
-          </div>
+          {userCreds.length === 0 ? (
+            <p className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
+              No credentials found. Add your {providerMeta.label} keys in the{' '}
+              <a href="/connections" className="underline">Connections Hub</a> first.
+            </p>
+          ) : (
+            requiredKeys.map(providerKey => (
+              <div key={providerKey}>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">
+                  {providerMeta.hints?.[providerKey] ?? providerKey}
+                </label>
+                <select
+                  value={credentialKeys[providerKey] ?? ''}
+                  onChange={e => setKeyMapping(providerKey, e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-emerald-500/50"
+                >
+                  <option value="">— select stored credential —</option>
+                  {userCreds.map(c => (
+                    <option key={c.id} value={c.credentialKey}>{c.credentialKey}</option>
+                  ))}
+                </select>
+              </div>
+            ))
+          )}
 
           {err && <p className="text-xs text-red-400 font-mono">{err}</p>}
         </div>
@@ -1037,7 +1046,7 @@ function LinkProviderModal({ instanceId, onLinked, onClose }) {
           </button>
           <button
             onClick={handleLink}
-            disabled={loading || userCreds.length === 0}
+            disabled={loading || !canSubmit}
             className="flex-1 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
           >
             {loading ? 'Linking…' : 'Link Provider'}

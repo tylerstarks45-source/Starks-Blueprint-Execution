@@ -173,6 +173,7 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
     [insecureCredRow],
     latestRotations,
     [activeScheduledRow],
+    [platformRealRevenueRow],
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)::int` }).from(usersTable),
     db.select({ count: sql<number>`count(*)::int` }).from(blueprintsTable),
@@ -202,6 +203,17 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
       .select({ count: sql<number>`count(*)::int` })
       .from(scheduledTasksTable)
       .where(eq(scheduledTasksTable.enabled, true)),
+    db
+      .select({
+        total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
+      })
+      .from(systemActivityEventsTable)
+      .where(
+        and(
+          eq(systemActivityEventsTable.eventType, "revenue"),
+          sql`${systemActivityEventsTable.revenueProvider} is not null`,
+        ),
+      ),
   ]);
 
   // Prefer the latest DB record; fall back to in-process override / env var.
@@ -234,6 +246,7 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
         encryptionKeyStatus,
         insecureCredentialsCount: insecureCredRow?.count ?? 0,
         activeScheduledTasksCount: activeScheduledRow?.count ?? 0,
+        platformRealRevenueCents: Number(platformRealRevenueRow?.total ?? 0),
       }),
     ),
   );

@@ -22,4 +22,6 @@ export interface AdminDashboard {
   insecureCredentialsCount: number;
   /** Number of enabled scheduled tasks across all users */
   activeScheduledTasksCount: number;
+  /** Total confirmed real revenue (cents) from all linked payment providers platform-wide */
+  platformRealRevenueCents: number;
 }

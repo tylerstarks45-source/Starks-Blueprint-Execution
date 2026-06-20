@@ -11,4 +11,5 @@ export interface UserUpdate {
   membershipStatus?: string;
   membershipTier?: string;
   active?: boolean;
+  onboardingCompleted?: boolean;
 }

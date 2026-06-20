@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }) => {
         membershipTier: model.membershipTier || model.membership_tier || 'free',
         creditsBalance,
         walletBalance,
+        onboardingCompleted: model.onboardingCompleted ?? false,
       });
       setCurrentUserRole(role);
       setIsAuthenticated(true);
@@ -140,6 +141,40 @@ export const AuthProvider = ({ children }) => {
     } catch { /* ignore */ }
   }, []);
 
+  const completeOnboarding = useCallback(async () => {
+    setCurrentUser(prev => prev ? { ...prev, onboardingCompleted: true } : prev);
+    const token = localStorage.getItem('sbep_auth_token');
+    if (!token) return;
+    try {
+      const stored = pb.authStore.model;
+      if (stored?.id) {
+        await fetch(`/api/users/${stored.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ onboardingCompleted: true }),
+        });
+        pb.authStore.model && (pb.authStore.model.onboardingCompleted = true);
+      }
+    } catch { /* non-blocking */ }
+  }, []);
+
+  const resetOnboarding = useCallback(async () => {
+    setCurrentUser(prev => prev ? { ...prev, onboardingCompleted: false } : prev);
+    const token = localStorage.getItem('sbep_auth_token');
+    if (!token) return;
+    try {
+      const stored = pb.authStore.model;
+      if (stored?.id) {
+        await fetch(`/api/users/${stored.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ onboardingCompleted: false }),
+        });
+        pb.authStore.model && (pb.authStore.model.onboardingCompleted = false);
+      }
+    } catch { /* non-blocking */ }
+  }, []);
+
   const value = useMemo(() => ({
     currentUser,
     currentUserRole,
@@ -150,7 +185,9 @@ export const AuthProvider = ({ children }) => {
     logout,
     resetPassword,
     refreshCredits,
-  }), [currentUser, currentUserRole, isAuthenticated, isLoading, login, signup, logout, resetPassword, refreshCredits]);
+    completeOnboarding,
+    resetOnboarding,
+  }), [currentUser, currentUserRole, isAuthenticated, isLoading, login, signup, logout, resetPassword, refreshCredits, completeOnboarding, resetOnboarding]);
 
   return (
     <AuthContext.Provider value={value}>

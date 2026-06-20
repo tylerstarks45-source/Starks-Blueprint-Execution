@@ -216,6 +216,7 @@ export interface User {
   role?: string | null;
   creditsBalance?: number;
   active: boolean;
+  onboardingCompleted?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -235,6 +236,7 @@ export interface UserUpdate {
   membershipStatus?: string;
   membershipTier?: string;
   active?: boolean;
+  onboardingCompleted?: boolean;
 }
 
 export type SystemInstanceSavedImagesItem = {

@@ -1,14 +1,14 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ChevronDown, LogOut, User, Settings, Activity, ShieldCheck } from 'lucide-react';
+import { Menu, X, ChevronDown, LogOut, User, Settings, Activity, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import NotificationBell from '@/components/NotificationBell.jsx';
 
 const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated, logout, currentUser } = useAuth();
+  const { isAuthenticated, logout, currentUser, resetOnboarding } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   
@@ -119,6 +119,12 @@ const Header = () => {
                       <Link to="/dashboard/settings" onClick={() => setIsAccountOpen(false)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-primary/10 hover:text-primary rounded-md flex items-center gap-2 transition-colors">
                         <Settings className="w-4 h-4" /> Settings
                       </Link>
+                      <button
+                        onClick={async () => { setIsAccountOpen(false); await resetOnboarding(); navigate('/dashboard'); }}
+                        className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-primary/10 hover:text-primary rounded-md flex items-center gap-2 transition-colors"
+                      >
+                        <Sparkles className="w-4 h-4" /> Setup Wizard
+                      </button>
                     </div>
                     <div className="border-t border-border p-1">
                       <button 

@@ -1771,6 +1771,12 @@ const BuilderPage = () => {
     }
   }, [blueprints, searchParams]);
 
+  // Pre-fill chat input from ?goal= query param (Onboarding Wizard handoff)
+  useEffect(() => {
+    const goal = searchParams.get('goal');
+    if (goal) setInput(goal);
+  }, [searchParams]);
+
   // Load stored credential keys for prefill hints
   useEffect(() => {
     if (!currentUser?.id) return;

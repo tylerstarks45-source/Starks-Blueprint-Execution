@@ -2213,6 +2213,8 @@ components:
           type: integer
         active:
           type: boolean
+        onboardingCompleted:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
@@ -2247,6 +2249,8 @@ components:
         membershipTier:
           type: string
         active:
+          type: boolean
+        onboardingCompleted:
           type: boolean
 
     # ── System Instances ────────────────────────────────────────────────────

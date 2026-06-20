@@ -541,6 +541,7 @@ export const ListUsersResponseItem = zod.object({
   "role": zod.string().nullish(),
   "creditsBalance": zod.number().optional(),
   "active": zod.boolean(),
+  "onboardingCompleted": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -580,6 +581,7 @@ export const GetUserResponse = zod.object({
   "role": zod.string().nullish(),
   "creditsBalance": zod.number().optional(),
   "active": zod.boolean(),
+  "onboardingCompleted": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -596,7 +598,8 @@ export const UpdateUserBody = zod.object({
   "name": zod.string().optional(),
   "membershipStatus": zod.string().optional(),
   "membershipTier": zod.string().optional(),
-  "active": zod.boolean().optional()
+  "active": zod.boolean().optional(),
+  "onboardingCompleted": zod.boolean().optional()
 })
 
 export const UpdateUserResponse = zod.object({
@@ -609,6 +612,7 @@ export const UpdateUserResponse = zod.object({
   "role": zod.string().nullish(),
   "creditsBalance": zod.number().optional(),
   "active": zod.boolean(),
+  "onboardingCompleted": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -1544,6 +1548,7 @@ export const ListPlatformUsersResponse = zod.object({
   "role": zod.string().nullish(),
   "creditsBalance": zod.number().optional(),
   "active": zod.boolean(),
+  "onboardingCompleted": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })),
@@ -1578,6 +1583,7 @@ export const UpdatePlatformUserResponse = zod.object({
   "role": zod.string().nullish(),
   "creditsBalance": zod.number().optional(),
   "active": zod.boolean(),
+  "onboardingCompleted": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })

@@ -5,6 +5,7 @@ import Footer from '@/components/Footer.jsx';
 import DashboardRouter from '@/components/dashboard/DashboardRouter.jsx';
 import { DashboardProvider } from '@/contexts/DashboardContext.jsx';
 import VideoBackground from '@/components/VideoBackground.jsx';
+import OnboardingWizard from '@/components/OnboardingWizard.jsx';
 
 const DashboardPage = () => {
   return (
@@ -12,6 +13,7 @@ const DashboardPage = () => {
       <VideoBackground>
         <Helmet><title>Command Center | Starks Global Group</title></Helmet>
         <Header />
+        <OnboardingWizard />
         <main className="flex-grow pt-8 pb-24 px-4 sm:px-6 lg:px-8 container mx-auto max-w-[1400px]">
           <section className="pt-2">
             <DashboardRouter />

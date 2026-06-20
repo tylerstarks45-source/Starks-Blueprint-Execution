@@ -2128,13 +2128,41 @@ const BuilderPage = () => {
             setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: clean } : m));
           } else if (event.type === 'tool_result') {
             const toolMsgId = Date.now() + Math.random();
-            const newMsg = event.tool === 'search'
-              ? { id: toolMsgId, role: 'assistant', type: 'search', data: event.data, ts: Date.now() }
-              : event.tool === 'image'
-              ? { id: toolMsgId, role: 'assistant', type: 'image', data: event.data, ts: Date.now() }
-              : event.tool === 'connector'
-              ? { id: toolMsgId, role: 'assistant', type: 'connector_action', data: event.data, ts: Date.now() }
-              : null;
+            let newMsg = null;
+            if (event.tool === 'search') {
+              newMsg = { id: toolMsgId, role: 'assistant', type: 'search', data: event.data, ts: Date.now() };
+            } else if (event.tool === 'image') {
+              newMsg = { id: toolMsgId, role: 'assistant', type: 'image', data: event.data, ts: Date.now() };
+            } else if (event.tool === 'connector') {
+              const connData = event.data || {};
+              // Build a retry function using the call context embedded in the SSE payload
+              const retryFn = !connData.ok && connData.connectorId ? async () => {
+                try {
+                  const res = await fetch('/api/ash/connector-action', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                      connectorId: connData.connectorId,
+                      action: connData.action,
+                      params: connData.params || {},
+                      systemInstanceId: connData.systemInstanceId ?? buildData?.instanceId ?? undefined,
+                    }),
+                  });
+                  const data = await res.json();
+                  setMessages(prev => prev.map(m => m.id === toolMsgId ? {
+                    ...m, data,
+                    retryFn: !data.ok ? retryFn : undefined,
+                  } : m));
+                } catch (err) {
+                  setMessages(prev => prev.map(m => m.id === toolMsgId ? {
+                    ...m,
+                    data: { ...connData, ok: false, error: err?.message || 'Network error' },
+                    retryFn,
+                  } : m));
+                }
+              } : undefined;
+              newMsg = { id: toolMsgId, role: 'assistant', type: 'connector_action', data: connData, retryFn, ts: Date.now() };
+            }
             if (newMsg) {
               setMessages(prev => {
                 const idx = prev.findIndex(m => m.id === msgId);

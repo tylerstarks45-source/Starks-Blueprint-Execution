@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, count, sql } from "drizzle-orm";
+import { eq, count, sql, and } from "drizzle-orm";
 import {
   db,
   blueprintsTable,
@@ -1025,6 +1025,21 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
           }
         }
 
+        // Verify systemInstanceId ownership once for the whole batch
+        let verifiedInstanceId: number | undefined;
+        const requestedInstanceId = parsed.data.systemInstanceId;
+        if (requestedInstanceId != null) {
+          const [owned] = await db
+            .select({ id: systemInstancesTable.id })
+            .from(systemInstancesTable)
+            .where(and(
+              eq(systemInstancesTable.id, requestedInstanceId),
+              eq(systemInstancesTable.userId, userId),
+            ))
+            .limit(1);
+          if (owned) verifiedInstanceId = requestedInstanceId;
+        }
+
         for (const call of connectorCalls) {
           const connectorId = call.connectorId as string | undefined;
           const action = call.action as string | undefined;
@@ -1041,7 +1056,22 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
           } catch (err) {
             execResult = { ok: false, error: err instanceof Error ? err.message : String(err) };
           }
+          const latencyMs = Date.now() - startMs;
 
+          // Activity logging — only when we have an owned instance
+          if (verifiedInstanceId != null) {
+            const eventDescription = execResult.ok
+              ? `Connector action executed: ${connector.displayName} → ${action} (${latencyMs}ms)`
+              : `Connector action failed: ${connector.displayName} → ${action} — ${(execResult.error ?? "unknown error").slice(0, 200)}`;
+            db.insert(systemActivityEventsTable).values({
+              systemInstanceId: verifiedInstanceId,
+              eventType: execResult.ok ? "action" : "warning",
+              description: eventDescription,
+              metadata: JSON.stringify({ connectorId, connectorName: connector.displayName, action, ok: execResult.ok, latencyMs }),
+            }).catch(() => { /* non-critical */ });
+          }
+
+          // Include original params in the SSE payload so the client can build a retry call
           send({
             type: "tool_result",
             tool: "connector",
@@ -1049,10 +1079,12 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
               connectorId,
               connectorName: connector.displayName,
               action,
+              params,              // included for client-side retry
+              systemInstanceId: verifiedInstanceId,
               ok: execResult.ok,
               data: execResult.ok ? execResult.data : undefined,
               error: execResult.ok ? undefined : execResult.error,
-              latencyMs: Date.now() - startMs,
+              latencyMs,
             },
           });
         }

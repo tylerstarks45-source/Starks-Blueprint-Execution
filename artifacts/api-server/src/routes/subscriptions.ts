@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq } from "drizzle-orm";
-import { db, subscriptionsTable, usersTable, processedStripeEventsTable } from "@workspace/db";
+import { db, subscriptionsTable, usersTable, processedStripeEventsTable, blueprintsTable, blueprintPurchasesTable, notificationsTable } from "@workspace/db";
 import { z } from "zod";
 import { getUncachableStripeClient } from "../lib/stripe";
 import { adjustCredits, adjustWalletCredits, tierAllotment } from "../lib/credits";
@@ -222,7 +222,56 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
         }
       }
 
-      if (session.metadata?.kind === "wallet_purchase") {
+      if (session.metadata?.kind === "blueprint_purchase") {
+        const blueprintId = Number(session.metadata?.blueprintId);
+        if (userId && blueprintId) {
+          const [bp] = await db.select().from(blueprintsTable).where(eq(blueprintsTable.id, blueprintId));
+          if (bp) {
+            const priceCredits = bp.priceCredits ?? 0;
+            const creatorShare = Math.floor(priceCredits * 0.7);
+
+            // Insert purchase record — idempotent via unique constraint
+            const [purchase] = await db
+              .insert(blueprintPurchasesTable)
+              .values({
+                blueprintId,
+                buyerUserId: userId,
+                authorUserId: bp.authorUserId ?? null,
+                priceCredits,
+                creatorShareCredits: creatorShare,
+              })
+              .onConflictDoNothing()
+              .returning();
+
+            if (purchase) {
+              // Pay creator 70%
+              if (bp.authorUserId && creatorShare > 0) {
+                await adjustWalletCredits(bp.authorUserId, creatorShare, {
+                  reason: `Blueprint sale (Stripe card): "${bp.name}"`,
+                });
+              }
+              // Increment salesCount
+              await db
+                .update(blueprintsTable)
+                .set({ salesCount: (bp.salesCount ?? 0) + 1 })
+                .where(eq(blueprintsTable.id, blueprintId));
+              // Notify creator
+              if (bp.authorUserId) {
+                await db.insert(notificationsTable).values({
+                  userId: bp.authorUserId,
+                  title: "Blueprint Sold!",
+                  message: `Your blueprint "${bp.name}" was purchased via card. You earned ${creatorShare} credits.`,
+                  notificationType: "success",
+                  read: false,
+                }).catch(() => {});
+              }
+              req.log.info({ userId, blueprintId, priceCredits }, "Blueprint purchase fulfilled via Stripe");
+            } else {
+              req.log.info({ userId, blueprintId }, "Blueprint already purchased — Stripe duplicate event ignored");
+            }
+          }
+        }
+      } else if (session.metadata?.kind === "wallet_purchase") {
         const credits = Number(session.metadata?.credits);
         if (userId && credits > 0) {
           await adjustWalletCredits(userId, credits, { reason: `Wallet top-up: ${credits} credits` });

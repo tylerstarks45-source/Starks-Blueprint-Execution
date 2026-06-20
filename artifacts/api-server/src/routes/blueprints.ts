@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, ilike, and, or, inArray, desc } from "drizzle-orm";
-import { db, blueprintsTable, blueprintStepsTable, blueprintReviewsTable, blueprintPurchasesTable, notificationsTable, usersTable } from "@workspace/db";
+import { db, blueprintsTable, blueprintStepsTable, blueprintReviewsTable, blueprintPurchasesTable, notificationsTable, usersTable, subscriptionsTable } from "@workspace/db";
+import { getUncachableStripeClient } from "../lib/stripe";
 import { requireAdmin, getActiveCallerPayload, requireAuth, isAdminRole, getTokenPayload } from "../lib/auth";
 import { adjustCredits, adjustWalletCredits, getBalance } from "../lib/credits";
 import {
@@ -328,6 +329,13 @@ router.post("/blueprints/:id/purchase", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Blueprint is not available for purchase" });
     return;
   }
+
+  // Block self-purchase — authors cannot buy their own blueprint
+  if (bp.authorUserId !== null && bp.authorUserId === caller.id) {
+    res.status(403).json({ error: "You cannot purchase your own blueprint" });
+    return;
+  }
+
   const priceCredits = bp.priceCredits ?? 0;
   const creatorShare = Math.floor(priceCredits * 0.7);
 
@@ -395,6 +403,113 @@ router.post("/blueprints/:id/purchase", async (req, res): Promise<void> => {
     .where(eq(blueprintsTable.id, params.data.id));
 
   res.status(201).json(serialize(purchase));
+});
+
+// ── POST /api/blueprints/:id/checkout — Stripe one-time payment ──────────────
+// Creates a Stripe Checkout Session (mode=payment) for direct card purchase.
+// On success, the /api/stripe/webhook handler fulfils the purchase.
+router.post("/blueprints/:id/checkout", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const params = PurchaseBlueprintParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [bp] = await db.select().from(blueprintsTable).where(eq(blueprintsTable.id, params.data.id));
+  if (!bp) { res.status(404).json({ error: "Blueprint not found" }); return; }
+
+  if (bp.reviewStatus !== "approved" && !isAdminRole(caller.role)) {
+    res.status(403).json({ error: "Blueprint is not available for purchase" });
+    return;
+  }
+
+  // Block author self-purchase
+  if (bp.authorUserId !== null && bp.authorUserId === caller.id) {
+    res.status(403).json({ error: "You cannot purchase your own blueprint" });
+    return;
+  }
+
+  const priceCredits = bp.priceCredits ?? 0;
+  if (priceCredits === 0) {
+    res.status(400).json({ error: "This blueprint is free — use the standard access flow" });
+    return;
+  }
+
+  // Check already purchased
+  const [existing] = await db
+    .select({ id: blueprintPurchasesTable.id })
+    .from(blueprintPurchasesTable)
+    .where(and(
+      eq(blueprintPurchasesTable.blueprintId, params.data.id),
+      eq(blueprintPurchasesTable.buyerUserId, caller.id),
+    ));
+  if (existing) {
+    res.status(409).json({ error: "You have already purchased this blueprint" });
+    return;
+  }
+
+  try {
+    const stripe = await getUncachableStripeClient();
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, caller.id));
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+    // Reuse existing Stripe customer id when available
+    const [existingSub] = await db
+      .select({ stripeCustomerId: subscriptionsTable.stripeCustomerId })
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.userId, caller.id));
+
+    let customerId: string;
+    if (existingSub?.stripeCustomerId) {
+      customerId = existingSub.stripeCustomerId;
+    } else {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: user.name || user.email,
+        metadata: { userId: String(caller.id) },
+      });
+      customerId = customer.id;
+    }
+
+    const domain = process.env.REPLIT_DOMAINS?.split(",")[0];
+    const baseUrl = domain ? `https://${domain}` : "http://localhost:80";
+
+    // 1 credit = $0.10 USD — minimum charge is $0.50 (5 credits), max $9.90 (99 credits)
+    const amountCents = priceCredits * 10;
+
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [{
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: bp.name,
+            description: (bp.description ?? `AI Blueprint: ${bp.name}`).slice(0, 200),
+          },
+          unit_amount: amountCents,
+        },
+        quantity: 1,
+      }],
+      success_url: `${baseUrl}/blueprints/${bp.slug ?? params.data.id}?purchased=1`,
+      cancel_url:  `${baseUrl}/blueprints/${bp.slug ?? params.data.id}?canceled=1`,
+      metadata: {
+        userId:      String(caller.id),
+        blueprintId: String(params.data.id),
+        kind:        "blueprint_purchase",
+      },
+    });
+
+    res.json({ url: session.url, sessionId: session.id });
+  } catch (err: any) {
+    req.log.error({ err }, "Blueprint Stripe checkout error");
+    res.status(500).json({ error: "Failed to create checkout session. Please try again." });
+  }
 });
 
 // ── GET /api/blueprints/:id/reviews ────────────────────────────────────────

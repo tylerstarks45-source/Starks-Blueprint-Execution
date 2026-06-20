@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import PageMeta from '@/components/PageMeta.jsx';
 import { motion } from 'framer-motion';
 import {
@@ -59,6 +59,7 @@ const ReviewCard = ({ review }) => (
 const BlueprintDetailPage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { currentUser } = useAuth();
 
   const [blueprint, setBlueprint] = useState(null);
@@ -67,6 +68,7 @@ const BlueprintDetailPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isBuilding, setIsBuilding] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isCardCheckingOut, setIsCardCheckingOut] = useState(false);
   const [hasPurchased, setHasPurchased] = useState(false);
   const [error, setError] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -141,6 +143,31 @@ const BlueprintDetailPage = () => {
     fetchData();
   }, [slug, currentUser]);
 
+  // Handle Stripe redirect back after successful card payment
+  useEffect(() => {
+    if (searchParams.get('purchased') !== '1') return;
+    if (!blueprint) return;
+    // Re-check entitlement and refetch entitled blueprint
+    const recheck = async () => {
+      try {
+        const token = authToken();
+        const entRes = await fetch(`/api/blueprints/${blueprint.id}/entitlement`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (entRes.ok) {
+          const ent = await entRes.json();
+          if (ent.canAccess) {
+            setHasPurchased(true);
+            const full = await fetchBlueprintById(blueprint.id);
+            setBlueprint(full);
+            toast.success('Blueprint unlocked! Welcome to your premium content.');
+          }
+        }
+      } catch { /* non-fatal */ }
+    };
+    recheck();
+  }, [searchParams, blueprint?.id]);
+
   const handleCopy = (text, idx) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(idx);
@@ -206,6 +233,34 @@ const BlueprintDetailPage = () => {
       toast.error(err.message || 'Failed to purchase blueprint');
     } finally {
       setIsPurchasing(false);
+    }
+  };
+
+  const handleCardCheckout = async () => {
+    if (!currentUser) {
+      toast.error("Please log in to purchase");
+      navigate('/login', { state: { from: `/blueprints/${slug}` } });
+      return;
+    }
+    setIsCardCheckingOut(true);
+    try {
+      const resp = await fetch(`/api/blueprints/${blueprint.id}/checkout`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to create checkout session');
+      }
+      const { url } = await resp.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to start checkout. Please try again.');
+      setIsCardCheckingOut(false);
     }
   };
 
@@ -623,13 +678,29 @@ const BlueprintDetailPage = () => {
                       </p>
                       <button
                         onClick={handlePurchase}
-                        disabled={isPurchasing}
+                        disabled={isPurchasing || isCardCheckingOut}
                         className="w-full py-4 text-base font-semibold rounded-xl bg-amber-500 text-black hover:bg-amber-400 active:scale-[0.98] transition-all shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 disabled:opacity-60 disabled:pointer-events-none"
                       >
                         {isPurchasing ? (
                           <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
                         ) : (
-                          <><ShoppingBag className="w-5 h-5" /> Purchase Blueprint</>
+                          <><ShoppingBag className="w-5 h-5" /> Pay with Credits</>
+                        )}
+                      </button>
+                      <div className="flex items-center gap-3 my-1">
+                        <div className="flex-1 h-px bg-border/40" />
+                        <span className="text-xs text-muted-foreground/50 font-mono">or</span>
+                        <div className="flex-1 h-px bg-border/40" />
+                      </div>
+                      <button
+                        onClick={handleCardCheckout}
+                        disabled={isPurchasing || isCardCheckingOut}
+                        className="w-full py-3.5 text-base font-semibold rounded-xl bg-white/5 border border-white/10 text-foreground hover:bg-white/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:pointer-events-none"
+                      >
+                        {isCardCheckingOut ? (
+                          <><Loader2 className="w-5 h-5 animate-spin" /> Redirecting to Stripe...</>
+                        ) : (
+                          <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg> Pay ${((blueprint.priceCredits ?? 0) * 0.10).toFixed(2)} with Card</>
                         )}
                       </button>
                       {!currentUser && (

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Header from '@/components/Header.jsx';
-import VideoBackground from '@/components/VideoBackground.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import {
   Sparkles, Eye, Save, Globe, ArrowLeft, RefreshCw, AlertCircle,
   Monitor, Smartphone, Palette, Layout, ChevronDown, ChevronUp,
@@ -214,8 +213,8 @@ export default function UserLandingPageCanvas() {
   const hasContent = page?.htmlContent && page.htmlContent.length > 50;
 
   return (
+    <AuthLayout>
     <div className="min-h-screen bg-[#050508] text-white flex flex-col overflow-hidden" style={{ fontFamily: "'Outfit', sans-serif" }}>
-      <VideoBackground />
 
       {/* Top bar */}
       <div className="relative z-20 flex items-center justify-between px-4 py-3 border-b border-white/8 bg-black/60 backdrop-blur-xl shrink-0">
@@ -596,5 +595,6 @@ export default function UserLandingPageCanvas() {
         </div>
       )}
     </div>
+    </AuthLayout>
   );
 }

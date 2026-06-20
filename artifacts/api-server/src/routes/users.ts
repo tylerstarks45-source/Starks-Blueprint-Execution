@@ -145,4 +145,45 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
   res.json(GetUserResponse.parse(serialize(row)));
 });
 
+router.delete("/users/:id", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const numericId = parseInt(req.params["id"] ?? "", 10);
+  if (isNaN(numericId)) {
+    res.status(400).json({ error: "Invalid user id" });
+    return;
+  }
+
+  const isAdmin = isAdminRole(caller.role);
+  const isSelf = caller.id === numericId;
+
+  if (!isAdmin && !isSelf) {
+    res.status(403).json({ error: "Forbidden: cannot delete another user's account" });
+    return;
+  }
+
+  // Prevent deletion of admin accounts by non-super-admins.
+  if (!isSelf || isAdmin) {
+    const [target] = await db.select().from(usersTable).where(eq(usersTable.id, numericId)).limit(1);
+    if (!target) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    if (target.role && isAdminRole(target.role) && caller.role !== "SUPER_ADMIN" && caller.role !== "FOUNDER_ADMIN") {
+      res.status(403).json({ error: "Forbidden: cannot delete an admin account" });
+      return;
+    }
+  }
+
+  const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, numericId)).returning();
+  if (!deleted) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  req.log.info({ deletedUserId: numericId, callerUserId: caller.id }, "User account deleted");
+  res.json({ success: true, message: "Account deleted." });
+});
+
 export default router;

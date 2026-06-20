@@ -13,6 +13,7 @@ import {
   buildProgressTable,
   openrouterUsageTable,
   systemActivityEventsTable,
+  notificationsTable,
   skillsTable,
   skillActivationsTable,
   scheduledTasksTable,
@@ -1301,15 +1302,23 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
             metadata: publishMeta,
           }).returning();
 
-          // Attempt publish
-          const result = await publish(channel, creds, { channel, contentType, title: title ?? undefined, content, imageUrl, listId, siteUrl, videoId, tags, categoryId });
+          const publishArgs = { channel, contentType, title: title ?? undefined, content, imageUrl, listId, siteUrl, videoId, tags, categoryId };
+
+          // Attempt publish — auto-retry once on first failure
+          let result = await publish(channel, creds, publishArgs);
+          let autoRetried = false;
+          if (!result.ok) {
+            await new Promise(r => setTimeout(r, 2000));
+            result = await publish(channel, creds, publishArgs);
+            autoRetried = true;
+          }
 
           const now = new Date();
           await db.update(publishedContentTable)
             .set(
               result.ok
                 ? { status: "published", publishedUrl: result.publishedUrl ?? null, publishedAt: now, metadata: JSON.stringify({ ...JSON.parse(publishMeta || "{}"), ...(result.data ?? {}) }) }
-                : { status: "failed", errorMessage: result.error ?? "Unknown error" }
+                : { status: "failed", errorMessage: result.error ?? "Unknown error", retryCount: autoRetried ? 1 : 0 }
             )
             .where(eq(publishedContentTable.id, record.id));
 
@@ -1318,9 +1327,19 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
             eventType: result.ok ? "action" : "error",
             description: result.ok
               ? `Published to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel}: ${(title ?? content).slice(0, 80)}${result.publishedUrl ? ` — ${result.publishedUrl}` : ""}`
-              : `Publish to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel} failed: ${(result.error ?? "").slice(0, 200)}`,
-            metadata: JSON.stringify({ channel, contentId: record.id, ok: result.ok, publishedUrl: result.publishedUrl }),
+              : `Publish to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel} failed${autoRetried ? " (retried once)" : ""}: ${(result.error ?? "").slice(0, 200)}`,
+            metadata: JSON.stringify({ channel, contentId: record.id, ok: result.ok, publishedUrl: result.publishedUrl, autoRetried }),
           });
+
+          // Notify user when auto-retry also failed
+          if (!result.ok && autoRetried) {
+            await db.insert(notificationsTable).values({
+              userId,
+              notificationType: "error",
+              title: "Content publish failed",
+              message: `Publishing to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel} failed after automatic retry: ${(result.error ?? "").slice(0, 200)}. You can retry manually from the Content Calendar.`,
+            }).catch(() => {});
+          }
 
           send({
             type: "tool_result",
@@ -1331,6 +1350,7 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
               displayName: PUBLISHING_CHANNELS[channel]?.displayName ?? channel,
               publishedUrl: result.publishedUrl,
               error: result.error,
+              autoRetried,
               contentId: record.id,
             },
           });

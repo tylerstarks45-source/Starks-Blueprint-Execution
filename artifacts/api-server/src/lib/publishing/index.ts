@@ -23,7 +23,7 @@ export interface PublishParams {
  * server-side request forgery via user-controlled siteUrl (WordPress/Ghost).
  * Returns an error string if the URL is dangerous, undefined if safe.
  */
-function validateSiteUrl(rawUrl: string | undefined): string | undefined {
+async function validateSiteUrl(rawUrl: string | undefined): Promise<string | undefined> {
   if (!rawUrl) return undefined;
   let parsed: URL;
   try {
@@ -44,7 +44,7 @@ function validateSiteUrl(rawUrl: string | undefined): string | undefined {
   ) {
     return "siteUrl must not point to localhost.";
   }
-  // Block internal IPv4 ranges: 10.x, 172.16-31.x, 192.168.x, 169.254.x (metadata)
+  // Block raw IPv4 literals in private/loopback/link-local/shared ranges
   const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
   if (ipv4) {
     const [, a, b] = ipv4.map(Number);
@@ -59,6 +59,61 @@ function validateSiteUrl(rawUrl: string | undefined): string | undefined {
       return "siteUrl must not point to a private or internal IP address.";
     }
   }
+
+  // Block raw IPv6 literals — loopback, link-local, unique-local, and embedded private IPv4
+  // Strip surrounding brackets if present (URL parser includes them for IPv6)
+  const h6 = hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+  // Detect IPv6 by presence of colon
+  if (h6.includes(":")) {
+    const lower = h6.toLowerCase();
+    if (
+      lower === "::1" ||                          // loopback
+      lower.startsWith("fe80:")  ||               // link-local fe80::/10
+      lower.startsWith("fc00:")  ||               // unique-local fc00::/7 (fc/fd)
+      lower.startsWith("fd")     ||               // unique-local fd00::/8
+      lower.startsWith("::ffff:") ||              // IPv4-mapped — check embedded IP below
+      lower === "::" ||                           // unspecified
+      lower.startsWith("100::")                   // Teredo (may embed private)
+    ) {
+      return "siteUrl must not point to a private or internal IP address.";
+    }
+    // For ::ffff: mapped addresses, extract and check the embedded IPv4
+    if (lower.startsWith("::ffff:")) {
+      const embedded = lower.slice(7);
+      const embV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(embedded);
+      if (embV4) {
+        const [, ea, eb] = embV4.map(Number);
+        if (
+          ea === 10 || ea === 127 ||
+          (ea === 172 && eb >= 16 && eb <= 31) ||
+          (ea === 192 && eb === 168) ||
+          (ea === 169 && eb === 254)
+        ) {
+          return "siteUrl must not point to a private or internal IP address.";
+        }
+      }
+    }
+  }
+
+  // Block hostnames that resolve to private IPs via DNS
+  // We do a best-effort check using Node's dns.lookup
+  try {
+    const { lookup } = await import("node:dns/promises");
+    const resolved = await lookup(hostname, { family: 4 });
+    const [ra, rb] = resolved.address.split(".").map(Number);
+    if (
+      ra === 10 || ra === 127 ||
+      (ra === 172 && rb >= 16 && rb <= 31) ||
+      (ra === 192 && rb === 168) ||
+      (ra === 169 && rb === 254) ||
+      (ra === 100 && rb >= 64 && rb <= 127)
+    ) {
+      return "siteUrl resolves to a private or internal IP address.";
+    }
+  } catch {
+    // DNS lookup failed — not blocking; let the outbound fetch fail naturally
+  }
+
   return undefined; // safe
 }
 
@@ -255,7 +310,7 @@ async function publishWordPress(creds: Record<string, string>, params: PublishPa
   if (!wpUrl) return { ok: false, error: "WORDPRESS_SITE_URL credential not found. Add it in Connections Hub." };
   if (!wpUser || !wpAppPw) return { ok: false, error: "WORDPRESS_USERNAME and WORDPRESS_APP_PASSWORD credentials required." };
 
-  const ssrfErr = validateSiteUrl(wpUrl);
+  const ssrfErr = await validateSiteUrl(wpUrl);
   if (ssrfErr) return { ok: false, error: ssrfErr };
 
   const authHeader = `Basic ${Buffer.from(`${wpUser}:${wpAppPw}`).toString("base64")}`;
@@ -291,7 +346,7 @@ async function publishGhost(creds: Record<string, string>, params: PublishParams
   if (!ghostUrl) return { ok: false, error: "GHOST_SITE_URL credential not found. Add it in Connections Hub." };
   if (!adminKey) return { ok: false, error: "GHOST_ADMIN_API_KEY credential not found. Add it in Connections Hub." };
 
-  const ssrfErr = validateSiteUrl(ghostUrl);
+  const ssrfErr = await validateSiteUrl(ghostUrl);
   if (ssrfErr) return { ok: false, error: ssrfErr };
 
   // Ghost Admin API Key is in the format id:secret

@@ -130,8 +130,24 @@ function PublishedContentPanel({ instanceId }) {
     } finally { setDeleting(null); }
   };
 
-  const filtered = filter === 'all' ? items : items.filter(x => x.status === filter);
-  const counts = { all: items.length, published: items.filter(x => x.status === 'published').length, failed: items.filter(x => x.status === 'failed').length, pending: items.filter(x => x.status === 'pending').length };
+  const now = Date.now();
+  // Sort: upcoming scheduled first (soonest first), then past by newest first
+  const sorted = [...items].sort((a, b) => {
+    const aScheduled = a.status === 'scheduled';
+    const bScheduled = b.status === 'scheduled';
+    if (aScheduled && !bScheduled) return -1;
+    if (!aScheduled && bScheduled) return 1;
+    if (aScheduled && bScheduled) return new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime();
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+  const filtered = filter === 'all' ? sorted : sorted.filter(x => x.status === filter);
+  const counts = {
+    all: items.length,
+    scheduled: items.filter(x => x.status === 'scheduled').length,
+    published: items.filter(x => x.status === 'published').length,
+    failed: items.filter(x => x.status === 'failed').length,
+    pending: items.filter(x => x.status === 'pending').length,
+  };
 
   return (
     <div className="rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm">
@@ -142,7 +158,7 @@ function PublishedContentPanel({ instanceId }) {
           <span className="text-xs text-gray-600 font-mono">{counts.all} item{counts.all !== 1 ? 's' : ''}</span>
         </div>
         <div className="flex items-center gap-1">
-          {['all', 'published', 'failed', 'pending'].map(f => (
+          {['all', 'scheduled', 'published', 'failed', 'pending'].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -208,7 +224,11 @@ function PublishedContentPanel({ instanceId }) {
                   )}
                   <div className="flex items-center gap-3 mt-1.5">
                     <span className="text-[10px] text-gray-700 font-mono">
-                      {item.publishedAt ? `Published ${timeAgo(item.publishedAt)}` : `Created ${timeAgo(item.createdAt)}`}
+                      {item.status === 'scheduled' && item.scheduledFor
+                        ? `Scheduled for ${new Date(item.scheduledFor).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                        : item.publishedAt
+                          ? `Published ${timeAgo(item.publishedAt)}`
+                          : `Created ${timeAgo(item.createdAt)}`}
                     </span>
                     {item.retryCount > 0 && (
                       <span className="text-[10px] text-gray-700 font-mono">{item.retryCount} retry{item.retryCount !== 1 ? 's' : ''}</span>

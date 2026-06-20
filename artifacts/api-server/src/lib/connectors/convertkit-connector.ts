@@ -6,7 +6,7 @@ export class ConvertKitConnector extends BaseConnector {
   readonly category = "email_marketing";
   readonly authType = "api_key" as const;
   readonly requiredCredentials = ["CONVERTKIT_API_KEY"];
-  readonly actions = ["addSubscriber", "getForms", "tagSubscriber", "getStats"];
+  readonly actions = ["addSubscriber", "getForms", "tagSubscriber"];
 
   async testConnection(): Promise<TestResult> {
     const apiKey = this.creds["CONVERTKIT_API_KEY"];

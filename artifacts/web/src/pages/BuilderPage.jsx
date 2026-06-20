@@ -2078,7 +2078,7 @@ const BuilderPage = () => {
       const resp = await fetch('/api/ai-orchestrator/stream', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ message: msg, history, agentMode: aiMode, businessType, revenueGoal, planMode: isPlanMode }),
+        body: JSON.stringify({ message: msg, history, agentMode: aiMode, businessType, revenueGoal, planMode: isPlanMode, systemInstanceId: buildData?.instanceId ?? undefined }),
       });
 
       if (resp.status === 402) {

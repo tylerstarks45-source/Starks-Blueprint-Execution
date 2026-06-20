@@ -6,7 +6,7 @@ export class GoHighLevelConnector extends BaseConnector {
   readonly category = "crm";
   readonly authType = "api_key" as const;
   readonly requiredCredentials = ["GOHIGHLEVEL_API_KEY"];
-  readonly actions = ["createContact", "updateContact", "getContacts", "sendSms", "sendEmail"];
+  readonly actions = ["createContact", "updateContact", "getContacts"];
 
   private get baseUrl() {
     return "https://rest.gohighlevel.com/v1";

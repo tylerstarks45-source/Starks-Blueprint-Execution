@@ -6,7 +6,7 @@ export class SendGridConnector extends BaseConnector {
   readonly category = "email_marketing";
   readonly authType = "api_key" as const;
   readonly requiredCredentials = ["SENDGRID_API_KEY"];
-  readonly actions = ["sendEmail", "addContact", "createList", "getStats"];
+  readonly actions = ["sendEmail", "addContact", "getStats"];
 
   async testConnection(): Promise<TestResult> {
     const apiKey = this.creds["SENDGRID_API_KEY"];

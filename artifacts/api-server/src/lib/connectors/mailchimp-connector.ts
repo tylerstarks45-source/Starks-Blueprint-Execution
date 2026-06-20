@@ -6,7 +6,7 @@ export class MailchimpConnector extends BaseConnector {
   readonly category = "email_marketing";
   readonly authType = "api_key" as const;
   readonly requiredCredentials = ["MAILCHIMP_API_KEY"];
-  readonly actions = ["addSubscriber", "getLists", "sendCampaign", "getStats"];
+  readonly actions = ["addSubscriber", "getLists"];
 
   private getDatacenter(): string {
     const key = this.creds["MAILCHIMP_API_KEY"] ?? "";

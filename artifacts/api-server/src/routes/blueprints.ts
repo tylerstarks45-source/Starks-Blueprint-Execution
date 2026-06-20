@@ -328,30 +328,42 @@ router.post("/blueprints/:id/purchase", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Blueprint is not available for purchase" });
     return;
   }
-  // Check if already purchased
-  const [existing] = await db
-    .select({ id: blueprintPurchasesTable.id })
-    .from(blueprintPurchasesTable)
-    .where(
-      and(
-        eq(blueprintPurchasesTable.blueprintId, params.data.id),
-        eq(blueprintPurchasesTable.buyerUserId, caller.id),
-      ),
-    );
-  if (existing) {
-    res.status(409).json({ error: "You have already purchased this blueprint" });
-    return;
-  }
-
   const priceCredits = bp.priceCredits ?? 0;
   const creatorShare = Math.floor(priceCredits * 0.7);
 
+  // Balance check before any writes
   if (priceCredits > 0) {
     const balance = await getBalance(caller.id);
     if (balance.total < priceCredits) {
       res.status(402).json({ error: "Insufficient credits" });
       return;
     }
+  }
+
+  // INSERT purchase record FIRST — idempotency guard.
+  // The unique constraint on (blueprintId, buyerUserId) means concurrent duplicate
+  // requests will fail here before any money moves.
+  const [purchase] = await db
+    .insert(blueprintPurchasesTable)
+    .values({
+      blueprintId: params.data.id,
+      buyerUserId: caller.id,
+      authorUserId: bp.authorUserId ?? null,
+      priceCredits,
+      creatorShareCredits: creatorShare,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  if (!purchase) {
+    // Already purchased (unique constraint prevented insert)
+    res.status(409).json({ error: "You have already purchased this blueprint" });
+    return;
+  }
+
+  // Financial operations only after purchase record is committed
+  if (priceCredits > 0) {
+    const balance = await getBalance(caller.id);
     // Deduct from wallet first, then monthly
     if (balance.wallet >= priceCredits) {
       await adjustWalletCredits(caller.id, -priceCredits, { reason: `Purchase blueprint "${bp.name}"` });
@@ -364,7 +376,6 @@ router.post("/blueprints/:id/purchase", async (req, res): Promise<void> => {
     // Pay creator 70%
     if (bp.authorUserId && creatorShare > 0) {
       await adjustWalletCredits(bp.authorUserId, creatorShare, { reason: `Blueprint sale: "${bp.name}"` });
-      // Notify creator
       try {
         await db.insert(notificationsTable).values({
           userId: bp.authorUserId,
@@ -373,9 +384,7 @@ router.post("/blueprints/:id/purchase", async (req, res): Promise<void> => {
           notificationType: "success",
           read: false,
         });
-      } catch {
-        // Non-fatal
-      }
+      } catch { /* Non-fatal */ }
     }
   }
 
@@ -384,17 +393,6 @@ router.post("/blueprints/:id/purchase", async (req, res): Promise<void> => {
     .update(blueprintsTable)
     .set({ salesCount: (bp.salesCount ?? 0) + 1 })
     .where(eq(blueprintsTable.id, params.data.id));
-
-  const [purchase] = await db
-    .insert(blueprintPurchasesTable)
-    .values({
-      blueprintId: params.data.id,
-      buyerUserId: caller.id,
-      authorUserId: bp.authorUserId ?? null,
-      priceCredits,
-      creatorShareCredits: creatorShare,
-    })
-    .returning();
 
   res.status(201).json(serialize(purchase));
 });

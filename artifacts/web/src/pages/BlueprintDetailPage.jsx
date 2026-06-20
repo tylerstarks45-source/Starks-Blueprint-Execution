@@ -77,36 +77,50 @@ const BlueprintDetailPage = () => {
   const [reviewText, setReviewText] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
+  const authToken = () => localStorage.getItem('sbep_auth_token');
+
+  // Fetches a blueprint by ID using the detail endpoint (entitled — returns setupSteps if purchaser/admin/author)
+  const fetchBlueprintById = async (id) => {
+    const token = authToken();
+    const res = await fetch(`/api/blueprints/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error('Blueprint not found');
+    return res.json();
+  };
+
   useEffect(() => {
     if (!slug) return;
     const fetchData = async () => {
       setIsLoading(true);
       setError(false);
       try {
-        const [bpRes, toolsRes] = await Promise.all([
-          fetch(`/api/blueprints?slug=${encodeURIComponent(slug)}`),
+        // Step 1: Resolve slug → ID via list endpoint (lightweight)
+        const slugRes = await fetch(`/api/blueprints?slug=${encodeURIComponent(slug)}`);
+        if (!slugRes.ok) throw new Error('Blueprint not found');
+        const slugData = await slugRes.json();
+        const stub = Array.isArray(slugData) ? slugData[0] : slugData;
+        if (!stub) throw new Error('Blueprint not found');
+
+        // Step 2: Fetch full detail from /:id with auth — server returns setupSteps if entitled
+        const [bp, toolsRes, revRes] = await Promise.all([
+          fetchBlueprintById(stub.id),
           fetch('/api/tools'),
+          fetch(`/api/blueprints/${stub.id}/reviews`),
         ]);
 
-        if (!bpRes.ok) throw new Error('Blueprint not found');
-        const bps = await bpRes.json();
-        const bp = Array.isArray(bps) ? bps[0] : bps;
-        if (!bp) throw new Error('Blueprint not found');
         setBlueprint(bp);
 
         if (toolsRes.ok) {
           const allTools = await toolsRes.json();
           setTools(Array.isArray(allTools) ? allTools.slice(0, 6) : []);
         }
-
-        // Load reviews
-        const revRes = await fetch(`/api/blueprints/${bp.id}/reviews`);
         if (revRes.ok) setReviews(await revRes.json());
 
-        // Check purchase entitlement from server (authoritative, not sessionStorage)
+        // Entitlement: server already gated setupSteps; set hasPurchased from entitlement endpoint
         if ((bp.priceCredits ?? 0) > 0) {
           try {
-            const token = localStorage.getItem('sbep_auth_token');
+            const token = authToken();
             const entRes = await fetch(`/api/blueprints/${bp.id}/entitlement`, {
               headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
@@ -116,7 +130,7 @@ const BlueprintDetailPage = () => {
             }
           } catch { /* ok */ }
         } else {
-          setHasPurchased(true); // free blueprints auto-accessible
+          setHasPurchased(true); // free blueprints always accessible
         }
       } catch (err) {
         setError(true);
@@ -182,6 +196,11 @@ const BlueprintDetailPage = () => {
         throw new Error(err.error || 'Purchase failed');
       }
       setHasPurchased(true);
+      // Refetch full blueprint from detail endpoint — now entitled, server returns premium fields
+      try {
+        const full = await fetchBlueprintById(blueprint.id);
+        setBlueprint(full);
+      } catch { /* non-fatal — user still has access */ }
       toast.success(`Blueprint purchased! ${blueprint.priceCredits} credits deducted.`);
     } catch (err) {
       toast.error(err.message || 'Failed to purchase blueprint');

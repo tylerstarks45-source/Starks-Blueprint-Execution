@@ -35,3 +35,4 @@ export * from "./user_affiliate_links";
 export * from "./email_marketing";
 export * from "./user_domains";
 export * from "./scheduled_tasks";
+export * from "./system_revenue_providers";

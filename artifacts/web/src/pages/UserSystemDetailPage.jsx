@@ -925,6 +925,304 @@ function AutomationSchedulePanel({ instanceId }) {
   );
 }
 
+// ─── REAL REVENUE PANEL ───────────────────────────────────────────────────────
+
+const PROVIDER_META = {
+  stripe:  { label: 'Stripe',  icon: '💳', color: 'text-violet-400', credential: 'stripe_secret_key',    hint: 'Stripe Secret Key' },
+  gumroad: { label: 'Gumroad', icon: '🟢', color: 'text-emerald-400', credential: 'gumroad_access_token', hint: 'Gumroad Access Token' },
+  paypal:  { label: 'PayPal',  icon: '🔵', color: 'text-blue-400',    credential: 'paypal_client_id',     hint: 'PayPal Client ID + Secret' },
+};
+
+function LinkProviderModal({ instanceId, onLinked, onClose }) {
+  const [provider, setProvider] = useState('stripe');
+  const [credentialKey, setCredentialKey] = useState('');
+  const [userCreds, setUserCreds] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    const token = localStorage.getItem('sbep_auth_token');
+    fetch('/api/user-credentials/summary', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        setUserCreds(Array.isArray(data) ? data : []);
+        const first = Array.isArray(data) ? data[0] : null;
+        if (first) setCredentialKey(first.credentialKey);
+      })
+      .catch(() => {});
+  }, []);
+
+  const providerMeta = PROVIDER_META[provider] ?? {};
+
+  const handleLink = async () => {
+    if (!credentialKey) { setErr('Select a credential from your Connections Hub'); return; }
+    setLoading(true);
+    setErr('');
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/system-instances/${instanceId}/revenue-providers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ provider, credentialKey }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to link provider');
+      onLinked(data);
+      onClose();
+      toast.success(`${providerMeta.label} linked — syncing revenue…`);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl border border-emerald-500/20 bg-gray-900 p-6 shadow-2xl">
+        <h3 className="text-base font-bold text-white mb-1 font-mono">Link Revenue Source</h3>
+        <p className="text-xs text-gray-500 mb-5">Connect a payment platform to track real income for this system.</p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Payment Provider</label>
+            <div className="grid grid-cols-3 gap-2">
+              {Object.entries(PROVIDER_META).map(([pid, meta]) => (
+                <button
+                  key={pid}
+                  onClick={() => setProvider(pid)}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                    provider === pid
+                      ? 'border-emerald-500/50 bg-emerald-500/10'
+                      : 'border-white/10 bg-black/40 hover:border-white/20'
+                  }`}
+                >
+                  <span className="text-xl">{meta.icon}</span>
+                  <span className={`text-[10px] font-mono ${provider === pid ? meta.color : 'text-gray-400'}`}>{meta.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">
+              Credential — <span className="text-gray-600">{providerMeta.hint}</span>
+            </label>
+            {userCreds.length === 0 ? (
+              <p className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
+                No credentials found. Add your {providerMeta.label} key in the{' '}
+                <a href="/connections" className="underline">Connections Hub</a> first.
+              </p>
+            ) : (
+              <select
+                value={credentialKey}
+                onChange={e => setCredentialKey(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-emerald-500/50"
+              >
+                <option value="">— select credential —</option>
+                {userCreds.map(c => (
+                  <option key={c.id} value={c.credentialKey}>{c.credentialKey}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {err && <p className="text-xs text-red-400 font-mono">{err}</p>}
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-white/10 text-gray-400 text-sm hover:text-white transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={handleLink}
+            disabled={loading || userCreds.length === 0}
+            className="flex-1 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Linking…' : 'Link Provider'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RealRevenuePanel({ instanceId }) {
+  const [linkedProviders, setLinkedProviders] = useState([]);
+  const [realRevenue, setRealRevenue] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    const token = localStorage.getItem('sbep_auth_token');
+    const headers = { Authorization: `Bearer ${token}` };
+    try {
+      const [providersRes, revenueRes] = await Promise.all([
+        fetch(`/api/system-instances/${instanceId}/revenue-providers`, { headers }),
+        fetch(`/api/system-instances/${instanceId}/real-revenue`, { headers }),
+      ]);
+      if (providersRes.ok) setLinkedProviders(await providersRes.json());
+      if (revenueRes.ok) setRealRevenue(await revenueRes.json());
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [instanceId]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleSync = async (providerId) => {
+    setSyncing(providerId);
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/system-instances/${instanceId}/revenue-providers/${providerId}/sync`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Sync failed');
+      toast.success(`Synced ${data.synced} new transaction${data.synced !== 1 ? 's' : ''}`);
+      await fetchData();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSyncing(null);
+    }
+  };
+
+  const handleUnlink = async (providerId, providerName) => {
+    const token = localStorage.getItem('sbep_auth_token');
+    try {
+      const res = await fetch(`/api/system-instances/${instanceId}/revenue-providers/${providerId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Unlink failed');
+      toast.success(`${providerName} unlinked`);
+      await fetchData();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
+  const stats = realRevenue?.stats;
+
+  return (
+    <>
+      {showModal && (
+        <LinkProviderModal
+          instanceId={instanceId}
+          onLinked={() => { setShowModal(false); fetchData(); }}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+
+      <div className="rounded-xl border border-emerald-500/20 bg-black/80 backdrop-blur-sm">
+        <div className="border-b border-white/5 px-4 py-3 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span className="text-xs font-mono text-gray-300 uppercase tracking-widest">Live Revenue</span>
+          <span className="ml-auto flex items-center gap-2">
+            {loading && <span className="w-3 h-3 border border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />}
+            <button
+              onClick={() => setShowModal(true)}
+              className="text-xs font-mono text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/50 px-2 py-0.5 rounded-md transition-all"
+            >
+              + Link Source
+            </button>
+          </span>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {!loading && linkedProviders.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-2xl mb-2">🔗</p>
+              <p className="text-sm font-medium text-white mb-1">No revenue source linked</p>
+              <p className="text-xs text-gray-500 mb-4">Connect Stripe, Gumroad, or PayPal to track real income from this system.</p>
+              <button
+                onClick={() => setShowModal(true)}
+                className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
+              >
+                Link Revenue Source
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Linked provider badges */}
+              <div className="flex flex-wrap gap-2">
+                {linkedProviders.map(p => {
+                  const meta = PROVIDER_META[p.provider] ?? { label: p.provider, icon: '💰', color: 'text-gray-400' };
+                  const isSyncing = syncing === p.id;
+                  return (
+                    <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-black/60">
+                      <span>{meta.icon}</span>
+                      <span className={`text-xs font-mono font-semibold ${meta.color}`}>{meta.label}</span>
+                      {p.syncStatus === 'ok' && <span className="text-[9px] text-emerald-500 font-mono">✓ synced</span>}
+                      {p.syncStatus === 'error' && <span className="text-[9px] text-red-400 font-mono" title={p.syncMessage}>⚠ error</span>}
+                      {p.syncStatus === 'syncing' && <span className="text-[9px] text-blue-400 font-mono animate-pulse">syncing…</span>}
+                      {p.lastSyncAt && (
+                        <span className="text-[9px] text-gray-600 font-mono">{timeAgo(p.lastSyncAt)}</span>
+                      )}
+                      <button
+                        onClick={() => handleSync(p.id)}
+                        disabled={isSyncing}
+                        title="Refresh revenue data"
+                        className="text-[10px] text-gray-500 hover:text-emerald-400 transition-colors disabled:opacity-30 ml-1"
+                      >
+                        {isSyncing ? '⟳' : '↺'}
+                      </button>
+                      <button
+                        onClick={() => handleUnlink(p.id, meta.label)}
+                        title="Unlink provider"
+                        className="text-[10px] text-gray-600 hover:text-red-400 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Real revenue stats */}
+              {stats && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Today',    value: centsToDisplay(stats.todayCents) },
+                    { label: 'This Week', value: centsToDisplay(stats.weekCents) },
+                    { label: 'This Month', value: centsToDisplay(stats.monthCents) },
+                    { label: 'All Time',  value: centsToDisplay(stats.lifetimeCents) },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="rounded-lg bg-emerald-500/5 border border-emerald-500/15 p-3 text-center">
+                      <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono mb-1">{label}</p>
+                      <p className={`text-xl font-bold font-mono ${stats.lifetimeCents > 0 ? 'text-emerald-400' : 'text-white'}`}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {stats && stats.trend && stats.trend.some(t => t.amountCents > 0) && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono mb-1">7-day real revenue</p>
+                  <div className="rounded-lg bg-black/60 border border-white/10 p-3">
+                    <RevenueSparkline trend={stats.trend} />
+                    <div className="flex justify-between mt-1">
+                      {stats.trend.map(t => (
+                        <span key={t.date} className="text-[9px] text-gray-700 font-mono">{t.date.slice(5)}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── REVENUE SECTION ──────────────────────────────────────────────────────────
 
 function RevenueSection({ instanceId, buildStatus, buildRevenueCents = 0 }) {
@@ -1682,6 +1980,9 @@ export default function UserSystemDetailPage() {
 
         {/* ── Automation Schedule ── */}
         <AutomationSchedulePanel instanceId={id} />
+
+        {/* ── Live Revenue (real provider data) ── */}
+        <RealRevenuePanel instanceId={id} />
 
         {/* ── Revenue + Live Activity ── */}
         <RevenueSection instanceId={id} buildStatus={instance?.buildStatus} buildRevenueCents={buildRevenueCents} />

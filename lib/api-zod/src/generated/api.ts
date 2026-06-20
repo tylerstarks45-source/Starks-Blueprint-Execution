@@ -1335,7 +1335,8 @@ export const GetAdminDashboardResponse = zod.object({
   "warningThresholdDays": zod.number().describe('Number of days after which a rotation warning is raised'),
   "needsRotation": zod.boolean().describe('True if the key is overdue for rotation (age unknown or >= threshold)')
 }),
-  "insecureCredentialsCount": zod.number().describe('Number of user credentials still in legacy\/unencrypted format (not yet or failed re-encryption)')
+  "insecureCredentialsCount": zod.number().describe('Number of user credentials still in legacy\/unencrypted format (not yet or failed re-encryption)'),
+  "activeScheduledTasksCount": zod.number().describe('Number of enabled scheduled tasks across all users')
 })
 
 

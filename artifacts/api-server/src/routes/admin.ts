@@ -25,6 +25,7 @@ import {
   userCredentialsTable,
   platformSettingsTable,
   encryptionKeyRotationsTable,
+  scheduledTasksTable,
 } from "@workspace/db";
 import { z } from "zod/v4";
 import { requireAdmin } from "../lib/auth";
@@ -171,6 +172,7 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
     recentActivity,
     [insecureCredRow],
     latestRotations,
+    [activeScheduledRow],
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)::int` }).from(usersTable),
     db.select({ count: sql<number>`count(*)::int` }).from(blueprintsTable),
@@ -196,6 +198,10 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
       .from(encryptionKeyRotationsTable)
       .orderBy(desc(encryptionKeyRotationsTable.rotatedAt))
       .limit(1),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(scheduledTasksTable)
+      .where(eq(scheduledTasksTable.enabled, true)),
   ]);
 
   // Prefer the latest DB record; fall back to in-process override / env var.
@@ -227,6 +233,7 @@ router.get("/admin/dashboard", async (req, res): Promise<void> => {
         recentActivity,
         encryptionKeyStatus,
         insecureCredentialsCount: insecureCredRow?.count ?? 0,
+        activeScheduledTasksCount: activeScheduledRow?.count ?? 0,
       }),
     ),
   );
@@ -1024,7 +1031,7 @@ router.get("/admin/platform-users/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [systems, sessions, usageRows, recentUsage, creditHistory] = await Promise.all([
+  const [systems, sessions, usageRows, recentUsage, creditHistory, realRevenueRow] = await Promise.all([
     db
       .select({
         id: systemInstancesTable.id,
@@ -1072,6 +1079,19 @@ router.get("/admin/platform-users/:id", async (req, res): Promise<void> => {
       .where(eq(creditTransactionsTable.userId, userId))
       .orderBy(desc(creditTransactionsTable.createdAt))
       .limit(30),
+    db
+      .select({
+        total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
+      })
+      .from(systemActivityEventsTable)
+      .innerJoin(systemInstancesTable, eq(systemInstancesTable.id, systemActivityEventsTable.systemInstanceId))
+      .where(
+        and(
+          eq(systemInstancesTable.userId, userId),
+          eq(systemActivityEventsTable.eventType, "revenue"),
+          sql`${systemActivityEventsTable.revenueProvider} is not null`,
+        )
+      ),
   ]);
 
   res.json(
@@ -1082,6 +1102,7 @@ router.get("/admin/platform-users/:id", async (req, res): Promise<void> => {
       usageSummary: usageRows[0] ?? { requests: 0, tokens: 0, costUsd: 0 },
       recentUsage,
       creditHistory,
+      realRevenueCents: Number(realRevenueRow[0]?.total ?? 0),
     }),
   );
 });

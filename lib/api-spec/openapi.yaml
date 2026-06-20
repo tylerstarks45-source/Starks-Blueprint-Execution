@@ -2960,7 +2960,10 @@ components:
         insecureCredentialsCount:
           type: integer
           description: Number of user credentials still in legacy/unencrypted format (not yet or failed re-encryption)
-      required: [totalUsers, totalBlueprints, totalTools, totalSystemInstances, activeSystemInstances, totalAffiliateClicks, openrouterTotalTokens, recentActivity, encryptionKeyStatus, insecureCredentialsCount]
+        activeScheduledTasksCount:
+          type: integer
+          description: Number of enabled scheduled tasks across all users
+      required: [totalUsers, totalBlueprints, totalTools, totalSystemInstances, activeSystemInstances, totalAffiliateClicks, openrouterTotalTokens, recentActivity, encryptionKeyStatus, insecureCredentialsCount, activeScheduledTasksCount]
 
     AdminPlatformStats:
       type: object

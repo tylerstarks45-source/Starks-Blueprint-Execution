@@ -10,10 +10,13 @@ export const systemActivityEventsTable = pgTable("system_activity_events", {
   amountCents: integer("amount_cents"),
   description: text("description").notNull(),
   metadata: text("metadata"),
+  externalTxId: text("external_tx_id"),
+  revenueProvider: text("revenue_provider"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("system_activity_events_system_instance_id_idx").on(t.systemInstanceId),
   index("system_activity_events_created_at_idx").on(t.createdAt),
+  index("system_activity_events_external_tx_id_idx").on(t.externalTxId),
 ]);
 
 export const insertSystemActivityEventSchema = createInsertSchema(systemActivityEventsTable).omit({ id: true, createdAt: true });

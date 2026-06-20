@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Layers, Server, Coins, Cpu } from 'lucide-react';
+import { BarChart3, Layers, Server, Coins, Cpu, TrendingUp } from 'lucide-react';
 
 const authHeaders = () => {
   const token = localStorage.getItem('sbep_auth_token');
@@ -8,6 +8,13 @@ const authHeaders = () => {
 };
 
 const ACTIVE_STATUSES = new Set(['active', 'building', 'running', 'in_progress']);
+
+const centsToDisplay = (cents) => {
+  if (!cents || cents === 0) return '$0';
+  const dollars = cents / 100;
+  if (dollars >= 1000) return `$${(dollars / 1000).toFixed(1)}k`;
+  return `$${dollars.toFixed(2)}`;
+};
 
 const StatBox = ({ icon: Icon, label, value, color, sub }) => (
   <div className="p-3 rounded-xl border border-white/10 bg-black/60 text-center flex flex-col items-center gap-1">
@@ -19,15 +26,16 @@ const StatBox = ({ icon: Icon, label, value, color, sub }) => (
 );
 
 const UserEarningsTrackingCard = () => {
-  const [stats, setStats] = useState({ total: 0, active: 0, creditsUsed: 0, buildSessions: 0 });
+  const [stats, setStats] = useState({ total: 0, active: 0, creditsUsed: 0, building: 0, realRevenueCents: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [siRes, txRes] = await Promise.all([
+        const [siRes, txRes, revRes] = await Promise.all([
           fetch('/api/system-instances', { headers: authHeaders() }).then(r => r.ok ? r.json() : []),
           fetch('/api/credits/transactions', { headers: authHeaders() }).then(r => r.ok ? r.json() : []),
+          fetch('/api/dashboard/revenue-summary', { headers: authHeaders() }).then(r => r.ok ? r.json() : null),
         ]);
 
         const systems = Array.isArray(siRes) ? siRes : [];
@@ -41,9 +49,11 @@ const UserEarningsTrackingCard = () => {
           .filter(t => t.type === 'usage')
           .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
 
-        setStats({ total: systems.length, active, creditsUsed, building });
+        const realRevenueCents = revRes?.realRevenueCents ?? 0;
+
+        setStats({ total: systems.length, active, creditsUsed, building, realRevenueCents });
       } catch {
-        setStats({ total: 0, active: 0, creditsUsed: 0, building: 0 });
+        setStats({ total: 0, active: 0, creditsUsed: 0, building: 0, realRevenueCents: 0 });
       } finally {
         setIsLoading(false);
       }
@@ -52,10 +62,11 @@ const UserEarningsTrackingCard = () => {
   }, []);
 
   const metrics = [
-    { label: 'Systems Built', value: stats.total, icon: Layers, color: 'text-primary', sub: 'all time' },
+    { label: 'Systems Built', value: stats.total,  icon: Layers, color: 'text-primary', sub: 'all time' },
     { label: 'Live Now',      value: stats.active,  icon: Server, color: 'text-emerald-400', sub: 'running' },
     { label: 'Building',      value: stats.building, icon: Cpu,   color: 'text-blue-400', sub: 'in progress' },
     { label: 'Credits Used',  value: stats.creditsUsed.toLocaleString(), icon: Coins, color: 'text-amber-400', sub: 'AI tokens' },
+    { label: 'Real Revenue',  value: centsToDisplay(stats.realRevenueCents), icon: TrendingUp, color: stats.realRevenueCents > 0 ? 'text-emerald-400' : 'text-gray-500', sub: 'from linked sources' },
   ];
 
   return (
@@ -68,7 +79,7 @@ const UserEarningsTrackingCard = () => {
       <CardContent className="pt-4 pb-4">
         {isLoading ? (
           <div className="grid grid-cols-2 gap-2 animate-pulse">
-            {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-white/5 rounded-xl" />)}
+            {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-20 bg-white/5 rounded-xl" />)}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">

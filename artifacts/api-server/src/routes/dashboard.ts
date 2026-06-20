@@ -10,6 +10,7 @@ import {
   buildProgressTable,
   buildSessionsTable,
   systemActivityEventsTable,
+  systemRevenueProvidersTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { requireAuthActive } from "../lib/auth";
@@ -219,7 +220,13 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
   const sevenDaysAgo = new Date(startOfToday);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
-  const [todayRows, weekRows, monthRows, lifetimeRows, dailyRaw] = await Promise.all([
+  const realRevenueBase = and(
+    inArray(systemActivityEventsTable.systemInstanceId, systemIds),
+    eq(systemActivityEventsTable.eventType, "revenue"),
+    sql`${systemActivityEventsTable.revenueProvider} is not null`,
+  );
+
+  const [todayRows, weekRows, monthRows, lifetimeRows, dailyRaw, realLifetimeRows] = await Promise.all([
     db
       .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
       .from(systemActivityEventsTable)
@@ -244,6 +251,10 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
       .from(systemActivityEventsTable)
       .where(and(revenueBase, gte(systemActivityEventsTable.createdAt, sevenDaysAgo)))
       .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`),
+    db
+      .select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
+      .from(systemActivityEventsTable)
+      .where(realRevenueBase),
   ]);
 
   const daily: Array<{ date: string; cents: number }> = [];
@@ -260,6 +271,7 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
     weekCents: Number(weekRows[0]?.total ?? 0),
     monthCents: Number(monthRows[0]?.total ?? 0),
     lifetimeCents: Number(lifetimeRows[0]?.total ?? 0),
+    realRevenueCents: Number(realLifetimeRows[0]?.total ?? 0),
     systemCount: systemIds.length,
     currency: "USD",
     daily,

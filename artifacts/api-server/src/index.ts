@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { setKeyRotatedAt } from "./lib/crypto";
 import { startWorker } from "./lib/runtime/worker";
 import { startScheduler } from "./lib/runtime/scheduler";
+import { startRevenueSync } from "./lib/revenue/sync";
 
 async function start() {
   const rawPort = process.env["PORT"];
@@ -63,6 +64,8 @@ async function start() {
     startWorker();
     // Start the scheduler loop (polls DB every 60s for due scheduled tasks)
     startScheduler();
+    // Start the revenue sync worker (polls enabled providers hourly)
+    startRevenueSync();
   });
 }
 

@@ -662,6 +662,8 @@ export interface AdminDashboard {
   encryptionKeyStatus: EncryptionKeyRotationStatus;
   /** Number of user credentials still in legacy/unencrypted format (not yet or failed re-encryption) */
   insecureCredentialsCount: number;
+  /** Number of enabled scheduled tasks across all users */
+  activeScheduledTasksCount: number;
 }
 
 export interface AdminPlatformStats {

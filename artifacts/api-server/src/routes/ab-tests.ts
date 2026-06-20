@@ -121,6 +121,20 @@ router.patch("/ab-tests/:id", async (req, res): Promise<void> => {
     .where(and(eq(abTestsTable.id, id), eq(abTestsTable.userId, userId)));
   if (!existing) { res.status(404).json({ error: "A/B test not found" }); return; }
 
+  // IDOR guard: if a winnerVariantId is provided, verify it belongs to THIS test
+  if (parsed.data.winnerVariantId !== undefined) {
+    const [ownedVariant] = await db.select({ id: abVariantsTable.id })
+      .from(abVariantsTable)
+      .where(and(
+        eq(abVariantsTable.id, parsed.data.winnerVariantId),
+        eq(abVariantsTable.testId, id),
+      ));
+    if (!ownedVariant) {
+      res.status(403).json({ error: "Variant does not belong to this test" });
+      return;
+    }
+  }
+
   const updates: Record<string, unknown> = {};
   if (parsed.data.name !== undefined) updates.name = parsed.data.name;
   if (parsed.data.status !== undefined) updates.status = parsed.data.status;

@@ -1,8 +1,10 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, count, sql, and } from "drizzle-orm";
+import { randomBytes } from "crypto";
 import {
   db,
+  pool,
   blueprintsTable,
   blueprintCategoriesTable,
   toolsTable,
@@ -18,6 +20,8 @@ import {
   skillActivationsTable,
   scheduledTasksTable,
   publishedContentTable,
+  abTestsTable,
+  abVariantsTable,
 } from "@workspace/db";
 import { publish, PUBLISHING_CHANNELS } from "../lib/publishing";
 import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
@@ -396,6 +400,21 @@ For creating a scheduled recurring task on a system (during a build step or when
 Valid scheduleType values: "every_n_minutes" (scheduleConfig: {intervalMinutes: N}), "every_n_hours" (scheduleConfig: {intervalHours: N}), "daily" (scheduleConfig: {hour: 0-23, minute: 0-59}), "weekly" (scheduleConfig: {dayOfWeek: 1-7 (Mon=1), hour: 0-23, minute: 0-59}).
 Use create_schedule when the user's build plan includes recurring tasks that should run automatically (e.g. "post daily", "check metrics every hour", "send weekly email").
 
+For creating an A/B test and auto-generating variants on a landing page or email sequence (during a build step or when user asks to optimise/split-test content):
+<SBEP_DATA>
+{
+  "action": "generate_ab_variants",
+  "testName": "Homepage Headline A/B Test",
+  "testType": "landing_page",
+  "originalContent": "Original headline or subject line being tested",
+  "numberOfVariants": 2,
+  "landingPageId": 0,
+  "sequenceId": 0
+}
+</SBEP_DATA>
+testType must be "landing_page" or "email_subject". For landing_page include landingPageId (0 if unknown). For email_subject include sequenceId (0 if unknown). numberOfVariants is the number of treatment variants to generate (1-4); the original is always the control.
+Use generate_ab_variants when the user wants to split-test copy, headlines, or email subject lines to optimise conversion rates.
+
 For general questions (not a build goal):
 <SBEP_DATA>
 { "action": "general" }
@@ -405,6 +424,7 @@ CRITICAL: When user says "I confirm the plan", "let's proceed", "I'm ready", or 
 CRITICAL: When user explicitly provides credentials or asks to start building → return "start_build".
 CRITICAL: When user asks to visit a website, search the web, check a URL, find pricing/info online, or interact with a web page → return "browser_use".
 CRITICAL: When user's system needs to run a task on a recurring schedule (post daily, check hourly, send weekly) → use "create_schedule".
+CRITICAL: When user wants to A/B test a landing page or email subject line → use "generate_ab_variants".
 
 === ASH AUTONOMOUS TOOL CAPABILITIES ===
 
@@ -1233,6 +1253,113 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
           structuredData = null;
         } catch (schedErr) {
           req.log.warn({ schedErr }, "Failed to create scheduled task from ASH");
+        }
+      }
+    }
+
+    // ── Server-side generate_ab_variants handling ─────────────────────────────
+    // When ASH emits a generate_ab_variants action, create the A/B test record
+    // and auto-generate variant content via OpenRouter.
+    if (
+      structuredData != null &&
+      structuredData.action === "generate_ab_variants" &&
+      parsed.data.systemInstanceId != null
+    ) {
+      const instanceId = parsed.data.systemInstanceId;
+      const [owned] = await db
+        .select({ id: systemInstancesTable.id })
+        .from(systemInstancesTable)
+        .where(and(
+          eq(systemInstancesTable.id, instanceId),
+          eq(systemInstancesTable.userId, userId),
+        ))
+        .limit(1);
+
+      if (owned) {
+        try {
+          const testType     = (structuredData.testType as string) === "email_subject" ? "email_subject" : "landing_page";
+          const testName     = (structuredData.testName as string) || "A/B Test";
+          const origContent  = (structuredData.originalContent as string) || "";
+          const nVariants    = Math.min(Math.max(Number(structuredData.numberOfVariants) || 2, 1), 4);
+          const landingPageId = Number(structuredData.landingPageId) || undefined;
+          const sequenceId    = Number(structuredData.sequenceId) || undefined;
+
+          const config: Record<string, unknown> = {};
+          if (landingPageId) config.landingPageId = landingPageId;
+          if (sequenceId)    config.sequenceId    = sequenceId;
+
+          // Create the test record
+          const [newTest] = await db.insert(abTestsTable).values({
+            userId,
+            systemInstanceId: instanceId,
+            name: testName,
+            type: testType,
+            status: "running",
+            config,
+            token: randomBytes(16).toString("hex"),
+          }).returning();
+
+          // Generate variant content via OpenRouter
+          const variantPrompt = testType === "email_subject"
+            ? `Generate ${nVariants} A/B test variants for this email subject line.\nOriginal: "${origContent}"\nReturn ONLY valid JSON: {"variants":[{"name":"Variant A","content":"subject line"}]}\nKeep subjects under 60 characters. Make each variant meaningfully different.`
+            : `Generate ${nVariants} A/B test variants for this landing page headline or content.\nOriginal: "${origContent}"\nReturn ONLY valid JSON: {"variants":[{"name":"Variant A","content":"full variant content or headline"}]}\nMake each variant test a different persuasion angle.`;
+
+          const genResult = await complete({
+            systemPrompt: "You are an expert conversion-rate optimiser. Return ONLY raw JSON — no markdown, no code blocks.",
+            prompt: variantPrompt,
+            model: "openai/gpt-4o-mini",
+            userId,
+          });
+
+          let generatedVariants: Array<{ name: string; content: string }> = [];
+          try {
+            const jsonMatch = genResult.content.match(/\{[\s\S]*\}/);
+            const parsed2 = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+            generatedVariants = (parsed2.variants ?? []).slice(0, nVariants);
+          } catch { /* fall back to empty */ }
+
+          // Insert control + treatment variants
+          const variantRows: Array<{ testId: number; name: string; contentRef: string; slug: string | null }> = [
+            { testId: newTest.id, name: "Control (Original)", contentRef: origContent, slug: null },
+          ];
+          for (let i = 0; i < generatedVariants.length; i++) {
+            const v = generatedVariants[i]!;
+            const suffix = String.fromCharCode(98 + i); // 'b', 'c', 'd', ...
+            const baseSlug = testType === "landing_page" && landingPageId
+              ? `lp-${landingPageId}-v${suffix}`
+              : null;
+            variantRows.push({ testId: newTest.id, name: v.name, contentRef: v.content, slug: baseSlug });
+          }
+
+          const insertedVariants = await db.insert(abVariantsTable)
+            .values(variantRows)
+            .returning({ id: abVariantsTable.id, name: abVariantsTable.name });
+
+          send({
+            type: "tool_result",
+            tool: "generate_ab_variants",
+            data: {
+              ok: true,
+              abTest: {
+                id: newTest.id,
+                name: newTest.name,
+                type: newTest.type,
+                token: newTest.token,
+                variants: insertedVariants,
+              },
+            },
+          });
+
+          await db.insert(systemActivityEventsTable).values({
+            systemInstanceId: instanceId,
+            eventType: "action",
+            description: `A/B test created: "${newTest.name}" — ${insertedVariants.length} variants (${testType === "email_subject" ? "email subject" : "landing page"})`,
+            metadata: JSON.stringify({ abTestId: newTest.id, type: testType }),
+          });
+
+          structuredData = null;
+        } catch (abErr) {
+          req.log.warn({ abErr }, "Failed to create A/B test from ASH generate_ab_variants");
         }
       }
     }

@@ -466,9 +466,9 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
   const assignments: Assignment[] = [];
 
   if (abTestInfo) {
-    // Fetch all active variants with their config (subject line stored in config.subject)
-    const variantRows = await pool.query<{ id: number; name: string; visits: number; config: Record<string, unknown> }>(
-      `SELECT id, name, visits, config FROM ab_variants
+    // Fetch all active variants — subject line is stored in content_ref
+    const variantRows = await pool.query<{ id: number; name: string; visits: number; contentRef: string }>(
+      `SELECT id, name, visits, content_ref AS "contentRef" FROM ab_variants
        WHERE test_id = $1 AND status = 'active'
        ORDER BY id ASC`,
       [abTestInfo.id],
@@ -493,9 +493,9 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
         }
         runningVisits.set(chosen.id, (runningVisits.get(chosen.id) ?? 0) + 1);
 
-        // The variant's subject line is stored in config.subject (set by generate-variants)
-        const variantSubject = (typeof chosen.config?.subject === "string" && chosen.config.subject)
-          ? chosen.config.subject
+        // The variant's subject line is stored in content_ref (set by generate-variants)
+        const variantSubject = (chosen.contentRef && chosen.contentRef.trim().length > 0)
+          ? chosen.contentRef
           : step.subject;
 
         assignments.push({

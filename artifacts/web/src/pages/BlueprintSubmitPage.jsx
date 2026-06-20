@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import PageMeta from '@/components/PageMeta.jsx';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { motion } from 'framer-motion';
-import { PlusCircle, ArrowLeft, Loader2, CheckCircle2, Info } from 'lucide-react';
+import { PlusCircle, ArrowLeft, Loader2, CheckCircle2, Info, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 const authHeaders = () => {
@@ -36,10 +36,12 @@ const BlueprintSubmitPage = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({
     name: '',
     description: '',
     difficulty: 'beginner',
+    categoryId: '',
     estimatedTime: '',
     estimatedCost: '',
     estimatedEarnings: '',
@@ -47,6 +49,13 @@ const BlueprintSubmitPage = () => {
     setupSteps: '',
     priceCredits: '0',
   });
+
+  useEffect(() => {
+    fetch('/api/blueprint-categories')
+      .then(r => r.ok ? r.json() : [])
+      .then(setCategories)
+      .catch(() => {});
+  }, []);
 
   const handleChange = e => {
     const { name, value } = e.target;
@@ -68,12 +77,13 @@ const BlueprintSubmitPage = () => {
           name: form.name.trim(),
           description: form.description.trim() || undefined,
           difficulty: form.difficulty,
+          categoryId: form.categoryId ? parseInt(form.categoryId, 10) : undefined,
           estimatedTime: form.estimatedTime.trim() || undefined,
           estimatedCost: form.estimatedCost.trim() || undefined,
           estimatedEarnings: form.estimatedEarnings.trim() || undefined,
           requiredTools: form.requiredTools.trim() || undefined,
           setupSteps: form.setupSteps.trim() || undefined,
-          priceCredits: Math.min(500, Math.max(0, parseInt(form.priceCredits, 10) || 0)),
+          priceCredits: (() => { const p = parseInt(form.priceCredits, 10) || 0; return p === 0 ? 0 : Math.min(99, Math.max(5, p)); })(),
         }),
       });
       if (!res.ok) {
@@ -177,6 +187,26 @@ const BlueprintSubmitPage = () => {
                 className="w-full bg-muted/20 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all resize-none"
               />
             </div>
+
+            {categories.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-foreground">Category</label>
+                <div className="relative">
+                  <select
+                    name="categoryId"
+                    value={form.categoryId}
+                    onChange={handleChange}
+                    className="w-full appearance-none bg-muted/20 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all cursor-pointer"
+                  >
+                    <option value="">Select a category…</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-foreground">Difficulty Level</label>

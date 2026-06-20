@@ -38,6 +38,7 @@ const BlueprintsPage = () => {
   const { currentUser } = useAuth();
 
   const [blueprints, setBlueprints] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('popular');
@@ -45,22 +46,19 @@ const BlueprintsPage = () => {
   const [activeFilters, setActiveFilters] = useState({ difficulty: [] });
   const [priceFilter, setPriceFilter] = useState('all');
   const [minRating, setMinRating] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch('/api/blueprints');
-        if (res.ok) {
-          const data = await res.json();
-          // Show platform blueprints + approved community blueprints
-          const isOfficial = s => s === 'platform' || s === 'admin';
-          const visible = data.filter(
-            bp => isOfficial(bp.source) || (bp.source === 'community' && bp.reviewStatus === 'approved'),
-          );
-          setBlueprints(visible);
-        }
+        const [bpRes, catRes] = await Promise.all([
+          fetch('/api/blueprints'),
+          fetch('/api/blueprint-categories'),
+        ]);
+        if (bpRes.ok) setBlueprints(await bpRes.json());
+        if (catRes.ok) setCategories(await catRes.json());
       } catch {
         // silently fallback to empty
       } finally {
@@ -84,6 +82,7 @@ const BlueprintsPage = () => {
     setSourceFilter('all');
     setPriceFilter('all');
     setMinRating(0);
+    setSelectedCategory('all');
   };
 
   const filteredAndSorted = useMemo(() => {
@@ -96,6 +95,7 @@ const BlueprintsPage = () => {
       if (priceFilter === 'free' && (bp.priceCredits ?? 0) > 0) return false;
       if (priceFilter === 'paid' && (bp.priceCredits ?? 0) === 0) return false;
       if (minRating > 0 && (bp.ratingCount === 0 || (bp.ratingAvg ?? 0) < minRating)) return false;
+      if (selectedCategory !== 'all' && String(bp.categoryId) !== selectedCategory) return false;
       return true;
     });
 
@@ -112,7 +112,7 @@ const BlueprintsPage = () => {
       return 0;
     });
     return result;
-  }, [blueprints, searchQuery, activeFilters, sortBy, sourceFilter]);
+  }, [blueprints, searchQuery, activeFilters, sortBy, sourceFilter, priceFilter, minRating, selectedCategory]);
 
   const activeFilterCount = Object.values(activeFilters).flat().length + (sourceFilter !== 'all' ? 1 : 0);
 
@@ -263,6 +263,24 @@ const BlueprintsPage = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Category filter */}
+                {categories.length > 0 && (
+                  <div className="space-y-3 pt-4 border-t border-white/10">
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Category</h3>
+                    <div className="space-y-2">
+                      {[{ id: 'all', name: 'All Categories' }, ...categories].map(cat => (
+                        <label key={cat.id} className="flex items-center gap-3 cursor-pointer group">
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${selectedCategory === String(cat.id) ? 'border-primary bg-primary' : 'border-white/20 group-hover:border-primary/50'}`}>
+                            {selectedCategory === String(cat.id) && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                          <input type="radio" className="sr-only" checked={selectedCategory === String(cat.id)} onChange={() => setSelectedCategory(String(cat.id))} />
+                          <span className="text-sm text-zinc-300 font-bold group-hover:text-foreground transition-colors">{cat.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Stats */}
                 <div className="pt-4 border-t border-white/10 space-y-2 text-xs text-zinc-400">

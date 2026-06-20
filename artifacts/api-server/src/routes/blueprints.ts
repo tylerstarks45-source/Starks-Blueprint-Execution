@@ -98,7 +98,8 @@ router.post("/blueprints/submit", async (req, res): Promise<void> => {
       .select({ membershipTier: usersTable.membershipTier })
       .from(usersTable)
       .where(eq(usersTable.id, caller.id));
-    const SUBMIT_TIERS = new Set(["builder", "pro", "enterprise"]);
+    // Canonical tiers + legacy aliases — anything above the free tier can submit
+    const SUBMIT_TIERS = new Set(["builder", "operator", "empire", "pro", "enterprise"]);
     if (!SUBMIT_TIERS.has(userRow?.membershipTier ?? "")) {
       res.status(403).json({
         error: "Blueprint submission requires a Builder plan or higher. Upgrade your plan to contribute to the marketplace.",

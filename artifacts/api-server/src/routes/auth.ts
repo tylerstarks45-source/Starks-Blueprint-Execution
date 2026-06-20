@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import crypto from "crypto";
 import { adjustCredits, SIGNUP_GRANT } from "../lib/credits";
+import { getActiveCallerPayload } from "../lib/auth";
 import {
   sendPasswordResetEmail,
   sendEmailVerification,
@@ -312,19 +313,8 @@ const BootstrapInput = z.object({
 });
 
 router.post("/auth/change-password", async (req, res) => {
-  const token = (req.headers["authorization"] as string | undefined)?.replace("Bearer ", "");
-  if (!token) return res.status(401).json({ error: "Not authenticated." });
-
-  let userId: string;
-  try {
-    const secret = process.env["SESSION_SECRET"];
-    if (!secret) throw new Error("Missing SESSION_SECRET");
-    const decoded = jwt.verify(token, secret) as { id?: string };
-    if (!decoded.id) throw new Error("Invalid token payload");
-    userId = decoded.id;
-  } catch {
-    return res.status(401).json({ error: "Invalid or expired session." });
-  }
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
 
   const ChangePasswordInput = z.object({
     currentPassword: z.string().min(1, "Current password is required."),
@@ -336,10 +326,7 @@ router.post("/auth/change-password", async (req, res) => {
     return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid input." });
   }
 
-  const numericId = parseInt(userId, 10);
-  if (isNaN(numericId)) return res.status(400).json({ error: "Invalid user id." });
-
-  const users = await db.select().from(usersTable).where(eq(usersTable.id, numericId)).limit(1);
+  const users = await db.select().from(usersTable).where(eq(usersTable.id, caller.id)).limit(1);
   if (users.length === 0) return res.status(404).json({ error: "User not found." });
 
   const user = users[0];
@@ -349,9 +336,9 @@ router.post("/auth/change-password", async (req, res) => {
   if (!valid) return res.status(400).json({ error: "Current password is incorrect." });
 
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
-  await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, numericId));
+  await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, caller.id));
 
-  req.log.info({ userId }, "Password changed via settings");
+  req.log.info({ userId: caller.id }, "Password changed via settings");
   return res.json({ success: true, message: "Password updated successfully." });
 });
 

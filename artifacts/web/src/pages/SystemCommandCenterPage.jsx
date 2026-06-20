@@ -1244,6 +1244,31 @@ const SystemCommandCenterPage = () => {
             </div>
           </div>
         </HudPanel>
+
+        {/* ══ WHAT'S NEW ═══════════════════════════════════════════════════════ */}
+        <HudPanel className="p-4" accent="rgba(139,92,246,0.4)">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+              <span className="text-[10px] font-mono font-bold text-white/40 uppercase tracking-[0.15em]">What's New</span>
+            </div>
+            <span className="text-[9px] font-mono text-white/20">Platform Updates</span>
+          </div>
+          <div className="space-y-2.5">
+            {[
+              { date: 'Jun 20', tag: 'NEW',     color: 'text-violet-400 bg-violet-500/10 border-violet-500/20', text: 'Scheduler & Cron — 24/7 automated tasks now available on every system.' },
+              { date: 'Jun 18', tag: 'NEW',     color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', text: 'A/B Testing engine — split-test landing pages and email subjects automatically.' },
+              { date: 'Jun 15', tag: 'IMPROVE', color: 'text-sky-400 bg-sky-500/10 border-sky-500/20', text: 'ASH Builder — browser agent now supports real-time web search and image generation.' },
+              { date: 'Jun 12', tag: 'IMPROVE', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20', text: 'Connections Hub — 40+ integrations with live connectivity testing.' },
+            ].map(({ date, tag, color, text }) => (
+              <div key={date + tag} className="flex items-start gap-2.5">
+                <span className="text-[9px] font-mono text-white/25 w-10 shrink-0 pt-0.5">{date}</span>
+                <span className={`shrink-0 px-1.5 py-0.5 rounded text-[8px] font-mono font-bold border uppercase tracking-wide ${color}`}>{tag}</span>
+                <p className="text-[11px] text-white/55 leading-relaxed">{text}</p>
+              </div>
+            ))}
+          </div>
+        </HudPanel>
       </div>
 
       </div>

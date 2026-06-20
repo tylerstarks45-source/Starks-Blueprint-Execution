@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import VideoBackground from '@/components/VideoBackground.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { toast } from 'sonner';
 import {
@@ -148,7 +148,7 @@ export default function WorkspacePage() {
   }, {});
 
   return (
-    <VideoBackground>
+    <AuthLayout>
       <div className="h-screen flex flex-col overflow-hidden">
 
         {/* Top Bar */}
@@ -427,6 +427,6 @@ export default function WorkspacePage() {
           )}
         </div>
       </div>
-    </VideoBackground>
+    </AuthLayout>
   );
 }

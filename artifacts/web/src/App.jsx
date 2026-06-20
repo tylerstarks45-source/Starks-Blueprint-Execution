@@ -61,6 +61,9 @@ const UserLandingPageCanvas = lazy(() => import('@/pages/UserLandingPageCanvas.j
 const AffiliateLinkManagerPage = lazy(() => import('@/pages/AffiliateLinkManagerPage.jsx'));
 const EmailMarketingPage    = lazy(() => import('@/pages/EmailMarketingPage.jsx'));
 
+// Settings page
+const UserSettingsPage      = lazy(() => import('@/pages/UserSettingsPage.jsx'));
+
 // Admin pages — never needed outside admin session
 const AdminDashboard        = lazy(() => import('@/pages/AdminDashboard.jsx'));
 
@@ -209,6 +212,9 @@ const App = () => {
               } />
               <Route path="/email-marketing" element={
                 <ProtectedRoute><EmailMarketingPage /></ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute><UserSettingsPage /></ProtectedRoute>
               } />
 
               {/* Admin routes — lazy */}

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import VideoBackground from '@/components/VideoBackground.jsx';
+import AuthLayout from '@/components/AuthLayout.jsx';
 
 // ─── File Tree Node ───────────────────────────────────────────────────────────
 const FileNode = ({ node, depth = 0 }) => {
@@ -373,7 +373,7 @@ const LibraryPage = () => {
   });
 
   return (
-    <VideoBackground>
+    <AuthLayout>
       <div className="min-h-screen flex flex-col">
 
         {/* Top bar */}
@@ -504,7 +504,7 @@ const LibraryPage = () => {
           </div>
         </div>
       </div>
-    </VideoBackground>
+    </AuthLayout>
   );
 };
 

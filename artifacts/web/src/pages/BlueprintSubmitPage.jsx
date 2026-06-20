@@ -257,7 +257,7 @@ const BlueprintSubmitPage = () => {
               onChange={handleChange}
               placeholder="0"
               type="number"
-              hint="Set to 0 to make this blueprint free. Max 500 credits. You earn 70% of every sale."
+              hint="Set to 0 for free, or 5–99 credits for paid. You earn 70% of every sale."
             />
 
             <button

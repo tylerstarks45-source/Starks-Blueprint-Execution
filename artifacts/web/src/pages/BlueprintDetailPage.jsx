@@ -103,16 +103,19 @@ const BlueprintDetailPage = () => {
         const revRes = await fetch(`/api/blueprints/${bp.id}/reviews`);
         if (revRes.ok) setReviews(await revRes.json());
 
-        // Check if already purchased
-        if (currentUser && (bp.priceCredits ?? 0) > 0) {
+        // Check purchase entitlement from server (authoritative, not sessionStorage)
+        if ((bp.priceCredits ?? 0) > 0) {
           try {
-            // We infer purchase from the purchases endpoint — check user's purchases
-            // Simpler: attempt fetch and track in state (no dedicated "check" endpoint)
-            // Instead, mark as purchased after a successful purchase action or session storage
-            const cached = sessionStorage.getItem(`bp_purchased_${bp.id}`);
-            if (cached === 'true') setHasPurchased(true);
+            const token = localStorage.getItem('sbep_auth_token');
+            const entRes = await fetch(`/api/blueprints/${bp.id}/entitlement`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (entRes.ok) {
+              const ent = await entRes.json();
+              if (ent.canAccess) setHasPurchased(true);
+            }
           } catch { /* ok */ }
-        } else if ((bp.priceCredits ?? 0) === 0) {
+        } else {
           setHasPurchased(true); // free blueprints auto-accessible
         }
       } catch (err) {
@@ -179,7 +182,6 @@ const BlueprintDetailPage = () => {
         throw new Error(err.error || 'Purchase failed');
       }
       setHasPurchased(true);
-      sessionStorage.setItem(`bp_purchased_${blueprint.id}`, 'true');
       toast.success(`Blueprint purchased! ${blueprint.priceCredits} credits deducted.`);
     } catch (err) {
       toast.error(err.message || 'Failed to purchase blueprint');

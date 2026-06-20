@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, ilike, and, desc } from "drizzle-orm";
+import { eq, ilike, and, or, inArray, desc } from "drizzle-orm";
 import { db, blueprintsTable, blueprintStepsTable, blueprintReviewsTable, blueprintPurchasesTable, notificationsTable, usersTable } from "@workspace/db";
-import { requireAdmin, getActiveCallerPayload, requireAuth, isAdminRole } from "../lib/auth";
+import { requireAdmin, getActiveCallerPayload, requireAuth, isAdminRole, getTokenPayload } from "../lib/auth";
 import { adjustCredits, adjustWalletCredits, getBalance } from "../lib/credits";
 import {
   ListBlueprintsResponse,
@@ -36,9 +36,26 @@ import {
 const router: IRouter = Router();
 
 // ── GET /api/blueprints ─────────────────────────────────────────────────────
-// Public read — all authenticated and unauthenticated callers may list blueprints.
+// Auth-aware listing: admins see all; users see admin/platform + approved community + own.
 router.get("/blueprints", async (req, res): Promise<void> => {
   const conditions = [];
+
+  // Server-side visibility gate — enforced regardless of client filters
+  const caller = getTokenPayload(req); // soft — no 401 on missing token
+  if (!isAdminRole(caller?.role ?? "")) {
+    const visibilityFilter = caller
+      ? or(
+          inArray(blueprintsTable.source, ["admin", "platform"]),
+          and(eq(blueprintsTable.source, "community"), eq(blueprintsTable.reviewStatus, "approved")),
+          and(eq(blueprintsTable.source, "community"), eq(blueprintsTable.authorUserId, caller.id)),
+        )
+      : or(
+          inArray(blueprintsTable.source, ["admin", "platform"]),
+          and(eq(blueprintsTable.source, "community"), eq(blueprintsTable.reviewStatus, "approved")),
+        );
+    conditions.push(visibilityFilter);
+  }
+
   if (req.query.status) conditions.push(eq(blueprintsTable.status, String(req.query.status)));
   if (req.query.categoryId) conditions.push(eq(blueprintsTable.categoryId, Number(req.query.categoryId)));
   if (req.query.slug) conditions.push(eq(blueprintsTable.slug, String(req.query.slug)));
@@ -46,11 +63,15 @@ router.get("/blueprints", async (req, res): Promise<void> => {
   if (req.query.source) conditions.push(eq(blueprintsTable.source, String(req.query.source)));
   if (req.query.reviewStatus) conditions.push(eq(blueprintsTable.reviewStatus, String(req.query.reviewStatus)));
 
-  const rows = conditions.length
-    ? await db.select().from(blueprintsTable).where(and(...conditions)).orderBy(blueprintsTable.name)
-    : await db.select().from(blueprintsTable).orderBy(blueprintsTable.name);
+  const rows = await db
+    .select()
+    .from(blueprintsTable)
+    .where(and(...conditions))
+    .orderBy(blueprintsTable.name);
 
-  res.json(ListBlueprintsResponse.parse(serialize(rows)));
+  // setupSteps is premium content — strip from list responses; detail/steps endpoint is gated separately
+  const sanitized = rows.map((r) => ({ ...r, setupSteps: null }));
+  res.json(ListBlueprintsResponse.parse(serialize(sanitized)));
 });
 
 // ── POST /api/blueprints — ADMIN ONLY ──────────────────────────────────────
@@ -93,10 +114,10 @@ router.post("/blueprints/submit", async (req, res): Promise<void> => {
     return;
   }
 
-  // Price bounds: 0–500 credits
+  // Price: 0 (free) or 5–99 credits
   const priceCredits = parsed.data.priceCredits ?? 0;
-  if (priceCredits < 0 || priceCredits > 500) {
-    res.status(400).json({ error: "priceCredits must be between 0 and 500" });
+  if (priceCredits !== 0 && (priceCredits < 5 || priceCredits > 99)) {
+    res.status(400).json({ error: "priceCredits must be 0 (free) or between 5 and 99" });
     return;
   }
 
@@ -168,8 +189,48 @@ router.get("/blueprints/my", async (req, res): Promise<void> => {
   res.json(ListMyBlueprintsResponse.parse(serialize(rows)));
 });
 
+// ── GET /api/blueprints/:id/entitlement ─────────────────────────────────────
+// Returns whether the caller can access paid content for this blueprint.
+router.get("/blueprints/:id/entitlement", async (req, res): Promise<void> => {
+  const params = GetBlueprintParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [bp] = await db
+    .select({ priceCredits: blueprintsTable.priceCredits, authorUserId: blueprintsTable.authorUserId })
+    .from(blueprintsTable)
+    .where(eq(blueprintsTable.id, params.data.id));
+  if (!bp) {
+    res.status(404).json({ error: "Blueprint not found" });
+    return;
+  }
+  const isFree = (bp.priceCredits ?? 0) === 0;
+  if (isFree) {
+    res.json({ isFree: true, hasPurchased: false, canAccess: true });
+    return;
+  }
+  const caller = getTokenPayload(req); // soft auth — no 401
+  const isAdmin = isAdminRole(caller?.role ?? "");
+  const isAuthor = bp.authorUserId != null && caller?.id === bp.authorUserId;
+  if (isAdmin || isAuthor) {
+    res.json({ isFree: false, hasPurchased: true, canAccess: true });
+    return;
+  }
+  if (!caller) {
+    res.json({ isFree: false, hasPurchased: false, canAccess: false });
+    return;
+  }
+  const [purchase] = await db
+    .select({ id: blueprintPurchasesTable.id })
+    .from(blueprintPurchasesTable)
+    .where(and(eq(blueprintPurchasesTable.blueprintId, params.data.id), eq(blueprintPurchasesTable.buyerUserId, caller.id)));
+  res.json({ isFree: false, hasPurchased: !!purchase, canAccess: !!purchase });
+});
+
 // ── GET /api/blueprints/:id ─────────────────────────────────────────────────
-// Public read.
+// Visibility-gated: unapproved community blueprints only visible to author/admin.
+// Paid content (setupSteps) stripped for unentitled callers.
 router.get("/blueprints/:id", async (req, res): Promise<void> => {
   const params = GetBlueprintParams.safeParse(req.params);
   if (!params.success) {
@@ -181,7 +242,35 @@ router.get("/blueprints/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Blueprint not found" });
     return;
   }
-  res.json(GetBlueprintResponse.parse(serialize(row)));
+
+  const caller = getTokenPayload(req); // soft auth — no 401
+  const isAdmin = isAdminRole(caller?.role ?? "");
+  const isAuthor = row.authorUserId != null && caller?.id === row.authorUserId;
+
+  // Community blueprints that are not approved are only visible to the author and admins
+  if (row.source === "community" && row.reviewStatus !== "approved" && !isAdmin && !isAuthor) {
+    res.status(404).json({ error: "Blueprint not found" });
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const serialized: any = serialize(row);
+
+  // Strip premium content unless caller is entitled (author, admin, or purchaser)
+  if ((row.priceCredits ?? 0) > 0 && !isAdmin && !isAuthor) {
+    const hasPurchased = caller
+      ? !!(await db
+          .select({ id: blueprintPurchasesTable.id })
+          .from(blueprintPurchasesTable)
+          .where(and(eq(blueprintPurchasesTable.blueprintId, row.id), eq(blueprintPurchasesTable.buyerUserId, caller.id)))
+          .then((r) => r[0]))
+      : false;
+    if (!hasPurchased) {
+      serialized.setupSteps = null;
+    }
+  }
+
+  res.json(GetBlueprintResponse.parse(serialized));
 });
 
 // ── PATCH /api/blueprints/:id — ADMIN ONLY ─────────────────────────────────

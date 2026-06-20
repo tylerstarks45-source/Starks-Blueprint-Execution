@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, PlusCircle, Clock, CheckCircle2, XCircle, Star, ShoppingBag, Eye, Loader2 } from 'lucide-react';
+import { Layers, PlusCircle, Clock, CheckCircle2, XCircle, Star, ShoppingBag, Eye, Loader2, TrendingUp, DollarSign } from 'lucide-react';
 
 const authHeaders = () => {
   const token = localStorage.getItem('sbep_auth_token');
@@ -47,6 +47,32 @@ const UserMyBlueprintsPanel = () => {
           <PlusCircle className="w-4 h-4" /> Submit Blueprint
         </Link>
       </div>
+
+      {/* Earnings summary */}
+      {!isLoading && blueprints.length > 0 && (() => {
+        const totalEarnings = blueprints.reduce((sum, bp) => sum + Math.floor((bp.salesCount ?? 0) * (bp.priceCredits ?? 0) * 0.7), 0);
+        const totalSales = blueprints.reduce((sum, bp) => sum + (bp.salesCount ?? 0), 0);
+        const approved = blueprints.filter(bp => bp.reviewStatus === 'approved').length;
+        return (
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center">
+              <DollarSign className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+              <p className="text-lg font-black text-emerald-400">{totalEarnings}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Credits Earned</p>
+            </div>
+            <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 text-center">
+              <ShoppingBag className="w-4 h-4 text-primary mx-auto mb-1" />
+              <p className="text-lg font-black text-primary">{totalSales}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Sales</p>
+            </div>
+            <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-3 text-center">
+              <TrendingUp className="w-4 h-4 text-violet-400 mx-auto mb-1" />
+              <p className="text-lg font-black text-violet-400">{approved}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Live</p>
+            </div>
+          </div>
+        );
+      })()}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-10">

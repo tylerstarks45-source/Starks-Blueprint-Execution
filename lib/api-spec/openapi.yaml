@@ -2077,6 +2077,12 @@ components:
           type: integer
         rejectionReason:
           type: ["string", "null"]
+        estimatedEarnings:
+          type: ["string", "null"]
+        requiredTools:
+          type: ["string", "null"]
+        setupSteps:
+          type: ["string", "null"]
         createdAt:
           type: string
         updatedAt:
@@ -2143,6 +2149,12 @@ components:
         estimatedCost:
           type: string
         estimatedTime:
+          type: string
+        estimatedEarnings:
+          type: string
+        requiredTools:
+          type: string
+        setupSteps:
           type: string
         priceCredits:
           type: integer

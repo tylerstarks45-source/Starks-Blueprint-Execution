@@ -24,6 +24,9 @@ export const blueprintsTable = pgTable("blueprints", {
   ratingAvg: real("rating_avg").notNull().default(0),
   ratingCount: integer("rating_count").notNull().default(0),
   rejectionReason: text("rejection_reason"),
+  estimatedEarnings: text("estimated_earnings"),
+  requiredTools: text("required_tools"),
+  setupSteps: text("setup_steps"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

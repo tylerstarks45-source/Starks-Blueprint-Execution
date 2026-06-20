@@ -31,6 +31,12 @@ export interface Blueprint {
   ratingCount: number;
   /** @nullable */
   rejectionReason?: string | null;
+  /** @nullable */
+  estimatedEarnings?: string | null;
+  /** @nullable */
+  requiredTools?: string | null;
+  /** @nullable */
+  setupSteps?: string | null;
   createdAt: string;
   updatedAt: string;
 }

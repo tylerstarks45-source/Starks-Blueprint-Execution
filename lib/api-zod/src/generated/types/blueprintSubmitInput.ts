@@ -14,5 +14,8 @@ export interface BlueprintSubmitInput {
   difficulty?: string;
   estimatedCost?: string;
   estimatedTime?: string;
+  estimatedEarnings?: string;
+  requiredTools?: string;
+  setupSteps?: string;
   priceCredits?: number;
 }

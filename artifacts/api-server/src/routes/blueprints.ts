@@ -66,14 +66,37 @@ router.post("/blueprints", async (req, res): Promise<void> => {
 });
 
 // ── POST /api/blueprints/submit ─────────────────────────────────────────────
-// Community members may submit blueprints for admin review.
+// Builder tier+ community members may submit blueprints for admin review.
 router.post("/blueprints/submit", async (req, res): Promise<void> => {
   const caller = await getActiveCallerPayload(req, res);
   if (!caller) return;
 
+  // Submission eligibility: Builder plan or higher (admins always allowed)
+  if (!isAdminRole(caller.role)) {
+    const [userRow] = await db
+      .select({ membershipTier: usersTable.membershipTier })
+      .from(usersTable)
+      .where(eq(usersTable.id, caller.id));
+    const SUBMIT_TIERS = new Set(["builder", "pro", "enterprise"]);
+    if (!SUBMIT_TIERS.has(userRow?.membershipTier ?? "")) {
+      res.status(403).json({
+        error: "Blueprint submission requires a Builder plan or higher. Upgrade your plan to contribute to the marketplace.",
+        code: "tier_required",
+      });
+      return;
+    }
+  }
+
   const parsed = SubmitBlueprintBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  // Price bounds: 0–500 credits
+  const priceCredits = parsed.data.priceCredits ?? 0;
+  if (priceCredits < 0 || priceCredits > 500) {
+    res.status(400).json({ error: "priceCredits must be between 0 and 500" });
     return;
   }
 
@@ -95,7 +118,10 @@ router.post("/blueprints/submit", async (req, res): Promise<void> => {
       difficulty: parsed.data.difficulty ?? "beginner",
       estimatedCost: parsed.data.estimatedCost ?? null,
       estimatedTime: parsed.data.estimatedTime ?? null,
-      priceCredits: parsed.data.priceCredits ?? 0,
+      estimatedEarnings: parsed.data.estimatedEarnings ?? null,
+      requiredTools: parsed.data.requiredTools ?? null,
+      setupSteps: parsed.data.setupSteps ?? null,
+      priceCredits,
       source: "community",
       reviewStatus: "pending_review",
       status: "draft",
@@ -386,13 +412,43 @@ router.post("/blueprints/:id/reviews", async (req, res): Promise<void> => {
 });
 
 // ── GET /api/blueprints/:id/steps ───────────────────────────────────────────
-// Public read.
+// Public for free blueprints; paid blueprints require a purchase or authorship.
 router.get("/blueprints/:id/steps", async (req, res): Promise<void> => {
   const params = GetBlueprintParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
+
+  const [bp] = await db
+    .select({ priceCredits: blueprintsTable.priceCredits, authorUserId: blueprintsTable.authorUserId })
+    .from(blueprintsTable)
+    .where(eq(blueprintsTable.id, params.data.id));
+  if (!bp) {
+    res.status(404).json({ error: "Blueprint not found" });
+    return;
+  }
+
+  if ((bp.priceCredits ?? 0) > 0) {
+    const caller = await getActiveCallerPayload(req, res);
+    if (!caller) return; // getActiveCallerPayload already sends 401
+    if (!isAdminRole(caller.role) && bp.authorUserId !== caller.id) {
+      const [purchased] = await db
+        .select({ id: blueprintPurchasesTable.id })
+        .from(blueprintPurchasesTable)
+        .where(
+          and(
+            eq(blueprintPurchasesTable.blueprintId, params.data.id),
+            eq(blueprintPurchasesTable.buyerUserId, caller.id),
+          ),
+        );
+      if (!purchased) {
+        res.status(403).json({ error: "Purchase required to access blueprint steps", code: "purchase_required" });
+        return;
+      }
+    }
+  }
+
   const rows = await db.select().from(blueprintStepsTable).where(eq(blueprintStepsTable.blueprintId, params.data.id)).orderBy(blueprintStepsTable.stepNumber);
   res.json(ListBlueprintStepsResponse.parse(serialize(rows)));
 });

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, desc, asc, gte, sql, count, ilike, inArray } from "drizzle-orm";
-import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable, usersTable } from "@workspace/db";
+import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable, usersTable, blueprintsTable, blueprintPurchasesTable } from "@workspace/db";
 import { tierSystemLimit } from "../lib/credits";
 import { z } from "zod/v4";
 import { getActiveCallerPayload, requireAuthActive } from "../lib/auth";
@@ -118,6 +118,33 @@ router.post("/system-instances", async (req, res): Promise<void> => {
         current: systemCount,
       });
       return;
+    }
+  }
+
+  // Entitlement check: paid blueprints require a purchase record.
+  // Blueprint author and FOUNDER_ADMIN always bypass this gate.
+  if (parsed.data.blueprintId && !isFounder) {
+    const [bp] = await db
+      .select({ priceCredits: blueprintsTable.priceCredits, authorUserId: blueprintsTable.authorUserId })
+      .from(blueprintsTable)
+      .where(eq(blueprintsTable.id, parsed.data.blueprintId));
+    if (bp && (bp.priceCredits ?? 0) > 0 && bp.authorUserId !== userId) {
+      const [purchased] = await db
+        .select({ id: blueprintPurchasesTable.id })
+        .from(blueprintPurchasesTable)
+        .where(
+          and(
+            eq(blueprintPurchasesTable.blueprintId, parsed.data.blueprintId),
+            eq(blueprintPurchasesTable.buyerUserId, userId),
+          ),
+        );
+      if (!purchased) {
+        res.status(403).json({
+          error: "You must purchase this blueprint before building it",
+          code: "purchase_required",
+        });
+        return;
+      }
     }
   }
 

@@ -43,6 +43,8 @@ const BlueprintsPage = () => {
   const [sortBy, setSortBy] = useState('popular');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [activeFilters, setActiveFilters] = useState({ difficulty: [] });
+  const [priceFilter, setPriceFilter] = useState('all');
+  const [minRating, setMinRating] = useState(0);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
@@ -80,6 +82,8 @@ const BlueprintsPage = () => {
     setActiveFilters({ difficulty: [] });
     setSearchQuery('');
     setSourceFilter('all');
+    setPriceFilter('all');
+    setMinRating(0);
   };
 
   const filteredAndSorted = useMemo(() => {
@@ -89,6 +93,9 @@ const BlueprintsPage = () => {
       if (activeFilters.difficulty.length > 0 && !activeFilters.difficulty.map(d => d.toLowerCase()).includes(bp.difficulty?.toLowerCase())) return false;
       if (sourceFilter === 'platform' && bp.source !== 'platform' && bp.source !== 'admin') return false;
       if (sourceFilter === 'community' && bp.source !== 'community') return false;
+      if (priceFilter === 'free' && (bp.priceCredits ?? 0) > 0) return false;
+      if (priceFilter === 'paid' && (bp.priceCredits ?? 0) === 0) return false;
+      if (minRating > 0 && (bp.ratingCount === 0 || (bp.ratingAvg ?? 0) < minRating)) return false;
       return true;
     });
 
@@ -220,6 +227,38 @@ const BlueprintsPage = () => {
                           <svg className="w-3 h-3 text-primary-foreground absolute opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                         </div>
                         <span className="text-sm text-zinc-300 font-bold group-hover:text-foreground transition-colors">{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Price filter */}
+                <div className="space-y-3 pt-4 border-t border-white/10">
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Price</h3>
+                  <div className="space-y-2">
+                    {[['all', 'All'], ['free', 'Free only'], ['paid', 'Paid only']].map(([val, label]) => (
+                      <label key={val} className="flex items-center gap-3 cursor-pointer group">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${priceFilter === val ? 'border-primary bg-primary' : 'border-white/20 group-hover:border-primary/50'}`}>
+                          {priceFilter === val && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <input type="radio" className="sr-only" checked={priceFilter === val} onChange={() => setPriceFilter(val)} />
+                        <span className="text-sm text-zinc-300 font-bold group-hover:text-foreground transition-colors">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Rating filter */}
+                <div className="space-y-3 pt-4 border-t border-white/10">
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Min. Rating</h3>
+                  <div className="space-y-2">
+                    {[[0, 'Any rating'], [3, '3★ & up'], [4, '4★ & up'], [4.5, '4.5★ & up']].map(([val, label]) => (
+                      <label key={val} className="flex items-center gap-3 cursor-pointer group">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${minRating === val ? 'border-amber-400 bg-amber-400' : 'border-white/20 group-hover:border-amber-400/50'}`}>
+                          {minRating === val && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <input type="radio" className="sr-only" checked={minRating === val} onChange={() => setMinRating(val)} />
+                        <span className="text-sm text-zinc-300 font-bold group-hover:text-foreground transition-colors">{label}</span>
                       </label>
                     ))}
                   </div>

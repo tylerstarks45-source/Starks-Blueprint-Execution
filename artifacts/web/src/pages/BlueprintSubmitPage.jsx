@@ -42,6 +42,9 @@ const BlueprintSubmitPage = () => {
     difficulty: 'beginner',
     estimatedTime: '',
     estimatedCost: '',
+    estimatedEarnings: '',
+    requiredTools: '',
+    setupSteps: '',
     priceCredits: '0',
   });
 
@@ -67,7 +70,10 @@ const BlueprintSubmitPage = () => {
           difficulty: form.difficulty,
           estimatedTime: form.estimatedTime.trim() || undefined,
           estimatedCost: form.estimatedCost.trim() || undefined,
-          priceCredits: Math.max(0, parseInt(form.priceCredits, 10) || 0),
+          estimatedEarnings: form.estimatedEarnings.trim() || undefined,
+          requiredTools: form.requiredTools.trim() || undefined,
+          setupSteps: form.setupSteps.trim() || undefined,
+          priceCredits: Math.min(500, Math.max(0, parseInt(form.priceCredits, 10) || 0)),
         }),
       });
       if (!res.ok) {
@@ -210,13 +216,48 @@ const BlueprintSubmitPage = () => {
             </div>
 
             <InputField
+              label="Estimated Earnings"
+              name="estimatedEarnings"
+              value={form.estimatedEarnings}
+              onChange={handleChange}
+              placeholder="e.g. $500-2,000/mo"
+              hint="Realistic monthly earnings a user could expect from this system."
+            />
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-foreground">Required Tools</label>
+              <p className="text-xs text-muted-foreground">List the tools needed (comma-separated, e.g. OpenRouter, Zapier, Make.com)</p>
+              <textarea
+                name="requiredTools"
+                value={form.requiredTools}
+                onChange={handleChange}
+                placeholder="OpenRouter, Zapier, Google Sheets..."
+                rows={2}
+                className="w-full bg-muted/20 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all resize-none"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-foreground">Setup Steps</label>
+              <p className="text-xs text-muted-foreground">Walk users through building this system. Use numbered lines (1. Connect API, 2. Configure webhook…)</p>
+              <textarea
+                name="setupSteps"
+                value={form.setupSteps}
+                onChange={handleChange}
+                placeholder={"1. Sign up for OpenRouter and get your API key\n2. Create a new Zapier workflow\n3. Configure the trigger..."}
+                rows={6}
+                className="w-full bg-muted/20 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all resize-none font-mono"
+              />
+            </div>
+
+            <InputField
               label="Price (Credits)"
               name="priceCredits"
               value={form.priceCredits}
               onChange={handleChange}
               placeholder="0"
               type="number"
-              hint="Set to 0 to make this blueprint free. You earn 70% of any credit sales."
+              hint="Set to 0 to make this blueprint free. Max 500 credits. You earn 70% of every sale."
             />
 
             <button

@@ -118,6 +118,9 @@ export const ListBlueprintsResponseItem = zod.object({
   "ratingAvg": zod.number(),
   "ratingCount": zod.number(),
   "rejectionReason": zod.string().nullish(),
+  "estimatedEarnings": zod.string().nullish(),
+  "requiredTools": zod.string().nullish(),
+  "setupSteps": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -170,6 +173,9 @@ export const GetBlueprintResponse = zod.object({
   "ratingAvg": zod.number(),
   "ratingCount": zod.number(),
   "rejectionReason": zod.string().nullish(),
+  "estimatedEarnings": zod.string().nullish(),
+  "requiredTools": zod.string().nullish(),
+  "setupSteps": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -212,6 +218,9 @@ export const UpdateBlueprintResponse = zod.object({
   "ratingAvg": zod.number(),
   "ratingCount": zod.number(),
   "rejectionReason": zod.string().nullish(),
+  "estimatedEarnings": zod.string().nullish(),
+  "requiredTools": zod.string().nullish(),
+  "setupSteps": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -238,6 +247,9 @@ export const SubmitBlueprintBody = zod.object({
   "difficulty": zod.string().optional(),
   "estimatedCost": zod.string().optional(),
   "estimatedTime": zod.string().optional(),
+  "estimatedEarnings": zod.string().optional(),
+  "requiredTools": zod.string().optional(),
+  "setupSteps": zod.string().optional(),
   "priceCredits": zod.number().optional()
 })
 
@@ -264,6 +276,9 @@ export const ListMyBlueprintsResponseItem = zod.object({
   "ratingAvg": zod.number(),
   "ratingCount": zod.number(),
   "rejectionReason": zod.string().nullish(),
+  "estimatedEarnings": zod.string().nullish(),
+  "requiredTools": zod.string().nullish(),
+  "setupSteps": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -331,6 +346,9 @@ export const ListPendingBlueprintsResponseItem = zod.object({
   "ratingAvg": zod.number(),
   "ratingCount": zod.number(),
   "rejectionReason": zod.string().nullish(),
+  "estimatedEarnings": zod.string().nullish(),
+  "requiredTools": zod.string().nullish(),
+  "setupSteps": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -368,6 +386,9 @@ export const ReviewBlueprintResponse = zod.object({
   "ratingAvg": zod.number(),
   "ratingCount": zod.number(),
   "rejectionReason": zod.string().nullish(),
+  "estimatedEarnings": zod.string().nullish(),
+  "requiredTools": zod.string().nullish(),
+  "setupSteps": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })

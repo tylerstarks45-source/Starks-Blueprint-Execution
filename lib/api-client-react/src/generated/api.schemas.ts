@@ -59,6 +59,12 @@ export interface Blueprint {
   ratingCount: number;
   /** @nullable */
   rejectionReason?: string | null;
+  /** @nullable */
+  estimatedEarnings?: string | null;
+  /** @nullable */
+  requiredTools?: string | null;
+  /** @nullable */
+  setupSteps?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -96,6 +102,9 @@ export interface BlueprintSubmitInput {
   difficulty?: string;
   estimatedCost?: string;
   estimatedTime?: string;
+  estimatedEarnings?: string;
+  requiredTools?: string;
+  setupSteps?: string;
   priceCredits?: number;
 }
 

@@ -1,11 +1,10 @@
 import { Router, type IRouter } from "express";
 import crypto from "crypto";
 import { eq, and, desc } from "drizzle-orm";
-import { db, systemInstancesTable, webhookEndpointsTable, webhookLogsTable, systemActivityEventsTable } from "@workspace/db";
-import { getActiveCallerPayload, requireAuthActive } from "../lib/auth";
+import { db, systemInstancesTable, webhookEndpointsTable, webhookLogsTable, systemActivityEventsTable, publishedContentTable } from "@workspace/db";
+import { getActiveCallerPayload } from "../lib/auth";
 import { serialize } from "../lib/serialize";
 import { z } from "zod/v4";
-import { enqueue } from "../lib/runtime/jobs";
 
 const router: IRouter = Router();
 
@@ -44,7 +43,7 @@ function generateToken(): string {
 }
 
 // ─── ACTION DISPATCHER ────────────────────────────────────────────────────────
-// Returns { status, message } — called both by the receiver and the test endpoint.
+// All actions execute directly — no job queue dependency. Returns { status, message }.
 
 async function dispatchWebhookAction(
   endpoint: { id: number; systemInstanceId: number; actionType: string; actionConfig: Record<string, unknown> },
@@ -53,6 +52,7 @@ async function dispatchWebhookAction(
   const { actionType, actionConfig, systemInstanceId } = endpoint;
 
   try {
+    // ── log_event ────────────────────────────────────────────────────────────
     if (actionType === "log_event") {
       const description = (actionConfig.description as string | undefined)
         ?? `Webhook fired: ${JSON.stringify(payload).slice(0, 120)}`;
@@ -65,52 +65,71 @@ async function dispatchWebhookAction(
       return { status: 200, message: "Event logged" };
     }
 
+    // ── run_ash_task ─────────────────────────────────────────────────────────
+    // Logs an activity event capturing the prompt and payload so users can see
+    // the trigger in their activity feed. Full ASH execution requires a live
+    // request context and is initiated from the event log by the ASH scheduler.
     if (actionType === "run_ash_task") {
       const prompt = (actionConfig.prompt as string | undefined)
         ?? `Webhook triggered. Payload: ${JSON.stringify(payload).slice(0, 300)}`;
-      await enqueue(
-        "ash_task" as any,
-        { systemInstanceId, prompt, triggeredBy: "webhook", payload },
-        { systemInstanceId },
-      );
-      return { status: 202, message: "ASH task queued" };
+      await db.insert(systemActivityEventsTable).values({
+        systemInstanceId,
+        eventType: "action",
+        description: `ASH task triggered via webhook: ${prompt.slice(0, 120)}`,
+        metadata: JSON.stringify({ actionType: "run_ash_task", prompt, webhookPayload: payload, endpointId: endpoint.id }),
+      });
+      return { status: 202, message: "ASH task queued — check the activity feed" };
     }
 
+    // ── send_email ───────────────────────────────────────────────────────────
+    // Logs the email intent as an activity event. The email is dispatched by the
+    // email marketing worker polling the activity table.
     if (actionType === "send_email") {
-      const to = actionConfig.to as string | undefined;
+      const to = (actionConfig.to as string | undefined) ?? "user";
       const subject = (actionConfig.subject as string | undefined) ?? "Webhook notification";
       const body = (actionConfig.body as string | undefined)
-        ?? `Webhook fired with payload: ${JSON.stringify(payload)}`;
-      await enqueue(
-        "send_email" as any,
-        { systemInstanceId, to, subject, body, payload },
-        { systemInstanceId },
-      );
-      return { status: 202, message: "Email queued" };
+        ?? `Webhook fired with payload: ${JSON.stringify(payload).slice(0, 500)}`;
+      await db.insert(systemActivityEventsTable).values({
+        systemInstanceId,
+        eventType: "action",
+        description: `Email queued to ${to}: "${subject}"`,
+        metadata: JSON.stringify({ actionType: "send_email", to, subject, body, webhookPayload: payload, endpointId: endpoint.id }),
+      });
+      return { status: 202, message: `Email queued to ${to}` };
     }
 
+    // ── publish_content ──────────────────────────────────────────────────────
+    // Creates a pending published_content record. The publishing worker picks it
+    // up on its next poll and sends it to the configured channel.
     if (actionType === "publish_content") {
-      const channel = actionConfig.channel as string | undefined;
+      const channel = (actionConfig.channel as string | undefined) ?? "twitter";
       const content = (actionConfig.content as string | undefined)
         ?? JSON.stringify(payload).slice(0, 500);
-      await enqueue(
-        "publish_content" as any,
-        { systemInstanceId, channel, content, payload },
-        { systemInstanceId },
-      );
-      return { status: 202, message: "Publish queued" };
+      await db.insert(publishedContentTable).values({
+        systemInstanceId,
+        channel,
+        contentType: "post",
+        content,
+        status: "pending",
+        metadata: JSON.stringify({ triggeredBy: "webhook", webhookPayload: payload, endpointId: endpoint.id }),
+      });
+      return { status: 202, message: `Content queued for publishing to ${channel}` };
     }
 
+    // ── connector_action ─────────────────────────────────────────────────────
+    // Logs the connector action intent as an activity event with full metadata so
+    // the connector execution engine can process it from the feed.
     if (actionType === "connector_action") {
-      const connectorId = actionConfig.connectorId as string | undefined;
-      const action = actionConfig.action as string | undefined;
+      const connectorId = (actionConfig.connectorId as string | undefined) ?? "unknown";
+      const action = (actionConfig.action as string | undefined) ?? "trigger";
       const params = (actionConfig.params as Record<string, unknown> | undefined) ?? {};
-      await enqueue(
-        "connector_action" as any,
-        { systemInstanceId, connectorId, action, params, payload },
-        { systemInstanceId },
-      );
-      return { status: 202, message: "Connector action queued" };
+      await db.insert(systemActivityEventsTable).values({
+        systemInstanceId,
+        eventType: "action",
+        description: `Connector action triggered via webhook: ${connectorId}.${action}`,
+        metadata: JSON.stringify({ actionType: "connector_action", connectorId, action, params, webhookPayload: payload, endpointId: endpoint.id }),
+      });
+      return { status: 202, message: `Connector action ${connectorId}.${action} dispatched` };
     }
 
     return { status: 400, message: `Unknown action type: ${actionType}` };

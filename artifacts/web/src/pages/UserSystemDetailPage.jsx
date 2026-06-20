@@ -1757,6 +1757,134 @@ function WebhookLogRow({ log }) {
   );
 }
 
+function EditWebhookModal({ endpoint, instanceId, onUpdated, onClose }) {
+  const [name, setName] = useState(endpoint.name);
+  const [actionType, setActionType] = useState(endpoint.actionType);
+  const cfg = endpoint.actionConfig ?? {};
+  const [description, setDescription] = useState(cfg.description ?? '');
+  const [prompt, setPrompt] = useState(cfg.prompt ?? '');
+  const [to, setTo] = useState(cfg.to ?? '');
+  const [subject, setSubject] = useState(cfg.subject ?? '');
+  const [channel, setChannel] = useState(cfg.channel ?? 'twitter');
+  const [connectorId, setConnectorId] = useState(cfg.connectorId ?? '');
+  const [connectorAction, setConnectorAction] = useState(cfg.action ?? '');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const buildActionConfig = () => {
+    if (actionType === 'log_event')        return { description: description || undefined };
+    if (actionType === 'run_ash_task')     return { prompt: prompt || undefined };
+    if (actionType === 'send_email')       return { to, subject };
+    if (actionType === 'publish_content')  return { channel };
+    if (actionType === 'connector_action') return { connectorId, action: connectorAction };
+    return {};
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) { setErr('Name is required'); return; }
+    setLoading(true); setErr('');
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/system-instances/${instanceId}/webhooks/${endpoint.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ name: name.trim(), actionType, actionConfig: buildActionConfig() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to update');
+      onUpdated(data);
+      onClose();
+    } catch (e) { setErr(e.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl border border-blue-500/20 bg-gray-900 p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+        <h3 className="text-base font-bold text-white mb-4 font-mono">Edit Webhook</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Name</label>
+            <input value={name} onChange={e => setName(e.target.value)}
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500/50" />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Action</label>
+            <select value={actionType} onChange={e => setActionType(e.target.value)}
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500/50">
+              {Object.entries(ACTION_TYPE_META).map(([v, m]) => (
+                <option key={v} value={v}>{m.icon} {m.label}</option>
+              ))}
+            </select>
+          </div>
+          {actionType === 'log_event' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Log description (optional)</label>
+              <input value={description} onChange={e => setDescription(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500/50" />
+            </div>
+          )}
+          {actionType === 'run_ash_task' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">ASH prompt (optional)</label>
+              <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={3}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500/50 resize-none" />
+            </div>
+          )}
+          {actionType === 'send_email' && (
+            <>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">To (email)</label>
+                <input value={to} onChange={e => setTo(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500/50" />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Subject</label>
+                <input value={subject} onChange={e => setSubject(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500/50" />
+              </div>
+            </>
+          )}
+          {actionType === 'publish_content' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Channel</label>
+              <select value={channel} onChange={e => setChannel(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500/50">
+                {['twitter','instagram','mailchimp','convertkit','wordpress','ghost'].map(c => (
+                  <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {actionType === 'connector_action' && (
+            <>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Connector ID</label>
+                <input value={connectorId} onChange={e => setConnectorId(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500/50" />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-mono block mb-1">Action</label>
+                <input value={connectorAction} onChange={e => setConnectorAction(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500/50" />
+              </div>
+            </>
+          )}
+          {err && <p className="text-xs text-red-400 font-mono">{err}</p>}
+          <div className="flex gap-2 pt-1">
+            <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-white/10 text-gray-400 text-sm hover:text-white transition-colors">Cancel</button>
+            <button onClick={handleSave} disabled={loading}
+              className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50">
+              {loading ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WebhookEndpointCard({ endpoint, instanceId, onUpdated, onDeleted }) {
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState([]);
@@ -1766,9 +1894,21 @@ function WebhookEndpointCard({ endpoint, instanceId, onUpdated, onDeleted }) {
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   const meta = ACTION_TYPE_META[endpoint.actionType] ?? ACTION_TYPE_META.log_event;
   const url = webhookUrl(endpoint.token);
+
+  if (showEdit) {
+    return (
+      <EditWebhookModal
+        endpoint={endpoint}
+        instanceId={instanceId}
+        onUpdated={(ep) => { onUpdated(ep); setShowEdit(false); }}
+        onClose={() => setShowEdit(false)}
+      />
+    );
+  }
 
   const loadLogs = async () => {
     setLoadingLogs(true);
@@ -1893,6 +2033,13 @@ function WebhookEndpointCard({ endpoint, instanceId, onUpdated, onDeleted }) {
             className="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/20 transition-all disabled:opacity-40"
           >
             {testing ? '…' : '▶ Test'}
+          </button>
+          <button
+            onClick={() => setShowEdit(true)}
+            title="Edit"
+            className="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-white/5 hover:bg-white/10 text-gray-400 border border-white/10 transition-all"
+          >
+            ✎ Edit
           </button>
           <button
             onClick={handleToggle}

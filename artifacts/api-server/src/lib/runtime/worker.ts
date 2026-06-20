@@ -164,8 +164,10 @@ async function handleSendEmail(payload: Record<string, unknown>): Promise<unknow
 
   const creds = userId != null ? await loadUserCredentialsByUserId(userId) : {};
 
-  // Prefer SendGrid if an API key is present, otherwise fall back to the generic email connector.
-  const preferredId = creds["SENDGRID_API_KEY"] || creds["sendgrid_api_key"] ? "sendgrid" : "email";
+  // Prefer SendGrid when the user has a key configured; otherwise use the
+  // EmailConnector which calls Resend via the RESEND_API_KEY env var.
+  const hasSendGrid = !!(creds["SENDGRID_API_KEY"] ?? creds["sendgrid_api_key"]);
+  const preferredId = hasSendGrid ? "sendgrid" : "email";
   const connector = getConnector(preferredId, creds);
   if (!connector) throw new Error(`No email connector available (tried ${preferredId})`);
 

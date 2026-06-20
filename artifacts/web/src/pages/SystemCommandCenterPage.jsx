@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useId } from 'react';
+import React, { useEffect, useState, useCallback, useId, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -10,10 +10,11 @@ import {
   Rocket, Settings, ArrowUpRight, Layers,
   Globe, Key, Database, ShieldCheck,
   Crown, Radio, Signal, Share2, Film,
+  Target, Flame, Users, AlertCircle,
 } from 'lucide-react';
 import {
-  LineChart, Line, AreaChart, Area, BarChart, Bar,
-  ResponsiveContainer, Tooltip, XAxis, CartesianGrid,
+  LineChart, Line, AreaChart, Area, BarChart, Bar, ComposedChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 
@@ -292,6 +293,8 @@ const SystemCommandCenterPage = () => {
   const [chartTab, setChartTab] = useState('revenue');
   const [chartType, setChartType] = useState('area');
   const [systemRevenue, setSystemRevenue] = useState({});
+  const [perfData, setPerfData] = useState(null);
+  const [secsSince, setSecsSince] = useState(0);
 
   const user = JSON.parse(localStorage.getItem('sbep_auth_user') || '{}');
 
@@ -310,7 +313,7 @@ const SystemCommandCenterPage = () => {
     setLoading(true);
     setError('');
     try {
-      const [statsRes, revRes, creditsRes, credsRes, notifsRes, selectionsRes, toolsRes] = await Promise.all([
+      const [statsRes, revRes, creditsRes, credsRes, notifsRes, selectionsRes, toolsRes, perfRes] = await Promise.all([
         fetch('/api/ai-orchestrator/platform-stats', { headers: authHeaders() }),
         fetch('/api/dashboard/revenue-summary', { headers: authHeaders() }),
         fetch('/api/credits/me', { headers: authHeaders() }),
@@ -318,9 +321,10 @@ const SystemCommandCenterPage = () => {
         fetch('/api/notifications', { headers: authHeaders() }),
         fetch('/api/user-tool-selections', { headers: authHeaders() }),
         fetch('/api/tools', { headers: authHeaders() }),
+        fetch('/api/dashboard/performance', { headers: authHeaders() }),
       ]);
       if (!statsRes.ok) throw new Error('Failed to load platform stats');
-      const [statsData, revData, credData, credsData, notifsData, selectionsData, toolsData] = await Promise.all([
+      const [statsData, revData, credData, credsData, notifsData, selectionsData, toolsData, perfJson] = await Promise.all([
         statsRes.json(),
         revRes.ok ? revRes.json() : null,
         creditsRes.ok ? creditsRes.json() : null,
@@ -328,6 +332,7 @@ const SystemCommandCenterPage = () => {
         notifsRes.ok ? notifsRes.json() : [],
         selectionsRes.ok ? selectionsRes.json() : [],
         toolsRes.ok ? toolsRes.json() : [],
+        perfRes.ok ? perfRes.json() : null,
       ]);
       setData(statsData);
       setRevenue(revData);
@@ -347,6 +352,8 @@ const SystemCommandCenterPage = () => {
       });
       setToolsBySystem(toolMap);
       setLastRefresh(new Date());
+      setSecsSince(0);
+      if (perfJson) setPerfData(perfJson);
     } catch (err) {
       setError(err.message || 'Failed to load data');
     } finally {
@@ -355,6 +362,19 @@ const SystemCommandCenterPage = () => {
   }, [user.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // 5-minute auto-refresh
+  useEffect(() => {
+    const id = setInterval(load, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  // "Updated X seconds ago" counter
+  useEffect(() => {
+    if (!lastRefresh) return;
+    const id = setInterval(() => setSecsSince(s => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [lastRefresh]);
 
   useEffect(() => {
     const systems = data?.systems;
@@ -428,6 +448,7 @@ const SystemCommandCenterPage = () => {
 
   const { systemStats, systems = [], aiActivity, toolHealth } = data ?? {};
   const orStatus = toolHealth?.openrouter?.status;
+  const perfSystemMap = new Map((perfData?.systems ?? []).map(s => [s.id, s]));
   const timeline = buildTimeline(systems, notifications);
   const alertNotifs = notifications.filter(n => ['error', 'warning'].includes((n.notificationType || '').toLowerCase()));
 
@@ -545,7 +566,7 @@ const SystemCommandCenterPage = () => {
           <div className="flex items-center gap-2">
             {lastRefresh && (
               <span className="hidden lg:flex items-center gap-1.5 text-[10px] text-white/30 font-mono px-2.5 py-1.5 rounded-lg border border-white/8 bg-white/[0.02]">
-                <Radio className="w-3 h-3 text-emerald-400/60" /> SYNC {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <Radio className="w-3 h-3 text-emerald-400/60" /> {secsSince < 5 ? 'LIVE' : secsSince < 60 ? `${secsSince}s ago` : secsSince < 3600 ? `${Math.floor(secsSince / 60)}m ago` : `${Math.floor(secsSince / 3600)}h ago`}
               </span>
             )}
             <button onClick={load} aria-label="Refresh dashboard data" title="Refresh" className="p-2 rounded-lg text-white/30 hover:text-white hover:bg-white/6 border border-white/8 transition-all">
@@ -566,94 +587,138 @@ const SystemCommandCenterPage = () => {
         </div>
       </HudPanel>
 
-      {/* ══ KPI RIBBON — holographic instrument cells ═══════════════════════ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ══ KPI RIBBON — 6 performance metric cards ══════════════════════════ */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
 
-        {/* Revenue */}
-        <HudPanel className="p-5 flex flex-col group" accent="rgba(16,185,129,0.5)">
+        {/* 1. Total Revenue */}
+        <HudPanel className="p-4 flex flex-col group" accent="rgba(16,185,129,0.5)">
           <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-emerald-500/0 via-emerald-400 to-emerald-500/0" />
           <div className="flex items-center justify-between mb-2">
             <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">Revenue</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <DollarSign className="w-3 h-3 text-emerald-400" />
             </div>
           </div>
-          <p className="text-[36px] font-black font-mono text-emerald-400 leading-none tabular-nums holo-shimmer-text">{fmtCompact(monthCents)}</p>
-          <p className="text-[10px] text-white/30 font-mono mt-1 mb-2">this month</p>
-          <div className="-mx-1 mb-2 opacity-80"><Sparkline values={dailyData.map(d => d.cents)} color="#10b981" height={32} /></div>
-          <div className="flex items-center gap-3 mt-auto pt-3 border-t border-white/8">
-            <div><p className="text-[8px] text-white/25 font-mono">Today</p><p className="text-[11px] font-mono font-bold text-white/60">{fmtCompact(todayCents)}</p></div>
-            <div className="w-px h-4 bg-white/10" />
-            <div><p className="text-[8px] text-white/25 font-mono">Week</p><p className="text-[11px] font-mono font-bold text-white/60">{fmtCompact(weekCents)}</p></div>
-            <div className="w-px h-4 bg-white/10" />
-            <div><p className="text-[8px] text-white/25 font-mono">All time</p><p className="text-[11px] font-mono font-bold text-white/60">{fmtCompact(lifetimeCents)}</p></div>
+          <p className="text-[28px] font-black font-mono text-emerald-400 leading-none tabular-nums holo-shimmer-text">{fmtCompact(monthCents)}</p>
+          <p className="text-[9px] text-white/30 font-mono mt-1 mb-2">this month</p>
+          <div className="-mx-1 mb-2 opacity-80"><Sparkline values={dailyData.map(d => d.cents)} color="#10b981" height={26} /></div>
+          <div className="flex items-center gap-2 mt-auto pt-2 border-t border-white/8">
+            <div><p className="text-[8px] text-white/25 font-mono">Week</p><p className="text-[10px] font-mono font-bold text-white/60">{fmtCompact(weekCents)}</p></div>
+            <div className="w-px h-3 bg-white/10" />
+            <div><p className="text-[8px] text-white/25 font-mono">Lifetime</p><p className="text-[10px] font-mono font-bold text-white/60">{fmtCompact(lifetimeCents)}</p></div>
           </div>
         </HudPanel>
 
-        {/* Systems */}
-        <HudPanel className="p-5 flex flex-col" accent="rgba(56,189,248,0.5)">
+        {/* 2. Active Systems */}
+        <HudPanel className="p-4 flex flex-col" accent="rgba(56,189,248,0.5)">
           <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-sky-500/0 via-sky-400 to-sky-500/0" />
           <div className="flex items-center justify-between mb-2">
             <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">Systems</span>
-            <div className="w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
-              <Server className="w-3.5 h-3.5 text-sky-400" />
+            <div className="w-6 h-6 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+              <Server className="w-3 h-3 text-sky-400" />
             </div>
           </div>
-          <p className="text-[36px] font-black font-mono text-sky-400 leading-none tabular-nums">{activeSystems}</p>
-          <p className="text-[10px] text-white/30 font-mono mt-1 mb-2">active of {totalSystems} total</p>
-          <div className="-mx-1 mb-2 opacity-80"><Sparkline values={systemsData.map(d => d.val)} color="#38bdf8" height={32} /></div>
-          <div className="flex items-center gap-3 mt-auto pt-3 border-t border-white/8 flex-wrap">
-            {[{val: building, label: 'Building', cls: 'text-blue-400'}, {val: paused, label: 'Paused', cls: 'text-amber-400'}, {val: failed, label: 'Failed', cls: 'text-rose-400'}].map(s => (
-              <div key={s.label}>
-                <p className="text-[8px] text-white/25 font-mono">{s.label}</p>
-                <p className={`text-[11px] font-mono font-bold ${s.cls}`}>{s.val}</p>
-              </div>
+          <p className="text-[28px] font-black font-mono text-sky-400 leading-none tabular-nums">{activeSystems}</p>
+          <p className="text-[9px] text-white/30 font-mono mt-1 mb-2">active of {totalSystems}</p>
+          <div className="-mx-1 mb-2 opacity-80"><Sparkline values={systemsData.map(d => d.val)} color="#38bdf8" height={26} /></div>
+          <div className="flex items-center gap-2 mt-auto pt-2 border-t border-white/8 flex-wrap">
+            {[{val: building, label: 'Build', cls: 'text-blue-400'}, {val: paused, label: 'Paused', cls: 'text-amber-400'}, {val: failed, label: 'Failed', cls: 'text-rose-400'}].map(s => (
+              <div key={s.label}><p className="text-[8px] text-white/25 font-mono">{s.label}</p><p className={`text-[10px] font-mono font-bold ${s.cls}`}>{s.val}</p></div>
             ))}
           </div>
         </HudPanel>
 
-        {/* Credits — radial gauge */}
-        <HudPanel className="p-5 flex flex-col" accent={credPct > 30 ? 'rgba(251,191,36,0.5)' : 'rgba(251,113,133,0.55)'}>
+        {/* 3. Credits Remaining */}
+        <HudPanel className="p-4 flex flex-col" accent={credPct > 30 ? 'rgba(251,191,36,0.5)' : 'rgba(251,113,133,0.55)'}>
           <div className={`absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-amber-500/0 ${credPct > 30 ? 'via-amber-400' : 'via-rose-400'} to-amber-500/0`} />
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">AI Credits</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-              <Coins className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">Credits</span>
+            <div className="w-6 h-6 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+              <Coins className="w-3 h-3 text-amber-400" />
             </div>
           </div>
-          <div className="flex items-center gap-3 mt-1">
-            <RadialGauge pct={credPct} color={credPct > 30 ? '#fbbf24' : '#fb7185'} size={76} stroke={6}>
-              <span className={`text-[15px] font-black font-mono leading-none tabular-nums ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>{credPct}%</span>
-              <span className="text-[7px] font-mono text-white/30 uppercase tracking-wider mt-0.5">left</span>
+          <div className="flex items-center gap-2 mt-1">
+            <RadialGauge pct={credPct} color={credPct > 30 ? '#fbbf24' : '#fb7185'} size={52} stroke={5}>
+              <span className={`text-[10px] font-black font-mono leading-none ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>{credPct}%</span>
             </RadialGauge>
             <div className="min-w-0">
-              <p className={`text-[26px] font-black font-mono leading-none tabular-nums ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>{credBalance.toLocaleString()}</p>
-              <p className="text-[10px] text-white/30 font-mono mt-1">credits remaining</p>
+              <p className={`text-[22px] font-black font-mono leading-none tabular-nums ${credPct > 30 ? 'text-amber-400' : 'text-rose-400'}`}>{credBalance.toLocaleString()}</p>
+              <p className="text-[9px] text-white/30 font-mono mt-0.5">remaining</p>
             </div>
           </div>
-          <div className="flex justify-between text-[8px] font-mono text-white/25 mt-auto pt-3 border-t border-white/8">
-            <span>{credUsed.toLocaleString()} used</span><span>of {credAllotment.toLocaleString()}</span>
+          <div className="flex justify-between text-[8px] font-mono text-white/25 mt-auto pt-2 border-t border-white/8">
+            <span>{credUsed.toLocaleString()} used</span><span>{credAllotment.toLocaleString()} total</span>
           </div>
         </HudPanel>
 
-        {/* AI Activity */}
-        <HudPanel className="p-5 flex flex-col" accent="rgba(139,92,246,0.5)">
+        {/* 4. Content Published */}
+        <HudPanel className="p-4 flex flex-col" accent="rgba(124,58,237,0.5)">
           <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-violet-500/0 via-violet-400 to-violet-500/0" />
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">AI Activity</span>
-            <div className="w-7 h-7 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-              <Bot className="w-3.5 h-3.5 text-violet-400" />
+            <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">Published</span>
+            <div className="w-6 h-6 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+              <Film className="w-3 h-3 text-violet-400" />
             </div>
           </div>
-          <p className="text-[36px] font-black font-mono text-violet-400 leading-none tabular-nums">{aiActivity?.totalRequests ?? 0}</p>
-          <p className="text-[10px] text-white/30 font-mono mt-1 mb-2">total requests</p>
-          <div className="-mx-1 mb-2 opacity-80"><Sparkline values={aiData.map(d => d.val)} color="#8b5cf6" height={32} /></div>
-          <div className="flex items-center gap-2 mt-auto pt-3 border-t border-white/8">
-            <span className={`w-2 h-2 rounded-full ${orStatus === 'operational' ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-zinc-600'}`} />
-            <span className="text-[10px] font-mono text-white/35 flex-1">OpenRouter {orStatus === 'operational' ? 'operational' : 'offline'}</span>
-            <span className="text-[9px] font-mono font-bold text-white/30 bg-white/4 px-1.5 py-0.5 rounded">{connectedToolCount} tools</span>
+          <p className="text-[28px] font-black font-mono text-violet-400 leading-none tabular-nums">{perfData?.contentPublished ?? 0}</p>
+          <p className="text-[9px] text-white/30 font-mono mt-1">content live</p>
+          <div className="mt-auto pt-2 border-t border-white/8">
+            <span className="flex items-center gap-1 text-[9px] font-mono text-violet-400/40">
+              <Bot className="w-2.5 h-2.5" /> Automated by ASH
+            </span>
           </div>
         </HudPanel>
+
+        {/* 5. Leads Captured */}
+        <HudPanel className="p-4 flex flex-col" accent="rgba(14,165,233,0.5)">
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-primary/0 via-primary to-primary/0" />
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">Leads</span>
+            <div className="w-6 h-6 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <Users className="w-3 h-3 text-primary" />
+            </div>
+          </div>
+          <p className="text-[28px] font-black font-mono text-primary leading-none tabular-nums">{perfData?.leadsCaptured ?? 0}</p>
+          <p className="text-[9px] text-white/30 font-mono mt-1">captured total</p>
+          <div className="mt-auto pt-2 border-t border-white/8">
+            <span className="text-[9px] font-mono text-white/25">Via active systems</span>
+          </div>
+        </HudPanel>
+
+        {/* 6. Top Performing System */}
+        <HudPanel className="p-4 flex flex-col" accent="rgba(245,158,11,0.5)">
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-amber-500/0 via-amber-400 to-amber-500/0" />
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-widest">Top System</span>
+            <div className="w-6 h-6 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+              <Flame className="w-3 h-3 text-amber-400" />
+            </div>
+          </div>
+          {perfData?.topSystem ? (
+            <>
+              <p className="text-[12px] font-bold font-mono text-amber-300 leading-tight truncate mt-1">{perfData.topSystem.name}</p>
+              <p className="text-[24px] font-black font-mono text-amber-400 leading-none tabular-nums mt-1">{fmtCompact(perfData.topSystem.lifetimeCents)}</p>
+              <p className="text-[9px] text-white/30 font-mono mt-1">lifetime revenue</p>
+              <div className="mt-auto pt-2 border-t border-white/8">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 h-1 bg-white/6 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full bg-amber-400" style={{width: `${perfData.topSystem.healthScore}%`}} />
+                  </div>
+                  <span className="text-[8px] font-mono text-amber-400/60 shrink-0">{perfData.topSystem.healthScore}%</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-[28px] font-black font-mono text-white/15 leading-none">—</p>
+              <p className="text-[9px] text-white/30 font-mono mt-1">no systems yet</p>
+              <div className="mt-auto pt-2 border-t border-white/8">
+                <span className="text-[9px] font-mono text-white/25">Deploy to earn</span>
+              </div>
+            </>
+          )}
+        </HudPanel>
+
       </div>
 
       {/* ══ HERO (no systems) or ASH STATUS STRIP ═══════════════════════════ */}
@@ -698,65 +763,81 @@ const SystemCommandCenterPage = () => {
       {/* ══ ANALYTICS + QUICK ACTIONS ═══════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-        {/* Chart panel */}
-        <HudPanel className="lg:col-span-3" accent={`${chartCfg.color}90`}>
+        {/* 30-Day Performance Chart */}
+        <HudPanel className="lg:col-span-3" accent="rgba(16,185,129,0.5)">
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8 flex-wrap gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-[3px] h-5 rounded-full" style={{ background: chartCfg.color }} />
+              <div className="w-[3px] h-5 rounded-full bg-emerald-400" />
               <div>
-                <h2 className="text-sm font-bold text-white/80">Analytics Telemetry</h2>
-                <p className="text-[10px] text-white/30 font-mono">7-day window · {chartType} view</p>
+                <h2 className="text-sm font-bold text-white/80">30-Day Performance</h2>
+                <p className="text-[10px] text-white/30 font-mono">Revenue bars · Activity line · dual axis</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Metric switcher */}
-              <div className="flex items-center bg-white/4 border border-white/10 rounded-xl p-1 gap-0.5">
-                {CHART_TABS.map(tab => (
-                  <button key={tab.key} onClick={() => setChartTab(tab.key)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold font-mono transition-all ${
-                      chartTab === tab.key ? 'text-white shadow-sm' : 'text-white/30 hover:text-white/60'
-                    }`}
-                    style={chartTab === tab.key ? { background: `${tab.color}22`, boxShadow: `inset 0 0 0 1px ${tab.color}55` } : undefined}
-                  >
-                    <tab.icon className="w-3 h-3" style={chartTab === tab.key ? { color: tab.color } : undefined} />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-              {/* Chart-type switcher */}
-              <div className="flex items-center bg-white/4 border border-white/10 rounded-xl p-1 gap-0.5">
-                {CHART_TYPES.map(ct => (
-                  <button key={ct.key} onClick={() => setChartType(ct.key)}
-                    title={`${ct.label} chart`} aria-label={`${ct.label} chart`}
-                    aria-pressed={chartType === ct.key}
-                    className={`p-1.5 rounded-lg transition-all ${
-                      chartType === ct.key ? 'bg-white/12 text-white shadow-sm' : 'text-white/30 hover:text-white/60'
-                    }`}
-                  >
-                    <ct.icon className="w-3.5 h-3.5" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="px-5 pt-4 pb-3">
-            <div className="flex items-baseline gap-3 mb-4">
-              <p className="text-[32px] font-black font-mono tabular-nums leading-none" style={{ color: chartCfg.color }}>
-                {chartTab === 'revenue' ? fmtCompact(todayCents) : chartTab === 'ai' ? (aiActivity?.totalRequests ?? 0) : totalSystems}
-              </p>
-              <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">
-                {chartTab === 'revenue' ? 'today' : chartTab === 'ai' ? 'total requests' : 'total systems'}
-              </p>
-              {chartTab === 'revenue' && weekCents > 0 && (
-                <span className="ml-auto flex items-center gap-1 text-emerald-400 text-sm font-bold font-mono">
-                  <ArrowUpRight className="w-4 h-4" />{fmtCompact(weekCents)}/wk
+            <div className="flex items-baseline gap-3">
+              <p className="text-[26px] font-black font-mono tabular-nums leading-none text-emerald-400">{fmtCompact(monthCents)}</p>
+              <p className="text-[10px] text-white/30 font-mono">this month</p>
+              {weekCents > 0 && (
+                <span className="ml-2 flex items-center gap-1 text-emerald-400 text-xs font-bold font-mono">
+                  <ArrowUpRight className="w-3.5 h-3.5" />{fmtCompact(weekCents)}/wk
                 </span>
               )}
             </div>
-            <div className="h-[168px]" style={{ filter: `drop-shadow(0 4px 14px ${chartCfg.color}40)` }}>
+          </div>
+          <div className="px-4 pt-4 pb-3">
+            <div className="h-[172px]" style={{ filter: 'drop-shadow(0 4px 14px rgba(16,185,129,0.18))' }}>
               <ResponsiveContainer width="100%" height="100%">
-                {renderChart()}
+                <ComposedChart
+                  data={perfData?.trendData ?? buildDailyData(revenue?.daily).map(d => ({...d, activity: 0}))}
+                  margin={{ top: 4, right: 10, bottom: 0, left: -18 }}
+                >
+                  <defs>
+                    <linearGradient id="revBarFill30" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.85} />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0.2} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 9, fontFamily: 'monospace' }}
+                    tickLine={false} axisLine={false}
+                    interval={perfData?.trendData ? Math.floor(perfData.trendData.length / 6) : 1}
+                  />
+                  <YAxis yAxisId="rev" hide />
+                  <YAxis yAxisId="act" orientation="right" hide />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      return (
+                        <div className="holo-glass rounded-lg px-3 py-2 text-xs shadow-2xl">
+                          <p className="text-white/45 mb-1 font-mono text-[9px] uppercase tracking-wider">{label}</p>
+                          {payload.map(p => (
+                            <p key={p.dataKey} className="font-mono font-bold" style={{ color: p.color }}>
+                              {p.dataKey === 'cents' ? fmt(Number(p.value ?? 0)) : `${p.value ?? 0} events`}
+                            </p>
+                          ))}
+                        </div>
+                      );
+                    }}
+                    cursor={{ stroke: 'rgba(255,255,255,0.10)', strokeWidth: 1 }}
+                  />
+                  <Bar yAxisId="rev" dataKey="cents" fill="url(#revBarFill30)" radius={[3, 3, 0, 0]} maxBarSize={18} />
+                  <Line yAxisId="act" type="monotone" dataKey="activity" stroke="#8b5cf6" strokeWidth={2} dot={false}
+                    activeDot={{ r: 3, fill: '#8b5cf6', strokeWidth: 0 }}
+                    style={{ filter: 'drop-shadow(0 0 4px rgba(139,92,246,0.5))' }} />
+                </ComposedChart>
               </ResponsiveContainer>
+            </div>
+            <div className="flex items-center gap-5 mt-2 pt-2 border-t border-white/6">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-2 rounded-sm bg-emerald-500/70 inline-block" />
+                <span className="text-[9px] font-mono text-white/30">Revenue</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-0.5 rounded-full bg-violet-400 inline-block" style={{ boxShadow: '0 0 4px rgba(139,92,246,0.6)' }} />
+                <span className="text-[9px] font-mono text-white/30">Activity</span>
+              </div>
+              <span className="ml-auto text-[9px] font-mono text-white/20">30-day window</span>
             </div>
           </div>
         </HudPanel>
@@ -871,6 +952,57 @@ const SystemCommandCenterPage = () => {
         </p>
       </HudPanel>
 
+      {/* ══ NEEDS ATTENTION ══════════════════════════════════════════════════ */}
+      {perfData?.needsAttention?.length > 0 && (
+        <HudPanel accent="rgba(251,113,133,0.55)">
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-rose-500/0 via-rose-400 to-rose-500/0" />
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8">
+            <div className="flex items-center gap-2.5">
+              <div className="w-[3px] h-5 bg-rose-400 rounded-full" />
+              <h2 className="text-sm font-bold text-rose-300/90">Needs Attention</h2>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-500/20 border border-rose-500/30 text-[9px] font-mono font-bold text-rose-400">
+                {perfData.needsAttention.length}
+              </span>
+            </div>
+            <p className="text-[10px] font-mono text-white/25">Systems requiring action</p>
+          </div>
+          <div className="divide-y divide-white/5">
+            {perfData.needsAttention.map((sys) => {
+              const reasonCfg = {
+                paused:   { label: 'System paused — not earning',  color: 'text-amber-400',  bgColor: 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20',  action: 'Resume',  onClick: () => patchSystem(sys.id, { buildStatus: 'active' }) },
+                errors:   { label: 'Errors detected in last 7 days', color: 'text-rose-400', bgColor: 'bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20',    action: 'Restart', onClick: () => patchSystem(sys.id, { buildStatus: 'building' }) },
+                inactive: { label: 'No activity or revenue in 7 days', color: 'text-orange-400', bgColor: 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10',           action: 'Review',  onClick: () => navigate(`/systems/${sys.id}`) },
+              }[sys.alertReason] ?? { label: 'Attention needed', color: 'text-white/50', bgColor: 'bg-white/5 border-white/10 text-white/50', action: 'View', onClick: () => navigate(`/systems/${sys.id}`) };
+              return (
+                <div key={sys.id} className="flex items-center gap-3 px-5 py-3 hover:bg-white/[0.02] transition-colors">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${sys.alertReason === 'paused' ? 'bg-amber-500/10 border border-amber-500/20' : sys.alertReason === 'errors' ? 'bg-rose-500/10 border border-rose-500/20' : 'bg-orange-500/10 border border-orange-500/20'}`}>
+                    {sys.alertReason === 'paused' ? <Pause className="w-4 h-4 text-amber-400" /> : sys.alertReason === 'errors' ? <XCircle className="w-4 h-4 text-rose-400" /> : <Clock className="w-4 h-4 text-orange-400" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white/75 truncate">{sys.name}</p>
+                    <p className={`text-[10px] font-mono ${reasonCfg.color}`}>{reasonCfg.label}</p>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-3">
+                    <div className="hidden sm:flex items-center gap-1.5">
+                      <div className="w-14 h-1 bg-white/6 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${sys.healthScore >= 50 ? 'bg-amber-400' : 'bg-rose-500'}`} style={{ width: `${sys.healthScore}%` }} />
+                      </div>
+                      <span className="text-[9px] font-mono text-white/25 w-6">{sys.healthScore}%</span>
+                    </div>
+                    <button
+                      onClick={reasonCfg.onClick}
+                      className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold border transition-all ${reasonCfg.bgColor}`}
+                    >
+                      {reasonCfg.action}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </HudPanel>
+      )}
+
       {/* ══ SYSTEMS FLEET ════════════════════════════════════════════════════ */}
       <HudPanel accent="rgba(56,189,248,0.5)">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8">
@@ -915,7 +1047,7 @@ const SystemCommandCenterPage = () => {
               const isLoading  = controlLoading[system.id];
               const isPaused   = system.buildStatus === 'paused';
               const isBuilding = system.buildStatus === 'building';
-              const hp         = healthPct(system.buildStatus, system.healthStatus);
+              const hp         = perfSystemMap.get(system.id)?.healthScore ?? healthPct(system.buildStatus, system.healthStatus);
               const hpColor    = hp >= 80 ? 'bg-emerald-500' : hp >= 50 ? 'bg-amber-400' : hp >= 20 ? 'bg-orange-500' : 'bg-rose-500';
               const hpText     = hp >= 80 ? 'text-emerald-400' : hp >= 50 ? 'text-amber-400' : hp >= 20 ? 'text-orange-400' : 'text-rose-400';
               return (

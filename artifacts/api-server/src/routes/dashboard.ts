@@ -11,6 +11,7 @@ import {
   buildSessionsTable,
   systemActivityEventsTable,
   systemRevenueProvidersTable,
+  publishedContentTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { requireAuthActive } from "../lib/auth";
@@ -308,6 +309,204 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
     systemCount: systemIds.length,
     currency: "USD",
     daily,
+  });
+});
+
+// GET /api/dashboard/performance — unified health scores, 30-day trend, content/leads, needs-attention
+router.get("/dashboard/performance", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const userSystems = await db
+    .select()
+    .from(systemInstancesTable)
+    .where(eq(systemInstancesTable.userId, userId));
+
+  if (userSystems.length === 0) {
+    const emptyTrend = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (29 - i));
+      d.setHours(0, 0, 0, 0);
+      return { date: d.toISOString().slice(0, 10), day: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }), cents: 0, activity: 0 };
+    });
+    res.json({ systems: [], trendData: emptyTrend, contentPublished: 0, leadsCaptured: 0, topSystem: null, needsAttention: [] });
+    return;
+  }
+
+  const systemIds = userSystems.map((s) => s.id);
+
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const [
+    revenueBySystem,
+    revenueTrend,
+    activityTrend,
+    errorsBySystem7d,
+    lastActivityBySystem,
+    weekRevBySystem,
+    contentPublishedRow,
+    leadsRow,
+  ] = await Promise.all([
+    db.select({
+      systemInstanceId: systemActivityEventsTable.systemInstanceId,
+      lifetimeCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`,
+    })
+    .from(systemActivityEventsTable)
+    .where(and(inArray(systemActivityEventsTable.systemInstanceId, systemIds), eq(systemActivityEventsTable.eventType, "revenue")))
+    .groupBy(systemActivityEventsTable.systemInstanceId),
+
+    db.select({
+      date: sql<string>`to_char(date_trunc('day', ${systemActivityEventsTable.createdAt}), 'YYYY-MM-DD')`,
+      cents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`,
+    })
+    .from(systemActivityEventsTable)
+    .where(and(inArray(systemActivityEventsTable.systemInstanceId, systemIds), eq(systemActivityEventsTable.eventType, "revenue"), gte(systemActivityEventsTable.createdAt, thirtyDaysAgo)))
+    .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`),
+
+    db.select({
+      date: sql<string>`to_char(date_trunc('day', ${systemActivityEventsTable.createdAt}), 'YYYY-MM-DD')`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(systemActivityEventsTable)
+    .where(and(inArray(systemActivityEventsTable.systemInstanceId, systemIds), gte(systemActivityEventsTable.createdAt, thirtyDaysAgo)))
+    .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`),
+
+    db.select({
+      systemInstanceId: systemActivityEventsTable.systemInstanceId,
+      errorCount: sql<number>`count(*)::int`,
+    })
+    .from(systemActivityEventsTable)
+    .where(and(inArray(systemActivityEventsTable.systemInstanceId, systemIds), eq(systemActivityEventsTable.eventType, "error"), gte(systemActivityEventsTable.createdAt, sevenDaysAgo)))
+    .groupBy(systemActivityEventsTable.systemInstanceId),
+
+    db.select({
+      systemInstanceId: systemActivityEventsTable.systemInstanceId,
+      lastAt: sql<string>`max(${systemActivityEventsTable.createdAt})`,
+    })
+    .from(systemActivityEventsTable)
+    .where(inArray(systemActivityEventsTable.systemInstanceId, systemIds))
+    .groupBy(systemActivityEventsTable.systemInstanceId),
+
+    db.select({
+      systemInstanceId: systemActivityEventsTable.systemInstanceId,
+      cents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`,
+    })
+    .from(systemActivityEventsTable)
+    .where(and(inArray(systemActivityEventsTable.systemInstanceId, systemIds), eq(systemActivityEventsTable.eventType, "revenue"), gte(systemActivityEventsTable.createdAt, sevenDaysAgo)))
+    .groupBy(systemActivityEventsTable.systemInstanceId),
+
+    db.select({ count: sql<number>`count(*)::int` })
+    .from(publishedContentTable)
+    .where(and(inArray(publishedContentTable.systemInstanceId, systemIds), eq(publishedContentTable.status, "published"))),
+
+    db.select({ count: sql<number>`count(*)::int` })
+    .from(systemActivityEventsTable)
+    .where(and(inArray(systemActivityEventsTable.systemInstanceId, systemIds), eq(systemActivityEventsTable.eventType, "lead"))),
+  ]);
+
+  const revenueMap = new Map<number, number>();
+  for (const r of revenueBySystem) {
+    if (r.systemInstanceId !== null) revenueMap.set(r.systemInstanceId, Number(r.lifetimeCents));
+  }
+  const errorMap = new Map<number, number>();
+  for (const r of errorsBySystem7d) {
+    if (r.systemInstanceId !== null) errorMap.set(r.systemInstanceId, Number(r.errorCount));
+  }
+  const lastActMap = new Map<number, Date>();
+  for (const r of lastActivityBySystem) {
+    if (r.systemInstanceId !== null && r.lastAt) lastActMap.set(r.systemInstanceId, new Date(r.lastAt));
+  }
+  const weekRevMap = new Map<number, number>();
+  for (const r of weekRevBySystem) {
+    if (r.systemInstanceId !== null) weekRevMap.set(r.systemInstanceId, Number(r.cents));
+  }
+
+  const sevenDayMs = 7 * 24 * 60 * 60 * 1000;
+
+  const systemsWithHealth = userSystems.map((s) => {
+    let score = (() => {
+      if (s.buildStatus === "active" || s.buildStatus === "completed" || s.healthStatus === "healthy") return 85;
+      if (s.buildStatus === "building") return 55;
+      if (s.buildStatus === "paused") return 30;
+      if (s.healthStatus === "unhealthy" || s.buildStatus === "failed") return 5;
+      return 20;
+    })();
+    const errCount = errorMap.get(s.id) ?? 0;
+    score -= Math.min(40, errCount * 10);
+    const lastAct = lastActMap.get(s.id);
+    if (lastAct) {
+      const msSince = Date.now() - lastAct.getTime();
+      if (msSince > sevenDayMs) score -= 15;
+      else if (msSince < 3_600_000) score += 10;
+    }
+    const rev = revenueMap.get(s.id) ?? 0;
+    if (rev > 10_000) score += 10;
+    score = Math.min(100, Math.max(0, score));
+    return {
+      id: s.id,
+      name: s.name,
+      buildStatus: s.buildStatus,
+      healthStatus: s.healthStatus,
+      healthScore: score,
+      lifetimeCents: rev,
+      weekRevCents: weekRevMap.get(s.id) ?? 0,
+      lastActivityAt: lastAct ? lastAct.toISOString() : null,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
+    };
+  });
+
+  const revTrendMap = new Map<string, number>();
+  for (const r of revenueTrend) revTrendMap.set(r.date, Number(r.cents));
+  const actTrendMap = new Map<string, number>();
+  for (const r of activityTrend) actTrendMap.set(r.date, Number(r.count));
+
+  const trendData = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(thirtyDaysAgo);
+    d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    return {
+      date: key,
+      day: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      cents: revTrendMap.get(key) ?? 0,
+      activity: actTrendMap.get(key) ?? 0,
+    };
+  });
+
+  const topSystem = [...systemsWithHealth].sort((a, b) => b.lifetimeCents - a.lifetimeCents)[0] ?? null;
+
+  const needsAttention = systemsWithHealth
+    .filter((s) => {
+      if (s.buildStatus === "paused") return true;
+      if ((errorMap.get(s.id) ?? 0) > 0) return true;
+      const isActive = s.buildStatus === "active" || s.buildStatus === "completed";
+      if (isActive && (weekRevMap.get(s.id) ?? 0) === 0) {
+        const lastAct = lastActMap.get(s.id);
+        if (!lastAct || Date.now() - lastAct.getTime() > sevenDayMs) return true;
+      }
+      return false;
+    })
+    .map((s) => ({
+      ...s,
+      alertReason: s.buildStatus === "paused"
+        ? "paused"
+        : (errorMap.get(s.id) ?? 0) > 0
+          ? "errors"
+          : "inactive",
+    }));
+
+  res.json({
+    systems: serialize(systemsWithHealth),
+    trendData,
+    contentPublished: Number(contentPublishedRow[0]?.count ?? 0),
+    leadsCaptured: Number(leadsRow[0]?.count ?? 0),
+    topSystem: topSystem ? serialize(topSystem) : null,
+    needsAttention: serialize(needsAttention),
   });
 });
 

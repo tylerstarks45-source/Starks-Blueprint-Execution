@@ -264,7 +264,7 @@ router.get("/system-instances/:id/real-revenue", async (req, res): Promise<void>
     sql`${systemActivityEventsTable.revenueProvider} is not null`,
   );
 
-  const [todayRows, weekRows, monthRows, lifetimeRows, trendRows] = await Promise.all([
+  const [todayRows, weekRows, monthRows, lifetimeRows, trendRows, recentTxRows] = await Promise.all([
     db.select({ total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)` })
       .from(systemActivityEventsTable)
       .where(and(revenueCondition, sql`${systemActivityEventsTable.createdAt} >= ${startOfToday}`)),
@@ -285,6 +285,19 @@ router.get("/system-instances/:id/real-revenue", async (req, res): Promise<void>
       .where(and(revenueCondition, sql`${systemActivityEventsTable.createdAt} >= ${sevenDaysAgo}`))
       .groupBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`)
       .orderBy(sql`date_trunc('day', ${systemActivityEventsTable.createdAt})`),
+    db.select({
+        id: systemActivityEventsTable.id,
+        amountCents: systemActivityEventsTable.amountCents,
+        description: systemActivityEventsTable.description,
+        revenueProvider: systemActivityEventsTable.revenueProvider,
+        externalTxId: systemActivityEventsTable.externalTxId,
+        createdAt: systemActivityEventsTable.createdAt,
+        metadata: systemActivityEventsTable.metadata,
+      })
+      .from(systemActivityEventsTable)
+      .where(revenueCondition)
+      .orderBy(sql`${systemActivityEventsTable.createdAt} desc`)
+      .limit(20),
   ]);
 
   const trendMap = new Map<string, number>();
@@ -298,6 +311,23 @@ router.get("/system-instances/:id/real-revenue", async (req, res): Promise<void>
     trend.push({ date: key, amountCents: trendMap.get(key) ?? 0 });
   }
 
+  const recentTransactions = recentTxRows.map((r) => {
+    let currency = "usd";
+    try {
+      const meta = typeof r.metadata === "string" ? JSON.parse(r.metadata) : r.metadata;
+      if (meta && typeof meta === "object" && "currency" in meta) currency = String(meta.currency);
+    } catch { /* ignore */ }
+    return {
+      id: r.id,
+      amountCents: r.amountCents ?? 0,
+      description: r.description ?? "",
+      revenueProvider: r.revenueProvider ?? "",
+      externalTxId: r.externalTxId ?? "",
+      currency,
+      occurredAt: (r.createdAt as Date).toISOString(),
+    };
+  });
+
   res.json({
     linked: true,
     providers: serialize(providers),
@@ -308,6 +338,7 @@ router.get("/system-instances/:id/real-revenue", async (req, res): Promise<void>
       lifetimeCents: Number(lifetimeRows[0]?.total ?? 0),
       trend,
     },
+    recentTransactions,
   });
 });
 

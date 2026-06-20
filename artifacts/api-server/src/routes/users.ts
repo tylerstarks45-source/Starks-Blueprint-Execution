@@ -53,6 +53,41 @@ router.get("/users/:id", async (req, res): Promise<void> => {
   res.json(GetUserResponse.parse(serialize(row)));
 });
 
+// ── PATCH /api/users/me ────────────────────────────────────────────────────
+// Convenience endpoint: lets an authenticated user update their own profile
+// without knowing their numeric ID. Applies the same privilege restrictions
+// as PATCH /api/users/:id for non-admin callers.
+router.patch("/users/me", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const parsed = UpdateUserBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const isAdmin = isAdminRole(caller.role);
+  const { role: _role, membershipTier: _tier, membershipStatus: _ms, creditsBalance: _cb, active: _active, ...userFields } = parsed.data as Record<string, unknown>;
+  const updateData = isAdmin ? (parsed.data as object) : userFields;
+
+  if (Object.keys(updateData).length === 0) {
+    res.status(400).json({ error: "No updatable fields provided" });
+    return;
+  }
+
+  const [row] = await db
+    .update(usersTable)
+    .set(updateData)
+    .where(eq(usersTable.id, caller.id))
+    .returning();
+  if (!row) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  res.json(GetUserResponse.parse(serialize(row)));
+});
+
 // ── PATCH /api/users/:id ───────────────────────────────────────────────────
 // Requires authentication. A user may only update their own profile; admins
 // may update any profile.

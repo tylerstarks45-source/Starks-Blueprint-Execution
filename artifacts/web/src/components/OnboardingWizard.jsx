@@ -368,7 +368,7 @@ const OnboardingWizard = () => {
                   </button>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => { completeOnboarding(); navigate('/connections-hub'); }}
+                      onClick={() => { completeOnboarding(); navigate('/connections'); }}
                       className="text-sm text-primary/70 hover:text-primary transition-colors px-3 py-2"
                     >
                       Connect Tools Now

@@ -146,15 +146,12 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('sbep_auth_token');
     if (!token) return;
     try {
-      const stored = pb.authStore.model;
-      if (stored?.id) {
-        await fetch(`/api/users/${stored.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ onboardingCompleted: true }),
-        });
-        pb.authStore.model && (pb.authStore.model.onboardingCompleted = true);
-      }
+      await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ onboardingCompleted: true }),
+      });
+      pb.authStore.model && (pb.authStore.model.onboardingCompleted = true);
     } catch { /* non-blocking */ }
   }, []);
 
@@ -163,15 +160,12 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('sbep_auth_token');
     if (!token) return;
     try {
-      const stored = pb.authStore.model;
-      if (stored?.id) {
-        await fetch(`/api/users/${stored.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ onboardingCompleted: false }),
-        });
-        pb.authStore.model && (pb.authStore.model.onboardingCompleted = false);
-      }
+      await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ onboardingCompleted: false }),
+      });
+      pb.authStore.model && (pb.authStore.model.onboardingCompleted = false);
     } catch { /* non-blocking */ }
   }, []);
 

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq } from "drizzle-orm";
-import { db, subscriptionsTable, usersTable, processedStripeEventsTable, blueprintsTable, blueprintPurchasesTable, notificationsTable } from "@workspace/db";
+import { eq, and, sql } from "drizzle-orm";
+import { db, subscriptionsTable, usersTable, processedStripeEventsTable, blueprintsTable, blueprintPurchasesTable, notificationsTable, referralEventsTable, referralCodesTable } from "@workspace/db";
 import { z } from "zod";
 import { getUncachableStripeClient } from "../lib/stripe";
 import { adjustCredits, adjustWalletCredits, tierAllotment } from "../lib/credits";
@@ -295,6 +295,73 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
           .where(eq(usersTable.id, userId));
         await adjustCredits(userId, tierAllotment(tier), "tier_grant", { reason: `${tier} plan credits` });
         req.log.info({ userId, tier }, "Subscription activated via checkout");
+
+        // Referral reward — award referrer on first-ever subscription activation
+        // 500 bonus credits + 20% of first month as wallet credits (fire-and-forget)
+        ;(async () => {
+          try {
+            const [signupEvent] = await db
+              .select()
+              .from(referralEventsTable)
+              .where(
+                and(
+                  eq(referralEventsTable.referredUserId, userId),
+                  eq(referralEventsTable.eventType, "signup"),
+                ),
+              );
+            if (!signupEvent) return;
+
+            // Ensure this is the first conversion (idempotency)
+            const [alreadyConverted] = await db
+              .select({ id: referralEventsTable.id })
+              .from(referralEventsTable)
+              .where(
+                and(
+                  eq(referralEventsTable.referrerId, signupEvent.referrerId),
+                  eq(referralEventsTable.referredUserId, userId),
+                  eq(referralEventsTable.eventType, "conversion"),
+                ),
+              );
+            if (alreadyConverted) return;
+
+            const amountCents = Number(session.amount_total ?? 0) ||
+              (TIER_CONFIG[tier]?.amount ?? 0);
+            const bonusCredits = 500;
+            const revenueShareCredits = Math.round(amountCents * 0.20 / 100 * 50);
+            const totalCredits = bonusCredits + revenueShareCredits;
+
+            await adjustCredits(signupEvent.referrerId, bonusCredits, "signup_grant", {
+              reason: `Referral bonus — ${tier} plan signup`,
+            });
+            await adjustWalletCredits(signupEvent.referrerId, revenueShareCredits, {
+              reason: `Referral revenue share — 20% of ${tier} first month`,
+            });
+
+            await db.insert(referralEventsTable).values({
+              referrerId: signupEvent.referrerId,
+              referredUserId: userId,
+              eventType: "conversion",
+              creditsAwarded: totalCredits,
+            });
+
+            await db
+              .update(referralCodesTable)
+              .set({ conversions: sql`${referralCodesTable.conversions} + 1` })
+              .where(eq(referralCodesTable.userId, signupEvent.referrerId));
+
+            await db.insert(notificationsTable).values({
+              userId: signupEvent.referrerId,
+              title: "Referral Earned!",
+              message: `Your referral subscribed to the ${tier} plan. You earned ${bonusCredits} bonus credits + ${revenueShareCredits} wallet credits!`,
+              notificationType: "success",
+              read: false,
+            }).catch(() => {});
+
+            req.log.info({ referrerId: signupEvent.referrerId, userId, tier, totalCredits }, "Referral reward awarded");
+          } catch (err) {
+            req.log.warn({ err, userId, tier }, "Failed to process referral reward");
+          }
+        })();
       }
     }
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useId, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
+import ReferAndEarnBanner from '@/components/dashboard/user/ReferAndEarnBanner.jsx';
 import UserMyBlueprintsPanel from '@/components/dashboard/user/UserMyBlueprintsPanel.jsx';
 import {
   Activity, Zap, CheckCircle2, AlertTriangle, Clock, Server,
@@ -587,6 +588,11 @@ const SystemCommandCenterPage = () => {
           </div>
         </div>
       </HudPanel>
+
+      {/* ══ REFER & EARN BANNER — shown for free/builder/operator users ══════ */}
+      {['free', 'builder'].includes((user.subscriptionTier ?? 'free').toLowerCase()) && (
+        <ReferAndEarnBanner />
+      )}
 
       {/* ══ KPI RIBBON — 6 performance metric cards ══════════════════════════ */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">

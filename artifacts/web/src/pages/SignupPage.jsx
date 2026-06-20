@@ -111,7 +111,8 @@ const SignupPage = () => {
     }
 
     setIsLoading(true);
-    const result = await signup(formData.email, formData.password);
+    const referralCode = localStorage.getItem('sbep_referral_code') || undefined;
+    const result = await signup(formData.email, formData.password, undefined, referralCode);
     if (result.success) {
       toast.success('Account created!');
       // For paid plans, redirect to checkout after signup

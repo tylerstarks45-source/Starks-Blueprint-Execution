@@ -81,14 +81,16 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const signup = useCallback(async (email, password, name) => {
+  const signup = useCallback(async (email, password, name, referralCode) => {
     try {
-      await pb.collection('users').create({
+      const createData = {
         email,
         password,
         passwordConfirm: password,
         name: name || '',
-      }, { $autoCancel: false });
+      };
+      if (referralCode) createData.referralCode = referralCode;
+      await pb.collection('users').create(createData, { $autoCancel: false });
 
       const authData = await pb.collection('users').authWithPassword(email, password, { $autoCancel: false });
       return { success: true, data: authData };

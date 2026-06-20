@@ -41,6 +41,7 @@ import revenueProvidersRouter from "./revenue-providers";
 import publishingRouter from "./publishing";
 import webhooksRouter from "./webhooks";
 import abTestsRouter from "./ab-tests";
+import referralsRouter from "./referrals";
 
 const router: IRouter = Router();
 
@@ -86,5 +87,6 @@ router.use(revenueProvidersRouter);
 router.use(publishingRouter);
 router.use(webhooksRouter);
 router.use(abTestsRouter);
+router.use(referralsRouter);
 
 export default router;

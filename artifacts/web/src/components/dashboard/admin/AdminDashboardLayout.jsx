@@ -28,7 +28,7 @@ class AdminErrorBoundary extends React.Component {
 }
 import {
   LayoutDashboard, DollarSign, BrainCircuit, Server, TrendingUp,
-  Users, Bell, ShieldCheck, CreditCard, ShoppingBag, Globe,
+  Users, Bell, ShieldCheck, CreditCard, ShoppingBag, Globe, Share2,
 } from 'lucide-react';
 
 import AdminPlatformMetricsCard from './AdminPlatformMetricsCard.jsx';
@@ -58,6 +58,7 @@ import AdminMarketplaceToolsPanel from './AdminMarketplaceToolsPanel.jsx';
 import AdminSkillEnginePanel from '@/components/admin/AdminSkillEnginePanel.jsx';
 import AdminStripePanel from './AdminStripePanel.jsx';
 import AdminCommunityBlueprintsPanel from './AdminCommunityBlueprintsPanel.jsx';
+import AdminReferralsPanel from '@/components/admin/AdminReferralsPanel.jsx';
 
 import CreditBalanceCard from '@/components/admin/CreditBalanceCard.jsx';
 import UsageOverviewCard from '@/components/admin/UsageOverviewCard.jsx';
@@ -72,6 +73,7 @@ const TABS = [
   { key: 'profitability', label: 'Profitability',   icon: TrendingUp,      path: '/admin/profitability' },
   { key: 'marketplace',   label: 'Marketplace',     icon: ShoppingBag,     path: '/admin/marketplace' },
   { key: 'community',    label: 'Community',       icon: Globe,           path: '/admin/community' },
+  { key: 'referrals',    label: 'Referrals',       icon: Share2,          path: '/admin/referrals' },
   { key: 'systems',      label: 'Systems',         icon: Server,          path: '/admin/systems' },
   { key: 'health',        label: 'Platform Health', icon: ShieldCheck,     path: '/admin/health' },
   { key: 'activity',      label: 'Activity',        icon: Bell,            path: '/admin/activity' },
@@ -202,6 +204,11 @@ const AdminDashboardLayout = () => {
         {/* ── Community Blueprints tab ─────────────────────────────────────── */}
         {activeTab === 'community' && (
           <AdminCommunityBlueprintsPanel />
+        )}
+
+        {/* ── Referrals tab ────────────────────────────────────────────────── */}
+        {activeTab === 'referrals' && (
+          <AdminReferralsPanel />
         )}
 
         {/* ── Systems tab ──────────────────────────────────────────────────── */}

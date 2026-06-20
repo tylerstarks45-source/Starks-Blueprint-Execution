@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db/schema";
+import { usersTable, referralCodesTable, referralEventsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -48,6 +48,7 @@ const RegisterInput = z.object({
   email: z.string().email(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   name: z.string().optional(),
+  referralCode: z.string().max(20).optional(),
 });
 
 const ResetRequestInput = z.object({
@@ -80,7 +81,7 @@ router.post("/auth/register", authLimiter, async (req, res) => {
     return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
   }
 
-  const { email: rawEmail, password, name } = parsed.data;
+  const { email: rawEmail, password, name, referralCode } = parsed.data;
   const email = rawEmail.toLowerCase().trim();
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
@@ -110,6 +111,36 @@ router.post("/auth/register", authLimiter, async (req, res) => {
   await db.update(usersTable)
     .set({ emailVerifyToken: verifyHash, emailVerifyExpiry: verifyExpiry })
     .where(eq(usersTable.id, newUser.id));
+
+  // Process referral attribution — fire-and-forget, never block the response
+  if (referralCode) {
+    (async () => {
+      try {
+        const [refCodeRow] = await db
+          .select()
+          .from(referralCodesTable)
+          .where(eq(referralCodesTable.code, referralCode.toUpperCase()));
+        if (refCodeRow && refCodeRow.userId !== newUser.id) {
+          await db.insert(referralEventsTable).values({
+            referrerId: refCodeRow.userId,
+            referredUserId: newUser.id,
+            eventType: "signup",
+            creditsAwarded: 0,
+          });
+        }
+      } catch (err) {
+        req.log.warn({ err, referralCode }, "Failed to record referral signup event");
+      }
+    })();
+  }
+
+  // Auto-generate a referral code for the new user (fire-and-forget)
+  ;(async () => {
+    try {
+      const { getOrCreateReferralCode } = await import("./referrals");
+      await getOrCreateReferralCode(newUser.id);
+    } catch {}
+  })();
 
   // Send emails fire-and-forget (never block the response)
   sendEmailVerification(newUser.email, verifyRaw).catch(() => {});

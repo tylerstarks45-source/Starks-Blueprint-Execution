@@ -61,6 +61,8 @@ const LandingPagesPage      = lazy(() => import('@/pages/LandingPagesPage.jsx'))
 const UserLandingPageCanvas = lazy(() => import('@/pages/UserLandingPageCanvas.jsx'));
 const AffiliateLinkManagerPage = lazy(() => import('@/pages/AffiliateLinkManagerPage.jsx'));
 const EmailMarketingPage    = lazy(() => import('@/pages/EmailMarketingPage.jsx'));
+const ReferPage             = lazy(() => import('@/pages/ReferPage.jsx'));
+const RefPage               = lazy(() => import('@/pages/RefPage.jsx'));
 
 // Settings page
 const UserSettingsPage      = lazy(() => import('@/pages/UserSettingsPage.jsx'));
@@ -215,6 +217,11 @@ const App = () => {
               <Route path="/email-marketing" element={
                 <ProtectedRoute><EmailMarketingPage /></ProtectedRoute>
               } />
+              <Route path="/refer" element={
+                <ProtectedRoute><ReferPage /></ProtectedRoute>
+              } />
+              <Route path="/ref/:code" element={<RefPage />} />
+
               <Route path="/settings" element={
                 <ProtectedRoute><UserSettingsPage /></ProtectedRoute>
               } />

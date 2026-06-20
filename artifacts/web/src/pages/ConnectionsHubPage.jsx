@@ -22,6 +22,7 @@ const PUBLISHING_CRED_MAP = {
   CONVERTKIT_API_KEY:     'convertkit',
   WORDPRESS_APP_PASSWORD: 'wordpress',
   GHOST_ADMIN_API_KEY:    'ghost',
+  YOUTUBE_OAUTH_TOKEN:    'youtube',
 };
 
 // ─── INTEGRATION CATALOG ─────────────────────────────────────────────────────

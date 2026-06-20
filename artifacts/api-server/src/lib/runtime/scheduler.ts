@@ -83,20 +83,62 @@ async function executeTask(task: typeof scheduledTasksTable.$inferSelect): Promi
     const creds = await loadUserCredentials(task.userId);
     const result = await publish(channel, creds, { channel, contentType, title, content, imageUrl, listId, siteUrl, videoId, tags, categoryId });
 
-    // Persist publish record
+    // Reconcile: find the pre-created scheduled record (if any) that was inserted
+    // when the task was created via ASH create_schedule. We match on scheduledTaskId
+    // stored in metadata. If found, UPDATE that row; otherwise INSERT a new one.
     const now = new Date();
-    await db.insert(publishedContentTable).values({
-      systemInstanceId: task.systemInstanceId,
-      channel,
-      contentType,
-      title: title ?? null,
-      content,
-      status: result.ok ? "published" : "failed",
-      publishedUrl: result.publishedUrl ?? null,
-      publishedAt: result.ok ? now : null,
-      errorMessage: result.ok ? null : (result.error ?? "Unknown error"),
-      metadata: JSON.stringify(result.data ?? {}),
-    }).catch(() => {});
+    const existingRows = await pool.query<{ id: number }>(
+      `SELECT id FROM published_content
+       WHERE system_instance_id = $1
+         AND status = 'scheduled'
+         AND metadata::jsonb->>'scheduledTaskId' = $2
+       LIMIT 1`,
+      [task.systemInstanceId, String(task.id)],
+    );
+
+    const resultMeta = JSON.stringify({
+      ...(imageUrl   ? { imageUrl }   : {}),
+      ...(listId     ? { listId }     : {}),
+      ...(siteUrl    ? { siteUrl }    : {}),
+      ...(videoId    ? { videoId }    : {}),
+      ...(tags       ? { tags }       : {}),
+      ...(categoryId ? { categoryId } : {}),
+      scheduledTaskId: task.id,
+      ...(result.data ?? {}),
+    });
+
+    if (existingRows.rowCount && existingRows.rowCount > 0) {
+      // Update the pre-created scheduled row
+      await pool.query(
+        `UPDATE published_content SET
+           status = $1, published_url = $2, published_at = $3,
+           error_message = $4, metadata = $5, retry_count = $6
+         WHERE id = $7`,
+        [
+          result.ok ? "published" : "failed",
+          result.publishedUrl ?? null,
+          result.ok ? now : null,
+          result.ok ? null : (result.error ?? "Unknown error"),
+          resultMeta,
+          0,
+          existingRows.rows[0]!.id,
+        ],
+      ).catch(() => {});
+    } else {
+      // No pre-created record — insert fresh
+      await db.insert(publishedContentTable).values({
+        systemInstanceId: task.systemInstanceId,
+        channel,
+        contentType,
+        title: title ?? null,
+        content,
+        status: result.ok ? "published" : "failed",
+        publishedUrl: result.publishedUrl ?? null,
+        publishedAt: result.ok ? now : null,
+        errorMessage: result.ok ? null : (result.error ?? "Unknown error"),
+        metadata: resultMeta,
+      }).catch(() => {});
+    }
 
     if (result.ok) {
       return { ok: true, output: `Published to ${PUBLISHING_CHANNELS[channel]?.displayName ?? channel}${result.publishedUrl ? ": " + result.publishedUrl : ""}` };

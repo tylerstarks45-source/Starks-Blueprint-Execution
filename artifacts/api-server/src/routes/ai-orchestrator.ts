@@ -464,9 +464,10 @@ You can call these tools at any time to enrich your responses. Use them proactiv
    Basic post: {"action": "publish_content", "channel": "twitter", "contentType": "tweet", "content": "Your post text here"}
    Email broadcast: {"action": "publish_content", "channel": "mailchimp", "contentType": "email", "title": "Subject line", "content": "Email body", "listId": "abc123"}
    YouTube metadata update: {"action": "publish_content", "channel": "youtube", "contentType": "video_metadata", "title": "New video title", "content": "New description", "videoId": "dQw4w9WgXcQ", "tags": ["tag1","tag2"]}
-   Scheduled future post: {"action": "publish_content", "channel": "twitter", "contentType": "tweet", "content": "Scheduled tweet", "scheduledFor": "2026-07-01T09:00:00Z"}
-   CRITICAL: Use publish_content when user says "post this", "publish to my blog", "send this email to my list", "tweet this", "update my YouTube video", or when a build step requires distributing content to a channel.
-   You can also schedule publishing via create_schedule with actionType "publish" and actionParams {channel, contentType, content, title?, listId?, videoId?, tags?}.
+   CRITICAL: Use publish_content ONLY for IMMEDIATE publishing — it publishes right now.
+   For FUTURE/SCHEDULED publishing (e.g. "post this tomorrow", "schedule for next week"), use create_schedule with actionType "publish" instead.
+   Use publish_content when user says "post this", "publish to my blog", "send this email to my list", "tweet this", "update my YouTube video", or when a build step requires distributing content to a channel immediately.
+   Schedule example: {"action": "create_schedule", "taskName": "Weekly Tweet", "scheduleType": "weekly", "scheduleConfig": {"dayOfWeek": 1, "hour": 9}, "actionType": "publish", "actionParams": {"channel": "twitter", "contentType": "tweet", "content": "Your tweet text"}}
 
 You can chain multiple tools in a single call:
 <SBEP_DATA>

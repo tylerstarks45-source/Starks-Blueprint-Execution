@@ -111,9 +111,23 @@ const SignupPage = () => {
     }
 
     setIsLoading(true);
-    const referralCode = localStorage.getItem('sbep_referral_code') || undefined;
+
+    // Read referral code from the 30-day cookie (authoritative, expires); fall back
+    // to localStorage only if the cookie is already gone (e.g. cleared by browser).
+    const COOKIE_NAME = 'sbep_referral_code';
+    const getCookieReferral = () => {
+      const match = document.cookie.split('; ').find(row => row.startsWith(COOKIE_NAME + '='));
+      return match ? decodeURIComponent(match.split('=')[1]) : null;
+    };
+    const referralCode = getCookieReferral() || localStorage.getItem(COOKIE_NAME) || undefined;
+
     const result = await signup(formData.email, formData.password, undefined, referralCode);
     if (result.success) {
+      // Clear referral attribution so it is not reused on a future signup from same browser
+      if (referralCode) {
+        localStorage.removeItem(COOKIE_NAME);
+        document.cookie = `${COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+      }
       toast.success('Account created!');
       // For paid plans, redirect to checkout after signup
       if (selectedPlan !== 'free') {

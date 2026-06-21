@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
-import { usersTable, referralCodesTable, referralEventsTable } from "@workspace/db";
+import { usersTable, referralCodesTable, referralEventsTable, whiteLabelConfigsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -142,9 +142,30 @@ router.post("/auth/register", authLimiter, async (req, res) => {
     } catch {}
   })();
 
+  // Resolve agency white-label brand from Origin/Referer header (if registering via a custom domain)
+  let wlBrandName: string | null = null;
+  try {
+    const origin = req.headers.origin ?? req.headers.referer ?? "";
+    if (origin) {
+      const hostname = origin.replace(/^https?:\/\//i, "").split("/")[0].split(":")[0].toLowerCase();
+      const knownPlatformHosts = ["starksglobalgroup.net", "replit.app", "replit.dev", "localhost"];
+      const isPlatformHost = knownPlatformHosts.some(h => hostname === h || hostname.endsWith(`.${h}`));
+      if (!isPlatformHost && hostname) {
+        const [wlRow] = await db
+          .select({ brandName: whiteLabelConfigsTable.brandName })
+          .from(whiteLabelConfigsTable)
+          .where(eq(whiteLabelConfigsTable.customDomain, hostname))
+          .limit(1);
+        if (wlRow?.brandName) wlBrandName = wlRow.brandName;
+      }
+    }
+  } catch {
+    // Non-blocking — fall back to platform brand
+  }
+
   // Send emails fire-and-forget (never block the response)
-  sendEmailVerification(newUser.email, verifyRaw).catch(() => {});
-  sendWelcomeEmail(newUser.email, name || "").catch(() => {});
+  sendEmailVerification(newUser.email, verifyRaw, wlBrandName).catch(() => {});
+  sendWelcomeEmail(newUser.email, name || "", wlBrandName).catch(() => {});
 
   const token = signToken(newUser.id, newUser.email, newUser.role ?? "USER");
 

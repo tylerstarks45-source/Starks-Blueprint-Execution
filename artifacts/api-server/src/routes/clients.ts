@@ -356,6 +356,7 @@ router.get("/portal/:token", async (req, res): Promise<void> => {
       name:    workspace.name,
       logoUrl: workspace.logoUrl,
     },
+    agencyUserId: workspace.agencyUserId,
     agencyName: agencyUser?.name || agencyUser?.email || "Agency",
     systems: systems.map(s => ({
       ...s,

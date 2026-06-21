@@ -209,20 +209,26 @@ export async function getTldPricing(tld: string): Promise<{ register: number } |
 
 // ── Check DNS propagation ─────────────────────────────────────────────────────
 /**
- * Verifies that `domain` has a CNAME or A record pointing to `targetHost`.
- * Uses the system DNS resolver (dns.promises) — not Namecheap API.
+ * Verifies that `domain` (or www.domain) has a CNAME record pointing to
+ * `targetHost`.  The fallback A-record path has been intentionally removed —
+ * any A record would "verify" a domain regardless of its destination, creating
+ * a domain-hijack / false-positive risk.  Only an exact CNAME match to the
+ * expected platform host is accepted.
  */
 export async function verifyDnsCname(domain: string, targetHost: string): Promise<boolean> {
   const { promises: dns } = await import("dns");
-  try {
-    const cnames = await dns.resolveCname(`www.${domain}`);
-    return cnames.some(c => c.includes(targetHost.replace(/^https?:\/\//, "").split("/")[0]));
-  } catch {
+  const normalTarget = targetHost.replace(/^https?:\/\//i, "").split("/")[0].toLowerCase();
+
+  // Try www.domain first, then bare domain
+  for (const lookup of [`www.${domain}`, domain]) {
     try {
-      const addrs = await dns.resolve4(domain);
-      return addrs.length > 0;
+      const cnames = await dns.resolveCname(lookup);
+      if (cnames.some(c => c.toLowerCase().replace(/\.$/, "").includes(normalTarget))) {
+        return true;
+      }
     } catch {
-      return false;
+      // resolveCname throws ENODATA / ENOTFOUND if no CNAME exists — continue
     }
   }
+  return false;
 }

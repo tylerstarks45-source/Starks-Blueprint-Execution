@@ -48,15 +48,16 @@ export async function sendPasswordResetEmail(to: string, rawToken: string): Prom
   }
 }
 
-export async function sendEmailVerification(to: string, rawToken: string): Promise<boolean> {
+export async function sendEmailVerification(to: string, rawToken: string, brandName?: string | null): Promise<boolean> {
   const resend = getResend();
   if (!resend) return false;
   const verifyUrl = `${getBaseUrl()}/verify-email?token=${rawToken}`;
+  const brand = brandName?.trim() || DEFAULT_BRAND;
   try {
     await resend.emails.send({
-      from: FROM,
+      from: getEmailSender(brandName),
       to: [to],
-      subject: "Verify your Starks Global Group email",
+      subject: `Verify your ${brand} email`,
       html: `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0a0a;color:#fff;border-radius:12px;">
           <h1 style="font-size:22px;font-weight:700;margin-bottom:12px;">Verify Your Email 🚀</h1>
@@ -72,19 +73,20 @@ export async function sendEmailVerification(to: string, rawToken: string): Promi
   }
 }
 
-export async function sendWelcomeEmail(to: string, name: string): Promise<boolean> {
+export async function sendWelcomeEmail(to: string, name: string, brandName?: string | null): Promise<boolean> {
   const resend = getResend();
   if (!resend) return false;
   const base = getBaseUrl();
+  const brand = brandName?.trim() || DEFAULT_BRAND;
   try {
     await resend.emails.send({
-      from: FROM,
+      from: getEmailSender(brandName),
       to: [to],
-      subject: "Welcome to Starks Global Group",
+      subject: `Welcome to ${brand}`,
       html: `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0a0a;color:#fff;border-radius:12px;">
           <h1 style="font-size:22px;font-weight:700;margin-bottom:12px;">Welcome, ${name || "Commander"}! 🚀</h1>
-          <p style="color:#a1a1aa;margin-bottom:16px;">You've joined Starks Global Group — the AI automation platform built to help you build real income systems.</p>
+          <p style="color:#a1a1aa;margin-bottom:16px;">You've joined ${brand} — the AI automation platform built to help you build real income systems.</p>
           <ul style="color:#a1a1aa;margin-bottom:24px;padding-left:20px;line-height:1.8;">
             <li>Browse 8 pre-built AI blueprints</li>
             <li>Explore 17+ curated tools in the marketplace</li>

@@ -285,6 +285,95 @@ function NotificationsTab() {
   );
 }
 
+// ── Logo Upload widget ─────────────────────────────────────────────────────
+function LogoUpload({ logoUrl, onUploaded, authHeaders }) {
+  const [uploading, setUploading] = React.useState(false);
+  const fileRef = React.useRef(null);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 512 * 1024) {
+      toast.error('Image must be under 512 KB');
+      return;
+    }
+    setUploading(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch('/api/white-label/logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ dataUrl }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        onUploaded(data.logoUrl);
+        toast.success('Logo uploaded');
+      } else {
+        toast.error(data.error ?? 'Upload failed');
+      }
+    } catch {
+      toast.error('Upload failed');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt="logo preview"
+          className="w-14 h-14 rounded-xl object-cover border border-white/15 shrink-0"
+          onError={e => { e.currentTarget.style.display = 'none'; }}
+        />
+      ) : (
+        <div className="w-14 h-14 rounded-xl border border-dashed border-white/20 flex items-center justify-center shrink-0">
+          <span className="text-white/25 text-xl">?</span>
+        </div>
+      )}
+      <div className="flex-1 space-y-2">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+          className="hidden"
+          onChange={handleFile}
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="px-4 py-2 rounded-lg bg-white/8 border border-white/15 text-sm text-white/80 hover:bg-white/12 hover:text-white transition-colors disabled:opacity-50"
+        >
+          {uploading ? 'Uploading…' : logoUrl ? 'Replace Logo' : 'Upload Logo'}
+        </button>
+        {logoUrl && (
+          <button
+            type="button"
+            onClick={() => onUploaded(null)}
+            className="block text-xs text-white/30 hover:text-red-400 transition-colors"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Branding Tab (Empire tier) ─────────────────────────────────────────────
 function BrandingTab({ user }) {
   const tier = (user?.membershipTier || user?.subscriptionTier || 'free').toLowerCase();
@@ -486,14 +575,13 @@ function BrandingTab({ user }) {
         </div>
 
         <div>
-          <label className="block text-xs font-mono text-white/50 mb-1.5 uppercase tracking-widest">Logo URL</label>
-          <input
-            value={logoUrl}
-            onChange={e => setLogoUrl(e.target.value)}
-            placeholder="https://your-cdn.com/logo.png"
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors"
+          <label className="block text-xs font-mono text-white/50 mb-1.5 uppercase tracking-widest">Logo</label>
+          <LogoUpload
+            logoUrl={logoUrl}
+            onUploaded={url => setLogoUrl(url)}
+            authHeaders={authHeaders}
           />
-          <p className="text-xs text-white/25 mt-1">HTTPS image URL. 40×40 px recommended.</p>
+          <p className="text-xs text-white/25 mt-1">PNG, JPEG, GIF, WebP or SVG. Max 512 KB. 40×40 px recommended.</p>
         </div>
 
         {/* Color pickers */}

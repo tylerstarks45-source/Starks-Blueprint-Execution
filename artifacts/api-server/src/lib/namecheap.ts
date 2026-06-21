@@ -223,7 +223,10 @@ export async function verifyDnsCname(domain: string, targetHost: string): Promis
   for (const lookup of [`www.${domain}`, domain]) {
     try {
       const cnames = await dns.resolveCname(lookup);
-      if (cnames.some(c => c.toLowerCase().replace(/\.$/, "").includes(normalTarget))) {
+      if (cnames.some(c => {
+        const cn = c.toLowerCase().replace(/\.$/, "");
+        return cn === normalTarget || cn.endsWith(`.${normalTarget}`);
+      })) {
         return true;
       }
     } catch {

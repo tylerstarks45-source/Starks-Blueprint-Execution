@@ -61,7 +61,7 @@ export async function sendEmailVerification(to: string, rawToken: string, brandN
       html: `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0a0a;color:#fff;border-radius:12px;">
           <h1 style="font-size:22px;font-weight:700;margin-bottom:12px;">Verify Your Email 🚀</h1>
-          <p style="color:#a1a1aa;margin-bottom:24px;">Welcome to Starks Global Group! Click below to verify your email and activate your account.</p>
+          <p style="color:#a1a1aa;margin-bottom:24px;">Welcome to ${brand}! Click below to verify your email and activate your account.</p>
           <a href="${verifyUrl}" style="display:inline-block;background:#3b82f6;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin-bottom:24px;">Verify Email →</a>
           <p style="color:#52525b;font-size:12px;margin-top:24px;">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
         </div>

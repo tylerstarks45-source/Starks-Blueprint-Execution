@@ -30,9 +30,16 @@ function normalizeDomain(raw: string | null | undefined): string | null {
     || null;
 }
 
+const DATA_URL_RE = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/i;
+const MAX_LOGO_BYTES = 512 * 1024; // 512 KB
+
 const upsertSchema = z.object({
   brandName: z.string().min(1).max(80).optional(),
-  logoUrl: z.string().url().nullable().optional(),
+  // Accept either an HTTPS URL or a base64 data URL (for logo uploads)
+  logoUrl: z.string().nullable().optional().refine(
+    v => v == null || v === "" || /^https?:\/\//i.test(v) || DATA_URL_RE.test(v),
+    "Must be an https URL or a base64 image data URL",
+  ),
   primaryColor: z.string().regex(HEX_COLOR, "Must be a hex color (#rrggbb)").optional(),
   accentColor: z.string().regex(HEX_COLOR, "Must be a hex color (#rrggbb)").optional(),
   customDomain: z.string().min(3).max(253).nullable().optional(),
@@ -87,6 +94,43 @@ async function getOrCreate(userId: number) {
 
   return created;
 }
+
+// ── POST /api/white-label/logo ────────────────────────────────────────────────
+// Accepts { dataUrl: "data:image/...;base64,..." } and stores it as the logo.
+router.post("/white-label/logo", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  if (!(await requireEmpire(userId, res))) return;
+
+  const { dataUrl } = req.body ?? {};
+  if (typeof dataUrl !== "string" || !DATA_URL_RE.test(dataUrl)) {
+    res.status(400).json({ error: "Must be a valid base64 image data URL (png/jpeg/gif/webp/svg)" });
+    return;
+  }
+
+  // Validate size: base64 string overhead is ~4/3 × raw bytes
+  const base64Part = dataUrl.split(",")[1] ?? "";
+  const approxBytes = Math.ceil(base64Part.length * 0.75);
+  if (approxBytes > MAX_LOGO_BYTES) {
+    res.status(413).json({ error: "Logo exceeds 512 KB limit. Please compress your image first." });
+    return;
+  }
+
+  const [updated] = await db
+    .update(whiteLabelConfigsTable)
+    .set({ logoUrl: dataUrl, updatedAt: new Date() })
+    .where(eq(whiteLabelConfigsTable.userId, userId))
+    .returning({ logoUrl: whiteLabelConfigsTable.logoUrl });
+
+  if (!updated) {
+    // Config may not exist yet — create it first then set logo
+    await db.insert(whiteLabelConfigsTable).values({ userId, logoUrl: dataUrl });
+    res.json({ logoUrl: dataUrl });
+    return;
+  }
+
+  res.json({ logoUrl: updated.logoUrl });
+});
 
 // ── GET /api/white-label/config ───────────────────────────────────────────────
 router.get("/white-label/config", async (req, res): Promise<void> => {

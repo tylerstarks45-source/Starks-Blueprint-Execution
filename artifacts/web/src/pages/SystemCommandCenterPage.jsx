@@ -536,9 +536,28 @@ const SystemCommandCenterPage = () => {
   return (
     <div className="relative animate-in fade-in duration-500 pb-20">
 
-      {/* ══ AMBIENT HUD LAYERS (video stays visible behind) ══════════════════ */}
-      <div className="holo-grid-bg pointer-events-none fixed inset-0 opacity-30" style={{ zIndex: 0 }} />
-      <div className="pointer-events-none fixed inset-0" style={{ zIndex: 0, background: 'radial-gradient(135% 80% at 50% -12%, rgba(56,189,248,0.07), transparent 55%)' }} />
+      {/* ══ DASHBOARD VIDEO BACKGROUND ═════════════════════════════════════════ */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" style={{ zIndex: 0 }}>
+        <iframe
+          src="https://www.youtube-nocookie.com/embed/fhmkqXy0eHo?autoplay=1&mute=1&loop=1&playlist=fhmkqXy0eHo&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&disablekb=1&iv_load_policy=3"
+          allow="autoplay; encrypted-media"
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            width: '177.78vh',
+            height: '100vh',
+            minWidth: '100vw',
+            minHeight: '56.25vw',
+            transform: 'translate(-50%, -50%)',
+            border: 'none',
+            pointerEvents: 'none',
+          }}
+          title="dashboard-bg"
+        />
+        {/* Dark vignette overlay so content stays readable */}
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(4,6,18,0.72)' }} />
+      </div>
 
       <div className="relative space-y-6" style={{ zIndex: 1 }}>
 

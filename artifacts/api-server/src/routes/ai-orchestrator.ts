@@ -1157,6 +1157,118 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
       }
     }
 
+    // ── Server-side generate_video / generate_music handling ─────────────────
+    // Process these media gen tool_calls server-side: submit jobs to external
+    // providers and stream back tool_result SSE events with job IDs or audio.
+    if (
+      structuredData != null &&
+      structuredData.action === "tool_calls" &&
+      Array.isArray(structuredData.calls)
+    ) {
+      const allCalls = structuredData.calls as Array<Record<string, unknown>>;
+      const mediaGenCalls = allCalls.filter(c => c.type === "generate_video" || c.type === "generate_music");
+
+      if (mediaGenCalls.length > 0) {
+        const credKeyRows = await db
+          .select({ credentialKey: userCredentialsTable.credentialKey })
+          .from(userCredentialsTable)
+          .where(eq(userCredentialsTable.userId, userId));
+        const userCredKeys = new Set(credKeyRows.map(r => r.credentialKey));
+
+        for (const call of mediaGenCalls) {
+          try {
+            if (call.type === "generate_video") {
+              const hasVideo = userCredKeys.has("HEYGEN_API_KEY") || userCredKeys.has("RUNWAY_API_KEY");
+              if (!hasVideo) {
+                send({
+                  type: "tool_result",
+                  tool: "generate_video",
+                  data: {
+                    ok: false,
+                    status: "needs_credentials",
+                    message: "Connect HeyGen or Runway in the Connections Hub to generate videos.",
+                    connectUrl: "/connections?category=video-ai",
+                    prompt: call.prompt,
+                  },
+                });
+              } else {
+                const genRes = await fetch(
+                  `http://localhost:${process.env.PORT ?? 8080}/api/media-gen/video`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Authorization": (req.headers["authorization"] as string) ?? "",
+                    },
+                    body: JSON.stringify({
+                      prompt: (call.prompt as string) ?? "",
+                      aspectRatio: (call.aspectRatio as string) ?? "9:16",
+                      durationSeconds: (call.durationSeconds as number) ?? 6,
+                    }),
+                  },
+                );
+                const genData = (await genRes.json()) as Record<string, unknown>;
+                send({
+                  type: "tool_result",
+                  tool: "generate_video",
+                  data: { ok: genData.status !== "failed" && genData.status !== "needs_credentials", ...genData },
+                });
+              }
+            }
+
+            if (call.type === "generate_music") {
+              const hasMusic = userCredKeys.has("ELEVENLABS_API_KEY");
+              if (!hasMusic) {
+                send({
+                  type: "tool_result",
+                  tool: "generate_music",
+                  data: {
+                    ok: false,
+                    status: "needs_credentials",
+                    message: "Connect ElevenLabs in the Connections Hub to generate music.",
+                    connectUrl: "/connections?category=voice-ai",
+                    prompt: call.prompt,
+                  },
+                });
+              } else {
+                const genRes = await fetch(
+                  `http://localhost:${process.env.PORT ?? 8080}/api/media-gen/music`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Authorization": (req.headers["authorization"] as string) ?? "",
+                    },
+                    body: JSON.stringify({
+                      prompt: (call.prompt as string) ?? "",
+                      durationSeconds: (call.durationSeconds as number) ?? 30,
+                    }),
+                  },
+                );
+                const genData = (await genRes.json()) as Record<string, unknown>;
+                // Strip audioBase64 from SSE (too large) — frontend fetches directly from fileId
+                const { audioBase64: _stripped, ...safeData } = genData as Record<string, unknown> & { audioBase64?: unknown };
+                send({
+                  type: "tool_result",
+                  tool: "generate_music",
+                  data: { ok: genData.status === "success", ...safeData },
+                });
+              }
+            }
+          } catch (mediaErr) {
+            req.log.warn({ mediaErr, callType: call.type }, "Media gen tool_call failed in stream");
+          }
+        }
+
+        (structuredData as Record<string, unknown>).calls = allCalls.filter(
+          c => c.type !== "generate_video" && c.type !== "generate_music",
+        );
+        if ((structuredData.calls as unknown[]).length === 0) {
+          structuredData = null;
+        }
+      }
+    }
+
     // ── Server-side create_schedule handling ─────────────────────────────────
     // When ASH emits a create_schedule action and we have a verified system
     // instance, persist the scheduled task immediately and notify the client.

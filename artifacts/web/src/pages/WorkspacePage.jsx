@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, FileText, FileJson2, File, Code2, Search, Download,
   Copy, Check, Loader2, Trash2, Plus, Save, Clock, X,
-  FolderOpen, Eye, Edit3, Wand2,
+  FolderOpen, Eye, Edit3, Wand2, Image, Video, Music, Play, Pause,
+  Volume2, Film, RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -51,10 +52,13 @@ function formatTime(ts) {
   return d.toLocaleDateString();
 }
 
+const MEDIA_TYPES = ['image', 'video', 'audio'];
+
 export default function WorkspacePage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
 
+  const [workspaceTab, setWorkspaceTab] = useState('files'); // 'files' | 'media'
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -66,6 +70,10 @@ export default function WorkspacePage() {
   const [search, setSearch] = useState('');
   const [previewMode, setPreviewMode] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [playingAudioId, setPlayingAudioId] = useState(null);
+  const audioRefs = useRef({});
 
   const loadFiles = useCallback(async () => {
     if (!currentUser?.id) return;
@@ -78,7 +86,19 @@ export default function WorkspacePage() {
     }
   }, [currentUser?.id]);
 
+  const loadMediaFiles = useCallback(async () => {
+    if (!currentUser?.id) return;
+    setMediaLoading(true);
+    try {
+      const res = await fetch('/api/media-gen/gallery', { headers: authHeaders() });
+      if (res.ok) setMediaFiles(await res.json());
+    } catch { /* ignore */ } finally {
+      setMediaLoading(false);
+    }
+  }, [currentUser?.id]);
+
   useEffect(() => { loadFiles(); }, [loadFiles]);
+  useEffect(() => { if (workspaceTab === 'media') loadMediaFiles(); }, [workspaceTab, loadMediaFiles]);
 
   const openFile = (file) => {
     setSelectedFile(file);
@@ -135,9 +155,11 @@ export default function WorkspacePage() {
     URL.revokeObjectURL(url);
   };
 
+  // Only show non-media files in the Files tab
   const filteredFiles = files.filter(f =>
-    !search || f.name.toLowerCase().includes(search.toLowerCase()) ||
-    (f.description ?? '').toLowerCase().includes(search.toLowerCase())
+    !MEDIA_TYPES.includes(f.fileType) &&
+    (!search || f.name.toLowerCase().includes(search.toLowerCase()) ||
+    (f.description ?? '').toLowerCase().includes(search.toLowerCase()))
   );
 
   const grouped = filteredFiles.reduce((acc, f) => {
@@ -174,7 +196,31 @@ export default function WorkspacePage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-white/25 font-mono">{files.length} files</span>
+            {/* Tab toggle */}
+            <div className="flex gap-0.5 bg-white/5 border border-white/10 rounded-lg p-0.5">
+              <button
+                onClick={() => setWorkspaceTab('files')}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  workspaceTab === 'files'
+                    ? 'bg-primary/15 text-primary border border-primary/20'
+                    : 'text-white/35 hover:text-white/55'
+                }`}
+              >
+                <Code2 className="w-3 h-3" />
+                Files
+              </button>
+              <button
+                onClick={() => setWorkspaceTab('media')}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  workspaceTab === 'media'
+                    ? 'bg-violet-500/15 text-violet-400 border border-violet-500/20'
+                    : 'text-white/35 hover:text-white/55'
+                }`}
+              >
+                <Image className="w-3 h-3" />
+                Media
+              </button>
+            </div>
             <button
               onClick={() => navigate('/builder')}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/12 hover:bg-primary/22 border border-primary/22 text-primary text-xs font-bold transition-all"
@@ -185,7 +231,105 @@ export default function WorkspacePage() {
           </div>
         </div>
 
-        {/* 2-panel layout */}
+        {/* ── Media Gallery Tab ── */}
+        {workspaceTab === 'media' && (
+          <div className="flex-1 overflow-auto bg-[#050507] p-4">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-mono text-white/30 uppercase tracking-widest">Media Gallery</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={loadMediaFiles}
+                  className="p-1.5 rounded-lg bg-white/4 hover:bg-white/8 border border-white/8 text-white/30 hover:text-white/55 transition-all"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => navigate('/media')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/12 hover:bg-violet-500/22 border border-violet-500/22 text-violet-400 text-xs font-bold transition-all"
+                >
+                  <Wand2 className="w-3 h-3" />
+                  Media Studio
+                </button>
+              </div>
+            </div>
+
+            {mediaLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-5 h-5 animate-spin text-white/25" />
+              </div>
+            ) : mediaFiles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-violet-500/8 border border-violet-500/15 flex items-center justify-center mb-3">
+                  <Image className="w-7 h-7 text-violet-400/30" />
+                </div>
+                <p className="text-sm text-white/30 font-mono">No media yet</p>
+                <p className="text-xs text-white/18 font-mono mt-1">Ask ASH to generate images, videos, or audio</p>
+                <button
+                  onClick={() => navigate('/media')}
+                  className="mt-4 flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-500/12 hover:bg-violet-500/22 border border-violet-500/22 text-violet-400 text-xs font-bold transition-all"
+                >
+                  Open Media Studio
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {mediaFiles.map(mf => (
+                  <div key={mf.id} className="group rounded-xl overflow-hidden border border-white/8 bg-black/40 hover:border-white/15 transition-all">
+                    {mf.fileType === 'image' && (
+                      <div className="aspect-square bg-black/60">
+                        <img src={mf.content} alt={mf.description ?? mf.name} className="w-full h-full object-cover" loading="lazy" />
+                      </div>
+                    )}
+                    {mf.fileType === 'video' && (
+                      <div className="aspect-square bg-black relative flex items-center justify-center">
+                        <Film className="w-8 h-8 text-cyan-400/40" />
+                        <p className="absolute bottom-1 right-1 text-[8px] font-mono text-cyan-400/60 bg-black/60 px-1 rounded">VIDEO</p>
+                      </div>
+                    )}
+                    {mf.fileType === 'audio' && (
+                      <div className="aspect-square bg-black/60 flex flex-col items-center justify-center gap-2">
+                        <button
+                          onClick={() => {
+                            const audio = audioRefs.current[mf.id];
+                            if (!audio) return;
+                            if (playingAudioId === mf.id) {
+                              audio.pause();
+                              setPlayingAudioId(null);
+                            } else {
+                              if (playingAudioId && audioRefs.current[playingAudioId]) {
+                                audioRefs.current[playingAudioId].pause();
+                              }
+                              audio.play();
+                              setPlayingAudioId(mf.id);
+                            }
+                          }}
+                          className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center"
+                        >
+                          {playingAudioId === mf.id
+                            ? <Pause className="w-4 h-4 text-emerald-400" />
+                            : <Play className="w-4 h-4 text-emerald-400 ml-0.5" />}
+                        </button>
+                        <Volume2 className="w-4 h-4 text-emerald-400/30" />
+                        <audio
+                          ref={el => { if (el) audioRefs.current[mf.id] = el; }}
+                          src={mf.content}
+                          onEnded={() => setPlayingAudioId(null)}
+                        />
+                      </div>
+                    )}
+                    <div className="px-2 py-1.5">
+                      <p className="text-[10px] font-mono text-white/40 truncate">{mf.name}</p>
+                      <p className="text-[9px] text-white/20 font-mono">{formatTime(mf.createdAt)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 2-panel layout — only shown when Files tab is active */}
+        {workspaceTab === 'files' && (
         <div className="flex flex-1 min-h-0">
 
           {/* Left — file tree */}
@@ -426,6 +570,7 @@ export default function WorkspacePage() {
             </div>
           )}
         </div>
+        )}
       </div>
     </AuthLayout>
   );

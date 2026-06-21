@@ -68,6 +68,9 @@ const ClientsPage           = lazy(() => import('@/pages/ClientsPage.jsx'));
 const ClientPortalPage      = lazy(() => import('@/pages/ClientPortalPage.jsx'));
 const RefPage               = lazy(() => import('@/pages/RefPage.jsx'));
 
+// Media Studio page
+const MediaGenPage          = lazy(() => import('@/pages/MediaGenPage.jsx'));
+
 // Settings page
 const UserSettingsPage      = lazy(() => import('@/pages/UserSettingsPage.jsx'));
 
@@ -222,6 +225,9 @@ const App = () => {
               } />
               <Route path="/workspace" element={
                 <ProtectedRoute><WorkspacePage /></ProtectedRoute>
+              } />
+              <Route path="/media" element={
+                <ProtectedRoute><MediaGenPage /></ProtectedRoute>
               } />
               <Route path="/memory" element={
                 <ProtectedRoute><MemoryPage /></ProtectedRoute>

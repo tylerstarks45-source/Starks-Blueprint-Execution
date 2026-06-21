@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
 import { requireAuthActive } from "../lib/auth";
 import { z } from "zod";
-import { db, userCredentialsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, pool, userCredentialsTable, generatedFilesTable, runtimeJobsTable } from "@workspace/db";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import { decrypt } from "../lib/crypto";
+import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,46 @@ async function getUserCredential(userId: number, key: string): Promise<string | 
   } catch {
     try { return atob(rows[0].encryptedValue); } catch { return null; }
   }
+}
+
+// Insert a media gen job as "active" (already running externally; worker should not pick it up)
+async function insertMediaJob(
+  jobType: "media_gen_video" | "media_gen_audio",
+  payload: Record<string, unknown>,
+): Promise<string> {
+  const jobId = randomUUID();
+  await db.insert(runtimeJobsTable).values({
+    jobId,
+    systemInstanceId: null,
+    jobType,
+    status: "active",
+    priority: 5,
+    payload,
+    attempt: 1,
+    maxAttempts: 1,
+    runAfter: new Date(),
+  });
+  return jobId;
+}
+
+// Save completed media to generated_files
+async function saveMediaFile(
+  userId: number,
+  name: string,
+  fileType: "video" | "audio" | "image",
+  content: string,
+  description: string,
+  sessionId?: string,
+): Promise<number> {
+  const [row] = await db.insert(generatedFilesTable).values({
+    userId,
+    name,
+    fileType,
+    content,
+    description,
+    sessionId: sessionId ?? null,
+  }).returning({ id: generatedFilesTable.id });
+  return row!.id;
 }
 
 // ─── POST /api/media-gen/image ────────────────────────────────────────────────
@@ -85,6 +126,15 @@ router.post("/media-gen/image", async (req, res): Promise<void> => {
       return;
     }
 
+    // Save URL to generated_files so it appears in the media gallery
+    await saveMediaFile(
+      userId,
+      `image-${Date.now()}.png`,
+      "image",
+      imageUrl,
+      revisedPrompt ?? enhancedPrompt,
+    );
+
     res.json({
       url: imageUrl,
       prompt: revisedPrompt ?? enhancedPrompt,
@@ -107,7 +157,9 @@ router.post("/media-gen/video", async (req, res): Promise<void> => {
   const schema = z.object({
     prompt: z.string().min(1).max(1000),
     aspectRatio: z.enum(["16:9", "9:16"]).optional().default("9:16"),
-    durationSeconds: z.number().int().min(4).max(8).optional().default(6),
+    durationSeconds: z.number().int().min(4).max(10).optional().default(6),
+    script: z.string().optional(),
+    style: z.string().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -116,7 +168,8 @@ router.post("/media-gen/video", async (req, res): Promise<void> => {
     return;
   }
 
-  const { prompt, aspectRatio, durationSeconds } = parsed.data;
+  const { prompt, aspectRatio, durationSeconds, script } = parsed.data;
+  const scriptText = script ?? prompt;
 
   const heygenKey = await getUserCredential(userId, "HEYGEN_API_KEY");
   const runwayKey = await getUserCredential(userId, "RUNWAY_API_KEY");
@@ -124,28 +177,356 @@ router.post("/media-gen/video", async (req, res): Promise<void> => {
   if (!heygenKey && !runwayKey) {
     res.json({
       status: "needs_credentials",
-      message: `To generate videos, connect HeyGen or Runway in the Connections Hub. Your prompt has been saved.`,
+      message: "To generate AI videos, connect HeyGen or Runway in the Connections Hub.",
       prompt,
       aspectRatio,
       durationSeconds,
       connectUrl: "/connections?category=video-ai",
       providers: [
-        { name: "HeyGen", key: "HEYGEN_API_KEY", url: "https://app.heygen.com/settings", desc: "Best for AI avatar videos" },
-        { name: "Runway Gen-3", key: "RUNWAY_API_KEY", url: "https://runwayml.com/", desc: "Best for cinematic scenes" },
+        { name: "HeyGen", key: "HEYGEN_API_KEY", url: "https://app.heygen.com/settings", desc: "Best for AI avatar talking-head videos" },
+        { name: "Runway Gen-3", key: "RUNWAY_API_KEY", url: "https://runwayml.com/", desc: "Best for cinematic text-to-video scenes" },
       ],
     });
     return;
   }
 
-  res.json({
-    status: "queued",
-    message: "Video generation queued. Your provider account will process this shortly.",
-    prompt,
-    aspectRatio,
-    durationSeconds,
-    provider: heygenKey ? "HeyGen" : "Runway",
-    note: "Full video generation pipeline coming in the next update.",
-  });
+  // ── Try HeyGen ──────────────────────────────────────────────────────────────
+  if (heygenKey) {
+    try {
+      // Fetch available avatars
+      const avatarsRes = await fetch("https://api.heygen.com/v2/avatars", {
+        headers: { "X-Api-Key": heygenKey },
+      });
+
+      if (avatarsRes.ok) {
+        const avatarsData = (await avatarsRes.json()) as {
+          data?: { avatars?: Array<{ avatar_id: string; avatar_name: string }> };
+        };
+        const avatars = avatarsData.data?.avatars ?? [];
+        const avatar = avatars[0];
+
+        if (avatar) {
+          // Fetch available voices
+          const voicesRes = await fetch("https://api.heygen.com/v2/voices", {
+            headers: { "X-Api-Key": heygenKey },
+          });
+          const voicesData = voicesRes.ok
+            ? ((await voicesRes.json()) as { data?: { voices?: Array<{ voice_id: string; name: string }> } })
+            : null;
+          const voices = voicesData?.data?.voices ?? [];
+          const voice = voices.find(v => v.name?.toLowerCase().includes("english")) ?? voices[0];
+
+          if (voice) {
+            const dimension = aspectRatio === "9:16"
+              ? { width: 720, height: 1280 }
+              : { width: 1280, height: 720 };
+
+            const genRes = await fetch("https://api.heygen.com/v2/video/generate", {
+              method: "POST",
+              headers: {
+                "X-Api-Key": heygenKey,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                video_inputs: [{
+                  character: {
+                    type: "avatar",
+                    avatar_id: avatar.avatar_id,
+                    avatar_style: "normal",
+                  },
+                  voice: {
+                    type: "text",
+                    input_text: scriptText.slice(0, 1500),
+                    voice_id: voice.voice_id,
+                  },
+                  background: { type: "color", value: "#1a1a2e" },
+                }],
+                dimension,
+                test: true,
+              }),
+            });
+
+            if (genRes.ok) {
+              const genData = (await genRes.json()) as { data?: { video_id?: string }; code?: number };
+              const providerJobId = genData.data?.video_id;
+              if (providerJobId) {
+                const jobId = await insertMediaJob("media_gen_video", {
+                  provider: "heygen",
+                  providerJobId,
+                  userId,
+                  prompt,
+                  aspectRatio,
+                  durationSeconds,
+                  avatarId: avatar.avatar_id,
+                  avatarName: avatar.avatar_name,
+                });
+                res.json({
+                  status: "generating",
+                  jobId,
+                  provider: "HeyGen",
+                  avatarName: avatar.avatar_name,
+                  message: `HeyGen is creating your AI avatar video.`,
+                  pollUrl: `/api/media-gen/jobs/${jobId}`,
+                });
+                return;
+              }
+            } else {
+              const errText = await genRes.text();
+              req.log.warn({ status: genRes.status, err: errText }, "HeyGen video create failed");
+            }
+          }
+        }
+      }
+    } catch (err) {
+      req.log.warn({ err }, "HeyGen video attempt failed, trying Runway");
+    }
+  }
+
+  // ── Try Runway Gen-3 ────────────────────────────────────────────────────────
+  if (runwayKey) {
+    try {
+      const ratio = aspectRatio === "9:16" ? "768:1280" : "1280:768";
+      const genRes = await fetch("https://api.dev.runwayml.com/v1/image_to_video", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${runwayKey}`,
+          "X-Runway-Version": "2024-11-06",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gen3a_turbo",
+          promptText: prompt,
+          ratio,
+          duration: Math.min(durationSeconds, 10),
+          watermark: false,
+        }),
+      });
+
+      if (genRes.ok) {
+        const genData = (await genRes.json()) as { id?: string; status?: string };
+        const providerJobId = genData.id;
+        if (providerJobId) {
+          const jobId = await insertMediaJob("media_gen_video", {
+            provider: "runway",
+            providerJobId,
+            userId,
+            prompt,
+            aspectRatio,
+            durationSeconds,
+          });
+          res.json({
+            status: "generating",
+            jobId,
+            provider: "Runway Gen-3",
+            message: `Runway is generating your video.`,
+            pollUrl: `/api/media-gen/jobs/${jobId}`,
+          });
+          return;
+        }
+      } else {
+        const errText = await genRes.text();
+        req.log.warn({ status: genRes.status, err: errText }, "Runway video create failed");
+        res.status(502).json({ error: "Video generation failed", details: errText.slice(0, 300) });
+        return;
+      }
+    } catch (err) {
+      req.log.error({ err }, "Runway video attempt failed");
+      res.status(500).json({ error: "Video generation failed" });
+      return;
+    }
+  }
+
+  res.status(503).json({ error: "Video generation unavailable — could not initialise provider" });
+});
+
+// ─── GET /api/media-gen/jobs/:jobId — poll provider + update DB ───────────────
+
+router.get("/media-gen/jobs/:jobId", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const jobId = req.params["jobId"]!;
+
+  const [job] = await db
+    .select()
+    .from(runtimeJobsTable)
+    .where(eq(runtimeJobsTable.jobId, jobId))
+    .limit(1);
+
+  if (!job) {
+    res.status(404).json({ error: "Job not found" });
+    return;
+  }
+
+  const payload = job.payload as Record<string, unknown>;
+
+  if (payload.userId !== userId) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  // Already settled — return stored result
+  if (job.status === "completed" || job.status === "failed") {
+    const result = job.result as Record<string, unknown> | null;
+    res.json({
+      jobId,
+      status: job.status,
+      provider: payload.provider,
+      mediaUrl: result?.mediaUrl ?? null,
+      thumbnailUrl: result?.thumbnailUrl ?? null,
+      fileId: result?.fileId ?? null,
+      error: job.error,
+      completedAt: job.completedAt,
+    });
+    return;
+  }
+
+  // Poll provider for current status
+  const provider = payload.provider as string;
+  const providerJobId = payload.providerJobId as string;
+  const mediaUserId = payload.userId as number;
+
+  try {
+    // ── HeyGen polling ──────────────────────────────────────────────────────
+    if (provider === "heygen") {
+      const heygenKey = await getUserCredential(mediaUserId, "HEYGEN_API_KEY");
+      if (!heygenKey) {
+        res.status(503).json({ error: "HeyGen key not found" });
+        return;
+      }
+
+      const pollRes = await fetch(
+        `https://api.heygen.com/v1/video_status.get?video_id=${providerJobId}`,
+        { headers: { "X-Api-Key": heygenKey } },
+      );
+
+      if (!pollRes.ok) {
+        res.json({ jobId, status: "active", provider: "HeyGen", progress: "Checking status…" });
+        return;
+      }
+
+      const pollData = (await pollRes.json()) as {
+        data?: { status?: string; video_url?: string; thumbnail_url?: string; error?: string };
+      };
+
+      const pStatus = pollData.data?.status;
+
+      if (pStatus === "completed") {
+        const videoUrl = pollData.data?.video_url ?? "";
+        const thumbnailUrl = pollData.data?.thumbnail_url ?? null;
+        const fileId = await saveMediaFile(
+          mediaUserId,
+          `heygen-video-${Date.now()}.mp4`,
+          "video",
+          videoUrl,
+          `AI avatar video: ${(payload.prompt as string).slice(0, 100)}`,
+        );
+        await pool.query(
+          `UPDATE runtime_jobs SET status = 'completed', result = $1, completed_at = NOW() WHERE job_id = $2`,
+          [JSON.stringify({ mediaUrl: videoUrl, thumbnailUrl, fileId }), jobId],
+        );
+        res.json({ jobId, status: "completed", provider: "HeyGen", mediaUrl: videoUrl, thumbnailUrl, fileId });
+        return;
+      }
+
+      if (pStatus === "failed") {
+        await pool.query(
+          `UPDATE runtime_jobs SET status = 'failed', error = $1, completed_at = NOW() WHERE job_id = $2`,
+          [pollData.data?.error ?? "HeyGen generation failed", jobId],
+        );
+        res.json({ jobId, status: "failed", error: pollData.data?.error ?? "Generation failed" });
+        return;
+      }
+
+      const progressMap: Record<string, string> = {
+        pending: "Queued for generation…",
+        processing: "Generating video…",
+        waiting: "Waiting in queue…",
+      };
+      res.json({
+        jobId,
+        status: "active",
+        provider: "HeyGen",
+        providerStatus: pStatus,
+        progress: progressMap[pStatus ?? ""] ?? "Generating…",
+      });
+      return;
+    }
+
+    // ── Runway polling ──────────────────────────────────────────────────────
+    if (provider === "runway") {
+      const runwayKey = await getUserCredential(mediaUserId, "RUNWAY_API_KEY");
+      if (!runwayKey) {
+        res.status(503).json({ error: "Runway key not found" });
+        return;
+      }
+
+      const pollRes = await fetch(
+        `https://api.dev.runwayml.com/v1/tasks/${providerJobId}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${runwayKey}`,
+            "X-Runway-Version": "2024-11-06",
+          },
+        },
+      );
+
+      if (!pollRes.ok) {
+        res.json({ jobId, status: "active", provider: "Runway", progress: "Checking status…" });
+        return;
+      }
+
+      const pollData = (await pollRes.json()) as {
+        id?: string;
+        status?: string;
+        output?: string[];
+        failure?: string;
+        progressRatio?: number;
+      };
+
+      if (pollData.status === "SUCCEEDED") {
+        const videoUrl = pollData.output?.[0] ?? "";
+        const fileId = await saveMediaFile(
+          mediaUserId,
+          `runway-video-${Date.now()}.mp4`,
+          "video",
+          videoUrl,
+          `Runway Gen-3 video: ${(payload.prompt as string).slice(0, 100)}`,
+        );
+        await pool.query(
+          `UPDATE runtime_jobs SET status = 'completed', result = $1, completed_at = NOW() WHERE job_id = $2`,
+          [JSON.stringify({ mediaUrl: videoUrl, fileId }), jobId],
+        );
+        res.json({ jobId, status: "completed", provider: "Runway", mediaUrl: videoUrl, fileId });
+        return;
+      }
+
+      if (pollData.status === "FAILED") {
+        await pool.query(
+          `UPDATE runtime_jobs SET status = 'failed', error = $1, completed_at = NOW() WHERE job_id = $2`,
+          [pollData.failure ?? "Runway generation failed", jobId],
+        );
+        res.json({ jobId, status: "failed", error: pollData.failure ?? "Generation failed" });
+        return;
+      }
+
+      const pct = pollData.progressRatio != null ? Math.round(pollData.progressRatio * 100) : null;
+      res.json({
+        jobId,
+        status: "active",
+        provider: "Runway",
+        providerStatus: pollData.status,
+        progress: pct != null ? `Generating… ${pct}%` : "Generating…",
+        progressRatio: pollData.progressRatio ?? null,
+      });
+      return;
+    }
+
+    res.status(400).json({ error: `Unknown provider: ${provider}` });
+  } catch (err) {
+    req.log.error({ err }, "Media job poll error");
+    res.status(500).json({ error: "Failed to poll job status" });
+  }
 });
 
 // ─── POST /api/media-gen/music ────────────────────────────────────────────────
@@ -158,6 +539,7 @@ router.post("/media-gen/music", async (req, res): Promise<void> => {
     prompt: z.string().min(1).max(500),
     durationSeconds: z.number().int().min(5).max(300).optional().default(30),
     style: z.string().optional(),
+    mood: z.string().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -166,20 +548,77 @@ router.post("/media-gen/music", async (req, res): Promise<void> => {
     return;
   }
 
-  const { prompt, durationSeconds, style } = parsed.data;
+  const { prompt, durationSeconds, style, mood } = parsed.data;
+  const elevenLabsKey = await getUserCredential(userId, "ELEVENLABS_API_KEY");
 
-  res.json({
-    status: "needs_credentials",
-    message: "Music generation requires an ElevenLabs or Suno API key.",
-    prompt,
-    durationSeconds,
-    style,
-    connectUrl: "/connections?category=voice-ai",
-    providers: [
-      { name: "ElevenLabs", key: "ELEVENLABS_API_KEY", url: "https://elevenlabs.io/app/settings/api-keys", desc: "AI music & sound generation" },
-    ],
-    note: "Connect ElevenLabs in the Connections Hub to enable music generation.",
-  });
+  if (!elevenLabsKey) {
+    res.json({
+      status: "needs_credentials",
+      message: "Music generation requires an ElevenLabs API key. Connect it in the Connections Hub to unlock AI sound generation.",
+      prompt,
+      durationSeconds,
+      style,
+      connectUrl: "/connections?category=voice-ai",
+      providers: [
+        { name: "ElevenLabs", key: "ELEVENLABS_API_KEY", url: "https://elevenlabs.io/app/settings/api-keys", desc: "AI sound effects & music generation" },
+      ],
+    });
+    return;
+  }
+
+  try {
+    const parts = [prompt];
+    if (style) parts.push(`${style} style`);
+    if (mood) parts.push(`${mood} mood`);
+    const fullPrompt = parts.join(", ");
+    const cappedDuration = Math.min(durationSeconds, 300);
+
+    const soundRes = await fetch("https://api.elevenlabs.io/v1/sound-generation", {
+      method: "POST",
+      headers: {
+        "xi-api-key": elevenLabsKey,
+        "Content-Type": "application/json",
+        "Accept": "audio/mpeg",
+      },
+      body: JSON.stringify({
+        text: fullPrompt,
+        duration_seconds: cappedDuration,
+        prompt_influence: 0.3,
+      }),
+    });
+
+    if (!soundRes.ok) {
+      const errText = await soundRes.text();
+      req.log.warn({ status: soundRes.status, err: errText }, "ElevenLabs sound gen failed");
+      res.status(502).json({ error: "Music generation failed", details: errText.slice(0, 300) });
+      return;
+    }
+
+    const audioBuffer = await soundRes.arrayBuffer();
+    const base64Audio = Buffer.from(audioBuffer).toString("base64");
+
+    // Store as data URI so it can be played in the browser
+    const dataUri = `data:audio/mpeg;base64,${base64Audio}`;
+    const fileId = await saveMediaFile(
+      userId,
+      `music-${Date.now()}.mp3`,
+      "audio",
+      dataUri,
+      `AI music: ${fullPrompt.slice(0, 100)}`,
+    );
+
+    res.json({
+      status: "success",
+      audioBase64: base64Audio,
+      mimeType: "audio/mpeg",
+      prompt: fullPrompt,
+      durationSeconds: cappedDuration,
+      fileId,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Music generation error");
+    res.status(500).json({ error: "Music generation failed" });
+  }
 });
 
 // ─── POST /api/media-gen/tts ──────────────────────────────────────────────────
@@ -255,6 +694,15 @@ router.post("/media-gen/tts", async (req, res): Promise<void> => {
     const audioBuffer = await ttsRes.arrayBuffer();
     const base64Audio = Buffer.from(audioBuffer).toString("base64");
 
+    const dataUri = `data:audio/mpeg;base64,${base64Audio}`;
+    const fileId = await saveMediaFile(
+      userId,
+      `tts-${Date.now()}.mp3`,
+      "audio",
+      dataUri,
+      `TTS: ${text.slice(0, 80)}… (voice: ${match.name})`,
+    );
+
     res.json({
       status: "success",
       audioBase64: base64Audio,
@@ -262,11 +710,40 @@ router.post("/media-gen/tts", async (req, res): Promise<void> => {
       voice: match.name,
       voiceId: match.voice_id,
       characterCount: text.length,
+      fileId,
     });
   } catch (err) {
     req.log.error({ err }, "TTS generation error");
     res.status(500).json({ error: "TTS generation failed" });
   }
+});
+
+// ─── GET /api/media-gen/gallery — user's media files ─────────────────────────
+
+router.get("/media-gen/gallery", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const rows = await db
+    .select()
+    .from(generatedFilesTable)
+    .where(
+      and(
+        eq(generatedFilesTable.userId, userId),
+        inArray(generatedFilesTable.fileType, ["image", "video", "audio"]),
+      ),
+    )
+    .orderBy(desc(generatedFilesTable.createdAt))
+    .limit(100);
+
+  res.json(rows.map(r => ({
+    id: r.id,
+    name: r.name,
+    fileType: r.fileType,
+    content: r.content,
+    description: r.description,
+    createdAt: r.createdAt,
+  })));
 });
 
 export default router;

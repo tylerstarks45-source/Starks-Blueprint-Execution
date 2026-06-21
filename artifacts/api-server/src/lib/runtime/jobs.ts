@@ -10,7 +10,9 @@ export type JobType =
   | "system_shutdown"
   | "scheduled_task"
   | "ash_task"
-  | "send_email";
+  | "send_email"
+  | "media_gen_video"
+  | "media_gen_audio";
 
 export type JobStatus = "queued" | "active" | "completed" | "failed" | "retrying" | "cancelled";
 

@@ -68,6 +68,9 @@ const ClientsPage           = lazy(() => import('@/pages/ClientsPage.jsx'));
 const ClientPortalPage      = lazy(() => import('@/pages/ClientPortalPage.jsx'));
 const RefPage               = lazy(() => import('@/pages/RefPage.jsx'));
 
+// Leaderboard page (public)
+const LeaderboardPage       = lazy(() => import('@/pages/LeaderboardPage.jsx'));
+
 // Media Studio page
 const MediaGenPage          = lazy(() => import('@/pages/MediaGenPage.jsx'));
 
@@ -182,6 +185,7 @@ const App = () => {
               <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
               <Route path="/affiliate-disclosure" element={<AffiliateDisclosure />} />
               <Route path="/earnings-disclaimer" element={<EarningsDisclaimer />} />
+              <Route path="/leaderboard" element={<LeaderboardPage />} />
 
               {/* Protected user routes — requires login; all lazy */}
               <Route path="/dashboard/*" element={

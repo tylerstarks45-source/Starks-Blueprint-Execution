@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, desc, asc, gte, sql, count, ilike, inArray } from "drizzle-orm";
-import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable, usersTable, blueprintsTable, blueprintPurchasesTable } from "@workspace/db";
+import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable, usersTable, blueprintsTable, blueprintPurchasesTable, notificationsTable } from "@workspace/db";
 import { tierSystemLimit } from "../lib/credits";
 import { z } from "zod/v4";
 import { getActiveCallerPayload, requireAuthActive, validateClientWorkspaceId } from "../lib/auth";
@@ -23,6 +23,59 @@ import {
 } from "@workspace/api-zod";
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "admin"]);
+
+// ─── Milestone helpers ────────────────────────────────────────────────────────
+
+const MILESTONE_THRESHOLDS = [100, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000];
+const MILESTONE_LABELS: Record<number, string> = {
+  100: "$1", 10000: "$100", 50000: "$500",
+  100000: "$1,000", 500000: "$5,000", 1000000: "$10,000",
+  5000000: "$50,000", 10000000: "$100,000",
+};
+
+async function checkMilestones(userId: number): Promise<void> {
+  const [rev] = await db
+    .select({ total: sql<string>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::bigint` })
+    .from(systemActivityEventsTable)
+    .innerJoin(systemInstancesTable, eq(systemActivityEventsTable.systemInstanceId, systemInstancesTable.id))
+    .where(and(
+      eq(systemInstancesTable.userId, userId),
+      eq(systemActivityEventsTable.eventType, "revenue"),
+    ));
+
+  const totalCents = Number(rev?.total ?? 0);
+  if (totalCents === 0) return;
+
+  const [userRow] = await db
+    .select({ milestonesReached: usersTable.milestonesReached })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+
+  const current = (userRow?.milestonesReached ?? []) as Array<{ amount: number; reachedAt: string }>;
+  const reached = new Set(current.map(m => m.amount));
+
+  const newMilestones: Array<{ amount: number; reachedAt: string }> = [];
+  for (const threshold of MILESTONE_THRESHOLDS) {
+    if (totalCents >= threshold && !reached.has(threshold)) {
+      newMilestones.push({ amount: threshold, reachedAt: new Date().toISOString() });
+    }
+  }
+  if (newMilestones.length === 0) return;
+
+  await db.update(usersTable)
+    .set({ milestonesReached: [...current, ...newMilestones] })
+    .where(eq(usersTable.id, userId));
+
+  for (const m of newMilestones) {
+    const label = MILESTONE_LABELS[m.amount] ?? `$${Math.round(m.amount / 100).toLocaleString()}`;
+    await db.insert(notificationsTable).values({
+      userId,
+      title: `🎉 You hit ${label} in total earnings!`,
+      message: JSON.stringify({ amount: m.amount, label }),
+      notificationType: "milestone_reached",
+    });
+  }
+}
 
 const router: IRouter = Router();
 
@@ -364,6 +417,10 @@ router.post("/system-instances/:id/activity", async (req, res): Promise<void> =>
     .returning();
 
   res.status(201).json(serialize(row));
+
+  if (parsed.data.eventType === "revenue" && instance.userId !== null) {
+    checkMilestones(instance.userId).catch(() => {});
+  }
 });
 
 // ─── POST /api/system-instances/revenue-batch ────────────────────────────────

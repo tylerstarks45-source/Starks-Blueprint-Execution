@@ -28,7 +28,7 @@ class AdminErrorBoundary extends React.Component {
 }
 import {
   LayoutDashboard, DollarSign, BrainCircuit, Server, TrendingUp,
-  Users, Bell, ShieldCheck, CreditCard, ShoppingBag, Globe, Share2,
+  Users, Bell, ShieldCheck, CreditCard, ShoppingBag, Globe, Share2, Trophy,
 } from 'lucide-react';
 
 import AdminPlatformMetricsCard from './AdminPlatformMetricsCard.jsx';
@@ -59,6 +59,7 @@ import AdminSkillEnginePanel from '@/components/admin/AdminSkillEnginePanel.jsx'
 import AdminStripePanel from './AdminStripePanel.jsx';
 import AdminCommunityBlueprintsPanel from './AdminCommunityBlueprintsPanel.jsx';
 import AdminReferralsPanel from '@/components/admin/AdminReferralsPanel.jsx';
+import AdminSocialProofPanel from './AdminSocialProofPanel.jsx';
 
 import CreditBalanceCard from '@/components/admin/CreditBalanceCard.jsx';
 import UsageOverviewCard from '@/components/admin/UsageOverviewCard.jsx';
@@ -74,6 +75,7 @@ const TABS = [
   { key: 'marketplace',   label: 'Marketplace',     icon: ShoppingBag,     path: '/admin/marketplace' },
   { key: 'community',    label: 'Community',       icon: Globe,           path: '/admin/community' },
   { key: 'referrals',    label: 'Referrals',       icon: Share2,          path: '/admin/referrals' },
+  { key: 'social-proof', label: 'Social Proof',    icon: Trophy,          path: '/admin/social-proof' },
   { key: 'systems',      label: 'Systems',         icon: Server,          path: '/admin/systems' },
   { key: 'health',        label: 'Platform Health', icon: ShieldCheck,     path: '/admin/health' },
   { key: 'activity',      label: 'Activity',        icon: Bell,            path: '/admin/activity' },
@@ -209,6 +211,11 @@ const AdminDashboardLayout = () => {
         {/* ── Referrals tab ────────────────────────────────────────────────── */}
         {activeTab === 'referrals' && (
           <AdminReferralsPanel />
+        )}
+
+        {/* ── Social Proof tab ─────────────────────────────────────────────── */}
+        {activeTab === 'social-proof' && (
+          <AdminSocialProofPanel />
         )}
 
         {/* ── Systems tab ──────────────────────────────────────────────────── */}

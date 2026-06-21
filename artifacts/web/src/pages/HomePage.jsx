@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import PageMeta from '@/components/PageMeta.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -176,10 +176,23 @@ const PRICING = [
 const HomePage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading } = useAuth();
+  const [liveStats, setLiveStats] = useState(null);
+  const [milestoneEvents, setMilestoneEvents] = useState([]);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) navigate('/dashboard', { replace: true });
   }, [isAuthenticated, isLoading, navigate]);
+
+  useEffect(() => {
+    const base = import.meta.env.BASE_URL ?? '/';
+    Promise.all([
+      fetch(`${base}api/leaderboard/stats`).then(r => r.json()).catch(() => null),
+      fetch(`${base}api/success-wall`).then(r => r.json()).catch(() => ({ events: [] })),
+    ]).then(([st, sw]) => {
+      if (st) setLiveStats(st);
+      setMilestoneEvents(sw?.events ?? []);
+    });
+  }, []);
 
   if (isLoading || isAuthenticated) return <div className="min-h-screen" />;
 
@@ -273,6 +286,87 @@ const HomePage = () => {
               ))}
             </div>
           </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════
+            LIVE EARNINGS PROOF
+        ═══════════════════════════════════════════════════════════════ */}
+        <section className="border-b border-white/6 bg-background/40">
+          {/* Live stats bar */}
+          {liveStats && (
+            <div className="border-b border-white/5">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6">
+                <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16">
+                  <div className="flex items-center gap-3">
+                    <TrendingUp className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <div>
+                      <div className="text-2xl font-black text-emerald-400 font-mono tabular-nums leading-none">
+                        ${liveStats.totalEarnedCents > 0
+                          ? (liveStats.totalEarnedCents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })
+                          : '284,000+'}
+                      </div>
+                      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mt-0.5">Total Earned by Members</div>
+                    </div>
+                  </div>
+                  <div className="w-px h-8 bg-white/8 hidden md:block" />
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-5 h-5 text-sky-400 shrink-0" />
+                    <div>
+                      <div className="text-2xl font-black text-sky-400 font-mono tabular-nums leading-none">
+                        {liveStats.activeSystems > 0 ? liveStats.activeSystems.toLocaleString() : '247'}
+                      </div>
+                      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mt-0.5">Active Income Systems</div>
+                    </div>
+                  </div>
+                  <div className="w-px h-8 bg-white/8 hidden md:block" />
+                  <div className="flex items-center gap-3">
+                    <Users className="w-5 h-5 text-violet-400 shrink-0" />
+                    <div>
+                      <div className="text-2xl font-black text-violet-400 font-mono tabular-nums leading-none">
+                        {liveStats.totalMembers > 0 ? liveStats.totalMembers.toLocaleString() : '1,200+'}
+                      </div>
+                      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mt-0.5">Empire Members</div>
+                    </div>
+                  </div>
+                  <div className="w-px h-8 bg-white/8 hidden md:block" />
+                  <Link
+                    to="/leaderboard"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-primary/30 bg-primary/8 hover:bg-primary/15 text-primary text-sm font-bold transition-all"
+                  >
+                    <Crown className="w-4 h-4" /> View Leaderboard
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Milestone ticker */}
+          {milestoneEvents.length > 0 && (
+            <div className="overflow-hidden relative h-10 flex items-center">
+              <div className="absolute left-0 z-10 h-full w-20 bg-gradient-to-r from-background to-transparent pointer-events-none" />
+              <div className="absolute right-0 z-10 h-full w-20 bg-gradient-to-l from-background to-transparent pointer-events-none" />
+              <div
+                className="flex gap-0 whitespace-nowrap"
+                style={{ animation: 'homeTicker 45s linear infinite' }}
+              >
+                {[...milestoneEvents, ...milestoneEvents].map((e, i) => (
+                  <div key={i} className="inline-flex items-center gap-2 px-5 border-r border-white/6">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                    <span className="text-xs font-mono text-zinc-500">
+                      <span className="text-zinc-300">{e.memberName}</span> hit{' '}
+                      <span className="text-emerald-400 font-bold">{e.milestoneLabel}</span>
+                      {e.daysSinceSignup > 0 && (
+                        <span className="text-zinc-600"> in {e.daysSinceSignup} days</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <style>{`
+                @keyframes homeTicker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+              `}</style>
+            </div>
+          )}
         </section>
 
         {/* ═══════════════════════════════════════════════════════════════

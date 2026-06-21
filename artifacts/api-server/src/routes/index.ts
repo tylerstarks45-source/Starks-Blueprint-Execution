@@ -44,6 +44,7 @@ import abTestsRouter from "./ab-tests";
 import referralsRouter from "./referrals";
 import clientsRouter from "./clients";
 import whiteLabelRouter from "./white-label";
+import leaderboardRouter from "./leaderboard";
 
 const router: IRouter = Router();
 
@@ -92,5 +93,6 @@ router.use(abTestsRouter);
 router.use(referralsRouter);
 router.use(clientsRouter);
 router.use(whiteLabelRouter);
+router.use(leaderboardRouter);
 
 export default router;

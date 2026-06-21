@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import ReferAndEarnBanner from '@/components/dashboard/user/ReferAndEarnBanner.jsx';
 import UserMyBlueprintsPanel from '@/components/dashboard/user/UserMyBlueprintsPanel.jsx';
+import CommunityWinsCard from '@/components/dashboard/user/CommunityWinsCard.jsx';
+import MilestoneCelebrationModal from '@/components/MilestoneCelebrationModal.jsx';
 import {
   Activity, Zap, CheckCircle2, AlertTriangle, Clock, Server,
   Brain, Cpu, CreditCard, RefreshCw, TrendingUp,
@@ -300,6 +302,18 @@ const SystemCommandCenterPage = () => {
 
   const user = JSON.parse(localStorage.getItem('sbep_auth_user') || '{}');
 
+  const handleMilestoneDismiss = () => {
+    const token = localStorage.getItem('sbep_auth_token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const milestone = notifications.find(n => n.notificationType === 'milestone_reached' && !n.read);
+    if (milestone) {
+      setNotifications(prev => prev.map(n => n.id === milestone.id ? { ...n, read: true } : n));
+      fetch(`${import.meta.env.BASE_URL ?? '/'}api/notifications/${milestone.id}/read`, {
+        method: 'PATCH', headers,
+      }).catch(() => {});
+    }
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('credits_purchased') === '1') {
@@ -560,6 +574,8 @@ const SystemCommandCenterPage = () => {
       </div>
 
       <div className="relative space-y-6" style={{ zIndex: 1 }}>
+
+      <MilestoneCelebrationModal notifications={notifications} onDismiss={handleMilestoneDismiss} />
 
       {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
       <HudPanel className="px-5 py-4" accent="rgba(56,189,248,0.5)" scan>
@@ -1274,6 +1290,11 @@ const SystemCommandCenterPage = () => {
         {/* ══ MY SUBMITTED BLUEPRINTS ══════════════════════════════════════════ */}
         <HudPanel className="col-span-full p-5" accent="rgba(139,92,246,0.4)">
           <UserMyBlueprintsPanel />
+        </HudPanel>
+
+        {/* ══ COMMUNITY WINS ═══════════════════════════════════════════════════ */}
+        <HudPanel className="p-4" accent="rgba(245,158,11,0.4)">
+          <CommunityWinsCard />
         </HudPanel>
 
         {/* ══ WHAT'S NEW ═══════════════════════════════════════════════════════ */}

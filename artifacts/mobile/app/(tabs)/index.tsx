@@ -137,6 +137,24 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ASH Capabilities Banner */}
+      <View style={styles.ashBanner}>
+        <TouchableOpacity
+          style={[styles.ashBannerInner, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}
+          onPress={() => router.push("/(tabs)/build")}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.ashDot, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40" }]}>
+            <Feather name="zap" size={14} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.ashBannerTitle, { color: colors.foreground }]}>ASH can do anything</Text>
+            <Text style={[styles.ashBannerSub, { color: colors.mutedForeground }]}>Chat · Build · Create · Automate — all in one place</Text>
+          </View>
+          <Feather name="arrow-right" size={15} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
+
       {/* Main earnings card */}
       <View style={styles.section}>
         <GlassCard style={styles.earningsCard}>
@@ -344,5 +362,36 @@ const styles = StyleSheet.create({
   feedDivider: {
     height: 1,
     marginHorizontal: 14,
+  },
+  ashBanner: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  ashBannerInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  ashDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    flexShrink: 0,
+  },
+  ashBannerTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  ashBannerSub: {
+    fontSize: 12,
+    marginTop: 1,
   },
 });

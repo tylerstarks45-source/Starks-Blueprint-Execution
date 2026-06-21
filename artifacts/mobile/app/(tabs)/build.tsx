@@ -42,7 +42,7 @@ const WELCOME: ChatMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Hey! I'm ASH — your AI systems architect. Tell me about your goals and I'll help you pick the right blueprint and tools to build your automated income system. What are you trying to achieve?",
+    "Hey! I'm ASH — your AI for everything. Chat with me, ask me to build something, generate content, or automate your entire business. I can do it all. What do you need?",
 };
 
 function MessageBubble({ msg, colors }: { msg: ChatMessage; colors: ReturnType<typeof useColors> }) {

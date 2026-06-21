@@ -65,7 +65,7 @@ export default function LoginScreen() {
           </View>
           <Text style={[styles.logoText, { color: colors.foreground }]}>Starks Global Group</Text>
           <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
-            AI-Powered Business Automation
+            One AI. Everything you need.
           </Text>
         </View>
 

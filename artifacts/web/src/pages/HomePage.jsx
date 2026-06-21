@@ -224,8 +224,8 @@ const HomePage = () => {
               </motion.h1>
 
               {/* Subheadline */}
-              <motion.p variants={fadeUp} className="text-xl md:text-2xl text-zinc-100 max-w-4xl mx-auto mb-10 leading-relaxed font-medium text-balance text-shadow-lg">
-                ASH is your all-in-one AI agent — from building chatbots and generating images &amp; videos, to running 25–45 automated money-making systems simultaneously. Pair that with a marketplace of tested AI tools used in real income systems, and you have zero guesswork from day one.
+              <motion.p variants={fadeUp} className="text-xl md:text-2xl text-zinc-100 max-w-3xl mx-auto mb-10 leading-relaxed font-medium text-balance text-shadow-lg">
+                One AI that does it all. Chat with it, build with it, create with it, automate with it — ASH replaces every other tool. Everything you need, all in one place.
               </motion.p>
 
               {/* CTAs */}
@@ -291,7 +291,7 @@ const HomePage = () => {
                   <span className="block text-gradient-blue mt-1">The Only AI Agent You'll Ever Need</span>
                 </h2>
                 <p className="text-lg text-zinc-300 mb-8 leading-relaxed">
-                  ASH is not a chatbot. ASH is a fully autonomous AI agent built from the ground up by Tyler Starks — capable of running your entire digital business. From generating images and videos, to building chatbots, browsing the web, and operating 25–45 automated income systems at once.
+                  ASH can be your chatbot — and your builder, your creator, your automation engine, and your full business operating system. Built from the ground up by Tyler Starks, ASH is the one AI you'll ever need. Chat with it, ask it to create, tell it to build — it just does it.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
                   {ASH_CAPABILITIES.map((cap, i) => (

@@ -160,6 +160,8 @@ router.post("/media-gen/video", async (req, res): Promise<void> => {
     durationSeconds: z.number().int().min(4).max(10).optional().default(6),
     script: z.string().optional(),
     style: z.string().optional(),
+    avatarId: z.string().optional(),   // explicit HeyGen avatar selection
+    voiceId: z.string().optional(),    // explicit HeyGen voice selection
   });
 
   const parsed = schema.safeParse(req.body);
@@ -168,7 +170,7 @@ router.post("/media-gen/video", async (req, res): Promise<void> => {
     return;
   }
 
-  const { prompt, aspectRatio, durationSeconds, script } = parsed.data;
+  const { prompt, aspectRatio, durationSeconds, script, style, avatarId, voiceId } = parsed.data;
   const scriptText = script ?? prompt;
 
   const heygenKey = await getUserCredential(userId, "HEYGEN_API_KEY");
@@ -203,7 +205,10 @@ router.post("/media-gen/video", async (req, res): Promise<void> => {
           data?: { avatars?: Array<{ avatar_id: string; avatar_name: string }> };
         };
         const avatars = avatarsData.data?.avatars ?? [];
-        const avatar = avatars[0];
+        // Use explicit avatarId if provided, otherwise first available
+        const avatar = avatarId
+          ? (avatars.find(a => a.avatar_id === avatarId) ?? avatars[0])
+          : avatars[0];
 
         if (avatar) {
           // Fetch available voices
@@ -214,7 +219,10 @@ router.post("/media-gen/video", async (req, res): Promise<void> => {
             ? ((await voicesRes.json()) as { data?: { voices?: Array<{ voice_id: string; name: string }> } })
             : null;
           const voices = voicesData?.data?.voices ?? [];
-          const voice = voices.find(v => v.name?.toLowerCase().includes("english")) ?? voices[0];
+          // Use explicit voiceId if provided, otherwise English default
+          const voice = voiceId
+            ? (voices.find(v => v.voice_id === voiceId) ?? voices.find(v => v.name?.toLowerCase().includes("english")) ?? voices[0])
+            : (voices.find(v => v.name?.toLowerCase().includes("english")) ?? voices[0]);
 
           if (voice) {
             const dimension = aspectRatio === "9:16"
@@ -286,7 +294,9 @@ router.post("/media-gen/video", async (req, res): Promise<void> => {
   if (runwayKey) {
     try {
       const ratio = aspectRatio === "9:16" ? "768:1280" : "1280:768";
-      const genRes = await fetch("https://api.dev.runwayml.com/v1/image_to_video", {
+      // Use text_to_video endpoint — no source image required
+      const runwayPrompt = style ? `${prompt}, ${style} style` : prompt;
+      const genRes = await fetch("https://api.dev.runwayml.com/v1/text_to_video", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${runwayKey}`,
@@ -295,7 +305,7 @@ router.post("/media-gen/video", async (req, res): Promise<void> => {
         },
         body: JSON.stringify({
           model: "gen3a_turbo",
-          promptText: prompt,
+          promptText: runwayPrompt,
           ratio,
           duration: Math.min(durationSeconds, 10),
           watermark: false,

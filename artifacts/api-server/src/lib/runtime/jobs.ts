@@ -156,16 +156,32 @@ export async function getJobsBySystem(systemInstanceId: number, limit = 50) {
 // Reset orphaned "active" jobs left by a previous crashed process.
 // Safe to call at startup — the old process is already gone.
 export async function resetOrphanedJobs(): Promise<number> {
-  // Exclude media_gen_* jobs — they run as fire-and-forget background tasks
-  // managed entirely by the media-gen route, not the job worker. Re-queuing them
-  // would cause the worker to fail them as "Unknown job type" on restart.
-  const result = await pool.query(`
+  // Standard worker jobs: reset active → queued so the worker picks them up again.
+  // Exclude all media_gen_* types — they are not claimed by the job worker.
+  const workerResult = await pool.query(`
     UPDATE runtime_jobs
     SET status = 'queued', started_at = NULL
     WHERE status = 'active'
       AND job_type NOT IN ('media_gen_video', 'media_gen_audio')
   `);
-  return result.rowCount ?? 0;
+
+  // ElevenLabs audio jobs run as in-process fire-and-forget closures.
+  // If the server restarted while one was in flight, the background task is gone
+  // and the job will never settle. Mark it failed so the UI doesn't hang.
+  const audioResult = await pool.query(`
+    UPDATE runtime_jobs
+    SET status = 'failed',
+        error = 'Server restarted mid-generation — please retry',
+        completed_at = NOW()
+    WHERE status = 'active'
+      AND job_type = 'media_gen_audio'
+  `);
+
+  // HeyGen / Runway video jobs have external provider-side job IDs stored in
+  // their payload. They remain 'active' so the next client poll can resume
+  // status from the provider without losing the providerJobId.
+
+  return (workerResult.rowCount ?? 0) + (audioResult.rowCount ?? 0);
 }
 
 export async function getJobById(jobId: string) {

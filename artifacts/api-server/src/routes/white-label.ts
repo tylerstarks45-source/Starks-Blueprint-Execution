@@ -18,6 +18,18 @@ const router: IRouter = Router();
 
 const HEX_COLOR = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 
+/** Normalize a domain: lowercase, trim, strip protocol and trailing slashes. */
+function normalizeDomain(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  return raw
+    .toLowerCase()
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/.*$/, "")
+    .replace(/\.$/, "")
+    || null;
+}
+
 const upsertSchema = z.object({
   brandName: z.string().min(1).max(80).optional(),
   logoUrl: z.string().url().nullable().optional(),
@@ -100,6 +112,11 @@ router.put("/white-label/config", async (req, res): Promise<void> => {
 
   const data = parsed.data;
 
+  // Normalize the domain before storing so lookups are consistent
+  if ("customDomain" in data) {
+    data.customDomain = normalizeDomain(data.customDomain);
+  }
+
   // If custom domain changes, reset verification
   const existing = await getOrCreate(userId);
   const domainChanged =
@@ -167,7 +184,7 @@ router.post("/white-label/verify-domain", async (req, res): Promise<void> => {
 // Public endpoint — no auth required. Used by the frontend to detect
 // white-label theming when the app is loaded on a custom domain.
 router.get("/white-label/by-domain/:domain", async (req, res): Promise<void> => {
-  const domain = req.params.domain?.toLowerCase().trim();
+  const domain = normalizeDomain(req.params.domain);
   if (!domain) {
     res.status(400).json({ error: "Domain required" });
     return;

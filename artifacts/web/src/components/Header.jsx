@@ -4,13 +4,21 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronDown, LogOut, User, Settings, Activity, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import NotificationBell from '@/components/NotificationBell.jsx';
+import { useWhiteLabel } from '@/contexts/WhiteLabelContext.jsx';
+
+const DEFAULT_LOGO = "https://horizons-cdn.hostinger.com/c23c9050-cfff-41bf-82a4-af121e0b4678/4c35c9e2294c3d0e16fb5ed3a74c5ddc.png";
+const DEFAULT_NAME = "Starks Global Group";
 
 const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, logout, currentUser, resetOnboarding } = useAuth();
+  const { config: wlConfig } = useWhiteLabel() || {};
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+
+  const brandName = wlConfig?.brandName || DEFAULT_NAME;
+  const brandLogo = wlConfig?.logoUrl || DEFAULT_LOGO;
   
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
@@ -47,12 +55,17 @@ const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
-          <Link to={isAuthenticated ? "/dashboard" : "/"} className="flex items-center shrink-0 group py-2">
+          <Link to={isAuthenticated ? "/dashboard" : "/"} className="flex items-center shrink-0 group py-2 gap-2">
             <img 
-              src="https://horizons-cdn.hostinger.com/c23c9050-cfff-41bf-82a4-af121e0b4678/4c35c9e2294c3d0e16fb5ed3a74c5ddc.png" 
-              alt="Starks Global Group" 
+              src={brandLogo}
+              alt={brandName}
               className="h-10 sm:h-12 w-auto object-contain group-hover:opacity-90 transition-opacity" 
             />
+            {wlConfig?.brandName && (
+              <span className="text-sm font-bold text-white font-mono hidden lg:block">
+                {wlConfig.brandName}
+              </span>
+            )}
           </Link>
 
           <nav className="hidden lg:flex items-center space-x-1">

@@ -668,9 +668,9 @@ function DangerZoneTab({ user }) {
   );
 }
 
-export default function UserSettingsPage() {
+export default function UserSettingsPage({ defaultTab = 'profile' }) {
   const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   const ActiveComponent = {
     profile:       () => <ProfileTab user={currentUser} />,

@@ -1,6 +1,15 @@
 import { Resend } from "resend";
 
-const FROM = "Starks Global Group <noreply@starksglobalgroup.net>";
+const DEFAULT_BRAND = "Starks Global Group";
+const FROM_EMAIL = "noreply@starksglobalgroup.net";
+
+/** Build the RFC 5322 "From" header. Pass a white-label brand name for agency emails. */
+export function getEmailSender(brandName?: string | null): string {
+  const name = brandName?.trim() || DEFAULT_BRAND;
+  return `${name} <${FROM_EMAIL}>`;
+}
+
+const FROM = getEmailSender();
 const ADMIN_EMAIL = "tylerstarks77@gmail.com";
 
 function getBaseUrl(): string {

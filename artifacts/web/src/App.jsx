@@ -235,6 +235,9 @@ const App = () => {
               <Route path="/settings" element={
                 <ProtectedRoute><UserSettingsPage /></ProtectedRoute>
               } />
+              <Route path="/settings/branding" element={
+                <ProtectedRoute><UserSettingsPage defaultTab="branding" /></ProtectedRoute>
+              } />
 
               {/* Admin routes — lazy */}
               <Route path="/admin/*" element={

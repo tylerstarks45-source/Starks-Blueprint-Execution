@@ -10,7 +10,7 @@ export const whiteLabelConfigsTable = pgTable("white_label_configs", {
   logoUrl: text("logo_url"),
   primaryColor: text("primary_color").notNull().default("#1A8CFF"),
   accentColor: text("accent_color").notNull().default("#00E5E5"),
-  customDomain: text("custom_domain"),
+  customDomain: text("custom_domain").unique(),
   domainVerified: boolean("domain_verified").notNull().default(false),
   domainVerifiedAt: timestamp("domain_verified_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

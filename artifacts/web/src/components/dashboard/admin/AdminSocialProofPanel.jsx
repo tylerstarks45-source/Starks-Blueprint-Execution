@@ -29,6 +29,12 @@ const TIER_COLORS = {
   Member: 'text-white/30 bg-white/5 border-white/10',
 };
 
+const ANON_LEVELS = [
+  { value: 'full_anon', label: 'Full Anon', desc: 'Empire Member #XXXX' },
+  { value: 'first_name', label: 'First Name', desc: 'Alex #XXXX' },
+  { value: 'full_name', label: 'Full Name', desc: 'Alex Smith (consent implied)' },
+];
+
 export default function AdminSocialProofPanel() {
   const [events, setEvents] = useState([]);
   const [stats, setStats] = useState(null);
@@ -38,6 +44,8 @@ export default function AdminSocialProofPanel() {
   const [expandedRow, setExpandedRow] = useState(null);
   const [filterTier, setFilterTier] = useState('all');
   const [featureTogglingId, setFeatureTogglingId] = useState(null);
+  const [anonLevel, setAnonLevel] = useState('full_anon');
+  const [savingAnon, setSavingAnon] = useState(false);
 
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('sbep_auth_token') : null;
   const headers = token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
@@ -45,17 +53,33 @@ export default function AdminSocialProofPanel() {
   const load = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
     try {
-      const [sw, st, lb] = await Promise.all([
+      const [sw, st, lb, sp] = await Promise.all([
         fetch(`${BASE}api/success-wall`, { headers }).then(r => r.json()).catch(() => ({ events: [] })),
         fetch(`${BASE}api/leaderboard/stats`, { headers }).then(r => r.json()).catch(() => null),
         fetch(`${BASE}api/leaderboard`, { headers }).then(r => r.json()).catch(() => ({ leaderboard: [] })),
+        fetch(`${BASE}api/admin/social-proof-settings`, { headers }).then(r => r.json()).catch(() => ({ anonLevel: 'full_anon' })),
       ]);
       setEvents(sw.events ?? []);
       setStats(st);
       setLeaderboard(lb.leaderboard ?? []);
+      setAnonLevel(sp.anonLevel ?? 'full_anon');
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const saveAnonLevel = async (level) => {
+    setSavingAnon(true);
+    try {
+      await fetch(`${BASE}api/admin/social-proof-settings`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ anonLevel: level }),
+      });
+      setAnonLevel(level);
+    } finally {
+      setSavingAnon(false);
     }
   };
 
@@ -102,6 +126,34 @@ export default function AdminSocialProofPanel() {
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           Refresh
         </button>
+      </div>
+
+      {/* Anonymization level control */}
+      <div className="p-4 rounded-xl border border-white/8 bg-white/[0.02]">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-xs font-mono font-bold text-white/50 uppercase tracking-widest">Display Name Level</h3>
+            <p className="text-[10px] font-mono text-white/25 mt-0.5">Controls how member names appear on leaderboard & success wall</p>
+          </div>
+          {savingAnon && <span className="text-[9px] font-mono text-primary/60 animate-pulse">Saving…</span>}
+        </div>
+        <div className="flex gap-2">
+          {ANON_LEVELS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => saveAnonLevel(opt.value)}
+              disabled={savingAnon}
+              className={`flex-1 px-3 py-2.5 rounded-lg border text-left transition-all disabled:opacity-50 ${
+                anonLevel === opt.value
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-white/8 bg-white/[0.02] text-white/40 hover:text-white/60 hover:border-white/15'
+              }`}
+            >
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wide leading-none mb-1">{opt.label}</div>
+              <div className="text-[9px] font-mono text-white/30 leading-snug">{opt.desc}</div>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Platform stats */}

@@ -1294,7 +1294,7 @@ const SystemCommandCenterPage = () => {
 
         {/* ══ COMMUNITY WINS ═══════════════════════════════════════════════════ */}
         <HudPanel className="p-4" accent="rgba(245,158,11,0.4)">
-          <CommunityWinsCard />
+          <CommunityWinsCard userId={user.id} />
         </HudPanel>
 
         {/* ══ WHAT'S NEW ═══════════════════════════════════════════════════════ */}

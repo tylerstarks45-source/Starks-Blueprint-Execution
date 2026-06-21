@@ -35,15 +35,12 @@ export default function CommunityWinsCard({ userId }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const rankParam = userId ? `?userId=${userId}` : '';
+    const token = localStorage.getItem('sbep_auth_token');
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
     Promise.all([
       fetch(`${BASE}api/success-wall`).then(r => r.json()).catch(() => ({ events: [] })),
       fetch(`${BASE}api/leaderboard/stats`).then(r => r.json()).catch(() => null),
-      userId
-        ? fetch(`${BASE}api/leaderboard${rankParam}`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem('sbep_auth_token') ?? ''}` },
-          }).then(r => r.json()).catch(() => ({ ownRank: null }))
-        : Promise.resolve({ ownRank: null }),
+      fetch(`${BASE}api/leaderboard`, { headers: authHeaders }).then(r => r.json()).catch(() => ({ ownRank: null })),
     ]).then(([sw, st, lb]) => {
       setEvents(sw.events ?? []);
       setStats(st);

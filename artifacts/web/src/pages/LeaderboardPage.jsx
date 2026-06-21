@@ -66,17 +66,9 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('sbep_auth_token');
-    // Decode userId from JWT if logged in (payload is base64 middle segment)
-    let userId = null;
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        userId = payload.id ?? payload.userId ?? payload.sub ?? null;
-      } catch (_) { /* not logged in */ }
-    }
-    const rankParam = userId ? `?userId=${userId}` : '';
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
     Promise.all([
-      fetch(`${BASE}api/leaderboard${rankParam}`).then(r => r.json()).catch(() => ({ leaderboard: [], ownRank: null })),
+      fetch(`${BASE}api/leaderboard`, { headers: authHeaders }).then(r => r.json()).catch(() => ({ leaderboard: [], ownRank: null })),
       fetch(`${BASE}api/success-wall`).then(r => r.json()).catch(() => ({ events: [] })),
       fetch(`${BASE}api/leaderboard/stats`).then(r => r.json()).catch(() => ({})),
     ]).then(([lb, sw, st]) => {
@@ -229,9 +221,11 @@ export default function LeaderboardPage() {
               <div
                 key={entry.rank}
                 className={`group relative flex items-center gap-4 px-5 py-4 rounded-xl border transition-all
-                  ${i < 3
-                    ? 'border-white/15 bg-white/[0.05] hover:bg-white/[0.08]'
-                    : 'border-white/6 bg-white/[0.02] hover:bg-white/[0.04]'
+                  ${entry.isOwn
+                    ? 'border-primary/40 bg-primary/[0.08] ring-1 ring-primary/20'
+                    : i < 3
+                      ? 'border-white/15 bg-white/[0.05] hover:bg-white/[0.08]'
+                      : 'border-white/6 bg-white/[0.02] hover:bg-white/[0.04]'
                   }`}
               >
                 {i < 3 && <MiniConfetti />}
@@ -251,7 +245,10 @@ export default function LeaderboardPage() {
                 ) : (
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-semibold text-white/80 truncate">{entry.displayName}</span>
+                      <span className={`text-sm font-semibold truncate ${entry.isOwn ? 'text-primary' : 'text-white/80'}`}>{entry.displayName}</span>
+                      {entry.isOwn && (
+                        <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-mono border border-primary/40 bg-primary/10 text-primary uppercase tracking-wide">You</span>
+                      )}
                       <span className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] font-mono border uppercase tracking-wide ${TIER_BADGE[entry.tier] ?? TIER_BADGE.Member}`}>
                         {entry.tier}
                       </span>

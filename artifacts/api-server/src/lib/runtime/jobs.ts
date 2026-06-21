@@ -156,10 +156,14 @@ export async function getJobsBySystem(systemInstanceId: number, limit = 50) {
 // Reset orphaned "active" jobs left by a previous crashed process.
 // Safe to call at startup — the old process is already gone.
 export async function resetOrphanedJobs(): Promise<number> {
+  // Exclude media_gen_* jobs — they run as fire-and-forget background tasks
+  // managed entirely by the media-gen route, not the job worker. Re-queuing them
+  // would cause the worker to fail them as "Unknown job type" on restart.
   const result = await pool.query(`
     UPDATE runtime_jobs
     SET status = 'queued', started_at = NULL
     WHERE status = 'active'
+      AND job_type NOT IN ('media_gen_video', 'media_gen_audio')
   `);
   return result.rowCount ?? 0;
 }

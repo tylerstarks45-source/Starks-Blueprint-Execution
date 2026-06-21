@@ -522,6 +522,16 @@ router.get("/media-gen/jobs/:jobId", async (req, res): Promise<void> => {
       return;
     }
 
+    // ── ElevenLabs polling ──────────────────────────────────────────────────────
+    // ElevenLabs tasks run as background Node.js async tasks; their completion
+    // is persisted directly to DB — no external provider API to poll.
+    // The settled check above (lines 368-382) already handled completed/failed.
+    // If we reach here the job is still active (background task running).
+    if (provider === "elevenlabs") {
+      res.json({ jobId, status: "active", provider: "ElevenLabs", progress: "Generating music…" });
+      return;
+    }
+
     res.status(400).json({ error: `Unknown provider: ${provider}` });
   } catch (err) {
     req.log.error({ err }, "Media job poll error");
@@ -566,88 +576,91 @@ router.post("/media-gen/music", async (req, res): Promise<void> => {
     return;
   }
 
+  // Insert job FIRST — respond immediately, ElevenLabs runs as background task
+  let audioJobId: string;
   try {
-    const parts = [prompt];
-    if (style) parts.push(`${style} style`);
-    if (mood) parts.push(`${mood} mood`);
-    const fullPrompt = parts.join(", ");
-    const cappedDuration = Math.min(durationSeconds, 300);
-
-    // Create a tracked job before calling ElevenLabs so progress is observable
-    let audioJobId: string | undefined;
-    try {
-      audioJobId = await insertMediaJob("media_gen_audio", {
-        provider: "elevenlabs",
-        userId,
-        prompt: fullPrompt,
-        durationSeconds: cappedDuration,
-      });
-    } catch { /* non-fatal — tracking failure must not block generation */ }
-
-    const soundRes = await fetch("https://api.elevenlabs.io/v1/sound-generation", {
-      method: "POST",
-      headers: {
-        "xi-api-key": elevenLabsKey,
-        "Content-Type": "application/json",
-        "Accept": "audio/mpeg",
-      },
-      body: JSON.stringify({
-        text: fullPrompt,
-        duration_seconds: cappedDuration,
-        prompt_influence: 0.3,
-      }),
-    });
-
-    if (!soundRes.ok) {
-      const errText = await soundRes.text();
-      req.log.warn({ status: soundRes.status, err: errText }, "ElevenLabs sound gen failed");
-      if (audioJobId) {
-        try {
-          await pool.query(
-            `UPDATE runtime_jobs SET status = 'failed', error = $1, completed_at = NOW() WHERE job_id = $2`,
-            [errText.slice(0, 500), audioJobId],
-          );
-        } catch { /* non-fatal */ }
-      }
-      res.status(502).json({ error: "Music generation failed", details: errText.slice(0, 300) });
-      return;
-    }
-
-    const audioBuffer = await soundRes.arrayBuffer();
-    const base64Audio = Buffer.from(audioBuffer).toString("base64");
-
-    // Store as data URI so it can be played in the browser
-    const dataUri = `data:audio/mpeg;base64,${base64Audio}`;
-    const fileId = await saveMediaFile(
+    audioJobId = await insertMediaJob("media_gen_audio", {
+      provider: "elevenlabs",
       userId,
-      `music-${Date.now()}.mp3`,
-      "audio",
-      dataUri,
-      `AI music: ${fullPrompt.slice(0, 100)}`,
-    );
-
-    if (audioJobId) {
-      try {
-        await pool.query(
-          `UPDATE runtime_jobs SET status = 'completed', result = $1, completed_at = NOW() WHERE job_id = $2`,
-          [JSON.stringify({ fileId }), audioJobId],
-        );
-      } catch { /* non-fatal */ }
-    }
-
-    res.json({
-      status: "success",
-      jobId: audioJobId,
-      audioBase64: base64Audio,
-      mimeType: "audio/mpeg",
-      prompt: fullPrompt,
-      durationSeconds: cappedDuration,
-      fileId,
+      prompt,
+      durationSeconds,
+      style: style ?? null,
+      mood: mood ?? null,
     });
   } catch (err) {
-    req.log.error({ err }, "Music generation error");
-    res.status(500).json({ error: "Music generation failed" });
+    req.log.error({ err }, "Failed to create audio job");
+    res.status(500).json({ error: "Failed to start music generation" });
+    return;
   }
+
+  const fullPrompt = [prompt, style ? `${style} style` : "", mood ? `${mood} mood` : ""]
+    .filter(Boolean).join(", ");
+  const cappedDuration = Math.min(durationSeconds, 300);
+
+  // Respond immediately — client polls /api/runtime/jobs/:jobId for completion
+  res.json({
+    status: "generating",
+    jobId: audioJobId,
+    pollUrl: `/api/runtime/jobs/${audioJobId}`,
+    provider: "ElevenLabs",
+    prompt: fullPrompt,
+    durationSeconds: cappedDuration,
+    message: "ElevenLabs is composing your audio. Poll the job for completion.",
+  });
+
+  // Background: call ElevenLabs and persist result once complete
+  void (async () => {
+    try {
+      const soundRes = await fetch("https://api.elevenlabs.io/v1/sound-generation", {
+        method: "POST",
+        headers: {
+          "xi-api-key": elevenLabsKey,
+          "Content-Type": "application/json",
+          "Accept": "audio/mpeg",
+        },
+        body: JSON.stringify({
+          text: fullPrompt,
+          duration_seconds: cappedDuration,
+          prompt_influence: 0.3,
+        }),
+      });
+
+      if (!soundRes.ok) {
+        const errText = await soundRes.text();
+        req.log.warn({ status: soundRes.status, err: errText }, "ElevenLabs background task failed");
+        await pool.query(
+          `UPDATE runtime_jobs SET status = 'failed', error = $1, completed_at = NOW() WHERE job_id = $2`,
+          [errText.slice(0, 500), audioJobId],
+        );
+        return;
+      }
+
+      const audioBuffer = await soundRes.arrayBuffer();
+      const base64Audio = Buffer.from(audioBuffer).toString("base64");
+      const dataUri = `data:audio/mpeg;base64,${base64Audio}`;
+
+      const fileId = await saveMediaFile(
+        userId,
+        `music-${Date.now()}.mp3`,
+        "audio",
+        dataUri,
+        `AI music: ${fullPrompt.slice(0, 100)}`,
+      );
+
+      await pool.query(
+        `UPDATE runtime_jobs SET status = 'completed', result = $1, completed_at = NOW() WHERE job_id = $2`,
+        [JSON.stringify({ fileId, audioBase64: base64Audio, mimeType: "audio/mpeg" }), audioJobId],
+      );
+    } catch (bgErr) {
+      req.log.error({ bgErr }, "ElevenLabs background generation failed");
+      try {
+        await pool.query(
+          `UPDATE runtime_jobs SET status = 'failed', error = $1, completed_at = NOW() WHERE job_id = $2`,
+          ["Internal error during background generation", audioJobId],
+        );
+      } catch { /* ignore */ }
+    }
+  })();
 });
 
 // ─── POST /api/media-gen/tts ──────────────────────────────────────────────────

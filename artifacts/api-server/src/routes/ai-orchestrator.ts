@@ -1253,13 +1253,17 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
                   },
                 );
                 const genData = (await genRes.json()) as Record<string, unknown>;
-                // Strip audioBase64 from SSE (too large) — frontend fetches directly from fileId
+                // Strip audioBase64 from SSE (too large) — frontend polls job for result
                 const { audioBase64: _stripped, ...safeData } = genData as Record<string, unknown> & { audioBase64?: unknown };
                 send({
                   type: "tool_result",
                   tool: "generate_music",
-                  data: { ok: genData.status === "success", ...safeData },
+                  data: { ok: genData["status"] === "generating" || genData["status"] === "success", ...safeData },
                 });
+                // Track audio job for SSE progress loop
+                if (genData["status"] === "generating" && typeof genData["jobId"] === "string") {
+                  pendingMediaJobIds.push({ jobId: genData["jobId"], prompt: (call.prompt as string) ?? "" });
+                }
               }
             }
           } catch (mediaErr) {

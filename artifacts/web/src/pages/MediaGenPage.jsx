@@ -108,7 +108,7 @@ function VideoJobTracker({ jobId, prompt, onComplete }) {
 
   const poll = useCallback(async () => {
     try {
-      const res = await fetch(`/api/media-gen/jobs/${jobId}`, { headers: authHeaders() });
+      const res = await fetch(`/api/runtime/jobs/${jobId}`, { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       setProvider(data.provider ?? '');
@@ -166,6 +166,71 @@ function VideoJobTracker({ jobId, prompt, onComplete }) {
         <p className="text-sm text-white/65">{progress}</p>
         {provider && <p className="text-xs text-white/30 mt-0.5 font-mono">via {provider}</p>}
         <p className="text-xs text-white/25 mt-0.5 truncate">{prompt.slice(0, 60)}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Audio job tracker ────────────────────────────────────────────────────────
+
+function AudioJobTracker({ jobId, prompt, onComplete }) {
+  const [status, setStatus] = useState('active');
+  const [progress, setProgress] = useState('Generating music…');
+  const intervalRef = useRef(null);
+
+  const poll = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/runtime/jobs/${jobId}`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.status === 'completed') {
+        setStatus('completed');
+        clearInterval(intervalRef.current);
+        if (onComplete) onComplete(data);
+        toast.success('Music ready!');
+      } else if (data.status === 'failed') {
+        setStatus('failed');
+        clearInterval(intervalRef.current);
+        toast.error('Music generation failed');
+      } else {
+        setProgress(data.progress ?? 'Generating music…');
+      }
+    } catch { /* ignore */ }
+  }, [jobId, onComplete]);
+
+  useEffect(() => {
+    poll();
+    intervalRef.current = setInterval(poll, 5000);
+    return () => clearInterval(intervalRef.current);
+  }, [poll]);
+
+  if (status === 'completed') {
+    return (
+      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 flex items-center gap-2">
+        <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+        <p className="text-sm text-emerald-400">Music ready — check gallery →</p>
+      </div>
+    );
+  }
+
+  if (status === 'failed') {
+    return (
+      <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3">
+        <p className="text-sm text-rose-400">Music generation failed.</p>
+        <p className="text-xs text-white/35 mt-1 font-mono truncate">{prompt.slice(0, 80)}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-4 flex items-center gap-3">
+      <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
+        <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-white/65">{progress}</p>
+        <p className="text-xs text-white/25 mt-0.5 font-mono">via ElevenLabs</p>
+        <p className="text-xs text-white/20 mt-0.5 truncate">{prompt.slice(0, 60)}</p>
       </div>
     </div>
   );
@@ -292,6 +357,7 @@ export default function MediaGenPage() {
   const [musicDuration, setMusicDuration] = useState(30);
   const [musicStyle, setMusicStyle] = useState('');
   const [musicResult, setMusicResult] = useState(null);
+  const [activeAudioJobs, setActiveAudioJobs] = useState([]);
 
   const [ttsText, setTtsText] = useState('');
   const [ttsVoice, setTtsVoice] = useState('warm narrator');
@@ -378,7 +444,13 @@ export default function MediaGenPage() {
         navigate('/connections?category=voice-ai');
         return;
       }
+      if (data.status === 'generating' && data.jobId) {
+        setActiveAudioJobs(prev => [...prev, { jobId: data.jobId, prompt: musicPrompt }]);
+        toast.success('Music queued — ElevenLabs is composing…');
+        return;
+      }
       if (data.status === 'success') {
+        // Legacy path — display inline result if server returns synchronously
         setMusicResult(data);
         loadGallery();
         toast.success('Music generated!');
@@ -641,6 +713,20 @@ export default function MediaGenPage() {
                     Generate Music
                   </button>
                   <p className="text-xs text-white/25 text-center">Powered by ElevenLabs Sound Generation</p>
+
+                  {/* Active audio jobs */}
+                  {activeAudioJobs.length > 0 && (
+                    <div className="space-y-2">
+                      {activeAudioJobs.map(job => (
+                        <AudioJobTracker
+                          key={job.jobId}
+                          jobId={job.jobId}
+                          prompt={job.prompt}
+                          onComplete={() => loadGallery()}
+                        />
+                      ))}
+                    </div>
+                  )}
 
                   {musicResult && (
                     <div className="space-y-2">

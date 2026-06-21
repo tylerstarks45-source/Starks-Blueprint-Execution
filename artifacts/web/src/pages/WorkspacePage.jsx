@@ -7,7 +7,7 @@ import {
   ArrowLeft, FileText, FileJson2, File, Code2, Search, Download,
   Copy, Check, Loader2, Trash2, Plus, Save, Clock, X,
   FolderOpen, Eye, Edit3, Wand2, Image, Video, Music, Play, Pause,
-  Volume2, Film, RefreshCw,
+  Volume2, Film, RefreshCw, Share2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -320,6 +320,37 @@ export default function WorkspacePage() {
                     <div className="px-2 py-1.5">
                       <p className="text-[10px] font-mono text-white/40 truncate">{mf.name}</p>
                       <p className="text-[9px] text-white/20 font-mono">{formatTime(mf.createdAt)}</p>
+                      {/* Per-asset actions */}
+                      <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => {
+                            const isDataUri = mf.content?.startsWith('data:');
+                            navigator.clipboard.writeText(isDataUri ? `${window.location.origin}/media` : (mf.content ?? ''));
+                            toast.success('Link copied');
+                          }}
+                          title="Copy link"
+                          className="p-1 rounded bg-white/5 hover:bg-white/12 text-white/30 hover:text-white/65 transition-colors"
+                        >
+                          <Copy className="w-2.5 h-2.5" />
+                        </button>
+                        {mf.content && !mf.content.startsWith('data:') && (
+                          <a
+                            href={mf.content}
+                            download={mf.name}
+                            title="Download"
+                            className="p-1 rounded bg-white/5 hover:bg-white/12 text-white/30 hover:text-white/65 transition-colors"
+                          >
+                            <Download className="w-2.5 h-2.5" />
+                          </a>
+                        )}
+                        <button
+                          disabled
+                          title="Push to Social — coming soon"
+                          className="p-1 rounded bg-white/5 text-white/15 cursor-not-allowed"
+                        >
+                          <Share2 className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

@@ -6,7 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { router, Slot, Stack, useSegments } from "expo-router";
+import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -20,13 +20,15 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+const AUTH_SCREENS = ["login", "signup", "forgot-password", "reset-password"];
+
 function AuthGate() {
   const { user, isLoading } = useAuth();
   const segments = useSegments();
 
   useEffect(() => {
     if (isLoading) return;
-    const inAuthGroup = segments[0] === "login";
+    const inAuthGroup = AUTH_SCREENS.includes(segments[0] as string);
     if (!user && !inAuthGroup) {
       router.replace("/login");
     } else if (user && inAuthGroup) {
@@ -38,6 +40,9 @@ function AuthGate() {
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="signup" options={{ headerShown: false }} />
+      <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+      <Stack.Screen name="reset-password" options={{ headerShown: false }} />
     </Stack>
   );
 }

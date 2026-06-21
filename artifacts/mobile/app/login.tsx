@@ -87,7 +87,7 @@ export default function LoginScreen() {
             <View style={styles.field}>
               <Text style={[styles.label, { color: colors.mutedForeground }]}>Email</Text>
               <View style={[styles.inputWrap, { backgroundColor: colors.input, borderColor: colors.border }]}>
-                <Feather name="mail" size={16} color={colors.mutedForeground} style={styles.inputIcon} />
+                <Feather name="mail" size={16} color={colors.mutedForeground} />
                 <TextInput
                   style={[styles.input, { color: colors.foreground }]}
                   value={email}
@@ -103,9 +103,14 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.field}>
-              <Text style={[styles.label, { color: colors.mutedForeground }]}>Password</Text>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, { color: colors.mutedForeground }]}>Password</Text>
+                <TouchableOpacity onPress={() => router.push("/forgot-password")}>
+                  <Text style={[styles.forgotLink, { color: colors.primary }]}>Forgot?</Text>
+                </TouchableOpacity>
+              </View>
               <View style={[styles.inputWrap, { backgroundColor: colors.input, borderColor: colors.border }]}>
-                <Feather name="lock" size={16} color={colors.mutedForeground} style={styles.inputIcon} />
+                <Feather name="lock" size={16} color={colors.mutedForeground} />
                 <TextInput
                   style={[styles.input, { color: colors.foreground }]}
                   value={password}
@@ -118,21 +123,14 @@ export default function LoginScreen() {
                   onSubmitEditing={handleLogin}
                 />
                 <TouchableOpacity onPress={() => setShowPass((v) => !v)} hitSlop={8}>
-                  <Feather
-                    name={showPass ? "eye-off" : "eye"}
-                    size={16}
-                    color={colors.mutedForeground}
-                  />
+                  <Feather name={showPass ? "eye-off" : "eye"} size={16} color={colors.mutedForeground} />
                 </TouchableOpacity>
               </View>
             </View>
           </View>
 
           <TouchableOpacity
-            style={[
-              styles.btn,
-              { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 },
-            ]}
+            style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
             onPress={handleLogin}
             disabled={loading}
             activeOpacity={0.8}
@@ -142,6 +140,14 @@ export default function LoginScreen() {
             ) : (
               <Text style={styles.btnText}>Sign In</Text>
             )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.signupBtn, { borderColor: colors.border }]}
+            onPress={() => router.push("/signup")}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.signupBtnText, { color: colors.foreground }]}>Create an account</Text>
           </TouchableOpacity>
         </View>
 
@@ -166,92 +172,27 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    gap: 24,
-  },
-  brand: {
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-  },
-  logoBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-  },
-  logoText: {
-    fontSize: 28,
-    fontWeight: "800",
-    letterSpacing: 2,
-  },
-  tagline: {
-    fontSize: 13,
-    textAlign: "center",
-  },
-  card: {
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 24,
-    gap: 16,
-  },
-  heading: {
-    fontSize: 22,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-  },
-  sub: {
-    fontSize: 14,
-    marginTop: -8,
-  },
-  errorBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
+  scroll: { flexGrow: 1, paddingHorizontal: 24, gap: 24 },
+  brand: { alignItems: "center", gap: 10, paddingVertical: 8 },
+  logoBox: { width: 64, height: 64, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  logoText: { fontSize: 28, fontWeight: "800", letterSpacing: 2 },
+  tagline: { fontSize: 13, textAlign: "center" },
+  card: { borderWidth: 1, borderRadius: 20, padding: 24, gap: 16 },
+  heading: { fontSize: 22, fontWeight: "700", letterSpacing: -0.3 },
+  sub: { fontSize: 14, marginTop: -8 },
+  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1 },
   errorText: { fontSize: 13, flex: 1 },
   fields: { gap: 14 },
   field: { gap: 6 },
-  label: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  inputWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 48,
-    gap: 10,
-  },
-  inputIcon: {},
-  input: {
-    flex: 1,
-    fontSize: 15,
-    height: "100%",
-  },
-  btn: {
-    height: 50,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 4,
-  },
-  btnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  demo: {
-    alignItems: "center",
-  },
+  labelRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  label: { fontSize: 13, fontWeight: "500" },
+  forgotLink: { fontSize: 13, fontWeight: "500" },
+  inputWrap: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 48, gap: 10 },
+  input: { flex: 1, fontSize: 15, height: "100%" },
+  btn: { height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  btnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  signupBtn: { height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  signupBtnText: { fontSize: 16, fontWeight: "600" },
+  demo: { alignItems: "center" },
   demoText: { fontSize: 13 },
 });

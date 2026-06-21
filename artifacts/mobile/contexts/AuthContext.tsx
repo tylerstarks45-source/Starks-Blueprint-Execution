@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { apiFetch, deleteToken, getToken, setToken } from "@/lib/api";
 
 export interface AuthUser {
@@ -14,11 +15,36 @@ interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({} as AuthContextValue);
+
+async function registerPushTokenSilently() {
+  if (Platform.OS === "web") return;
+  try {
+    const Notifications = await import("expo-notifications");
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== "granted") return;
+
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const expoPushToken = tokenData.data;
+
+    await apiFetch("/auth/push-token", {
+      method: "POST",
+      body: JSON.stringify({ expoPushToken }),
+    });
+  } catch {
+    // Non-critical — push token registration failure should not break auth
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -51,6 +77,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     await setToken(data.token);
     setUser(data.user);
+    registerPushTokenSilently();
+  }
+
+  async function signup(name: string, email: string, password: string) {
+    const data = await apiFetch<{ token: string; user: AuthUser }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ name, email, password }),
+    });
+    await setToken(data.token);
+    setUser(data.user);
+    registerPushTokenSilently();
   }
 
   async function logout() {
@@ -68,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, signup, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1939,4 +1939,61 @@ router.get("/ai-orchestrator/platform-stats", async (req, res): Promise<void> =>
   });
 });
 
+// ── POST /api/ai-orchestrator/transcribe — voice-to-text via OpenRouter ───────
+// Accepts multipart form-data with an "audio" file field (m4a/wav/webm).
+// On native mobile, expo-av records and sends audio; this endpoint transcribes
+// it using OpenAI-compatible speech-to-text via OpenRouter.
+router.post("/ai-orchestrator/transcribe", async (req, res) => {
+  const userId = await requireAuthActive(req, res);
+  if (!userId) return;
+
+  try {
+    const multer = await import("multer");
+    const upload = multer.default({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+    await new Promise<void>((resolve, reject) => {
+      upload.single("audio")(req as any, res as any, (err: unknown) => {
+        if (err) reject(err); else resolve();
+      });
+    });
+
+    const file = (req as unknown as { file?: { buffer: Buffer; originalname: string; mimetype: string } }).file;
+    if (!file) {
+      res.status(400).json({ error: "No audio file provided." });
+      return;
+    }
+
+    const apiKey = process.env["OPENROUTER_API_KEY"];
+    if (!apiKey) {
+      res.status(503).json({ error: "AI service not configured." });
+      return;
+    }
+
+    const form = new FormData();
+    const blob = new Blob([file.buffer as unknown as ArrayBuffer], { type: file.mimetype || "audio/m4a" });
+    form.append("file", blob, file.originalname || "audio.m4a");
+    form.append("model", "openai/whisper-1");
+
+    const response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      req.log.warn({ status: response.status, err: errText }, "Transcription service error");
+      res.status(502).json({ error: "Transcription service unavailable. Please type your message instead." });
+      return;
+    }
+
+    const result = (await response.json()) as { text: string };
+    req.log.info({ userId, chars: result.text?.length ?? 0 }, "Voice transcription completed");
+    res.json({ text: result.text ?? "" });
+  } catch (err) {
+    req.log.error({ err }, "Transcribe endpoint error");
+    res.status(500).json({ error: "Transcription failed. Please type your message instead." });
+  }
+});
+
 export default router;

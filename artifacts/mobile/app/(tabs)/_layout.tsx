@@ -28,6 +28,16 @@ function NativeTabLayout() {
         <Label>Build</Label>
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="blueprints/index">
+        <Icon sf={{ default: "doc.text", selected: "doc.text.fill" }} />
+        <Label>Blueprints</Label>
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="marketplace/index">
+        <Icon sf={{ default: "bag", selected: "bag.fill" }} />
+        <Label>Marketplace</Label>
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="notifications">
         <Icon sf={{ default: "bell", selected: "bell.fill" }} />
         <Label>Alerts</Label>
@@ -115,6 +125,32 @@ function ClassicTabLayout() {
               <SymbolView name="sparkles" tintColor={focused ? colors.primary : color} size={22} />
             ) : (
               <Feather name="zap" size={21} color={focused ? colors.primary : color} />
+            ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="blueprints"
+        options={{
+          title: "Blueprints",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="doc.text" tintColor={color} size={22} />
+            ) : (
+              <Feather name="book-open" size={21} color={color} />
+            ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="marketplace"
+        options={{
+          title: "Market",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="bag" tintColor={color} size={22} />
+            ) : (
+              <Feather name="shopping-bag" size={21} color={color} />
             ),
         }}
       />

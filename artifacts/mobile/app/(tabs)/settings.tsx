@@ -6,12 +6,14 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
+import * as WebBrowser from "expo-web-browser";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +24,15 @@ const TIER_COLORS: Record<string, string> = {
   pro: "#1A8CFF",
   agency: "#8844E0",
   enterprise: "#00E5E5",
+  founder: "#F5A623",
+};
+
+const TIER_FEATURES: Record<string, string[]> = {
+  free: ["5 credits/month", "3 system instances", "Basic blueprints"],
+  pro: ["100 credits/month", "10 system instances", "All blueprints", "Priority support"],
+  agency: ["500 credits/month", "Unlimited systems", "White-label", "API access"],
+  enterprise: ["Unlimited credits", "Custom instances", "Dedicated support", "SLA"],
+  founder: ["Unlimited access", "All features", "Admin panel"],
 };
 
 interface SettingRow {
@@ -40,10 +51,16 @@ export default function SettingsScreen() {
   const isIOS = Platform.OS === "ios";
   const { user, logout } = useAuth();
 
+  const [notifyRevenue, setNotifyRevenue] = useState(true);
+  const [notifyMilestone, setNotifyMilestone] = useState(true);
+  const [notifyBuild, setNotifyBuild] = useState(true);
+  const [notifyPlatform, setNotifyPlatform] = useState(false);
+
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const bottomPad = insets.bottom + (Platform.OS === "web" ? 34 : 0);
 
-  const tierColor = TIER_COLORS[user?.subscriptionTier ?? "free"] ?? colors.primary;
+  const tier = user?.subscriptionTier ?? "free";
+  const tierColor = TIER_COLORS[tier] ?? colors.primary;
 
   function handleLogout() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -60,83 +77,53 @@ export default function SettingsScreen() {
     ]);
   }
 
+  async function handleManagePlan() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+    const url = `${domain.startsWith("http") ? domain : `https://${domain}`}/settings?tab=billing`;
+    await WebBrowser.openBrowserAsync(url, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+    });
+  }
+
+  async function handleUpgrade() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+    const url = `${domain.startsWith("http") ? domain : `https://${domain}`}/pricing`;
+    await WebBrowser.openBrowserAsync(url, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+    });
+  }
+
   const accountRows: SettingRow[] = [
-    {
-      icon: "user",
-      sfSymbol: "person",
-      label: "Name",
-      value: user?.name ?? "—",
-    },
-    {
-      icon: "mail",
-      sfSymbol: "envelope",
-      label: "Email",
-      value: user?.email ?? "—",
-    },
-    {
-      icon: "star",
-      sfSymbol: "star",
-      label: "Plan",
-      value: (user?.subscriptionTier ?? "free").toUpperCase(),
-      accent: tierColor,
-    },
-    {
-      icon: "zap",
-      sfSymbol: "bolt",
-      label: "Credits",
-      value: String(user?.credits ?? 0),
-      accent: colors.accent,
-    },
+    { icon: "user", sfSymbol: "person", label: "Name", value: user?.name ?? "—" },
+    { icon: "mail", sfSymbol: "envelope", label: "Email", value: user?.email ?? "—" },
+    { icon: "star", sfSymbol: "star", label: "Plan", value: tier.toUpperCase(), accent: tierColor },
+    { icon: "zap", sfSymbol: "bolt", label: "Credits", value: String(user?.credits ?? 0), accent: colors.accent },
   ];
 
   const Row = ({ row }: { row: SettingRow }) => (
     <TouchableOpacity
-      style={[styles.row]}
+      style={styles.row}
       onPress={row.onPress}
       activeOpacity={row.onPress ? 0.7 : 1}
       disabled={!row.onPress}
     >
-      <View
-        style={[
-          styles.rowIcon,
-          { backgroundColor: (row.accent ?? colors.primary) + "20" },
-        ]}
-      >
+      <View style={[styles.rowIcon, { backgroundColor: (row.accent ?? colors.primary) + "20" }]}>
         {isIOS ? (
-          <SymbolView
-            name={row.sfSymbol as any}
-            size={15}
-            tintColor={row.destructive ? colors.destructive : (row.accent ?? colors.primary)}
-          />
+          <SymbolView name={row.sfSymbol as any} size={15} tintColor={row.destructive ? colors.destructive : (row.accent ?? colors.primary)} />
         ) : (
-          <Feather
-            name={row.icon as any}
-            size={15}
-            color={row.destructive ? colors.destructive : (row.accent ?? colors.primary)}
-          />
+          <Feather name={row.icon as any} size={15} color={row.destructive ? colors.destructive : (row.accent ?? colors.primary)} />
         )}
       </View>
-      <Text
-        style={[
-          styles.rowLabel,
-          { color: row.destructive ? colors.destructive : colors.foreground },
-        ]}
-      >
-        {row.label}
-      </Text>
+      <Text style={[styles.rowLabel, { color: row.destructive ? colors.destructive : colors.foreground }]}>{row.label}</Text>
       <View style={styles.rowRight}>
-        {row.value && (
-          <Text style={[styles.rowValue, { color: row.accent ?? colors.mutedForeground }]}>
-            {row.value}
-          </Text>
-        )}
-        {row.onPress && (
-          isIOS ? (
-            <SymbolView name="chevron.right" size={12} tintColor={colors.mutedForeground} />
-          ) : (
-            <Feather name="chevron-right" size={12} color={colors.mutedForeground} />
-          )
-        )}
+        {row.value && <Text style={[styles.rowValue, { color: row.accent ?? colors.mutedForeground }]}>{row.value}</Text>}
+        {row.onPress && (isIOS ? (
+          <SymbolView name="chevron.right" size={12} tintColor={colors.mutedForeground} />
+        ) : (
+          <Feather name="chevron-right" size={12} color={colors.mutedForeground} />
+        ))}
       </View>
     </TouchableOpacity>
   );
@@ -152,7 +139,7 @@ export default function SettingsScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>Settings</Text>
       </View>
 
-      {/* Profile avatar */}
+      {/* Profile */}
       <View style={styles.section}>
         <View style={styles.profile}>
           <View style={[styles.avatar, { backgroundColor: colors.primary + "30", borderColor: colors.primary + "50" }]}>
@@ -161,57 +148,125 @@ export default function SettingsScreen() {
             </Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, { color: colors.foreground }]}>
-              {user?.name ?? "User"}
-            </Text>
+            <Text style={[styles.profileName, { color: colors.foreground }]}>{user?.name ?? "User"}</Text>
             <View style={styles.tierPill}>
               <View style={[styles.tierDot, { backgroundColor: tierColor }]} />
-              <Text style={[styles.tierLabel, { color: tierColor }]}>
-                {(user?.subscriptionTier ?? "free").toUpperCase()}
-              </Text>
+              <Text style={[styles.tierLabel, { color: tierColor }]}>{tier.toUpperCase()}</Text>
             </View>
           </View>
         </View>
       </View>
 
-      {/* Account section */}
+      {/* Account */}
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Account</Text>
         <GlassCard padding={0} style={{ overflow: "hidden" }}>
           {accountRows.map((row, i) => (
             <View key={row.label}>
               <Row row={row} />
-              {i < accountRows.length - 1 && (
-                <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
-              )}
+              {i < accountRows.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
             </View>
           ))}
         </GlassCard>
       </View>
 
-      {/* About section */}
+      {/* Billing */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Subscription & Billing</Text>
+        <GlassCard style={{ gap: 14 }}>
+          {/* Current plan */}
+          <View style={[styles.planBanner, { backgroundColor: tierColor + "10", borderColor: tierColor + "30" }]}>
+            <View style={[styles.planDot, { backgroundColor: tierColor }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.planName, { color: tierColor }]}>{tier.toUpperCase()} PLAN</Text>
+              <Text style={[styles.planSub, { color: colors.mutedForeground }]}>
+                {TIER_FEATURES[tier]?.join(" · ") ?? ""}
+              </Text>
+            </View>
+          </View>
+
+          {/* Credits bar */}
+          <View style={styles.creditsRow}>
+            <View style={styles.creditsInfo}>
+              <Feather name="zap" size={14} color={colors.accent} />
+              <Text style={[styles.creditsLabel, { color: colors.foreground }]}>Credits remaining</Text>
+            </View>
+            <Text style={[styles.creditsValue, { color: colors.accent }]}>{user?.credits ?? 0}</Text>
+          </View>
+
+          {/* Actions */}
+          {tier !== "enterprise" && tier !== "founder" && (
+            <TouchableOpacity
+              style={[styles.upgradeBtnRow, { backgroundColor: colors.primary }]}
+              onPress={handleUpgrade}
+              activeOpacity={0.85}
+            >
+              <Feather name="arrow-up-circle" size={16} color="#fff" />
+              <Text style={styles.upgradeText}>Upgrade Plan</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.manageBtn, { borderColor: colors.border }]}
+            onPress={handleManagePlan}
+            activeOpacity={0.8}
+          >
+            {isIOS ? (
+              <SymbolView name="creditcard" size={15} tintColor={colors.mutedForeground} />
+            ) : (
+              <Feather name="credit-card" size={15} color={colors.mutedForeground} />
+            )}
+            <Text style={[styles.manageBtnText, { color: colors.mutedForeground }]}>Manage Subscription</Text>
+            <View style={{ flex: 1 }} />
+            {isIOS ? (
+              <SymbolView name="arrow.up.right.square" size={13} tintColor={colors.mutedForeground} />
+            ) : (
+              <Feather name="external-link" size={13} color={colors.mutedForeground} />
+            )}
+          </TouchableOpacity>
+        </GlassCard>
+      </View>
+
+      {/* Notifications */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Push Notifications</Text>
+        <GlassCard padding={0} style={{ overflow: "hidden" }}>
+          {[
+            { label: "Revenue events", sub: "New earnings from your systems", value: notifyRevenue, onChange: setNotifyRevenue },
+            { label: "Milestones", sub: "When you hit earnings milestones", value: notifyMilestone, onChange: setNotifyMilestone },
+            { label: "Build updates", sub: "Build completions and errors", value: notifyBuild, onChange: setNotifyBuild },
+            { label: "Platform updates", sub: "New features and announcements", value: notifyPlatform, onChange: setNotifyPlatform },
+          ].map((item, i, arr) => (
+            <View key={item.label}>
+              <View style={styles.toggleRow}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{item.label}</Text>
+                  <Text style={[styles.toggleSub, { color: colors.mutedForeground }]}>{item.sub}</Text>
+                </View>
+                <Switch
+                  value={item.value}
+                  onValueChange={item.onChange}
+                  trackColor={{ false: colors.muted, true: colors.primary + "80" }}
+                  thumbColor={item.value ? colors.primary : colors.mutedForeground}
+                />
+              </View>
+              {i < arr.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
+            </View>
+          ))}
+        </GlassCard>
+      </View>
+
+      {/* Platform */}
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Platform</Text>
         <GlassCard padding={0} style={{ overflow: "hidden" }}>
           {[
-            {
-              icon: "globe",
-              sfSymbol: "globe",
-              label: "Website",
-              value: "starksglobalgroup.net",
-            } as SettingRow,
-            {
-              icon: "info",
-              sfSymbol: "info.circle",
-              label: "Version",
-              value: "1.0.0",
-            } as SettingRow,
+            { icon: "globe", sfSymbol: "globe", label: "Website", value: "starksglobalgroup.net" } as SettingRow,
+            { icon: "info", sfSymbol: "info.circle", label: "Version", value: "1.0.0" } as SettingRow,
           ].map((row, i, arr) => (
             <View key={row.label}>
               <Row row={row} />
-              {i < arr.length - 1 && (
-                <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
-              )}
+              {i < arr.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
             </View>
           ))}
         </GlassCard>
@@ -238,102 +293,38 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
-  profile: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontSize: 28,
-    fontWeight: "700",
-  },
+  section: { paddingHorizontal: 20, marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 },
+  profile: { flexDirection: "row", alignItems: "center", gap: 16 },
+  avatar: { width: 64, height: 64, borderRadius: 20, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  avatarText: { fontSize: 28, fontWeight: "700" },
   profileInfo: { gap: 6 },
-  profileName: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  tierPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  tierDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  tierLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 10,
-    marginLeft: 4,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-  },
-  rowIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rowLabel: {
-    flex: 1,
-    fontSize: 15,
-  },
-  rowRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  rowValue: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  rowDivider: {
-    height: 1,
-    marginHorizontal: 16,
-  },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    height: 52,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  profileName: { fontSize: 20, fontWeight: "700" },
+  tierPill: { flexDirection: "row", alignItems: "center", gap: 5 },
+  tierDot: { width: 7, height: 7, borderRadius: 4 },
+  tierLabel: { fontSize: 12, fontWeight: "700", letterSpacing: 1 },
+  sectionLabel: { fontSize: 11, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10, marginLeft: 4 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
+  rowIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  rowLabel: { flex: 1, fontSize: 15 },
+  rowRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  rowValue: { fontSize: 14, fontWeight: "500" },
+  rowDivider: { height: 1, marginHorizontal: 16 },
+  planBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1 },
+  planDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  planName: { fontSize: 13, fontWeight: "700", letterSpacing: 0.5 },
+  planSub: { fontSize: 11, marginTop: 2 },
+  creditsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  creditsInfo: { flexDirection: "row", alignItems: "center", gap: 6 },
+  creditsLabel: { fontSize: 14 },
+  creditsValue: { fontSize: 16, fontWeight: "700" },
+  upgradeBtnRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 46, borderRadius: 12, gap: 8 },
+  upgradeText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  manageBtn: { flexDirection: "row", alignItems: "center", gap: 10, height: 46, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14 },
+  manageBtnText: { fontSize: 14 },
+  toggleRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
+  toggleLabel: { fontSize: 15, fontWeight: "500" },
+  toggleSub: { fontSize: 11 },
+  logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, height: 52, borderRadius: 14, borderWidth: 1 },
+  logoutText: { fontSize: 16, fontWeight: "600" },
 });

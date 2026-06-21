@@ -394,6 +394,24 @@ router.post("/auth/change-password", async (req, res) => {
   return res.json({ success: true, message: "Password updated successfully." });
 });
 
+// ── POST /api/auth/push-token — store Expo push token ─────────────────────────
+router.post("/auth/push-token", async (req, res) => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const parsed = z.object({ expoPushToken: z.string().min(1) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid push token." });
+
+  const token = parsed.data.expoPushToken;
+  if (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken[")) {
+    return res.status(400).json({ error: "Invalid Expo push token format." });
+  }
+
+  await db.update(usersTable).set({ expoPushToken: token }).where(eq(usersTable.id, caller.id));
+  req.log.info({ userId: caller.id }, "Expo push token registered");
+  return res.json({ success: true });
+});
+
 router.post("/auth/admin-bootstrap", async (req, res) => {
   const bootstrapToken = process.env["ADMIN_BOOTSTRAP_TOKEN"];
   if (!bootstrapToken) {

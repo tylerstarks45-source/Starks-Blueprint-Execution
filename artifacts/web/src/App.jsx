@@ -8,7 +8,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext.jsx';
 import { CreditsModalProvider } from '@/contexts/CreditsModalContext.jsx';
 import { ClientProvider } from '@/contexts/ClientContext.jsx';
-import { WhiteLabelProvider } from '@/contexts/WhiteLabelContext.jsx';
+import { WhiteLabelProvider, useWhiteLabel } from '@/contexts/WhiteLabelContext.jsx';
 import OutOfCreditsModal from '@/components/OutOfCreditsModal.jsx';
 
 // Security Routes
@@ -122,6 +122,24 @@ const PageFallback = () => (
   </div>
 );
 
+/**
+ * Renders the page <title> via Helmet.  When a white-label config is active,
+ * we use the agency brand name so Helmet-managed rerenders never revert it
+ * back to the platform name.
+ */
+const WhiteLabelHelmet = () => {
+  const { config } = useWhiteLabel();
+  const title = config?.brandName
+    ? `${config.brandName}`
+    : 'Starks Global Group — Build. Launch. Run. Scale. With ASH AI.';
+  return (
+    <Helmet>
+      <title>{title}</title>
+      <meta name="description" content="The AI Business Operating System for entrepreneurs. Select a blueprint, connect your tools, and let ASH AI build and run your automated income systems from one powerful dashboard." />
+    </Helmet>
+  );
+};
+
 const App = () => {
   return (
     <WhiteLabelProvider>
@@ -129,10 +147,7 @@ const App = () => {
       <AuthProvider>
         <ClientProvider>
         <CreditsModalProvider>
-          <Helmet>
-            <title>Starks Global Group — Build. Launch. Run. Scale. With ASH AI.</title>
-            <meta name="description" content="The AI Business Operating System for entrepreneurs. Select a blueprint, connect your tools, and let ASH AI build and run your automated income systems from one powerful dashboard." />
-          </Helmet>
+          <WhiteLabelHelmet />
 
           <Suspense fallback={<PageFallback />}>
             <Routes>

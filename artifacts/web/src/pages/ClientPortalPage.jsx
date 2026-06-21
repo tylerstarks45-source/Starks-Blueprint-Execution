@@ -4,12 +4,45 @@ import PageMeta from '@/components/PageMeta.jsx';
 import { motion } from 'framer-motion';
 import { Loader2, Building2, Layers, Activity, DollarSign, AlertTriangle, CheckCircle2, Clock, Zap } from 'lucide-react';
 
+/**
+ * Convert a hex color to an "H S% L%" triplet for use inside hsl().
+ * Tailwind tokens use hsl(var(--primary)), so the variable must be a bare triplet.
+ */
+function hexToHslTriplet(hex) {
+  const clean = hex.replace(/^#/, '');
+  const full = clean.length === 3
+    ? clean.split('').map(c => c + c).join('')
+    : clean;
+  const r = parseInt(full.slice(0, 2), 16) / 255;
+  const g = parseInt(full.slice(2, 4), 16) / 255;
+  const b = parseInt(full.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let h = 0, s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+}
+
 function applyWhiteLabelTheme(cfg) {
   if (!cfg) return;
   const root = document.documentElement;
-  if (cfg.primaryColor) root.style.setProperty('--primary', cfg.primaryColor);
-  if (cfg.accentColor)  root.style.setProperty('--wl-accent', cfg.accentColor);
-  if (cfg.brandName)    document.title = `${cfg.brandName} — Client Portal`;
+  if (cfg.primaryColor) {
+    root.style.setProperty('--wl-primary', cfg.primaryColor);
+    root.style.setProperty('--primary', hexToHslTriplet(cfg.primaryColor));
+  }
+  if (cfg.accentColor) {
+    root.style.setProperty('--wl-accent', cfg.accentColor);
+    root.style.setProperty('--accent', hexToHslTriplet(cfg.accentColor));
+  }
+  if (cfg.brandName) document.title = `${cfg.brandName} — Client Portal`;
 }
 
 const STATUS_CONFIG = {

@@ -3,130 +3,368 @@ import React from 'react';
 import PageMeta from '@/components/PageMeta.jsx';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Cpu, Layers, Rocket, Unlock, LockKeyhole, ShieldCheck, Activity, Wrench, CheckSquare, Crosshair, ArrowRight, TerminalSquare } from 'lucide-react';
+import {
+  Bot, Zap, Layers, Rocket, CheckCircle2, ArrowRight,
+  Store, Workflow, MessageCircle, ImageIcon, Film,
+  Cpu, Globe, Target, BarChart3, Mail, BrainCircuit,
+  Wand2, ShieldCheck, Users, DollarSign, Settings2,
+  Sparkles, Play, ChevronRight, BadgeCheck, FileText,
+} from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import VideoBackground from '@/components/VideoBackground.jsx';
+
+const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } };
+const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } };
+
+const STEPS = [
+  {
+    num: '01',
+    icon: Zap,
+    color: 'text-primary',
+    bg: 'bg-primary/15',
+    border: 'border-primary/30',
+    title: 'Create Your Free Account',
+    desc: 'Sign up in under 60 seconds — no credit card required. Your account is your command center: it gives you access to ASH, your blueprints, your systems dashboard, and the AI tool marketplace.',
+    bullets: ['Free forever tier available', 'Instant access to ASH AI', 'No credit card at signup'],
+  },
+  {
+    num: '02',
+    icon: Bot,
+    color: 'text-violet-400',
+    bg: 'bg-violet-500/15',
+    border: 'border-violet-500/30',
+    title: 'Tell ASH What You Want',
+    desc: 'ASH is your AI for everything. Chat with it like you would ChatGPT — but ASH doesn\'t just answer questions. Tell it your goal and it figures out exactly what to build, which blueprint fits best, and what tools you need.',
+    bullets: ['Conversational — just talk to it', 'ASH recommends the right blueprint', 'Works for any online income goal'],
+  },
+  {
+    num: '03',
+    icon: Layers,
+    color: 'text-blue-400',
+    bg: 'bg-blue-500/15',
+    border: 'border-blue-500/30',
+    title: 'Pick a Free Blueprint',
+    desc: 'Blueprints are free, pre-built system architectures — not templates, not PDFs. They are step-by-step automated income system maps that ASH executes for you. Every blueprint has been tested in a real live system.',
+    bullets: ['8 blueprints across 6 income categories', '100% free — no purchase required', 'ASH reads and executes them for you'],
+  },
+  {
+    num: '04',
+    icon: Store,
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/15',
+    border: 'border-emerald-500/30',
+    title: 'Connect Your Tools',
+    desc: 'Browse the AI Tool Marketplace for the specific tools your blueprint needs. Every tool is tested in a live income system before it\'s listed — no paid placements, no guesswork. Connect them in the Connections Hub and ASH takes over.',
+    bullets: ['17+ tools across 8 categories', 'All tested — no filler tools', 'Connections Hub links everything to ASH'],
+  },
+  {
+    num: '05',
+    icon: Rocket,
+    color: 'text-orange-400',
+    bg: 'bg-orange-500/15',
+    border: 'border-orange-500/30',
+    title: 'ASH Builds & Runs Everything',
+    desc: 'Once your tools are connected and your blueprint is set, ASH executes. It builds your system, generates content, monitors performance, and keeps everything running autonomously — 24/7, without you having to manage it.',
+    bullets: ['Fully autonomous operation', 'Run 25–45 systems simultaneously', 'ASH monitors and self-corrects'],
+  },
+];
+
+const ASH_CAN = [
+  { icon: MessageCircle, label: 'Be Your Chatbot', desc: 'Deploy ASH as a chatbot on any page — it answers questions, qualifies leads, and converts visitors.' },
+  { icon: FileText, label: 'Write Your Content', desc: 'Blog posts, email sequences, ad copy, social content — ASH writes and publishes it all.' },
+  { icon: ImageIcon, label: 'Generate Images', desc: 'AI-generated promotional images, social graphics, product visuals — on demand.' },
+  { icon: Film, label: 'Create Videos', desc: 'AI video scripts, voiceovers, and short-form video content without a camera.' },
+  { icon: Workflow, label: 'Build Automations', desc: 'Connect apps, trigger workflows, route leads, and automate any repeatable task.' },
+  { icon: Globe, label: 'Browse the Web', desc: 'ASH can research competitors, scrape data, monitor trends, and act on what it finds.' },
+  { icon: BarChart3, label: 'Analyze & Report', desc: 'Performance dashboards, revenue breakdowns, and smart suggestions based on real data.' },
+  { icon: Cpu, label: 'Run Your Systems', desc: 'Operate 25–45 automated income systems in parallel — affiliate, email, content, ecommerce, and more.' },
+];
+
+const BLUEPRINTS = [
+  { name: 'Affiliate Marketing System', category: 'Affiliate', icon: DollarSign },
+  { name: 'Email List Building System', category: 'Email', icon: Mail },
+  { name: 'AI Content Empire', category: 'Content', icon: FileText },
+  { name: 'Lead Generation Machine', category: 'Leads', icon: Target },
+  { name: 'Social Media Automation', category: 'Social', icon: Users },
+  { name: 'Ecommerce AI System', category: 'Ecommerce', icon: Store },
+  { name: 'Digital Product Funnel', category: 'Products', icon: Layers },
+  { name: 'Analytics & Optimization', category: 'Analytics', icon: BarChart3 },
+];
 
 const HowItWorksPage = () => {
   return (
     <VideoBackground>
       <PageMeta
         title="How It Works | Starks Global Group"
-        description="Discover how to use our platform to build, understand, and deploy real AI-powered automation systems."
+        description="Learn how ASH AI builds and runs your automated income systems from start to finish."
       />
-      
+
       <Header />
-      
+
       <main className="flex-grow">
-        
+
+        {/* HERO */}
         <section className="relative pt-32 pb-24 lg:pt-40 lg:pb-32 overflow-hidden border-b border-white/10 bg-background/50 backdrop-blur-sm">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center max-w-4xl">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <div className="inline-flex items-center gap-2 px-3 py-1 mb-6 border border-primary/30 bg-primary/20 backdrop-blur-md text-primary text-xs font-mono uppercase tracking-widest rounded-md shadow-sm">
-                <TerminalSquare className="w-3.5 h-3.5" />
-                <span>Platform Architecture</span>
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 border border-primary/30 bg-primary/15 backdrop-blur-md text-primary text-xs font-mono uppercase tracking-widest rounded-full">
+                <BrainCircuit className="w-3.5 h-3.5" />
+                <span>Platform Overview</span>
               </div>
-              <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight tracking-tight mb-6 text-shadow-lg">
-                How the Starks Global Platform Works
+              <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-[1.05] tracking-tight mb-6 text-shadow-lg">
+                How It Works
               </h1>
-              <p className="text-lg md:text-xl text-zinc-100 leading-relaxed mb-4 max-w-3xl mx-auto text-shadow-md font-medium">
-                A structured AI infrastructure platform designed to connect tools into real, deployable automation systems.
+              <p className="text-xl md:text-2xl text-zinc-100 leading-relaxed mb-8 max-w-3xl mx-auto font-medium text-shadow-md">
+                One AI. Free blueprints. A tested tool marketplace. Here's exactly how you go from zero to a fully automated income system.
               </p>
-              <div className="p-6 border border-primary/50 bg-card/80 text-left mx-auto max-w-2xl rounded-2xl backdrop-blur-xl shadow-2xl">
-                <p className="text-sm md:text-base text-zinc-100 font-medium">
-                  <strong className="text-primary">Important:</strong> We are not a generic AI tool directory. We are an automation infrastructure platform that tests how software integrates into cohesive, revenue-generating systems.
-                </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link to="/signup" className="saas-button gap-2 text-lg px-8 py-4">
+                  <Rocket className="w-5 h-5" /> Start Free — No Card Needed
+                </Link>
+                <Link to="/builder" className="saas-button-secondary gap-2 text-lg px-8 py-4 bg-card/80 backdrop-blur-md">
+                  <Bot className="w-5 h-5" /> Talk to ASH Now
+                </Link>
               </div>
             </motion.div>
           </div>
         </section>
 
-        <section className="py-24 bg-background/60 backdrop-blur-md relative border-b border-white/10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-4 text-shadow-md">The Platform Workflow</h2>
-              <p className="text-zinc-200 max-w-2xl mx-auto font-medium text-shadow-sm">Follow our methodology to transition from browsing isolated tools to deploying complete automation architectures.</p>
-            </div>
+        {/* 5-STEP FLOW */}
+        <section className="section-padding border-b border-white/5 bg-background/40 backdrop-blur-sm">
+          <div className="section-container">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
+              <h2 className="section-title">Five Steps to a Running System</h2>
+              <p className="section-subtitle max-w-2xl mx-auto">From account creation to a live automated income machine — here's the exact path.</p>
+            </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-              {[
-                { num: "1", icon: Search, title: "Browse Verified AI Tools", desc: "Explore our public marketplace of categorized AI software. We filter out the noise, listing only tools that serve a specific functional purpose in a broader automation stack." },
-                { num: "2", icon: Layers, title: "Understand System Architecture", desc: "Instead of treating tools as isolated solutions, we define how each category fits into a larger automation system—covering traffic, content, conversion, and revenue flow." },
-                { num: "3", icon: Cpu, title: "Access System Blueprints", desc: "Each blueprint reflects a tested system architecture—not a theoretical setup. Get structural maps, required tools, and setup paths." },
-                { num: "4", icon: Rocket, title: "Build & Deploy", desc: "Use our blueprints to construct your own automated infrastructure. Save your selected tools to your dashboard, track your tech stack, and scale your operations with confidence." }
-              ].map((step, idx) => (
-                <div key={idx} className="group relative p-8 border border-white/20 bg-card/80 backdrop-blur-xl hover:border-primary/50 transition-colors duration-300 rounded-2xl overflow-hidden flex flex-col h-full shadow-xl">
-                  <div className="absolute top-0 right-0 text-9xl font-black text-white/5 pointer-events-none select-none -mt-4 -mr-4 group-hover:text-primary/10 transition-colors">{step.num}</div>
-                  <div className="w-12 h-12 bg-primary/20 border border-primary/30 flex items-center justify-center mb-6 rounded-xl text-primary backdrop-blur-md shadow-sm">
-                    <step.icon className="w-6 h-6" />
+            <div className="space-y-6 max-w-4xl mx-auto">
+              {STEPS.map((step, i) => (
+                <motion.div
+                  key={step.num}
+                  initial={{ opacity: 0, x: i % 2 === 0 ? -24 : 24 }} whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }} transition={{ delay: i * 0.08 }}
+                  className="cinematic-card p-7 flex gap-6 items-start"
+                >
+                  <div className="shrink-0 flex flex-col items-center gap-3">
+                    <div className={`w-14 h-14 rounded-2xl ${step.bg} border ${step.border} flex items-center justify-center`}>
+                      <step.icon className={`w-7 h-7 ${step.color}`} />
+                    </div>
+                    {i < STEPS.length - 1 && (
+                      <div className="w-px flex-1 min-h-[20px] bg-white/8" />
+                    )}
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-3 relative z-10 text-shadow-sm">{step.title}</h3>
-                  <p className="text-zinc-300 text-sm leading-relaxed relative z-10 mt-auto font-medium">
-                    {step.desc}
-                  </p>
-                </div>
+                  <div className="flex-1 min-w-0 pt-1">
+                    <div className={`text-xs font-bold font-mono ${step.color} tracking-widest uppercase mb-2`}>STEP {step.num}</div>
+                    <h3 className="text-xl font-extrabold text-white mb-2">{step.title}</h3>
+                    <p className="text-zinc-400 text-sm leading-relaxed mb-4">{step.desc}</p>
+                    <div className="flex flex-wrap gap-3">
+                      {step.bullets.map(b => (
+                        <span key={b} className="flex items-center gap-1.5 text-xs text-zinc-300 font-medium">
+                          <CheckCircle2 className={`w-3.5 h-3.5 ${step.color} shrink-0`} /> {b}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="shrink-0 hidden md:block self-center">
+                    <span className="text-7xl font-black text-white/5 select-none">{step.num}</span>
+                  </div>
+                </motion.div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="py-24 bg-background/40 backdrop-blur-sm relative border-b border-white/10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-4 text-shadow-md">Browse Freely. Build with an Account.</h2>
-              <p className="text-zinc-200 text-lg font-medium max-w-2xl mx-auto text-shadow-sm">
-                We maintain a strict boundary between public discovery and private infrastructure planning.
+        {/* WHAT ASH CAN DO */}
+        <section className="section-padding border-b border-white/5 bg-background/50 backdrop-blur-sm">
+          <div className="section-container">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-sm font-bold font-mono mb-5">
+                <Bot className="w-4 h-4" /> ASH AI AGENT
+              </div>
+              <h2 className="section-title">ASH Can Do Anything</h2>
+              <p className="section-subtitle max-w-3xl mx-auto">
+                Stop paying for ChatGPT, a separate image tool, a video platform, and an automation service. ASH replaces all of them — and then runs your entire business on top of it.
               </p>
+            </motion.div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {ASH_CAN.map((item, i) => (
+                <motion.div
+                  key={item.label}
+                  initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }} transition={{ delay: i * 0.06 }}
+                  className="cinematic-card p-5"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center mb-4">
+                    <item.icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="font-bold text-white text-sm mb-1.5">{item.label}</div>
+                  <div className="text-xs text-zinc-400 leading-relaxed">{item.desc}</div>
+                </motion.div>
+              ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-white/20 rounded-3xl overflow-hidden shadow-2xl">
-              <div className="bg-card/90 backdrop-blur-2xl p-8 md:p-12 border-b lg:border-b-0 lg:border-r border-white/10">
-                <div className="flex items-center gap-3 mb-8">
-                  <Unlock className="w-6 h-6 text-zinc-300" />
-                  <h3 className="text-xl font-bold text-white text-shadow-sm">What You Can Do Without an Account</h3>
+            <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="text-center mt-10">
+              <Link to="/builder" className="saas-button gap-2">
+                <Wand2 className="w-4 h-4" /> Open ASH — Try It Free
+              </Link>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* BLUEPRINTS ARE FREE */}
+        <section className="section-padding border-b border-white/5 bg-background/40 backdrop-blur-sm">
+          <div className="section-container">
+            <div className="grid lg:grid-cols-2 gap-14 items-center max-w-6xl mx-auto">
+              <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-400 text-sm font-bold font-mono mb-6">
+                  <Layers className="w-4 h-4" /> SYSTEM BLUEPRINTS — FREE
                 </div>
-                <ul className="space-y-4">
-                  {["Browse all AI tools in the marketplace", "Search and filter tools by functional category", "View high-level tool descriptions and use cases", "Access verified recommendations and ratings"].map((item, i) => (
-                    <li key={i} className="flex items-start gap-3 text-zinc-300 text-sm font-medium">
-                      <div className="w-1.5 h-1.5 rounded-full bg-zinc-400 mt-2 shrink-0" />
-                      <span>{item}</span>
+                <h2 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4 text-shadow-lg">
+                  Blueprints Are<br />
+                  <span className="text-gradient-blue">Always Free.</span>
+                </h2>
+                <p className="text-lg text-zinc-300 mb-6 leading-relaxed">
+                  Blueprints are not templates and they are not PDFs. They are complete, step-by-step automated income system maps — built and tested by Tyler Starks — that ASH reads and executes for you. Every single one is free. No purchase, no subscription required to access them.
+                </p>
+                <ul className="space-y-3 mb-8">
+                  {[
+                    'Free to every account — no tier required',
+                    'ASH executes the blueprint end-to-end',
+                    'Each tested in a real live income system',
+                    '8 blueprints across 6 income categories',
+                    'Community members can submit blueprints too',
+                  ].map(f => (
+                    <li key={f} className="flex items-center gap-2.5 text-sm text-zinc-300">
+                      <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" /> {f}
                     </li>
                   ))}
                 </ul>
+                <Link to="/blueprints" className="saas-button gap-2">
+                  <Layers className="w-4 h-4" /> Browse All Blueprints — Free
+                </Link>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.1 }}>
+                <div className="space-y-3">
+                  {BLUEPRINTS.map((bp, i) => (
+                    <motion.div
+                      key={bp.name}
+                      initial={{ opacity: 0, x: 16 }} whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }} transition={{ delay: i * 0.07 }}
+                      className="cinematic-card px-5 py-4 flex items-center gap-4"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-blue-500/15 border border-blue-500/25 flex items-center justify-center shrink-0">
+                        <bp.icon className="w-4 h-4 text-blue-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-white truncate">{bp.name}</div>
+                        <div className="text-xs text-zinc-500 font-mono">{bp.category}</div>
+                      </div>
+                      <span className="text-xs font-bold font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2.5 py-1 shrink-0">FREE</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
+        {/* FREE VS PAID */}
+        <section className="section-padding border-b border-white/5 bg-background/50 backdrop-blur-sm">
+          <div className="section-container">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
+              <h2 className="section-title">Start Free. Scale When Ready.</h2>
+              <p className="section-subtitle max-w-2xl mx-auto">Everything you need to get your first system running is free. Upgrade only when you want to run more systems and unlock advanced ASH capabilities.</p>
+            </motion.div>
+
+            <div className="grid lg:grid-cols-2 gap-0 border border-white/10 rounded-3xl overflow-hidden shadow-2xl max-w-4xl mx-auto">
+              {/* Free */}
+              <div className="bg-card/80 backdrop-blur-xl p-8 md:p-10 border-b lg:border-b-0 lg:border-r border-white/10">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-zinc-300" />
+                  </div>
+                  <h3 className="text-xl font-extrabold text-white">Free Account</h3>
+                </div>
+                <div className="text-3xl font-extrabold text-white mb-6 mt-1">$0 <span className="text-base font-medium text-zinc-400">/ forever</span></div>
+                <ul className="space-y-3">
+                  {[
+                    'Full access to ASH AI agent',
+                    'All 8 blueprints — free',
+                    'Browse AI Tool Marketplace',
+                    'Connect tools via Connections Hub',
+                    'Build 1 active system',
+                    'Standard ASH response speed',
+                  ].map(f => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
+                      <CheckCircle2 className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" /> {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link to="/signup" className="saas-button-secondary gap-2 justify-center mt-8 w-full">
+                  <Rocket className="w-4 h-4" /> Create Free Account
+                </Link>
               </div>
 
-              <div className="bg-primary/10 backdrop-blur-2xl p-8 md:p-12 relative overflow-hidden">
-                <div className="flex items-center gap-3 mb-8 relative z-10">
-                  <LockKeyhole className="w-6 h-6 text-primary" />
-                  <h3 className="text-xl font-bold text-white text-shadow-sm">What You Unlock with an Account</h3>
+              {/* Paid */}
+              <div className="bg-primary/10 backdrop-blur-xl p-8 md:p-10 relative overflow-hidden">
+                <div className="absolute top-4 right-4">
+                  <span className="text-xs font-bold font-mono text-primary bg-primary/15 border border-primary/30 rounded-full px-3 py-1">MOST POPULAR</span>
                 </div>
-                <ul className="space-y-4 relative z-10">
-                  {["Full access to step-by-step system blueprints", "Save specific systems to your personal profile", "Track and manage your entire software stack", "Access exclusive platform infrastructure updates", "Submit custom system and tool requests directly"].map((item, i) => (
-                    <li key={i} className="flex items-start gap-3 text-zinc-100 text-sm font-bold text-shadow-sm">
-                      <CheckSquare className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <span>{item}</span>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center">
+                    <BrainCircuit className="w-5 h-5 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-extrabold text-white">Pro & Empire</h3>
+                </div>
+                <div className="text-3xl font-extrabold text-white mb-6 mt-1">From $49 <span className="text-base font-medium text-zinc-400">/ month</span></div>
+                <ul className="space-y-3">
+                  {[
+                    'Run 25–45 systems simultaneously',
+                    'Priority ASH processing speed',
+                    'Unlimited blueprint deployments',
+                    'Advanced AI: image, video & browser',
+                    'Full Connections Hub — all integrations',
+                    'Dedicated support & white-glove setup',
+                  ].map(f => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-100 font-medium">
+                      <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> {f}
                     </li>
                   ))}
                 </ul>
+                <Link to="/pricing" className="saas-button gap-2 justify-center mt-8 w-full">
+                  <Sparkles className="w-4 h-4" /> View All Plans
+                </Link>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="py-32 relative overflow-hidden bg-background/50 backdrop-blur-md">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center max-w-3xl">
-            <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-6 text-shadow-lg">
-              Start Exploring or Build Your System
-            </h2>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-12">
-              <Link to="/marketplace" className="w-full sm:w-auto px-8 py-4 bg-card/80 backdrop-blur-md border border-white/20 text-white font-bold text-sm tracking-wide hover:bg-card transition-all rounded-lg text-center shadow-lg">
-                Browse Marketplace
-              </Link>
-              <Link to="/signup" className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm tracking-wide shadow-xl transition-all rounded-lg text-center">
-                Create Free Account
-              </Link>
-            </div>
+        {/* FINAL CTA */}
+        <section className="section-padding bg-background/50 backdrop-blur-md">
+          <div className="section-container">
+            <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center max-w-3xl mx-auto">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-sm font-bold font-mono mb-6">
+                <BadgeCheck className="w-4 h-4" /> READY WHEN YOU ARE
+              </div>
+              <h2 className="text-4xl md:text-6xl font-extrabold text-white leading-tight tracking-tight mb-6 text-shadow-lg">
+                Your First System Is<br />
+                <span className="text-gradient-blue">One Conversation Away</span>
+              </h2>
+              <p className="text-lg text-zinc-300 mb-10 leading-relaxed">
+                Sign up free, open ASH, tell it what you want to build — and watch it go. No tech skills needed, no guesswork, no wasted time figuring it out alone.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link to="/signup" className="saas-button text-lg px-10 py-4 gap-2">
+                  <Rocket className="w-5 h-5" /> Start Free — Join Now
+                </Link>
+                <Link to="/marketplace" className="saas-button-secondary text-lg px-10 py-4 gap-2 bg-card/80 backdrop-blur-md">
+                  <Store className="w-5 h-5" /> Explore AI Tools
+                </Link>
+              </div>
+            </motion.div>
           </div>
         </section>
 

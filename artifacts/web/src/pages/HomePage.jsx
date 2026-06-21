@@ -596,87 +596,72 @@ const HomePage = () => {
         </section>
 
         {/* ═══════════════════════════════════════════════════════════════
-            ZERO GUESSWORK — MARKETPLACE + BLUEPRINT MARKETPLACE
+            ZERO GUESSWORK — AI TOOL MARKETPLACE
         ═══════════════════════════════════════════════════════════════ */}
         <section className="section-padding border-b border-white/5 bg-background/50 backdrop-blur-sm">
           <div className="section-container">
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-sm font-bold font-mono mb-5">
-                <BadgeCheck className="w-4 h-4" /> ZERO GUESSWORK GUARANTEE
-              </div>
-              <h2 className="section-title">Two Marketplaces. Total Coverage.</h2>
-              <p className="section-subtitle">Every tool and every blueprint on this platform has been tested inside a real automated income system — before it ever reaches you.</p>
-            </motion.div>
-
-            <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-              {/* AI Tool Marketplace */}
-              <motion.div
-                initial={{ opacity: 0, x: -24 }} whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }} transition={{ delay: 0.05 }}
-                className="cinematic-card p-8 flex flex-col border-blue-500/25 bg-blue-500/5"
-                style={{ boxShadow: '0 0 40px rgba(59,130,246,0.08)' }}
-              >
-                <div className="w-14 h-14 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center mb-5">
-                  <Store className="w-7 h-7 text-blue-400" />
+            <div className="grid lg:grid-cols-2 gap-14 items-center max-w-6xl mx-auto">
+              {/* Left: text */}
+              <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-sm font-bold font-mono mb-6">
+                  <BadgeCheck className="w-4 h-4" /> ZERO GUESSWORK GUARANTEE
                 </div>
-                <div className="inline-block text-xs font-bold font-mono text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-full px-3 py-1 mb-4">AI TOOL MARKETPLACE</div>
-                <h3 className="text-2xl font-extrabold text-white mb-3">17+ Tested AI Tools</h3>
-                <p className="text-zinc-400 mb-6 text-sm leading-relaxed">
-                  Every tool in our marketplace has been deployed inside a real automated money-making system and verified for results. No paid placements, no sponsored rankings — only tools that perform.
+                <h2 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4 text-shadow-lg">
+                  Every Tool, Tested.<br />
+                  <span className="text-gradient-blue">No Guesswork. Ever.</span>
+                </h2>
+                <p className="text-lg text-zinc-300 mb-8 leading-relaxed">
+                  Our AI Tool Marketplace isn't a directory — it's a curated collection of software that's been deployed inside real, live automated income systems. If a tool isn't producing results in the wild, it's not in our marketplace.
                 </p>
-                <ul className="space-y-2.5 mb-8 flex-1">
+                <ul className="space-y-3 mb-8">
                   {[
-                    'All tools tested in live income systems',
-                    'No pay-to-play placements — ever',
-                    '8 categories covering every use case',
-                    'Exclusive deals and affiliate discounts',
-                    'Updated continuously as tech evolves',
+                    { label: 'No paid placements — ever', sub: 'Tools earn their spot through performance, not payments' },
+                    { label: '17+ tools across 8 categories', sub: 'AI writing, video, automation, CRM, email, analytics & more' },
+                    { label: 'Tested in real income systems', sub: 'Every tool verified inside a live ASH-run automated system' },
+                    { label: 'Exclusive deals & affiliate discounts', sub: 'Members get access to special pricing not available elsewhere' },
                   ].map(f => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-zinc-300">
-                      <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" /> {f}
+                    <li key={f.label} className="flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-sm font-semibold text-white">{f.label}</div>
+                        <div className="text-xs text-zinc-500 mt-0.5">{f.sub}</div>
+                      </div>
                     </li>
                   ))}
                 </ul>
-                <Link to="/marketplace" className="saas-button-secondary gap-2 justify-center border-blue-500/30 hover:border-blue-400/50">
-                  <Store className="w-4 h-4" /> Browse AI Marketplace
+                <Link to="/marketplace" className="saas-button gap-2">
+                  <Store className="w-4 h-4" /> Browse the AI Marketplace
                 </Link>
               </motion.div>
 
-              {/* Blueprint Marketplace */}
-              <motion.div
-                initial={{ opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }} transition={{ delay: 0.12 }}
-                className="cinematic-card p-8 flex flex-col border-violet-500/25 bg-violet-500/5"
-                style={{ boxShadow: '0 0 40px rgba(139,92,246,0.08)' }}
-              >
-                <div className="w-14 h-14 rounded-2xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center mb-5">
-                  <Layers className="w-7 h-7 text-violet-400" />
-                </div>
-                <div className="inline-block text-xs font-bold font-mono text-violet-400 bg-violet-500/10 border border-violet-500/20 rounded-full px-3 py-1 mb-4">BLUEPRINT MARKETPLACE</div>
-                <h3 className="text-2xl font-extrabold text-white mb-3">Community Blueprints</h3>
-                <p className="text-zinc-400 mb-6 text-sm leading-relaxed">
-                  Browse community-built system blueprints, purchase proven setups from other operators, or submit your own. Every blueprint is reviewed before going live. Real systems, real results, real people.
-                </p>
-                <ul className="space-y-2.5 mb-8 flex-1">
+              {/* Right: category grid */}
+              <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.1 }}>
+                <div className="grid grid-cols-2 gap-3">
                   {[
-                    'Browse community-submitted blueprints',
-                    'Every blueprint reviewed & verified',
-                    'Purchase and deploy in minutes with ASH',
-                    'Submit your own — earn credits',
-                    'Star ratings and verified reviews',
-                  ].map(f => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-zinc-300">
-                      <CheckCircle2 className="w-4 h-4 text-violet-400 shrink-0" /> {f}
-                    </li>
+                    { icon: FileText, label: 'AI Writing', count: '4 tools', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+                    { icon: Film, label: 'AI Video', count: '3 tools', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+                    { icon: Mail, label: 'Email Marketing', count: '2 tools', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+                    { icon: Workflow, label: 'Automation', count: '3 tools', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+                    { icon: BarChart3, label: 'Analytics', count: '2 tools', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
+                    { icon: MessageCircle, label: 'Chatbots', count: '1 tool', color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
+                    { icon: ImageIcon, label: 'AI Images', count: '1 tool', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
+                    { icon: Target, label: 'CRM & Leads', count: '1 tool', color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
+                  ].map((cat, i) => (
+                    <motion.div
+                      key={cat.label}
+                      initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: true }} transition={{ delay: i * 0.06 }}
+                      className={`cinematic-card p-4 flex items-center gap-3 ${cat.border}`}
+                    >
+                      <div className={`w-9 h-9 rounded-lg ${cat.bg} border ${cat.border} flex items-center justify-center shrink-0`}>
+                        <cat.icon className={`w-4 h-4 ${cat.color}`} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-white">{cat.label}</div>
+                        <div className={`text-xs font-mono ${cat.color}`}>{cat.count}</div>
+                      </div>
+                    </motion.div>
                   ))}
-                </ul>
-                <div className="flex gap-3">
-                  <Link to="/blueprints" className="flex-1 saas-button-secondary gap-2 justify-center border-violet-500/30 hover:border-violet-400/50">
-                    <Layers className="w-4 h-4" /> Browse Blueprints
-                  </Link>
-                  <Link to="/blueprints/submit" className="saas-button-secondary px-4 justify-center border-violet-500/30 hover:border-violet-400/50" title="Submit a Blueprint">
-                    <PlusCircle className="w-4 h-4" />
-                  </Link>
                 </div>
               </motion.div>
             </div>

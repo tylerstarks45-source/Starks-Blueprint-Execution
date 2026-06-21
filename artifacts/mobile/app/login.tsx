@@ -63,9 +63,9 @@ export default function LoginScreen() {
           <View style={[styles.logoBox, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40" }]}>
             <Feather name="zap" size={28} color={colors.primary} />
           </View>
-          <Text style={[styles.logoText, { color: colors.foreground }]}>SBEP</Text>
+          <Text style={[styles.logoText, { color: colors.foreground }]}>Starks Global Group</Text>
           <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
-            Starks Blueprint Execution Platform
+            AI-Powered Business Automation
           </Text>
         </View>
 

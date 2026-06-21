@@ -620,7 +620,7 @@ const HomePage = () => {
                         "I built Starks Global Group because I saw entrepreneurs spending thousands of hours testing random AI tools with no real guidance, no proven systems, and no AI agent to help them execute.
                       </p>
                       <p>
-                        We changed that. Today, SBEP gives any entrepreneur access to tested AI tools, proven business blueprints, and ASH — an AI agent that actually builds the systems for you.
+                        We changed that. Today, Starks Global Group gives any entrepreneur access to tested AI tools, proven business blueprints, and ASH — an AI agent that actually builds the systems for you.
                       </p>
                       <p className="font-semibold text-white">
                         Buy the tools. Use the blueprints. Build with ASH. Run everything from one dashboard."

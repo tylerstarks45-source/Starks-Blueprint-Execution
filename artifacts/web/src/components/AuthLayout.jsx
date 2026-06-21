@@ -44,7 +44,7 @@ export default function AuthLayout({ children }) {
           </button>
           <img
             src="https://horizons-cdn.hostinger.com/c23c9050-cfff-41bf-82a4-af121e0b4678/4c35c9e2294c3d0e16fb5ed3a74c5ddc.png"
-            alt="SBEP"
+            alt="Starks Global Group"
             className="h-8 w-auto object-contain"
           />
           <NotificationBell />

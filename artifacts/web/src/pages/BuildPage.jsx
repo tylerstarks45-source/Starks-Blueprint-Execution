@@ -402,7 +402,7 @@ const BuildPage = () => {
                   <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                   <span className="ml-2 text-xs text-muted-foreground font-mono">
-                    SBEP Build Agent — {blueprint?.name}
+                    ASH Build Agent — {blueprint?.name}
                   </span>
                   {isExecuting && (
                     <span className="ml-auto flex items-center gap-1.5 text-xs text-primary font-mono">

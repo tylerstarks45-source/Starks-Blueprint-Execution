@@ -100,7 +100,7 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
           <Link to="/dashboard" onClick={handleNavClick} className="flex items-center gap-2 min-w-0">
             <img
               src="https://horizons-cdn.hostinger.com/c23c9050-cfff-41bf-82a4-af121e0b4678/4c35c9e2294c3d0e16fb5ed3a74c5ddc.png"
-              alt="SBEP"
+              alt="Starks Global Group"
               className="h-8 w-auto object-contain shrink-0"
             />
           </Link>
@@ -109,7 +109,7 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
           <Link to="/dashboard" onClick={handleNavClick} className="flex items-center justify-center w-full">
             <img
               src="https://horizons-cdn.hostinger.com/c23c9050-cfff-41bf-82a4-af121e0b4678/4c35c9e2294c3d0e16fb5ed3a74c5ddc.png"
-              alt="SBEP"
+              alt="Starks Global Group"
               className="h-7 w-auto object-contain"
             />
           </Link>

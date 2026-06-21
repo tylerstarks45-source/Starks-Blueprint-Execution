@@ -1594,15 +1594,19 @@ const BuilderPage = () => {
 
   const chatBottomRef = useRef(null);
   const inputRef = useRef(null);
+  const attachImgRef = useRef(null);
+  const attachFileRef = useRef(null);
+
+  // Message box toolbar state
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showAiDropdown, setShowAiDropdown] = useState(false);
+  const [attachments, setAttachments] = useState([]);
 
   // Active side panel: null | 'explorer' | 'blueprints' | 'tools' | 'settings'
   const [activeSidePanel, setActiveSidePanel] = useState('explorer');
 
   // Right resource panel tab
   const [rightPanel, setRightPanel] = useState('blueprints');
-
-  // Agent modes popup (bottom-left panel)
-  const [showAgentModes, setShowAgentModes] = useState(false);
 
   // Checkpoints — loaded from localStorage, refreshed after each save
   const [checkpoints, setCheckpoints] = useState([]);
@@ -2445,6 +2449,18 @@ const BuilderPage = () => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+  const handleAttachFile = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const MAX = 5 * 1024 * 1024; // 5 MB per file
+    const valid = files.filter(f => {
+      if (f.size > MAX) { toast.error(`${f.name} exceeds 5 MB`); return false; }
+      return true;
+    });
+    setAttachments(prev => [...prev, ...valid].slice(0, 8)); // max 8 attachments
+    e.target.value = '';
+  };
+
   const isInputDisabled = chatLoading || phase === 'building' || phase === 'complete' || (phase === 'planning' && !!pendingPlanData);
   const filteredBps = blueprints.filter(b =>
     (!activeCatId || b.categoryId === activeCatId) &&
@@ -3021,162 +3037,15 @@ const BuilderPage = () => {
             )}
           </AnimatePresence>
 
-          {/* ── BOTTOM: Agent Modes (Replit-style popup) ── */}
-          <div className="shrink-0 border-t border-white/8 bg-black/85">
-            {/* Expandable agent modes panel */}
-            <AnimatePresence>
-              {showAgentModes && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="overflow-hidden border-b border-white/8 bg-[#08080f]"
-                >
-                  <div className="p-3 pt-2.5">
-                    <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono mb-2">
-                      Agent modes <span className="text-white/15 normal-case">· Cycle Ctrl+Shift+I</span>
-                    </p>
-                    {/* Mode tabs */}
-                    <div className="flex gap-1 mb-3">
-                      {AI_MODES.map(m => {
-                        const MIcon = m.icon;
-                        const isActive = aiMode === m.id;
-                        const isLocked = m.requiredTier && !isEmpireTier;
-                        return (
-                          <button
-                            key={m.id}
-                            disabled={!!isLocked}
-                            onClick={() => !isLocked && setAiMode(m.id)}
-                            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[10px] font-mono font-bold transition-all border ${
-                              isActive ? `${m.color} border-current bg-white/4`
-                                : 'text-white/28 border-white/8 hover:border-white/18 hover:text-white/55'
-                            } ${isLocked ? 'opacity-22 cursor-not-allowed' : ''}`}
-                          >
-                            <MIcon className="w-3 h-3" />
-                            {m.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {/* Active mode description */}
-                    {activeMode && (
-                      <p className={`text-[10px] leading-relaxed ${activeMode.color} opacity-55 mb-3`}>{activeMode.description}</p>
-                    )}
-                    {/* Replit-style toggles */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-[11px] text-white/55 font-mono">App testing</p>
-                          <p className="text-[9px] text-white/22 truncate">Agent tests your build automatically</p>
-                        </div>
-                        <div className={`w-9 h-5 rounded-full shrink-0 flex items-center px-0.5 transition-colors ${
-                          phase === 'building' ? 'bg-primary/80' : 'bg-white/12'
-                        }`}>
-                          <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                            phase === 'building' ? 'translate-x-4' : 'translate-x-0'
-                          }`} />
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-[11px] text-white/55 font-mono">High effort <span className="text-[9px] text-amber-400/55">·+$</span></p>
-                          <p className="text-[9px] text-white/22 truncate">Powered by stronger model for harder tasks</p>
-                        </div>
-                        <div
-                          onClick={() => aiMode === 'fast' ? setAiMode('business') : setAiMode('fast')}
-                          className={`w-9 h-5 rounded-full shrink-0 flex items-center px-0.5 transition-colors cursor-pointer ${
-                            aiMode !== 'fast' ? 'bg-amber-500/65' : 'bg-white/12'
-                          }`}
-                        >
-                          <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                            aiMode !== 'fast' ? 'translate-x-4' : 'translate-x-0'
-                          }`} />
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between gap-2 opacity-32">
-                        <div className="min-w-0">
-                          <p className="text-[11px] text-white/55 font-mono">Turbo <span className="text-[9px] text-violet-400/55">· Pro</span></p>
-                          <p className="text-[9px] text-white/22 truncate">Upgrade to Pro to unlock the fastest models.</p>
-                        </div>
-                        <div className="w-9 h-5 rounded-full shrink-0 bg-white/10 flex items-center px-0.5 cursor-not-allowed">
-                          <div className="w-4 h-4 rounded-full bg-white/38 shadow-sm" />
-                        </div>
-                      </div>
-                    </div>
-                    {/* Business type + revenue goal */}
-                    <div className="mt-3 pt-2.5 border-t border-white/8 space-y-2">
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono mb-1.5 flex items-center gap-1">
-                          <Building2 className="w-2.5 h-2.5" /> Business Type
-                        </p>
-                        <div className="grid grid-cols-4 gap-1">
-                          {BUSINESS_TYPES.slice(0, 4).map(bt => {
-                            const BIcon = bt.icon;
-                            const isActive = businessType === bt.id;
-                            return (
-                              <button
-                                key={bt.id}
-                                onClick={() => setBusinessType(isActive ? null : bt.id)}
-                                className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg border text-[9px] font-mono transition-all ${
-                                  isActive ? `${bt.bg} ${bt.color}` : 'bg-white/3 border-white/8 hover:border-white/18 text-white/35'
-                                }`}
-                              >
-                                <BIcon className={`w-3.5 h-3.5 ${isActive ? bt.color : ''}`} />
-                                {bt.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono mb-1 flex items-center gap-1">
-                          <Target className="w-2.5 h-2.5" /> Revenue Goal
-                        </p>
-                        {showRevenueGoalInput ? (
-                          <div className="flex gap-1">
-                            <input
-                              type="text"
-                              value={revenueGoal}
-                              onChange={e => setRevenueGoal(e.target.value)}
-                              placeholder="e.g. $5,000/mo"
-                              className="flex-1 text-[11px] bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white placeholder:text-white/22 focus:outline-none focus:border-primary/45 font-mono"
-                              onKeyDown={e => { if (e.key === 'Enter') setShowRevenueGoalInput(false); }}
-                              autoFocus
-                            />
-                            <button onClick={() => setShowRevenueGoalInput(false)} className="text-primary hover:text-primary/80 px-2 text-sm">✓</button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setShowRevenueGoalInput(true)}
-                            className="w-full flex items-center justify-between text-[11px] px-2 py-1.5 rounded-lg border border-white/8 bg-white/3 hover:border-white/18 transition-colors"
-                          >
-                            <span className="text-white/35 font-mono">{revenueGoal || 'Set monthly goal…'}</span>
-                            {revenueGoal && <span className="text-emerald-400 font-mono font-bold text-[10px]">{revenueGoal}/mo</span>}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Agent mode bar */}
-            <div className="flex items-center justify-between px-3 py-2">
-              <span className="text-[9px] font-mono text-white/22">AI Model</span>
-              <button
-                onClick={() => setShowAgentModes(p => !p)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[10px] font-mono font-bold transition-all ${
-                  showAgentModes
-                    ? `${activeMode?.color ?? 'text-primary'} border-current bg-white/4`
-                    : 'text-white/32 border-white/10 hover:border-white/22 hover:text-white/55'
-                }`}
-              >
-                {activeMode && <activeMode.icon className="w-3 h-3" />}
-                {activeMode?.label ?? 'Fast'} ↑
-              </button>
-            </div>
+          {/* ── BOTTOM: Model status (settings now in the message box) ── */}
+          <div className="shrink-0 border-t border-white/8 bg-black/85 px-3 py-2 flex items-center justify-between">
+            <span className="text-[9px] font-mono text-white/22">Agent Mode</span>
+            {activeMode && (
+              <span className={`flex items-center gap-1 text-[9px] font-mono ${activeMode.color} opacity-55`}>
+                <activeMode.icon className="w-2.5 h-2.5" />
+                {activeMode.label} · {activeMode.modelLabel}
+              </span>
+            )}
           </div>
         </div>
 
@@ -3568,7 +3437,7 @@ const BuilderPage = () => {
           )}
 
           {/* Input bar */}
-          <div className="p-3 border-t border-white/10 bg-black/90 shrink-0">
+          <div className="px-3 pb-3 pt-2 border-t border-white/10 bg-black/90 shrink-0">
             {phase === 'building' ? (
               <div className="flex items-center justify-center gap-2 py-1.5">
                 <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
@@ -3581,63 +3450,229 @@ const BuilderPage = () => {
               </div>
             ) : (
               <>
-                <div className="flex gap-2 items-end">
-                  <textarea
-                    ref={inputRef}
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={handleKey}
-                    placeholder={phase === 'collecting' ? 'Fill credentials above…' : phase === 'planning' ? 'Plan ready — confirm above or ask to adjust…' : isPlanMode ? 'Ask ASH anything — explore ideas, understand systems, or plan a build…' : 'Describe your income goal to ASH…'}
-                    disabled={isInputDisabled}
-                    className="flex-1 resize-none text-xs bg-black/50 border border-white/12 rounded-xl px-3 py-2 text-white placeholder:text-white/22 focus:outline-none focus:border-primary/45 transition-colors disabled:opacity-40"
-                    rows={1}
-                    style={{ minHeight: '36px', maxHeight: '120px' }}
-                    onInput={e => {
-                      e.target.style.height = 'auto';
-                      e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                    }}
-                  />
-                  {/* Plan / Build mode toggle — inline beside send */}
-                  <div className="flex items-center bg-black/50 border border-white/10 rounded-xl p-0.5 gap-0.5 shrink-0 h-[36px]">
-                    <button
-                      onClick={() => setChatMode('plan')}
-                      className={`flex items-center gap-1 px-2 h-full rounded-lg text-[10px] font-bold font-mono transition-all ${
-                        isPlanMode
-                          ? 'bg-violet-500/25 border border-violet-500/40 text-violet-300'
-                          : 'text-white/30 hover:text-white/55'
-                      }`}
-                      title="Plan mode — discuss and explore without building"
-                    >
-                      <Brain className="w-3 h-3" />
-                      Plan
-                    </button>
-                    <button
-                      onClick={() => setChatMode('build')}
-                      className={`flex items-center gap-1 px-2 h-full rounded-lg text-[10px] font-bold font-mono transition-all ${
-                        !isPlanMode
-                          ? 'bg-primary/20 border border-primary/35 text-primary'
-                          : 'text-white/30 hover:text-white/55'
-                      }`}
-                      title="Build mode — ASH builds and activates systems"
-                    >
-                      <Cpu className="w-3 h-3" />
-                      Build
-                    </button>
+                {/* Attachment chips */}
+                {attachments.length > 0 && (
+                  <div className="flex gap-1.5 mb-2 flex-wrap">
+                    {attachments.map((f, i) => (
+                      <div key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/6 border border-white/12 text-[10px] text-white/55 font-mono">
+                        {f.type.startsWith('image/') ? <ImageIcon className="w-3 h-3 shrink-0 text-blue-400" /> : <FileText className="w-3 h-3 shrink-0 text-emerald-400" />}
+                        <span className="max-w-[80px] truncate">{f.name}</span>
+                        <button onClick={() => setAttachments(a => a.filter((_, j) => j !== i))} className="text-white/30 hover:text-rose-400 ml-0.5 transition-colors leading-none">×</button>
+                      </div>
+                    ))}
                   </div>
-                  <Button
-                    onClick={() => sendMessage()}
-                    disabled={!input.trim() || isInputDisabled}
-                    size="icon"
-                    className="h-[36px] w-[36px] shrink-0 rounded-xl"
-                  >
-                    {chatLoading
-                      ? <Loader2 className="w-4 h-4 animate-spin" />
-                      : <Send className="w-4 h-4" />}
-                  </Button>
+                )}
+
+                {/* Main input card */}
+                <div className={`rounded-xl border transition-colors overflow-visible relative ${isInputDisabled ? 'border-white/8 opacity-55' : 'border-white/14 focus-within:border-primary/45'} bg-black/60`}>
+                  {/* Toolbar row */}
+                  <div className="flex items-center gap-1.5 px-2.5 pt-2 pb-1">
+                    {/* + Attach dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={() => { setShowAttachMenu(p => !p); setShowAiDropdown(false); }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/40 hover:text-white/70 transition-all text-[10px] font-mono font-bold"
+                        title="Attach file or image"
+                      >
+                        <PlusCircle className="w-3 h-3" /> Attach
+                      </button>
+                      <AnimatePresence>
+                        {showAttachMenu && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                            transition={{ duration: 0.1 }}
+                            className="absolute bottom-full left-0 mb-1.5 w-44 rounded-xl border border-white/12 bg-[#0d0d1a] shadow-xl z-50 overflow-hidden"
+                          >
+                            <button
+                              onClick={() => { attachImgRef.current?.click(); setShowAttachMenu(false); }}
+                              className="flex items-center gap-2 w-full px-3 py-2.5 text-[11px] font-mono text-white/65 hover:bg-white/6 hover:text-white/90 transition-colors"
+                            >
+                              <ImageIcon className="w-3.5 h-3.5 text-blue-400" /> Upload Image
+                            </button>
+                            <button
+                              onClick={() => { attachFileRef.current?.click(); setShowAttachMenu(false); }}
+                              className="flex items-center gap-2 w-full px-3 py-2.5 text-[11px] font-mono text-white/65 hover:bg-white/6 hover:text-white/90 transition-colors"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-emerald-400" /> Upload File
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      <input ref={attachImgRef} type="file" accept="image/*" className="hidden" onChange={handleAttachFile} />
+                      <input ref={attachFileRef} type="file" accept=".pdf,.txt,.md,.json,.csv,.docx" className="hidden" onChange={handleAttachFile} multiple />
+                    </div>
+
+                    {/* Plan | Build mode toggle */}
+                    <div className="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5 gap-0.5">
+                      <button
+                        onClick={() => setChatMode('plan')}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold font-mono transition-all ${
+                          isPlanMode ? 'bg-violet-500/25 border border-violet-500/40 text-violet-300' : 'text-white/30 hover:text-white/55'
+                        }`}
+                        title="Plan mode — discuss and explore without building"
+                      >
+                        <Brain className="w-3 h-3" /> Plan
+                      </button>
+                      <button
+                        onClick={() => setChatMode('build')}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold font-mono transition-all ${
+                          !isPlanMode ? 'bg-primary/20 border border-primary/35 text-primary' : 'text-white/30 hover:text-white/55'
+                        }`}
+                        title="Build mode — ASH builds and activates systems"
+                      >
+                        <Cpu className="w-3 h-3" /> Build
+                      </button>
+                    </div>
+
+                    <div className="flex-1" />
+
+                    {/* AI Model dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={() => { setShowAiDropdown(p => !p); setShowAttachMenu(false); }}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-mono font-bold transition-all ${
+                          showAiDropdown
+                            ? `${activeMode?.color ?? 'text-primary'} border-current bg-white/6`
+                            : 'text-white/38 border-white/10 hover:border-white/22 hover:text-white/65'
+                        }`}
+                        title="Change AI agent mode and settings"
+                      >
+                        {activeMode && <activeMode.icon className="w-3 h-3" />}
+                        {activeMode?.label ?? 'Fast'}
+                        <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-150 ${showAiDropdown ? 'rotate-180' : ''}`} />
+                      </button>
+                      <AnimatePresence>
+                        {showAiDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                            transition={{ duration: 0.1 }}
+                            className="absolute bottom-full right-0 mb-1.5 w-64 rounded-xl border border-white/12 bg-[#0d0d1a] shadow-xl z-50 overflow-hidden"
+                          >
+                            <div className="p-3">
+                              <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono mb-2">ASH Agent Mode</p>
+                              <div className="space-y-0.5 mb-3">
+                                {AI_MODES.map(m => {
+                                  const MIcon = m.icon;
+                                  const isActive = aiMode === m.id;
+                                  const isLocked = m.requiredTier && !isEmpireTier;
+                                  return (
+                                    <button
+                                      key={m.id}
+                                      disabled={!!isLocked}
+                                      onClick={() => { if (!isLocked) { setAiMode(m.id); setShowAiDropdown(false); } }}
+                                      className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-all ${
+                                        isActive ? `${m.color} bg-white/5 border border-current/20` : 'text-white/45 hover:bg-white/5 hover:text-white/75 border border-transparent'
+                                      } ${isLocked ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+                                    >
+                                      <MIcon className="w-3.5 h-3.5 shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-1">
+                                          <span className="text-[11px] font-bold font-mono">{m.label}</span>
+                                          <span className="text-[9px] font-mono opacity-45">{m.modelLabel}</span>
+                                        </div>
+                                        <p className="text-[9px] opacity-40 truncate mt-0.5">{m.description.split('.')[0]}</p>
+                                      </div>
+                                      {isActive && <Check className="w-3 h-3 shrink-0 opacity-75" />}
+                                      {isLocked && <Lock className="w-3 h-3 shrink-0 text-amber-400/55" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <div className="border-t border-white/8 pt-2.5 space-y-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div>
+                                    <p className="text-[11px] text-white/55 font-mono">High effort <span className="text-[9px] text-amber-400/55">·+credits</span></p>
+                                    <p className="text-[9px] text-white/22">Stronger model for harder tasks</p>
+                                  </div>
+                                  <div
+                                    onClick={() => aiMode === 'fast' ? setAiMode('business') : setAiMode('fast')}
+                                    className={`w-9 h-5 rounded-full shrink-0 flex items-center px-0.5 transition-colors cursor-pointer ${aiMode !== 'fast' ? 'bg-amber-500/65' : 'bg-white/12'}`}
+                                  >
+                                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${aiMode !== 'fast' ? 'translate-x-4' : 'translate-x-0'}`} />
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono mb-1.5 flex items-center gap-1">
+                                    <Building2 className="w-2.5 h-2.5" /> Business type
+                                  </p>
+                                  <div className="grid grid-cols-4 gap-1">
+                                    {BUSINESS_TYPES.slice(0, 4).map(bt => {
+                                      const BIcon = bt.icon;
+                                      const isActive = businessType === bt.id;
+                                      return (
+                                        <button
+                                          key={bt.id}
+                                          onClick={() => setBusinessType(isActive ? null : bt.id)}
+                                          className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg border text-[9px] font-mono transition-all ${isActive ? `${bt.bg} ${bt.color}` : 'bg-white/3 border-white/8 hover:border-white/18 text-white/35'}`}
+                                        >
+                                          <BIcon className={`w-3.5 h-3.5 ${isActive ? bt.color : ''}`} />
+                                          {bt.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                                {showRevenueGoalInput ? (
+                                  <div className="flex gap-1">
+                                    <input
+                                      type="text"
+                                      value={revenueGoal}
+                                      onChange={e => setRevenueGoal(e.target.value)}
+                                      placeholder="e.g. $5,000/mo"
+                                      className="flex-1 text-[11px] bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white placeholder:text-white/22 focus:outline-none focus:border-primary/45 font-mono"
+                                      onKeyDown={e => { if (e.key === 'Enter') setShowRevenueGoalInput(false); }}
+                                      autoFocus
+                                    />
+                                    <button onClick={() => setShowRevenueGoalInput(false)} className="text-primary hover:text-primary/80 px-2 text-sm">✓</button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setShowRevenueGoalInput(true)}
+                                    className="w-full flex items-center justify-between text-[11px] px-2 py-1.5 rounded-lg border border-white/8 bg-white/3 hover:border-white/18 transition-colors"
+                                  >
+                                    <span className="text-white/35 font-mono flex items-center gap-1"><Target className="w-2.5 h-2.5" /> {revenueGoal || 'Set revenue goal…'}</span>
+                                    {revenueGoal && <span className="text-emerald-400 font-mono font-bold text-[10px]">{revenueGoal}/mo</span>}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+
+                  {/* Textarea + send */}
+                  <div className="flex items-end gap-2 px-2.5 pb-2.5">
+                    <textarea
+                      ref={inputRef}
+                      value={input}
+                      onChange={e => setInput(e.target.value)}
+                      onKeyDown={handleKey}
+                      placeholder={phase === 'collecting' ? 'Fill credentials above…' : phase === 'planning' ? 'Plan ready — confirm above or ask to adjust…' : isPlanMode ? 'Ask ASH anything — explore ideas, understand systems, or plan a build…' : 'Describe your income goal to ASH…'}
+                      disabled={isInputDisabled}
+                      className="flex-1 resize-none text-xs bg-transparent text-white placeholder:text-white/22 focus:outline-none disabled:opacity-40 py-1 min-h-[28px]"
+                      rows={1}
+                      style={{ maxHeight: '120px' }}
+                      onInput={e => {
+                        e.target.style.height = 'auto';
+                        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                      }}
+                    />
+                    <Button
+                      onClick={() => sendMessage()}
+                      disabled={!input.trim() || isInputDisabled}
+                      size="icon"
+                      className="h-[30px] w-[30px] shrink-0 rounded-lg mb-0.5"
+                    >
+                      {chatLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-[9px] text-white/16 mt-1.5 text-center font-mono">
-                  ASH builds autonomously · Credentials encrypted · {activeMode?.modelLabel ?? 'GPT-4o Mini'}
-                </p>
               </>
             )}
           </div>

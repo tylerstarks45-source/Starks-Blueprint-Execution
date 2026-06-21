@@ -238,7 +238,7 @@ function NotificationsTab() {
     weekly_digest:    { label: 'Weekly performance digest', desc: 'A summary of your systems\' performance every Monday.' },
     ab_test_complete: { label: 'A/B test conclusions',      desc: 'Notified when an experiment picks a winner.' },
     new_blueprints:   { label: 'New blueprints available',  desc: 'Announcements when new AI system blueprints launch.' },
-    platform_updates: { label: 'Platform updates',          desc: 'What\'s new in SBEP — features and improvements.' },
+    platform_updates: { label: 'Platform updates',          desc: 'What\'s new in Starks Global Group — features and improvements.' },
   };
 
   return (

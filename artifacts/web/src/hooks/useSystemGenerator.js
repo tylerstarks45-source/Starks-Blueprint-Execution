@@ -40,7 +40,7 @@ export const useSystemGenerator = () => {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            systemPrompt: `You are SBEP's AI architect. Given a user's business goal, select the 1-3 MOST RELEVANT blueprints from the list below. 
+            systemPrompt: `You are Starks Global Group's AI architect. Given a user's business goal, select the 1-3 MOST RELEVANT blueprints from the list below. 
 Return ONLY a JSON array of blueprint IDs like: [1, 5, 3]
 If nothing matches well, return the 2 closest ones anyway.
 

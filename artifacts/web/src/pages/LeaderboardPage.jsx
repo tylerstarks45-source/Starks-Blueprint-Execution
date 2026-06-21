@@ -60,16 +60,28 @@ export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [events, setEvents] = useState([]);
   const [stats, setStats] = useState({ totalEarnedCents: 0, activeSystems: 0, totalMembers: 0 });
+  const [ownRank, setOwnRank] = useState(null);
   const [loading, setLoading] = useState(true);
   const tickerRef = useRef(null);
 
   useEffect(() => {
+    const token = localStorage.getItem('sbep_auth_token');
+    // Decode userId from JWT if logged in (payload is base64 middle segment)
+    let userId = null;
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        userId = payload.id ?? payload.userId ?? payload.sub ?? null;
+      } catch (_) { /* not logged in */ }
+    }
+    const rankParam = userId ? `?userId=${userId}` : '';
     Promise.all([
-      fetch(`${BASE}api/leaderboard`).then(r => r.json()).catch(() => ({ leaderboard: [] })),
+      fetch(`${BASE}api/leaderboard${rankParam}`).then(r => r.json()).catch(() => ({ leaderboard: [], ownRank: null })),
       fetch(`${BASE}api/success-wall`).then(r => r.json()).catch(() => ({ events: [] })),
       fetch(`${BASE}api/leaderboard/stats`).then(r => r.json()).catch(() => ({})),
     ]).then(([lb, sw, st]) => {
       setLeaderboard(lb.leaderboard ?? []);
+      setOwnRank(lb.ownRank ?? null);
       setEvents(sw.events ?? []);
       setStats(st);
       setLoading(false);
@@ -201,6 +213,16 @@ export default function LeaderboardPage() {
             </h2>
             <span className="text-[10px] font-mono text-white/20">Updated every 5 min</span>
           </div>
+
+          {/* Own rank banner */}
+          {ownRank && (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-yellow-500/25 bg-yellow-500/5">
+              <Crown className="w-4 h-4 text-yellow-400 shrink-0" />
+              <p className="text-sm font-mono text-yellow-200">
+                You're currently ranked <span className="font-black text-yellow-400">#{ownRank}</span> on the Earnings Leaderboard
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             {displayLeaderboard.map((entry, i) => (

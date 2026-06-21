@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Trophy, Star, TrendingUp, Users, ArrowRight } from 'lucide-react';
+import { Trophy, Star, TrendingUp, Users, ArrowRight, Crown } from 'lucide-react';
 
 const BASE = import.meta.env.BASE_URL ?? '/';
 
@@ -31,18 +31,26 @@ const FALLBACK_EVENTS = [
 export default function CommunityWinsCard({ userId }) {
   const [events, setEvents] = useState([]);
   const [stats, setStats] = useState(null);
+  const [ownRank, setOwnRank] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const rankParam = userId ? `?userId=${userId}` : '';
     Promise.all([
       fetch(`${BASE}api/success-wall`).then(r => r.json()).catch(() => ({ events: [] })),
       fetch(`${BASE}api/leaderboard/stats`).then(r => r.json()).catch(() => null),
-    ]).then(([sw, st]) => {
+      userId
+        ? fetch(`${BASE}api/leaderboard${rankParam}`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('sbep_auth_token') ?? ''}` },
+          }).then(r => r.json()).catch(() => ({ ownRank: null }))
+        : Promise.resolve({ ownRank: null }),
+    ]).then(([sw, st, lb]) => {
       setEvents(sw.events ?? []);
       setStats(st);
+      setOwnRank(lb.ownRank ?? null);
       setLoading(false);
     });
-  }, []);
+  }, [userId]);
 
   const displayEvents = events.length > 0 ? events.slice(0, 5) : FALLBACK_EVENTS;
 
@@ -62,6 +70,16 @@ export default function CommunityWinsCard({ userId }) {
           Full Leaderboard <ArrowRight className="w-2.5 h-2.5" />
         </Link>
       </div>
+
+      {/* Own rank banner */}
+      {ownRank && (
+        <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-yellow-500/20 bg-yellow-500/5">
+          <Crown className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
+          <span className="text-[10px] font-mono text-yellow-300">
+            You're ranked <span className="font-bold text-yellow-200">#{ownRank}</span> on the Earnings Leaderboard
+          </span>
+        </div>
+      )}
 
       {/* Platform stats strip */}
       {stats && (
@@ -94,6 +112,9 @@ export default function CommunityWinsCard({ userId }) {
             ))
           : displayEvents.map((e, i) => (
               <div key={i} className="flex items-center gap-2.5 py-1 border-b border-white/4 last:border-0">
+                {e.featured && (
+                  <Star className="shrink-0 w-3 h-3 text-yellow-400 fill-yellow-400/30" />
+                )}
                 <div className="shrink-0 w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
                   <span className="text-[8px] text-emerald-400 font-bold">✓</span>
                 </div>
@@ -106,6 +127,9 @@ export default function CommunityWinsCard({ userId }) {
                       <span className="text-white/25"> · {e.daysSinceSignup}d after joining</span>
                     )}
                   </p>
+                  {e.systemType && (
+                    <p className="text-[8px] font-mono text-white/20 truncate">via {e.systemType}</p>
+                  )}
                 </div>
                 <span className="shrink-0 text-[8px] font-mono text-white/20">{timeAgo(e.reachedAt)}</span>
               </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Users, TrendingUp, Star, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trophy, Users, TrendingUp, Star, RefreshCw, ChevronDown, ChevronUp, Pin, PinOff } from 'lucide-react';
 
 const BASE = import.meta.env.BASE_URL ?? '/';
 
@@ -37,9 +37,10 @@ export default function AdminSocialProofPanel() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedRow, setExpandedRow] = useState(null);
   const [filterTier, setFilterTier] = useState('all');
+  const [featureTogglingId, setFeatureTogglingId] = useState(null);
 
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('sbep_auth_token') : null;
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const headers = token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
 
   const load = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -55,6 +56,20 @@ export default function AdminSocialProofPanel() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const toggleFeature = async (eventId, currentFeatured) => {
+    setFeatureTogglingId(eventId);
+    try {
+      await fetch(`${BASE}api/leaderboard/events/${eventId}/feature`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ featured: !currentFeatured }),
+      });
+      setEvents(prev => prev.map(e => e.id === eventId ? { ...e, featured: !currentFeatured } : e));
+    } finally {
+      setFeatureTogglingId(null);
     }
   };
 
@@ -210,11 +225,15 @@ export default function AdminSocialProofPanel() {
             : filtered.length === 0
               ? <p className="text-center text-xs font-mono text-white/20 py-6">No milestone events yet</p>
               : filtered.map((e, i) => (
-                  <div key={i} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-white/[0.02] transition-colors">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                  <div key={e.id ?? i} className={`flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-white/[0.02] transition-colors ${e.featured ? 'border border-yellow-500/20 bg-yellow-500/[0.03]' : ''}`}>
+                    {e.featured && <Star className="w-3 h-3 text-yellow-400 fill-yellow-400/30 shrink-0" />}
+                    {!e.featured && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
                     <span className="text-[11px] text-white/60 flex-1">
                       <span className="text-white/80">{e.memberName}</span> crossed{' '}
                       <span className="text-emerald-400 font-bold">{e.milestoneLabel}</span>
+                      {e.systemType && (
+                        <span className="text-white/25"> via {e.systemType}</span>
+                      )}
                     </span>
                     <span className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] font-mono border ${TIER_COLORS[e.tier] ?? TIER_COLORS.Member}`}>
                       {e.tier}
@@ -223,6 +242,20 @@ export default function AdminSocialProofPanel() {
                       <span className="shrink-0 text-[9px] font-mono text-white/20">{e.daysSinceSignup}d in</span>
                     )}
                     <span className="shrink-0 text-[9px] font-mono text-white/15">{fmtDate(e.reachedAt)}</span>
+                    {e.id && (
+                      <button
+                        onClick={() => toggleFeature(e.id, e.featured)}
+                        disabled={featureTogglingId === e.id}
+                        title={e.featured ? 'Unfeature' : 'Feature on success wall'}
+                        className={`shrink-0 p-1 rounded transition-all disabled:opacity-40 ${
+                          e.featured
+                            ? 'text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10'
+                            : 'text-white/20 hover:text-yellow-400 hover:bg-yellow-500/10'
+                        }`}
+                      >
+                        {e.featured ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
+                      </button>
+                    )}
                   </div>
                 ))
           }

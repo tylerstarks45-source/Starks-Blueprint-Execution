@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, desc, asc, gte, sql, count, ilike, inArray } from "drizzle-orm";
-import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable, usersTable, blueprintsTable, blueprintPurchasesTable, notificationsTable } from "@workspace/db";
+import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable, usersTable, blueprintsTable, blueprintPurchasesTable, notificationsTable, milestoneEventsTable } from "@workspace/db";
 import { tierSystemLimit } from "../lib/credits";
 import { z } from "zod/v4";
 import { getActiveCallerPayload, requireAuthActive, validateClientWorkspaceId } from "../lib/auth";
@@ -33,7 +33,7 @@ const MILESTONE_LABELS: Record<number, string> = {
   5000000: "$50,000", 10000000: "$100,000",
 };
 
-async function checkMilestones(userId: number): Promise<void> {
+async function checkMilestones(userId: number, triggeringSystemInstanceId?: number): Promise<void> {
   const [rev] = await db
     .select({ total: sql<string>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::bigint` })
     .from(systemActivityEventsTable)
@@ -66,8 +66,38 @@ async function checkMilestones(userId: number): Promise<void> {
     .set({ milestonesReached: [...current, ...newMilestones] })
     .where(eq(usersTable.id, userId));
 
+  // Resolve blueprint name + category for the triggering system (used in success wall)
+  let systemType: string | null = null;
+  let bestCategory: string | null = null;
+  if (triggeringSystemInstanceId) {
+    try {
+      const [bpRow] = await db.execute(sql`
+        SELECT b.name AS blueprint_name, bc.name AS category_name
+        FROM system_instances si
+        JOIN blueprints b ON b.id = si.blueprint_id
+        LEFT JOIN blueprint_categories bc ON bc.id = b.category_id
+        WHERE si.id = ${triggeringSystemInstanceId}
+        LIMIT 1
+      `).then(r => r.rows as Array<{ blueprint_name: string; category_name: string | null }>);
+      systemType = bpRow?.blueprint_name ?? null;
+      bestCategory = bpRow?.category_name ?? null;
+    } catch (_err) { /* non-fatal */ }
+  }
+
   for (const m of newMilestones) {
     const label = MILESTONE_LABELS[m.amount] ?? `$${Math.round(m.amount / 100).toLocaleString()}`;
+
+    // Insert into milestone_events table (globally ordered event log)
+    await db.insert(milestoneEventsTable).values({
+      userId,
+      systemInstanceId: triggeringSystemInstanceId ?? null,
+      amountCents: m.amount,
+      milestoneLabel: label,
+      systemType,
+      bestCategory,
+    });
+
+    // Create in-app notification
     await db.insert(notificationsTable).values({
       userId,
       title: `🎉 You hit ${label} in total earnings!`,
@@ -419,7 +449,7 @@ router.post("/system-instances/:id/activity", async (req, res): Promise<void> =>
   res.status(201).json(serialize(row));
 
   if (parsed.data.eventType === "revenue" && instance.userId !== null) {
-    checkMilestones(instance.userId).catch(() => {});
+    checkMilestones(instance.userId, params.data.id).catch(() => {});
   }
 });
 

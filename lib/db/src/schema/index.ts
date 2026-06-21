@@ -38,6 +38,7 @@ export * from "./scheduled_tasks";
 export * from "./system_revenue_providers";
 export * from "./published_content";
 export * from "./webhook_endpoints";
+export * from "./milestone_events";
 export * from "./webhook_logs";
 export * from "./ab_tests";
 export * from "./ab_variants";

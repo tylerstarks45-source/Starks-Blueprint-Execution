@@ -4,6 +4,14 @@ import PageMeta from '@/components/PageMeta.jsx';
 import { motion } from 'framer-motion';
 import { Loader2, Building2, Layers, Activity, DollarSign, AlertTriangle, CheckCircle2, Clock, Zap } from 'lucide-react';
 
+function applyWhiteLabelTheme(cfg) {
+  if (!cfg) return;
+  const root = document.documentElement;
+  if (cfg.primaryColor) root.style.setProperty('--primary', cfg.primaryColor);
+  if (cfg.accentColor)  root.style.setProperty('--wl-accent', cfg.accentColor);
+  if (cfg.brandName)    document.title = `${cfg.brandName} — Client Portal`;
+}
+
 const STATUS_CONFIG = {
   complete:    { label: 'Live',         cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', icon: CheckCircle2 },
   building:    { label: 'Building',     cls: 'bg-blue-500/15 text-blue-400 border-blue-500/25',          icon: Zap },
@@ -46,6 +54,7 @@ const ClientPortalPage = () => {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [wlConfig, setWlConfig] = useState(null);
 
   useEffect(() => {
     if (!token) { setNotFound(true); setIsLoading(false); return; }
@@ -54,7 +63,22 @@ const ClientPortalPage = () => {
         if (r.status === 404) { setNotFound(true); return null; }
         return r.json();
       })
-      .then(d => d && setData(d))
+      .then(d => {
+        if (!d) return;
+        setData(d);
+        // Fetch the agency's white-label config if they have a verified custom domain
+        if (d.agencyUserId) {
+          fetch(`/api/white-label/by-agency/${d.agencyUserId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(cfg => {
+              if (cfg) {
+                setWlConfig(cfg);
+                applyWhiteLabelTheme(cfg);
+              }
+            })
+            .catch(() => {});
+        }
+      })
       .catch(() => setNotFound(true))
       .finally(() => setIsLoading(false));
   }, [token]);

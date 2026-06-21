@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { toast } from 'sonner';
 import {
   User, Lock, CreditCard, Bell, Trash2, Eye, EyeOff,
-  Save, Check, Shield, AlertTriangle, Mail,
+  Save, Check, Shield, AlertTriangle, Palette, Globe,
+  CheckCircle2, XCircle, Loader2, Crown, Upload, ExternalLink,
 } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'security',      label: 'Security',       icon: Lock },
   { id: 'billing',       label: 'Billing',        icon: CreditCard },
   { id: 'notifications', label: 'Notifications',  icon: Bell },
+  { id: 'branding',      label: 'Branding',       icon: Palette, empireOnly: true },
   { id: 'danger',        label: 'Danger Zone',    icon: AlertTriangle },
 ];
 
@@ -283,6 +285,326 @@ function NotificationsTab() {
   );
 }
 
+// ── Branding Tab (Empire tier) ─────────────────────────────────────────────
+function BrandingTab({ user }) {
+  const tier = (user?.membershipTier || user?.subscriptionTier || 'free').toLowerCase();
+  const isEmpire = tier === 'empire' || tier === 'operator' || user?.role === 'SUPER_ADMIN' || user?.role === 'FOUNDER_ADMIN' || user?.role === 'ADMIN';
+
+  const [config, setConfig]         = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
+  const [verifying, setVerifying]   = useState(false);
+
+  const [brandName, setBrandName]       = useState('');
+  const [logoUrl, setLogoUrl]           = useState('');
+  const [primaryColor, setPrimaryColor] = useState('#1A8CFF');
+  const [accentColor, setAccentColor]   = useState('#00E5E5');
+  const [customDomain, setCustomDomain] = useState('');
+
+  const authHeaders = useCallback(() => {
+    const token = localStorage.getItem('sbep_auth_token');
+    return token
+      ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+      : { 'Content-Type': 'application/json' };
+  }, []);
+
+  useEffect(() => {
+    if (!isEmpire) { setLoading(false); return; }
+    fetch('/api/white-label/config', { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          setConfig(data);
+          setBrandName(data.brandName || '');
+          setLogoUrl(data.logoUrl || '');
+          setPrimaryColor(data.primaryColor || '#1A8CFF');
+          setAccentColor(data.accentColor || '#00E5E5');
+          setCustomDomain(data.customDomain || '');
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [isEmpire, authHeaders]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/white-label/config', {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          brandName: brandName || undefined,
+          logoUrl: logoUrl || null,
+          primaryColor,
+          accentColor,
+          customDomain: customDomain || null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setConfig(data);
+        toast.success('Branding settings saved');
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error ?? 'Failed to save branding');
+      }
+    } catch { toast.error('Network error'); }
+    finally { setSaving(false); }
+  };
+
+  const verifyDomain = async () => {
+    setVerifying(true);
+    try {
+      const res = await fetch('/api/white-label/verify-domain', {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (data.verified) {
+        setConfig(c => ({ ...c, domainVerified: true }));
+        toast.success('Domain verified! White-label is now live.');
+      } else {
+        toast.error('DNS not yet propagated. Try again in a few hours.');
+      }
+    } catch { toast.error('Verification failed'); }
+    finally { setVerifying(false); }
+  };
+
+  if (!isEmpire) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-bold text-white font-mono mb-1">White-Label Branding</h2>
+          <p className="text-sm text-white/40">Brand the entire platform with your own logo, colors, and domain.</p>
+        </div>
+        <div className="p-6 rounded-2xl border border-yellow-500/25 bg-yellow-500/5 text-center space-y-4">
+          <Crown className="w-10 h-10 text-yellow-400 mx-auto" />
+          <div>
+            <p className="text-base font-bold text-yellow-300 font-mono">Empire Tier Required</p>
+            <p className="text-sm text-white/50 mt-1.5 max-w-sm mx-auto">
+              White-label branding is exclusive to Empire tier. Upgrade to brand the platform with your
+              own logo, custom colors, and a domain your clients will never question.
+            </p>
+          </div>
+          <a
+            href="/credits"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/30 text-sm font-semibold transition-colors"
+          >
+            <Crown className="w-4 h-4" /> Upgrade to Empire
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-6 h-6 animate-spin text-violet-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-lg font-bold text-white font-mono mb-1">White-Label Branding</h2>
+        <p className="text-sm text-white/40">
+          Brand the platform for your clients. Changes apply on your custom domain.
+        </p>
+      </div>
+
+      {/* ── Live Preview ──────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-white/10 overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-white/8 bg-white/3 flex items-center justify-between">
+          <span className="text-xs font-mono text-white/40 uppercase tracking-widest">Live Preview</span>
+          <span className="text-[10px] text-white/25 font-mono">{customDomain || 'your-domain.com'}</span>
+        </div>
+        <div
+          className="p-5"
+          style={{ background: 'linear-gradient(135deg, #0F1217 0%, #13161d 100%)' }}
+        >
+          {/* Fake navbar */}
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-xl border mb-4"
+            style={{
+              borderColor: `${primaryColor}30`,
+              background: `${primaryColor}08`,
+            }}
+          >
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt="logo"
+                className="w-7 h-7 rounded-lg object-cover"
+                onError={e => { e.currentTarget.style.display = 'none'; }}
+              />
+            ) : (
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black text-white"
+                style={{ background: primaryColor }}
+              >
+                {(brandName || 'B').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="text-sm font-bold text-white font-mono">
+              {brandName || 'Your Brand'}
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              {['Dashboard', 'Systems', 'Settings'].map(label => (
+                <span
+                  key={label}
+                  className="text-[10px] text-white/40 font-mono hidden sm:block"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+          {/* Accent strip */}
+          <div className="flex items-center gap-2">
+            <div className="h-1 rounded-full flex-1" style={{ background: primaryColor }} />
+            <div className="h-1 rounded-full flex-1 opacity-60" style={{ background: accentColor }} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Brand Identity ─────────────────────────────────────────────── */}
+      <div className="space-y-5">
+        <h3 className="text-sm font-semibold text-white/60 font-mono uppercase tracking-wider">Brand Identity</h3>
+
+        <div>
+          <label className="block text-xs font-mono text-white/50 mb-1.5 uppercase tracking-widest">Brand Name</label>
+          <input
+            value={brandName}
+            onChange={e => setBrandName(e.target.value)}
+            maxLength={80}
+            placeholder="My Agency"
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors"
+          />
+          <p className="text-xs text-white/25 mt-1">Shown in the navbar and browser tab title.</p>
+        </div>
+
+        <div>
+          <label className="block text-xs font-mono text-white/50 mb-1.5 uppercase tracking-widest">Logo URL</label>
+          <input
+            value={logoUrl}
+            onChange={e => setLogoUrl(e.target.value)}
+            placeholder="https://your-cdn.com/logo.png"
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors"
+          />
+          <p className="text-xs text-white/25 mt-1">HTTPS image URL. 40×40 px recommended.</p>
+        </div>
+
+        {/* Color pickers */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-mono text-white/50 mb-1.5 uppercase tracking-widest">Primary Color</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={primaryColor}
+                onChange={e => setPrimaryColor(e.target.value)}
+                className="w-9 h-9 rounded-lg border border-white/15 bg-transparent cursor-pointer shrink-0"
+              />
+              <input
+                value={primaryColor}
+                onChange={e => setPrimaryColor(e.target.value)}
+                maxLength={7}
+                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50 transition-colors"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-mono text-white/50 mb-1.5 uppercase tracking-widest">Accent Color</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={accentColor}
+                onChange={e => setAccentColor(e.target.value)}
+                className="w-9 h-9 rounded-lg border border-white/15 bg-transparent cursor-pointer shrink-0"
+              />
+              <input
+                value={accentColor}
+                onChange={e => setAccentColor(e.target.value)}
+                maxLength={7}
+                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500/50 transition-colors"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Custom Domain ──────────────────────────────────────────────── */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-white/60 font-mono uppercase tracking-wider">Custom Domain</h3>
+
+        <div>
+          <label className="block text-xs font-mono text-white/50 mb-1.5 uppercase tracking-widest">Domain</label>
+          <input
+            value={customDomain}
+            onChange={e => setCustomDomain(e.target.value)}
+            placeholder="app.youragency.com"
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors"
+          />
+        </div>
+
+        {customDomain && (
+          <div className="p-4 rounded-xl border border-white/8 bg-white/3 space-y-3">
+            <p className="text-xs font-semibold text-white/60 font-mono uppercase tracking-wider">DNS Setup Instructions</p>
+            <p className="text-xs text-white/40">
+              Add these CNAME records in your domain registrar, then click Verify:
+            </p>
+            <div className="space-y-2">
+              {[
+                { host: '@', value: window.location.hostname },
+                { host: 'www', value: window.location.hostname },
+              ].map(({ host, value }) => (
+                <div key={host} className="grid grid-cols-[40px_1fr] gap-3 text-xs font-mono">
+                  <span className="px-2 py-1 rounded bg-white/5 border border-white/10 text-white/60 text-center">{host}</span>
+                  <span className="px-2 py-1 rounded bg-white/5 border border-white/10 text-white/40 truncate">{value}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2">
+                {config?.domainVerified ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs text-emerald-400 font-semibold">Verified</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4 text-white/30" />
+                    <span className="text-xs text-white/40">Not verified</span>
+                  </>
+                )}
+              </div>
+              <button
+                onClick={verifyDomain}
+                disabled={verifying}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600/80 hover:bg-violet-600 text-white text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                {verifying ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
+                {verifying ? 'Checking…' : 'Verify DNS'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={save}
+        disabled={saving}
+        className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+      >
+        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        Save Branding
+      </button>
+    </div>
+  );
+}
+
 function DangerZoneTab({ user }) {
   const [confirm, setConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -355,6 +677,7 @@ export default function UserSettingsPage() {
     security:      () => <SecurityTab />,
     billing:       () => <BillingTab user={currentUser} />,
     notifications: () => <NotificationsTab />,
+    branding:      () => <BrandingTab user={currentUser} />,
     danger:        () => <DangerZoneTab user={currentUser} />,
   }[activeTab] ?? (() => null);
 
@@ -375,7 +698,10 @@ export default function UserSettingsPage() {
           {/* Sidebar tabs */}
           <aside className="md:w-52 shrink-0">
             <nav className="space-y-1">
-              {TABS.map(({ id, label, icon: Icon }) => (
+              {TABS.filter(t => !t.empireOnly || (
+                ['empire','operator'].includes((currentUser?.membershipTier || '').toLowerCase()) ||
+                ['SUPER_ADMIN','FOUNDER_ADMIN','ADMIN'].includes(currentUser?.role || '')
+              )).map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}

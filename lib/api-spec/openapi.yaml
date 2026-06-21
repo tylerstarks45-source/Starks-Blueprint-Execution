@@ -3491,3 +3491,81 @@ components:
         read:
           type: boolean
       required: [title, message]
+
+    # ── White-Label ─────────────────────────────────────────────────────────
+    WhiteLabelConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        brandName:
+          type: string
+        logoUrl:
+          type: ["string", "null"]
+        primaryColor:
+          type: string
+        accentColor:
+          type: string
+        customDomain:
+          type: ["string", "null"]
+        domainVerified:
+          type: boolean
+        domainVerifiedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, userId, brandName, primaryColor, accentColor, domainVerified]
+
+    WhiteLabelPublicConfig:
+      type: object
+      properties:
+        brandName:
+          type: string
+        logoUrl:
+          type: ["string", "null"]
+        primaryColor:
+          type: string
+        accentColor:
+          type: string
+        customDomain:
+          type: ["string", "null"]
+        domainVerified:
+          type: boolean
+      required: [brandName, primaryColor, accentColor, domainVerified]
+
+    WhiteLabelUpsertBody:
+      type: object
+      properties:
+        brandName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        logoUrl:
+          type: ["string", "null"]
+        primaryColor:
+          type: string
+        accentColor:
+          type: string
+        customDomain:
+          type: ["string", "null"]
+
+    WhiteLabelVerifyResponse:
+      type: object
+      properties:
+        verified:
+          type: boolean
+        domain:
+          type: string
+        target:
+          type: string
+        instructions:
+          type: array
+          items:
+            type: string
+        config:
+          $ref: "#/components/schemas/WhiteLabelConfig"
+      required: [verified, domain, target, instructions, config]

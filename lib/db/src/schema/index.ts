@@ -46,3 +46,4 @@ export * from "./blueprint_purchases";
 export * from "./referral_codes";
 export * from "./referral_events";
 export * from "./client_workspaces";
+export * from "./white_label_configs";

@@ -8,6 +8,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext.jsx';
 import { CreditsModalProvider } from '@/contexts/CreditsModalContext.jsx';
 import { ClientProvider } from '@/contexts/ClientContext.jsx';
+import { WhiteLabelProvider } from '@/contexts/WhiteLabelContext.jsx';
 import OutOfCreditsModal from '@/components/OutOfCreditsModal.jsx';
 
 // Security Routes
@@ -123,6 +124,7 @@ const PageFallback = () => (
 
 const App = () => {
   return (
+    <WhiteLabelProvider>
     <Router>
       <AuthProvider>
         <ClientProvider>
@@ -255,6 +257,7 @@ const App = () => {
         </ClientProvider>
       </AuthProvider>
     </Router>
+    </WhiteLabelProvider>
   );
 };
 

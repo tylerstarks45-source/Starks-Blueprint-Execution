@@ -43,6 +43,7 @@ import webhooksRouter from "./webhooks";
 import abTestsRouter from "./ab-tests";
 import referralsRouter from "./referrals";
 import clientsRouter from "./clients";
+import whiteLabelRouter from "./white-label";
 
 const router: IRouter = Router();
 
@@ -90,5 +91,6 @@ router.use(webhooksRouter);
 router.use(abTestsRouter);
 router.use(referralsRouter);
 router.use(clientsRouter);
+router.use(whiteLabelRouter);
 
 export default router;

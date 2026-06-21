@@ -938,6 +938,56 @@ export interface NotificationInput {
   read?: boolean;
 }
 
+export interface WhiteLabelConfig {
+  id: number;
+  userId: number;
+  brandName: string;
+  /** @nullable */
+  logoUrl?: string | null;
+  primaryColor: string;
+  accentColor: string;
+  /** @nullable */
+  customDomain?: string | null;
+  domainVerified: boolean;
+  /** @nullable */
+  domainVerifiedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WhiteLabelPublicConfig {
+  brandName: string;
+  /** @nullable */
+  logoUrl?: string | null;
+  primaryColor: string;
+  accentColor: string;
+  /** @nullable */
+  customDomain?: string | null;
+  domainVerified: boolean;
+}
+
+export interface WhiteLabelUpsertBody {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  brandName?: string;
+  /** @nullable */
+  logoUrl?: string | null;
+  primaryColor?: string;
+  accentColor?: string;
+  /** @nullable */
+  customDomain?: string | null;
+}
+
+export interface WhiteLabelVerifyResponse {
+  verified: boolean;
+  domain: string;
+  target: string;
+  instructions: string[];
+  config: WhiteLabelConfig;
+}
+
 export type ListBlueprintsParams = {
 status?: string;
 categoryId?: number;

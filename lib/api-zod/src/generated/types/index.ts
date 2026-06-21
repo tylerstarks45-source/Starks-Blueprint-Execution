@@ -120,3 +120,7 @@ export * from './userMemoryRecord';
 export * from './userUpdate';
 export * from './walletCreditPurchase';
 export * from './walletTierConfig';
+export * from './whiteLabelConfig';
+export * from './whiteLabelPublicConfig';
+export * from './whiteLabelUpsertBody';
+export * from './whiteLabelVerifyResponse';

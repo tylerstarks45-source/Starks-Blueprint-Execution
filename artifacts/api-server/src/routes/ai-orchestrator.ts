@@ -1157,6 +1157,9 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
       }
     }
 
+    // Track video jobs submitted this turn so we can stream progress events
+    const pendingMediaJobIds: Array<{ jobId: string; prompt: string }> = [];
+
     // ── Server-side generate_video / generate_music handling ─────────────────
     // Process these media gen tool_calls server-side: submit jobs to external
     // providers and stream back tool_result SSE events with job IDs or audio.
@@ -1213,6 +1216,10 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
                   tool: "generate_video",
                   data: { ok: genData.status !== "failed" && genData.status !== "needs_credentials", ...genData },
                 });
+                // Track job for SSE progress loop below
+                if (genData["status"] === "generating" && typeof genData["jobId"] === "string") {
+                  pendingMediaJobIds.push({ jobId: genData["jobId"], prompt: (call.prompt as string) ?? "" });
+                }
               }
             }
 
@@ -1599,6 +1606,58 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
           structuredData = null;
         } catch (pubErr) {
           req.log.warn({ pubErr }, "Failed to publish content from ASH");
+        }
+      }
+    }
+
+    // ── SSE progress streaming for pending video generation jobs ─────────────
+    // Keep the SSE stream alive after AI text completes, emitting live provider
+    // status updates for in-flight HeyGen / Runway jobs (up to 3 minutes).
+    // The frontend receives media_progress and media_complete events it can use
+    // to update video job cards in real time without its own polling.
+    if (pendingMediaJobIds.length > 0) {
+      const port = process.env.PORT ?? "8080";
+      const authHeader = (req.headers["authorization"] as string) ?? "";
+      const settled = new Set<string>();
+      const started = Date.now();
+      const MAX_POLL_MS = 3 * 60 * 1000; // 3-minute cap
+      const POLL_INTERVAL_MS = 6000;
+
+      while (settled.size < pendingMediaJobIds.length && Date.now() - started < MAX_POLL_MS) {
+        await new Promise<void>(r => setTimeout(r, POLL_INTERVAL_MS));
+        for (const { jobId, prompt } of pendingMediaJobIds) {
+          if (settled.has(jobId)) continue;
+          try {
+            const pr = await fetch(
+              `http://localhost:${port}/api/media-gen/jobs/${jobId}`,
+              { headers: { Authorization: authHeader } },
+            );
+            if (!pr.ok) continue;
+            const pd = (await pr.json()) as Record<string, unknown>;
+            if (pd["status"] === "completed" || pd["status"] === "failed") {
+              settled.add(jobId);
+              send({
+                type: "media_complete",
+                jobId,
+                status: pd["status"],
+                mediaUrl: pd["mediaUrl"] ?? null,
+                fileId: pd["fileId"] ?? null,
+                error: pd["error"] ?? null,
+                provider: pd["provider"] ?? null,
+                prompt,
+              });
+            } else {
+              send({
+                type: "media_progress",
+                jobId,
+                status: pd["status"] ?? "active",
+                progress: pd["progress"] ?? "Generating…",
+                progressRatio: pd["progressRatio"] ?? null,
+                provider: pd["provider"] ?? null,
+                prompt,
+              });
+            }
+          } catch { /* non-fatal — keep polling */ }
         }
       }
     }

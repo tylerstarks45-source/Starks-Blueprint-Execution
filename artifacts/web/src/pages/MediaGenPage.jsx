@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import {
   Image, Video, Music, Mic, ChevronDown, Download, Copy,
   Check, Loader2, ExternalLink, Play, Pause, RefreshCw,
-  Wand2, Film, ArrowLeft, X, Volume2, Clock
+  Wand2, Film, ArrowLeft, X, Volume2, Clock, Share2
 } from 'lucide-react';
 
 const authHeaders = () => {
@@ -245,14 +245,21 @@ function MediaTile({ item, onDelete }) {
             {formatTime(item.createdAt)}
           </p>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={copyUrl} className="p-1 rounded text-white/30 hover:text-white/60 transition-colors">
+            <button onClick={copyUrl} title="Copy link" className="p-1 rounded text-white/30 hover:text-white/60 transition-colors">
               {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
             </button>
             {!isDataUri && (
-              <a href={item.content} download={item.name} className="p-1 rounded text-white/30 hover:text-white/60 transition-colors">
+              <a href={item.content} download={item.name} title="Download" className="p-1 rounded text-white/30 hover:text-white/60 transition-colors">
                 <Download className="w-3 h-3" />
               </a>
             )}
+            <button
+              disabled
+              title="Push to Social — coming soon"
+              className="p-1 rounded text-white/15 cursor-not-allowed"
+            >
+              <Share2 className="w-3 h-3" />
+            </button>
           </div>
         </div>
       </div>

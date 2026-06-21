@@ -144,12 +144,56 @@ router.get("/runtime/systems/:id/connectors", async (req, res): Promise<void> =>
 });
 
 // GET /api/runtime/jobs/:jobId
+// Unified job status endpoint — handles both system runtime jobs and media gen jobs.
+// For media jobs (media_gen_video / media_gen_audio) it delegates to the media-gen
+// polling endpoint which contacts the external provider (HeyGen / Runway) live.
 router.get("/runtime/jobs/:jobId", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
   const job = await getJobById(req.params["jobId"]!);
   if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+
+  const isMediaJob =
+    job.jobType === "media_gen_video" || job.jobType === "media_gen_audio";
+
+  if (isMediaJob) {
+    // Media jobs own their userId directly in payload (no systemInstanceId)
+    const payload = (job.payload ?? {}) as Record<string, unknown>;
+    if (payload["userId"] !== userId) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    // For in-flight jobs, proxy to media-gen polling so provider status is live
+    if (job.status === "active" || job.status === "queued") {
+      try {
+        const pollRes = await fetch(
+          `http://localhost:${process.env.PORT ?? 8080}/api/media-gen/jobs/${job.jobId}`,
+          { headers: { Authorization: (req.headers["authorization"] as string) ?? "" } },
+        );
+        if (pollRes.ok) {
+          res.json(await pollRes.json());
+          return;
+        }
+      } catch { /* fall through to DB result */ }
+    }
+
+    // Settled or proxy failed — return stored result from DB
+    const result = (job.result ?? {}) as Record<string, unknown>;
+    res.json({
+      jobId: job.jobId,
+      jobType: job.jobType,
+      status: job.status,
+      provider: payload["provider"] ?? null,
+      mediaUrl: result["mediaUrl"] ?? null,
+      thumbnailUrl: result["thumbnailUrl"] ?? null,
+      fileId: result["fileId"] ?? null,
+      error: job.error ?? null,
+      completedAt: job.completedAt ?? null,
+    });
+    return;
+  }
 
   // Verify ownership via system instance
   if (job.systemInstanceId) {

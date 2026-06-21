@@ -573,6 +573,17 @@ router.post("/media-gen/music", async (req, res): Promise<void> => {
     const fullPrompt = parts.join(", ");
     const cappedDuration = Math.min(durationSeconds, 300);
 
+    // Create a tracked job before calling ElevenLabs so progress is observable
+    let audioJobId: string | undefined;
+    try {
+      audioJobId = await insertMediaJob("media_gen_audio", {
+        provider: "elevenlabs",
+        userId,
+        prompt: fullPrompt,
+        durationSeconds: cappedDuration,
+      });
+    } catch { /* non-fatal — tracking failure must not block generation */ }
+
     const soundRes = await fetch("https://api.elevenlabs.io/v1/sound-generation", {
       method: "POST",
       headers: {
@@ -590,6 +601,14 @@ router.post("/media-gen/music", async (req, res): Promise<void> => {
     if (!soundRes.ok) {
       const errText = await soundRes.text();
       req.log.warn({ status: soundRes.status, err: errText }, "ElevenLabs sound gen failed");
+      if (audioJobId) {
+        try {
+          await pool.query(
+            `UPDATE runtime_jobs SET status = 'failed', error = $1, completed_at = NOW() WHERE job_id = $2`,
+            [errText.slice(0, 500), audioJobId],
+          );
+        } catch { /* non-fatal */ }
+      }
       res.status(502).json({ error: "Music generation failed", details: errText.slice(0, 300) });
       return;
     }
@@ -607,8 +626,18 @@ router.post("/media-gen/music", async (req, res): Promise<void> => {
       `AI music: ${fullPrompt.slice(0, 100)}`,
     );
 
+    if (audioJobId) {
+      try {
+        await pool.query(
+          `UPDATE runtime_jobs SET status = 'completed', result = $1, completed_at = NOW() WHERE job_id = $2`,
+          [JSON.stringify({ fileId }), audioJobId],
+        );
+      } catch { /* non-fatal */ }
+    }
+
     res.json({
       status: "success",
+      jobId: audioJobId,
       audioBase64: base64Audio,
       mimeType: "audio/mpeg",
       prompt: fullPrompt,

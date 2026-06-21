@@ -142,8 +142,10 @@ export default function LeaderboardPage() {
           <div className="flex flex-wrap items-center justify-center gap-8">
             {[
               { icon: TrendingUp, label: 'Total Earned', value: stats.totalEarnedCents > 0 ? fmtDollars(stats.totalEarnedCents) : '$284K+', color: 'text-emerald-400' },
+              { icon: TrendingUp, label: 'This Month', value: stats.monthlyEarnedCents > 0 ? fmtDollars(stats.monthlyEarnedCents) : '$21K+', color: 'text-green-300' },
               { icon: Zap, label: 'Active Systems', value: stats.activeSystems > 0 ? stats.activeSystems.toLocaleString() : '247', color: 'text-sky-400' },
               { icon: Users, label: 'Members', value: stats.totalMembers > 0 ? stats.totalMembers.toLocaleString() : '1,200+', color: 'text-violet-400' },
+              { icon: Zap, label: 'Avg / System', value: stats.avgEarningsPerSystemCents > 0 ? fmtDollars(stats.avgEarningsPerSystemCents) : '$1.1K', color: 'text-amber-400' },
             ].map(({ icon: Icon, label, value, color }) => (
               <div key={label} className="flex flex-col items-center gap-1">
                 <div className="flex items-center gap-1.5">

@@ -294,6 +294,9 @@ export default function AdminSocialProofPanel() {
                       <span className="shrink-0 text-[9px] font-mono text-white/20">{e.daysSinceSignup}d in</span>
                     )}
                     <span className="shrink-0 text-[9px] font-mono text-white/15">{fmtDate(e.reachedAt)}</span>
+                    {(e.shareCount ?? 0) > 0 && (
+                      <span className="shrink-0 text-[9px] font-mono text-sky-400/60" title="Times shared">{e.shareCount}↗</span>
+                    )}
                     {e.id && (
                       <button
                         onClick={() => toggleFeature(e.id, e.featured)}

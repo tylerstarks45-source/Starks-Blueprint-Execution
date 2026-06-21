@@ -11,6 +11,7 @@ export const milestoneEventsTable = pgTable("milestone_events", {
   systemType: text("system_type"),
   bestCategory: text("best_category"),
   featured: boolean("featured").notNull().default(false),
+  shareCount: integer("share_count").notNull().default(0),
   reachedAt: timestamp("reached_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

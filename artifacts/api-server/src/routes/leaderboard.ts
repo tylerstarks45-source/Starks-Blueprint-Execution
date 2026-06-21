@@ -8,6 +8,8 @@ const router: IRouter = Router();
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "admin", "FOUNDER_ADMIN"]);
 
+// ─── Cache helpers ────────────────────────────────────────────────────────────
+
 interface CacheEntry<T> { data: T; expiresAt: number }
 const _cache = new Map<string, CacheEntry<unknown>>();
 function getCache<T>(key: string): T | null {
@@ -18,8 +20,14 @@ function setCache<T>(key: string, data: T, ttlMs = 5 * 60 * 1000): void {
   _cache.set(key, { data, expiresAt: Date.now() + ttlMs });
 }
 function clearLeaderboardCache(): void {
-  ["lb", "sw", "sp_settings"].forEach(k => _cache.delete(k));
+  for (const key of [..._cache.keys()]) {
+    if (key.startsWith("lb") || key.startsWith("sw_") || key === "sp_settings") {
+      _cache.delete(key);
+    }
+  }
 }
+
+// ─── Display name helpers ─────────────────────────────────────────────────────
 
 export const MILESTONE_LABELS: Record<number, string> = {
   100: "$1", 10000: "$100", 50000: "$500",
@@ -27,21 +35,26 @@ export const MILESTONE_LABELS: Record<number, string> = {
   5000000: "$50K", 10000000: "$100K",
 };
 
-// Supported anonymization levels (stored in platform_settings key "social_proof_anon_level")
 type AnonLevel = "full_anon" | "first_name" | "full_name";
 
 function anonymize(userId: number): string {
   return `Empire Member #${(userId * 7 + 1013) % 9000 + 1000}`;
 }
 
-function displayName(userId: number, fullName: string | null, anonLevel: AnonLevel): string {
-  if (anonLevel === "full_name" && fullName) return fullName;
+/** Applies anonymization level. For full_name, consent gate is enforced by caller. */
+function applyDisplayName(
+  userId: number,
+  fullName: string | null,
+  anonLevel: AnonLevel,
+  consentGiven: boolean,
+): string {
+  if (anonLevel === "full_name" && fullName && consentGiven) return fullName;
   if (anonLevel === "first_name") {
-    const first = fullName?.split(/\s+/)[0] ?? null;
+    const first = fullName?.trim().split(/\s+/)[0] ?? null;
     const suffix = `#${(userId * 7 + 1013) % 9000 + 1000}`;
     return first ? `${first} ${suffix}` : anonymize(userId);
   }
-  return anonymize(userId); // full_anon (default)
+  return anonymize(userId);
 }
 
 async function getAnonLevel(): Promise<AnonLevel> {
@@ -53,7 +66,7 @@ async function getAnonLevel(): Promise<AnonLevel> {
       .from(platformSettingsTable)
       .where(eq(platformSettingsTable.key, "social_proof_anon_level"));
     const level = (row?.value ?? "full_anon") as AnonLevel;
-    setCache("sp_settings", level, 60 * 1000); // 1-min cache
+    setCache("sp_settings", level, 60 * 1000);
     return level;
   } catch {
     return "full_anon";
@@ -66,86 +79,133 @@ function tierLabel(t: string | null | undefined): string {
   )[t ?? ""] ?? "Member";
 }
 
+// ─── Internal row type (cached; includes id for own-rank overlay) ─────────────
+
+interface LbRow {
+  _userId: number; // stripped before client response
+  rank: number;
+  displayName: string;
+  tier: string;
+  lifetimeCents: number;
+  monthlyCents: number;
+  systemCount: number;
+  topSystemType: string | null;
+  bestCategory: string | null;
+}
+
 // ─── GET /api/leaderboard ─────────────────────────────────────────────────────
-// Public — top 50 earners.  Own-rank derived from authenticated caller (JWT),
-// not from query param, to avoid arbitrary user rank leakage.
+// Public — top 50 earners, 5-min base dataset cache.
+// isOwn + ownRank overlaid per-request from authenticated caller (JWT).
+// For callers outside top 50, a separate RANK() query resolves their rank.
 
 router.get("/leaderboard", async (req, res): Promise<void> => {
-  const caller = getTokenPayload(req); // nullable — public endpoint
+  const caller = getTokenPayload(req);
   const anonLevel = await getAnonLevel();
 
-  try {
-    // Always re-query to mark isOwn (cannot cache with caller-aware rows)
-    const result = await db.execute(sql`
-      SELECT
-        u.id,
-        u.name,
-        u.membership_tier,
-        COALESCE(SUM(sae.amount_cents) FILTER (WHERE sae.event_type = 'revenue'), 0)::bigint AS lifetime_cents,
-        COALESCE(SUM(sae.amount_cents) FILTER (WHERE sae.event_type = 'revenue'
-          AND sae.created_at >= date_trunc('month', NOW())), 0)::bigint AS monthly_cents,
-        COUNT(DISTINCT si.id)::int AS system_count,
-        (
-          SELECT b.name
-          FROM system_instances si2
-          JOIN blueprints b ON b.id = si2.blueprint_id
-          JOIN system_activity_events sae2 ON sae2.system_instance_id = si2.id
-          WHERE si2.user_id = u.id AND sae2.event_type = 'revenue'
-          GROUP BY b.name
-          ORDER BY SUM(sae2.amount_cents) DESC
-          LIMIT 1
-        ) AS top_system_type,
-        (
-          SELECT bc.name
-          FROM system_instances si3
-          JOIN blueprints b3 ON b3.id = si3.blueprint_id
-          JOIN blueprint_categories bc ON bc.id = b3.category_id
-          JOIN system_activity_events sae3 ON sae3.system_instance_id = si3.id
-          WHERE si3.user_id = u.id AND sae3.event_type = 'revenue'
-          GROUP BY bc.name
-          ORDER BY SUM(sae3.amount_cents) DESC
-          LIMIT 1
-        ) AS best_category
-      FROM users u
-      JOIN system_instances si ON si.user_id = u.id
-      JOIN system_activity_events sae ON sae.system_instance_id = si.id
-      WHERE sae.event_type = 'revenue'
-      GROUP BY u.id, u.name, u.membership_tier
-      ORDER BY lifetime_cents DESC
-      LIMIT 50
-    `);
+  // Use cached base dataset when available
+  let baseRows = getCache<LbRow[]>(`lb_${anonLevel}`);
+  if (!baseRows) {
+    try {
+      const result = await db.execute(sql`
+        SELECT
+          u.id,
+          u.name,
+          u.social_proof_consent,
+          u.membership_tier,
+          COALESCE(SUM(sae.amount_cents) FILTER (WHERE sae.event_type = 'revenue'), 0)::bigint AS lifetime_cents,
+          COALESCE(SUM(sae.amount_cents) FILTER (WHERE sae.event_type = 'revenue'
+            AND sae.created_at >= date_trunc('month', NOW())), 0)::bigint AS monthly_cents,
+          COUNT(DISTINCT si.id)::int AS system_count,
+          (
+            SELECT b.name
+            FROM system_instances si2
+            JOIN blueprints b ON b.id = si2.blueprint_id
+            JOIN system_activity_events sae2 ON sae2.system_instance_id = si2.id
+            WHERE si2.user_id = u.id AND sae2.event_type = 'revenue'
+            GROUP BY b.name
+            ORDER BY SUM(sae2.amount_cents) DESC
+            LIMIT 1
+          ) AS top_system_type,
+          (
+            SELECT bc.name
+            FROM system_instances si3
+            JOIN blueprints b3 ON b3.id = si3.blueprint_id
+            JOIN blueprint_categories bc ON bc.id = b3.category_id
+            JOIN system_activity_events sae3 ON sae3.system_instance_id = si3.id
+            WHERE si3.user_id = u.id AND sae3.event_type = 'revenue'
+            GROUP BY bc.name
+            ORDER BY SUM(sae3.amount_cents) DESC
+            LIMIT 1
+          ) AS best_category
+        FROM users u
+        JOIN system_instances si ON si.user_id = u.id
+        JOIN system_activity_events sae ON sae.system_instance_id = si.id
+        WHERE sae.event_type = 'revenue'
+        GROUP BY u.id, u.name, u.social_proof_consent, u.membership_tier
+        ORDER BY lifetime_cents DESC
+        LIMIT 50
+      `);
 
-    let ownRank: number | null = null;
-    const leaderboard = (result.rows as Array<{
-      id: number; name: string | null; membership_tier: string | null;
-      lifetime_cents: string; monthly_cents: string; system_count: number;
-      top_system_type: string | null; best_category: string | null;
-    }>).map((r, i) => {
-      const rank = i + 1;
-      const isOwn = caller?.id === r.id;
-      if (isOwn) ownRank = rank;
-      return {
-        rank,
-        displayName: displayName(r.id, r.name, anonLevel),
+      baseRows = (result.rows as Array<{
+        id: number; name: string | null; social_proof_consent: boolean;
+        membership_tier: string | null;
+        lifetime_cents: string; monthly_cents: string; system_count: number;
+        top_system_type: string | null; best_category: string | null;
+      }>).map((r, i) => ({
+        _userId: r.id,
+        rank: i + 1,
+        displayName: applyDisplayName(r.id, r.name, anonLevel, r.social_proof_consent),
         tier: tierLabel(r.membership_tier),
         lifetimeCents: Number(r.lifetime_cents),
         monthlyCents: Number(r.monthly_cents),
         systemCount: Number(r.system_count),
         topSystemType: r.top_system_type ?? null,
         bestCategory: r.best_category ?? null,
-        isOwn,
-      };
-    });
+      }));
 
-    res.json({ leaderboard, ownRank });
-  } catch (err) {
-    req.log.error({ err }, "leaderboard query failed");
-    res.json({ leaderboard: [], ownRank: null });
+      setCache(`lb_${anonLevel}`, baseRows); // 5-min TTL
+    } catch (err) {
+      req.log.error({ err }, "leaderboard query failed");
+      res.json({ leaderboard: [], ownRank: null });
+      return;
+    }
   }
+
+  // Overlay isOwn and compute ownRank
+  let ownRank: number | null = null;
+  const leaderboard = baseRows.map(r => {
+    const isOwn = caller?.id === r._userId;
+    if (isOwn) ownRank = r.rank;
+    const { _userId, ...pub } = r;
+    void _userId;
+    return { ...pub, isOwn };
+  });
+
+  // If caller is authenticated but not in top 50, do a separate rank lookup
+  if (caller && ownRank === null) {
+    try {
+      const rankResult = await db.execute(sql`
+        SELECT rank FROM (
+          SELECT u.id,
+            RANK() OVER (ORDER BY COALESCE(SUM(sae.amount_cents) FILTER (WHERE sae.event_type = 'revenue'), 0) DESC) AS rank
+          FROM users u
+          JOIN system_instances si ON si.user_id = u.id
+          JOIN system_activity_events sae ON sae.system_instance_id = si.id
+          WHERE sae.event_type = 'revenue'
+          GROUP BY u.id
+        ) ranked
+        WHERE id = ${caller.id}
+      `);
+      const row = rankResult.rows[0] as { rank: string } | undefined;
+      ownRank = row ? Number(row.rank) : null;
+    } catch (_err) { ownRank = null; }
+  }
+
+  res.json({ leaderboard, ownRank });
 });
 
 // ─── GET /api/leaderboard/stats ───────────────────────────────────────────────
-// Public — platform-wide aggregate stats, 2-min cache.
+// Public — platform-wide aggregate stats including monthly earnings + avg/system.
 
 router.get("/leaderboard/stats", async (req, res): Promise<void> => {
   const cached = getCache<unknown>("lb_stats");
@@ -154,29 +214,36 @@ router.get("/leaderboard/stats", async (req, res): Promise<void> => {
     const result = await db.execute(sql`
       SELECT
         COALESCE(SUM(sae.amount_cents), 0)::bigint AS total_earned_cents,
+        COALESCE(SUM(sae.amount_cents) FILTER (WHERE sae.created_at >= date_trunc('month', NOW())), 0)::bigint AS monthly_earned_cents,
         (SELECT COUNT(*)::int FROM system_instances WHERE build_status = 'active') AS active_systems,
-        (SELECT COUNT(*)::int FROM users WHERE active = true) AS total_members
+        (SELECT COUNT(*)::int FROM users WHERE active = true) AS total_members,
+        (SELECT COUNT(*)::int FROM system_instances WHERE build_status = 'active') AS active_system_count
       FROM system_activity_events sae
       WHERE sae.event_type = 'revenue'
     `);
     const row = result.rows[0] as {
-      total_earned_cents: string; active_systems: number; total_members: number;
+      total_earned_cents: string; monthly_earned_cents: string;
+      active_systems: number; total_members: number; active_system_count: number;
     } | undefined;
+    const activeSys = Number(row?.active_systems ?? 0);
+    const totalCents = Number(row?.total_earned_cents ?? 0);
     const stats = {
-      totalEarnedCents: Number(row?.total_earned_cents ?? 0),
-      activeSystems: Number(row?.active_systems ?? 0),
+      totalEarnedCents: totalCents,
+      monthlyEarnedCents: Number(row?.monthly_earned_cents ?? 0),
+      activeSystems: activeSys,
       totalMembers: Number(row?.total_members ?? 0),
+      avgEarningsPerSystemCents: activeSys > 0 ? Math.round(totalCents / activeSys) : 0,
     };
     setCache("lb_stats", stats, 2 * 60 * 1000);
     res.json(stats);
   } catch (err) {
     req.log.error({ err }, "leaderboard/stats query failed");
-    res.json({ totalEarnedCents: 0, activeSystems: 0, totalMembers: 0 });
+    res.json({ totalEarnedCents: 0, monthlyEarnedCents: 0, activeSystems: 0, totalMembers: 0, avgEarningsPerSystemCents: 0 });
   }
 });
 
 // ─── GET /api/success-wall ────────────────────────────────────────────────────
-// Public — last 50 milestone events from dedicated table, globally ordered.
+// Public — last 50 milestone events, featured first, then by reachedAt DESC.
 
 router.get("/success-wall", async (req, res): Promise<void> => {
   const anonLevel = await getAnonLevel();
@@ -193,8 +260,10 @@ router.get("/success-wall", async (req, res): Promise<void> => {
         me.system_type,
         me.best_category,
         me.featured,
+        me.share_count,
         me.reached_at,
         u.name,
+        u.social_proof_consent,
         u.membership_tier,
         EXTRACT(DAY FROM (me.reached_at - u.created_at))::int AS days_since_signup
       FROM milestone_events me
@@ -204,20 +273,21 @@ router.get("/success-wall", async (req, res): Promise<void> => {
     `);
 
     const events = (result.rows as Array<{
-      id: number; user_id: number; name: string | null;
+      id: number; user_id: number; name: string | null; social_proof_consent: boolean;
       amount_cents: number; milestone_label: string;
       system_type: string | null; best_category: string | null;
-      featured: boolean; reached_at: string;
+      featured: boolean; share_count: number; reached_at: string;
       membership_tier: string | null; days_since_signup: number;
     }>).map(r => ({
       id: r.id,
-      memberName: displayName(r.user_id, r.name, anonLevel),
+      memberName: applyDisplayName(r.user_id, r.name, anonLevel, r.social_proof_consent),
       tier: tierLabel(r.membership_tier),
       milestoneAmount: r.amount_cents,
       milestoneLabel: r.milestone_label,
       systemType: r.system_type ?? null,
       bestCategory: r.best_category ?? null,
       featured: r.featured,
+      shareCount: r.share_count,
       reachedAt: r.reached_at,
       daysSinceSignup: Number(r.days_since_signup ?? 0),
     }));
@@ -227,6 +297,31 @@ router.get("/success-wall", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err }, "success-wall query failed");
     res.json({ events: [] });
+  }
+});
+
+// ─── POST /api/leaderboard/events/:id/share ───────────────────────────────────
+// Public — increment share count for a milestone event.
+
+router.post("/leaderboard/events/:id/share", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid event id" });
+    return;
+  }
+  try {
+    const [updated] = await db
+      .update(milestoneEventsTable)
+      .set({ shareCount: sql`share_count + 1` })
+      .where(eq(milestoneEventsTable.id, id))
+      .returning({ id: milestoneEventsTable.id, shareCount: milestoneEventsTable.shareCount });
+    if (!updated) { res.status(404).json({ error: "Event not found" }); return; }
+    // Invalidate success-wall cache so share count shows up
+    for (const k of [..._cache.keys()]) { if (k.startsWith("sw_")) _cache.delete(k); }
+    res.json({ ok: true, shareCount: updated.shareCount });
+  } catch (err) {
+    req.log.error({ err }, "share increment failed");
+    res.status(500).json({ error: "Internal error" });
   }
 });
 
@@ -259,11 +354,7 @@ router.patch("/leaderboard/events/:id/feature", async (req, res): Promise<void> 
       .where(eq(milestoneEventsTable.id, id))
       .returning({ id: milestoneEventsTable.id, featured: milestoneEventsTable.featured });
 
-    if (!updated) {
-      res.status(404).json({ error: "Event not found" });
-      return;
-    }
-
+    if (!updated) { res.status(404).json({ error: "Event not found" }); return; }
     clearLeaderboardCache();
     res.json({ ok: true, id: updated.id, featured: updated.featured });
   } catch (err) {
@@ -273,7 +364,7 @@ router.patch("/leaderboard/events/:id/feature", async (req, res): Promise<void> 
 });
 
 // ─── GET /api/admin/social-proof-settings ─────────────────────────────────────
-// Admin — read current anonymization level and other social-proof config.
+// Admin — read anonymization level config.
 
 router.get("/admin/social-proof-settings", async (req, res): Promise<void> => {
   const caller = getTokenPayload(req);
@@ -281,7 +372,6 @@ router.get("/admin/social-proof-settings", async (req, res): Promise<void> => {
     res.status(caller ? 403 : 401).json({ error: caller ? "Forbidden" : "Unauthorized" });
     return;
   }
-
   try {
     const [row] = await db
       .select({ value: platformSettingsTable.value })

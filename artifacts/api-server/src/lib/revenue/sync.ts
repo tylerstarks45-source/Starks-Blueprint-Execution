@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { decrypt } from "../crypto";
 import { getRevenueProvider } from "./registry";
 import { logger } from "../logger";
+import { checkMilestones } from "../milestones";
 import type { RevenueProvider } from "./types";
 
 const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -108,6 +109,8 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
         createdAt: tx.occurredAt,
         metadata: JSON.stringify({ provider: record.provider, currency: tx.currency }),
       });
+      // Check and record any newly crossed lifetime earning milestones
+      checkMilestones(record.userId, record.systemInstanceId).catch(() => {});
       synced++;
     } catch (err) {
       errors.push(err instanceof Error ? err.message : String(err));

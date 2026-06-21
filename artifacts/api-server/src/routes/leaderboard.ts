@@ -2,11 +2,9 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { sql, eq } from "drizzle-orm";
 import { milestoneEventsTable, platformSettingsTable } from "@workspace/db";
-import { getTokenPayload } from "../lib/auth";
+import { getTokenPayload, requireAdmin } from "../lib/auth";
 
 const router: IRouter = Router();
-
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "admin", "FOUNDER_ADMIN"]);
 
 // ─── Cache helpers ────────────────────────────────────────────────────────────
 
@@ -329,11 +327,7 @@ router.post("/leaderboard/events/:id/share", async (req, res): Promise<void> => 
 // Admin — toggle featured flag on a milestone event.
 
 router.patch("/leaderboard/events/:id/feature", async (req, res): Promise<void> => {
-  const caller = getTokenPayload(req);
-  if (!caller || !ADMIN_ROLES.has(caller.role)) {
-    res.status(caller ? 403 : 401).json({ error: caller ? "Forbidden" : "Unauthorized" });
-    return;
-  }
+  if (!(await requireAdmin(req, res))) return;
 
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) {
@@ -367,11 +361,7 @@ router.patch("/leaderboard/events/:id/feature", async (req, res): Promise<void> 
 // Admin — read anonymization level config.
 
 router.get("/admin/social-proof-settings", async (req, res): Promise<void> => {
-  const caller = getTokenPayload(req);
-  if (!caller || !ADMIN_ROLES.has(caller.role)) {
-    res.status(caller ? 403 : 401).json({ error: caller ? "Forbidden" : "Unauthorized" });
-    return;
-  }
+  if (!(await requireAdmin(req, res))) return;
   try {
     const [row] = await db
       .select({ value: platformSettingsTable.value })
@@ -390,11 +380,7 @@ router.get("/admin/social-proof-settings", async (req, res): Promise<void> => {
 const VALID_ANON_LEVELS: AnonLevel[] = ["full_anon", "first_name", "full_name"];
 
 router.patch("/admin/social-proof-settings", async (req, res): Promise<void> => {
-  const caller = getTokenPayload(req);
-  if (!caller || !ADMIN_ROLES.has(caller.role)) {
-    res.status(caller ? 403 : 401).json({ error: caller ? "Forbidden" : "Unauthorized" });
-    return;
-  }
+  if (!(await requireAdmin(req, res))) return;
 
   const { anonLevel } = req.body as { anonLevel?: string };
   if (!anonLevel || !VALID_ANON_LEVELS.includes(anonLevel as AnonLevel)) {

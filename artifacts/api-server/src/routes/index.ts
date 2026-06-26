@@ -47,6 +47,7 @@ import whiteLabelRouter from "./white-label";
 import leaderboardRouter from "./leaderboard";
 import researchRouter from "./research";
 import developerRouter from "./developer";
+import analyticsRouter from "./analytics";
 
 const router: IRouter = Router();
 
@@ -98,5 +99,6 @@ router.use(whiteLabelRouter);
 router.use(leaderboardRouter);
 router.use(researchRouter);
 router.use(developerRouter);
+router.use(analyticsRouter);
 
 export default router;

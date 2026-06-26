@@ -68,6 +68,7 @@ const ReferPage             = lazy(() => import('@/pages/ReferPage.jsx'));
 const ClientsPage           = lazy(() => import('@/pages/ClientsPage.jsx'));
 const ClientPortalPage      = lazy(() => import('@/pages/ClientPortalPage.jsx'));
 const RefPage               = lazy(() => import('@/pages/RefPage.jsx'));
+const AnalyticsPage         = lazy(() => import('@/pages/AnalyticsPage.jsx'));
 
 // Leaderboard page (public)
 const LeaderboardPage       = lazy(() => import('@/pages/LeaderboardPage.jsx'));
@@ -255,6 +256,9 @@ const App = () => {
               } />
               <Route path="/clients" element={
                 <ProtectedRoute><ClientsPage /></ProtectedRoute>
+              } />
+              <Route path="/analytics" element={
+                <ProtectedRoute><AnalyticsPage /></ProtectedRoute>
               } />
               <Route path="/ref/:code" element={<RefPage />} />
               <Route path="/portal/:token" element={<ClientPortalPage />} />

@@ -66,6 +66,20 @@ export default function SettingsScreen() {
     notifyPlatform: false,
   });
   const [prefsSaving, setPrefsSaving] = useState(false);
+  const [renewalDate, setRenewalDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    apiFetch<{ subscription: { currentPeriodEnd?: string | null } | null }>("/subscriptions/me")
+      .then(({ subscription }) => {
+        if (subscription?.currentPeriodEnd) {
+          setRenewalDate(new Date(subscription.currentPeriodEnd).toLocaleDateString(undefined, {
+            year: "numeric", month: "long", day: "numeric",
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [user]);
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const bottomPad = insets.bottom + (Platform.OS === "web" ? 34 : 0);
@@ -259,6 +273,17 @@ export default function SettingsScreen() {
             </View>
             <Text style={[styles.creditsValue, { color: colors.accent }]}>{user?.credits ?? 0}</Text>
           </View>
+
+          {/* Renewal date — only for paid plans with a known renewal */}
+          {renewalDate && tier !== "free" && (
+            <View style={styles.creditsRow}>
+              <View style={styles.creditsInfo}>
+                <Feather name="refresh-cw" size={14} color={colors.mutedForeground} />
+                <Text style={[styles.creditsLabel, { color: colors.foreground }]}>Next renewal</Text>
+              </View>
+              <Text style={[styles.creditsValue, { color: colors.mutedForeground }]}>{renewalDate}</Text>
+            </View>
+          )}
 
           {/* Upgrade */}
           {tier !== "enterprise" && tier !== "founder" && (

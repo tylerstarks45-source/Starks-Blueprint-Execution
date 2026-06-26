@@ -376,7 +376,8 @@ export default function BuildScreen() {
       });
 
       const action = data.action ?? data.action_type;
-      const buildPlan = extractBuildPlan(data.content, action);
+      // Prefer structured plan from response; fall back to markdown-extracted plan
+      const buildPlan = data.plan ?? extractBuildPlan(data.content, action);
 
       const assistantMsg: ChatMessage = {
         id: loadingId,

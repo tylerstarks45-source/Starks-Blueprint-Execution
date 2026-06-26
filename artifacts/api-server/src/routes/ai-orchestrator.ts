@@ -708,7 +708,13 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       }
     }
 
-    res.json({ content: displayContent, structuredData, tokens: result.totalTokens, activatedSkills });
+    // Hoist action and plan to top-level so mobile can read them directly
+    // without needing to dig into structuredData.
+    const sd = structuredData as Record<string, unknown> | null;
+    const topAction = sd?.action as string ?? null;
+    const planActions = ["present_plan", "start_build", "build_step"];
+    const topPlan = topAction && planActions.includes(topAction) ? structuredData : null;
+    res.json({ content: displayContent, structuredData, action: topAction, action_type: topAction, plan: topPlan, tokens: result.totalTokens, activatedSkills });
   } catch (err) {
     const message = err instanceof Error ? err.message : "STARK request failed";
     if ((err as { code?: string })?.code === "out_of_credits") {

@@ -97,7 +97,12 @@ export async function checkMilestones(userId: number, triggeringSystemInstanceId
         const [uRow] = await db.select({ expoPushToken: usersTable.expoPushToken, notifyMilestone: usersTable.notifyMilestone })
           .from(usersTable).where(eq(usersTable.id, userId));
         if (uRow?.expoPushToken && uRow.notifyMilestone !== false) {
-          void sendPushNotification(uRow.expoPushToken, "🎉 Milestone Reached!", `You hit ${label} in total earnings!`);
+          void sendPushNotification(
+            uRow.expoPushToken,
+            "🎉 Milestone Reached!",
+            `You hit ${label} in total earnings!`,
+            { type: "milestone", systemInstanceId: triggeringSystemInstanceId ?? null },
+          );
         }
       } catch { /* non-fatal */ }
     }

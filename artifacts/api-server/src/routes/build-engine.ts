@@ -356,7 +356,12 @@ Execute this step now. Write detailed output describing exactly what was configu
       const [uRow] = await db.select({ expoPushToken: usersTable.expoPushToken, notifyBuild: usersTable.notifyBuild })
         .from(usersTable).where(eq(usersTable.id, userId));
       if (uRow?.expoPushToken && uRow.notifyBuild !== false) {
-        void sendPushNotification(uRow.expoPushToken, "🚀 System Live!", `"${parsed.data.blueprintName}" is now active and earning.`);
+        void sendPushNotification(
+          uRow.expoPushToken,
+          "🚀 System Live!",
+          `"${parsed.data.blueprintName}" is now active and earning.`,
+          { type: "build_complete", systemInstanceId: parsed.data.systemInstanceId },
+        );
       }
     } catch { /* non-fatal */ }
   }

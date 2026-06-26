@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, sql, desc, count } from "drizzle-orm";
-import { db, userAffiliateLinksTable, affiliateConversionsTable, systemActivityEventsTable } from "@workspace/db";
+import { db, userAffiliateLinksTable, affiliateConversionsTable, systemActivityEventsTable, systemInstancesTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { z } from "zod";
 import { randomBytes } from "crypto";
@@ -27,19 +27,39 @@ const UpdateUserAffiliateLinkBody = z.object({
 });
 
 const ConversionBody = z.object({
-  amount: z.number().min(0).optional(),
+  amount: z.coerce.number().min(0).optional(),
   currency: z.string().min(1).max(10).optional(),
   orderId: z.string().max(200).optional(),
 });
 
-// ── PUBLIC: POST /api/affiliate/:linkId/conversion ────────────────────────────
-// Fires a conversion pixel. No auth required — called by advertiser networks.
-router.post("/affiliate/:linkId/conversion", async (req, res): Promise<void> => {
-  const linkId = parseInt(String(req.params.linkId), 10);
-  if (isNaN(linkId)) { res.status(400).json({ error: "Invalid linkId" }); return; }
+// 1x1 transparent GIF — returned for GET image pixel requests
+const TRANSPARENT_GIF = Buffer.from(
+  "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+  "base64",
+);
 
-  const parsed = ConversionBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+async function handleConversion(
+  req: import("express").Request,
+  res: import("express").Response,
+  linkId: number,
+  isGet: boolean,
+): Promise<void> {
+  if (isNaN(linkId)) {
+    if (isGet) { res.set("Content-Type", "image/gif").send(TRANSPARENT_GIF); return; }
+    res.status(400).json({ error: "Invalid linkId" }); return;
+  }
+
+  // Parse from query params first (GET pixel / postback URLs), then body
+  const rawData = {
+    amount: req.query["amount"] ?? req.body?.amount,
+    currency: req.query["currency"] ?? req.body?.currency,
+    orderId: req.query["orderId"] ?? req.query["order_id"] ?? req.body?.orderId,
+  };
+  const parsed = ConversionBody.safeParse(rawData);
+  if (!parsed.success) {
+    if (isGet) { res.set("Content-Type", "image/gif").send(TRANSPARENT_GIF); return; }
+    res.status(400).json({ error: parsed.error.message }); return;
+  }
 
   const [link] = await db
     .select({
@@ -51,7 +71,10 @@ router.post("/affiliate/:linkId/conversion", async (req, res): Promise<void> => 
     .from(userAffiliateLinksTable)
     .where(eq(userAffiliateLinksTable.id, linkId));
 
-  if (!link || !link.isActive) { res.status(404).json({ error: "Link not found" }); return; }
+  if (!link || !link.isActive) {
+    if (isGet) { res.set("Content-Type", "image/gif").send(TRANSPARENT_GIF); return; }
+    res.status(404).json({ error: "Link not found" }); return;
+  }
 
   const amountCents = Math.round((parsed.data.amount ?? 0) * 100);
   const currency = (parsed.data.currency ?? "usd").toLowerCase();
@@ -79,7 +102,27 @@ router.post("/affiliate/:linkId/conversion", async (req, res): Promise<void> => 
     }).catch(() => {});
   }
 
+  if (isGet) {
+    res.set("Content-Type", "image/gif").send(TRANSPARENT_GIF);
+    return;
+  }
   res.status(201).json({ ok: true, conversionId: conversion.id });
+}
+
+// ── PUBLIC: GET /api/affiliate/:linkId/conversion (image pixel) ───────────────
+router.get("/affiliate/:linkId/conversion", (req, res) => {
+  const linkId = parseInt(String(req.params.linkId), 10);
+  handleConversion(req, res, linkId, true).catch(() => {
+    res.set("Content-Type", "image/gif").send(TRANSPARENT_GIF);
+  });
+});
+
+// ── PUBLIC: POST /api/affiliate/:linkId/conversion (JSON / postback) ──────────
+router.post("/affiliate/:linkId/conversion", (req, res) => {
+  const linkId = parseInt(String(req.params.linkId), 10);
+  handleConversion(req, res, linkId, false).catch((err: unknown) => {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Server error" });
+  });
 });
 
 // ── GET /api/user-affiliate-links ────────────────────────────────────────────
@@ -126,6 +169,15 @@ router.post("/user-affiliate-links", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  // Ownership check: systemInstanceId must belong to the authenticated user
+  if (parsed.data.systemInstanceId) {
+    const [sys] = await db.select({ id: systemInstancesTable.id })
+      .from(systemInstancesTable)
+      .where(and(eq(systemInstancesTable.id, parsed.data.systemInstanceId), eq(systemInstancesTable.userId, userId)));
+    if (!sys) { res.status(403).json({ error: "System instance not found or access denied" }); return; }
+  }
+
   const slug = parsed.data.cloakedSlug ?? randomBytes(5).toString("hex");
   const existing = await db.select({ id: userAffiliateLinksTable.id })
     .from(userAffiliateLinksTable).where(eq(userAffiliateLinksTable.cloakedSlug, slug));
@@ -155,6 +207,15 @@ router.patch("/user-affiliate-links/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  // Ownership check: systemInstanceId must belong to the authenticated user
+  if (parsed.data.systemInstanceId) {
+    const [sys] = await db.select({ id: systemInstancesTable.id })
+      .from(systemInstancesTable)
+      .where(and(eq(systemInstancesTable.id, parsed.data.systemInstanceId), eq(systemInstancesTable.userId, userId)));
+    if (!sys) { res.status(403).json({ error: "System instance not found or access denied" }); return; }
+  }
+
   const [row] = await db.update(userAffiliateLinksTable).set(parsed.data)
     .where(and(eq(userAffiliateLinksTable.id, id), eq(userAffiliateLinksTable.userId, userId)))
     .returning();

@@ -306,6 +306,7 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
     monthCents: Number(monthRows[0]?.total ?? 0),
     lifetimeCents: Number(lifetimeRows[0]?.total ?? 0),
     realRevenueCents: Number(realLifetimeRows[0]?.total ?? 0),
+    connectedProviderCount: linkedSystemIds.length,
     systemCount: systemIds.length,
     currency: "USD",
     daily,

@@ -1048,7 +1048,7 @@ const SystemCommandCenterPage = () => {
       {/* ══ REVENUE HEALTH ═══════════════════════════════════════════════════ */}
       {(() => {
         const activeSys = systems.filter(s => s.buildStatus === 'active' || s.buildStatus === 'running');
-        const realRevConnected = (revenue?.realRevenueCents ?? 0) > 0;
+        const realRevConnected = (revenue?.connectedProviderCount ?? 0) > 0;
         const hasActiveSystems = activeSys.length > 0;
         if (!hasActiveSystems) return null;
         return (

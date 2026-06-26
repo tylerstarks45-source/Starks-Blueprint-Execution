@@ -46,6 +46,19 @@ const PROVIDERS = [
       { key: 'paypal_client_secret', label: 'Client Secret', placeholder: 'PayPal Client Secret', hint: 'Same page as Client ID', link: 'https://developer.paypal.com/dashboard/applications' },
     ],
   },
+  {
+    id: 'clickbank',
+    label: 'ClickBank',
+    description: 'Affiliate marketplace, digital products',
+    color: 'text-orange-400',
+    border: 'border-orange-500/30',
+    bg: 'bg-orange-500/8',
+    activeBg: 'bg-orange-500/18 border-orange-500/50',
+    credentials: [
+      { key: 'clickbank_api_key', label: 'API Key', placeholder: 'Your ClickBank API key', hint: 'Find it at accounts.clickbank.com → Account Settings → API Keys', link: 'https://accounts.clickbank.com/apiKey.htm' },
+      { key: 'clickbank_clerk_key', label: 'Clerk Key', placeholder: 'Your ClickBank clerk key', hint: 'Same page — "Clerk API Key" section', link: 'https://accounts.clickbank.com/apiKey.htm' },
+    ],
+  },
 ];
 
 const SKIP_PROVIDER = { id: '__skip__', label: 'Skip for now', description: 'Set up revenue tracking later from your system dashboard' };

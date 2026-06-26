@@ -14,7 +14,7 @@ import {
   Search, ImageIcon, Download, Copy, Check, Code2, FileCode2,
   CloudUpload, Package, Hash, Database, Star, Info,
   RefreshCw, Pencil, Trash2, Film, Music, Share2, Mic2,
-  LayoutTemplate, Unlock,
+  LayoutTemplate, Unlock, Mic, MicOff, Volume2, VolumeX, PhoneCall, PhoneOff,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import BrowserView from '@/components/builder/BrowserView.jsx';
@@ -1632,6 +1632,111 @@ const BuilderPage = () => {
   const [expandedSystems, setExpandedSystems] = useState({});   // { [id]: true }
   const [expandedFolders, setExpandedFolders] = useState({});   // { [id+folder]: true }
 
+  // ── Voice interface state ──────────────────────────────────────────────────
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    try { return localStorage.getItem('sbep_voice_enabled') === 'true'; } catch { return false; }
+  });
+  const [voiceCallMode, setVoiceCallMode] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTTSPlaying, setIsTTSPlaying] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const ttsAudioRef = useRef(null);
+
+  const toggleVoiceEnabled = useCallback(() => {
+    setVoiceEnabled(v => {
+      const next = !v;
+      try { localStorage.setItem('sbep_voice_enabled', String(next)); } catch { /* ignore */ }
+      if (!next) {
+        setVoiceCallMode(false);
+        ttsAudioRef.current?.pause();
+        setIsTTSPlaying(false);
+      }
+      return next;
+    });
+  }, []);
+
+  const playTTS = useCallback(async (text) => {
+    if (!voiceEnabled || !text || isTTSPlaying) return;
+    const clean = text
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`]+`/g, '')
+      .replace(/#{1,6}\s/g, '')
+      .replace(/[*_~]/g, '')
+      .replace(/https?:\/\/\S+/g, 'link')
+      .replace(/<[^>]+>/g, '')
+      .trim()
+      .slice(0, 1200);
+    if (!clean) return;
+    try {
+      setIsTTSPlaying(true);
+      const res = await fetch('/api/media-gen/tts', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ text: clean, voice: 'warm narrator' }),
+      });
+      const data = await res.json();
+      if (data.audioBase64) {
+        const audio = new Audio(`data:${data.mimeType ?? 'audio/mpeg'};base64,${data.audioBase64}`);
+        ttsAudioRef.current = audio;
+        audio.onended = () => setIsTTSPlaying(false);
+        audio.onerror = () => setIsTTSPlaying(false);
+        await audio.play();
+      } else {
+        setIsTTSPlaying(false);
+      }
+    } catch {
+      setIsTTSPlaying(false);
+    }
+  }, [voiceEnabled, isTTSPlaying]);
+
+  const startVoiceRecording = useCallback(async () => {
+    if (isRecording || isTranscribing) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg' });
+      audioChunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: mr.mimeType });
+        audioChunksRef.current = [];
+        setIsTranscribing(true);
+        try {
+          const form = new FormData();
+          form.append('audio', blob, 'voice.webm');
+          const res = await fetch('/api/ai-orchestrator/transcribe', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${localStorage.getItem('sbep_auth_token') ?? ''}` },
+            body: form,
+          });
+          const data = await res.json();
+          if (data.text) {
+            setInput(data.text);
+            setTimeout(() => sendMessage(data.text), 400);
+          }
+        } catch {
+          toast.error('Transcription failed — please type your message');
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setIsRecording(true);
+    } catch {
+      toast.error('Microphone access denied');
+    }
+  }, [isRecording, isTranscribing]);
+
+  const stopVoiceRecording = useCallback(() => {
+    if (!isRecording || !mediaRecorderRef.current) return;
+    mediaRecorderRef.current.stop();
+    mediaRecorderRef.current = null;
+    setIsRecording(false);
+  }, [isRecording]);
+
   // ASH Workspace state
   const [generatedFiles, setGeneratedFiles] = useState([]);
   const [ashMemory, setAshMemory] = useState([]);
@@ -2192,6 +2297,11 @@ const BuilderPage = () => {
             throw new Error(event.message ?? 'Stream error');
           }
         }
+      }
+
+      // ── TTS auto-playback ─────────────────────────────────────────────────
+      if (voiceEnabled && doneData?.content) {
+        void playTTS(doneData.content);
       }
 
       // Skill Engine — merge newly activated skills
@@ -3648,6 +3758,26 @@ const BuilderPage = () => {
 
                   {/* Textarea + send */}
                   <div className="flex items-end gap-2 px-2.5 pb-2.5">
+                    {/* Mic button */}
+                    <button
+                      type="button"
+                      title={isRecording ? 'Stop recording' : 'Voice input'}
+                      disabled={isInputDisabled || isTranscribing || chatLoading}
+                      onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
+                      className={`shrink-0 w-[30px] h-[30px] rounded-lg flex items-center justify-center transition-all mb-0.5 ${
+                        isRecording
+                          ? 'bg-rose-500/25 border border-rose-500/60 text-rose-400 animate-pulse'
+                          : isTranscribing
+                          ? 'bg-amber-500/15 border border-amber-500/30 text-amber-400'
+                          : 'bg-white/5 border border-white/12 text-white/35 hover:text-white/65 hover:border-white/25'
+                      } disabled:opacity-30`}
+                    >
+                      {isTranscribing
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : isRecording
+                        ? <MicOff className="w-3.5 h-3.5" />
+                        : <Mic className="w-3.5 h-3.5" />}
+                    </button>
                     <textarea
                       ref={inputRef}
                       value={input}
@@ -3663,6 +3793,25 @@ const BuilderPage = () => {
                         e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
                       }}
                     />
+                    {/* Voice toggle */}
+                    <button
+                      type="button"
+                      title={voiceEnabled ? 'Voice responses on — click to mute' : 'Enable voice responses'}
+                      onClick={toggleVoiceEnabled}
+                      className={`shrink-0 w-[30px] h-[30px] rounded-lg flex items-center justify-center transition-all mb-0.5 ${
+                        voiceEnabled
+                          ? isTTSPlaying
+                            ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-400'
+                            : 'bg-violet-500/15 border border-violet-500/35 text-violet-400'
+                          : 'bg-white/5 border border-white/12 text-white/25 hover:text-white/50 hover:border-white/22'
+                      }`}
+                    >
+                      {voiceEnabled
+                        ? isTTSPlaying
+                          ? <Volume2 className="w-3.5 h-3.5 animate-pulse" />
+                          : <Volume2 className="w-3.5 h-3.5" />
+                        : <VolumeX className="w-3.5 h-3.5" />}
+                    </button>
                     <Button
                       onClick={() => sendMessage()}
                       disabled={!input.trim() || isInputDisabled}
@@ -4180,6 +4329,99 @@ const BuilderPage = () => {
 
       </div>
     </div>
+
+    {/* ── Voice Call Mode Overlay ───────────────────────────────────────────── */}
+    <AnimatePresence>
+      {voiceCallMode && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/85 backdrop-blur-md"
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            className="flex flex-col items-center gap-8 p-12 rounded-3xl border border-violet-500/20 bg-[#0a0814] shadow-2xl shadow-violet-500/10 min-w-[320px]"
+          >
+            {/* ASH avatar */}
+            <div className="relative">
+              <div className={`w-24 h-24 rounded-full bg-violet-500/15 border-2 flex items-center justify-center transition-all ${
+                isTTSPlaying ? 'border-violet-400 shadow-lg shadow-violet-500/40' : isRecording ? 'border-rose-400 shadow-lg shadow-rose-500/40' : 'border-violet-500/30'
+              }`}>
+                {isRecording
+                  ? <MicOff className="w-10 h-10 text-rose-400" />
+                  : isTTSPlaying
+                  ? <Volume2 className="w-10 h-10 text-violet-400" />
+                  : <Mic className="w-10 h-10 text-violet-400/60" />}
+              </div>
+              {(isTTSPlaying || isRecording) && (
+                <span className="absolute inset-0 rounded-full border-2 border-violet-400/40 animate-ping" />
+              )}
+            </div>
+
+            {/* Waveform bars */}
+            <div className="flex items-center gap-1 h-10">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-1 rounded-full transition-all ${
+                    isTTSPlaying || isRecording ? 'bg-violet-400' : 'bg-white/15'
+                  }`}
+                  style={{
+                    height: isTTSPlaying || isRecording
+                      ? `${20 + Math.sin(i * 0.8) * 16}px`
+                      : '6px',
+                    animation: (isTTSPlaying || isRecording)
+                      ? `pulse ${0.4 + i * 0.07}s ease-in-out infinite alternate`
+                      : 'none',
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Status */}
+            <div className="text-center">
+              <p className="text-sm font-mono font-semibold text-white/80">
+                {isTranscribing ? 'Transcribing…' : isRecording ? 'Listening…' : isTTSPlaying ? 'ASH is speaking…' : chatLoading ? 'ASH is thinking…' : 'Tap mic to speak'}
+              </p>
+              <p className="text-xs font-mono text-white/30 mt-1">ASH Voice Mode</p>
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
+                disabled={isTranscribing || chatLoading || isTTSPlaying}
+                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+                  isRecording
+                    ? 'bg-rose-500/25 border-2 border-rose-500 text-rose-400'
+                    : 'bg-violet-500/20 border-2 border-violet-500/60 text-violet-300 hover:bg-violet-500/30'
+                } disabled:opacity-40`}
+              >
+                {isTranscribing
+                  ? <Loader2 className="w-6 h-6 animate-spin" />
+                  : isRecording
+                  ? <MicOff className="w-6 h-6" />
+                  : <Mic className="w-6 h-6" />}
+              </button>
+              <button
+                onClick={() => {
+                  ttsAudioRef.current?.pause();
+                  setIsTTSPlaying(false);
+                  if (isRecording) stopVoiceRecording();
+                  setVoiceCallMode(false);
+                }}
+                className="w-12 h-12 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-400 hover:bg-rose-500/30 flex items-center justify-center transition-all"
+              >
+                <PhoneOff className="w-5 h-5" />
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
 
     {/* ── Page Editor Modal ─────────────────────────────────────────────────── */}
     {pageEditorPage && (

@@ -5,6 +5,7 @@ import {
   User, Lock, CreditCard, Bell, Trash2, Eye, EyeOff,
   Save, Check, Shield, AlertTriangle, Palette, Globe,
   CheckCircle2, XCircle, Loader2, Crown, Upload, ExternalLink,
+  Volume2, Mic, Play,
 } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
@@ -14,6 +15,7 @@ const TABS = [
   { id: 'security',      label: 'Security',       icon: Lock },
   { id: 'billing',       label: 'Billing',        icon: CreditCard },
   { id: 'notifications', label: 'Notifications',  icon: Bell },
+  { id: 'voice',         label: 'Voice',          icon: Volume2 },
   { id: 'branding',      label: 'Branding',       icon: Palette, empireOnly: true },
   { id: 'danger',        label: 'Danger Zone',    icon: AlertTriangle },
 ];
@@ -693,6 +695,187 @@ function BrandingTab({ user }) {
   );
 }
 
+const VOICE_PRESETS = [
+  { id: 'warm narrator',    label: 'Warm Narrator',   desc: 'Calm, professional male voice' },
+  { id: 'rachel',           label: 'Rachel',          desc: 'Clear, articulate female voice' },
+  { id: 'adam',             label: 'Adam',            desc: 'Deep, authoritative male voice' },
+  { id: 'bella',            label: 'Bella',           desc: 'Friendly, energetic female voice' },
+  { id: 'josh',             label: 'Josh',            desc: 'Young, conversational male voice' },
+];
+
+function VoiceTab() {
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    try { return localStorage.getItem('sbep_voice_enabled') === 'true'; } catch { return false; }
+  });
+  const [selectedVoice, setSelectedVoice] = useState(() => {
+    try { return localStorage.getItem('sbep_voice_preset') ?? 'warm narrator'; } catch { return 'warm narrator'; }
+  });
+  const [speed, setSpeed] = useState(() => {
+    try { return parseFloat(localStorage.getItem('sbep_voice_speed') ?? '1'); } catch { return 1; }
+  });
+  const [testing, setTesting] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const save = () => {
+    try {
+      localStorage.setItem('sbep_voice_enabled', String(voiceEnabled));
+      localStorage.setItem('sbep_voice_preset', selectedVoice);
+      localStorage.setItem('sbep_voice_speed', String(speed));
+    } catch { /* ignore */ }
+    setSaved(true);
+    toast.success('Voice preferences saved');
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const testVoice = async () => {
+    setTesting(true);
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch('/api/media-gen/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ text: "Hello! I'm ASH, your AI system builder. Voice responses are now active.", voice: selectedVoice }),
+      });
+      const data = await res.json();
+      if (data.audioBase64) {
+        const audio = new Audio(`data:${data.mimeType ?? 'audio/mpeg'};base64,${data.audioBase64}`);
+        audio.onended = () => setTesting(false);
+        audio.onerror = () => setTesting(false);
+        await audio.play();
+      } else if (data.status === 'needs_credentials') {
+        toast.error('Connect ElevenLabs in the Connections Hub to enable voice');
+        setTesting(false);
+      } else {
+        toast.error('TTS preview unavailable');
+        setTesting(false);
+      }
+    } catch {
+      toast.error('Preview failed');
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-lg font-bold text-white font-mono mb-1">Voice Settings</h2>
+        <p className="text-sm text-white/40">Configure ASH voice input and spoken responses.</p>
+      </div>
+
+      {/* ── Voice input toggle ──────────────────────────────────────────── */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-white/60 font-mono uppercase tracking-wider">Voice Input</h3>
+        <div className="flex items-center justify-between p-4 rounded-xl border border-white/8 bg-white/3">
+          <div className="flex items-start gap-3">
+            <Mic className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-white">Microphone Input</p>
+              <p className="text-xs text-white/40 mt-0.5">Use the mic button in ASH chat to speak your messages. Requires browser microphone permission.</p>
+            </div>
+          </div>
+          <div className="shrink-0 ml-4 flex items-center gap-2">
+            <span className="text-xs font-mono text-white/40">Always available</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* ── TTS responses ───────────────────────────────────────────────── */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-white/60 font-mono uppercase tracking-wider">Voice Responses</h3>
+        <div className="flex items-center justify-between p-4 rounded-xl border border-white/8 bg-white/3 hover:bg-white/5 transition-colors">
+          <div>
+            <p className="text-sm font-semibold text-white">ASH speaks responses aloud</p>
+            <p className="text-xs text-white/40 mt-0.5">
+              After each ASH reply, the text is converted to speech and auto-played. Requires ElevenLabs connected in{' '}
+              <a href="/connections" className="text-violet-400 hover:text-violet-300 underline">Connections Hub</a>.
+            </p>
+          </div>
+          <button
+            onClick={() => setVoiceEnabled(v => !v)}
+            className={`relative shrink-0 ml-4 rounded-full border transition-all duration-200`}
+            style={{ width: 40, height: 22, minWidth: 40, backgroundColor: voiceEnabled ? 'rgba(139,92,246,0.7)' : 'rgba(255,255,255,0.1)', borderColor: voiceEnabled ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.15)' }}
+          >
+            <span
+              className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all duration-200"
+              style={{ left: voiceEnabled ? '20px' : '2px' }}
+            />
+          </button>
+        </div>
+
+        {voiceEnabled && (
+          <div className="space-y-5 pl-0">
+            {/* Voice preset */}
+            <div>
+              <label className="block text-xs font-mono text-white/50 mb-2 uppercase tracking-widest">Voice Preset</label>
+              <div className="space-y-2">
+                {VOICE_PRESETS.map(preset => (
+                  <button
+                    key={preset.id}
+                    onClick={() => setSelectedVoice(preset.id)}
+                    className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
+                      selectedVoice === preset.id
+                        ? 'border-violet-500/40 bg-violet-500/10'
+                        : 'border-white/8 bg-white/2 hover:bg-white/5'
+                    }`}
+                  >
+                    <div>
+                      <p className={`text-sm font-semibold ${selectedVoice === preset.id ? 'text-violet-300' : 'text-white/70'}`}>
+                        {preset.label}
+                      </p>
+                      <p className="text-xs text-white/35 mt-0.5">{preset.desc}</p>
+                    </div>
+                    {selectedVoice === preset.id && <CheckCircle2 className="w-4 h-4 text-violet-400 shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Speech speed */}
+            <div>
+              <label className="block text-xs font-mono text-white/50 mb-2 uppercase tracking-widest">
+                Speech Speed — {speed === 1 ? 'Normal' : speed < 1 ? 'Slower' : 'Faster'} ({speed.toFixed(1)}×)
+              </label>
+              <input
+                type="range"
+                min="0.6"
+                max="1.5"
+                step="0.1"
+                value={speed}
+                onChange={e => setSpeed(parseFloat(e.target.value))}
+                className="w-full accent-violet-500"
+              />
+              <div className="flex justify-between text-[10px] font-mono text-white/25 mt-1">
+                <span>0.6× slow</span>
+                <span>1.0× normal</span>
+                <span>1.5× fast</span>
+              </div>
+            </div>
+
+            {/* Test button */}
+            <button
+              onClick={testVoice}
+              disabled={testing}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-violet-500/15 border border-violet-500/30 text-violet-300 hover:bg-violet-500/25 text-sm font-semibold transition-colors disabled:opacity-50"
+            >
+              {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              {testing ? 'Playing preview…' : 'Test Voice Preview'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={save}
+        className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-colors"
+      >
+        {saved ? <Check className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+        {saved ? 'Saved!' : 'Save Voice Settings'}
+      </button>
+    </div>
+  );
+}
+
 function DangerZoneTab({ user }) {
   const [confirm, setConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -765,6 +948,7 @@ export default function UserSettingsPage({ defaultTab = 'profile' }) {
     security:      () => <SecurityTab />,
     billing:       () => <BillingTab user={currentUser} />,
     notifications: () => <NotificationsTab />,
+    voice:         () => <VoiceTab />,
     branding:      () => <BrandingTab user={currentUser} />,
     danger:        () => <DangerZoneTab user={currentUser} />,
   }[activeTab] ?? (() => null);

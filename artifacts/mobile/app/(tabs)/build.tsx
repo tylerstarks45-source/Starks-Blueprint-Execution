@@ -19,6 +19,42 @@ import { useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { apiFetch } from "@/lib/api";
 
+// ─── TTS helper ───────────────────────────────────────────────────────────────
+
+async function playTTSResponse(text: string): Promise<void> {
+  if (!text || Platform.OS === "web") return;
+  const clean = text
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`[^`]+`/g, "")
+    .replace(/#{1,6}\s/g, "")
+    .replace(/[*_~]/g, "")
+    .replace(/https?:\/\/\S+/g, "link")
+    .trim()
+    .slice(0, 800);
+  if (!clean) return;
+  try {
+    const { apiFetch: af } = await import("@/lib/api");
+    const data = await af<{ audioBase64?: string; mimeType?: string; status?: string }>("/media-gen/tts", {
+      method: "POST",
+      body: JSON.stringify({ text: clean, voice: "warm narrator" }),
+    });
+    if (!data.audioBase64) return;
+    const { Audio } = await import("expo-av");
+    await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, allowsRecordingIOS: false });
+    const { sound } = await Audio.Sound.createAsync(
+      { uri: `data:${data.mimeType ?? "audio/mpeg"};base64,${data.audioBase64}` },
+      { shouldPlay: true },
+    );
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        sound.unloadAsync().catch(() => {});
+      }
+    });
+  } catch {
+    // TTS is optional — silently ignore errors
+  }
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ASHMode = "chat" | "plan" | "build";
@@ -329,6 +365,7 @@ export default function BuildScreen() {
   const [history, setHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [voiceResponseEnabled, setVoiceResponseEnabled] = useState(false);
   const flatRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -393,6 +430,11 @@ export default function BuildScreen() {
         ...h.slice(0, 18),
       ]);
 
+      // TTS auto-playback if voice responses are enabled
+      if (voiceResponseEnabled && data.content) {
+        void playTTSResponse(data.content);
+      }
+
       if (action === "collect_credentials" || action === "start_build") {
         setAshMode("build");
       }
@@ -430,11 +472,29 @@ export default function BuildScreen() {
           </View>
         </View>
 
-        {/* Mode switcher */}
-        <View style={[styles.modeRow, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-          {(["chat", "plan", "build"] as ASHMode[]).map((m) => (
-            <ModePill key={m} mode={m} ashMode={ashMode} onPress={() => switchMode(m)} />
-          ))}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {/* Voice toggle */}
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.selectionAsync();
+              setVoiceResponseEnabled((v) => !v);
+            }}
+            style={{
+              width: 32, height: 32, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center",
+              backgroundColor: voiceResponseEnabled ? "#8844E020" : "transparent",
+              borderColor: voiceResponseEnabled ? "#8844E060" : colors.border,
+            }}
+            activeOpacity={0.7}
+          >
+            <Feather name={voiceResponseEnabled ? "volume-2" : "volume-x"} size={15} color={voiceResponseEnabled ? "#8844E0" : colors.mutedForeground} />
+          </TouchableOpacity>
+
+          {/* Mode switcher */}
+          <View style={[styles.modeRow, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+            {(["chat", "plan", "build"] as ASHMode[]).map((m) => (
+              <ModePill key={m} mode={m} ashMode={ashMode} onPress={() => switchMode(m)} />
+            ))}
+          </View>
         </View>
       </View>
 

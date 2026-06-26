@@ -87,7 +87,7 @@ export default function RevenueSetupModal({ systemInstanceId, blueprintName, onC
       const storeRes = await fetch('/api/user-credentials', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ credentialKey: `__rev_${credDef.key}_${Date.now()}`, value: val, label: `${provider.label} - ${credDef.label}`, toolName: provider.label }),
+        body: JSON.stringify({ credentialKey: `__rev_${credDef.key}_${Date.now()}`, encryptedValue: btoa(val) }),
       }).then(r => r.json());
       if (storeRes.error) { setError(`Failed to store credential: ${storeRes.error}`); setLoading(false); return; }
       credentialKeys[credDef.key] = storeRes.credentialKey ?? `__rev_${credDef.key}_${Date.now()}`;

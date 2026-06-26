@@ -15,8 +15,13 @@ if (!process.env["SESSION_SECRET"]) {
 
 const JWT_SECRET = process.env["SESSION_SECRET"];
 
-// Returns the authenticated user id from a valid Bearer token, or null if absent/invalid.
+// Returns the authenticated user id from a valid Bearer token OR a pre-validated
+// API key caller injected by apiKeyMiddleware, or null if absent/invalid.
 export function getUserId(req: Request): number | null {
+  // API key auth — injected by middlewares/apiKey.ts after key validation & rate limiting
+  const apiCaller = (req as any).apiKeyCaller as { userId: number } | undefined;
+  if (apiCaller) return apiCaller.userId;
+
   const header = req.headers["authorization"];
   if (!header?.startsWith("Bearer ")) return null;
   try {
@@ -29,6 +34,7 @@ export function getUserId(req: Request): number | null {
 }
 
 // Returns full token payload (id, email, role) without a DB round-trip, or null if absent/invalid.
+// Note: does NOT check apiKeyCaller because email/role are not cached there — use getActiveCallerPayload.
 export function getTokenPayload(req: Request): { id: number; email: string; role: string } | null {
   const header = req.headers["authorization"];
   if (!header?.startsWith("Bearer ")) return null;
@@ -43,6 +49,7 @@ export function getTokenPayload(req: Request): { id: number; email: string; role
 }
 
 // Derives the authenticated user id or sends a 401 and returns null.
+// Accepts both JWT Bearer tokens and pre-validated X-API-Key callers.
 export function requireAuth(req: Request, res: Response): number | null {
   const id = getUserId(req);
   if (id === null) {
@@ -69,7 +76,12 @@ export function isFounderAdmin(role: string | null | undefined): boolean {
 
 // Async version of requireAuth that also verifies users.active.
 // Sends 401 (no/invalid token) or 403 (suspended) and returns null on failure.
+// API key callers have already been validated (account active check included) by
+// apiKeyMiddleware — skip the DB lookup for them to avoid the redundant round-trip.
 export async function requireAuthActive(req: Request, res: Response): Promise<number | null> {
+  const apiCaller = (req as any).apiKeyCaller as { userId: number } | undefined;
+  if (apiCaller) return apiCaller.userId;
+
   const id = getUserId(req);
   if (id === null) {
     res.status(401).json({ error: "Unauthorized" });
@@ -88,10 +100,25 @@ export async function requireAuthActive(req: Request, res: Response): Promise<nu
 
 // Async version of getTokenPayload that also verifies users.active.
 // Sends its own 401/403 response and returns null on failure — callers just `if (!caller) return;`.
+// Also accepts API key callers from apiKeyMiddleware (does a minimal DB lookup for email+role).
 export async function getActiveCallerPayload(
   req: Request,
   res: Response,
 ): Promise<{ id: number; email: string; role: string } | null> {
+  // API key path — middleware already validated account; fetch email+role from DB.
+  const apiCaller = (req as any).apiKeyCaller as { userId: number } | undefined;
+  if (apiCaller) {
+    const [user] = await db
+      .select({ email: usersTable.email, role: usersTable.role, active: usersTable.active })
+      .from(usersTable)
+      .where(eq(usersTable.id, apiCaller.userId));
+    if (!user || user.active === false) {
+      res.status(403).json({ error: "Account suspended" });
+      return null;
+    }
+    return { id: apiCaller.userId, email: user.email, role: user.role ?? "USER" };
+  }
+
   const header = req.headers["authorization"];
   if (!header?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Unauthorized" });

@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { apiKeyMiddleware } from "./middlewares/apiKey";
 
 const app: Express = express();
 
@@ -44,6 +45,10 @@ app.use((req, _res, next) => {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Validate X-API-Key before routing — injects req.apiKeyCaller, enforces
+// rate limits, and writes usage events. Must run before the route handlers.
+app.use("/api", apiKeyMiddleware);
 
 app.use("/api", router);
 

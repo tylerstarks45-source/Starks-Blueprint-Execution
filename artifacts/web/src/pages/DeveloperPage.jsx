@@ -163,13 +163,17 @@ def chat_with_ash(message: str):
   const sseExample = `const SBEP_KEY = 'sbep_your_api_key_here';
 const BASE = '${baseUrl}';
 
+// POST to /api/ai-orchestrator/stream for SSE token streaming
 const res = await fetch(\`\${BASE}/api/ai-orchestrator/stream\`, {
   method: 'POST',
   headers: {
     'X-API-Key': SBEP_KEY,
     'Content-Type': 'application/json',
   },
-  body: JSON.stringify({ message: 'Build me a TikTok affiliate system' }),
+  body: JSON.stringify({
+    message: 'Build me a TikTok affiliate system',
+    // Optional: sessionId, model, systemInstanceId
+  }),
 });
 
 const reader = res.body.getReader();
@@ -180,10 +184,10 @@ while (true) {
   if (done) break;
   const lines = decoder.decode(value).split('\\n');
   for (const line of lines) {
-    if (line.startsWith('data: ')) {
-      const data = JSON.parse(line.slice(6));
-      process.stdout.write(data.delta ?? '');
-    }
+    if (!line.startsWith('data: ')) continue;
+    const data = JSON.parse(line.slice(6));
+    if (data.delta) process.stdout.write(data.delta);
+    if (data.done) break;
   }
 }`;
 

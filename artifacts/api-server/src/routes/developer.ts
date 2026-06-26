@@ -28,75 +28,7 @@ function generateApiKey(): { rawKey: string; keyHash: string; keyPrefix: string 
   return { rawKey, keyHash, keyPrefix };
 }
 
-// ─── Rate-limit store (in-memory, keyed by keyHash) ───────────────────────────
-
-interface RLEntry { count: number; resetAt: number }
-const rlStore = new Map<string, RLEntry>();
-const WINDOW_MS = 60_000;
-const RL_LIMITS: Record<string, number> = { empire: 100, operator: 60 };
-const RL_DEFAULT = 20;
-
-export function checkApiKeyRateLimit(
-  keyHash: string,
-  tier: string,
-): { allowed: boolean; remaining: number; resetAt: number; limit: number } {
-  const limit = RL_LIMITS[tier.toLowerCase()] ?? RL_DEFAULT;
-  const now = Date.now();
-  const entry = rlStore.get(keyHash);
-  if (!entry || now > entry.resetAt) {
-    rlStore.set(keyHash, { count: 1, resetAt: now + WINDOW_MS });
-    return { allowed: true, remaining: limit - 1, resetAt: now + WINDOW_MS, limit };
-  }
-  if (entry.count >= limit) {
-    return { allowed: false, remaining: 0, resetAt: entry.resetAt, limit };
-  }
-  entry.count += 1;
-  return { allowed: true, remaining: limit - entry.count, resetAt: entry.resetAt, limit };
-}
-
-// ─── Lookup & validate an API key from the X-API-Key header ──────────────────
-
-export interface ApiKeyCaller {
-  userId: number;
-  keyId: number;
-  tier: string;
-  keyHash: string;
-}
-
-export async function resolveApiKeyAuth(req: Request): Promise<ApiKeyCaller | null> {
-  const raw = req.headers["x-api-key"];
-  const apiKey = Array.isArray(raw) ? raw[0] : raw;
-  if (!apiKey || !apiKey.startsWith("sbep_")) return null;
-
-  const keyHash = createHash("sha256").update(apiKey).digest("hex");
-
-  const [key] = await db
-    .select({ id: apiKeysTable.id, userId: apiKeysTable.userId, revokedAt: apiKeysTable.revokedAt })
-    .from(apiKeysTable)
-    .where(eq(apiKeysTable.keyHash, keyHash))
-    .limit(1);
-
-  if (!key || key.revokedAt !== null) return null;
-
-  const [user] = await db
-    .select({ active: usersTable.active, membershipTier: usersTable.membershipTier, role: usersTable.role })
-    .from(usersTable)
-    .where(eq(usersTable.id, key.userId));
-
-  if (!user || user.active === false) return null;
-
-  const tier = (user.membershipTier ?? "free").toLowerCase();
-
-  // Update lastUsedAt and increment monthlyCallCount async (non-blocking)
-  void db
-    .update(apiKeysTable)
-    .set({ lastUsedAt: new Date(), monthlyCallCount: sql`${apiKeysTable.monthlyCallCount} + 1` })
-    .where(eq(apiKeysTable.id, key.id));
-
-  return { userId: key.userId, keyId: key.id, tier, keyHash };
-}
-
-// ─── POST /developer/keys — create a new API key ─────────────────────────────
+// ─── POST /developer/keys — create a new API key ──────────────────────────────
 
 router.post("/developer/keys", async (req: Request, res: Response) => {
   const userId = await requireAuthActive(req, res);
@@ -210,7 +142,60 @@ router.delete("/developer/keys/:id", async (req: Request, res: Response) => {
   res.json({ success: true, revokedAt: new Date().toISOString() });
 });
 
-// ─── GET /developer/usage — usage analytics ────────────────────────────────────
+// ─── POST /developer/keys/:id/rotate — revoke old key + issue new one ─────────
+
+router.post("/developer/keys/:id/rotate", async (req: Request, res: Response) => {
+  const userId = await requireAuthActive(req, res);
+  if (!userId) return;
+
+  const keyId = Number(req.params.id);
+  if (!Number.isFinite(keyId)) {
+    res.status(400).json({ error: "Invalid key id" });
+    return;
+  }
+
+  const [key] = await db
+    .select({ id: apiKeysTable.id, userId: apiKeysTable.userId, name: apiKeysTable.name, revokedAt: apiKeysTable.revokedAt })
+    .from(apiKeysTable)
+    .where(eq(apiKeysTable.id, keyId));
+
+  if (!key || key.userId !== userId) {
+    res.status(404).json({ error: "API key not found" });
+    return;
+  }
+
+  if (key.revokedAt) {
+    res.status(409).json({ error: "Key is already revoked" });
+    return;
+  }
+
+  // Revoke the old key and create a replacement with the same name atomically
+  const { rawKey, keyHash, keyPrefix } = generateApiKey();
+
+  await db
+    .update(apiKeysTable)
+    .set({ revokedAt: new Date() })
+    .where(eq(apiKeysTable.id, keyId));
+
+  const [created] = await db
+    .insert(apiKeysTable)
+    .values({ userId, keyHash, keyPrefix, name: key.name })
+    .returning({
+      id: apiKeysTable.id,
+      keyPrefix: apiKeysTable.keyPrefix,
+      name: apiKeysTable.name,
+      createdAt: apiKeysTable.createdAt,
+    });
+
+  res.status(201).json({
+    ...serialize(created),
+    rawKey,
+    revokedKeyId: keyId,
+    message: "Old key revoked. Store the new key — it will not be shown again.",
+  });
+});
+
+// ─── GET /developer/usage — 30-day usage analytics ───────────────────────────
 
 router.get("/developer/usage", async (req: Request, res: Response) => {
   const userId = await requireAuthActive(req, res);
@@ -228,44 +213,64 @@ router.get("/developer/usage", async (req: Request, res: Response) => {
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const events = await db
-    .select({
-      date: sql<string>`DATE(${apiKeyUsageEventsTable.createdAt})`,
-      count: sql<number>`COUNT(*)::int`,
-    })
-    .from(apiKeyUsageEventsTable)
-    .where(
-      and(
+  const [dailyUsage, totalCalls, endpointBreakdown] = await Promise.all([
+    db
+      .select({
+        date: sql<string>`DATE(${apiKeyUsageEventsTable.createdAt})`,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(apiKeyUsageEventsTable)
+      .where(and(
         eq(apiKeyUsageEventsTable.userId, userId),
         gte(apiKeyUsageEventsTable.createdAt, thirtyDaysAgo),
-      )
-    )
-    .groupBy(sql`DATE(${apiKeyUsageEventsTable.createdAt})`)
-    .orderBy(sql`DATE(${apiKeyUsageEventsTable.createdAt})`);
+      ))
+      .groupBy(sql`DATE(${apiKeyUsageEventsTable.createdAt})`)
+      .orderBy(sql`DATE(${apiKeyUsageEventsTable.createdAt})`),
 
-  const totalCalls = await db
-    .select({ total: sql<number>`SUM(${apiKeysTable.monthlyCallCount})::int` })
-    .from(apiKeysTable)
-    .where(and(eq(apiKeysTable.userId, userId), isNull(apiKeysTable.revokedAt)));
+    db
+      .select({ total: sql<number>`COALESCE(SUM(${apiKeysTable.monthlyCallCount}),0)::int` })
+      .from(apiKeysTable)
+      .where(and(eq(apiKeysTable.userId, userId), isNull(apiKeysTable.revokedAt))),
+
+    db
+      .select({
+        endpoint: apiKeyUsageEventsTable.endpoint,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(apiKeyUsageEventsTable)
+      .where(and(
+        eq(apiKeyUsageEventsTable.userId, userId),
+        gte(apiKeyUsageEventsTable.createdAt, thirtyDaysAgo),
+      ))
+      .groupBy(apiKeyUsageEventsTable.endpoint)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(10),
+  ]);
+
+  const tier = (user.membershipTier ?? "free").toLowerCase();
+  const rateLimitMap: Record<string, number> = { empire: 100, operator: 20 };
+  const rateLimit = rateLimitMap[tier] ?? 20;
 
   res.json({
-    dailyUsage: serialize(events),
+    dailyUsage: serialize(dailyUsage),
     totalMonthlyCallCount: totalCalls[0]?.total ?? 0,
-    tier: (user.membershipTier ?? "free").toLowerCase(),
-    rateLimit: RL_LIMITS[(user.membershipTier ?? "free").toLowerCase()] ?? RL_DEFAULT,
+    topEndpoints: serialize(endpointBreakdown),
+    tier,
+    rateLimit,
   });
 });
 
-// ─── GET /developer/rate-limits — rate limit info ────────────────────────────
+// ─── GET /developer/rate-limits — public tier limits ─────────────────────────
 
-router.get("/developer/rate-limits", async (req: Request, res: Response) => {
+router.get("/developer/rate-limits", async (_req: Request, res: Response) => {
   res.json({
     tiers: {
       empire: { requestsPerMinute: 100, maxKeys: 5 },
-      operator: { requestsPerMinute: 60, maxKeys: 5 },
+      operator: { requestsPerMinute: 20, maxKeys: 5 },
       free: { requestsPerMinute: 20, maxKeys: 5 },
     },
-    note: "Rate limits apply per API key per minute. Enterprise plans available via support.",
+    windowSeconds: 60,
+    note: "Rate limits apply per API key per 60-second window. Enterprise plans available via support.",
   });
 });
 

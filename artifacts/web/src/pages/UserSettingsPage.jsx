@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   User, Lock, CreditCard, Bell, Trash2, Eye, EyeOff,
   Save, Check, Shield, AlertTriangle, Palette, Globe,
   CheckCircle2, XCircle, Loader2, Crown, Upload, ExternalLink,
-  Volume2, Mic, Play,
+  Volume2, Mic, Play, Code, Key, Copy, RotateCcw, Zap,
 } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
@@ -17,6 +18,7 @@ const TABS = [
   { id: 'notifications', label: 'Notifications',  icon: Bell },
   { id: 'voice',         label: 'Voice',          icon: Volume2 },
   { id: 'branding',      label: 'Branding',       icon: Palette, empireOnly: true },
+  { id: 'developer',     label: 'Developer',      icon: Code,    empireOnly: true },
   { id: 'danger',        label: 'Danger Zone',    icon: AlertTriangle },
 ];
 
@@ -876,6 +878,246 @@ function VoiceTab() {
   );
 }
 
+function DeveloperTab({ user }) {
+  const [keys, setKeys] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [revealedKey, setRevealedKey] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+  const [usage, setUsage] = useState(null);
+
+  const headers = authHeaders();
+
+  const loadKeys = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/developer/keys', { headers });
+      if (res.ok) setKeys(await res.json());
+      else toast.error('Failed to load API keys');
+    } catch { toast.error('Network error'); }
+    finally { setLoading(false); }
+  }, []);
+
+  const loadUsage = useCallback(async () => {
+    try {
+      const res = await fetch('/api/developer/usage', { headers });
+      if (res.ok) setUsage(await res.json());
+    } catch { /* non-fatal */ }
+  }, []);
+
+  useEffect(() => { loadKeys(); loadUsage(); }, [loadKeys, loadUsage]);
+
+  const createKey = async () => {
+    if (!newKeyName.trim()) { toast.error('Enter a key name'); return; }
+    setCreating(true);
+    try {
+      const res = await fetch('/api/developer/keys', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ name: newKeyName.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRevealedKey({ id: data.id, rawKey: data.rawKey, name: data.name });
+        setNewKeyName('');
+        toast.success('API key created — copy it now!');
+        loadKeys();
+        loadUsage();
+      } else {
+        toast.error(data.error ?? 'Failed to create key');
+      }
+    } catch { toast.error('Network error'); }
+    finally { setCreating(false); }
+  };
+
+  const revokeKey = async (keyId, keyName) => {
+    if (!window.confirm(`Revoke "${keyName}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/developer/keys/${keyId}`, { method: 'DELETE', headers });
+      if (res.ok) { toast.success('Key revoked'); loadKeys(); loadUsage(); }
+      else { const d = await res.json(); toast.error(d.error ?? 'Failed to revoke key'); }
+    } catch { toast.error('Network error'); }
+  };
+
+  const copyText = (text, id) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  };
+
+  const activeKeys = keys.filter(k => !k.revokedAt);
+  const revokedKeys = keys.filter(k => k.revokedAt);
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-lg font-bold text-white font-mono mb-1">Developer API</h2>
+        <p className="text-sm text-white/40">
+          Manage API keys for programmatic access to SBEP.{' '}
+          <Link to="/developer" className="text-violet-400 hover:text-violet-300 underline">
+            View API docs <ExternalLink className="inline w-3 h-3" />
+          </Link>
+        </p>
+      </div>
+
+      {/* Usage summary */}
+      {usage && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Monthly Calls', value: (usage.totalMonthlyCallCount ?? 0).toLocaleString(), icon: Zap },
+            { label: 'Rate Limit', value: `${usage.rateLimit}/min`, icon: Shield },
+            { label: 'Active Keys', value: activeKeys.length, icon: Key },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="p-3 rounded-xl border border-white/8 bg-white/2 text-center">
+              <Icon className="w-4 h-4 text-violet-400 mx-auto mb-1.5" />
+              <p className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{label}</p>
+              <p className="text-sm font-bold text-white font-mono mt-0.5">{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Revealed key banner */}
+      {revealedKey && (
+        <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/8 space-y-3">
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-emerald-300">"{revealedKey.name}" created — copy it now</p>
+              <p className="text-xs text-emerald-400/70 mt-0.5">This key will not be shown again.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-black/40 rounded-lg border border-emerald-500/20 px-3 py-2.5">
+            <code className="flex-1 text-xs font-mono text-emerald-300 break-all">{revealedKey.rawKey}</code>
+            <button
+              onClick={() => copyText(revealedKey.rawKey, 'revealed')}
+              className="shrink-0 p-1.5 rounded-md hover:bg-white/10 text-emerald-400 transition-colors"
+            >
+              {copiedId === 'revealed' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+          <button
+            onClick={() => setRevealedKey(null)}
+            className="text-xs text-white/30 hover:text-white/60 transition-colors"
+          >
+            I've saved it — dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Create new key */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-white/60 font-mono uppercase tracking-wider">Generate API Key</h3>
+        <div className="flex gap-3">
+          <input
+            value={newKeyName}
+            onChange={e => setNewKeyName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && createKey()}
+            placeholder="Key name (e.g. Production, CI/CD)"
+            maxLength={80}
+            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors"
+          />
+          <button
+            onClick={createKey}
+            disabled={creating || !newKeyName.trim() || activeKeys.length >= 5}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-colors disabled:opacity-40 shrink-0"
+          >
+            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+            Generate
+          </button>
+        </div>
+        {activeKeys.length >= 5 && (
+          <p className="text-xs text-amber-400/80 font-mono">Maximum of 5 active keys. Revoke one to create another.</p>
+        )}
+      </div>
+
+      {/* Active keys list */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-white/60 font-mono uppercase tracking-wider">Active Keys ({activeKeys.length}/5)</h3>
+        {loading ? (
+          <div className="flex items-center gap-2 text-white/30 text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading...
+          </div>
+        ) : activeKeys.length === 0 ? (
+          <div className="p-6 rounded-xl border border-white/8 bg-white/2 text-center">
+            <Code className="w-8 h-8 text-white/20 mx-auto mb-2" />
+            <p className="text-sm text-white/40">No active API keys. Generate one above to get started.</p>
+          </div>
+        ) : (
+          activeKeys.map(key => (
+            <div key={key.id} className="flex items-center gap-4 p-4 rounded-xl border border-white/8 bg-white/2">
+              <Key className="w-4 h-4 text-violet-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white">{key.name}</p>
+                <div className="flex items-center gap-3 mt-0.5">
+                  <code className="text-xs font-mono text-white/40">sbep_{key.keyPrefix}••••••••</code>
+                  <span className="text-[10px] text-white/25 font-mono">{key.monthlyCallCount.toLocaleString()} calls</span>
+                  {key.lastUsedAt && (
+                    <span className="text-[10px] text-white/25">
+                      Last used {new Date(key.lastUsedAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => copyText(`sbep_${key.keyPrefix}`, key.id)}
+                  className="p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
+                  title="Copy prefix"
+                >
+                  {copiedId === key.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={() => revokeKey(key.id, key.name)}
+                  className="p-1.5 rounded-md hover:bg-red-500/15 text-red-400/50 hover:text-red-400 transition-colors"
+                  title="Revoke key"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Revoked keys */}
+      {revokedKeys.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-white/30 font-mono uppercase tracking-wider">Revoked Keys</h3>
+          {revokedKeys.map(key => (
+            <div key={key.id} className="flex items-center gap-4 p-3 rounded-xl border border-white/5 bg-white/1 opacity-50">
+              <Key className="w-4 h-4 text-white/20 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white/40 line-through">{key.name}</p>
+                <code className="text-xs font-mono text-white/20">sbep_{key.keyPrefix}••••••••</code>
+              </div>
+              <span className="text-[10px] font-mono text-white/25 shrink-0">
+                Revoked {new Date(key.revokedAt).toLocaleDateString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Docs link */}
+      <div className="p-4 rounded-xl border border-violet-500/15 bg-violet-500/5 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-violet-300">API Documentation</p>
+          <p className="text-xs text-white/40 mt-0.5">Authentication, endpoints, rate limits, and code examples.</p>
+        </div>
+        <Link
+          to="/developer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600/80 hover:bg-violet-600 text-white text-xs font-semibold transition-colors shrink-0"
+        >
+          <ExternalLink className="w-3 h-3" /> View Docs
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function DangerZoneTab({ user }) {
   const [confirm, setConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -950,6 +1192,7 @@ export default function UserSettingsPage({ defaultTab = 'profile' }) {
     notifications: () => <NotificationsTab />,
     voice:         () => <VoiceTab />,
     branding:      () => <BrandingTab user={currentUser} />,
+    developer:     () => <DeveloperTab user={currentUser} />,
     danger:        () => <DangerZoneTab user={currentUser} />,
   }[activeTab] ?? (() => null);
 

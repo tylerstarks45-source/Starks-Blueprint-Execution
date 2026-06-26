@@ -33,6 +33,7 @@ const BlueprintSubmitPage   = lazy(() => import('@/pages/BlueprintSubmitPage.jsx
 const HowItWorksPage        = lazy(() => import('@/pages/HowItWorksPage.jsx'));
 const BusinessModelPage     = lazy(() => import('@/pages/BusinessModelPage.jsx'));
 const ResearchLabPage       = lazy(() => import('@/pages/ResearchLabPage.jsx'));
+const DeveloperPage         = lazy(() => import('@/pages/DeveloperPage.jsx'));
 const WhyTrustUsPage        = lazy(() => import('@/pages/WhyTrustUsPage.jsx'));
 const UpdatesPage           = lazy(() => import('@/pages/UpdatesPage.jsx'));
 const PasswordResetPage     = lazy(() => import('@/pages/PasswordResetPage.jsx'));
@@ -177,6 +178,7 @@ const App = () => {
               <Route path="/how-it-works" element={<HowItWorksPage />} />
               <Route path="/business-model" element={<BusinessModelPage />} />
               <Route path="/research-lab" element={<ResearchLabPage />} />
+              <Route path="/developer" element={<DeveloperPage />} />
               <Route path="/why-trust-us" element={<WhyTrustUsPage />} />
               <Route path="/updates" element={<UpdatesPage />} />
 
@@ -262,6 +264,9 @@ const App = () => {
               } />
               <Route path="/settings/branding" element={
                 <ProtectedRoute><UserSettingsPage defaultTab="branding" /></ProtectedRoute>
+              } />
+              <Route path="/settings/developer" element={
+                <ProtectedRoute><UserSettingsPage defaultTab="developer" /></ProtectedRoute>
               } />
 
               {/* Admin routes — lazy */}

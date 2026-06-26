@@ -46,6 +46,7 @@ import clientsRouter from "./clients";
 import whiteLabelRouter from "./white-label";
 import leaderboardRouter from "./leaderboard";
 import researchRouter from "./research";
+import developerRouter from "./developer";
 
 const router: IRouter = Router();
 
@@ -96,5 +97,6 @@ router.use(clientsRouter);
 router.use(whiteLabelRouter);
 router.use(leaderboardRouter);
 router.use(researchRouter);
+router.use(developerRouter);
 
 export default router;

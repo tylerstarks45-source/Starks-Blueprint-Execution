@@ -46,6 +46,15 @@ app.use((req, _res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// /api/ash/* → /api/ai-orchestrator/* URL alias so external callers can use either path.
+// Must run before the API key middleware and router so both paths are authenticated equally.
+app.use((req, _res, next) => {
+  if (req.url.startsWith("/api/ash/")) {
+    req.url = req.url.replace("/api/ash/", "/api/ai-orchestrator/");
+  }
+  next();
+});
+
 // Validate X-API-Key before routing — injects req.apiKeyCaller, enforces
 // rate limits, and writes usage events. Must run before the route handlers.
 app.use("/api", apiKeyMiddleware);

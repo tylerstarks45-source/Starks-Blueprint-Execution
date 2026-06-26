@@ -241,12 +241,16 @@ router.get("/developer/usage", async (req: Request, res: Response) => {
       .orderBy(sql`DATE(${apiKeyUsageEventsTable.createdAt})`),
 
     db
-      .select({
-        total: sql<number>`COALESCE(SUM(${apiKeysTable.monthlyCallCount}),0)::int`,
-        totalTokens: sql<number>`0::int`,
-      })
-      .from(apiKeysTable)
-      .where(and(eq(apiKeysTable.userId, userId), isNull(apiKeysTable.revokedAt))),
+      .select({ total: sql<number>`COUNT(*)::int` })
+      .from(apiKeyUsageEventsTable)
+      .where(and(
+        eq(apiKeyUsageEventsTable.userId, userId),
+        gte(apiKeyUsageEventsTable.createdAt, new Date(
+          new Date().getFullYear(),
+          new Date().getMonth(),
+          1,
+        )),
+      )),
 
     db
       .select({

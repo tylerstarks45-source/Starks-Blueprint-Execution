@@ -34,8 +34,14 @@ export function getUserId(req: Request): number | null {
 }
 
 // Returns full token payload (id, email, role) without a DB round-trip, or null if absent/invalid.
-// Note: does NOT check apiKeyCaller because email/role are not cached there — use getActiveCallerPayload.
+// Also synthesizes a payload from pre-validated API key callers (email + role are cached by apiKeyMiddleware).
 export function getTokenPayload(req: Request): { id: number; email: string; role: string } | null {
+  // API key path — email and role are embedded in the caller by apiKeyMiddleware
+  const apiCaller = (req as any).apiKeyCaller as { userId: number; email: string; role: string } | undefined;
+  if (apiCaller) {
+    return { id: apiCaller.userId, email: apiCaller.email, role: apiCaller.role };
+  }
+
   const header = req.headers["authorization"];
   if (!header?.startsWith("Bearer ")) return null;
   try {

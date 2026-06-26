@@ -84,7 +84,7 @@ export async function apiKeyMiddleware(req: Request, res: Response, next: NextFu
 
   // Verify user account is still active
   const [user] = await db
-    .select({ active: usersTable.active, membershipTier: usersTable.membershipTier, role: usersTable.role })
+    .select({ active: usersTable.active, membershipTier: usersTable.membershipTier, role: usersTable.role, email: usersTable.email })
     .from(usersTable)
     .where(eq(usersTable.id, key.userId));
 
@@ -132,8 +132,16 @@ export async function apiKeyMiddleware(req: Request, res: Response, next: NextFu
     return;
   }
 
-  // Inject caller so auth helpers accept this as a valid session
-  (req as any).apiKeyCaller = { userId: key.userId, keyId: key.id, tier, keyHash };
+  // Inject caller so auth helpers accept this as a valid session.
+  // email + role are included so getTokenPayload() can synthesize a payload without a DB round-trip.
+  (req as any).apiKeyCaller = {
+    userId: key.userId,
+    keyId: key.id,
+    tier,
+    keyHash,
+    email: user.email,
+    role: role,
+  };
 
   // Update lastUsedAt + monthlyCallCount (non-blocking fire-and-forget)
   void db

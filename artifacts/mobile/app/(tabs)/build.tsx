@@ -448,7 +448,7 @@ export default function BuildScreen() {
     } finally {
       setSending(false);
     }
-  }, [input, sending, history, ashMode]);
+  }, [input, sending, history, ashMode, voiceResponseEnabled]);
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const bottomPad = insets.bottom + (Platform.OS === "web" ? 34 : 0);

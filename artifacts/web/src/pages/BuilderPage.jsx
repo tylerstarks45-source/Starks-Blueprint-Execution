@@ -1640,6 +1640,8 @@ const BuilderPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isTTSPlaying, setIsTTSPlaying] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [voiceLastTranscript, setVoiceLastTranscript] = useState('');
+  const [voiceLastResponse, setVoiceLastResponse] = useState('');
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const ttsAudioRef = useRef(null);
@@ -1669,19 +1671,23 @@ const BuilderPage = () => {
       .trim()
       .slice(0, 1200);
     if (!clean) return;
+    const voicePreset = (() => { try { return localStorage.getItem('sbep_voice_preset') ?? 'warm narrator'; } catch { return 'warm narrator'; } })();
+    const voiceSpeed  = (() => { try { const s = parseFloat(localStorage.getItem('sbep_voice_speed') ?? '1'); return isNaN(s) ? 1 : Math.max(0.5, Math.min(s, 2)); } catch { return 1; } })();
     try {
       setIsTTSPlaying(true);
       const res = await fetch('/api/media-gen/tts', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ text: clean, voice: 'warm narrator' }),
+        body: JSON.stringify({ text: clean, voice: voicePreset }),
       });
       const data = await res.json();
       if (data.audioBase64) {
         const audio = new Audio(`data:${data.mimeType ?? 'audio/mpeg'};base64,${data.audioBase64}`);
+        audio.playbackRate = voiceSpeed;
         ttsAudioRef.current = audio;
         audio.onended = () => setIsTTSPlaying(false);
         audio.onerror = () => setIsTTSPlaying(false);
+        setVoiceLastResponse(clean.slice(0, 180));
         await audio.play();
       } else {
         setIsTTSPlaying(false);
@@ -1713,6 +1719,7 @@ const BuilderPage = () => {
           });
           const data = await res.json();
           if (data.text) {
+            setVoiceLastTranscript(data.text);
             setInput(data.text);
             setTimeout(() => sendMessage(data.text), 400);
           }
@@ -3812,6 +3819,15 @@ const BuilderPage = () => {
                           : <Volume2 className="w-3.5 h-3.5" />
                         : <VolumeX className="w-3.5 h-3.5" />}
                     </button>
+                    {/* Voice Call Mode entry */}
+                    <button
+                      type="button"
+                      title="Enter ASH voice call mode"
+                      onClick={() => { if (!voiceEnabled) { setVoiceEnabled(true); try { localStorage.setItem('sbep_voice_enabled', 'true'); } catch {} } setVoiceCallMode(true); }}
+                      className="shrink-0 w-[30px] h-[30px] rounded-lg flex items-center justify-center transition-all mb-0.5 bg-white/5 border border-white/12 text-white/30 hover:text-violet-400 hover:border-violet-500/40 hover:bg-violet-500/10"
+                    >
+                      <PhoneCall className="w-3.5 h-3.5" />
+                    </button>
                     <Button
                       onClick={() => sendMessage()}
                       disabled={!input.trim() || isInputDisabled}
@@ -4388,6 +4404,43 @@ const BuilderPage = () => {
               </p>
               <p className="text-xs font-mono text-white/30 mt-1">ASH Voice Mode</p>
             </div>
+
+            {/* Live transcript bubble */}
+            {voiceLastTranscript && (
+              <div className="w-full max-w-xs rounded-2xl rounded-br-sm bg-violet-500/15 border border-violet-500/25 px-4 py-2.5 self-end">
+                <p className="text-[11px] font-mono text-white/50 mb-0.5">You said</p>
+                <p className="text-xs text-white/80 leading-relaxed">{voiceLastTranscript}</p>
+              </div>
+            )}
+
+            {/* ASH last response snippet */}
+            {voiceLastResponse && (
+              <div className="w-full max-w-xs rounded-2xl rounded-bl-sm bg-white/5 border border-white/10 px-4 py-2.5 self-start">
+                <p className="text-[11px] font-mono text-violet-400/70 mb-0.5">ASH</p>
+                <p className="text-xs text-white/65 leading-relaxed line-clamp-3">{voiceLastResponse}{voiceLastResponse.length >= 180 ? '…' : ''}</p>
+              </div>
+            )}
+
+            {/* Recent chat history (last 3 pairs) */}
+            {messages.length > 0 && !voiceLastTranscript && !voiceLastResponse && (
+              <div className="w-full max-w-xs space-y-2">
+                <p className="text-[10px] font-mono text-white/25 text-center uppercase tracking-wider">Recent conversation</p>
+                {messages.slice(-4).map((m, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-xl px-3 py-2 text-[11px] leading-relaxed ${
+                      m.role === 'user'
+                        ? 'bg-violet-500/12 border border-violet-500/20 text-white/70 ml-4'
+                        : 'bg-white/4 border border-white/8 text-white/55 mr-4'
+                    }`}
+                  >
+                    <span className="font-mono text-[9px] uppercase tracking-wider opacity-50 block mb-0.5">{m.role === 'user' ? 'You' : 'ASH'}</span>
+                    {typeof m.content === 'string' ? m.content.slice(0, 100) : ''}
+                    {typeof m.content === 'string' && m.content.length > 100 ? '…' : ''}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Controls */}
             <div className="flex items-center gap-4">

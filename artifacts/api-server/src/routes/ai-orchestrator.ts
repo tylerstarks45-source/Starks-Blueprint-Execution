@@ -582,6 +582,7 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     businessType: z.string().nullish(),
     revenueGoal: z.string().nullish(),
     planMode: z.boolean().optional().default(false),
+    chatOnly: z.boolean().optional().default(false),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -646,11 +647,15 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     ].filter(Boolean).join("\n");
 
     const planModeNote = parsed.data.planMode
-      ? `\n\n=== PLAN MODE ACTIVE ===\nThe user is in Plan Mode. Your role right now is to discuss, explain, strategize, and help them understand their options — NOT to execute or build anything. Do NOT emit any SBEP_DATA block with action "start_build", "collect_credentials", or any build-triggering action. You may still use "browser_use" if the user explicitly requests research. Focus on being a knowledgeable advisor: explain how systems work, which blueprints might fit their goals, what the steps would involve, estimated timelines and revenue potential. When the user is ready to build they will switch to Build Mode.`
+      ? `\n\n=== PLAN MODE ACTIVE ===\nThe user is in Plan Mode. Your role right now is to discuss, explain, strategize, and help them understand their options — NOT to execute or build anything. Do NOT emit any SBEP_DATA block with action "start_build", "collect_credentials", or any build-triggering action. You may still use "browser_use" if the user explicitly requests research. Focus on being a knowledgeable advisor: explain how systems work, which blueprints might fit their goals, what the steps would involve, estimated timelines and revenue potential. Only output a build plan (action "present_plan") when the user EXPLICITLY says they are ready to create a plan, want to proceed, or asks you to write out the plan. A user chatting about ideas or asking questions is NOT ready — wait for an explicit "let's plan this" signal.`
+      : "";
+
+    const chatOnlyNote = parsed.data.chatOnly
+      ? `\n\n=== CHAT-ONLY MODE — CRITICAL OVERRIDE ===\nThe user is in Chat Mode. You MUST respond as CATEGORY A — conversational only. DO NOT output any SBEP_DATA block under ANY circumstances. Do NOT present a build plan. Do NOT output action "present_plan", "collect_credentials", "start_build", or any build-triggering response. Simply answer the user's question helpfully, naturally, and conversationally. Treat every message as a general question regardless of what it says.`
       : "";
 
     const completionArgs = {
-      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + planModeNote,
+      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + planModeNote + chatOnlyNote,
       prompt: `${historyCtx}\n\nUser: ${parsed.data.message}`,
       userId,
       systemInstanceId: parsed.data.systemInstanceId,

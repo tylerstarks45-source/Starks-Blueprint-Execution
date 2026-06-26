@@ -21,6 +21,8 @@ import { apiFetch } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type ASHMode = "chat" | "plan" | "build";
+
 interface BuildStep {
   title: string;
   description?: string;
@@ -46,8 +48,32 @@ interface ChatMessage {
 interface ChatResponse {
   content: string;
   action_type?: string;
+  action?: string;
   plan?: BuildPlan;
 }
+
+// ─── Mode config ──────────────────────────────────────────────────────────────
+
+const MODE_CONFIG: Record<ASHMode, { label: string; color: string; placeholder: string; welcome: string }> = {
+  chat: {
+    label: "CHAT",
+    color: "#1A8CFF",
+    placeholder: "Ask ASH anything…",
+    welcome: "Hey! I'm ASH — your AI assistant. Ask me anything: business advice, how things work, what's trending, or anything on your mind. Switch to PLAN mode when you're ready to design a build, or BUILD when it's time to execute.",
+  },
+  plan: {
+    label: "PLAN",
+    color: "#8844E0",
+    placeholder: "Describe what you want to build…",
+    welcome: "Planning mode is active. Tell me about your business idea or income goal and I'll help you think it through — tools, strategy, timelines, and revenue potential. When you're ready to create a formal build plan, just say so.",
+  },
+  build: {
+    label: "BUILD",
+    color: "#00D97E",
+    placeholder: "Tell ASH what to build…",
+    welcome: "Build mode is active. Tell me what system you want me to build and I'll create a full plan, gather your credentials, and execute it step by step.",
+  },
+};
 
 // ─── Build Plan Card ──────────────────────────────────────────────────────────
 
@@ -61,7 +87,6 @@ function BuildPlanCard({ plan, colors }: { plan: BuildPlan; colors: ReturnType<t
 
   return (
     <View style={[bpStyles.card, { backgroundColor: colors.card, borderColor: phaseColor + "50" }]}>
-      {/* Phase header */}
       <View style={bpStyles.phaseRow}>
         <View style={[bpStyles.phaseBadge, { backgroundColor: phaseColor + "20", borderColor: phaseColor + "40" }]}>
           <Text style={[bpStyles.phaseNum, { color: phaseColor }]}>Phase {phaseIdx}/{totalPhases}</Text>
@@ -71,14 +96,12 @@ function BuildPlanCard({ plan, colors }: { plan: BuildPlan; colors: ReturnType<t
         </Text>
       </View>
 
-      {/* Progress bar */}
       {progress > 0 && (
         <View style={[bpStyles.progressTrack, { backgroundColor: colors.muted }]}>
           <View style={[bpStyles.progressFill, { width: `${progress}%` as any, backgroundColor: phaseColor }]} />
         </View>
       )}
 
-      {/* Steps */}
       {plan.steps && plan.steps.length > 0 && (
         <View style={bpStyles.steps}>
           {plan.steps.map((step, i) => {
@@ -203,7 +226,6 @@ function VoiceButton({
       const result = await apiFetch<{ text: string }>("/ai-orchestrator/transcribe", {
         method: "POST",
         body: form,
-        headers: {},
       });
       if (result.text) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -242,10 +264,8 @@ function VoiceButton({
 
 // ─── Parse plan from content ──────────────────────────────────────────────────
 
-function extractBuildPlan(content: string, actionType?: string): BuildPlan | null {
-  if (!actionType || !["present_plan", "start_build", "build_step"].includes(actionType)) {
-    return null;
-  }
+function extractBuildPlan(content: string, action?: string): BuildPlan | null {
+  if (!action || !["present_plan", "start_build", "build_step"].includes(action)) return null;
   const match = content.match(/```json\s*([\s\S]*?)```/);
   if (match) {
     try {
@@ -253,17 +273,50 @@ function extractBuildPlan(content: string, actionType?: string): BuildPlan | nul
       if (parsed.phase || parsed.steps) return parsed as BuildPlan;
     } catch {}
   }
-  return { phase: actionType === "present_plan" ? "Planning Phase" : "Build Phase", progress: 0 };
+  return { phase: action === "present_plan" ? "Planning Phase" : "Build Phase", progress: 0 };
+}
+
+// ─── Mode Pill ────────────────────────────────────────────────────────────────
+
+function ModePill({
+  mode,
+  ashMode,
+  onPress,
+}: {
+  mode: ASHMode;
+  ashMode: ASHMode;
+  onPress: () => void;
+}) {
+  const cfg = MODE_CONFIG[mode];
+  const active = ashMode === mode;
+  return (
+    <TouchableOpacity
+      style={[
+        styles.modePill,
+        {
+          backgroundColor: active ? cfg.color + "20" : "transparent",
+          borderColor: active ? cfg.color : "transparent",
+        },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
+      <Text style={[styles.modePillText, { color: active ? cfg.color : "#6B7A99" }]}>
+        {cfg.label}
+      </Text>
+    </TouchableOpacity>
+  );
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-const WELCOME: ChatMessage = {
-  id: "welcome",
-  role: "assistant",
-  content:
-    "Hey! I'm ASH — your AI for everything. Chat with me, ask me to build something, generate content, or automate your entire business. I can do it all. What do you need?",
-};
+function makeWelcome(mode: ASHMode): ChatMessage {
+  return {
+    id: "welcome",
+    role: "assistant",
+    content: MODE_CONFIG[mode].welcome,
+  };
+}
 
 export default function BuildScreen() {
   const colors = useColors();
@@ -271,7 +324,8 @@ export default function BuildScreen() {
   const isIOS = Platform.OS === "ios";
   const params = useLocalSearchParams<{ blueprintId?: string; blueprintName?: string }>();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
+  const [ashMode, setAshMode] = useState<ASHMode>("chat");
+  const [messages, setMessages] = useState<ChatMessage[]>([makeWelcome("chat")]);
   const [history, setHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -279,9 +333,19 @@ export default function BuildScreen() {
 
   useEffect(() => {
     if (params.blueprintId && params.blueprintName) {
-      setInput(`I'd like to build the "${params.blueprintName}" blueprint. Can you help me get started?`);
+      setAshMode("build");
+      setInput(`I'd like to build the "${params.blueprintName}" blueprint. Let's go!`);
     }
   }, [params.blueprintId, params.blueprintName]);
+
+  function switchMode(m: ASHMode) {
+    if (m === ashMode) return;
+    Haptics.selectionAsync();
+    setAshMode(m);
+    setMessages([makeWelcome(m)]);
+    setHistory([]);
+    setInput("");
+  }
 
   const genId = () => `${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
 
@@ -301,12 +365,18 @@ export default function BuildScreen() {
     setMessages((prev) => [loadingMsg, userMsg, ...prev]);
 
     try {
-      const data = await apiFetch<ChatResponse>("/dashboard/chat", {
+      const data = await apiFetch<ChatResponse>("/ai-orchestrator/chat", {
         method: "POST",
-        body: JSON.stringify({ message: text, history: currentHistory }),
+        body: JSON.stringify({
+          message: text,
+          history: currentHistory,
+          chatOnly: ashMode === "chat",
+          planMode: ashMode === "plan",
+        }),
       });
 
-      const buildPlan = extractBuildPlan(data.content, data.action_type ?? undefined);
+      const action = data.action ?? data.action_type;
+      const buildPlan = extractBuildPlan(data.content, action);
 
       const assistantMsg: ChatMessage = {
         id: loadingId,
@@ -321,6 +391,10 @@ export default function BuildScreen() {
         { role: "user", content: text },
         ...h.slice(0, 18),
       ]);
+
+      if (action === "collect_credentials" || action === "start_build") {
+        setAshMode("build");
+      }
     } catch (e: unknown) {
       const errMsg: ChatMessage = {
         id: loadingId,
@@ -331,10 +405,11 @@ export default function BuildScreen() {
     } finally {
       setSending(false);
     }
-  }, [input, sending, history]);
+  }, [input, sending, history, ashMode]);
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const bottomPad = insets.bottom + (Platform.OS === "web" ? 34 : 0);
+  const modeColor = MODE_CONFIG[ashMode].color;
 
   return (
     <KeyboardAvoidingView
@@ -344,12 +419,21 @@ export default function BuildScreen() {
     >
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 14, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
-        <View style={[styles.ashIcon, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40" }]}>
-          <Feather name="zap" size={18} color={colors.primary} />
+        <View style={styles.headerLeft}>
+          <View style={[styles.ashIcon, { backgroundColor: modeColor + "20", borderColor: modeColor + "40" }]}>
+            <Feather name="zap" size={18} color={modeColor} />
+          </View>
+          <View>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>ASH</Text>
+            <Text style={[styles.headerSub, { color: colors.success }]}>● Online</Text>
+          </View>
         </View>
-        <View>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>ASH</Text>
-          <Text style={[styles.headerSub, { color: colors.success }]}>● Online</Text>
+
+        {/* Mode switcher */}
+        <View style={[styles.modeRow, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+          {(["chat", "plan", "build"] as ASHMode[]).map((m) => (
+            <ModePill key={m} mode={m} ashMode={ashMode} onPress={() => switchMode(m)} />
+          ))}
         </View>
       </View>
 
@@ -370,10 +454,10 @@ export default function BuildScreen() {
       <View style={[styles.inputBar, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: bottomPad + 10 }]}>
         <VoiceButton colors={colors} onTranscript={(t) => { setInput(t); }} disabled={sending} />
         <TextInput
-          style={[styles.textInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
+          style={[styles.textInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: ashMode === "chat" ? colors.border : modeColor + "50" }]}
           value={input}
           onChangeText={setInput}
-          placeholder="Ask ASH anything…"
+          placeholder={MODE_CONFIG[ashMode].placeholder}
           placeholderTextColor={colors.mutedForeground}
           multiline
           maxLength={1000}
@@ -382,7 +466,7 @@ export default function BuildScreen() {
           blurOnSubmit={false}
         />
         <TouchableOpacity
-          style={[styles.sendBtn, { backgroundColor: input.trim() ? colors.primary : colors.muted, borderColor: input.trim() ? colors.primary : colors.border }]}
+          style={[styles.sendBtn, { backgroundColor: input.trim() ? modeColor : colors.muted, borderColor: input.trim() ? modeColor : colors.border }]}
           onPress={() => send()}
           disabled={!input.trim() || sending}
           activeOpacity={0.8}
@@ -402,10 +486,14 @@ export default function BuildScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: 1 },
+  header: { paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   ashIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   headerTitle: { fontSize: 16, fontWeight: "700", letterSpacing: 0.5 },
   headerSub: { fontSize: 11, fontWeight: "500" },
+  modeRow: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: 1, padding: 3, gap: 2 },
+  modePill: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 7, borderWidth: 1 },
+  modePillText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.6 },
   listContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 12 },
   bubbleWrap: { flexDirection: "row", gap: 8, marginBottom: 2 },
   bubbleUser: { justifyContent: "flex-end", flexDirection: "row-reverse" },

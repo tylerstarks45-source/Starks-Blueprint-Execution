@@ -412,6 +412,31 @@ router.post("/auth/push-token", async (req, res) => {
   return res.json({ success: true });
 });
 
+// ── PATCH /api/auth/notification-prefs ────────────────────────────────────────
+router.patch("/auth/notification-prefs", async (req, res) => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const parsed = z.object({
+    notifyRevenue: z.boolean().optional(),
+    notifyMilestone: z.boolean().optional(),
+    notifyBuild: z.boolean().optional(),
+    notifyPlatform: z.boolean().optional(),
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input." });
+
+  const updates: Partial<typeof usersTable.$inferInsert> = {};
+  if (parsed.data.notifyRevenue !== undefined) updates.notifyRevenue = parsed.data.notifyRevenue;
+  if (parsed.data.notifyMilestone !== undefined) updates.notifyMilestone = parsed.data.notifyMilestone;
+  if (parsed.data.notifyBuild !== undefined) updates.notifyBuild = parsed.data.notifyBuild;
+  if (parsed.data.notifyPlatform !== undefined) updates.notifyPlatform = parsed.data.notifyPlatform;
+
+  if (Object.keys(updates).length === 0) return res.json({ success: true });
+
+  await db.update(usersTable).set(updates).where(eq(usersTable.id, caller.id));
+  return res.json({ success: true });
+});
+
 router.post("/auth/admin-bootstrap", async (req, res) => {
   const bootstrapToken = process.env["ADMIN_BOOTSTRAP_TOKEN"];
   if (!bootstrapToken) {

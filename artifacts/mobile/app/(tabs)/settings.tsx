@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Platform,
@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard } from "@/components/GlassCard";
+import { apiFetch } from "@/lib/api";
 
 const TIER_COLORS: Record<string, string> = {
   free: "#8090A8",
@@ -45,22 +46,61 @@ interface SettingRow {
   accent?: string;
 }
 
+interface NotifPrefs {
+  notifyRevenue: boolean;
+  notifyMilestone: boolean;
+  notifyBuild: boolean;
+  notifyPlatform: boolean;
+}
+
 export default function SettingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isIOS = Platform.OS === "ios";
   const { user, logout } = useAuth();
 
-  const [notifyRevenue, setNotifyRevenue] = useState(true);
-  const [notifyMilestone, setNotifyMilestone] = useState(true);
-  const [notifyBuild, setNotifyBuild] = useState(true);
-  const [notifyPlatform, setNotifyPlatform] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
+    notifyRevenue: true,
+    notifyMilestone: true,
+    notifyBuild: true,
+    notifyPlatform: false,
+  });
+  const [prefsSaving, setPrefsSaving] = useState(false);
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const bottomPad = insets.bottom + (Platform.OS === "web" ? 34 : 0);
 
   const tier = user?.subscriptionTier ?? "free";
   const tierColor = TIER_COLORS[tier] ?? colors.primary;
+
+  // Load notification prefs from user object (returned by /api/auth/me)
+  useEffect(() => {
+    if (!user) return;
+    const u = user as unknown as Record<string, unknown>;
+    setNotifPrefs({
+      notifyRevenue:  typeof u.notifyRevenue  === "boolean" ? u.notifyRevenue  : true,
+      notifyMilestone: typeof u.notifyMilestone === "boolean" ? u.notifyMilestone : true,
+      notifyBuild:    typeof u.notifyBuild    === "boolean" ? u.notifyBuild    : true,
+      notifyPlatform: typeof u.notifyPlatform  === "boolean" ? u.notifyPlatform  : false,
+    });
+  }, [user]);
+
+  async function updatePref(key: keyof NotifPrefs, value: boolean) {
+    Haptics.selectionAsync();
+    setNotifPrefs((p) => ({ ...p, [key]: value }));
+    if (prefsSaving) return;
+    setPrefsSaving(true);
+    try {
+      await apiFetch("/auth/notification-prefs", {
+        method: "PATCH",
+        body: JSON.stringify({ [key]: value }),
+      });
+    } catch {
+      setNotifPrefs((p) => ({ ...p, [key]: !value }));
+    } finally {
+      setPrefsSaving(false);
+    }
+  }
 
   function handleLogout() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -95,11 +135,30 @@ export default function SettingsScreen() {
     });
   }
 
+  function handleCancelPlan() {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      "Cancel Subscription",
+      "You'll lose access to paid features at the end of your billing cycle. Are you sure?",
+      [
+        { text: "Keep Plan", style: "cancel" },
+        {
+          text: "Cancel Plan",
+          style: "destructive",
+          onPress: handleManagePlan,
+        },
+      ]
+    );
+  }
+
+  const walletBalance = ((user as unknown as Record<string, unknown>)?.walletBalance as number) ?? 0;
+
   const accountRows: SettingRow[] = [
     { icon: "user", sfSymbol: "person", label: "Name", value: user?.name ?? "—" },
     { icon: "mail", sfSymbol: "envelope", label: "Email", value: user?.email ?? "—" },
     { icon: "star", sfSymbol: "star", label: "Plan", value: tier.toUpperCase(), accent: tierColor },
     { icon: "zap", sfSymbol: "bolt", label: "Credits", value: String(user?.credits ?? 0), accent: colors.accent },
+    ...(walletBalance > 0 ? [{ icon: "dollar-sign", sfSymbol: "dollarsign.circle", label: "Wallet", value: `$${(walletBalance / 100).toFixed(2)}`, accent: colors.success } as SettingRow] : []),
   ];
 
   const Row = ({ row }: { row: SettingRow }) => (
@@ -127,6 +186,13 @@ export default function SettingsScreen() {
       </View>
     </TouchableOpacity>
   );
+
+  const notifItems = [
+    { key: "notifyRevenue" as const,   label: "Revenue events",  sub: "New earnings from your systems" },
+    { key: "notifyMilestone" as const, label: "Milestones",       sub: "When you hit earnings milestones" },
+    { key: "notifyBuild" as const,     label: "Build updates",    sub: "Build completions and errors" },
+    { key: "notifyPlatform" as const,  label: "Platform updates", sub: "New features and announcements" },
+  ];
 
   return (
     <ScrollView
@@ -194,7 +260,7 @@ export default function SettingsScreen() {
             <Text style={[styles.creditsValue, { color: colors.accent }]}>{user?.credits ?? 0}</Text>
           </View>
 
-          {/* Actions */}
+          {/* Upgrade */}
           {tier !== "enterprise" && tier !== "founder" && (
             <TouchableOpacity
               style={[styles.upgradeBtnRow, { backgroundColor: colors.primary }]}
@@ -206,6 +272,7 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           )}
 
+          {/* Manage */}
           <TouchableOpacity
             style={[styles.manageBtn, { borderColor: colors.border }]}
             onPress={handleManagePlan}
@@ -224,6 +291,17 @@ export default function SettingsScreen() {
               <Feather name="external-link" size={13} color={colors.mutedForeground} />
             )}
           </TouchableOpacity>
+
+          {/* Cancel — only show for paid plans */}
+          {tier !== "free" && tier !== "founder" && (
+            <TouchableOpacity
+              style={[styles.cancelBtn, { borderColor: colors.destructive + "30" }]}
+              onPress={handleCancelPlan}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.cancelBtnText, { color: colors.destructive }]}>Cancel Plan</Text>
+            </TouchableOpacity>
+          )}
         </GlassCard>
       </View>
 
@@ -231,26 +309,21 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Push Notifications</Text>
         <GlassCard padding={0} style={{ overflow: "hidden" }}>
-          {[
-            { label: "Revenue events", sub: "New earnings from your systems", value: notifyRevenue, onChange: setNotifyRevenue },
-            { label: "Milestones", sub: "When you hit earnings milestones", value: notifyMilestone, onChange: setNotifyMilestone },
-            { label: "Build updates", sub: "Build completions and errors", value: notifyBuild, onChange: setNotifyBuild },
-            { label: "Platform updates", sub: "New features and announcements", value: notifyPlatform, onChange: setNotifyPlatform },
-          ].map((item, i, arr) => (
-            <View key={item.label}>
+          {notifItems.map((item, i) => (
+            <View key={item.key}>
               <View style={styles.toggleRow}>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{item.label}</Text>
                   <Text style={[styles.toggleSub, { color: colors.mutedForeground }]}>{item.sub}</Text>
                 </View>
                 <Switch
-                  value={item.value}
-                  onValueChange={item.onChange}
+                  value={notifPrefs[item.key]}
+                  onValueChange={(v) => updatePref(item.key, v)}
                   trackColor={{ false: colors.muted, true: colors.primary + "80" }}
-                  thumbColor={item.value ? colors.primary : colors.mutedForeground}
+                  thumbColor={notifPrefs[item.key] ? colors.primary : colors.mutedForeground}
                 />
               </View>
-              {i < arr.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
+              {i < notifItems.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
             </View>
           ))}
         </GlassCard>
@@ -260,10 +333,10 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Platform</Text>
         <GlassCard padding={0} style={{ overflow: "hidden" }}>
-          {[
-            { icon: "globe", sfSymbol: "globe", label: "Website", value: "starksglobalgroup.net" } as SettingRow,
-            { icon: "info", sfSymbol: "info.circle", label: "Version", value: "1.0.0" } as SettingRow,
-          ].map((row, i, arr) => (
+          {([
+            { icon: "globe", sfSymbol: "globe", label: "Website", value: "starksglobalgroup.net" },
+            { icon: "info", sfSymbol: "info.circle", label: "Version", value: "1.0.0" },
+          ] as SettingRow[]).map((row, i, arr) => (
             <View key={row.label}>
               <Row row={row} />
               {i < arr.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
@@ -322,6 +395,8 @@ const styles = StyleSheet.create({
   upgradeText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   manageBtn: { flexDirection: "row", alignItems: "center", gap: 10, height: 46, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14 },
   manageBtnText: { fontSize: 14 },
+  cancelBtn: { alignItems: "center", justifyContent: "center", height: 40, borderRadius: 10, borderWidth: 1 },
+  cancelBtnText: { fontSize: 13, fontWeight: "600" },
   toggleRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
   toggleLabel: { fontSize: 15, fontWeight: "500" },
   toggleSub: { fontSize: 11 },

@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { systemActivityEventsTable, systemInstancesTable, usersTable, notificationsTable, milestoneEventsTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { logger } from "./logger";
+import { sendPushNotification } from "./push";
 
 export const MILESTONE_THRESHOLDS = [100, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000];
 export const MILESTONE_LABELS: Record<number, string> = {
@@ -90,6 +91,15 @@ export async function checkMilestones(userId: number, triggeringSystemInstanceId
         message: JSON.stringify({ amount: m.amount, label }),
         notificationType: "milestone_reached",
       });
+
+      // Push notification for milestone
+      try {
+        const [uRow] = await db.select({ expoPushToken: usersTable.expoPushToken, notifyMilestone: usersTable.notifyMilestone })
+          .from(usersTable).where(eq(usersTable.id, userId));
+        if (uRow?.expoPushToken && uRow.notifyMilestone !== false) {
+          void sendPushNotification(uRow.expoPushToken, "🎉 Milestone Reached!", `You hit ${label} in total earnings!`);
+        }
+      } catch { /* non-fatal */ }
     }
   } catch (err) {
     logger.error({ err, userId, triggeringSystemInstanceId }, "checkMilestones failed");

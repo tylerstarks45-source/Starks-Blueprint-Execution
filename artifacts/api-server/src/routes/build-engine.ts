@@ -10,10 +10,12 @@ import {
   buildSessionsTable,
   buildProgressTable,
   systemActivityEventsTable,
+  usersTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { hasCredits } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
+import { sendPushNotification } from "../lib/push";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -348,6 +350,15 @@ Execute this step now. Write detailed output describing exactly what was configu
       description: `System is now live — all ${parsed.data.totalSteps} build steps completed successfully. Blueprint "${parsed.data.blueprintName}" activated.`,
       metadata: JSON.stringify({ event: "system_activated", sessionId: parsed.data.sessionId }),
     });
+
+    // Push notification — system is live
+    try {
+      const [uRow] = await db.select({ expoPushToken: usersTable.expoPushToken, notifyBuild: usersTable.notifyBuild })
+        .from(usersTable).where(eq(usersTable.id, userId));
+      if (uRow?.expoPushToken && uRow.notifyBuild !== false) {
+        void sendPushNotification(uRow.expoPushToken, "🚀 System Live!", `"${parsed.data.blueprintName}" is now active and earning.`);
+      }
+    } catch { /* non-fatal */ }
   }
 
   res.json({ step: serialize(updated), nextStepId: nextStep?.id ?? null, output, revenueCents });

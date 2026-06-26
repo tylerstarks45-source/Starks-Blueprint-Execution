@@ -84,7 +84,7 @@ export async function apiKeyMiddleware(req: Request, res: Response, next: NextFu
 
   // Verify user account is still active
   const [user] = await db
-    .select({ active: usersTable.active, membershipTier: usersTable.membershipTier })
+    .select({ active: usersTable.active, membershipTier: usersTable.membershipTier, role: usersTable.role })
     .from(usersTable)
     .where(eq(usersTable.id, key.userId));
 
@@ -94,6 +94,18 @@ export async function apiKeyMiddleware(req: Request, res: Response, next: NextFu
   }
 
   const tier = (user.membershipTier ?? "free").toLowerCase();
+  const role = user.role ?? "USER";
+
+  // Enforce Developer API tier gate — only Empire, Operator, and admin roles may use API keys.
+  // This prevents downgraded users from continuing to call the API with old keys.
+  const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN", "FOUNDER_ADMIN"];
+  const tierAllowed = tier === "empire" || tier === "operator" || ADMIN_ROLES.includes(role);
+  if (!tierAllowed) {
+    res.status(403).json({
+      error: "API access requires Empire or Operator tier. Upgrade your plan to continue using API keys.",
+    });
+    return;
+  }
 
   // Apply rate limit
   const rl = checkRateLimit(keyHash, tier);
@@ -132,9 +144,11 @@ export async function apiKeyMiddleware(req: Request, res: Response, next: NextFu
     })
     .where(eq(apiKeysTable.id, key.id));
 
-  // Write a usage event after the response is sent
+  // Write a usage event after the response is sent.
+  // AI routes set res.locals.sbepTokenUsage before finishing so we capture real token counts.
   const requestedAt = Date.now();
   res.on("finish", () => {
+    const tokenUsage = (res.locals["sbepTokenUsage"] as number | undefined) ?? 0;
     void db.insert(apiKeyUsageEventsTable).values({
       apiKeyId: key.id,
       userId: key.userId,
@@ -142,6 +156,7 @@ export async function apiKeyMiddleware(req: Request, res: Response, next: NextFu
       method: req.method,
       statusCode: res.statusCode,
       responseTimeMs: Date.now() - requestedAt,
+      tokenUsage,
     });
   });
 

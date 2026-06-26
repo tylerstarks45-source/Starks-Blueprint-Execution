@@ -1037,6 +1037,15 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
 
     // ── Parse SBEP_DATA ───────────────────────────────────────────────────
     const fullContent = tokenBuffer.join("");
+
+    // Expose estimated token usage for API key usage tracking in apiKeyMiddleware.
+    // Rough estimate: ~4 chars per output token + ~4 chars per input token.
+    if ((req as any).apiKeyCaller) {
+      const outputTokens = Math.round(fullContent.length / 4);
+      const inputTokens = Math.round((systemPrompt.length + prompt.length) / 4);
+      res.locals["sbepTokenUsage"] = outputTokens + inputTokens;
+    }
+
     const dataMatch = fullContent.match(/<SBEP_DATA>([\s\S]*?)<\/SBEP_DATA>/);
     let structuredData: Record<string, unknown> | null = null;
     const displayContent = fullContent.replace(/<SBEP_DATA>[\s\S]*?<\/SBEP_DATA>/g, "").trim();

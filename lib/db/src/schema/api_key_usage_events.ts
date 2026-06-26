@@ -12,6 +12,7 @@ export const apiKeyUsageEventsTable = pgTable("api_key_usage_events", {
   method: text("method").notNull().default("POST"),
   statusCode: integer("status_code").notNull().default(200),
   responseTimeMs: integer("response_time_ms"),
+  tokenUsage: integer("token_usage").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("api_key_usage_events_api_key_id_idx").on(t.apiKeyId),

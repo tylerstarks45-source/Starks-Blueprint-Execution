@@ -148,6 +148,17 @@ router.post("/developer/keys/:id/rotate", async (req: Request, res: Response) =>
   const userId = await requireAuthActive(req, res);
   if (!userId) return;
 
+  // Re-check tier — rotation mints a new key, so the user must still qualify
+  const [userCheck] = await db
+    .select({ membershipTier: usersTable.membershipTier, role: usersTable.role })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+
+  if (!userCheck || !hasDevAccess(userCheck.membershipTier, userCheck.role)) {
+    res.status(403).json({ error: "Developer API access requires Empire tier or higher" });
+    return;
+  }
+
   const keyId = Number(req.params.id);
   if (!Number.isFinite(keyId)) {
     res.status(400).json({ error: "Invalid key id" });
@@ -219,6 +230,7 @@ router.get("/developer/usage", async (req: Request, res: Response) => {
         date: sql<string>`DATE(${apiKeyUsageEventsTable.createdAt})`,
         count: sql<number>`COUNT(*)::int`,
         incidents: sql<number>`SUM(CASE WHEN ${apiKeyUsageEventsTable.statusCode} = 429 THEN 1 ELSE 0 END)::int`,
+        tokens: sql<number>`COALESCE(SUM(${apiKeyUsageEventsTable.tokenUsage}),0)::int`,
       })
       .from(apiKeyUsageEventsTable)
       .where(and(
@@ -229,7 +241,10 @@ router.get("/developer/usage", async (req: Request, res: Response) => {
       .orderBy(sql`DATE(${apiKeyUsageEventsTable.createdAt})`),
 
     db
-      .select({ total: sql<number>`COALESCE(SUM(${apiKeysTable.monthlyCallCount}),0)::int` })
+      .select({
+        total: sql<number>`COALESCE(SUM(${apiKeysTable.monthlyCallCount}),0)::int`,
+        totalTokens: sql<number>`0::int`,
+      })
       .from(apiKeysTable)
       .where(and(eq(apiKeysTable.userId, userId), isNull(apiKeysTable.revokedAt))),
 
@@ -261,14 +276,16 @@ router.get("/developer/usage", async (req: Request, res: Response) => {
   const rateLimitMap: Record<string, number> = { empire: 100, operator: 20 };
   const rateLimit = rateLimitMap[tier] ?? 20;
 
+  const totalTokenUsage30d = dailyUsage.reduce((sum, d) => sum + (d.tokens ?? 0), 0);
+
   res.json({
     dailyUsage: serialize(dailyUsage),
     totalMonthlyCallCount: totalCalls[0]?.total ?? 0,
+    totalTokenUsage30d,
     topEndpoints: serialize(endpointBreakdown),
     rateLimitIncidents30d: incidentCount[0]?.total ?? 0,
     tier,
     rateLimit,
-    tokenUsageNote: "Per-request token usage tracking is available on AI endpoints via the OpenRouter usage log (see /api/ai-orchestrator platform-stats).",
   });
 });
 

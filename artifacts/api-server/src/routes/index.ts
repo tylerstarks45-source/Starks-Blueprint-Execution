@@ -45,6 +45,7 @@ import referralsRouter from "./referrals";
 import clientsRouter from "./clients";
 import whiteLabelRouter from "./white-label";
 import leaderboardRouter from "./leaderboard";
+import researchRouter from "./research";
 
 const router: IRouter = Router();
 
@@ -94,5 +95,6 @@ router.use(referralsRouter);
 router.use(clientsRouter);
 router.use(whiteLabelRouter);
 router.use(leaderboardRouter);
+router.use(researchRouter);
 
 export default router;

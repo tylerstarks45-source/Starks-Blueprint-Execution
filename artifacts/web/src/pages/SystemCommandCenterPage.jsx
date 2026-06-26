@@ -1048,59 +1048,70 @@ const SystemCommandCenterPage = () => {
       {/* ══ REVENUE HEALTH ═══════════════════════════════════════════════════ */}
       {(() => {
         const activeSys = systems.filter(s => s.buildStatus === 'active' || s.buildStatus === 'running');
-        const realRevConnected = (revenue?.connectedProviderCount ?? 0) > 0;
-        const hasActiveSystems = activeSys.length > 0;
-        if (!hasActiveSystems) return null;
+        if (activeSys.length === 0) return null;
+
+        // Per-system provider connection status from revenue-batch
+        const connectedSys   = activeSys.filter(s => systemRevenue[String(s.id)]?.hasProvider);
+        const unconnectedSys = activeSys.filter(s => !systemRevenue[String(s.id)]?.hasProvider);
+        const allConnected   = unconnectedSys.length === 0;
+        const noneConnected  = connectedSys.length === 0;
+        const accent = allConnected ? 'rgba(16,185,129,0.5)' : noneConnected ? 'rgba(251,191,36,0.5)' : 'rgba(234,179,8,0.5)';
+        const headerColor = allConnected ? 'bg-emerald-400' : noneConnected ? 'bg-amber-400' : 'bg-yellow-400';
+        const badge = allConnected
+          ? { bg: 'bg-emerald-500/12 border-emerald-500/25 text-emerald-400', dot: 'bg-emerald-400', label: 'ALL CONNECTED' }
+          : noneConnected
+          ? { bg: 'bg-amber-500/12 border-amber-500/25 text-amber-400', dot: 'bg-amber-400 animate-pulse', label: 'NOT CONNECTED' }
+          : { bg: 'bg-yellow-500/12 border-yellow-500/25 text-yellow-400', dot: 'bg-yellow-400 animate-pulse', label: `${connectedSys.length}/${activeSys.length} CONNECTED` };
+
         return (
-          <HudPanel accent={realRevConnected ? 'rgba(16,185,129,0.5)' : 'rgba(251,191,36,0.5)'}>
-            <div className={`absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r ${realRevConnected ? 'from-emerald-500/0 via-emerald-400 to-emerald-500/0' : 'from-amber-500/0 via-amber-400 to-amber-500/0'}`} />
+          <HudPanel accent={accent}>
+            <div className={`absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[${headerColor.replace('bg-','')}] to-transparent`} />
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8">
               <div className="flex items-center gap-2.5">
-                <div className={`w-[3px] h-5 rounded-full ${realRevConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                <div className={`w-[3px] h-5 rounded-full ${headerColor}`} />
                 <div>
                   <h2 className="text-sm font-bold text-white/80">Revenue Setup Health</h2>
                   <p className="text-[10px] text-white/30 font-mono">{activeSys.length} active system{activeSys.length !== 1 ? 's' : ''}</p>
                 </div>
               </div>
-              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-mono font-bold ${realRevConnected ? 'bg-emerald-500/12 border-emerald-500/25 text-emerald-400' : 'bg-amber-500/12 border-amber-500/25 text-amber-400'}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${realRevConnected ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
-                {realRevConnected ? 'CONNECTED' : 'NOT CONNECTED'}
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-mono font-bold ${badge.bg}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                {badge.label}
               </div>
             </div>
-            <div className="px-5 py-4">
-              {realRevConnected ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/12 border border-emerald-500/25 flex items-center justify-center shrink-0">
-                    <DollarSign className="w-4 h-4 text-emerald-400" />
+            <div className="px-5 py-4 space-y-3">
+              {/* Per-system status rows */}
+              {activeSys.map(sys => {
+                const hasProvider = systemRevenue[String(sys.id)]?.hasProvider ?? false;
+                return (
+                  <div key={sys.id} className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${hasProvider ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+                    <p className="text-[11px] text-white/65 flex-1 font-mono truncate">{sys.name ?? `System #${sys.id}`}</p>
+                    {hasProvider ? (
+                      <span className="text-[9px] font-mono text-emerald-400 shrink-0">Provider connected</span>
+                    ) : (
+                      <button
+                        onClick={() => navigate(`/systems/${sys.id}`)}
+                        className="shrink-0 flex items-center gap-1 h-5 px-2 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/25 text-amber-300 text-[9px] font-bold transition-colors"
+                      >
+                        <DollarSign className="w-2.5 h-2.5" /> Connect
+                      </button>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white/80">Payment provider connected</p>
-                    <p className="text-[10px] text-white/35 font-mono">Real revenue is being tracked automatically. Dashboard shows live earnings.</p>
-                  </div>
-                  <div className="ml-auto text-right shrink-0">
-                    <p className="text-lg font-black font-mono text-emerald-400">${((revenue?.realRevenueCents ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
-                    <p className="text-[9px] text-white/25 font-mono">real revenue tracked</p>
-                  </div>
+                );
+              })}
+
+              {/* Summary footer */}
+              {allConnected ? (
+                <div className="pt-2 border-t border-white/6 flex items-center justify-between">
+                  <p className="text-[10px] text-white/35 font-mono">All systems tracking real revenue</p>
+                  <p className="text-lg font-black font-mono text-emerald-400">${((revenue?.realRevenueCents ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                 </div>
               ) : (
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/12 border border-amber-500/25 flex items-center justify-center shrink-0 mt-0.5">
-                    <AlertCircle className="w-4 h-4 text-amber-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-white/80">No payment provider connected</p>
-                    <p className="text-[10px] text-white/35 font-mono mt-0.5 leading-relaxed">Your systems are live but revenue isn't being tracked. Connect Stripe, Gumroad, or PayPal to see real income in your dashboard.</p>
-                    <button
-                      onClick={() => navigate('/systems')}
-                      className="mt-2.5 flex items-center gap-1.5 h-7 px-3 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/25 text-amber-300 text-[10px] font-bold transition-colors"
-                    >
-                      <DollarSign className="w-3 h-3" /> Connect Revenue Provider
-                    </button>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[9px] text-amber-400/60 font-mono">Missing data</p>
-                    <p className="text-[9px] text-white/20 font-mono">from {activeSys.length} system{activeSys.length !== 1 ? 's' : ''}</p>
-                  </div>
+                <div className="pt-2 border-t border-white/6">
+                  <p className="text-[10px] text-white/35 font-mono leading-relaxed">
+                    {unconnectedSys.length} system{unconnectedSys.length !== 1 ? 's' : ''} missing a revenue provider — connect Stripe, Gumroad, PayPal, or ClickBank from each system's dashboard.
+                  </p>
                 </div>
               )}
             </div>
@@ -1168,7 +1179,7 @@ const SystemCommandCenterPage = () => {
                 return `${Math.floor(h / 24)}d ago`;
               })();
               const todayCentsSystem    = perf?.todayCents ?? 0;
-              const lifetimeCentsSystem = perf?.lifetimeCents ?? systemRevenue[String(system.id)] ?? 0;
+              const lifetimeCentsSystem = perf?.lifetimeCents ?? systemRevenue[String(system.id)]?.lifetimeCents ?? 0;
               return (
                 <div
                   key={system.id}

@@ -13,7 +13,7 @@ export interface FetchResult {
 }
 
 export interface RevenueProvider {
-  readonly id: "stripe" | "gumroad" | "paypal";
+  readonly id: "stripe" | "gumroad" | "paypal" | "clickbank";
   readonly displayName: string;
   readonly credentialKeys: string[];
   fetchTransactions(creds: Record<string, string>, since?: Date): Promise<FetchResult>;

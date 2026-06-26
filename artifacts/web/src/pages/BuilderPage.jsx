@@ -1870,6 +1870,28 @@ const BuilderPage = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
+  // ── Auto-open RevenueSetupModal when backend emits prompt_revenue_setup ─────
+  useEffect(() => {
+    if (phase !== 'complete' || !buildData?.instanceId) return;
+    let cancelled = false;
+    const token = localStorage.getItem('sbep_auth_token');
+    fetch(`/api/system-instances/${buildData.instanceId}/activity`, {
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(events => {
+        if (cancelled) return;
+        const hasPrompt = Array.isArray(events) && events.some(e =>
+          e.eventType === 'action' && (e.description === 'prompt_revenue_setup' || (e.metadata && JSON.parse(e.metadata || '{}').action === 'prompt_revenue_setup'))
+        );
+        if (hasPrompt) {
+          setTimeout(() => { if (!cancelled) setShowRevenueModal(true); }, 1500);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [phase, buildData?.instanceId]);
+
   // ── Restore a session from DB ─────────────────────────────────────────────
   const restoreSession = useCallback(async (session) => {
     try {

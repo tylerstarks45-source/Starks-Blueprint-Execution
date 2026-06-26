@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, desc, asc, gte, sql, count, ilike, inArray } from "drizzle-orm";
-import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable, usersTable, blueprintsTable, blueprintPurchasesTable, notificationsTable, milestoneEventsTable } from "@workspace/db";
+import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable, usersTable, blueprintsTable, blueprintPurchasesTable, notificationsTable, milestoneEventsTable, systemRevenueProvidersTable } from "@workspace/db";
 import { tierSystemLimit } from "../lib/credits";
 import { z } from "zod/v4";
 import { getActiveCallerPayload, requireAuthActive, validateClientWorkspaceId } from "../lib/auth";
@@ -404,29 +404,43 @@ router.post("/system-instances/revenue-batch", async (req, res): Promise<void> =
     return;
   }
 
-  // Single GROUP BY query to get lifetime revenue for all allowed IDs
-  const rows = await db
-    .select({
-      systemInstanceId: systemActivityEventsTable.systemInstanceId,
-      lifetimeCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`,
-    })
-    .from(systemActivityEventsTable)
-    .where(
-      and(
-        inArray(systemActivityEventsTable.systemInstanceId, allowedIds),
-        eq(systemActivityEventsTable.eventType, "revenue"),
+  // Parallel: lifetime revenue + connected provider flags
+  const [rows, providerRows] = await Promise.all([
+    db
+      .select({
+        systemInstanceId: systemActivityEventsTable.systemInstanceId,
+        lifetimeCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`,
+      })
+      .from(systemActivityEventsTable)
+      .where(
+        and(
+          inArray(systemActivityEventsTable.systemInstanceId, allowedIds),
+          eq(systemActivityEventsTable.eventType, "revenue"),
+        )
       )
-    )
-    .groupBy(systemActivityEventsTable.systemInstanceId);
+      .groupBy(systemActivityEventsTable.systemInstanceId),
+    db
+      .select({ systemInstanceId: systemRevenueProvidersTable.systemInstanceId })
+      .from(systemRevenueProvidersTable)
+      .where(
+        and(
+          inArray(systemRevenueProvidersTable.systemInstanceId, allowedIds),
+          eq(systemRevenueProvidersTable.enabled, true),
+        )
+      ),
+  ]);
+
+  const connectedIds = new Set(providerRows.map(r => r.systemInstanceId));
 
   // Build response map (include zeros for systems with no revenue events)
-  const result: Record<string, number> = {};
+  const result: Record<string, { lifetimeCents: number; hasProvider: boolean }> = {};
   for (const id of allowedIds) {
-    result[String(id)] = 0;
+    result[String(id)] = { lifetimeCents: 0, hasProvider: connectedIds.has(id) };
   }
   for (const row of rows) {
     if (row.systemInstanceId !== null) {
-      result[String(row.systemInstanceId)] = Number(row.lifetimeCents);
+      const key = String(row.systemInstanceId);
+      if (result[key]) result[key].lifetimeCents = Number(row.lifetimeCents);
     }
   }
 

@@ -61,7 +61,7 @@ router.get("/system-instances/:id/revenue-providers", async (req, res): Promise<
 //      paypal:  { paypal_client_id: "my_client_id", paypal_client_secret: "my_client_secret" }
 
 const LinkProviderBody = z.object({
-  provider: z.enum(["stripe", "gumroad", "paypal"]),
+  provider: z.enum(["stripe", "gumroad", "paypal", "clickbank"]),
   credentialKeys: z.record(z.string(), z.string().min(1)),
 });
 

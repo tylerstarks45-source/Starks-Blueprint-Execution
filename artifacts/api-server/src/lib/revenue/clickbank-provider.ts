@@ -16,7 +16,9 @@ interface ClickBankOrdersResponse {
 function clickbankHeaders(apiKey: string, clerkKey: string): Record<string, string> {
   return {
     Accept: "application/json",
+    // ClickBank REST auth: clerk key as Authorization, API/dev key as X-CB-DevKey
     Authorization: clerkKey,
+    "X-CB-DevKey": apiKey,
     "API-Version": "1.3",
   };
 }

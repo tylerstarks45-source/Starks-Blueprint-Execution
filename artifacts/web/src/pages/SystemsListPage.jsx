@@ -425,7 +425,7 @@ const SystemsListPage = () => {
       .then(map => {
         setRevenues(prev => {
           const next = { ...prev };
-          ids.forEach(id => { next[id] = map[String(id)] ?? 0; });
+          ids.forEach(id => { const v = map[String(id)]; next[id] = (typeof v === 'object' && v !== null) ? v.lifetimeCents : (v ?? 0); });
           return next;
         });
       })

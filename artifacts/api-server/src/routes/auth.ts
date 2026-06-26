@@ -71,6 +71,10 @@ function userResponse(user: typeof usersTable.$inferSelect) {
     walletBalance: user.walletBalance ?? 0,
     onboardingCompleted: user.onboardingCompleted ?? false,
     createdAt: user.createdAt,
+    notifyRevenue: user.notifyRevenue ?? true,
+    notifyMilestone: user.notifyMilestone ?? true,
+    notifyBuild: user.notifyBuild ?? true,
+    notifyPlatform: user.notifyPlatform ?? true,
   };
 }
 

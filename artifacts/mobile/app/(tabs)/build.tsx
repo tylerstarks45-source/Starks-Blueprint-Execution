@@ -452,7 +452,16 @@ export default function BuildScreen() {
 
       {/* Input bar */}
       <View style={[styles.inputBar, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: bottomPad + 10 }]}>
-        <VoiceButton colors={colors} onTranscript={(t) => { setInput(t); }} disabled={sending} />
+        <VoiceButton
+          colors={colors}
+          onTranscript={(t) => {
+            setInput(t);
+            // Auto-send after 1 s so user can review; send() takes overrideText
+            // so it reads the fresh value, not stale state.
+            setTimeout(() => { send(t); }, 1000);
+          }}
+          disabled={sending}
+        />
         <TextInput
           style={[styles.textInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: ashMode === "chat" ? colors.border : modeColor + "50" }]}
           value={input}

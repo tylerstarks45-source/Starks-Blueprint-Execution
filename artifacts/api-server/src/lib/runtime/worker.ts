@@ -1,10 +1,11 @@
 import { claimNextJob, completeJob, failJob, upsertConnectorStatus, resetOrphanedJobs } from "./jobs";
 import { getConnector } from "../connectors/registry";
-import { db, pool, systemInstancesTable, userCredentialsTable, systemActivityEventsTable } from "@workspace/db";
+import { db, pool, systemInstancesTable, userCredentialsTable, systemActivityEventsTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { decrypt } from "../crypto";
 import { logger } from "../logger";
 import { complete } from "../openrouter";
+import { sendPushNotification } from "../push";
 
 const POLL_INTERVAL_MS = 5_000;
 let running = false;
@@ -224,6 +225,34 @@ async function processJob(): Promise<void> {
     const error = err instanceof Error ? err.message : String(err);
     await failJob(job.jobId, error, job.attempt, job.maxAttempts);
     logger.warn({ jobId: job.jobId, error, attempt: job.attempt }, "Job failed");
+
+    // Push notification when all retries are exhausted and job has a system owner
+    const finalFailure = job.attempt >= job.maxAttempts;
+    if (finalFailure && job.systemInstanceId) {
+      (async () => {
+        try {
+          const [instance] = await db
+            .select({ userId: systemInstancesTable.userId, name: systemInstancesTable.name })
+            .from(systemInstancesTable)
+            .where(eq(systemInstancesTable.id, job.systemInstanceId!))
+            .limit(1);
+          if (!instance) return;
+          const [user] = await db
+            .select({ expoPushToken: usersTable.expoPushToken, notifyBuild: usersTable.notifyBuild })
+            .from(usersTable)
+            .where(eq(usersTable.id, instance.userId))
+            .limit(1);
+          if (user?.notifyBuild && user.expoPushToken) {
+            await sendPushNotification(
+              user.expoPushToken,
+              "⚠️ System Error",
+              `${instance.name ?? "Your system"} encountered an error: ${error.slice(0, 100)}`,
+              { type: "system_error", systemInstanceId: job.systemInstanceId, jobType: job.jobType },
+            );
+          }
+        } catch { /* non-fatal */ }
+      })();
+    }
   }
 }
 

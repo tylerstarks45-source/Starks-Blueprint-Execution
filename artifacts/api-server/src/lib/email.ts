@@ -26,7 +26,9 @@ function getResend(): Resend | null {
 export async function sendPasswordResetEmail(to: string, rawToken: string): Promise<boolean> {
   const resend = getResend();
   if (!resend) return false;
-  const resetUrl = `${getBaseUrl()}/reset-password?token=${rawToken}`;
+  const webUrl = `${getBaseUrl()}/reset-password?token=${rawToken}`;
+  // Deep link opens the mobile app directly when installed
+  const mobileUrl = `mobile://reset-password?token=${rawToken}`;
   try {
     await resend.emails.send({
       from: FROM,
@@ -36,9 +38,10 @@ export async function sendPasswordResetEmail(to: string, rawToken: string): Prom
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0a0a;color:#fff;border-radius:12px;">
           <h1 style="font-size:22px;font-weight:700;margin-bottom:12px;">Reset Your Password</h1>
           <p style="color:#a1a1aa;margin-bottom:24px;">Click the button below to reset your password. This link expires in <strong style="color:#fff;">1 hour</strong>.</p>
-          <a href="${resetUrl}" style="display:inline-block;background:#3b82f6;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin-bottom:24px;">Reset Password →</a>
+          <a href="${mobileUrl}" style="display:inline-block;background:#3b82f6;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin-bottom:16px;">Open in App →</a>
+          <p style="color:#71717a;font-size:13px;margin-bottom:16px;">Don't have the app installed? <a href="${webUrl}" style="color:#60a5fa;text-decoration:none;">Reset on web</a></p>
           <p style="color:#52525b;font-size:12px;margin-top:24px;">If you didn't request a password reset, you can safely ignore this email.</p>
-          <p style="color:#3f3f46;font-size:11px;margin-top:8px;word-break:break-all;">Or copy: ${resetUrl}</p>
+          <p style="color:#3f3f46;font-size:11px;margin-top:8px;word-break:break-all;">Or copy web link: ${webUrl}</p>
         </div>
       `,
     });

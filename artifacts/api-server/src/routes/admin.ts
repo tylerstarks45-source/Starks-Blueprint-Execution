@@ -3,6 +3,7 @@ import os from "node:os";
 import crypto from "node:crypto";
 import { serialize } from "../lib/serialize";
 import { sendPasswordResetEmail } from "../lib/email";
+import { sendPushNotification } from "../lib/push";
 import { desc, sql, eq, and, or, ilike, gte, inArray } from "drizzle-orm";
 import {
   db,
@@ -1484,6 +1485,36 @@ router.get("/admin/marketplace-stats", requireAdmin, async (req, res): Promise<v
       categoryBreakdown,
     }),
   );
+});
+
+// ── POST /api/admin/push-platform-update ─────────────────────────────────────
+// Sends a platform-wide push notification to all users with notifyPlatform=true
+router.post("/admin/push-platform-update", requireAdmin, async (req, res): Promise<void> => {
+  const parsed = z.object({
+    title: z.string().min(1).max(100),
+    body: z.string().min(1).max(300),
+  }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "title and body are required" });
+    return;
+  }
+  const { title, body } = parsed.data;
+
+  const users = await db
+    .select({ expoPushToken: usersTable.expoPushToken })
+    .from(usersTable)
+    .where(eq(usersTable.notifyPlatform, true));
+
+  const targets = users.filter((u) => !!u.expoPushToken);
+
+  // Fire-and-forget: send to all opted-in users in parallel
+  await Promise.allSettled(
+    targets.map((u) =>
+      sendPushNotification(u.expoPushToken!, title, body, { type: "platform_update" }),
+    ),
+  );
+
+  res.json({ sent: targets.length });
 });
 
 export default router;

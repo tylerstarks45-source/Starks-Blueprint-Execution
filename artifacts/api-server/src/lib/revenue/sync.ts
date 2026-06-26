@@ -1,9 +1,10 @@
-import { pool, db, systemRevenueProvidersTable, systemActivityEventsTable } from "@workspace/db";
+import { pool, db, systemRevenueProvidersTable, systemActivityEventsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { decrypt } from "../crypto";
 import { getRevenueProvider } from "./registry";
 import { logger } from "../logger";
 import { checkMilestones } from "../milestones";
+import { sendPushNotification } from "../push";
 import type { RevenueProvider } from "./types";
 
 const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -111,6 +112,26 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
       });
       // Check and record any newly crossed lifetime earning milestones
       checkMilestones(record.userId, record.systemInstanceId).catch(() => {});
+
+      // Push notification for new revenue event
+      (async () => {
+        try {
+          const [user] = await db.select({
+            expoPushToken: usersTable.expoPushToken,
+            notifyRevenue: usersTable.notifyRevenue,
+          }).from(usersTable).where(eq(usersTable.id, record.userId)).limit(1);
+          if (user?.notifyRevenue && user.expoPushToken) {
+            const dollars = (tx.amountCents / 100).toFixed(2);
+            await sendPushNotification(
+              user.expoPushToken,
+              "💸 Revenue Received",
+              `$${dollars} ${tx.currency ?? "USD"} — ${tx.description ?? record.provider}`,
+              { type: "revenue", systemInstanceId: record.systemInstanceId },
+            );
+          }
+        } catch { /* non-fatal */ }
+      })();
+
       synced++;
     } catch (err) {
       errors.push(err instanceof Error ? err.message : String(err));

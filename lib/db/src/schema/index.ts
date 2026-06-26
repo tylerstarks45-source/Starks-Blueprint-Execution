@@ -32,6 +32,7 @@ export * from "./generated_files";
 export * from "./credit_usage_events";
 export * from "./landing_pages";
 export * from "./user_affiliate_links";
+export * from "./affiliate_conversions";
 export * from "./email_marketing";
 export * from "./user_domains";
 export * from "./scheduled_tasks";

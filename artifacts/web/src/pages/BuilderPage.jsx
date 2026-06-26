@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import BrowserView from '@/components/builder/BrowserView.jsx';
+import RevenueSetupModal from '@/components/RevenueSetupModal.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -1591,6 +1592,7 @@ const BuilderPage = () => {
   const [stepRevenues, setStepRevenues] = useState({});
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [stepExecuting, setStepExecuting] = useState(false);
+  const [showRevenueModal, setShowRevenueModal] = useState(false);
 
   const chatBottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -3502,6 +3504,22 @@ const BuilderPage = () => {
                   </span>
                 </div>
                 <p className="text-xs text-white/45 leading-relaxed">Your system is live and running. Open the system dashboard to track revenue and activity, or save it to your Library.</p>
+
+                {/* Revenue tracking prompt */}
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 flex items-start gap-2.5">
+                  <DollarSign className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-amber-300">Connect revenue tracking to see real earnings</p>
+                    <p className="text-[10px] text-white/35 leading-relaxed mt-0.5">Link Stripe, Gumroad, or PayPal so ASH can automatically track income from this system.</p>
+                  </div>
+                  <button
+                    onClick={() => setShowRevenueModal(true)}
+                    className="shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-lg bg-amber-500/18 hover:bg-amber-500/28 border border-amber-500/30 text-amber-300 text-[10px] font-bold transition-colors whitespace-nowrap"
+                  >
+                    <Zap className="w-3 h-3" /> Connect
+                  </button>
+                </div>
+
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={() => {
@@ -4588,6 +4606,15 @@ const BuilderPage = () => {
           </div>
         </div>
       </div>
+    )}
+
+    {showRevenueModal && buildData?.instanceId && (
+      <RevenueSetupModal
+        systemInstanceId={buildData.instanceId}
+        blueprintName={selectedBp?.name ?? buildData?.blueprintName ?? 'Your System'}
+        onClose={() => setShowRevenueModal(false)}
+        onConnected={() => { setShowRevenueModal(false); toast.success('Revenue tracking connected!', { description: 'ASH will now track real income from this system.' }); }}
+      />
     )}
 
     </AuthLayout>

@@ -1,9 +1,11 @@
 import { pgTable, serial, text, integer, boolean, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+import { systemInstancesTable } from "./system_instances";
 
 export const userAffiliateLinksTable = pgTable("user_affiliate_links", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  systemInstanceId: integer("system_instance_id").references(() => systemInstancesTable.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   url: text("url").notNull(),
   cloakedSlug: text("cloaked_slug").notNull(),
@@ -16,6 +18,7 @@ export const userAffiliateLinksTable = pgTable("user_affiliate_links", {
 }, (t) => [
   uniqueIndex("user_affiliate_links_slug_idx").on(t.cloakedSlug),
   index("user_affiliate_links_user_id_idx").on(t.userId),
+  index("user_affiliate_links_system_instance_id_idx").on(t.systemInstanceId),
 ]);
 
 export type UserAffiliateLink = typeof userAffiliateLinksTable.$inferSelect;

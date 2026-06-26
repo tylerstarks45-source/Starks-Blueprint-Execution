@@ -351,6 +351,18 @@ Execute this step now. Write detailed output describing exactly what was configu
       metadata: JSON.stringify({ event: "system_activated", sessionId: parsed.data.sessionId }),
     });
 
+    // Revenue setup prompt — ask user to connect a payment provider
+    await db.insert(systemActivityEventsTable).values({
+      systemInstanceId: parsed.data.systemInstanceId,
+      eventType: "action",
+      description: "prompt_revenue_setup",
+      metadata: JSON.stringify({
+        action: "prompt_revenue_setup",
+        systemInstanceId: parsed.data.systemInstanceId,
+        blueprintName: parsed.data.blueprintName,
+      }),
+    });
+
     // Push notification — system is live
     try {
       const [uRow] = await db.select({ expoPushToken: usersTable.expoPushToken, notifyBuild: usersTable.notifyBuild })

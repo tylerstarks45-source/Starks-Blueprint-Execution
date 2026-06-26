@@ -1045,6 +1045,69 @@ const SystemCommandCenterPage = () => {
         </HudPanel>
       )}
 
+      {/* ══ REVENUE HEALTH ═══════════════════════════════════════════════════ */}
+      {(() => {
+        const activeSys = systems.filter(s => s.buildStatus === 'active' || s.buildStatus === 'running');
+        const realRevConnected = (revenue?.realRevenueCents ?? 0) > 0;
+        const hasActiveSystems = activeSys.length > 0;
+        if (!hasActiveSystems) return null;
+        return (
+          <HudPanel accent={realRevConnected ? 'rgba(16,185,129,0.5)' : 'rgba(251,191,36,0.5)'}>
+            <div className={`absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r ${realRevConnected ? 'from-emerald-500/0 via-emerald-400 to-emerald-500/0' : 'from-amber-500/0 via-amber-400 to-amber-500/0'}`} />
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-[3px] h-5 rounded-full ${realRevConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                <div>
+                  <h2 className="text-sm font-bold text-white/80">Revenue Setup Health</h2>
+                  <p className="text-[10px] text-white/30 font-mono">{activeSys.length} active system{activeSys.length !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-mono font-bold ${realRevConnected ? 'bg-emerald-500/12 border-emerald-500/25 text-emerald-400' : 'bg-amber-500/12 border-amber-500/25 text-amber-400'}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${realRevConnected ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+                {realRevConnected ? 'CONNECTED' : 'NOT CONNECTED'}
+              </div>
+            </div>
+            <div className="px-5 py-4">
+              {realRevConnected ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/12 border border-emerald-500/25 flex items-center justify-center shrink-0">
+                    <DollarSign className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white/80">Payment provider connected</p>
+                    <p className="text-[10px] text-white/35 font-mono">Real revenue is being tracked automatically. Dashboard shows live earnings.</p>
+                  </div>
+                  <div className="ml-auto text-right shrink-0">
+                    <p className="text-lg font-black font-mono text-emerald-400">${((revenue?.realRevenueCents ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                    <p className="text-[9px] text-white/25 font-mono">real revenue tracked</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/12 border border-amber-500/25 flex items-center justify-center shrink-0 mt-0.5">
+                    <AlertCircle className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-white/80">No payment provider connected</p>
+                    <p className="text-[10px] text-white/35 font-mono mt-0.5 leading-relaxed">Your systems are live but revenue isn't being tracked. Connect Stripe, Gumroad, or PayPal to see real income in your dashboard.</p>
+                    <button
+                      onClick={() => navigate('/systems')}
+                      className="mt-2.5 flex items-center gap-1.5 h-7 px-3 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/25 text-amber-300 text-[10px] font-bold transition-colors"
+                    >
+                      <DollarSign className="w-3 h-3" /> Connect Revenue Provider
+                    </button>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[9px] text-amber-400/60 font-mono">Missing data</p>
+                    <p className="text-[9px] text-white/20 font-mono">from {activeSys.length} system{activeSys.length !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </HudPanel>
+        );
+      })()}
+
       {/* ══ SYSTEMS FLEET ════════════════════════════════════════════════════ */}
       <HudPanel accent="rgba(56,189,248,0.5)">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8">

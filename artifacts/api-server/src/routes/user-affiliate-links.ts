@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, sql, desc } from "drizzle-orm";
-import { db, userAffiliateLinksTable } from "@workspace/db";
+import { eq, and, sql, desc, count } from "drizzle-orm";
+import { db, userAffiliateLinksTable, affiliateConversionsTable, systemActivityEventsTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { z } from "zod";
 import { randomBytes } from "crypto";
@@ -14,6 +14,7 @@ const CreateUserAffiliateLinkBody = z.object({
   cloakedSlug: z.string().min(1).max(80).regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, hyphens").optional(),
   description: z.string().optional(),
   category: z.string().optional(),
+  systemInstanceId: z.number().int().positive().optional(),
 });
 
 const UpdateUserAffiliateLinkBody = z.object({
@@ -22,16 +23,98 @@ const UpdateUserAffiliateLinkBody = z.object({
   description: z.string().optional(),
   category: z.string().optional(),
   isActive: z.boolean().optional(),
+  systemInstanceId: z.number().int().positive().nullable().optional(),
+});
+
+const ConversionBody = z.object({
+  amount: z.number().min(0).optional(),
+  currency: z.string().min(1).max(10).optional(),
+  orderId: z.string().max(200).optional(),
+});
+
+// ── PUBLIC: POST /api/affiliate/:linkId/conversion ────────────────────────────
+// Fires a conversion pixel. No auth required — called by advertiser networks.
+router.post("/affiliate/:linkId/conversion", async (req, res): Promise<void> => {
+  const linkId = parseInt(String(req.params.linkId), 10);
+  if (isNaN(linkId)) { res.status(400).json({ error: "Invalid linkId" }); return; }
+
+  const parsed = ConversionBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [link] = await db
+    .select({
+      id: userAffiliateLinksTable.id,
+      userId: userAffiliateLinksTable.userId,
+      systemInstanceId: userAffiliateLinksTable.systemInstanceId,
+      isActive: userAffiliateLinksTable.isActive,
+    })
+    .from(userAffiliateLinksTable)
+    .where(eq(userAffiliateLinksTable.id, linkId));
+
+  if (!link || !link.isActive) { res.status(404).json({ error: "Link not found" }); return; }
+
+  const amountCents = Math.round((parsed.data.amount ?? 0) * 100);
+  const currency = (parsed.data.currency ?? "usd").toLowerCase();
+  const orderId = parsed.data.orderId ?? undefined;
+  const referringUrl = (req.headers["referer"] || req.headers["referrer"] || null) as string | null;
+
+  const [conversion] = await db.insert(affiliateConversionsTable).values({
+    linkId: link.id,
+    userId: link.userId,
+    systemInstanceId: link.systemInstanceId ?? undefined,
+    amountCents,
+    currency,
+    orderId,
+    referringUrl: referringUrl ?? undefined,
+  }).returning();
+
+  // If linked to a system instance, log a revenue activity event
+  if (link.systemInstanceId && amountCents > 0) {
+    await db.insert(systemActivityEventsTable).values({
+      systemInstanceId: link.systemInstanceId,
+      eventType: "revenue",
+      amountCents,
+      description: `Affiliate conversion — ${currency.toUpperCase()} ${(amountCents / 100).toFixed(2)} via link #${link.id}${orderId ? ` (order ${orderId})` : ""}`,
+      metadata: JSON.stringify({ conversionId: conversion.id, linkId: link.id, orderId, currency }),
+    }).catch(() => {});
+  }
+
+  res.status(201).json({ ok: true, conversionId: conversion.id });
 });
 
 // ── GET /api/user-affiliate-links ────────────────────────────────────────────
 router.get("/user-affiliate-links", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
+
   const rows = await db.select().from(userAffiliateLinksTable)
     .where(eq(userAffiliateLinksTable.userId, userId))
     .orderBy(desc(userAffiliateLinksTable.createdAt));
-  res.json(serialize(rows));
+
+  if (rows.length === 0) { res.json([]); return; }
+
+  // Aggregate conversion stats for all links in one query
+  const linkIds = rows.map(r => r.id);
+  const convStats = await db
+    .select({
+      linkId: affiliateConversionsTable.linkId,
+      conversions: count(affiliateConversionsTable.id),
+      earnedCents: sql<number>`coalesce(sum(${affiliateConversionsTable.amountCents}), 0)`,
+    })
+    .from(affiliateConversionsTable)
+    .where(sql`${affiliateConversionsTable.linkId} = any(array[${sql.join(linkIds.map(id => sql`${id}`), sql`, `)}])`)
+    .groupBy(affiliateConversionsTable.linkId);
+
+  const statsMap = new Map(convStats.map(s => [s.linkId, { conversions: Number(s.conversions), earnedCents: Number(s.earnedCents) }]));
+
+  const serialized = serialize(rows);
+  const result = (serialized as typeof rows).map((row) => ({
+    ...row,
+    conversionCount: statsMap.get(row.id)?.conversions ?? 0,
+    earnedCents: statsMap.get(row.id)?.earnedCents ?? 0,
+  }));
+
+  res.json(result);
 });
 
 // ── POST /api/user-affiliate-links ───────────────────────────────────────────
@@ -57,6 +140,7 @@ router.post("/user-affiliate-links", async (req, res): Promise<void> => {
     cloakedSlug: slug,
     description: parsed.data.description,
     category: parsed.data.category,
+    systemInstanceId: parsed.data.systemInstanceId ?? undefined,
   }).returning();
   res.status(201).json(serialize(row));
 });
@@ -94,6 +178,25 @@ router.delete("/user-affiliate-links/:id", async (req, res): Promise<void> => {
     return;
   }
   res.sendStatus(204);
+});
+
+// ── GET /api/user-affiliate-links/:id/conversions ────────────────────────────
+router.get("/user-affiliate-links/:id/conversions", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+
+  const [link] = await db.select({ id: userAffiliateLinksTable.id })
+    .from(userAffiliateLinksTable)
+    .where(and(eq(userAffiliateLinksTable.id, id), eq(userAffiliateLinksTable.userId, userId)));
+  if (!link) { res.status(404).json({ error: "Affiliate link not found" }); return; }
+
+  const rows = await db.select().from(affiliateConversionsTable)
+    .where(eq(affiliateConversionsTable.linkId, id))
+    .orderBy(desc(affiliateConversionsTable.createdAt))
+    .limit(50);
+
+  res.json(serialize(rows));
 });
 
 export default router;

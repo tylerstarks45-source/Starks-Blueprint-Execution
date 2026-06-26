@@ -66,12 +66,13 @@ export async function apiKeyMiddleware(req: Request, res: Response, next: NextFu
 
   const keyHash = createHash("sha256").update(apiKey).digest("hex");
 
-  // Look up key by hash
+  // Look up key by hash (include lastUsedAt for automatic monthly reset logic)
   const [key] = await db
     .select({
       id: apiKeysTable.id,
       userId: apiKeysTable.userId,
       revokedAt: apiKeysTable.revokedAt,
+      lastUsedAt: apiKeysTable.lastUsedAt,
     })
     .from(apiKeysTable)
     .where(eq(apiKeysTable.keyHash, keyHash))
@@ -143,12 +144,17 @@ export async function apiKeyMiddleware(req: Request, res: Response, next: NextFu
     role: role,
   };
 
-  // Update lastUsedAt + monthlyCallCount (non-blocking fire-and-forget)
+  // Update lastUsedAt + monthlyCallCount (non-blocking fire-and-forget).
+  // Auto-reset monthlyCallCount on the first request of a new calendar month
+  // so the per-key display stays accurate without a scheduled job.
+  const now = new Date();
+  const lu = key.lastUsedAt;
+  const isNewMonth = !lu || lu.getMonth() !== now.getMonth() || lu.getFullYear() !== now.getFullYear();
   void db
     .update(apiKeysTable)
     .set({
-      lastUsedAt: new Date(),
-      monthlyCallCount: sql`${apiKeysTable.monthlyCallCount} + 1`,
+      lastUsedAt: now,
+      monthlyCallCount: isNewMonth ? 1 : sql`${apiKeysTable.monthlyCallCount} + 1`,
     })
     .where(eq(apiKeysTable.id, key.id));
 

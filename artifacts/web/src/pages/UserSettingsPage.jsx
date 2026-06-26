@@ -6,7 +6,7 @@ import {
   User, Lock, CreditCard, Bell, Trash2, Eye, EyeOff,
   Save, Check, Shield, AlertTriangle, Palette, Globe,
   CheckCircle2, XCircle, Loader2, Crown, Upload, ExternalLink,
-  Volume2, Mic, Play, Code, Key, Copy, RotateCcw, Zap,
+  Volume2, Mic, Play, Code, Key, Copy, RotateCcw, Zap, Activity, BarChart2,
 } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
@@ -978,20 +978,99 @@ function DeveloperTab({ user }) {
         </p>
       </div>
 
-      {/* Usage summary */}
+      {/* Analytics section */}
       {usage && (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Monthly Calls', value: (usage.totalMonthlyCallCount ?? 0).toLocaleString(), icon: Zap },
-            { label: 'Rate Limit', value: `${usage.rateLimit}/min`, icon: Shield },
-            { label: 'Active Keys', value: activeKeys.length, icon: Key },
-          ].map(({ label, value, icon: Icon }) => (
-            <div key={label} className="p-3 rounded-xl border border-white/8 bg-white/2 text-center">
-              <Icon className="w-4 h-4 text-violet-400 mx-auto mb-1.5" />
-              <p className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{label}</p>
-              <p className="text-sm font-bold text-white font-mono mt-0.5">{value}</p>
+        <div className="space-y-4">
+          {/* Summary cards */}
+          <div className="grid grid-cols-5 gap-2">
+            {[
+              { label: 'This Month', value: (usage.totalMonthlyCallCount ?? 0).toLocaleString(), icon: Zap, color: 'text-violet-400' },
+              { label: 'Tokens (30d)', value: (usage.totalTokenUsage30d ?? 0).toLocaleString(), icon: Activity, color: 'text-blue-400' },
+              { label: 'Rate Limit', value: `${usage.rateLimit}/min`, icon: Shield, color: 'text-emerald-400' },
+              { label: 'Active Keys', value: activeKeys.length, icon: Key, color: 'text-amber-400' },
+              { label: 'Incidents', value: (usage.rateLimitIncidents30d ?? 0).toLocaleString(), icon: AlertTriangle, color: (usage.rateLimitIncidents30d ?? 0) > 0 ? 'text-red-400' : 'text-white/30' },
+            ].map(({ label, value, icon: Icon, color }) => (
+              <div key={label} className="p-3 rounded-xl border border-white/8 bg-white/2 text-center">
+                <Icon className={`w-4 h-4 ${color} mx-auto mb-1.5`} />
+                <p className="text-[9px] font-mono text-white/35 uppercase tracking-widest leading-tight">{label}</p>
+                <p className="text-sm font-bold text-white font-mono mt-0.5">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Calls/day bar chart */}
+          {usage.dailyUsage?.length > 0 && (
+            <div className="p-4 rounded-xl border border-white/8 bg-white/2">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart2 className="w-3.5 h-3.5 text-violet-400" />
+                <h3 className="text-xs font-mono text-white/40 uppercase tracking-wider">Calls per Day — Last 30 Days</h3>
+                <div className="ml-auto flex items-center gap-3 text-[10px] font-mono text-white/30">
+                  <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-violet-500/60" />calls</span>
+                  <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-red-500/60" />incidents</span>
+                </div>
+              </div>
+              {(() => {
+                const data = usage.dailyUsage;
+                const maxVal = Math.max(...data.map(d => d.count), 1);
+                const H = 56;
+                const barW = Math.max(2, Math.floor(460 / data.length) - 1);
+                const total = 460;
+                return (
+                  <svg viewBox={`0 0 ${total} ${H + 14}`} className="w-full h-auto" aria-label="Calls per day chart">
+                    {data.map((d, i) => {
+                      const h = Math.max(2, Math.round((d.count / maxVal) * H));
+                      const ih = (d.incidents > 0) ? Math.max(2, Math.round((d.incidents / maxVal) * H)) : 0;
+                      const x = i * (barW + 1);
+                      return (
+                        <g key={d.date}>
+                          <rect x={x} y={H - h} width={barW} height={h} fill="rgba(139,92,246,0.45)" rx={1} />
+                          {ih > 0 && <rect x={x} y={H - ih} width={barW} height={ih} fill="rgba(239,68,68,0.55)" rx={1} />}
+                        </g>
+                      );
+                    })}
+                    {/* X axis date labels — first, middle, last */}
+                    {[0, Math.floor(data.length / 2), data.length - 1].map(idx => (
+                      <text
+                        key={idx}
+                        x={idx * (barW + 1) + barW / 2}
+                        y={H + 11}
+                        textAnchor="middle"
+                        fontSize={7}
+                        fill="rgba(255,255,255,0.25)"
+                        fontFamily="monospace"
+                      >
+                        {data[idx]?.date?.slice(5)}
+                      </text>
+                    ))}
+                  </svg>
+                );
+              })()}
             </div>
-          ))}
+          )}
+
+          {/* Top endpoints */}
+          {usage.topEndpoints?.length > 0 && (
+            <div className="p-4 rounded-xl border border-white/8 bg-white/2">
+              <h3 className="text-xs font-mono text-white/40 uppercase tracking-wider mb-3">Top Endpoints (30d)</h3>
+              <div className="space-y-2">
+                {usage.topEndpoints.slice(0, 6).map((ep, i) => {
+                  const maxCount = usage.topEndpoints[0]?.count ?? 1;
+                  const pct = Math.round((ep.count / maxCount) * 100);
+                  return (
+                    <div key={i} className="space-y-0.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <code className="text-[11px] font-mono text-white/55 truncate flex-1">{ep.endpoint}</code>
+                        <span className="text-[11px] font-mono text-white/35 shrink-0">{ep.count.toLocaleString()}</span>
+                      </div>
+                      <div className="h-0.5 rounded-full bg-white/5">
+                        <div className="h-0.5 rounded-full bg-violet-500/50" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

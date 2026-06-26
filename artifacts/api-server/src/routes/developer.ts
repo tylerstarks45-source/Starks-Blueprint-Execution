@@ -213,11 +213,12 @@ router.get("/developer/usage", async (req: Request, res: Response) => {
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const [dailyUsage, totalCalls, endpointBreakdown] = await Promise.all([
+  const [dailyUsage, totalCalls, endpointBreakdown, incidentCount] = await Promise.all([
     db
       .select({
         date: sql<string>`DATE(${apiKeyUsageEventsTable.createdAt})`,
         count: sql<number>`COUNT(*)::int`,
+        incidents: sql<number>`SUM(CASE WHEN ${apiKeyUsageEventsTable.statusCode} = 429 THEN 1 ELSE 0 END)::int`,
       })
       .from(apiKeyUsageEventsTable)
       .where(and(
@@ -245,6 +246,15 @@ router.get("/developer/usage", async (req: Request, res: Response) => {
       .groupBy(apiKeyUsageEventsTable.endpoint)
       .orderBy(sql`COUNT(*) DESC`)
       .limit(10),
+
+    db
+      .select({ total: sql<number>`COUNT(*)::int` })
+      .from(apiKeyUsageEventsTable)
+      .where(and(
+        eq(apiKeyUsageEventsTable.userId, userId),
+        gte(apiKeyUsageEventsTable.createdAt, thirtyDaysAgo),
+        eq(apiKeyUsageEventsTable.statusCode, 429),
+      )),
   ]);
 
   const tier = (user.membershipTier ?? "free").toLowerCase();
@@ -255,8 +265,10 @@ router.get("/developer/usage", async (req: Request, res: Response) => {
     dailyUsage: serialize(dailyUsage),
     totalMonthlyCallCount: totalCalls[0]?.total ?? 0,
     topEndpoints: serialize(endpointBreakdown),
+    rateLimitIncidents30d: incidentCount[0]?.total ?? 0,
     tier,
     rateLimit,
+    tokenUsageNote: "Per-request token usage tracking is available on AI endpoints via the OpenRouter usage log (see /api/ai-orchestrator platform-stats).",
   });
 });
 

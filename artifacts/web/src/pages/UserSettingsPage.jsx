@@ -940,6 +940,22 @@ function DeveloperTab({ user }) {
     } catch { toast.error('Network error'); }
   };
 
+  const rotateKey = async (keyId, keyName) => {
+    if (!window.confirm(`Rotate "${keyName}"? The old key will be revoked immediately and a new one issued.`)) return;
+    try {
+      const res = await fetch(`/api/developer/keys/${keyId}/rotate`, { method: 'POST', headers });
+      const d = await res.json();
+      if (res.ok) {
+        toast.success('Key rotated — copy your new key!');
+        setRevealedKey({ rawKey: d.rawKey, name: keyName });
+        loadKeys();
+        loadUsage();
+      } else {
+        toast.error(d.error ?? 'Failed to rotate key');
+      }
+    } catch { toast.error('Network error'); }
+  };
+
   const copyText = (text, id) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopiedId(id);
@@ -1068,6 +1084,13 @@ function DeveloperTab({ user }) {
                   title="Copy prefix"
                 >
                   {copiedId === key.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={() => rotateKey(key.id, key.name)}
+                  className="p-1.5 rounded-md hover:bg-amber-500/15 text-amber-400/40 hover:text-amber-400 transition-colors"
+                  title="Rotate key (revokes old, issues new)"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => revokeKey(key.id, key.name)}

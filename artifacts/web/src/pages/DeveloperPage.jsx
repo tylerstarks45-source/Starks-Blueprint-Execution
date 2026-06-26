@@ -75,7 +75,13 @@ const ENDPOINTS = [
   {
     method: 'POST',
     path: '/api/ai-orchestrator/chat',
-    desc: 'Send a message to ASH — the AI system builder. Returns streaming SSE.',
+    desc: 'Send a message to ASH AI — returns a single JSON response with the full reply.',
+    auth: true,
+  },
+  {
+    method: 'POST',
+    path: '/api/ai-orchestrator/stream',
+    desc: 'Stream ASH AI responses token-by-token via Server-Sent Events (SSE).',
     auth: true,
   },
   {
@@ -97,9 +103,15 @@ const ENDPOINTS = [
     auth: true,
   },
   {
+    method: 'POST',
+    path: '/api/developer/keys/:id/rotate',
+    desc: 'Revoke an existing key and issue a new one with the same name atomically.',
+    auth: true,
+  },
+  {
     method: 'GET',
     path: '/api/developer/usage',
-    desc: 'Retrieve daily call counts and aggregate usage for the last 30 days.',
+    desc: 'Retrieve daily call counts, top endpoints, rate-limit incidents, and aggregate usage for 30 days.',
     auth: true,
   },
 ];
@@ -283,7 +295,7 @@ while (true) {
                 <tbody>
                   {[
                     { tier: 'Empire', color: 'text-violet-300', rpm: 100, keys: 5 },
-                    { tier: 'Operator', color: 'text-blue-300', rpm: 60, keys: 5 },
+                    { tier: 'Operator', color: 'text-blue-300', rpm: 20, keys: 5 },
                     { tier: 'Free / Starter', color: 'text-white/50', rpm: 20, keys: 5 },
                   ].map(({ tier, color, rpm, keys }) => (
                     <tr key={tier} className="border-b border-white/5 last:border-0">

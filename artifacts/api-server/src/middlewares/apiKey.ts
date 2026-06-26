@@ -104,6 +104,15 @@ export async function apiKeyMiddleware(req: Request, res: Response, next: NextFu
   if (!rl.allowed) {
     const retryAfter = Math.ceil((rl.resetAt - Date.now()) / 1000);
     res.setHeader("Retry-After", String(retryAfter));
+    // Log the rate-limit incident so it appears in developer analytics
+    void db.insert(apiKeyUsageEventsTable).values({
+      apiKeyId: key.id,
+      userId: key.userId,
+      endpoint: req.path,
+      method: req.method,
+      statusCode: 429,
+      responseTimeMs: 0,
+    });
     res.status(429).json({
       error: "Rate limit exceeded. Try again after the reset time.",
       retryAfterSeconds: retryAfter,

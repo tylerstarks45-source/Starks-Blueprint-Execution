@@ -489,14 +489,35 @@ router.get("/analytics/admin/cohorts", async (req, res): Promise<void> => {
        COUNT(DISTINCT si.user_id)::int                       AS users_with_systems,
        COUNT(DISTINCT CASE WHEN sae.amount_cents > 0 THEN u.id END)::int AS users_with_revenue,
        COALESCE(SUM(sae.amount_cents), 0)::int               AS total_revenue_cents,
+       -- True retention: users who had ANY activity at/after the milestone window
        COUNT(DISTINCT CASE
-         WHEN si.created_at <= u.created_at + INTERVAL '30 days' THEN u.id END)::int AS retained_30d,
+         WHEN u.created_at + INTERVAL '30 days' <= now()
+         AND EXISTS (
+           SELECT 1 FROM system_instances si2
+           JOIN system_activity_events sae2 ON sae2.system_instance_id = si2.id
+           WHERE si2.user_id = u.id AND sae2.created_at >= u.created_at + INTERVAL '30 days'
+         ) THEN u.id END)::int AS retained_30d,
        COUNT(DISTINCT CASE
-         WHEN si.created_at <= u.created_at + INTERVAL '60 days' THEN u.id END)::int AS retained_60d,
+         WHEN u.created_at + INTERVAL '60 days' <= now()
+         AND EXISTS (
+           SELECT 1 FROM system_instances si2
+           JOIN system_activity_events sae2 ON sae2.system_instance_id = si2.id
+           WHERE si2.user_id = u.id AND sae2.created_at >= u.created_at + INTERVAL '60 days'
+         ) THEN u.id END)::int AS retained_60d,
        COUNT(DISTINCT CASE
-         WHEN si.created_at <= u.created_at + INTERVAL '90 days' THEN u.id END)::int AS retained_90d,
+         WHEN u.created_at + INTERVAL '90 days' <= now()
+         AND EXISTS (
+           SELECT 1 FROM system_instances si2
+           JOIN system_activity_events sae2 ON sae2.system_instance_id = si2.id
+           WHERE si2.user_id = u.id AND sae2.created_at >= u.created_at + INTERVAL '90 days'
+         ) THEN u.id END)::int AS retained_90d,
        COUNT(DISTINCT CASE
-         WHEN si.created_at <= u.created_at + INTERVAL '180 days' THEN u.id END)::int AS retained_180d
+         WHEN u.created_at + INTERVAL '180 days' <= now()
+         AND EXISTS (
+           SELECT 1 FROM system_instances si2
+           JOIN system_activity_events sae2 ON sae2.system_instance_id = si2.id
+           WHERE si2.user_id = u.id AND sae2.created_at >= u.created_at + INTERVAL '180 days'
+         ) THEN u.id END)::int AS retained_180d
      FROM users u
      LEFT JOIN system_instances si ON si.user_id = u.id
      LEFT JOIN system_activity_events sae

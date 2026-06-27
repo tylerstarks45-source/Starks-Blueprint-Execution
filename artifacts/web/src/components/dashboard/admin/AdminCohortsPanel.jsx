@@ -3,7 +3,7 @@ import {
   BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { Users, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Zap } from 'lucide-react';
+import { Users, TrendingUp, DollarSign, AlertTriangle, RefreshCw, Zap, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const API_BASE = '';
@@ -18,6 +18,27 @@ function apiFetch(path, opts = {}) {
       ...(opts.headers ?? {}),
     },
   }).then((r) => r.json());
+}
+
+function downloadCsv(text, filename) {
+  const blob = new Blob([text], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function handleCsvExport(endpoint, filename) {
+  try {
+    const token = localStorage.getItem('sbep_auth_token');
+    const res = await fetch(`${API_BASE}/api${endpoint}?format=csv`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const text = await res.text();
+    downloadCsv(text, filename);
+  } catch { /* silent */ }
 }
 
 function KpiCard({ icon: Icon, label, value, sub, color = 'violet' }) {
@@ -45,11 +66,24 @@ function ChurnRiskBadge({ score }) {
   return <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Low {score}/10</span>;
 }
 
+function CsvButton({ endpoint, filename }) {
+  return (
+    <button
+      onClick={() => handleCsvExport(endpoint, filename)}
+      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1 transition-colors"
+    >
+      <Download className="w-3 h-3" /> CSV
+    </button>
+  );
+}
+
 export default function AdminCohortsPanel() {
   const { toast } = useToast();
   const [cohorts, setCohorts] = useState([]);
   const [ltv, setLtv] = useState([]);
   const [churnRisk, setChurnRisk] = useState([]);
+  const [platformFunnel, setPlatformFunnel] = useState([]);
+  const [userHealth, setUserHealth] = useState([]);
   const [loading, setLoading] = useState(true);
   const [digestLoading, setDigestLoading] = useState(false);
   const [activeView, setActiveView] = useState('cohorts');
@@ -57,14 +91,18 @@ export default function AdminCohortsPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [c, l, cr] = await Promise.all([
+      const [c, l, cr, pf, uh] = await Promise.all([
         apiFetch('/analytics/admin/cohorts'),
         apiFetch('/analytics/admin/ltv'),
-        apiFetch('/analytics/admin/churn-risk?limit=50'),
+        apiFetch('/analytics/admin/churn-risk?limit=100'),
+        apiFetch('/analytics/admin/platform-funnel'),
+        apiFetch('/analytics/admin/user-health?limit=50'),
       ]);
       setCohorts(Array.isArray(c) ? c : []);
       setLtv(Array.isArray(l) ? l : []);
       setChurnRisk(Array.isArray(cr) ? cr : []);
+      setPlatformFunnel(Array.isArray(pf) ? pf : []);
+      setUserHealth(Array.isArray(uh) ? uh : []);
     } catch {
       toast({ title: 'Failed to load cohort data', variant: 'destructive' });
     } finally {
@@ -93,12 +131,19 @@ export default function AdminCohortsPanel() {
   const avgActivation = cohorts.length > 0
     ? Math.round(cohorts.reduce((s, c) => s + (c.revenueActivationRate ?? 0), 0) / cohorts.length)
     : 0;
-  const highRisk = churnRisk.filter((u) => u.churnRiskScore >= 8).length;
+  // High-risk: had revenue before (>$0) but now inactive >30d with no active systems
+  const highRisk = churnRisk.filter(
+    (u) => (u.totalRevenueCents ?? 0) > 0
+      && (u.daysSinceLastRevenue ?? 999) > 30
+      && (u.activeSystems ?? 0) === 0,
+  ).length;
 
   const VIEWS = [
     { key: 'cohorts', label: 'Cohort Retention' },
     { key: 'ltv', label: 'LTV by Cohort' },
     { key: 'churn', label: 'Churn Risk' },
+    { key: 'funnel', label: 'Platform Funnel' },
+    { key: 'health', label: 'User Health' },
   ];
 
   if (loading) {
@@ -116,7 +161,7 @@ export default function AdminCohortsPanel() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-foreground">Cohort Analytics & LTV</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">User retention, lifetime value, and churn risk by signup cohort</p>
+          <p className="text-sm text-muted-foreground mt-0.5">User retention, lifetime value, churn risk, platform funnel and health scores</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -143,11 +188,11 @@ export default function AdminCohortsPanel() {
         <KpiCard icon={Users} label="Total Users" value={totalUsers.toLocaleString()} color="violet" />
         <KpiCard icon={TrendingUp} label="Avg System Adoption" value={`${avgAdoption}%`} sub="users who built a system" color="emerald" />
         <KpiCard icon={DollarSign} label="Avg Revenue Activation" value={`${avgActivation}%`} sub="users who earned revenue" color="emerald" />
-        <KpiCard icon={AlertTriangle} label="High-Risk Users" value={highRisk} sub="churn score ≥ 8" color="red" />
+        <KpiCard icon={AlertTriangle} label="High-Risk Users" value={highRisk} sub="had revenue, now inactive >30d" color="red" />
       </div>
 
       {/* Sub-tab nav */}
-      <div className="flex gap-1 p-1 bg-muted/20 rounded-xl border border-border/40 w-fit">
+      <div className="flex flex-wrap gap-1 p-1 bg-muted/20 rounded-xl border border-border/40 w-fit">
         {VIEWS.map((v) => (
           <button
             key={v.key}
@@ -167,7 +212,10 @@ export default function AdminCohortsPanel() {
       {activeView === 'cohorts' && (
         <div className="space-y-4">
           <div className="rounded-xl border border-border/40 bg-card/50 p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">System Adoption & Revenue Activation by Cohort</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">System Adoption & Revenue Activation by Cohort</h3>
+              <CsvButton endpoint="/analytics/admin/cohorts" filename="cohorts.csv" />
+            </div>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={cohorts} margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -184,8 +232,11 @@ export default function AdminCohortsPanel() {
             </ResponsiveContainer>
           </div>
 
-          {/* Table */}
           <div className="rounded-xl border border-border/40 bg-card/50 overflow-hidden">
+            <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Cohort Table</h3>
+              <CsvButton endpoint="/analytics/admin/cohorts" filename="cohorts.csv" />
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b border-border/40">
@@ -196,6 +247,9 @@ export default function AdminCohortsPanel() {
                     <th className="px-4 py-3 text-right">w/ Revenue</th>
                     <th className="px-4 py-3 text-right">Adoption</th>
                     <th className="px-4 py-3 text-right">Activation</th>
+                    <th className="px-4 py-3 text-right">Ret 30d</th>
+                    <th className="px-4 py-3 text-right">Ret 60d</th>
+                    <th className="px-4 py-3 text-right">Ret 90d</th>
                     <th className="px-4 py-3 text-right">Avg Rev.</th>
                   </tr>
                 </thead>
@@ -216,13 +270,16 @@ export default function AdminCohortsPanel() {
                           {c.revenueActivationRate ?? 0}%
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-right font-mono text-xs text-violet-400">{c.retention30dRate ?? '—'}%</td>
+                      <td className="px-4 py-3 text-right font-mono text-xs text-violet-400">{c.retention60dRate ?? '—'}%</td>
+                      <td className="px-4 py-3 text-right font-mono text-xs text-violet-400">{c.retention90dRate ?? '—'}%</td>
                       <td className="px-4 py-3 text-right font-mono text-emerald-400">
                         ${((c.avgRevenueCents ?? 0) / 100).toFixed(2)}
                       </td>
                     </tr>
                   ))}
                   {cohorts.length === 0 && (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No cohort data yet</td></tr>
+                    <tr><td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">No cohort data yet</td></tr>
                   )}
                 </tbody>
               </table>
@@ -235,7 +292,10 @@ export default function AdminCohortsPanel() {
       {activeView === 'ltv' && (
         <div className="space-y-4">
           <div className="rounded-xl border border-border/40 bg-card/50 p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Avg Lifetime Value by Cohort Month</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Avg Lifetime Value per User by Cohort Month</h3>
+              <CsvButton endpoint="/analytics/admin/ltv" filename="ltv.csv" />
+            </div>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={ltv} margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -243,15 +303,19 @@ export default function AdminCohortsPanel() {
                 <YAxis tick={{ fill: '#888', fontSize: 11 }} tickFormatter={(v) => `$${(v / 100).toFixed(0)}`} />
                 <Tooltip
                   contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
-                  formatter={(v) => [`$${(Number(v) / 100).toFixed(2)}`, 'Avg LTV']}
+                  formatter={(v) => [`$${(Number(v) / 100).toFixed(2)}`, 'Avg LTV / user']}
                 />
-                <Line type="monotone" dataKey="avgLtvCents" name="Avg LTV" stroke="#7c3aed" strokeWidth={2} dot={{ fill: '#7c3aed', r: 4 }} />
-                <Line type="monotone" dataKey="monthlyAvgCents" name="Monthly Avg" stroke="#10b981" strokeWidth={2} strokeDasharray="4 4" dot={false} />
+                <Line type="monotone" dataKey="avgLtvCents" name="Avg LTV/user" stroke="#7c3aed" strokeWidth={2} dot={{ fill: '#7c3aed', r: 4 }} />
+                <Line type="monotone" dataKey="monthlyAvgCents" name="Monthly Avg/user" stroke="#10b981" strokeWidth={2} strokeDasharray="4 4" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           <div className="rounded-xl border border-border/40 bg-card/50 overflow-hidden">
+            <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">LTV Table — Avg per User</h3>
+              <CsvButton endpoint="/analytics/admin/ltv" filename="ltv.csv" />
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b border-border/40">
@@ -259,8 +323,8 @@ export default function AdminCohortsPanel() {
                     <th className="px-4 py-3">Cohort</th>
                     <th className="px-4 py-3 text-right">Users</th>
                     <th className="px-4 py-3 text-right">Total Revenue</th>
-                    <th className="px-4 py-3 text-right">Avg LTV</th>
-                    <th className="px-4 py-3 text-right">Monthly Avg</th>
+                    <th className="px-4 py-3 text-right">Avg LTV / User</th>
+                    <th className="px-4 py-3 text-right">Monthly Avg / User</th>
                     <th className="px-4 py-3 text-right">Months Active</th>
                   </tr>
                 </thead>
@@ -289,7 +353,9 @@ export default function AdminCohortsPanel() {
       {activeView === 'churn' && (
         <div className="space-y-4">
           <div className="rounded-xl border border-border/40 bg-card/50 p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Churn Risk Score Distribution</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Churn Risk Score Distribution</h3>
+            </div>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart
                 data={[1,2,3,4,5,6,7,8,9,10].map((score) => ({
@@ -309,8 +375,11 @@ export default function AdminCohortsPanel() {
 
           <div className="rounded-xl border border-border/40 bg-card/50 overflow-hidden">
             <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between">
-              <h3 className="text-sm font-semibold">High-Risk Users</h3>
-              <span className="text-xs text-muted-foreground">{churnRisk.length} users shown</span>
+              <div>
+                <h3 className="text-sm font-semibold">High-Risk Users</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Had revenue &gt; $0 · Inactive &gt; 30 days · No active systems</p>
+              </div>
+              <CsvButton endpoint="/analytics/admin/churn-risk" filename="churn-risk.csv" />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -326,7 +395,172 @@ export default function AdminCohortsPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {churnRisk.map((u) => (
+                  {churnRisk
+                    .filter((u) =>
+                      (u.totalRevenueCents ?? 0) > 0 &&
+                      (u.daysSinceLastRevenue ?? 999) > 30 &&
+                      (u.activeSystems ?? 0) === 0
+                    )
+                    .map((u) => (
+                      <tr key={u.userId} className="border-b border-border/20 hover:bg-muted/10 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium text-foreground">{u.name ?? '—'}</div>
+                          <div className="text-xs text-muted-foreground">{u.email}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-muted/40 text-muted-foreground capitalize">
+                            {u.membershipTier ?? 'none'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <ChurnRiskBadge score={u.churnRiskScore} />
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-sm text-red-400">{u.daysSinceLastRevenue}d</td>
+                        <td className="px-4 py-3 text-right">{u.activeSystems ?? 0}/{u.totalSystems ?? 0}</td>
+                        <td className="px-4 py-3 text-right font-mono text-emerald-400">
+                          ${((u.totalRevenueCents ?? 0) / 100).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono">{u.creditsBalance ?? 0}</td>
+                      </tr>
+                    ))}
+                  {churnRisk.filter((u) =>
+                    (u.totalRevenueCents ?? 0) > 0 &&
+                    (u.daysSinceLastRevenue ?? 999) > 30 &&
+                    (u.activeSystems ?? 0) === 0
+                  ).length === 0 && (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No high-risk users meeting criteria</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Platform Funnel ── */}
+      {activeView === 'funnel' && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/40 bg-card/50 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Platform Conversion Funnel</h3>
+              <CsvButton endpoint="/analytics/admin/platform-funnel" filename="platform-funnel.csv" />
+            </div>
+            {platformFunnel.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={platformFunnel} layout="vertical" margin={{ left: 30 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: '#888', fontSize: 11 }} />
+                  <YAxis type="category" dataKey="step" tick={{ fill: '#888', fontSize: 11 }} width={130} />
+                  <Tooltip
+                    contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
+                    formatter={(v, name) => [Number(v).toLocaleString(), name]}
+                  />
+                  <Bar dataKey="count" name="Users" fill="#7c3aed" radius={[0, 3, 3, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-sm text-muted-foreground py-8 text-center">No funnel data yet</div>
+            )}
+          </div>
+
+          {platformFunnel.length > 0 && (
+            <div className="rounded-xl border border-border/40 bg-card/50 overflow-hidden">
+              <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Funnel Steps</h3>
+                <CsvButton endpoint="/analytics/admin/platform-funnel" filename="platform-funnel.csv" />
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-border/40">
+                    <tr className="text-left text-muted-foreground text-xs uppercase tracking-wider">
+                      <th className="px-4 py-3">Step</th>
+                      <th className="px-4 py-3 text-right">Users</th>
+                      <th className="px-4 py-3 text-right">Conversion</th>
+                      <th className="px-4 py-3 text-right">Drop-off</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {platformFunnel.map((row, i) => {
+                      const prev = i > 0 ? platformFunnel[i - 1].count : row.count;
+                      const cvr = prev > 0 ? ((row.count / prev) * 100).toFixed(1) : '100';
+                      const dropoff = prev > 0 ? prev - row.count : 0;
+                      return (
+                        <tr key={row.step} className="border-b border-border/20 hover:bg-muted/10 transition-colors">
+                          <td className="px-4 py-3 font-medium text-foreground">{row.step}</td>
+                          <td className="px-4 py-3 text-right font-mono">{(row.count ?? 0).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={`font-mono ${Number(cvr) >= 50 ? 'text-emerald-400' : Number(cvr) >= 20 ? 'text-amber-400' : 'text-red-400'}`}>
+                              {i === 0 ? '—' : `${cvr}%`}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                            {i === 0 ? '—' : dropoff > 0 ? `-${dropoff.toLocaleString()}` : '0'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── User Health ── */}
+      {activeView === 'health' && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/40 bg-card/50 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">User Health Score Distribution</h3>
+              <CsvButton endpoint="/analytics/admin/user-health" filename="user-health.csv" />
+            </div>
+            {userHealth.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
+                  data={[
+                    { range: '0–20', count: userHealth.filter((u) => (u.healthScore ?? 0) <= 20).length },
+                    { range: '21–40', count: userHealth.filter((u) => (u.healthScore ?? 0) > 20 && (u.healthScore ?? 0) <= 40).length },
+                    { range: '41–60', count: userHealth.filter((u) => (u.healthScore ?? 0) > 40 && (u.healthScore ?? 0) <= 60).length },
+                    { range: '61–80', count: userHealth.filter((u) => (u.healthScore ?? 0) > 60 && (u.healthScore ?? 0) <= 80).length },
+                    { range: '81–100', count: userHealth.filter((u) => (u.healthScore ?? 0) > 80).length },
+                  ]}
+                  margin={{ top: 0, right: 20, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="range" tick={{ fill: '#888', fontSize: 11 }} />
+                  <YAxis tick={{ fill: '#888', fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} />
+                  <Bar dataKey="count" name="Users" fill="#10b981" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-sm text-muted-foreground py-8 text-center">No health data yet</div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border/40 bg-card/50 overflow-hidden">
+            <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold">User Health Scores</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Lower scores = at-risk users</p>
+              </div>
+              <CsvButton endpoint="/analytics/admin/user-health" filename="user-health.csv" />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b border-border/40">
+                  <tr className="text-left text-muted-foreground text-xs uppercase tracking-wider">
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Tier</th>
+                    <th className="px-4 py-3 text-right">Health Score</th>
+                    <th className="px-4 py-3 text-right">Active Systems</th>
+                    <th className="px-4 py-3 text-right">Lifetime Rev.</th>
+                    <th className="px-4 py-3 text-right">Days Since Activity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {userHealth.map((u) => (
                     <tr key={u.userId} className="border-b border-border/20 hover:bg-muted/10 transition-colors">
                       <td className="px-4 py-3">
                         <div className="text-sm font-medium text-foreground">{u.name ?? '—'}</div>
@@ -338,18 +572,25 @@ export default function AdminCohortsPanel() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <ChurnRiskBadge score={u.churnRiskScore} />
+                        <span className={`font-mono text-sm font-bold ${
+                          (u.healthScore ?? 0) >= 70 ? 'text-emerald-400'
+                          : (u.healthScore ?? 0) >= 40 ? 'text-amber-400'
+                          : 'text-red-400'
+                        }`}>
+                          {u.healthScore ?? 0}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-sm">{u.daysSinceLastRevenue}d</td>
                       <td className="px-4 py-3 text-right">{u.activeSystems ?? 0}/{u.totalSystems ?? 0}</td>
                       <td className="px-4 py-3 text-right font-mono text-emerald-400">
-                        ${((u.totalRevenueCents ?? 0) / 100).toFixed(2)}
+                        ${((u.totalLifetimeCents ?? 0) / 100).toFixed(2)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono">{u.creditsBalance ?? 0}</td>
+                      <td className="px-4 py-3 text-right font-mono text-sm">
+                        {u.daysSinceLastActivity != null ? `${u.daysSinceLastActivity}d` : '—'}
+                      </td>
                     </tr>
                   ))}
-                  {churnRisk.length === 0 && (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No churn risk data yet</td></tr>
+                  {userHealth.length === 0 && (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No user health data yet</td></tr>
                   )}
                 </tbody>
               </table>

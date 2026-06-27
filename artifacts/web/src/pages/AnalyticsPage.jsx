@@ -210,7 +210,7 @@ export default function AnalyticsPage() {
           <KpiCard
             icon={Target}
             label="30d Revenue Forecast"
-            value={forecast ? `$${(forecast.projections?.day30 / 100).toFixed(2)}` : '—'}
+            value={forecast ? `$${((forecast.projections?.day30?.value ?? 0) / 100).toFixed(2)}` : '—'}
             sub={forecast ? `${forecast.confidence}% confidence` : 'Building model…'}
             color="amber"
           />
@@ -482,14 +482,19 @@ export default function AnalyticsPage() {
                 {/* Projection cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {[
-                    { label: '30-Day Projection', value: forecast.projections?.day30, days: 30 },
-                    { label: '60-Day Projection', value: forecast.projections?.day60, days: 60 },
-                    { label: '90-Day Projection', value: forecast.projections?.day90, days: 90 },
+                    { label: '30-Day Projection', proj: forecast.projections?.day30, days: 30 },
+                    { label: '60-Day Projection', proj: forecast.projections?.day60, days: 60 },
+                    { label: '90-Day Projection', proj: forecast.projections?.day90, days: 90 },
                   ].map((p) => (
                     <div key={p.days} className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-5">
                       <div className="text-xs text-violet-400 font-medium uppercase tracking-wider mb-2">{p.label}</div>
-                      <div className="text-3xl font-bold font-mono text-foreground">${((p.value ?? 0) / 100).toFixed(2)}</div>
-                      <div className="text-xs text-muted-foreground mt-1">Linear regression on last 30 days</div>
+                      <div className="text-3xl font-bold font-mono text-foreground">${((p.proj?.value ?? 0) / 100).toFixed(2)}</div>
+                      {p.proj?.lower != null && p.proj?.upper != null && (
+                        <div className="text-xs text-violet-300/70 mt-1.5 font-mono">
+                          95% CI: ${(p.proj.lower / 100).toFixed(2)} – ${(p.proj.upper / 100).toFixed(2)}
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground mt-1">Linear regression on {forecast.points?.length ?? 0} days</div>
                     </div>
                   ))}
                 </div>

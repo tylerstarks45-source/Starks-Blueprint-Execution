@@ -856,7 +856,6 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
   );
   // Landing page created by ASH — includes inline mini-preview iframe
   if (msg.type === 'page_created') {
-    const pageToken = localStorage.getItem('sbep_auth_token');
     return (
       <div className="flex items-start gap-2.5">
         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-violet-500/20 border border-violet-500/30">
@@ -871,15 +870,16 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
               <p className="text-[12px] text-white/75 font-medium mb-0.5">{msg.data.title}</p>
               <p className="text-[10px] font-mono text-white/35 mb-2">/{msg.data.slug}</p>
               {/* Inline mini-preview iframe */}
-              {msg.data.id && pageToken && (
+              {msg.data.htmlContent && (
                 <div className="relative w-full mb-2 rounded-lg overflow-hidden border border-white/10 bg-black/30"
                   style={{ height: '140px' }}>
+                  {/* srcdoc renders pre-fetched HTML — no token in URL, scripts blocked */}
                   <iframe
-                    src={`/api/landing-pages/${msg.data.id}/preview-html?token=${encodeURIComponent(pageToken)}`}
+                    srcDoc={msg.data.htmlContent}
                     title="Landing page preview"
                     className="absolute inset-0 w-full h-full"
                     style={{ transform: 'scale(0.45)', transformOrigin: 'top left', width: '222%', height: '222%', border: 'none', pointerEvents: 'none' }}
-                    sandbox="allow-scripts allow-same-origin"
+                    sandbox=""
                   />
                 </div>
               )}

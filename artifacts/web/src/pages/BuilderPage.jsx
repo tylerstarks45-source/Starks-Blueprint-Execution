@@ -2320,6 +2320,43 @@ const BuilderPage = () => {
           const recoveryId = Date.now() + Math.random();
           // Pause auto-execution so the effect doesn't re-trigger the same step
           setStepPaused(true);
+
+          // Stream an AI explanation from ai-orchestrator/step-recovery (SSE)
+          let explanation = 'Try retrying the step — transient AI errors often resolve on retry.';
+          try {
+            const sseResp = await fetch('/api/ai-orchestrator/step-recovery', {
+              method: 'POST',
+              headers: authHeaders(),
+              body: JSON.stringify({
+                stepDescription: step.notes,
+                errorMessage: data.recoveryMessage || undefined,
+                stepNumber: step.stepNumber,
+                systemInstanceId: buildData.instanceId,
+              }),
+            });
+            if (sseResp.ok && sseResp.body) {
+              const reader = sseResp.body.getReader();
+              const decoder = new TextDecoder();
+              let buf = '';
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                const lines = buf.split('\n');
+                buf = lines.pop() ?? '';
+                for (const line of lines) {
+                  if (!line.startsWith('data: ')) continue;
+                  try {
+                    const evt = JSON.parse(line.slice(6));
+                    if (evt.type === 'error_recovery' && evt.explanation) {
+                      explanation = evt.explanation;
+                    }
+                  } catch { /* ignore malformed lines */ }
+                }
+              }
+            }
+          } catch { /* non-fatal — use default explanation */ }
+
           const retryFn = () => {
             setMessages(prev => prev.filter(m => m.id !== recoveryId));
             // Un-pause — useEffect will re-run and execute the same stepIdx again
@@ -2349,7 +2386,7 @@ const BuilderPage = () => {
             id: recoveryId, role: 'assistant', type: 'error_recovery', ts: Date.now(),
             data: {
               message: data.recoveryMessage || 'AI model unavailable',
-              explanation: data.recoveryExplanation || 'Try retrying the step — transient AI errors often resolve on retry.',
+              explanation,
               stepDescription: step.notes,
               stepNumber: step.stepNumber,
             },

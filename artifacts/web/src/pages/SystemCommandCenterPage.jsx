@@ -1335,7 +1335,7 @@ const SystemCommandCenterPage = () => {
               ) : (
                 <div className="space-y-2">
                   {leaderboard.slice(0, 5).map((entry, i) => {
-                    const isMe = entry.userId === user.id;
+                    const isMe = entry.isOwn === true;
                     const rankColor = i === 0 ? 'text-amber-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-orange-400' : 'text-white/35';
                     return (
                       <div key={entry.rank ?? i} className={`flex items-center gap-2.5 py-1.5 border-b border-white/4 last:border-0 ${isMe ? 'bg-violet-500/8 rounded-lg px-2 -mx-2' : ''}`}>

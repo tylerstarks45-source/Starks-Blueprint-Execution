@@ -2097,4 +2097,47 @@ router.post("/ai-orchestrator/transcribe", async (req, res) => {
   }
 });
 
+// ── POST /api/ai-orchestrator/step-recovery ──────────────────────────────────
+// Streams an AI-generated explanation for a failed build step as an SSE
+// `error_recovery` event. Called by the frontend immediately after a build step
+// fails so the user receives a contextual, actionable explanation before seeing
+// the Retry/Skip recovery card.
+router.post("/ai-orchestrator/step-recovery", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const schema = z.object({
+    stepDescription: z.string().max(1000),
+    errorMessage: z.string().max(500).optional(),
+    stepNumber: z.number().int().optional(),
+    systemInstanceId: z.number().int().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  const send = (event: object) => res.write(`data: ${JSON.stringify(event)}\n\n`);
+
+  let explanation = "Try retrying the step — transient AI errors often resolve on retry. If it keeps failing, you can skip this step and continue the build.";
+  try {
+    const result = await complete({
+      prompt: `A build automation step failed during an AI income-system deployment.\nStep ${parsed.data.stepNumber ?? "?"}: "${parsed.data.stepDescription}"\nError: ${parsed.data.errorMessage ?? "AI model unavailable"}\n\nIn 2-3 sentences, explain what likely went wrong and give the most actionable advice for whether to retry or skip this step.`,
+      model: "openai/gpt-4o-mini",
+      userId,
+      systemInstanceId: parsed.data.systemInstanceId,
+    });
+    explanation = result.content.trim().replace(/<[^>]+>/g, "").slice(0, 400);
+  } catch {
+    /* use default explanation */
+  }
+
+  send({ type: "error_recovery", explanation });
+  send({ type: "done" });
+  res.end();
+});
+
 export default router;

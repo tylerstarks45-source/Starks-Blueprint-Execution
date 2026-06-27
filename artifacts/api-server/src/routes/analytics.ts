@@ -13,6 +13,7 @@ import {
   userAffiliateLinksTable,
   affiliateConversionsTable,
   notificationsTable,
+  publishedContentTable,
 } from "@workspace/db";
 import { z } from "zod/v4";
 import { getActiveCallerPayload, requireAdmin } from "../lib/auth";

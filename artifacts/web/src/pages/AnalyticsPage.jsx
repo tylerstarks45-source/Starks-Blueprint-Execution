@@ -558,7 +558,24 @@ export default function AnalyticsPage() {
         {!loading && activeTab === 'leaderboard' && (
           <div className="space-y-6">
             <div className="rounded-xl border border-border/40 bg-card/50 p-6">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Top Blueprints by Revenue Generated</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Top Blueprints by Revenue Generated</h2>
+                <button
+                  onClick={async () => {
+                    try {
+                      const token = localStorage.getItem('sbep_auth_token');
+                      const r = await fetch('/api/analytics/blueprint-performance?format=csv', { headers: { Authorization: `Bearer ${token}` } });
+                      const text = await r.text();
+                      const blob = new Blob([text], { type: 'text/csv' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a'); a.href = url; a.download = 'blueprint-leaderboard.csv'; a.click(); URL.revokeObjectURL(url);
+                    } catch { /* silent */ }
+                  }}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1 transition-colors"
+                >
+                  <Download className="w-3 h-3" /> CSV
+                </button>
+              </div>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={bpPerf.slice(0, 8).map((r) => ({ ...r, avgDollars: r.avgRevenuePerUserCents / 100 }))} layout="vertical" margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />

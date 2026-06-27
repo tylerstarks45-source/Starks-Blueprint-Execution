@@ -101,7 +101,17 @@ export default function AdminCohortsPanel() {
       setCohorts(Array.isArray(c) ? c : []);
       setLtv(Array.isArray(l) ? l : []);
       setChurnRisk(Array.isArray(cr) ? cr : []);
-      setPlatformFunnel(Array.isArray(pf) ? pf : []);
+      // Backend returns an object; normalise to [{step, count, conversionPct}] rows for charts
+      if (Array.isArray(pf)) {
+        setPlatformFunnel(pf);
+      } else if (pf && typeof pf === 'object') {
+        setPlatformFunnel([
+          { step: 'Signups',        count: pf.signups      ?? 0, conversionPct: 100 },
+          { step: 'Activated',      count: pf.activated    ?? 0, conversionPct: pf.conversion?.signupToActivated        ?? 0 },
+          { step: 'First Revenue',  count: pf.firstRevenue ?? 0, conversionPct: pf.conversion?.activatedToFirstRevenue  ?? 0 },
+          { step: '$100+ Earners',  count: pf.highEarners  ?? 0, conversionPct: pf.conversion?.firstRevenueToHighEarner ?? 0 },
+        ]);
+      }
       setUserHealth(Array.isArray(uh) ? uh : []);
     } catch {
       toast({ title: 'Failed to load cohort data', variant: 'destructive' });
@@ -585,7 +595,7 @@ export default function AdminCohortsPanel() {
                         ${((u.totalLifetimeCents ?? 0) / 100).toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-sm">
-                        {u.daysSinceLastActivity != null ? `${u.daysSinceLastActivity}d` : '—'}
+                        {u.daysSinceLastRevenue != null ? `${u.daysSinceLastRevenue}d` : '—'}
                       </td>
                     </tr>
                   ))}

@@ -344,7 +344,19 @@ const CreditsPage = () => {
     <AuthLayout>
       <Helmet><title>Credits & Plans | Starks Global Group</title></Helmet>
 
-      <main className="flex-grow pt-8 pb-24 px-4 sm:px-6 lg:px-8 container mx-auto max-w-[1200px]">
+      {/* ── YouTube video background ── */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
+        <iframe
+          src="https://www.youtube.com/embed/eTD0WWFIDAg?autoplay=1&mute=1&loop=1&playlist=eTD0WWFIDAg&controls=0&showinfo=0&rel=0&modestbranding=1&disablekb=1&iv_load_policy=3"
+          allow="autoplay; encrypted-media"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          style={{ width: 'max(100%, 177.78vh)', height: 'max(100%, 56.25vw)', minWidth: '100%', minHeight: '100%', border: 'none' }}
+          title="bg"
+        />
+        <div className="absolute inset-0 bg-black/80" />
+      </div>
+
+      <main className="flex-grow pt-8 pb-24 px-4 sm:px-6 lg:px-8 container mx-auto max-w-[1200px] relative" style={{ zIndex: 1 }}>
 
         {/* ── Back + Page Title ───────────────────────────────────────────────── */}
         <div className="flex items-center gap-4 mb-6">

@@ -19,6 +19,7 @@ import {
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import BrowserView from '@/components/builder/BrowserView.jsx';
 import RevenueSetupModal from '@/components/RevenueSetupModal.jsx';
+import AIModelBadge from '@/components/AIModelBadge.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';

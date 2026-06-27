@@ -2893,7 +2893,7 @@ const BuilderPage = () => {
             </span>
           )}
           {/* Open page in browser — shows when the Pages tab is active and a page is open for editing */}
-          {pageEditorPage && (
+          {rightPanel === 'pages' && pageEditorPage && (
             <button
               onClick={() => openPageInBrowser(pageEditorPage)}
               title={pageEditorPage.isPublished ? 'Open live page in new tab' : 'Preview page in new tab'}

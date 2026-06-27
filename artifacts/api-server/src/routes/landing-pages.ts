@@ -6,6 +6,10 @@ import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
 import { z } from "zod";
 import { randomBytes } from "crypto";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env["SESSION_SECRET"]!;
+const PREVIEW_TOKEN_MAX_AGE_SECS = 24 * 60 * 60; // 24 hours
 
 const router: IRouter = Router();
 
@@ -213,14 +217,39 @@ Generate a complete HTML page that would genuinely convert visitors into buyers/
 // Returns the raw HTML for iframe preview (auth required).
 // Also accepts ?token=<jwt> query param so users can open pages in a new
 // browser tab without a separate login — the same JWT is passed in the URL.
+// Preview tokens are capped at 24 hours even if the underlying JWT has a longer TTL.
 router.get("/landing-pages/:id/preview-html", async (req, res): Promise<void> => {
-  // Inject query-param token as Authorization header so requireAuthActive picks it up.
+  let userId: number | null = null;
+
   const queryToken = typeof req.query["token"] === "string" ? req.query["token"] : null;
-  if (queryToken && !req.headers["authorization"]) {
-    req.headers["authorization"] = `Bearer ${queryToken}`;
+  if (queryToken) {
+    // Verify the token inline so we can enforce the 24h preview cap independently
+    // of the JWT's own expiry (JWTs are issued with 7d expiry for normal sessions).
+    try {
+      const payload = jwt.verify(queryToken, JWT_SECRET) as jwt.JwtPayload;
+      const id = Number(payload["sub"]);
+      if (!Number.isFinite(id)) {
+        res.status(401).send("Invalid preview token");
+        return;
+      }
+      const issuedAt = Number(payload["iat"] ?? 0);
+      const ageSecs = Math.floor(Date.now() / 1000) - issuedAt;
+      if (ageSecs > PREVIEW_TOKEN_MAX_AGE_SECS) {
+        res.status(401).send(
+          `<!DOCTYPE html><html><head><title>Preview Expired</title><style>body{background:#0a0a0a;color:#888;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}p{max-width:400px}a{color:#0ea5e9}</style></head>` +
+          `<body><p>This preview link has expired (24-hour limit).<br>Open the <a href="/builder">Builder</a> and click Preview again to get a fresh link.</p></body></html>`,
+        );
+        return;
+      }
+      userId = id;
+    } catch {
+      res.status(401).send("Invalid or expired preview token");
+      return;
+    }
+  } else {
+    userId = await requireAuthActive(req, res);
+    if (userId === null) return;
   }
-  const userId = await requireAuthActive(req, res);
-  if (userId === null) return;
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   const [row] = await db.select().from(landingPagesTable)
     .where(and(eq(landingPagesTable.id, id), eq(landingPagesTable.userId, userId)));

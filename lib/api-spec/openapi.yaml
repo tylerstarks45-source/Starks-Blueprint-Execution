@@ -2083,11 +2083,14 @@ components:
           type: ["string", "null"]
         setupSteps:
           type: ["string", "null"]
+        avgEarningsCents:
+          type: integer
+          description: Average lifetime earnings in cents across all deployed system instances of this blueprint.
         createdAt:
           type: string
         updatedAt:
           type: string
-      required: [id, slug, name, difficulty, status, version, priceCredits, source, reviewStatus, salesCount, ratingAvg, ratingCount, createdAt, updatedAt]
+      required: [id, slug, name, difficulty, status, version, priceCredits, source, reviewStatus, salesCount, ratingAvg, ratingCount, avgEarningsCents, createdAt, updatedAt]
 
     BlueprintInput:
       type: object

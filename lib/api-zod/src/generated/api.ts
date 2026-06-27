@@ -121,6 +121,7 @@ export const ListBlueprintsResponseItem = zod.object({
   "estimatedEarnings": zod.string().nullish(),
   "requiredTools": zod.string().nullish(),
   "setupSteps": zod.string().nullish(),
+  "avgEarningsCents": zod.number().describe('Average lifetime earnings in cents across all deployed system instances of this blueprint.'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -176,6 +177,7 @@ export const GetBlueprintResponse = zod.object({
   "estimatedEarnings": zod.string().nullish(),
   "requiredTools": zod.string().nullish(),
   "setupSteps": zod.string().nullish(),
+  "avgEarningsCents": zod.number().describe('Average lifetime earnings in cents across all deployed system instances of this blueprint.'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -221,6 +223,7 @@ export const UpdateBlueprintResponse = zod.object({
   "estimatedEarnings": zod.string().nullish(),
   "requiredTools": zod.string().nullish(),
   "setupSteps": zod.string().nullish(),
+  "avgEarningsCents": zod.number().describe('Average lifetime earnings in cents across all deployed system instances of this blueprint.'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -279,6 +282,7 @@ export const ListMyBlueprintsResponseItem = zod.object({
   "estimatedEarnings": zod.string().nullish(),
   "requiredTools": zod.string().nullish(),
   "setupSteps": zod.string().nullish(),
+  "avgEarningsCents": zod.number().describe('Average lifetime earnings in cents across all deployed system instances of this blueprint.'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -349,6 +353,7 @@ export const ListPendingBlueprintsResponseItem = zod.object({
   "estimatedEarnings": zod.string().nullish(),
   "requiredTools": zod.string().nullish(),
   "setupSteps": zod.string().nullish(),
+  "avgEarningsCents": zod.number().describe('Average lifetime earnings in cents across all deployed system instances of this blueprint.'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -389,6 +394,7 @@ export const ReviewBlueprintResponse = zod.object({
   "estimatedEarnings": zod.string().nullish(),
   "requiredTools": zod.string().nullish(),
   "setupSteps": zod.string().nullish(),
+  "avgEarningsCents": zod.number().describe('Average lifetime earnings in cents across all deployed system instances of this blueprint.'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })

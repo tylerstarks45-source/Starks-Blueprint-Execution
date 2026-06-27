@@ -105,7 +105,19 @@ router.post("/blueprints/:id/clone", async (req, res): Promise<void> => {
   const blueprintId = Number(req.params.id);
   if (isNaN(blueprintId)) { res.status(400).json({ error: "Invalid blueprint id" }); return; }
 
-  const [blueprint] = await db.select().from(blueprintsTable).where(eq(blueprintsTable.id, blueprintId));
+  // Apply the same server-side visibility gate as the list endpoint
+  const visibilityFilter = isAdminRole(caller.role)
+    ? eq(blueprintsTable.id, blueprintId)
+    : and(
+        eq(blueprintsTable.id, blueprintId),
+        or(
+          inArray(blueprintsTable.source, ["admin", "platform"]),
+          and(eq(blueprintsTable.source, "community"), eq(blueprintsTable.reviewStatus, "approved")),
+          and(eq(blueprintsTable.source, "community"), eq(blueprintsTable.authorUserId, caller.id)),
+        ),
+      );
+
+  const [blueprint] = await db.select().from(blueprintsTable).where(visibilityFilter!);
   if (!blueprint) { res.status(404).json({ error: "Blueprint not found" }); return; }
 
   // Paid blueprints: check if already purchased or is admin

@@ -50,11 +50,11 @@ async function fireMilestoneIfNew(
     const totRow = (totResult as unknown as { rows: Array<{ lifetime_cents: string }> }).rows[0];
     const lifetimeCents = Number(totRow?.lifetime_cents ?? 0);
 
-    // Find which milestone this crosses
+    // Find the HIGHEST milestone threshold the user has crossed
     const threshold = Object.keys(MILESTONE_THRESHOLDS)
       .map(Number)
-      .sort((a, b) => a - b)
-      .find(t => lifetimeCents >= t);
+      .sort((a, b) => b - a)          // descending — largest first
+      .find(t => lifetimeCents >= t); // first match is the highest crossed
     if (!threshold) return;
 
     const label = MILESTONE_THRESHOLDS[threshold];

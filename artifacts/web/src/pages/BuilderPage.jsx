@@ -1741,6 +1741,9 @@ const BuilderPage = () => {
   // Right panel search query
   const [rightSearch, setRightSearch] = useState('');
 
+  // Library (right) panel open/closed
+  const [libraryOpen, setLibraryOpen] = useState(true);
+
   // Pages panel state
   const [builderPages, setBuilderPages] = useState([]);
   const [builderPagesLoading, setBuilderPagesLoading] = useState(false);
@@ -2818,21 +2821,24 @@ const BuilderPage = () => {
     <div className="h-screen flex flex-col overflow-hidden">
 
       {/* ── TOP BAR ─────────────────────────────────────────────────────── */}
-      <div className="h-11 flex items-center justify-between px-4 border-b border-white/6 bg-black/85 backdrop-blur-lg shrink-0 gap-3">
+      <div className="h-12 flex items-center justify-between px-4 border-b border-cyan-500/10 bg-[#02020c]/97 backdrop-blur-2xl shrink-0 gap-3 relative">
+        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent pointer-events-none" />
 
         {/* Left: breadcrumb */}
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-1.5 text-white/35 hover:text-white/70 transition-colors text-xs shrink-0 font-mono"
+            className="flex items-center gap-1.5 text-white/30 hover:text-cyan-400 transition-colors text-xs shrink-0 font-mono tracking-wide uppercase"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-3 h-3" />
             Dashboard
           </button>
-          <span className="text-white/15 shrink-0">/</span>
-          <span className="flex items-center gap-1.5 text-[13px] font-semibold text-white/80 shrink-0">
-            <Wand2 className="w-3.5 h-3.5 text-primary" />
-            ASH Builder
+          <span className="text-white/10 shrink-0 font-mono">/</span>
+          <span className="flex items-center gap-1.5 shrink-0">
+            <div className="w-5 h-5 rounded-md bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+              <Wand2 className="w-3 h-3 text-cyan-400" />
+            </div>
+            <span className="text-[12px] font-bold text-white/85 font-mono tracking-widest uppercase">ASH Builder</span>
           </span>
           {businessType && (
             <>
@@ -2871,18 +2877,18 @@ const BuilderPage = () => {
           <button
             onClick={() => navigate('/library')}
             title="My Library"
-            className="flex items-center gap-1.5 text-white/28 hover:text-white/60 transition-colors text-xs px-2 py-1 rounded border border-white/6 hover:border-white/15 font-mono"
+            className="flex items-center gap-1.5 text-white/35 hover:text-cyan-400 transition-all text-[10px] px-2.5 py-1.5 rounded-lg border border-white/8 hover:border-cyan-500/30 font-mono uppercase tracking-wider hover:shadow-[0_0_12px_rgba(6,182,212,0.15)]"
           >
-            <BookOpen className="w-3.5 h-3.5" />
+            <BookOpen className="w-3 h-3" />
             <span className="hidden sm:inline">Library</span>
           </button>
           <button
             onClick={clearSession}
             disabled={phase === 'building'}
             title="Start a new session"
-            className="flex items-center gap-1.5 text-white/28 hover:text-white/60 transition-colors text-xs disabled:opacity-20 disabled:cursor-not-allowed px-2 py-1 rounded border border-white/6 hover:border-white/15 font-mono"
+            className="flex items-center gap-1.5 text-white/35 hover:text-cyan-400 transition-all text-[10px] disabled:opacity-20 disabled:cursor-not-allowed px-2.5 py-1.5 rounded-lg border border-white/8 hover:border-cyan-500/30 font-mono uppercase tracking-wider hover:shadow-[0_0_12px_rgba(6,182,212,0.15)]"
           >
-            <PlusCircle className="w-3.5 h-3.5" />
+            <PlusCircle className="w-3 h-3" />
             <span className="hidden sm:inline">New</span>
           </button>
         </div>
@@ -2897,27 +2903,29 @@ const BuilderPage = () => {
         <div className="hidden md:flex w-[260px] shrink-0 flex-col border-r border-white/8 bg-[#05050c] relative">
 
           {/* Header — gradient top section */}
-          <div className="relative px-3 pt-3 pb-2.5 border-b border-white/6 shrink-0 bg-gradient-to-b from-primary/8 to-transparent">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(14,165,233,0.2)]">
-                <Wand2 className="w-3.5 h-3.5 text-primary" />
+          <div className="relative px-3 pt-3 pb-2.5 border-b border-cyan-500/10 shrink-0 bg-gradient-to-b from-cyan-500/8 to-transparent overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent pointer-events-none" />
+            <div className="absolute -top-6 left-0 w-24 h-16 bg-cyan-500/6 rounded-full blur-2xl pointer-events-none" />
+            <div className="flex items-center gap-2 relative">
+              <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-500/35 flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(6,182,212,0.25)]">
+                <Wand2 className="w-3.5 h-3.5 text-cyan-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-bold text-white/75 font-mono tracking-tight">ASH Workspace</p>
-                <p className="text-[9px] font-mono text-white/28 leading-tight">
-                  {phase === 'building' ? 'Building…'
-                    : phase === 'complete' ? 'Build complete'
-                    : phase === 'planning' ? 'Reviewing plan…'
-                    : phase === 'collecting' ? 'Awaiting credentials'
-                    : 'Ready'}
+                <p className="text-[10px] font-bold text-white/80 font-mono tracking-widest uppercase">ASH Workspace</p>
+                <p className="text-[9px] font-mono leading-tight">
+                  {phase === 'building' ? <span className="text-cyan-400/70">Building…</span>
+                    : phase === 'complete' ? <span className="text-emerald-400/70">Build complete</span>
+                    : phase === 'planning' ? <span className="text-violet-400/70">Reviewing plan…</span>
+                    : phase === 'collecting' ? <span className="text-amber-400/70">Awaiting credentials</span>
+                    : <span className="text-white/28">Ready</span>}
                 </p>
               </div>
               {phase !== 'idle' && (
-                <span className={`w-2 h-2 rounded-full shrink-0 shadow-lg ${
-                  phase === 'building' ? 'bg-blue-400 animate-pulse shadow-blue-400/40'
-                  : phase === 'complete' ? 'bg-emerald-400 shadow-emerald-400/40'
-                  : phase === 'planning' ? 'bg-violet-400 animate-pulse shadow-violet-400/40'
-                  : 'bg-amber-400 animate-pulse shadow-amber-400/40'
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 shadow-lg ${
+                  phase === 'building' ? 'bg-cyan-400 animate-pulse shadow-cyan-400/50'
+                  : phase === 'complete' ? 'bg-emerald-400 shadow-emerald-400/50'
+                  : phase === 'planning' ? 'bg-violet-400 animate-pulse shadow-violet-400/50'
+                  : 'bg-amber-400 animate-pulse shadow-amber-400/50'
                 }`} />
               )}
             </div>
@@ -2928,9 +2936,9 @@ const BuilderPage = () => {
             <button
               onClick={clearSession}
               disabled={phase === 'building'}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-white/8 bg-white/3 hover:bg-primary/8 hover:border-primary/22 text-white/35 hover:text-primary text-[11px] font-mono font-medium transition-all disabled:opacity-25 disabled:cursor-not-allowed group"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-white/6 bg-white/2 hover:bg-cyan-500/6 hover:border-cyan-500/25 text-white/30 hover:text-cyan-400 text-[10px] font-mono font-bold transition-all disabled:opacity-25 disabled:cursor-not-allowed group uppercase tracking-widest"
             >
-              <PlusCircle className="w-3.5 h-3.5 shrink-0 group-hover:rotate-90 transition-transform duration-200" />
+              <PlusCircle className="w-3 h-3 shrink-0 group-hover:rotate-90 transition-transform duration-200" />
               New task
             </button>
           </div>
@@ -2945,10 +2953,10 @@ const BuilderPage = () => {
               <button
                 key={tab.id}
                 onClick={() => setLeftSideTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono font-semibold transition-all rounded-lg ${
+                className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-[8px] font-mono font-bold transition-all rounded-lg uppercase tracking-widest ${
                   leftSideTab === tab.id
-                    ? 'text-primary bg-primary/10 border border-primary/22 shadow-[0_0_8px_rgba(14,165,233,0.1)]'
-                    : 'text-white/28 hover:text-white/55 border border-transparent hover:bg-white/4'
+                    ? 'text-cyan-400 bg-cyan-500/8 border border-cyan-500/25 shadow-[0_0_10px_rgba(6,182,212,0.12)]'
+                    : 'text-white/22 hover:text-white/50 border border-transparent hover:bg-white/3'
                 }`}
               >
                 <tab.icon className="w-2.5 h-2.5" />
@@ -3949,26 +3957,50 @@ const BuilderPage = () => {
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════
-            RIGHT PANEL (240px) — Library / Resources
+            RIGHT PANEL — Library / Resources (collapsible)
         ═══════════════════════════════════════════════════════════════ */}
-        <div className="hidden lg:flex w-[240px] shrink-0 flex-col border-l border-white/8 bg-[#060608]">
+        <div className={`hidden lg:flex shrink-0 flex-col border-l bg-[#03030a] transition-all duration-200 overflow-hidden ${libraryOpen ? 'w-[240px] border-cyan-500/8' : 'w-10 border-white/6'}`}>
 
           {/* Library header */}
-          <div className="px-3 py-2.5 border-b border-white/8 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-1.5">
-              <BookOpen className="w-3.5 h-3.5 text-white/38" />
-              <span className="text-xs font-bold text-white/55">Library</span>
+          {libraryOpen ? (
+            <div className="px-3 py-2.5 border-b border-cyan-500/8 flex items-center justify-between shrink-0 relative overflow-hidden">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-500/25 to-transparent pointer-events-none" />
+              <div className="flex items-center gap-1.5">
+                <BookOpen className="w-3 h-3 text-cyan-400/60" />
+                <span className="text-[9px] font-bold text-white/60 font-mono uppercase tracking-widest">Library</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setRightPanel(p => p === 'files' ? 'blueprints' : 'files')}
+                  className={`text-[8px] font-mono uppercase tracking-wide transition-colors ${rightPanel === 'files' ? 'text-cyan-400' : 'text-white/28 hover:text-cyan-400'}`}
+                >
+                  Files
+                </button>
+                <button
+                  onClick={() => setLibraryOpen(false)}
+                  title="Collapse Library"
+                  className="p-0.5 text-white/20 hover:text-cyan-400 transition-colors rounded"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => setRightPanel(p => p === 'files' ? 'blueprints' : 'files')}
-              className={`text-[9px] font-mono transition-colors ${rightPanel === 'files' ? 'text-primary' : 'text-primary/45 hover:text-primary'}`}
-            >
-              File tree
-            </button>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center pt-3 gap-3">
+              <button
+                onClick={() => setLibraryOpen(true)}
+                title="Open Library"
+                className="p-1.5 text-white/20 hover:text-cyan-400 transition-colors rounded-lg hover:bg-cyan-500/8"
+              >
+                <BookOpen className="w-4 h-4" />
+              </button>
+              <div className="w-px h-20 bg-gradient-to-b from-cyan-500/20 to-transparent" />
+            </div>
+          )}
 
+          {libraryOpen && (<>
           {/* Search + New */}
-          <div className="px-2 py-2 border-b border-white/6 shrink-0 flex items-center gap-1.5">
+          <div className="px-2 py-2 border-b border-cyan-500/6 shrink-0 flex items-center gap-1.5">
             <div className="flex-1 flex items-center gap-1.5 bg-white/4 border border-white/8 rounded-lg px-2 py-1.5">
               <MessageSquare className="w-3 h-3 text-white/22 shrink-0" />
               <input
@@ -3989,7 +4021,7 @@ const BuilderPage = () => {
           </div>
 
           {/* Resource tabs */}
-          <div className="grid grid-cols-3 border-b border-white/6 shrink-0 p-1 gap-0.5">
+          <div className="grid grid-cols-3 border-b border-cyan-500/8 shrink-0 p-1 gap-0.5">
             {[
               { id: 'blueprints', label: 'BPs',    icon: Grid3x3 },
               { id: 'tools',      label: 'Tools',  icon: Layers },
@@ -4002,10 +4034,10 @@ const BuilderPage = () => {
               <button
                 key={tab.id}
                 onClick={() => setRightPanel(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-1 py-1 text-[9px] font-mono transition-all rounded-md ${
+                className={`flex-1 flex items-center justify-center gap-1 py-1 text-[8px] font-mono font-bold uppercase tracking-wide transition-all rounded-md ${
                   rightPanel === tab.id
-                    ? 'text-primary bg-primary/8 border border-primary/15'
-                    : 'text-white/22 hover:text-white/45 border border-transparent'
+                    ? 'text-cyan-400 bg-cyan-500/10 border border-cyan-500/25 shadow-[0_0_8px_rgba(6,182,212,0.1)]'
+                    : 'text-white/20 hover:text-white/45 border border-transparent hover:bg-white/3'
                 }`}
               >
                 <tab.icon className="w-2.5 h-2.5" />
@@ -4457,6 +4489,7 @@ const BuilderPage = () => {
             )}
 
           </div>
+          </>)}
         </div>
 
       </div>

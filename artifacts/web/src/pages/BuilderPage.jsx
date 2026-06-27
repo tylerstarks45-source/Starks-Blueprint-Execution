@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bot, Send, Loader2, AlertCircle, Zap, CheckCircle2,
+  Bot, Send, Loader2, AlertCircle, Zap, CheckCircle2, Square,
   Eye, EyeOff, ChevronRight, ChevronDown, Terminal, Activity, Lock,
   Cpu, Play, ExternalLink, ArrowLeft, Grid3x3,
   MessageSquare, Sparkles, Clock, DollarSign, RotateCcw,
@@ -1742,6 +1742,7 @@ const BuilderPage = () => {
   const inputRef = useRef(null);
   const attachImgRef = useRef(null);
   const attachFileRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   // Message box toolbar state
   const [showAttachMenu, setShowAttachMenu] = useState(false);
@@ -2336,6 +2337,8 @@ const BuilderPage = () => {
   const sendMessage = useCallback(async (text) => {
     const msg = (text ?? input).trim();
     if (!msg || chatLoading) return;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     // Proactive block: show the credits modal immediately before any API call
     // Admins (isFounderAdmin) bypass this check so testing is never blocked
@@ -2373,6 +2376,7 @@ const BuilderPage = () => {
       const resp = await fetch('/api/ai-orchestrator/stream', {
         method: 'POST',
         headers: authHeaders(),
+        signal: controller.signal,
         body: JSON.stringify({ message: msg, history, agentMode: aiMode, businessType, revenueGoal, planMode: isPlanMode, systemInstanceId: buildData?.instanceId ?? undefined }),
       });
 
@@ -2715,9 +2719,14 @@ const BuilderPage = () => {
       ];
       saveCheckpoint(currentUser?.id, { messages: updatedMessages, phase, buildData, stepOutputs, stepRevenues, currentStepIdx, activatedSkills, mode, selectedBp });
       setCheckpoints(getCheckpoints(currentUser?.id));
-    } catch {
-      setError('ASH is temporarily unavailable. Please try again.');
-      setMessages(prev => prev.filter(m => m.id !== msgId));
+    } catch (err) {
+      if (err?.name === 'AbortError') {
+        // User stopped generation — keep partial message, clear streaming flag
+        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, streaming: false } : m));
+      } else {
+        setError('ASH is temporarily unavailable. Please try again.');
+        setMessages(prev => prev.filter(m => m.id !== msgId));
+      }
     } finally {
       setChatLoading(false);
       setThinkingSteps([]);
@@ -2741,6 +2750,10 @@ const BuilderPage = () => {
     executeBuild(credValues, bp, sysName);
   }, [executeBuild]);
 
+  const stopGeneration = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
@@ -2758,6 +2771,29 @@ const BuilderPage = () => {
   };
 
   const isInputDisabled = chatLoading || phase === 'building' || phase === 'complete';
+
+  // Escape key → stop generation
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape' && chatLoading) stopGeneration(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [chatLoading, stopGeneration]);
+
+  // Mode badge — derived from phase
+  const modeBadge = phase === 'collecting'
+    ? { label: 'PLAN', cls: 'text-violet-400 border-violet-500/30 bg-violet-500/10' }
+    : phase === 'building'
+    ? { label: 'BUILD', cls: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10' }
+    : phase === 'complete'
+    ? { label: 'LIVE', cls: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' }
+    : { label: 'CHAT', cls: 'text-white/40 border-white/12 bg-white/4' };
+
+  // Status line shown above input while ASH is generating
+  const ashStatusLine = chatLoading
+    ? phase === 'collecting' ? 'ASH is planning…'
+    : phase === 'building' ? 'ASH is building…'
+    : 'ASH is thinking…'
+    : null;
   const filteredBps = blueprints.filter(b =>
     (!activeCatId || b.categoryId === activeCatId) &&
     (!rightSearch || b.name.toLowerCase().includes(rightSearch.toLowerCase()) || (b.description || '').toLowerCase().includes(rightSearch.toLowerCase()))
@@ -3909,6 +3945,19 @@ const BuilderPage = () => {
                     </div>
                   </div>
 
+                  {/* Mode badge + status line */}
+                  <div className="flex items-center justify-between px-3 pt-2 pb-0.5">
+                    <span className={`text-[9px] font-mono font-bold tracking-widest border rounded px-1.5 py-0.5 ${modeBadge.cls}`}>
+                      {modeBadge.label}
+                    </span>
+                    {ashStatusLine && (
+                      <span className="flex items-center gap-1 text-[9px] text-white/30 font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        {ashStatusLine}
+                      </span>
+                    )}
+                  </div>
+
                   {/* Textarea + send */}
                   <div className="flex items-end gap-2 px-2.5 pb-2.5">
                     {/* Mic button */}
@@ -3936,7 +3985,12 @@ const BuilderPage = () => {
                       value={input}
                       onChange={e => setInput(e.target.value)}
                       onKeyDown={handleKey}
-                      placeholder={phase === 'collecting' ? 'Type to continue talking with ASH…' : 'Message ASH…'}
+                      placeholder={
+                        phase === 'collecting' ? 'Describe what you want to plan…'
+                        : phase === 'building' ? 'Confirm or adjust your build…'
+                        : phase === 'complete' ? 'Your system is live — ask ASH anything…'
+                        : 'Message ASH…'
+                      }
                       disabled={isInputDisabled}
                       className="flex-1 resize-none text-xs bg-transparent text-white placeholder:text-white/22 focus:outline-none disabled:opacity-40 py-1 min-h-[28px]"
                       rows={1}
@@ -3974,14 +4028,25 @@ const BuilderPage = () => {
                     >
                       <PhoneCall className="w-3.5 h-3.5" />
                     </button>
-                    <Button
-                      onClick={() => sendMessage()}
-                      disabled={!input.trim() || isInputDisabled}
-                      size="icon"
-                      className="h-[30px] w-[30px] shrink-0 rounded-lg mb-0.5"
-                    >
-                      {chatLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                    </Button>
+                    {chatLoading ? (
+                      <button
+                        type="button"
+                        onClick={stopGeneration}
+                        title="Stop generation (Esc)"
+                        className="h-[30px] w-[30px] shrink-0 rounded-lg mb-0.5 flex items-center justify-center bg-rose-500/15 border border-rose-500/40 text-rose-400 hover:bg-rose-500/25 transition-colors"
+                      >
+                        <Square className="w-3 h-3 fill-rose-400" />
+                      </button>
+                    ) : (
+                      <Button
+                        onClick={() => sendMessage()}
+                        disabled={!input.trim() || isInputDisabled}
+                        size="icon"
+                        className="h-[30px] w-[30px] shrink-0 rounded-lg mb-0.5"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </>

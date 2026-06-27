@@ -206,7 +206,19 @@ const UserMySystemsPanel = () => {
   };
 
   return (
-    <Card className="border-white/10 bg-black/80 backdrop-blur-sm shadow-xl">
+    <div className="relative overflow-hidden rounded-2xl">
+      {/* ── YouTube video background ── */}
+      <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+        <iframe
+          src="https://www.youtube.com/embed/ZZpiZWEHc1U?autoplay=1&mute=1&loop=1&playlist=ZZpiZWEHc1U&controls=0&showinfo=0&rel=0&modestbranding=1&disablekb=1&iv_load_policy=3"
+          allow="autoplay; encrypted-media"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          style={{ width: 'max(100%, 177.78vh)', height: 'max(100%, 56.25vw)', minWidth: '100%', minHeight: '100%', border: 'none' }}
+          title="bg"
+        />
+        <div className="absolute inset-0 bg-black/80" />
+      </div>
+    <Card className="border-white/10 bg-transparent backdrop-blur-sm shadow-xl relative z-10">
       <CardHeader className="pb-3 border-b border-white/10 flex flex-row items-center justify-between">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <Layers className="w-5 h-5 text-primary" /> My Blueprints & Systems
@@ -278,6 +290,7 @@ const UserMySystemsPanel = () => {
         )}
       </CardContent>
     </Card>
+    </div>
   );
 };
 

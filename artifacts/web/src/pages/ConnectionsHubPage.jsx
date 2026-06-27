@@ -703,6 +703,18 @@ export default function ConnectionsHubPage() {
 
   return (
     <AuthLayout>
+      {/* ── YouTube video background ── */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <iframe
+          src="https://www.youtube.com/embed/ZZpiZWEHc1U?autoplay=1&mute=1&loop=1&playlist=ZZpiZWEHc1U&controls=0&showinfo=0&rel=0&modestbranding=1&disablekb=1&iv_load_policy=3"
+          allow="autoplay; encrypted-media"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          style={{ width: 'max(100vw, 177.78vh)', height: 'max(100vh, 56.25vw)', border: 'none' }}
+          title="bg"
+        />
+        <div className="absolute inset-0 bg-black/78" />
+      </div>
+
       {/* Slide-over */}
       {slideOver && (
         <ConnectSlideOver

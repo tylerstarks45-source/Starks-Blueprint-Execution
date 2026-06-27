@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, desc } from "drizzle-orm";
-import { db, landingPagesTable, systemInstancesTable } from "@workspace/db";
+import { db, landingPagesTable, systemInstancesTable, usersTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
 import { z } from "zod";
@@ -239,6 +239,13 @@ router.get("/landing-pages/:id/preview-html", async (req, res): Promise<void> =>
           `<!DOCTYPE html><html><head><title>Preview Expired</title><style>body{background:#0a0a0a;color:#888;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}p{max-width:400px}a{color:#0ea5e9}</style></head>` +
           `<body><p>This preview link has expired (24-hour limit).<br>Open the <a href="/builder">Builder</a> and click Preview again to get a fresh link.</p></body></html>`,
         );
+        return;
+      }
+      // Enforce the same active-account check as requireAuthActive so suspended
+      // users cannot access preview HTML even with a valid, unexpired JWT.
+      const [user] = await db.select({ active: usersTable.active }).from(usersTable).where(eq(usersTable.id, id));
+      if (!user || user.active === false) {
+        res.status(403).send("Account suspended");
         return;
       }
       userId = id;

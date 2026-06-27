@@ -1767,6 +1767,7 @@ const BuilderPage = () => {
   const [builderPagesLoading, setBuilderPagesLoading] = useState(false);
   const [pageEditorPage, setPageEditorPage] = useState(null);
   const [pageEditorHtml, setPageEditorHtml] = useState('');
+  const [selectedPage, setSelectedPage] = useState(null); // tracks last page clicked in the Pages panel (for top-bar preview button)
   const [pageEditorSaving, setPageEditorSaving] = useState(false);
   const [pageEditorPublishing, setPageEditorPublishing] = useState(false);
 
@@ -2892,17 +2893,20 @@ const BuilderPage = () => {
               👑 FOUNDER
             </span>
           )}
-          {/* Open page in browser — shows when the Pages tab is active and a page is open for editing */}
-          {rightPanel === 'pages' && pageEditorPage && (
-            <button
-              onClick={() => openPageInBrowser(pageEditorPage)}
-              title={pageEditorPage.isPublished ? 'Open live page in new tab' : 'Preview page in new tab'}
-              className="flex items-center gap-1.5 text-sky-400/70 hover:text-sky-300 transition-all text-[10px] px-2.5 py-1.5 rounded-lg border border-sky-500/20 hover:border-sky-500/40 bg-sky-500/5 hover:bg-sky-500/12 font-mono uppercase tracking-wider hover:shadow-[0_0_12px_rgba(14,165,233,0.2)]"
-            >
-              <ExternalLink className="w-3 h-3" />
-              <span className="hidden sm:inline">{pageEditorPage.isPublished ? 'View Live' : 'Preview'}</span>
-            </button>
-          )}
+          {/* Open page in browser — visible when Pages panel is active and any page is selected or being edited */}
+          {rightPanel === 'pages' && (pageEditorPage || selectedPage) && (() => {
+            const p = pageEditorPage || selectedPage;
+            return (
+              <button
+                onClick={() => openPageInBrowser(p)}
+                title={p.isPublished ? 'Open live page in new tab' : 'Preview page in new tab'}
+                className="flex items-center gap-1.5 text-sky-400/70 hover:text-sky-300 transition-all text-[10px] px-2.5 py-1.5 rounded-lg border border-sky-500/20 hover:border-sky-500/40 bg-sky-500/5 hover:bg-sky-500/12 font-mono uppercase tracking-wider hover:shadow-[0_0_12px_rgba(14,165,233,0.2)]"
+              >
+                <ExternalLink className="w-3 h-3" />
+                <span className="hidden sm:inline">{p.isPublished ? 'View Live' : 'Preview'}</span>
+              </button>
+            );
+          })()}
           <button
             onClick={() => navigate('/library')}
             title="My Library"
@@ -4259,7 +4263,11 @@ const BuilderPage = () => {
                   ) : (
                     <div className="space-y-1.5 mb-3">
                       {builderPages.slice(0, 6).map(page => (
-                        <div key={page.id} className={`rounded-lg border transition-all ${page.isPublished ? 'border-emerald-500/15 bg-emerald-500/4' : 'border-white/8 bg-white/2'}`}>
+                        <div
+                          key={page.id}
+                          onClick={() => setSelectedPage(page)}
+                          className={`rounded-lg border transition-all cursor-pointer ${page.isPublished ? 'border-emerald-500/15 bg-emerald-500/4' : 'border-white/8 bg-white/2'} ${selectedPage?.id === page.id ? 'ring-1 ring-sky-500/30' : ''}`}
+                        >
                           <div className="px-2.5 pt-2 pb-1.5">
                             <div className="flex items-start gap-2 mb-1">
                               <span className="text-[11px] font-mono text-white/62 flex-1 leading-snug line-clamp-1">{page.title}</span>
@@ -4278,14 +4286,14 @@ const BuilderPage = () => {
                               </span>
                               <div className="flex items-center gap-1.5 ml-auto">
                                 <button
-                                  onClick={() => openPageInBrowser(page)}
+                                  onClick={e => { e.stopPropagation(); setSelectedPage(page); openPageInBrowser(page); }}
                                   title={page.isPublished ? 'Open live page in browser' : 'Preview page in browser'}
                                   className="text-white/22 hover:text-sky-400 transition-colors"
                                 >
                                   <ExternalLink className="w-2.5 h-2.5" />
                                 </button>
                                 <button
-                                  onClick={() => { setPageEditorPage(page); setPageEditorHtml(page.htmlContent || ''); }}
+                                  onClick={e => { e.stopPropagation(); setSelectedPage(page); setPageEditorPage(page); setPageEditorHtml(page.htmlContent || ''); }}
                                   className="text-white/22 hover:text-violet-400 transition-colors"
                                   title="Edit HTML"
                                 >

@@ -706,7 +706,7 @@ export default function ConnectionsHubPage() {
       {/* ── YouTube video background ── */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <iframe
-          src="https://www.youtube.com/embed/jqm1i_FSr8Y?autoplay=1&mute=1&loop=1&playlist=jqm1i_FSr8Y&controls=0&modestbranding=1&rel=0&vq=hd1080&hd=1&quality=hd1080"
+          src="https://www.youtube.com/embed/PeY9pWJ2Mbk?autoplay=1&mute=1&loop=1&playlist=PeY9pWJ2Mbk&controls=0&modestbranding=1&rel=0&vq=hd1080&hd=1&quality=hd1080"
           allow="autoplay; encrypted-media"
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           style={{ width: 'max(100vw, 177.78vh)', height: 'max(100vh, 56.25vw)', border: 'none' }}

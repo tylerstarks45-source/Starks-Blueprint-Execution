@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-const VideoBackground = ({ children, className = '', videoId = 'DZLlw5BNQ3g' }) => {
+const VideoBackground = ({ children, className = '', videoId = 'J6G-B1DoDAU' }) => {
   return (
     <div className={`relative min-h-screen w-full flex flex-col ${className}`}>
       {/* Background Video Layer */}

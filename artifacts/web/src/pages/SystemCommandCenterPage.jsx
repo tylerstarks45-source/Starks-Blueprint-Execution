@@ -553,7 +553,7 @@ const SystemCommandCenterPage = () => {
       {/* ══ DASHBOARD VIDEO BACKGROUND ═════════════════════════════════════════ */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden" style={{ zIndex: 0 }}>
         <iframe
-          src="https://www.youtube.com/embed/DZLlw5BNQ3g?autoplay=1&mute=1&loop=1&playlist=DZLlw5BNQ3g&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&disablekb=1&iv_load_policy=3"
+          src="https://www.youtube.com/embed/J6G-B1DoDAU?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&disablekb=1&iv_load_policy=3"
           allow="autoplay; encrypted-media"
           style={{
             position: 'absolute',

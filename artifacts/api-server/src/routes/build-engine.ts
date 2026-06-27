@@ -210,6 +210,7 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
     totalSteps: z.number().int(),
     systemInstanceId: z.number().int(),
     sessionId: z.number().int(),
+    model: z.string().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
@@ -229,6 +230,7 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   let revenueDescription = "";
 
   try {
+    const resolvedModel = parsed.data.model ?? "openai/gpt-4o";
     const result = await complete({
       systemPrompt: `You are ASH — SBEP's elite AI Build Agent executing automated income systems autonomously.
 
@@ -254,7 +256,7 @@ Always include the block. Use "description" to write a short human-readable labe
 Step ${parsed.data.stepNumber}/${parsed.data.totalSteps}: ${parsed.data.stepDescription}
 
 Execute this step now. Write detailed output describing exactly what was configured, deployed, and activated. Then emit the <SBEP_REVENUE> block.`,
-      model: "openai/gpt-4o",
+      model: resolvedModel,
       userId: instance.userId ?? undefined,
       systemInstanceId: instance.id,
     });
@@ -299,9 +301,10 @@ Execute this step now. Write detailed output describing exactly what was configu
     .where(eq(buildProgressTable.id, parsed.data.stepId))
     .returning();
 
-  // Advance session step counter
+  // Advance session step counter and record which model ran this step
+  const resolvedModelForSession = parsed.data.model ?? "openai/gpt-4o";
   await db.update(buildSessionsTable)
-    .set({ currentStepNumber: parsed.data.stepNumber + 1 })
+    .set({ currentStepNumber: parsed.data.stepNumber + 1, currentModel: resolvedModelForSession })
     .where(eq(buildSessionsTable.id, parsed.data.sessionId));
 
   // Write an action activity event for this completed step

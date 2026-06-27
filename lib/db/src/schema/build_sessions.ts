@@ -8,6 +8,7 @@ export const buildSessionsTable = pgTable("build_sessions", {
   systemInstanceId: integer("system_instance_id").notNull().references(() => systemInstancesTable.id, { onDelete: "cascade" }),
   status: text("status").notNull().default("active"),
   currentStepNumber: integer("current_step_number").notNull().default(1),
+  currentModel: text("current_model"),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

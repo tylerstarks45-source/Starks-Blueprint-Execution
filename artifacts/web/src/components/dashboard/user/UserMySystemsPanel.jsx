@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Layers, Settings, Trash2, Plus, ExternalLink, RefreshCw, Activity, Heart, Wrench } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import AIModelBadge from '@/components/AIModelBadge.jsx';
 
 const authHeaders = () => {
   const token = localStorage.getItem('sbep_auth_token');
@@ -43,12 +44,13 @@ const timeAgo = (d) => {
   return `${Math.floor(h / 24)}d ago`;
 };
 
-const SystemRow = ({ sys, blueprintName, buildProgress, onDelete }) => {
+const SystemRow = ({ sys, blueprintName, buildProgress, currentModel, onDelete }) => {
   const build = BUILD_STATUS[sys.buildStatus?.toLowerCase()] ?? BUILD_STATUS.pending;
   const health = HEALTH_STATUS[sys.healthStatus?.toLowerCase()] ?? HEALTH_STATUS.unknown;
   const done = buildProgress?.filter(s => s.status === 'completed').length ?? 0;
   const total = buildProgress?.length ?? 0;
   const pct = total > 0 ? Math.round((done / total) * 100) : (sys.buildStatus === 'active' ? 100 : 0);
+  const isBuilding = sys.buildStatus?.toLowerCase() === 'building';
 
   return (
     <div className="p-4 border border-white/8 rounded-xl bg-white/3 hover:bg-white/6 transition-colors group">
@@ -83,7 +85,12 @@ const SystemRow = ({ sys, blueprintName, buildProgress, onDelete }) => {
             <div className="mt-2">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Build Progress</span>
-                <span className="text-[10px] font-mono text-muted-foreground">{pct}%</span>
+                <div className="flex items-center gap-1.5">
+                  {currentModel && (
+                    <AIModelBadge model={currentModel} isActive={isBuilding} size="xs" />
+                  )}
+                  <span className="text-[10px] font-mono text-muted-foreground">{pct}%</span>
+                </div>
               </div>
               <Progress value={pct} className="h-1.5" />
             </div>
@@ -128,6 +135,7 @@ const UserMySystemsPanel = () => {
   const [systems, setSystems] = useState([]);
   const [blueprintMap, setBlueprintMap] = useState({});
   const [progressMap, setProgressMap] = useState({});
+  const [modelMap, setModelMap] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -157,17 +165,22 @@ const UserMySystemsPanel = () => {
       const progressResults = await Promise.allSettled(
         items.slice(0, 5).map(async (sys) => {
           const r = await fetch(`/api/build-engine/${sys.id}/status`, { headers: authHeaders() });
-          if (!r.ok) return { id: sys.id, steps: [] };
+          if (!r.ok) return { id: sys.id, steps: [], currentModel: null };
           const data = await r.json();
-          return { id: sys.id, steps: data.steps ?? [] };
+          return { id: sys.id, steps: data.steps ?? [], currentModel: data.session?.currentModel ?? null };
         })
       );
 
       const pMap = {};
+      const mMap = {};
       progressResults.forEach(r => {
-        if (r.status === 'fulfilled') pMap[r.value.id] = r.value.steps;
+        if (r.status === 'fulfilled') {
+          pMap[r.value.id] = r.value.steps;
+          if (r.value.currentModel) mMap[r.value.id] = r.value.currentModel;
+        }
       });
       setProgressMap(pMap);
+      setModelMap(mMap);
     } catch {
       toast.error('Failed to load systems.');
     } finally {
@@ -252,6 +265,7 @@ const UserMySystemsPanel = () => {
                 sys={sys}
                 blueprintName={blueprintMap[sys.blueprintId]}
                 buildProgress={progressMap[sys.id]}
+                currentModel={modelMap[sys.id] ?? null}
                 onDelete={handleDelete}
               />
             ))}

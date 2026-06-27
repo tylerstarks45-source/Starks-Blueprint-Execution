@@ -2230,6 +2230,7 @@ const BuilderPage = () => {
             totalSteps: buildData.steps.length,
             systemInstanceId: buildData.instanceId,
             sessionId: buildData.sessionId,
+            model: activeMode?.model ?? 'openai/gpt-4o',
           }),
         });
         if (resp.status === 402) {
@@ -3663,9 +3664,15 @@ const BuilderPage = () => {
           {/* Input bar */}
           <div className="px-3 pb-3 pt-2 border-t border-white/10 bg-black/90 shrink-0">
             {phase === 'building' ? (
-              <div className="flex items-center justify-center gap-2 py-1.5">
+              <div className="flex items-center justify-center gap-2 py-1.5 flex-wrap">
                 <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
                 <span className="font-mono text-[11px] text-white/42">Building — {buildData?.steps?.length ?? 0} steps in progress</span>
+                {activeMode && (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0 border rounded-full border-violet-500/40 bg-violet-500/10 text-violet-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse shrink-0" />
+                    {activeMode.modelLabel}
+                  </span>
+                )}
               </div>
             ) : phase === 'complete' ? (
               <div className="flex items-center justify-center gap-2 py-1.5 text-emerald-400">

@@ -46,6 +46,7 @@ router.post("/build-engine/analyze", async (req, res): Promise<void> => {
   if (!instance) { res.status(404).json({ error: "System instance not found" }); return; }
   if (!ensureOwner(instance, userId, res)) return;
 
+  if (instance.blueprintId == null) { res.status(400).json({ error: "Instance has no blueprint" }); return; }
   const [blueprint] = await db.select().from(blueprintsTable).where(eq(blueprintsTable.id, instance.blueprintId));
   if (!blueprint) { res.status(404).json({ error: "Blueprint not found" }); return; }
 
@@ -228,9 +229,11 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   let revenueCents = 0;
   let revenueSource = "";
   let revenueDescription = "";
+  // Will be overwritten with the actual model string confirmed by OpenRouter
+  let actualModel: string = parsed.data.model ?? "openai/gpt-4o";
 
   try {
-    const resolvedModel = parsed.data.model ?? "openai/gpt-4o";
+    const resolvedModel = actualModel;
     const result = await complete({
       systemPrompt: `You are ASH — SBEP's elite AI Build Agent executing automated income systems autonomously.
 
@@ -260,6 +263,9 @@ Execute this step now. Write detailed output describing exactly what was configu
       userId: instance.userId ?? undefined,
       systemInstanceId: instance.id,
     });
+
+    // Use the model string confirmed by OpenRouter (may differ from what was requested)
+    actualModel = result.model;
 
     const raw = result.content;
     const revenueMatch = raw.match(/<SBEP_REVENUE>([\s\S]*?)<\/SBEP_REVENUE>/);
@@ -301,10 +307,9 @@ Execute this step now. Write detailed output describing exactly what was configu
     .where(eq(buildProgressTable.id, parsed.data.stepId))
     .returning();
 
-  // Advance session step counter and record which model ran this step
-  const resolvedModelForSession = parsed.data.model ?? "openai/gpt-4o";
+  // Advance session step counter; persist the model string confirmed by OpenRouter (not client input)
   await db.update(buildSessionsTable)
-    .set({ currentStepNumber: parsed.data.stepNumber + 1, currentModel: resolvedModelForSession })
+    .set({ currentStepNumber: parsed.data.stepNumber + 1, currentModel: actualModel })
     .where(eq(buildSessionsTable.id, parsed.data.sessionId));
 
   // Write an action activity event for this completed step
@@ -409,6 +414,7 @@ router.get("/build-engine/:systemInstanceId/status", async (req, res): Promise<v
     instance: serialize(instance),
     session: latestSession ? serialize(latestSession) : null,
     steps: serialize(steps.sort((a, b) => a.stepNumber - b.stepNumber)),
+    currentModel: latestSession?.currentModel ?? null,
   });
 });
 

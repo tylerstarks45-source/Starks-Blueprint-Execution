@@ -72,7 +72,9 @@ router.post("/dashboard/chat", async (req, res): Promise<void> => {
         eq(systemInstancesTable.userId, userId)
       ));
     if (instance) {
-      const [bp] = await db.select().from(blueprintsTable).where(eq(blueprintsTable.id, instance.blueprintId));
+      const [bp] = instance.blueprintId != null
+        ? await db.select().from(blueprintsTable).where(eq(blueprintsTable.id, instance.blueprintId))
+        : [];
       const [session] = await db
         .select()
         .from(buildSessionsTable)

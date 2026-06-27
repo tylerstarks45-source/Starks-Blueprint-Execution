@@ -3402,9 +3402,17 @@ const BuilderPage = () => {
                 })}
               </div>
               {phase === 'building' && buildData?.steps && (
-                <span className="ml-auto text-[9px] font-mono text-primary/55 shrink-0">
-                  {currentStepIdx}/{buildData.steps.length} steps
-                </span>
+                <div className="ml-auto flex items-center gap-2 shrink-0">
+                  {activeMode && (
+                    <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0 border rounded-full border-violet-500/40 bg-violet-500/10 text-violet-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse shrink-0" />
+                      {activeMode.modelLabel}
+                    </span>
+                  )}
+                  <span className="text-[9px] font-mono text-primary/55">
+                    {currentStepIdx}/{buildData.steps.length} steps
+                  </span>
+                </div>
               )}
             </div>
           )}

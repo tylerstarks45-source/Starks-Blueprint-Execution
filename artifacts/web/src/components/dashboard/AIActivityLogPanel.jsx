@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { History, Loader2, RefreshCw, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import apiServerClient from '@/lib/apiServerClient.js';
+import AIModelBadge from '@/components/AIModelBadge.jsx';
 
 const AIActivityLogPanel = () => {
   const [history, setHistory] = useState([]);
@@ -105,7 +106,7 @@ const AIActivityLogPanel = () => {
                         <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] font-medium"><XCircle className="w-3 h-3 mr-1" /> Failed</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-xs font-mono text-foreground/80">{req.model}</TableCell>
+                    <TableCell><AIModelBadge model={req.model} /></TableCell>
                     <TableCell className="text-xs text-right font-mono text-muted-foreground">{req.responseTimeMs}ms</TableCell>
                     <TableCell className="text-xs text-right font-mono text-muted-foreground">{req.tokens || 0}</TableCell>
                     <TableCell className="text-xs text-right">

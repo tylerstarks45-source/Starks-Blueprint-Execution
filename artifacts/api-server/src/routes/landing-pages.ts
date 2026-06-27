@@ -210,8 +210,15 @@ Generate a complete HTML page that would genuinely convert visitors into buyers/
 });
 
 // ── GET /api/landing-pages/:id/preview-html ──────────────────────────────────
-// Returns the raw HTML for iframe preview (auth required)
+// Returns the raw HTML for iframe preview (auth required).
+// Also accepts ?token=<jwt> query param so users can open pages in a new
+// browser tab without a separate login — the same JWT is passed in the URL.
 router.get("/landing-pages/:id/preview-html", async (req, res): Promise<void> => {
+  // Inject query-param token as Authorization header so requireAuthActive picks it up.
+  const queryToken = typeof req.query["token"] === "string" ? req.query["token"] : null;
+  if (queryToken && !req.headers["authorization"]) {
+    req.headers["authorization"] = `Bearer ${queryToken}`;
+  }
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);

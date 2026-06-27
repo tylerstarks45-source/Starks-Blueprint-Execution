@@ -33,6 +33,24 @@ const authHeaders = () => {
     : { 'Content-Type': 'application/json' };
 };
 
+// Opens a landing page in a new browser tab.
+// Published pages use the permanent public URL; unpublished use the
+// auth-token-gated preview endpoint so the user doesn't need to re-login.
+const openPageInBrowser = (page) => {
+  if (page.isPublished) {
+    window.open(`/api/pages/${page.slug}`, '_blank', 'noopener,noreferrer');
+  } else {
+    const token = localStorage.getItem('sbep_auth_token');
+    if (token) {
+      window.open(
+        `/api/landing-pages/${page.id}/preview-html?token=${encodeURIComponent(token)}`,
+        '_blank',
+        'noopener,noreferrer',
+      );
+    }
+  }
+};
+
 const STARTER_PROMPTS = [
   'TikTok affiliate marketing machine',
   'YouTube automation channel with AI content',
@@ -2874,6 +2892,17 @@ const BuilderPage = () => {
               👑 FOUNDER
             </span>
           )}
+          {/* Open page in browser — shows when the Pages tab is active and a page is open for editing */}
+          {pageEditorPage && (
+            <button
+              onClick={() => openPageInBrowser(pageEditorPage)}
+              title={pageEditorPage.isPublished ? 'Open live page in new tab' : 'Preview page in new tab'}
+              className="flex items-center gap-1.5 text-sky-400/70 hover:text-sky-300 transition-all text-[10px] px-2.5 py-1.5 rounded-lg border border-sky-500/20 hover:border-sky-500/40 bg-sky-500/5 hover:bg-sky-500/12 font-mono uppercase tracking-wider hover:shadow-[0_0_12px_rgba(14,165,233,0.2)]"
+            >
+              <ExternalLink className="w-3 h-3" />
+              <span className="hidden sm:inline">{pageEditorPage.isPublished ? 'View Live' : 'Preview'}</span>
+            </button>
+          )}
           <button
             onClick={() => navigate('/library')}
             title="My Library"
@@ -4248,12 +4277,13 @@ const BuilderPage = () => {
                                 <Globe className="w-2 h-2" />{page.pageViews} views
                               </span>
                               <div className="flex items-center gap-1.5 ml-auto">
-                                {page.isPublished && (
-                                  <a href={`/api/pages/${page.slug}`} target="_blank" rel="noopener noreferrer"
-                                    className="text-white/22 hover:text-sky-400 transition-colors">
-                                    <ExternalLink className="w-2.5 h-2.5" />
-                                  </a>
-                                )}
+                                <button
+                                  onClick={() => openPageInBrowser(page)}
+                                  title={page.isPublished ? 'Open live page in browser' : 'Preview page in browser'}
+                                  className="text-white/22 hover:text-sky-400 transition-colors"
+                                >
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </button>
                                 <button
                                   onClick={() => { setPageEditorPage(page); setPageEditorHtml(page.htmlContent || ''); }}
                                   className="text-white/22 hover:text-violet-400 transition-colors"
@@ -4687,12 +4717,18 @@ const BuilderPage = () => {
                 {pageEditorSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                 Save
               </button>
-              {pageEditorPage.isPublished && (
-                <a href={`/api/pages/${pageEditorPage.slug}`} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-mono text-sky-400 border border-sky-500/20 bg-sky-500/8 hover:bg-sky-500/15 transition-all">
-                  <ExternalLink className="w-3 h-3" /> View
-                </a>
-              )}
+              <button
+                onClick={() => openPageInBrowser(pageEditorPage)}
+                title={pageEditorPage.isPublished ? 'Open live page in new tab' : 'Preview page in new tab'}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-mono border transition-all ${
+                  pageEditorPage.isPublished
+                    ? 'text-sky-400 border-sky-500/20 bg-sky-500/8 hover:bg-sky-500/15'
+                    : 'text-white/40 border-white/10 bg-white/4 hover:bg-white/8 hover:text-sky-400'
+                }`}
+              >
+                <ExternalLink className="w-3 h-3" />
+                {pageEditorPage.isPublished ? 'View Live' : 'Preview'}
+              </button>
               <button onClick={() => setPageEditorPage(null)} className="p-1.5 rounded-lg text-white/35 hover:text-white/65 hover:bg-white/8 transition-all">
                 <X className="w-4 h-4" />
               </button>

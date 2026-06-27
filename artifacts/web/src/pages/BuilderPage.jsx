@@ -1429,7 +1429,7 @@ const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, 
 const WELCOME_MSG = {
   id: 'welcome',
   role: 'assistant',
-  content: "I'm ASH — your Autonomous Business Builder.\n\nTell me your income goal, your business type, and what you want to build. I'll select the right blueprint, collect only the credentials I need, and build the entire system for you automatically.\n\nYou can build anything — SaaS products, affiliate engines, ecommerce stores, lead generation systems, content machines, and more.",
+  content: "Hey — I'm ASH, your AI business partner.\n\nTell me what you want to build or what income goal you're going after. We can just talk through ideas first, or if you're ready to go I'll put together a full build plan and execute the whole system for you.\n\nWhat's on your mind?",
   ts: Date.now(),
 };
 
@@ -2761,7 +2761,7 @@ const BuilderPage = () => {
         {/* ═══════════════════════════════════════════════════════════════
             LEFT PANEL (260px) — Sessions as Tasks + Agent Modes
         ═══════════════════════════════════════════════════════════════ */}
-        <div className="w-[260px] shrink-0 flex flex-col border-r border-white/8 bg-[#05050c] relative">
+        <div className="hidden md:flex w-[260px] shrink-0 flex-col border-r border-white/8 bg-[#05050c] relative">
 
           {/* Header — gradient top section */}
           <div className="relative px-3 pt-3 pb-2.5 border-b border-white/6 shrink-0 bg-gradient-to-b from-primary/8 to-transparent">
@@ -3886,7 +3886,7 @@ const BuilderPage = () => {
         {/* ═══════════════════════════════════════════════════════════════
             RIGHT PANEL (240px) — Library / Resources
         ═══════════════════════════════════════════════════════════════ */}
-        <div className="w-[240px] shrink-0 flex flex-col border-l border-white/8 bg-[#060608]">
+        <div className="hidden lg:flex w-[240px] shrink-0 flex-col border-l border-white/8 bg-[#060608]">
 
           {/* Library header */}
           <div className="px-3 py-2.5 border-b border-white/8 flex items-center justify-between shrink-0">
@@ -4638,6 +4638,46 @@ const BuilderPage = () => {
         onConnected={() => { setShowRevenueModal(false); toast.success('Revenue tracking connected!', { description: 'ASH will now track real income from this system.' }); }}
       />
     )}
+
+    {/* ── MOBILE BOTTOM BAR (visible on md and below) ─────────────────── */}
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-xl border-t border-white/8 flex items-center justify-around px-2 py-1.5 safe-area-pb">
+      <button
+        onClick={() => navigate('/dashboard')}
+        className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-white/35 hover:text-white/70 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span className="text-[9px] font-mono">Back</span>
+      </button>
+      <button
+        onClick={clearSession}
+        disabled={phase === 'building'}
+        className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-white/35 hover:text-primary transition-colors disabled:opacity-25"
+      >
+        <PlusCircle className="w-4 h-4" />
+        <span className="text-[9px] font-mono">New</span>
+      </button>
+      <button
+        onClick={() => navigate('/library')}
+        className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-white/35 hover:text-white/70 transition-colors"
+      >
+        <BookOpen className="w-4 h-4" />
+        <span className="text-[9px] font-mono">Library</span>
+      </button>
+      <button
+        onClick={() => navigate('/blueprints')}
+        className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-white/35 hover:text-white/70 transition-colors"
+      >
+        <Grid3x3 className="w-4 h-4" />
+        <span className="text-[9px] font-mono">Blueprints</span>
+      </button>
+      <button
+        onClick={() => navigate('/marketplace')}
+        className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-white/35 hover:text-white/70 transition-colors"
+      >
+        <Layers className="w-4 h-4" />
+        <span className="text-[9px] font-mono">Tools</span>
+      </button>
+    </div>
 
     </AuthLayout>
   );

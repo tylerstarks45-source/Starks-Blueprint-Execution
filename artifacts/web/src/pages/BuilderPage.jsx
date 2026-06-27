@@ -817,6 +817,33 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
   if (msg.type === 'generated_video') return <GeneratedVideoCard data={msg.data} />;
   // Generated audio (TTS or music)
   if (msg.type === 'generated_audio') return <GeneratedAudioCard data={msg.data} label={msg.label} />;
+  // Build-step AI error recovery card
+  if (msg.type === 'error_recovery') return (
+    <div className="flex items-start gap-2.5">
+      <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-red-500/20 border border-red-500/30">
+        <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+      </div>
+      <div className="flex-1 bg-red-500/8 border border-red-500/18 rounded-xl p-3 max-w-lg">
+        <p className="text-[11px] font-mono font-semibold text-red-300 mb-1.5 flex items-center gap-1.5">
+          <AlertCircle className="w-3 h-3" /> Step {msg.data?.stepNumber} failed — AI unavailable
+        </p>
+        <p className="text-[11px] text-white/60 font-mono mb-2 leading-relaxed">{msg.data?.stepDescription}</p>
+        {msg.data?.message && (
+          <p className="text-[10px] text-red-300/60 font-mono mb-3">{msg.data.message}</p>
+        )}
+        <div className="flex gap-2">
+          <button onClick={msg.retryFn}
+            className="text-[10px] font-mono font-semibold px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 hover:bg-violet-500/30 transition-colors flex items-center gap-1.5">
+            <RotateCcw className="w-2.5 h-2.5" /> Retry
+          </button>
+          <button onClick={msg.skipFn}
+            className="text-[10px] font-mono px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-white/70 transition-colors">
+            Skip step →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
   // Connector action result (success or failure with retry)
   if (msg.type === 'connector_action') return (
     <ConnectorActionCard
@@ -824,37 +851,53 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
       onRetry={msg.retryFn ? msg.retryFn : undefined}
     />
   );
-  // Landing page created by ASH
-  if (msg.type === 'page_created') return (
-    <div className="flex items-start gap-2.5">
-      <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-violet-500/20 border border-violet-500/30">
-        <LayoutTemplate className="w-3.5 h-3.5 text-violet-400" />
-      </div>
-      <div className="flex-1 bg-violet-500/8 border border-violet-500/18 rounded-xl p-3 max-w-lg">
-        <p className="text-[11px] font-mono font-semibold text-violet-300 mb-1.5 flex items-center gap-1.5">
-          <Sparkles className="w-3 h-3" /> Landing page created!
-        </p>
-        {msg.data && (
-          <>
-            <p className="text-[12px] text-white/75 font-medium mb-1">{msg.data.title}</p>
-            <p className="text-[10px] font-mono text-white/35 mb-2">/{msg.data.slug}</p>
-            <div className="flex gap-2">
-              {msg.data.isPublished && (
-                <a href={`/api/pages/${msg.data.slug}`} target="_blank" rel="noopener noreferrer"
-                  className="text-[10px] font-mono text-sky-400 hover:text-sky-300 flex items-center gap-1 transition-colors">
-                  <ExternalLink className="w-2.5 h-2.5" /> View live
-                </a>
+  // Landing page created by ASH — includes inline mini-preview iframe
+  if (msg.type === 'page_created') {
+    const pageToken = localStorage.getItem('sbep_auth_token');
+    return (
+      <div className="flex items-start gap-2.5">
+        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-violet-500/20 border border-violet-500/30">
+          <LayoutTemplate className="w-3.5 h-3.5 text-violet-400" />
+        </div>
+        <div className="flex-1 bg-violet-500/8 border border-violet-500/18 rounded-xl p-3 max-w-lg">
+          <p className="text-[11px] font-mono font-semibold text-violet-300 mb-1.5 flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3" /> Landing page created!
+          </p>
+          {msg.data && (
+            <>
+              <p className="text-[12px] text-white/75 font-medium mb-0.5">{msg.data.title}</p>
+              <p className="text-[10px] font-mono text-white/35 mb-2">/{msg.data.slug}</p>
+              {/* Inline mini-preview iframe */}
+              {msg.data.id && pageToken && (
+                <div className="relative w-full mb-2 rounded-lg overflow-hidden border border-white/10 bg-black/30"
+                  style={{ height: '140px' }}>
+                  <iframe
+                    src={`/api/landing-pages/${msg.data.id}/preview-html?token=${encodeURIComponent(pageToken)}`}
+                    title="Landing page preview"
+                    className="absolute inset-0 w-full h-full"
+                    style={{ transform: 'scale(0.45)', transformOrigin: 'top left', width: '222%', height: '222%', border: 'none', pointerEvents: 'none' }}
+                    sandbox="allow-scripts allow-same-origin"
+                  />
+                </div>
               )}
-              <button onClick={() => { /* handled by right panel */ }}
-                className="text-[10px] font-mono text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors">
-                <LayoutTemplate className="w-2.5 h-2.5" /> See in Pages tab →
-              </button>
-            </div>
-          </>
-        )}
+              <div className="flex gap-2">
+                {msg.data.isPublished && (
+                  <a href={`/api/pages/${msg.data.slug}`} target="_blank" rel="noopener noreferrer"
+                    className="text-[10px] font-mono text-sky-400 hover:text-sky-300 flex items-center gap-1 transition-colors">
+                    <ExternalLink className="w-2.5 h-2.5" /> View live
+                  </a>
+                )}
+                <button onClick={() => { /* handled by right panel */ }}
+                  className="text-[10px] font-mono text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors">
+                  <LayoutTemplate className="w-2.5 h-2.5" /> See in Pages tab →
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'items-start gap-2.5'}`}>
@@ -2267,6 +2310,26 @@ const BuilderPage = () => {
         setStepOutputs(prev => ({ ...prev, [step.id]: data.output ?? `Completed: ${step.notes}` }));
         if (data.revenueCents > 0) {
           setStepRevenues(prev => ({ ...prev, [step.id]: data.revenueCents }));
+        }
+        // Show a recovery card if the AI call failed so the user can retry or skip
+        if (data.stepFailed) {
+          const recoveryId = Date.now() + Math.random();
+          const retryFn = () => {
+            setMessages(prev => prev.filter(m => m.id !== recoveryId));
+            setCurrentStepIdx(i => i); // re-trigger same step
+          };
+          const skipFn = () => {
+            setMessages(prev => prev.filter(m => m.id !== recoveryId));
+            setCurrentStepIdx(i => i + 1);
+          };
+          setMessages(prev => [...prev, {
+            id: recoveryId, role: 'assistant', type: 'error_recovery', ts: Date.now(),
+            data: { message: data.recoveryMessage || 'AI model unavailable', stepDescription: step.notes, stepNumber: step.stepNumber },
+            retryFn,
+            skipFn,
+          }]);
+          // Don't auto-advance — wait for user to retry or skip
+          return;
         }
         setCurrentStepIdx(i => i + 1);
       } catch {

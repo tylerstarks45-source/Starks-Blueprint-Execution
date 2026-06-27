@@ -17,7 +17,7 @@ import {
   referralEventsTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
-import { hasCredits, adjustCredits } from "../lib/credits";
+import { hasCredits, adjustCredits, adjustWalletCredits } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
 import { sendPushNotification } from "../lib/push";
 import { z } from "zod";
@@ -130,9 +130,9 @@ async function fireReferralActivationPayout(userId: number): Promise<void> {
       .where(sql`${referralEventsTable.referrerId} = ${referrerId} AND ${referralEventsTable.referredUserId} = ${userId} AND ${referralEventsTable.eventType} = 'activation'`);
     if (existing) return;
 
-    // Payout 500 credits to the referrer (wallet — permanent)
+    // Payout 500 credits to the referrer's wallet (permanent balance, not monthly bucket)
     const ACTIVATION_CREDITS = 500;
-    await adjustCredits(referrerId, ACTIVATION_CREDITS, "admin_adjust", { reason: "Referral activation bonus" });
+    await adjustWalletCredits(referrerId, ACTIVATION_CREDITS, { reason: "Referral activation bonus — referred user activated their first system" });
 
     // Record the activation event
     await db.insert(referralEventsTable).values({
@@ -372,6 +372,8 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   let revenueCents = 0;
   let revenueSource = "";
   let revenueDescription = "";
+  let stepFailed = false;
+  let recoveryMessage = "";
   // Will be overwritten with the actual model string confirmed by OpenRouter
   let actualModel: string = parsed.data.model ?? "openai/gpt-4o";
 
@@ -433,9 +435,12 @@ Execute this step now. Write detailed output describing exactly what was configu
         revenueDescription = heuristic.description;
       }
     }
-  } catch {
-    output = `Executing: ${parsed.data.stepDescription}`;
-    // Even on AI failure, apply heuristic so revenue-producing steps aren't silently skipped.
+  } catch (err) {
+    // AI call failed — flag for frontend recovery UI
+    stepFailed = true;
+    recoveryMessage = err instanceof Error ? err.message : "AI model unavailable";
+    output = `Step ${parsed.data.stepNumber} encountered an AI error. Retry to attempt again or skip to continue.`;
+    // Still apply heuristic so revenue-producing steps aren't silently zeroed
     const heuristic = deriveHeuristicRevenue(parsed.data.stepDescription);
     if (heuristic.cents > 0) {
       revenueCents = heuristic.cents;
@@ -543,7 +548,7 @@ Execute this step now. Write detailed output describing exactly what was configu
     });
   }
 
-  res.json({ step: serialize(updated), nextStepId: nextStep?.id ?? null, output, revenueCents });
+  res.json({ step: serialize(updated), nextStepId: nextStep?.id ?? null, output, revenueCents, stepFailed, recoveryMessage });
 });
 
 // GET /api/build-engine/:systemInstanceId/status

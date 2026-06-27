@@ -38,7 +38,7 @@ export interface Blueprint {
   /** @nullable */
   setupSteps?: string | null;
   /** Average lifetime earnings in cents across all deployed system instances of this blueprint. */
-  avgEarningsCents: number;
+  avgEarningsCents?: number;
   createdAt: string;
   updatedAt: string;
 }

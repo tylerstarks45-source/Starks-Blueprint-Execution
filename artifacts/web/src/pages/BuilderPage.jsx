@@ -2201,6 +2201,12 @@ const BuilderPage = () => {
     setInput('');
     setError('');
 
+    // If user replies during planning phase, dismiss the plan card — they're continuing the conversation
+    if (phase === 'planning') {
+      setPendingPlanData(null);
+      setPhase('idle');
+    }
+
     const history = messages
       .filter(m => m.id !== 'welcome' && typeof m.content === 'string' && m.content.length > 0)
       .map(m => ({ role: m.role, content: m.content }));
@@ -2602,7 +2608,7 @@ const BuilderPage = () => {
     e.target.value = '';
   };
 
-  const isInputDisabled = chatLoading || phase === 'building' || phase === 'complete' || (phase === 'planning' && !!pendingPlanData);
+  const isInputDisabled = chatLoading || phase === 'building' || phase === 'complete';
   const filteredBps = blueprints.filter(b =>
     (!activeCatId || b.categoryId === activeCatId) &&
     (!rightSearch || b.name.toLowerCase().includes(rightSearch.toLowerCase()) || (b.description || '').toLowerCase().includes(rightSearch.toLowerCase()))
@@ -3661,27 +3667,19 @@ const BuilderPage = () => {
                       <input ref={attachFileRef} type="file" accept=".pdf,.txt,.md,.json,.csv,.docx" className="hidden" onChange={handleAttachFile} multiple />
                     </div>
 
-                    {/* Plan | Build mode toggle */}
-                    <div className="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5 gap-0.5">
-                      <button
-                        onClick={() => setChatMode('plan')}
-                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold font-mono transition-all ${
-                          isPlanMode ? 'bg-violet-500/25 border border-violet-500/40 text-violet-300' : 'text-white/30 hover:text-white/55'
-                        }`}
-                        title="Plan mode — discuss and explore without building"
-                      >
-                        <Brain className="w-3 h-3" /> Plan
-                      </button>
-                      <button
-                        onClick={() => setChatMode('build')}
-                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold font-mono transition-all ${
-                          !isPlanMode ? 'bg-primary/20 border border-primary/35 text-primary' : 'text-white/30 hover:text-white/55'
-                        }`}
-                        title="Build mode — ASH builds and activates systems"
-                      >
-                        <Cpu className="w-3 h-3" /> Build
-                      </button>
-                    </div>
+                    {/* Plan mode toggle — single subtle pill, no Build button */}
+                    <button
+                      onClick={() => setChatMode(isPlanMode ? 'build' : 'plan')}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold font-mono transition-all border ${
+                        isPlanMode
+                          ? 'bg-violet-500/18 border-violet-500/35 text-violet-300'
+                          : 'bg-white/5 border-white/10 text-white/30 hover:text-white/55 hover:border-white/18'
+                      }`}
+                      title={isPlanMode ? 'Plan mode — click to switch back to normal chat' : 'Switch to plan mode — explore ideas without triggering a build'}
+                    >
+                      <Brain className="w-3 h-3" />
+                      {isPlanMode ? 'Plan' : 'Chat'}
+                    </button>
 
                     <div className="flex-1" />
 
@@ -3830,7 +3828,7 @@ const BuilderPage = () => {
                       value={input}
                       onChange={e => setInput(e.target.value)}
                       onKeyDown={handleKey}
-                      placeholder={phase === 'collecting' ? 'Fill credentials above…' : phase === 'planning' ? 'Plan ready — confirm above or ask to adjust…' : isPlanMode ? 'Ask ASH anything — explore ideas, understand systems, or plan a build…' : 'Describe your income goal to ASH…'}
+                      placeholder={phase === 'collecting' ? 'Type to continue talking with ASH…' : 'Message ASH…'}
                       disabled={isInputDisabled}
                       className="flex-1 resize-none text-xs bg-transparent text-white placeholder:text-white/22 focus:outline-none disabled:opacity-40 py-1 min-h-[28px]"
                       rows={1}

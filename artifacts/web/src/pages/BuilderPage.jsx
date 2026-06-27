@@ -1083,6 +1083,131 @@ const CheckpointMarker = ({ cp, onRestore }) => {
   );
 };
 
+// ─── Plan Review Card ─────────────────────────────────────────────────────────
+// Interactive plan card shown after ASH presents a plan.
+// User can review each step, type edit requests inline, then confirm to build.
+const PlanReviewCard = ({ planData, aiMode, chatLoading, onConfirm, onEdit }) => {
+  const [editDraft, setEditDraft] = React.useState('');
+  const [editOpen, setEditOpen] = React.useState(false);
+  const editRef = React.useRef(null);
+
+  const handleEditSubmit = () => {
+    const text = editDraft.trim();
+    if (!text) return;
+    onEdit(text);
+    setEditDraft('');
+    setEditOpen(false);
+  };
+
+  const modeMultipliers = { fast: 1.0, business: 1.5, expert: 2.5, empire: 4.0 };
+  const stepCount = planData?.buildSteps?.length ?? 5;
+  const mult = modeMultipliers[aiMode] ?? 1.0;
+  const raw = Math.round((50 + stepCount * 20) * mult);
+  const estimate = Math.ceil(raw / 25) * 25;
+  const minMin = Math.round(stepCount * (aiMode === 'fast' ? 1.5 : aiMode === 'business' ? 2.5 : aiMode === 'expert' ? 4 : 6));
+  const maxMin = Math.round(stepCount * (aiMode === 'fast' ? 3 : aiMode === 'business' ? 5 : aiMode === 'expert' ? 8 : 12));
+
+  return (
+    <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2.5 px-4 py-3 bg-violet-500/8 border-b border-violet-500/15">
+        <div className="w-7 h-7 rounded-full bg-violet-500/25 border border-violet-500/35 flex items-center justify-center shrink-0">
+          <Brain className="w-3.5 h-3.5 text-violet-300" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-white">Review Your Build Plan</p>
+          <p className="text-[10px] text-violet-300/60 font-mono truncate">
+            {planData.systemName || 'Custom System'} · {stepCount} steps · built from scratch by ASH
+          </p>
+        </div>
+        <span className="text-[9px] font-mono text-violet-400/65 bg-violet-500/15 border border-violet-500/25 rounded-full px-2 py-0.5 shrink-0">
+          READY TO REVIEW
+        </span>
+      </div>
+
+      <div className="p-4 space-y-3.5">
+        {/* Steps */}
+        {planData.buildSteps?.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[9px] text-white/30 font-mono uppercase tracking-widest flex items-center gap-1.5">
+              <Layers className="w-3 h-3" /> Build Steps — Read each one carefully
+            </p>
+            <div className="space-y-1.5">
+              {planData.buildSteps.map((step, i) => (
+                <div key={i} className="flex items-start gap-2.5 bg-black/20 rounded-lg px-3 py-2.5 border border-white/6 hover:border-white/10 transition-colors">
+                  <span className="shrink-0 w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-[9px] font-bold font-mono text-violet-300 mt-0.5">{i + 1}</span>
+                  <span className="text-[11px] text-white/70 leading-relaxed pt-0.5">{step}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Cost estimate */}
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/15">
+          <div className="flex items-center gap-2">
+            <DollarSign className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="text-[11px] text-white/50 font-mono">Estimated build cost</span>
+            <span className="text-[10px] text-white/22 font-mono hidden sm:inline">· {aiMode} mode</span>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-[12px] font-bold font-mono text-amber-400 tabular-nums">~{estimate.toLocaleString()} credits</span>
+            <span className="text-[10px] text-white/30 font-mono">{minMin}–{maxMin} min</span>
+          </div>
+        </div>
+
+        {/* Edit section */}
+        <div className="rounded-lg border border-white/10 bg-black/25 overflow-hidden">
+          <button
+            onClick={() => { setEditOpen(v => !v); if (!editOpen) setTimeout(() => editRef.current?.focus(), 50); }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-white/3 transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5 text-white/35 shrink-0" />
+            <span className="text-[11px] text-white/45 flex-1">Want to change something? Tell ASH what to edit…</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-white/25 transition-transform ${editOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {editOpen && (
+            <div className="border-t border-white/8 p-3 space-y-2">
+              <textarea
+                ref={editRef}
+                value={editDraft}
+                onChange={e => setEditDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditSubmit(); } }}
+                placeholder={'e.g. "Change step 3 to use ConvertKit instead of Mailchimp" or "Add a YouTube automation step" or "Focus more on organic traffic instead of paid ads"'}
+                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2.5 text-[11px] text-white/70 placeholder:text-white/20 focus:outline-none focus:border-violet-500/40 resize-none font-mono"
+                rows={3}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleEditSubmit}
+                  disabled={!editDraft.trim() || chatLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/35 text-violet-300 text-[11px] font-semibold disabled:opacity-30 transition-colors"
+                >
+                  <Wand2 className="w-3 h-3" /> Update Plan
+                </button>
+                <span className="text-[10px] text-white/20 font-mono">Enter to send · ASH will revise the entire plan</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Confirm */}
+        <div className="pt-1 border-t border-white/8">
+          <p className="text-[10px] text-white/28 font-mono text-center mb-2.5">Happy with the plan? Start the build.</p>
+          <Button
+            onClick={onConfirm}
+            disabled={chatLoading}
+            className="w-full gap-2 bg-violet-600 hover:bg-violet-700 text-white font-bold h-11 text-sm"
+          >
+            {chatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+            Confirm Plan — Start Building
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Confetti helpers ─────────────────────────────────────────────────────────
 const CONFETTI_COLORS = ['#34d399', '#818cf8', '#f472b6', '#fbbf24', '#60a5fa', '#a78bfa'];
 
@@ -2580,9 +2705,9 @@ const BuilderPage = () => {
   // ── Blueprint mode: launch selected blueprint ──────────────────────────────
   const handleBlueprintLaunch = useCallback(async () => {
     if (!selectedBp) return;
-    // Delegate to sendMessage so it uses the streaming endpoint too
     setMode('custom');
-    await sendMessage(`Build me a ${selectedBp.name} system`);
+    // Blueprint = inspiration only. ASH redesigns from scratch, makes it 10x better.
+    await sendMessage(`I want to build something inspired by "${selectedBp.name}" — but don't just copy the blueprint. Redesign it from scratch and make it dramatically better. Use the best tools available, design an optimal architecture specifically for my situation, and build me the best possible version of this system.`);
   }, [selectedBp, sendMessage]);
 
   // ── Credential form submit (uses refs to avoid stale state) ───────────────
@@ -3353,77 +3478,13 @@ const BuilderPage = () => {
             })}
 
             {phase === 'planning' && pendingPlanData && (
-              <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-5 space-y-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center shrink-0">
-                    <Brain className="w-3.5 h-3.5 text-violet-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white">Build Plan Ready</p>
-                    <p className="text-[10px] text-white/40 font-mono truncate">
-                      {pendingPlanData.systemName || 'Custom System'} · {pendingPlanData.blueprint?.name ?? 'Custom Build'}
-                    </p>
-                  </div>
-                  <span className="text-[9px] font-mono text-violet-400/65 bg-violet-500/10 border border-violet-500/20 rounded-full px-2 py-0.5 shrink-0">
-                    PHASE 1 COMPLETE
-                  </span>
-                </div>
-
-                {pendingPlanData.buildSteps?.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] text-white/35 font-mono uppercase tracking-widest">Execution Roadmap</p>
-                    {pendingPlanData.buildSteps.map((step, i) => (
-                      <div key={i} className="flex items-start gap-2.5 text-xs text-white/60">
-                        <span className="shrink-0 w-5 h-5 rounded-full bg-white/6 border border-white/12 flex items-center justify-center text-[9px] font-bold font-mono text-white/40 mt-0.5">{i + 1}</span>
-                        <span className="leading-relaxed pt-0.5">{step}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* ── ASH Credit Estimator (Phase 5) ──────────────────────── */}
-                {(() => {
-                  const modeMultipliers = { fast: 1.0, business: 1.5, expert: 2.5, empire: 4.0 };
-                  const stepCount = pendingPlanData?.buildSteps?.length ?? 5;
-                  const mult = modeMultipliers[aiMode] ?? 1.0;
-                  const raw = Math.round((50 + stepCount * 20) * mult);
-                  const estimate = Math.ceil(raw / 25) * 25;
-                  const minMin = Math.round(stepCount * (aiMode === 'fast' ? 1.5 : aiMode === 'business' ? 2.5 : aiMode === 'expert' ? 4 : 6));
-                  const maxMin = Math.round(stepCount * (aiMode === 'fast' ? 3 : aiMode === 'business' ? 5 : aiMode === 'expert' ? 8 : 12));
-                  return (
-                    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/15">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span className="text-[11px] text-white/50 font-mono">Estimated build cost</span>
-                        <span className="text-[10px] text-white/25 font-mono hidden sm:inline">· {stepCount} steps · {aiMode} mode</span>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-[12px] font-bold font-mono text-amber-400 tabular-nums">~{estimate.toLocaleString()} credits</span>
-                        <span className="text-[10px] text-white/30 font-mono">{minMin}–{maxMin} min</span>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div className="flex items-center gap-2.5 pt-1 border-t border-white/8">
-                  <Button
-                    onClick={() => sendMessage("I've reviewed the plan and I'm ready to proceed with the build.")}
-                    disabled={chatLoading}
-                    className="flex-1 gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold h-10 text-sm"
-                  >
-                    {chatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
-                    Confirm Plan — Proceed to Build
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => sendMessage("I want to adjust this plan. Can you change something about the approach or tool stack?")}
-                    disabled={chatLoading}
-                    className="h-10 text-xs border-white/15 text-white/50 hover:text-white hover:border-white/30 bg-transparent"
-                  >
-                    Adjust Plan
-                  </Button>
-                </div>
-              </div>
+              <PlanReviewCard
+                planData={pendingPlanData}
+                aiMode={aiMode}
+                chatLoading={chatLoading}
+                onConfirm={() => sendMessage("I've reviewed the plan and I'm ready to proceed with the build.")}
+                onEdit={(editRequest) => sendMessage(editRequest)}
+              />
             )}
 
             {phase === 'collecting' && pendingCreds.length > 0 && (
@@ -3950,9 +4011,18 @@ const BuilderPage = () => {
           {/* Tab content */}
           <div className="flex-1 overflow-y-auto min-h-0 ash-scroll">
 
-            {/* ── BLUEPRINTS ── */}
+            {/* ── BLUEPRINTS (Inspiration Ideas) ── */}
             {rightPanel === 'blueprints' && (
               <div className="flex flex-col h-full">
+                {/* Inspiration note */}
+                <div className="px-3 py-2 bg-primary/4 border-b border-primary/10 shrink-0">
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="w-3 h-3 text-primary/60 shrink-0 mt-0.5" />
+                    <p className="text-[9px] text-white/38 leading-relaxed font-mono">
+                      <span className="text-primary/70 font-bold">Ideas only.</span> ASH builds everything from scratch — faster, smarter, and tailored to you. Select one to get ASH inspired.
+                    </p>
+                  </div>
+                </div>
                 <div className="p-2 flex flex-wrap gap-1 border-b border-white/6 shrink-0">
                   <button
                     onClick={() => setActiveCatId(null)}
@@ -3970,22 +4040,24 @@ const BuilderPage = () => {
                   {bpLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
                   ) : filteredBps.length === 0 ? (
-                    <p className="text-center py-6 text-white/22 text-xs">No blueprints found</p>
+                    <p className="text-center py-6 text-white/22 text-xs">No ideas found</p>
                   ) : filteredBps.map(bp => (
                     <BlueprintCard key={bp.id} bp={bp} selected={selectedBp?.id === bp.id} onSelect={setSelectedBp} />
                   ))}
                 </div>
-                <div className="p-2 border-t border-white/8 shrink-0">
+                <div className="p-2 border-t border-white/8 shrink-0 space-y-1.5">
                   <Button
                     className="w-full h-9 gap-2 text-xs font-semibold"
                     disabled={!selectedBp || phase === 'building' || phase === 'complete' || chatLoading}
                     onClick={handleBlueprintLaunch}
                   >
                     {chatLoading || executeLoading
-                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Planning…</>
-                      : <><Sparkles className="w-3.5 h-3.5" /> Plan Blueprint</>}
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Designing…</>
+                      : <><Wand2 className="w-3.5 h-3.5" /> Build This My Way</>}
                   </Button>
-                  {!selectedBp && <p className="text-[9px] text-white/22 text-center mt-1.5 font-mono">Select a blueprint above</p>}
+                  {!selectedBp
+                    ? <p className="text-[9px] text-white/20 text-center font-mono">Select an idea above</p>
+                    : <p className="text-[9px] text-white/20 text-center font-mono">ASH will redesign this from scratch</p>}
                 </div>
               </div>
             )}

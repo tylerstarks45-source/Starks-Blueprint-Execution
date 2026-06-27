@@ -1,11 +1,11 @@
 
 import React from 'react';
 
-const VideoBackground = ({ children, className = '', videoId = 'PeY9pWJ2Mbk' }) => {
+const VideoBackground = ({ children, className = '', videoId = 'hSB6nnzNRGU' }) => {
   return (
     <div className={`relative min-h-screen w-full flex flex-col ${className}`}>
       {/* Background Video Layer */}
-      <div className="fixed inset-0 w-full h-screen z-[-1] overflow-hidden pointer-events-none">
+      <div className="fixed inset-0 w-full h-screen z-[-2] overflow-hidden pointer-events-none">
         <iframe
           key={videoId}
           src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&playsinline=1&rel=0&vq=hd1080&hd=1&quality=hd1080`}
@@ -30,6 +30,9 @@ const VideoBackground = ({ children, className = '', videoId = 'PeY9pWJ2Mbk' }) 
           }}
         />
       </div>
+
+      {/* Dark tint overlay — keeps all text legible over the video */}
+      <div className="fixed inset-0 z-[-1] bg-black/60 pointer-events-none" />
 
       {/* Content Layer */}
       <div className="relative z-10 flex-grow flex flex-col w-full h-full">

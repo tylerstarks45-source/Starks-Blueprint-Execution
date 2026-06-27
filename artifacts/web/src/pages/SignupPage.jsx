@@ -222,8 +222,8 @@ const SignupPage = () => {
                       onClick={() => setSelectedPlan(plan.key)}
                       className={`relative flex flex-col items-start text-left rounded-xl border p-5 transition-all ${
                         active
-                          ? `${plan.activeBorder} ${plan.activeBg} ring-1 ring-current`
-                          : `${plan.border} bg-black/40 hover:bg-white/5`
+                          ? `${plan.activeBorder} ${plan.activeBg} ring-1 ring-current backdrop-blur-md`
+                          : `${plan.border} bg-black/65 hover:bg-black/55 backdrop-blur-md`
                       }`}
                     >
                       {plan.badge && (

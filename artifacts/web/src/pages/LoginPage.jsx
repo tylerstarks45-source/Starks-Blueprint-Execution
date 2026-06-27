@@ -117,7 +117,7 @@ const LoginPage = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 + i * 0.1 }}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-black/30 border border-white/5 backdrop-blur-sm"
+                  className="flex items-center gap-3 p-3 rounded-xl bg-black/65 border border-white/10 backdrop-blur-md"
                 >
                   <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center border border-primary/20 shrink-0">
                     <Icon className="w-4 h-4 text-primary" />
@@ -127,7 +127,7 @@ const LoginPage = () => {
               ))}
             </div>
 
-            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+            <div className="p-4 rounded-xl bg-black/65 border border-emerald-500/20 backdrop-blur-md">
               <p className="text-xs text-emerald-400 font-mono">
                 ✓ 8 live blueprints &nbsp;·&nbsp; ✓ 17 curated tools &nbsp;·&nbsp; ✓ OpenRouter AI
               </p>

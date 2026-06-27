@@ -121,6 +121,14 @@ async function fireReferralActivationPayout(userId: number): Promise<void> {
       .where(sql`${referralEventsTable.referredUserId} = ${userId} AND ${referralEventsTable.eventType} = 'signup'`);
     if (!refEvent?.referrerId) return;
 
+    // Only pay referral bonus if the referred user is on a paid plan
+    const [referredUserRow] = await db
+      .select({ membershipTier: usersTable.membershipTier })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    const PAID_TIERS = new Set(["builder", "operator", "empire", "pro", "enterprise"]);
+    if (!PAID_TIERS.has(referredUserRow?.membershipTier ?? "")) return;
+
     const referrerId = refEvent.referrerId;
 
     // Prevent double payout: check if an activation event already exists
@@ -439,14 +447,30 @@ Execute this step now. Write detailed output describing exactly what was configu
     // AI call failed — flag for frontend recovery UI
     stepFailed = true;
     recoveryMessage = err instanceof Error ? err.message : "AI model unavailable";
-    output = `Step ${parsed.data.stepNumber} encountered an AI error. Retry to attempt again or skip to continue.`;
-    // Still apply heuristic so revenue-producing steps aren't silently zeroed
-    const heuristic = deriveHeuristicRevenue(parsed.data.stepDescription);
-    if (heuristic.cents > 0) {
-      revenueCents = heuristic.cents;
-      revenueSource = heuristic.source;
-      revenueDescription = heuristic.description;
-    }
+    output = `Step ${parsed.data.stepNumber} encountered an AI error.`;
+  }
+
+  // ── Early-return path for AI failures — do NOT advance session state ──────
+  if (stepFailed) {
+    // Mark step as failed (not completed) so state remains accurate
+    const [failedStep] = await db.update(buildProgressTable)
+      .set({ status: "failed", notes: output })
+      .where(eq(buildProgressTable.id, parsed.data.stepId))
+      .returning();
+
+    // Secondary AI call to generate a helpful recovery explanation
+    let recoveryExplanation = "Try retrying the step — transient AI errors often resolve on retry.";
+    try {
+      const expResult = await complete({
+        prompt: `A build automation step failed.\nStep: "${parsed.data.stepDescription}"\nError: ${recoveryMessage}\n\nIn 1-2 sentences, explain what likely went wrong and what the user should try.`,
+        model: "openai/gpt-4o-mini",
+        userId: instance.userId ?? undefined,
+      });
+      recoveryExplanation = expResult.content.trim().replace(/<[^>]+>/g, "").slice(0, 300);
+    } catch { /* non-fatal — keep default */ }
+
+    res.json({ stepFailed: true, recoveryMessage, recoveryExplanation, step: serialize(failedStep ?? { id: parsed.data.stepId }) });
+    return;
   }
 
   // Mark step complete
@@ -549,6 +573,58 @@ Execute this step now. Write detailed output describing exactly what was configu
   }
 
   res.json({ step: serialize(updated), nextStepId: nextStep?.id ?? null, output, revenueCents, stepFailed, recoveryMessage });
+});
+
+// ── POST /api/build-engine/skip-step ─────────────────────────────────────────
+// User-triggered skip: marks a failed step as skipped, advances session, activates system if last step.
+router.post("/build-engine/skip-step", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const schema = z.object({
+    stepId:           z.number().int(),
+    sessionId:        z.number().int(),
+    stepNumber:       z.number().int(),
+    totalSteps:       z.number().int(),
+    systemInstanceId: z.number().int(),
+    blueprintName:    z.string(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [instance] = await db.select().from(systemInstancesTable).where(eq(systemInstancesTable.id, parsed.data.systemInstanceId));
+  if (!instance) { res.status(404).json({ error: "System instance not found" }); return; }
+  if (!ensureOwner(instance, userId, res)) return;
+
+  // Mark step as failed/skipped
+  await db.update(buildProgressTable)
+    .set({ status: "failed", notes: "Skipped by user", completedAt: new Date() })
+    .where(eq(buildProgressTable.id, parsed.data.stepId));
+
+  // Advance session step counter
+  await db.update(buildSessionsTable)
+    .set({ currentStepNumber: parsed.data.stepNumber + 1 })
+    .where(eq(buildSessionsTable.id, parsed.data.sessionId));
+
+  // Find next pending step
+  const allSteps = await db.select().from(buildProgressTable)
+    .where(eq(buildProgressTable.buildSessionId, parsed.data.sessionId));
+  const nextStep = allSteps.filter(s => s.status === "pending").sort((a, b) => a.stepNumber - b.stepNumber)[0];
+
+  if (nextStep) {
+    await db.update(buildProgressTable).set({ status: "in_progress" }).where(eq(buildProgressTable.id, nextStep.id));
+    res.json({ skipped: true, nextStepId: nextStep.id, completed: false });
+  } else {
+    // All steps done (some skipped) — activate system
+    await db.update(systemInstancesTable)
+      .set({ buildStatus: "active", healthStatus: "healthy" })
+      .where(eq(systemInstancesTable.id, parsed.data.systemInstanceId));
+    await db.update(buildSessionsTable)
+      .set({ status: "completed", completedAt: new Date() })
+      .where(eq(buildSessionsTable.id, parsed.data.sessionId));
+    void fireReferralActivationPayout(userId);
+    res.json({ skipped: true, nextStepId: null, completed: true });
+  }
 });
 
 // GET /api/build-engine/:systemInstanceId/status

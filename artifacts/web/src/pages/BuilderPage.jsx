@@ -828,8 +828,11 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
           <AlertCircle className="w-3 h-3" /> Step {msg.data?.stepNumber} failed — AI unavailable
         </p>
         <p className="text-[11px] text-white/60 font-mono mb-2 leading-relaxed">{msg.data?.stepDescription}</p>
+        {msg.data?.explanation && (
+          <p className="text-[11px] text-white/55 mb-2 leading-relaxed">{msg.data.explanation}</p>
+        )}
         {msg.data?.message && (
-          <p className="text-[10px] text-red-300/60 font-mono mb-3">{msg.data.message}</p>
+          <p className="text-[10px] text-red-300/50 font-mono mb-3 truncate">{msg.data.message}</p>
         )}
         <div className="flex gap-2">
           <button onClick={msg.retryFn}
@@ -1779,6 +1782,7 @@ const BuilderPage = () => {
   const [stepRevenues, setStepRevenues] = useState({});
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [stepExecuting, setStepExecuting] = useState(false);
+  const [stepPaused, setStepPaused] = useState(false); // true when recovery card is shown
   const [showRevenueModal, setShowRevenueModal] = useState(false);
 
   const chatBottomRef = useRef(null);
@@ -2263,7 +2267,7 @@ const BuilderPage = () => {
 
   // Auto-execute build steps
   useEffect(() => {
-    if (phase !== 'building' || !buildData || stepExecuting) return;
+    if (phase !== 'building' || !buildData || stepExecuting || stepPaused) return;
     if (currentStepIdx >= buildData.steps.length) {
       setPhase('complete');
       toast.success('System activated and live!', {
@@ -2314,21 +2318,44 @@ const BuilderPage = () => {
         // Show a recovery card if the AI call failed so the user can retry or skip
         if (data.stepFailed) {
           const recoveryId = Date.now() + Math.random();
+          // Pause auto-execution so the effect doesn't re-trigger the same step
+          setStepPaused(true);
           const retryFn = () => {
             setMessages(prev => prev.filter(m => m.id !== recoveryId));
-            setCurrentStepIdx(i => i); // re-trigger same step
+            // Un-pause — useEffect will re-run and execute the same stepIdx again
+            setStepPaused(false);
           };
-          const skipFn = () => {
+          const skipFn = async () => {
             setMessages(prev => prev.filter(m => m.id !== recoveryId));
+            // Tell the server to mark this step as skipped and advance session state
+            try {
+              await fetch('/api/build-engine/skip-step', {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({
+                  stepId: step.id,
+                  sessionId: buildData.sessionId,
+                  stepNumber: step.stepNumber,
+                  totalSteps: buildData.steps.length,
+                  systemInstanceId: buildData.instanceId,
+                  blueprintName: buildData.blueprint?.name ?? 'System',
+                }),
+              });
+            } catch { /* non-fatal */ }
             setCurrentStepIdx(i => i + 1);
+            setStepPaused(false);
           };
           setMessages(prev => [...prev, {
             id: recoveryId, role: 'assistant', type: 'error_recovery', ts: Date.now(),
-            data: { message: data.recoveryMessage || 'AI model unavailable', stepDescription: step.notes, stepNumber: step.stepNumber },
+            data: {
+              message: data.recoveryMessage || 'AI model unavailable',
+              explanation: data.recoveryExplanation || 'Try retrying the step — transient AI errors often resolve on retry.',
+              stepDescription: step.notes,
+              stepNumber: step.stepNumber,
+            },
             retryFn,
             skipFn,
           }]);
-          // Don't auto-advance — wait for user to retry or skip
           return;
         }
         setCurrentStepIdx(i => i + 1);
@@ -2342,7 +2369,7 @@ const BuilderPage = () => {
 
     const timer = setTimeout(runStep, currentStepIdx === 0 ? 300 : 800);
     return () => clearTimeout(timer);
-  }, [phase, buildData, currentStepIdx, stepExecuting]);
+  }, [phase, buildData, currentStepIdx, stepExecuting, stepPaused]);
 
   // ── Execute build — takes blueprint and systemName directly to avoid stale state ──
   const executeBuild = useCallback(async (credValues, blueprint, sysName) => {

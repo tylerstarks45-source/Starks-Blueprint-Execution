@@ -92,12 +92,13 @@ const ReferPage = () => {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
               {[
-                { icon: MousePointerClick, label: 'Link Clicks',   value: data?.clicks ?? 0,      color: 'text-blue-400' },
-                { icon: Users,            label: 'Signups',        value: data?.signups ?? 0,     color: 'text-violet-400' },
-                { icon: Trophy,           label: 'Conversions',    value: data?.conversions ?? 0, color: 'text-amber-400' },
-                { icon: DollarSign,       label: 'Credits Earned', value: (data?.totalEarned ?? 0).toLocaleString(), color: 'text-emerald-400' },
+                { icon: MousePointerClick, label: 'Link Clicks',     value: data?.clicks ?? 0,        color: 'text-blue-400' },
+                { icon: Users,            label: 'Signups',          value: data?.signups ?? 0,       color: 'text-violet-400' },
+                { icon: ChevronRight,     label: 'Activations',      value: data?.activations ?? 0,   color: 'text-sky-400' },
+                { icon: Trophy,           label: 'Conversions',      value: data?.conversions ?? 0,   color: 'text-amber-400' },
+                { icon: DollarSign,       label: 'Credits Earned',   value: (data?.totalEarned ?? 0).toLocaleString(), color: 'text-emerald-400' },
               ].map(({ icon: Icon, label, value, color }) => (
                 <div key={label} className="bg-card/60 border border-border/60 rounded-xl p-4 text-center">
                   <Icon className={`w-5 h-5 mx-auto mb-2 ${color}`} />
@@ -106,6 +107,34 @@ const ReferPage = () => {
                 </div>
               ))}
             </div>
+
+            {/* Recent Events Timeline */}
+            {(data?.recentEvents ?? []).length > 0 && (
+              <div className="bg-card/60 border border-border/60 rounded-2xl p-6 mb-6">
+                <h2 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-sky-400" /> Recent Referral Activity
+                </h2>
+                <div className="space-y-2">
+                  {(data.recentEvents ?? []).map((ev, i) => {
+                    const isActivation = ev.eventType === 'activation';
+                    return (
+                      <div key={i} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${isActivation ? 'bg-sky-400' : 'bg-violet-400'}`} />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-foreground capitalize">{ev.eventType}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(ev.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                        {ev.creditsAwarded > 0 && (
+                          <span className="text-sm font-bold text-emerald-400">+{ev.creditsAwarded} cr</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Reward tiers */}
             <div className="bg-card/60 border border-border/60 rounded-2xl p-6 mb-6">

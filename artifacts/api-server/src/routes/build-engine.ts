@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   db,
   systemInstancesTable,
@@ -11,12 +11,155 @@ import {
   buildProgressTable,
   systemActivityEventsTable,
   usersTable,
+  notificationsTable,
+  milestoneEventsTable,
+  referralCodesTable,
+  referralEventsTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
-import { hasCredits } from "../lib/credits";
+import { hasCredits, adjustCredits } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
 import { sendPushNotification } from "../lib/push";
 import { z } from "zod";
+
+// ─── Milestone thresholds (cents) ─────────────────────────────────────────────
+const MILESTONE_THRESHOLDS: Record<number, string> = {
+  100:      "$1",
+  10000:    "$100",
+  50000:    "$500",
+  100000:   "$1K",
+  500000:   "$5K",
+  1000000:  "$10K",
+  5000000:  "$50K",
+  10000000: "$100K",
+};
+
+async function fireMilestoneIfNew(
+  userId: number,
+  systemInstanceId: number,
+  blueprintName: string,
+): Promise<void> {
+  try {
+    // Compute user's new lifetime revenue total
+    const totResult = await db.execute(sql`
+      SELECT COALESCE(SUM(sae.amount_cents), 0)::bigint AS lifetime_cents
+      FROM system_activity_events sae
+      JOIN system_instances si ON si.id = sae.system_instance_id
+      WHERE si.user_id = ${userId} AND sae.event_type = 'revenue'
+    `);
+    const totRow = (totResult as unknown as { rows: Array<{ lifetime_cents: string }> }).rows[0];
+    const lifetimeCents = Number(totRow?.lifetime_cents ?? 0);
+
+    // Find which milestone this crosses
+    const threshold = Object.keys(MILESTONE_THRESHOLDS)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .find(t => lifetimeCents >= t);
+    if (!threshold) return;
+
+    const label = MILESTONE_THRESHOLDS[threshold];
+
+    // Check if this milestone was already recorded for this user
+    const [existing] = await db
+      .select({ id: milestoneEventsTable.id })
+      .from(milestoneEventsTable)
+      .where(sql`${milestoneEventsTable.userId} = ${userId} AND ${milestoneEventsTable.amountCents} = ${threshold}`);
+    if (existing) return;
+
+    // Record the milestone
+    await db.insert(milestoneEventsTable).values({
+      userId,
+      systemInstanceId,
+      amountCents: threshold,
+      milestoneLabel: label,
+      systemType: blueprintName,
+    });
+
+    // Fire an in-app notification
+    await db.insert(notificationsTable).values({
+      userId,
+      title: `🎉 Milestone Reached — ${label}!`,
+      message: `You just crossed the ${label} lifetime earnings milestone on "${blueprintName}". Keep building!`,
+      notificationType: "milestone_reached",
+      read: false,
+    });
+
+    // Mobile push (non-fatal)
+    const [uRow] = await db
+      .select({ expoPushToken: usersTable.expoPushToken })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    if (uRow?.expoPushToken) {
+      void sendPushNotification(
+        uRow.expoPushToken,
+        `🎉 Milestone: ${label}!`,
+        `You've earned ${label} lifetime with "${blueprintName}"!`,
+        { type: "milestone", amountCents: threshold },
+      );
+    }
+  } catch {
+    /* non-fatal */
+  }
+}
+
+async function fireReferralActivationPayout(userId: number): Promise<void> {
+  try {
+    // Only applies on first system activation
+    const activatedResult = await db.execute(sql`
+      SELECT COUNT(*)::int AS cnt
+      FROM system_instances
+      WHERE user_id = ${userId} AND build_status = 'active'
+    `);
+    const activatedRow = (activatedResult as unknown as { rows: Array<{ cnt: number }> }).rows[0];
+    const activatedCount = Number(activatedRow?.cnt ?? 0);
+    if (activatedCount !== 1) return; // only first activation
+
+    // Was this user referred?
+    const [refEvent] = await db
+      .select({ referrerId: referralEventsTable.referrerId })
+      .from(referralEventsTable)
+      .where(sql`${referralEventsTable.referredUserId} = ${userId} AND ${referralEventsTable.eventType} = 'signup'`);
+    if (!refEvent?.referrerId) return;
+
+    const referrerId = refEvent.referrerId;
+
+    // Prevent double payout: check if an activation event already exists
+    const [existing] = await db
+      .select({ id: referralEventsTable.id })
+      .from(referralEventsTable)
+      .where(sql`${referralEventsTable.referrerId} = ${referrerId} AND ${referralEventsTable.referredUserId} = ${userId} AND ${referralEventsTable.eventType} = 'activation'`);
+    if (existing) return;
+
+    // Payout 500 credits to the referrer (wallet — permanent)
+    const ACTIVATION_CREDITS = 500;
+    await adjustCredits(referrerId, ACTIVATION_CREDITS, "admin_adjust", { reason: "Referral activation bonus" });
+
+    // Record the activation event
+    await db.insert(referralEventsTable).values({
+      referrerId,
+      referredUserId: userId,
+      eventType: "activation",
+      creditsAwarded: ACTIVATION_CREDITS,
+    });
+
+    // Increment conversions on the referral code
+    await db
+      .update(referralCodesTable)
+      .set({ conversions: sql`${referralCodesTable.conversions} + 1` })
+      .where(eq(referralCodesTable.userId, referrerId));
+
+    // Notify the referrer
+    await db.insert(notificationsTable).values({
+      userId: referrerId,
+      title: "💰 Referral Payout!",
+      message: `Someone you referred just activated their first system — you earned ${ACTIVATION_CREDITS} credits!`,
+      notificationType: "success",
+      read: false,
+    });
+  } catch {
+    /* non-fatal */
+  }
+}
 
 const router: IRouter = Router();
 
@@ -333,6 +476,8 @@ Execute this step now. Write detailed output describing exactly what was configu
       description: revDesc,
       metadata: JSON.stringify({ stepId: parsed.data.stepId, stepNumber: parsed.data.stepNumber, source: revenueSource }),
     });
+    // Fire milestone check asynchronously — non-blocking
+    void fireMilestoneIfNew(userId, parsed.data.systemInstanceId, parsed.data.blueprintName);
   }
 
   // Mark next pending step as in_progress
@@ -384,6 +529,18 @@ Execute this step now. Write detailed output describing exactly what was configu
         );
       }
     } catch { /* non-fatal */ }
+
+    // Referral activation payout — non-blocking
+    void fireReferralActivationPayout(userId);
+
+    // In-app notification: system live
+    await db.insert(notificationsTable).values({
+      userId,
+      title: "🚀 System Live!",
+      message: `"${parsed.data.blueprintName}" is now active. All ${parsed.data.totalSteps} build steps completed.`,
+      notificationType: "success",
+      read: false,
+    });
   }
 
   res.json({ step: serialize(updated), nextStepId: nextStep?.id ?? null, output, revenueCents });

@@ -67,6 +67,25 @@ router.get("/referrals/my-code", async (req, res): Promise<void> => {
       sql`${referralEventsTable.referrerId} = ${userId} and ${referralEventsTable.eventType} = 'signup'`,
     );
 
+  const [activationsRow] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(referralEventsTable)
+    .where(
+      sql`${referralEventsTable.referrerId} = ${userId} and ${referralEventsTable.eventType} = 'activation'`,
+    );
+
+  // Recent events for timeline display
+  const recentEvents = await db
+    .select({
+      eventType: referralEventsTable.eventType,
+      creditsAwarded: referralEventsTable.creditsAwarded,
+      createdAt: referralEventsTable.createdAt,
+    })
+    .from(referralEventsTable)
+    .where(eq(referralEventsTable.referrerId, userId))
+    .orderBy(sql`${referralEventsTable.createdAt} DESC`)
+    .limit(10);
+
   const domain = process.env.REPLIT_DOMAINS?.split(",")[0];
   const baseUrl = domain ? `https://${domain}` : "http://localhost:80";
 
@@ -75,8 +94,10 @@ router.get("/referrals/my-code", async (req, res): Promise<void> => {
     link: `${baseUrl}/ref/${code}`,
     clicks: row?.clicks ?? 0,
     signups: signupsRow?.count ?? 0,
+    activations: activationsRow?.count ?? 0,
     conversions: row?.conversions ?? 0,
     totalEarned: earningsRow?.total ?? 0,
+    recentEvents: serialize(recentEvents),
   });
 });
 

@@ -103,6 +103,7 @@ const BlueprintsPage = () => {
       if (sortBy === 'popular') return (b.salesCount ?? 0) - (a.salesCount ?? 0);
       if (sortBy === 'newest')  return new Date(b.createdAt) - new Date(a.createdAt);
       if (sortBy === 'rating')  return (b.ratingAvg ?? 0) - (a.ratingAvg ?? 0);
+      if (sortBy === 'earnings') return (b.avgEarningsCents ?? b.estimatedEarnings ?? 0) - (a.avgEarningsCents ?? a.estimatedEarnings ?? 0);
       if (sortBy === 'price-asc')  return (a.priceCredits ?? 0) - (b.priceCredits ?? 0);
       if (sortBy === 'price-desc') return (b.priceCredits ?? 0) - (a.priceCredits ?? 0);
       if (sortBy === 'difficulty') {
@@ -199,6 +200,7 @@ const BlueprintsPage = () => {
                   <option value="popular">Most Popular</option>
                   <option value="newest">Newest Added</option>
                   <option value="rating">Highest Rated</option>
+                  <option value="earnings">Highest Earning</option>
                   <option value="price-asc">Price: Low → High</option>
                   <option value="price-desc">Price: High → Low</option>
                   <option value="difficulty">Difficulty</option>
@@ -346,7 +348,14 @@ const BlueprintsPage = () => {
                               <p className="text-sm text-zinc-300 font-medium line-clamp-3 mb-3">
                                 {bp.description || 'AI-powered automation system for building scalable income streams.'}
                               </p>
-                              {/* Rating */}
+                              {/* Avg earnings badge */}
+                            {(bp.avgEarningsCents ?? 0) > 0 && (
+                              <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-1.5 py-0.5 rounded">
+                                <Zap className="w-2.5 h-2.5" />
+                                avg ${(bp.avgEarningsCents / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} earned
+                              </span>
+                            )}
+                            {/* Rating */}
                               <StarRating avg={bp.ratingAvg} count={bp.ratingCount} />
                             </div>
 

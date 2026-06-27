@@ -299,6 +299,8 @@ const SystemCommandCenterPage = () => {
   const [systemRevenue, setSystemRevenue] = useState({});
   const [perfData, setPerfData] = useState(null);
   const [secsSince, setSecsSince] = useState(0);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [revenueTick, setRevenueTick] = useState(0);
 
   const user = JSON.parse(localStorage.getItem('sbep_auth_user') || '{}');
 
@@ -329,7 +331,7 @@ const SystemCommandCenterPage = () => {
     setLoading(true);
     setError('');
     try {
-      const [statsRes, revRes, creditsRes, credsRes, notifsRes, selectionsRes, toolsRes, perfRes] = await Promise.all([
+      const [statsRes, revRes, creditsRes, credsRes, notifsRes, selectionsRes, toolsRes, perfRes, lbRes] = await Promise.all([
         fetch('/api/ai-orchestrator/platform-stats', { headers: authHeaders() }),
         fetch('/api/dashboard/revenue-summary', { headers: authHeaders() }),
         fetch('/api/credits/me', { headers: authHeaders() }),
@@ -338,9 +340,10 @@ const SystemCommandCenterPage = () => {
         fetch('/api/user-tool-selections', { headers: authHeaders() }),
         fetch('/api/tools', { headers: authHeaders() }),
         fetch('/api/dashboard/performance', { headers: authHeaders() }),
+        fetch('/api/leaderboard?limit=5'),
       ]);
       if (!statsRes.ok) throw new Error('Failed to load platform stats');
-      const [statsData, revData, credData, credsData, notifsData, selectionsData, toolsData, perfJson] = await Promise.all([
+      const [statsData, revData, credData, credsData, notifsData, selectionsData, toolsData, perfJson, lbData] = await Promise.all([
         statsRes.json(),
         revRes.ok ? revRes.json() : null,
         creditsRes.ok ? creditsRes.json() : null,
@@ -349,11 +352,13 @@ const SystemCommandCenterPage = () => {
         selectionsRes.ok ? selectionsRes.json() : [],
         toolsRes.ok ? toolsRes.json() : [],
         perfRes.ok ? perfRes.json() : null,
+        lbRes.ok ? lbRes.json() : null,
       ]);
       setData(statsData);
       setRevenue(revData);
       setCredits(credData);
       setNotifications(Array.isArray(notifsData) ? notifsData : []);
+      if (lbData?.leaderboard) setLeaderboard(lbData.leaderboard);
       const keys = Array.isArray(credsData) ? credsData.map(c => c.credentialKey?.toLowerCase()) : [];
       setStoredKeys(keys);
       const toolMap = {};
@@ -405,6 +410,17 @@ const SystemCommandCenterPage = () => {
       .then((rev) => setSystemRevenue(rev))
       .catch(() => {});
   }, [data]);
+
+  // Revenue ticker — light 3-second poll to keep the live total fresh
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetch('/api/dashboard/revenue-summary', { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) { setRevenue(d); setRevenueTick(t => t + 1); } })
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(id);
+  }, []);
 
   const patchSystem = useCallback(async (id, body) => {
     setControlLoading(prev => ({ ...prev, [id]: true }));
@@ -1259,6 +1275,83 @@ const SystemCommandCenterPage = () => {
           </div>
         )}
       </HudPanel>
+
+      {/* ══ LEADERBOARD STRIP + MILESTONE PROGRESS ═══════════════════════════ */}
+      {(() => {
+        // Milestone thresholds (cents)
+        const MILESTONES = [100, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000];
+        const LABELS = { 100: '$1', 10000: '$100', 50000: '$500', 100000: '$1K', 500000: '$5K', 1000000: '$10K', 5000000: '$50K', 10000000: '$100K' };
+        const next = MILESTONES.find(t => lifetimeCents < t) ?? null;
+        const prev = next ? (MILESTONES[MILESTONES.indexOf(next) - 1] ?? 0) : MILESTONES[MILESTONES.length - 1];
+        const pct = next ? Math.min(100, Math.round(((lifetimeCents - prev) / (next - prev)) * 100)) : 100;
+        const nextLabel = next ? LABELS[next] : null;
+
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+            {/* Milestone progress bar */}
+            <HudPanel className="p-5" accent="rgba(245,158,11,0.4)" corners={false}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-[10px] font-mono font-bold text-white/40 uppercase tracking-[0.15em]">Lifetime Milestone</span>
+                {nextLabel ? (
+                  <span className="ml-auto text-[9px] font-mono text-amber-300/60">Next: {nextLabel}</span>
+                ) : (
+                  <span className="ml-auto text-[9px] font-mono text-amber-400">🏆 Max milestone!</span>
+                )}
+              </div>
+              <div className="relative h-2.5 rounded-full bg-white/6 overflow-hidden mb-2">
+                <div
+                  className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-700"
+                  style={{ width: `${pct}%` }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse" />
+              </div>
+              <div className="flex items-center justify-between text-[10px] font-mono">
+                <span className="text-white/40">${(lifetimeCents / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} earned</span>
+                <span className={`font-bold ${pct === 100 ? 'text-amber-400' : 'text-white/30'}`}>{pct}%</span>
+              </div>
+              {/* Milestone dots */}
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                {MILESTONES.slice(0, 6).map(t => (
+                  <span
+                    key={t}
+                    className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${lifetimeCents >= t ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-white/4 text-white/20 border-white/8'}`}
+                  >
+                    {LABELS[t]}
+                  </span>
+                ))}
+              </div>
+            </HudPanel>
+
+            {/* Platform Leaderboard Strip */}
+            <HudPanel className="p-5" accent="rgba(139,92,246,0.4)" corners={false}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-violet-400" />
+                <span className="text-[10px] font-mono font-bold text-white/40 uppercase tracking-[0.15em]">Top Earners</span>
+                <button onClick={() => window.location.href = '/refer'} className="ml-auto text-[9px] font-mono text-violet-400/60 hover:text-violet-400 transition-colors">Refer & Earn →</button>
+              </div>
+              {leaderboard.length === 0 ? (
+                <p className="text-[11px] text-white/25 font-mono text-center py-3">No data yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {leaderboard.slice(0, 5).map((entry, i) => {
+                    const isMe = entry.userId === user.id;
+                    const rankColor = i === 0 ? 'text-amber-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-orange-400' : 'text-white/35';
+                    return (
+                      <div key={entry.rank ?? i} className={`flex items-center gap-2.5 py-1.5 border-b border-white/4 last:border-0 ${isMe ? 'bg-violet-500/8 rounded-lg px-2 -mx-2' : ''}`}>
+                        <span className={`text-[10px] font-mono font-bold w-4 text-center shrink-0 ${rankColor}`}>#{i + 1}</span>
+                        <span className="flex-1 text-[11px] text-white/65 truncate font-mono">{isMe ? <span className="text-violet-300">You</span> : (entry.displayName ?? 'Builder')}</span>
+                        <span className="text-[11px] font-black font-mono text-emerald-400">${((entry.lifetimeCents ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </HudPanel>
+
+          </div>
+        );
+      })()}
 
       {/* ══ BOTTOM ROW: ACTIVITY + CREDITS/ALERTS ═══════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

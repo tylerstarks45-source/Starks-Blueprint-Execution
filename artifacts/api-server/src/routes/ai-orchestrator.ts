@@ -22,6 +22,7 @@ import {
   publishedContentTable,
   abTestsTable,
   abVariantsTable,
+  userMemoryTable,
 } from "@workspace/db";
 import { publish, PUBLISHING_CHANNELS } from "../lib/publishing";
 import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
@@ -954,12 +955,22 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
   const keepAlive = setInterval(() => res.write(": keepalive\n\n"), 20000);
 
   try {
-    const [{ blueprintKB, toolKB }, storedCreds, activatedSkills] = await Promise.all([
+    const [{ blueprintKB, toolKB }, storedCreds, activatedSkills, userMemoryRows] = await Promise.all([
       buildPlatformKnowledge(),
       db.select({ credentialKey: userCredentialsTable.credentialKey })
         .from(userCredentialsTable)
         .where(eq(userCredentialsTable.userId, userId)),
       detectAndActivateSkills(parsed.data.message, userId, parsed.data.systemInstanceId),
+      db.select({ memoryKey: userMemoryTable.memoryKey, memoryValue: userMemoryTable.memoryValue })
+        .from(userMemoryTable)
+        .where(
+          parsed.data.systemInstanceId
+            ? and(
+                eq(userMemoryTable.userId, userId),
+                eq(userMemoryTable.systemInstanceId, parsed.data.systemInstanceId),
+              )
+            : eq(userMemoryTable.userId, userId),
+        ),
     ]);
 
     const storedKeys = storedCreds.map((c) => c.credentialKey);
@@ -971,6 +982,10 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
       .filter((s) => s.systemPromptAddition)
       .map((s) => `\n\n=== ACTIVATED SKILL: ${s.name.toUpperCase()} ===\n${s.systemPromptAddition}`)
       .join("");
+
+    const memoryNote = userMemoryRows.length > 0
+      ? `\n\n=== USER SYSTEM MEMORY (learned from previous sessions) ===\n${userMemoryRows.map((m) => `${m.memoryKey}: ${m.memoryValue}`).join("\n")}\nUse this context to personalise your response and avoid re-asking things you already know.`
+      : "";
 
     const historyCtx = parsed.data.history.length > 0
       ? "\n\nConversation so far:\n" +
@@ -995,7 +1010,7 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
       : "";
 
     const systemPrompt = buildSystemPrompt(blueprintKB, toolKB) +
-      storedCredNote + skillAdditions +
+      storedCredNote + skillAdditions + memoryNote +
       (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + planModeNote;
     const prompt = `${historyCtx}\n\nUser: ${parsed.data.message}`;
 

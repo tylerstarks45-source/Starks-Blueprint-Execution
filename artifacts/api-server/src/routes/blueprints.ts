@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, ilike, and, or, inArray, desc, sql } from "drizzle-orm";
-import { db, blueprintsTable, blueprintStepsTable, blueprintReviewsTable, blueprintPurchasesTable, notificationsTable, usersTable, subscriptionsTable, creditTransactionsTable } from "@workspace/db";
+import { db, blueprintsTable, blueprintStepsTable, blueprintReviewsTable, blueprintPurchasesTable, notificationsTable, usersTable, subscriptionsTable, creditTransactionsTable, systemInstancesTable } from "@workspace/db";
 import { getUncachableStripeClient } from "../lib/stripe";
 import { requireAdmin, getActiveCallerPayload, requireAuth, isAdminRole, getTokenPayload } from "../lib/auth";
 import { adjustCredits, adjustWalletCredits, getBalance } from "../lib/credits";
@@ -70,9 +70,65 @@ router.get("/blueprints", async (req, res): Promise<void> => {
     .where(and(...conditions))
     .orderBy(blueprintsTable.name);
 
+  // Aggregate avg lifetime earnings per blueprint from real system revenue events
+  let earningsMap: Record<number, number> = {};
+  try {
+    const earningsResult = await db.execute(sql`
+      SELECT si.blueprint_id,
+             ROUND(AVG(totals.total_cents))::int AS avg_earnings_cents
+      FROM (
+        SELECT sae.system_instance_id, COALESCE(SUM(sae.amount_cents), 0) AS total_cents
+        FROM system_activity_events sae
+        WHERE sae.event_type = 'revenue'
+        GROUP BY sae.system_instance_id
+      ) totals
+      JOIN system_instances si ON si.id = totals.system_instance_id
+      GROUP BY si.blueprint_id
+    `);
+    const earningsRows = (earningsResult as unknown as { rows: Array<{ blueprint_id: number; avg_earnings_cents: number }> }).rows;
+    for (const row of earningsRows) {
+      earningsMap[row.blueprint_id] = row.avg_earnings_cents;
+    }
+  } catch { /* non-fatal — fall back to 0 */ }
+
   // setupSteps is premium content — strip from list responses; detail/steps endpoint is gated separately
-  const sanitized = rows.map((r) => ({ ...r, setupSteps: null }));
+  const sanitized = rows.map((r) => ({ ...r, setupSteps: null, avgEarningsCents: earningsMap[r.id] ?? 0 }));
   res.json(ListBlueprintsResponse.parse(serialize(sanitized)));
+});
+
+// ── POST /api/blueprints/:id/clone ─────────────────────────────────────────
+// Creates a new system instance from a blueprint (quick-deploy). Returns the instance.
+router.post("/blueprints/:id/clone", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const blueprintId = Number(req.params.id);
+  if (isNaN(blueprintId)) { res.status(400).json({ error: "Invalid blueprint id" }); return; }
+
+  const [blueprint] = await db.select().from(blueprintsTable).where(eq(blueprintsTable.id, blueprintId));
+  if (!blueprint) { res.status(404).json({ error: "Blueprint not found" }); return; }
+
+  // Paid blueprints: check if already purchased or is admin
+  if ((blueprint.priceCredits ?? 0) > 0 && !isAdminRole(caller.role)) {
+    const [purchase] = await db
+      .select({ id: blueprintPurchasesTable.id })
+      .from(blueprintPurchasesTable)
+      .where(and(eq(blueprintPurchasesTable.buyerUserId, caller.id), eq(blueprintPurchasesTable.blueprintId, blueprintId)));
+    if (!purchase) {
+      res.status(403).json({ error: "Purchase this blueprint first to clone it.", code: "purchase_required" });
+      return;
+    }
+  }
+
+  const [instance] = await db.insert(systemInstancesTable).values({
+    userId: caller.id,
+    blueprintId,
+    name: `${blueprint.name} — Clone`,
+    buildStatus: "not_started",
+    healthStatus: "unknown",
+  }).returning();
+
+  res.status(201).json({ instance: serialize(instance) });
 });
 
 // ── POST /api/blueprints — ADMIN ONLY ──────────────────────────────────────

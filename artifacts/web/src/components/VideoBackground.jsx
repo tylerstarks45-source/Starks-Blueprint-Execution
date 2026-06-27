@@ -1,14 +1,14 @@
 
 import React from 'react';
 
-const VideoBackground = ({ children, className = '', videoId = 'J6G-B1DoDAU' }) => {
+const VideoBackground = ({ children, className = '', videoId = 'jqm1i_FSr8Y' }) => {
   return (
     <div className={`relative min-h-screen w-full flex flex-col ${className}`}>
       {/* Background Video Layer */}
       <div className="fixed inset-0 w-full h-screen z-[-1] overflow-hidden pointer-events-none">
         <iframe
           key={videoId}
-          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&playsinline=1&rel=0&vq=hd1080&hd=1&quality=hd1080`}
+          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&playsinline=1&rel=0&vq=hd1080&hd=1&quality=hd1080`}
           allow="autoplay; encrypted-media; fullscreen"
           frameBorder="0"
           title="Global Background Video"

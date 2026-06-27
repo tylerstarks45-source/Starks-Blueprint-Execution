@@ -2,6 +2,7 @@ import { Router, type IRouter, type Response } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, gte, lte, desc, sql, inArray } from "drizzle-orm";
 import {
+  pool,
   db,
   usersTable,
   systemInstancesTable,
@@ -16,6 +17,9 @@ import {
 import { z } from "zod/v4";
 import { getActiveCallerPayload, requireAdmin } from "../lib/auth";
 import { complete } from "../lib/openrouter";
+import { sendWeeklyDigestEmail } from "../lib/email";
+import { sendPushNotification } from "../lib/push";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -45,20 +49,23 @@ function sendCsvOrJson(
   }
 }
 
-function linearRegression(points: { x: number; y: number }[]): { slope: number; intercept: number; r2: number } {
+function linearRegression(points: { x: number; y: number }[]): {
+  slope: number; intercept: number; r2: number; meanX: number; mse: number; sxx: number; n: number;
+} {
   const n = points.length;
-  if (n < 2) return { slope: 0, intercept: n === 1 ? (points[0]?.y ?? 0) : 0, r2: 0 };
+  if (n < 2) return { slope: 0, intercept: n === 1 ? (points[0]?.y ?? 0) : 0, r2: 0, meanX: 0, mse: 0, sxx: 1, n };
   const meanX = points.reduce((s, p) => s + p.x, 0) / n;
   const meanY = points.reduce((s, p) => s + p.y, 0) / n;
   const sumXY = points.reduce((s, p) => s + (p.x - meanX) * (p.y - meanY), 0);
-  const sumXX = points.reduce((s, p) => s + (p.x - meanX) ** 2, 0);
-  if (Math.abs(sumXX) < 1e-10) return { slope: 0, intercept: meanY, r2: 0 };
-  const slope = sumXY / sumXX;
+  const sxx   = points.reduce((s, p) => s + (p.x - meanX) ** 2, 0);
+  if (Math.abs(sxx) < 1e-10) return { slope: 0, intercept: meanY, r2: 0, meanX, mse: 0, sxx: 1, n };
+  const slope = sumXY / sxx;
   const intercept = meanY - slope * meanX;
   const ssTot = points.reduce((s, p) => s + (p.y - meanY) ** 2, 0);
   const ssRes = points.reduce((s, p) => s + (p.y - (slope * p.x + intercept)) ** 2, 0);
-  const r2 = ssTot < 1e-10 ? 1 : Math.max(0, 1 - ssRes / ssTot);
-  return { slope, intercept, r2 };
+  const r2    = ssTot < 1e-10 ? 1 : Math.max(0, 1 - ssRes / ssTot);
+  const mse   = n > 2 ? ssRes / (n - 2) : 0;
+  return { slope, intercept, r2, meanX, mse, sxx, n };
 }
 
 // 1-hour in-memory cache for the public blueprint-performance endpoint
@@ -272,6 +279,9 @@ router.get("/analytics/me/affiliate-funnel", async (req, res): Promise<void> => 
   const q = DateRangeQuery.safeParse(req.query);
   if (!q.success) { res.status(400).json({ error: q.error.message }); return; }
 
+  const start = q.data.startDate ? new Date(q.data.startDate) : new Date(Date.now() - 90 * 86_400_000);
+  const end   = q.data.endDate   ? new Date(q.data.endDate)   : new Date();
+
   const rows = await db
     .select({
       linkId:       userAffiliateLinksTable.id,
@@ -283,7 +293,11 @@ router.get("/analytics/me/affiliate-funnel", async (req, res): Promise<void> => 
       revenueCents: sql<number>`coalesce(sum(${affiliateConversionsTable.amountCents}), 0)::int`,
     })
     .from(userAffiliateLinksTable)
-    .leftJoin(affiliateConversionsTable, eq(affiliateConversionsTable.linkId, userAffiliateLinksTable.id))
+    .leftJoin(affiliateConversionsTable, and(
+      eq(affiliateConversionsTable.linkId, userAffiliateLinksTable.id),
+      gte(affiliateConversionsTable.createdAt, start),
+      lte(affiliateConversionsTable.createdAt, end),
+    ))
     .where(eq(userAffiliateLinksTable.userId, caller.id))
     .groupBy(userAffiliateLinksTable.id)
     .orderBy(desc(userAffiliateLinksTable.clickCount));
@@ -345,13 +359,27 @@ router.get("/analytics/me/forecast", async (req, res): Promise<void> => {
     y: r.totalCents,
   }));
 
-  const { slope, intercept, r2 } = linearRegression(points);
+  const { slope, intercept, r2, meanX, mse, sxx, n: nPts } = linearRegression(points);
   const today = Math.floor((Date.now() - firstDate) / 86_400_000);
-  const project = (ahead: number) => Math.max(0, Math.round(slope * (today + ahead) + intercept));
+  const projectRaw = (ahead: number) => Math.max(0, slope * (today + ahead) + intercept);
+
+  // 95% prediction interval using t≈2.0 for conservative bounds
+  const T95 = 2.0;
+  const predictMargin = (ahead: number): number => {
+    if (nPts < 3 || mse <= 0 || sxx <= 0) return 0;
+    const x = today + ahead;
+    return Math.round(T95 * Math.sqrt(mse * (1 + 1 / nPts + (x - meanX) ** 2 / sxx)));
+  };
+
+  const makeProjection = (ahead: number) => {
+    const value  = Math.round(projectRaw(ahead));
+    const margin = predictMargin(ahead);
+    return { value, lower: Math.max(0, value - margin), upper: value + margin };
+  };
 
   res.json({
     points: dailyRows,
-    projections: { day30: project(30), day60: project(60), day90: project(90) },
+    projections: { day30: makeProjection(30), day60: makeProjection(60), day90: makeProjection(90) },
     confidence: Math.round(r2 * 100),
     slope: Math.round(slope * 100) / 100,
     dailyAvgCents:
@@ -363,22 +391,25 @@ router.get("/analytics/me/forecast", async (req, res): Promise<void> => {
 
 // ─── GET /api/analytics/blueprint-performance (public, 1hr cache) ─────────────
 
-router.get("/analytics/blueprint-performance", async (_req, res): Promise<void> => {
-  if (bpPerfCache && Date.now() < bpPerfCache.expiresAt) {
+router.get("/analytics/blueprint-performance", async (req, res): Promise<void> => {
+  const fmt = String(req.query.format ?? "json");
+
+  if (fmt === "json" && bpPerfCache && Date.now() < bpPerfCache.expiresAt) {
     res.json(bpPerfCache.data);
     return;
   }
 
+  // Main aggregation query — systemsWithRevenue counts distinct systems with any revenue earned
   const rows = await db
     .select({
-      blueprintId:       blueprintsTable.id,
-      blueprintName:     blueprintsTable.name,
-      categoryId:        blueprintCategoriesTable.id,
-      categoryName:      blueprintCategoriesTable.name,
-      totalActiveSystems: sql<number>`count(distinct ${systemInstancesTable.id})::int`,
-      totalUsers:        sql<number>`count(distinct ${systemInstancesTable.userId})::int`,
-      totalRevenueCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
-      revenueEventCount: sql<number>`count(${systemActivityEventsTable.id})::int`,
+      blueprintId:         blueprintsTable.id,
+      blueprintName:       blueprintsTable.name,
+      categoryId:          blueprintCategoriesTable.id,
+      categoryName:        blueprintCategoriesTable.name,
+      totalActiveSystems:  sql<number>`count(distinct ${systemInstancesTable.id})::int`,
+      totalUsers:          sql<number>`count(distinct ${systemInstancesTable.userId})::int`,
+      totalRevenueCents:   sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
+      systemsWithRevenue:  sql<number>`count(distinct case when ${systemActivityEventsTable.amountCents} > 0 then ${systemInstancesTable.id} end)::int`,
     })
     .from(blueprintsTable)
     .leftJoin(blueprintCategoriesTable, eq(blueprintCategoriesTable.id, blueprintsTable.categoryId))
@@ -391,16 +422,45 @@ router.get("/analytics/blueprint-performance", async (_req, res): Promise<void> 
     .groupBy(blueprintsTable.id, blueprintCategoriesTable.id, blueprintCategoriesTable.name)
     .orderBy(desc(sql`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`));
 
+  // Median days from system creation to first revenue event, per blueprint
+  const medianRows = await pool.query<{ blueprint_id: number; median_days: number | null }>(
+    `SELECT si.blueprint_id,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (
+              ORDER BY EXTRACT(EPOCH FROM (first_rev.min_rev_at - si.created_at)) / 86400.0
+            ) AS median_days
+     FROM system_instances si
+     JOIN (
+       SELECT system_instance_id, MIN(created_at) AS min_rev_at
+       FROM system_activity_events
+       WHERE event_type = 'revenue' AND amount_cents > 0
+       GROUP BY system_instance_id
+     ) first_rev ON first_rev.system_instance_id = si.id
+     WHERE si.blueprint_id IS NOT NULL
+     GROUP BY si.blueprint_id`,
+  );
+  const medianMap = new Map(
+    medianRows.rows.map((r) => [r.blueprint_id, r.median_days != null ? Math.round(r.median_days) : null]),
+  );
+
   const data = rows.map((r) => ({
     ...r,
     avgRevenuePerUserCents: r.totalUsers > 0 ? Math.round(r.totalRevenueCents / r.totalUsers) : 0,
     successRate: r.totalActiveSystems > 0
-      ? Math.round((r.revenueEventCount > 0 ? r.totalUsers : 0) / r.totalActiveSystems * 100)
+      ? Math.round((r.systemsWithRevenue / r.totalActiveSystems) * 100)
       : 0,
+    medianDaysToFirstDollar: medianMap.get(r.blueprintId) ?? null,
   }));
 
-  bpPerfCache = { data, expiresAt: Date.now() + 60 * 60 * 1000 };
-  res.json(data);
+  if (fmt === "json") bpPerfCache = { data, expiresAt: Date.now() + 60 * 60 * 1000 };
+
+  sendCsvOrJson(
+    res as never,
+    "blueprint-performance.csv",
+    ["blueprintName", "categoryName", "totalActiveSystems", "totalUsers", "totalRevenueCents",
+     "systemsWithRevenue", "successRate", "avgRevenuePerUserCents", "medianDaysToFirstDollar"],
+    data as never,
+    fmt,
+  );
 });
 
 // ─── GET /api/analytics/admin/cohorts ────────────────────────────────────────
@@ -408,37 +468,79 @@ router.get("/analytics/blueprint-performance", async (_req, res): Promise<void> 
 router.get("/analytics/admin/cohorts", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
 
-  const rows = await db
-    .select({
-      cohortMonth:      sql<string>`to_char(date_trunc('month', ${usersTable.createdAt}), 'YYYY-MM')`,
-      totalUsers:       sql<number>`count(distinct ${usersTable.id})::int`,
-      usersWithSystems: sql<number>`count(distinct ${systemInstancesTable.userId})::int`,
-      usersWithRevenue: sql<number>`count(distinct case when ${systemActivityEventsTable.id} is not null then ${usersTable.id} end)::int`,
-      totalRevenueCents: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::int`,
-    })
-    .from(usersTable)
-    .leftJoin(systemInstancesTable, eq(systemInstancesTable.userId, usersTable.id))
-    .leftJoin(systemActivityEventsTable, and(
-      eq(systemActivityEventsTable.systemInstanceId, systemInstancesTable.id),
-      eq(systemActivityEventsTable.eventType, "revenue"),
-    ))
-    .groupBy(sql`date_trunc('month', ${usersTable.createdAt})`)
-    .orderBy(sql`date_trunc('month', ${usersTable.createdAt})`);
+  const fmt = String(req.query.format ?? "json");
 
-  const data = rows.map((r) => ({
-    ...r,
-    systemAdoptionRate: r.totalUsers > 0 ? Math.round((r.usersWithSystems / r.totalUsers) * 100) : 0,
-    revenueActivationRate: r.totalUsers > 0 ? Math.round((r.usersWithRevenue / r.totalUsers) * 100) : 0,
-    avgRevenueCents: r.usersWithRevenue > 0 ? Math.round(r.totalRevenueCents / r.usersWithRevenue) : 0,
+  // Use raw SQL so we can compute per-window retention in one pass
+  const cohortRows = await pool.query<{
+    cohort_month: string;
+    total_users: number;
+    users_with_systems: number;
+    users_with_revenue: number;
+    total_revenue_cents: number;
+    retained_30d: number;
+    retained_60d: number;
+    retained_90d: number;
+    retained_180d: number;
+  }>(
+    `SELECT
+       to_char(date_trunc('month', u.created_at), 'YYYY-MM') AS cohort_month,
+       COUNT(DISTINCT u.id)::int                              AS total_users,
+       COUNT(DISTINCT si.user_id)::int                       AS users_with_systems,
+       COUNT(DISTINCT CASE WHEN sae.amount_cents > 0 THEN u.id END)::int AS users_with_revenue,
+       COALESCE(SUM(sae.amount_cents), 0)::int               AS total_revenue_cents,
+       COUNT(DISTINCT CASE
+         WHEN si.created_at <= u.created_at + INTERVAL '30 days' THEN u.id END)::int AS retained_30d,
+       COUNT(DISTINCT CASE
+         WHEN si.created_at <= u.created_at + INTERVAL '60 days' THEN u.id END)::int AS retained_60d,
+       COUNT(DISTINCT CASE
+         WHEN si.created_at <= u.created_at + INTERVAL '90 days' THEN u.id END)::int AS retained_90d,
+       COUNT(DISTINCT CASE
+         WHEN si.created_at <= u.created_at + INTERVAL '180 days' THEN u.id END)::int AS retained_180d
+     FROM users u
+     LEFT JOIN system_instances si ON si.user_id = u.id
+     LEFT JOIN system_activity_events sae
+       ON sae.system_instance_id = si.id AND sae.event_type = 'revenue'
+     GROUP BY date_trunc('month', u.created_at)
+     ORDER BY date_trunc('month', u.created_at)`,
+  );
+
+  const data = cohortRows.rows.map((r) => ({
+    cohortMonth:           r.cohort_month,
+    totalUsers:            r.total_users,
+    usersWithSystems:      r.users_with_systems,
+    usersWithRevenue:      r.users_with_revenue,
+    totalRevenueCents:     r.total_revenue_cents,
+    retained30d:           r.retained_30d,
+    retained60d:           r.retained_60d,
+    retained90d:           r.retained_90d,
+    retained180d:          r.retained_180d,
+    systemAdoptionRate:    r.total_users > 0 ? Math.round((r.users_with_systems / r.total_users) * 100) : 0,
+    revenueActivationRate: r.total_users > 0 ? Math.round((r.users_with_revenue / r.total_users) * 100) : 0,
+    avgRevenueCents:       r.users_with_revenue > 0 ? Math.round(r.total_revenue_cents / r.users_with_revenue) : 0,
+    retention30dRate:      r.total_users > 0 ? Math.round((r.retained_30d  / r.total_users) * 100) : 0,
+    retention60dRate:      r.total_users > 0 ? Math.round((r.retained_60d  / r.total_users) * 100) : 0,
+    retention90dRate:      r.total_users > 0 ? Math.round((r.retained_90d  / r.total_users) * 100) : 0,
+    retention180dRate:     r.total_users > 0 ? Math.round((r.retained_180d / r.total_users) * 100) : 0,
   }));
 
-  res.json(data);
+  sendCsvOrJson(
+    res as never,
+    "cohorts.csv",
+    ["cohortMonth", "totalUsers", "usersWithSystems", "usersWithRevenue", "totalRevenueCents",
+     "retained30d", "retained60d", "retained90d", "retained180d",
+     "systemAdoptionRate", "revenueActivationRate", "avgRevenueCents",
+     "retention30dRate", "retention60dRate", "retention90dRate", "retention180dRate"],
+    data as never,
+    fmt,
+  );
 });
 
 // ─── GET /api/analytics/admin/ltv ────────────────────────────────────────────
 
 router.get("/analytics/admin/ltv", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
+
+  const fmt = String(req.query.format ?? "json");
 
   const rows = await db
     .select({
@@ -465,7 +567,13 @@ router.get("/analytics/admin/ltv", async (req, res): Promise<void> => {
         : 0,
   }));
 
-  res.json(data);
+  sendCsvOrJson(
+    res as never,
+    "ltv.csv",
+    ["cohortMonth", "totalUsers", "totalRevenueCents", "monthsOld", "avgLtvCents", "monthlyAvgCents"],
+    data as never,
+    fmt,
+  );
 });
 
 // ─── GET /api/analytics/admin/churn-risk ─────────────────────────────────────
@@ -518,8 +626,174 @@ router.get("/analytics/admin/churn-risk", async (req, res): Promise<void> => {
     };
   });
 
+  const fmt = String(req.query.format ?? "json");
   scored.sort((a, b) => (b.churnRiskScore as number) - (a.churnRiskScore as number));
-  res.json(scored.slice(0, limitVal));
+  const sliced = scored.slice(0, limitVal);
+
+  sendCsvOrJson(
+    res as never,
+    "churn-risk.csv",
+    ["email", "name", "membershipTier", "creditsBalance", "activeSystems", "totalSystems",
+     "totalRevenueCents", "daysSinceLastRevenue", "churnRiskScore", "createdAt"],
+    sliced as never,
+    fmt,
+  );
+});
+
+// ─── GET /api/analytics/admin/platform-funnel ────────────────────────────────
+
+router.get("/analytics/admin/platform-funnel", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const fmt = String(req.query.format ?? "json");
+
+  const [signupsRow, activatedRow, firstRevenueRow, highEarnersRow] = await Promise.all([
+    pool.query<{ total: number }>(
+      `SELECT COUNT(*)::int AS total FROM users WHERE active = true`,
+    ),
+    pool.query<{ total: number }>(
+      `SELECT COUNT(DISTINCT user_id)::int AS total FROM system_instances`,
+    ),
+    pool.query<{ total: number }>(
+      `SELECT COUNT(DISTINCT si.user_id)::int AS total
+       FROM system_instances si
+       JOIN system_activity_events sae ON sae.system_instance_id = si.id
+       WHERE sae.event_type = 'revenue' AND sae.amount_cents > 0`,
+    ),
+    pool.query<{ total: number }>(
+      `SELECT COUNT(DISTINCT si.user_id)::int AS total
+       FROM system_instances si
+       JOIN system_activity_events sae ON sae.system_instance_id = si.id
+       WHERE sae.event_type = 'revenue'
+       GROUP BY si.user_id
+       HAVING SUM(sae.amount_cents) >= 10000`,
+    ),
+  ]);
+
+  const signups      = signupsRow.rows[0]?.total      ?? 0;
+  const activated    = activatedRow.rows[0]?.total    ?? 0;
+  const firstRevenue = firstRevenueRow.rows[0]?.total ?? 0;
+  const highEarners  = highEarnersRow.rowCount ?? 0;
+
+  const data = {
+    signups,
+    activated,
+    firstRevenue,
+    highEarners,
+    conversion: {
+      signupToActivated:        signups > 0     ? Math.round((activated    / signups)      * 100) : 0,
+      activatedToFirstRevenue:  activated > 0   ? Math.round((firstRevenue / activated)    * 100) : 0,
+      firstRevenueToHighEarner: firstRevenue > 0 ? Math.round((highEarners / firstRevenue) * 100) : 0,
+      overall:                  signups > 0     ? Math.round((highEarners  / signups)      * 100) : 0,
+    },
+  };
+
+  if (fmt === "csv") {
+    sendCsvOrJson(
+      res as never,
+      "platform-funnel.csv",
+      ["stage", "count", "conversionPct"],
+      [
+        { stage: "Signups",         count: signups,      conversionPct: 100 },
+        { stage: "Activated",       count: activated,    conversionPct: data.conversion.signupToActivated },
+        { stage: "First Revenue",   count: firstRevenue, conversionPct: data.conversion.activatedToFirstRevenue },
+        { stage: "$100+ Earners",   count: highEarners,  conversionPct: data.conversion.firstRevenueToHighEarner },
+      ],
+      fmt,
+    );
+  } else {
+    res.json(data);
+  }
+});
+
+// ─── GET /api/analytics/admin/user-health ────────────────────────────────────
+
+router.get("/analytics/admin/user-health", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const fmt       = String(req.query.format ?? "json");
+  const limitVal  = Math.min(Number(req.query.limit) || 100, 500);
+
+  const rows = await pool.query<{
+    user_id: number;
+    email: string;
+    name: string | null;
+    membership_tier: string;
+    created_at: Date;
+    total_lifetime_cents: number;
+    first_revenue_at: Date | null;
+    last_revenue_at: Date | null;
+    active_systems: number;
+    total_systems: number;
+    monthly_avg_cents: number;
+  }>(
+    `SELECT
+       u.id                                                       AS user_id,
+       u.email,
+       u.name,
+       u.membership_tier,
+       u.created_at,
+       COALESCE(SUM(sae.amount_cents), 0)::int                   AS total_lifetime_cents,
+       MIN(CASE WHEN sae.amount_cents > 0 THEN sae.created_at END) AS first_revenue_at,
+       MAX(sae.created_at)                                        AS last_revenue_at,
+       COUNT(DISTINCT CASE WHEN si.build_status = 'active' THEN si.id END)::int AS active_systems,
+       COUNT(DISTINCT si.id)::int                                 AS total_systems,
+       CASE WHEN GREATEST(1, EXTRACT(EPOCH FROM age(NOW(), u.created_at)) / 2592000) > 0
+         THEN (COALESCE(SUM(sae.amount_cents), 0) /
+               GREATEST(1, EXTRACT(EPOCH FROM age(NOW(), u.created_at)) / 2592000))::int
+         ELSE 0 END                                               AS monthly_avg_cents
+     FROM users u
+     LEFT JOIN system_instances si ON si.user_id = u.id
+     LEFT JOIN system_activity_events sae
+       ON sae.system_instance_id = si.id AND sae.event_type = 'revenue'
+     WHERE u.active = true
+     GROUP BY u.id
+     ORDER BY total_lifetime_cents DESC
+     LIMIT $1`,
+    [limitVal],
+  );
+
+  const now = Date.now();
+  const data = rows.rows.map((r) => {
+    const daysSinceLast = r.last_revenue_at
+      ? Math.floor((now - new Date(r.last_revenue_at).getTime()) / 86_400_000)
+      : null;
+    const monthsOnPlatform =
+      Math.max(1, Math.floor((now - new Date(r.created_at).getTime()) / (30 * 86_400_000)));
+
+    let healthScore = 100;
+    if (r.active_systems === 0)                  healthScore -= 30;
+    if (r.total_lifetime_cents === 0)             healthScore -= 25;
+    if (daysSinceLast != null && daysSinceLast > 60) healthScore -= 20;
+    else if (daysSinceLast != null && daysSinceLast > 30) healthScore -= 10;
+    if (r.total_systems === 0)                   healthScore -= 15;
+
+    return {
+      userId:               r.user_id,
+      email:                r.email,
+      name:                 r.name,
+      membershipTier:       r.membership_tier,
+      createdAt:            r.created_at,
+      totalLifetimeCents:   r.total_lifetime_cents,
+      monthlyAvgCents:      r.monthly_avg_cents,
+      firstRevenueAt:       r.first_revenue_at,
+      lastRevenueAt:        r.last_revenue_at,
+      daysSinceLastRevenue: daysSinceLast,
+      activeSystems:        r.active_systems,
+      totalSystems:         r.total_systems,
+      monthsOnPlatform,
+      healthScore:          Math.max(0, healthScore),
+    };
+  });
+
+  sendCsvOrJson(
+    res as never,
+    "user-health.csv",
+    ["email", "name", "membershipTier", "totalLifetimeCents", "monthlyAvgCents",
+     "activeSystems", "totalSystems", "daysSinceLastRevenue", "healthScore", "monthsOnPlatform"],
+    data as never,
+    fmt,
+  );
 });
 
 // ─── POST /api/analytics/admin/weekly-digest ─────────────────────────────────
@@ -528,7 +802,7 @@ router.post("/analytics/admin/weekly-digest", async (req, res): Promise<void> =>
   if (!(await requireAdmin(req, res))) return;
 
   const users = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken })
     .from(usersTable)
     .innerJoin(systemInstancesTable, eq(systemInstancesTable.userId, usersTable.id))
     .where(eq(usersTable.active, true))
@@ -571,6 +845,10 @@ router.post("/analytics/admin/weekly-digest", async (req, res): Promise<void> =>
       });
 
       if (result.content) {
+        const activeSystems = instances.filter((i) => i.buildStatus === "active").length;
+        const weeklyRevenueDollars = (revenueRow?.total ?? 0) / 100;
+
+        // In-app notification
         await db.insert(notificationsTable).values({
           userId: user.id,
           title: "Your Weekly Digest — What's Working",
@@ -578,6 +856,29 @@ router.post("/analytics/admin/weekly-digest", async (req, res): Promise<void> =>
           notificationType: "info",
           read: false,
         });
+
+        // Email delivery (fire-and-forget; Resend key may not be configured)
+        sendWeeklyDigestEmail(
+          user.email,
+          user.name ?? user.email,
+          result.content,
+          { activeSystems, weeklyRevenueDollars },
+        ).catch((err: unknown) => {
+          logger.warn({ userId: user.id, err }, "Weekly digest email failed");
+        });
+
+        // Push notification (fire-and-forget)
+        if (user.expoPushToken) {
+          sendPushNotification(
+            user.expoPushToken,
+            "📊 Your Weekly Digest",
+            result.content.slice(0, 150) + (result.content.length > 150 ? "…" : ""),
+            { screen: "dashboard" },
+          ).catch((err: unknown) => {
+            logger.warn({ userId: user.id, err }, "Weekly digest push failed");
+          });
+        }
+
         sent++;
       }
     } catch (err) {

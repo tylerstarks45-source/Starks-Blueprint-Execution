@@ -141,3 +141,52 @@ export async function sendContactNotification(data: {
     return false;
   }
 }
+
+/**
+ * Send a weekly digest email to a user.
+ * Returns true if sent successfully; false if Resend is not configured or send failed.
+ */
+export async function sendWeeklyDigestEmail(
+  to: string,
+  name: string,
+  digest: string,
+  stats: { activeSystems: number; weeklyRevenueDollars: number },
+): Promise<boolean> {
+  const resend = getResend();
+  if (!resend) return false;
+  const baseUrl = getBaseUrl();
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: [to],
+      subject: "Your SBEP Weekly Digest — What's Working",
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0a0a;color:#fff;border-radius:12px;">
+          <div style="margin-bottom:24px;">
+            <span style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#8844E0;">Weekly Digest</span>
+            <h1 style="font-size:22px;font-weight:700;margin:8px 0 0;">What's Working, ${name?.split(" ")[0] ?? "there"}</h1>
+          </div>
+          <div style="display:flex;gap:16px;margin-bottom:24px;">
+            <div style="flex:1;padding:16px;background:#18181b;border-radius:8px;text-align:center;">
+              <div style="font-size:24px;font-weight:800;color:#00D97E;">$${stats.weeklyRevenueDollars.toFixed(2)}</div>
+              <div style="font-size:11px;color:#71717a;margin-top:4px;">Revenue This Week</div>
+            </div>
+            <div style="flex:1;padding:16px;background:#18181b;border-radius:8px;text-align:center;">
+              <div style="font-size:24px;font-weight:800;color:#8844E0;">${stats.activeSystems}</div>
+              <div style="font-size:11px;color:#71717a;margin-top:4px;">Active Systems</div>
+            </div>
+          </div>
+          <div style="padding:20px;background:#18181b;border-radius:8px;border-left:3px solid #8844E0;margin-bottom:24px;">
+            <p style="color:#a1a1aa;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;">ASH's Take</p>
+            <p style="color:#fff;line-height:1.7;margin:0;white-space:pre-wrap;">${digest}</p>
+          </div>
+          <a href="${baseUrl}" style="display:inline-block;background:#8844E0;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin-bottom:16px;">Open Dashboard →</a>
+          <p style="color:#3f3f46;font-size:11px;margin-top:24px;">You're receiving this because you have active systems on Starks Global Group.</p>
+        </div>
+      `,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}

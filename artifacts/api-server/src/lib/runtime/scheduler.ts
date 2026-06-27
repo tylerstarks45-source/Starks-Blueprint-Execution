@@ -1,8 +1,11 @@
-import { pool, db, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable, abTestsTable, abVariantsTable } from "@workspace/db";
+import { pool, db, usersTable, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable, abTestsTable, abVariantsTable } from "@workspace/db";
 import { eq, and, lte, sql } from "drizzle-orm";
 import { logger } from "../logger";
 import { getConnector } from "../connectors/registry";
 import { decrypt } from "../crypto";
+import { complete } from "../openrouter";
+import { sendWeeklyDigestEmail } from "../email";
+import { sendPushNotification } from "../push";
 import { computeNextRunAt as _computeNextRunAt } from "../../routes/scheduled-tasks";
 import { publish, PUBLISHING_CHANNELS } from "../publishing";
 
@@ -288,6 +291,101 @@ async function handleTaskFailure(
   }
 }
 
+// ─── Weekly digest (runs once per week) ──────────────────────────────────────
+
+const WEEKLY_DIGEST_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+let lastWeeklyDigest = 0;
+
+async function processWeeklyDigest(): Promise<void> {
+  const now = Date.now();
+  if (now - lastWeeklyDigest < WEEKLY_DIGEST_INTERVAL_MS) return;
+  lastWeeklyDigest = now;
+
+  const weekAgo = new Date(now - 7 * 86_400_000);
+
+  const users = await pool.query<{ id: number; name: string | null; email: string; expo_push_token: string | null }>(
+    `SELECT u.id, u.name, u.email, u.expo_push_token
+     FROM users u
+     JOIN system_instances si ON si.user_id = u.id
+     WHERE u.active = true
+     GROUP BY u.id`,
+  );
+
+  if (users.rowCount === 0) return;
+
+  logger.info({ userCount: users.rowCount }, "Weekly digest: sending");
+
+  let sent = 0;
+  for (const user of users.rows) {
+    try {
+      const instances = await pool.query<{ id: number; name: string; build_status: string }>(
+        `SELECT id, name, build_status FROM system_instances WHERE user_id = $1`,
+        [user.id],
+      );
+
+      const instanceIds = instances.rows.map((i) => i.id);
+      const revenueRow = await pool.query<{ total: number; count: number }>(
+        `SELECT COALESCE(SUM(amount_cents), 0)::int AS total, COUNT(*)::int AS count
+         FROM system_activity_events
+         WHERE system_instance_id = ANY($1)
+           AND event_type = 'revenue'
+           AND created_at >= $2`,
+        [instanceIds.length > 0 ? instanceIds : [-1], weekAgo],
+      );
+
+      const activeSystems        = instances.rows.filter((i) => i.build_status === "active").length;
+      const weeklyRevenueDollars = (revenueRow.rows[0]?.total ?? 0) / 100;
+      const context = `User: ${user.name ?? user.email}. Active systems: ${activeSystems}/${instances.rowCount}. Revenue last 7 days: $${weeklyRevenueDollars.toFixed(2)} (${revenueRow.rows[0]?.count ?? 0} events).`;
+
+      const result = await complete({
+        userId: user.id,
+        prompt: `Write a concise, motivating 2–3 sentence "What's Working" weekly digest for this SBEP user. Mention a specific win if there is revenue, and suggest one concrete next action. Context: ${context}`,
+        model: "openai/gpt-4o-mini",
+        systemPrompt: "You are the SBEP AI advisor. Write short, encouraging, actionable weekly digests. Be specific and upbeat. No fluff.",
+      });
+
+      if (!result.content) continue;
+
+      // In-app notification
+      await db.insert(notificationsTable).values({
+        userId: user.id,
+        title: "Your Weekly Digest — What's Working",
+        message: result.content,
+        notificationType: "info",
+        read: false,
+      });
+
+      // Email (fire-and-forget)
+      sendWeeklyDigestEmail(
+        user.email,
+        user.name ?? user.email,
+        result.content,
+        { activeSystems, weeklyRevenueDollars },
+      ).catch((err: unknown) => {
+        logger.warn({ userId: user.id, err }, "Scheduled weekly digest email failed");
+      });
+
+      // Push (fire-and-forget)
+      if (user.expo_push_token) {
+        sendPushNotification(
+          user.expo_push_token,
+          "📊 Your Weekly Digest",
+          result.content.slice(0, 150) + (result.content.length > 150 ? "…" : ""),
+          { screen: "dashboard" },
+        ).catch((err: unknown) => {
+          logger.warn({ userId: user.id, err }, "Scheduled weekly digest push failed");
+        });
+      }
+
+      sent++;
+    } catch (err: unknown) {
+      logger.warn({ userId: user.id, err }, "Weekly digest failed for user");
+    }
+  }
+
+  logger.info({ sent, total: users.rowCount }, "Weekly digest: complete");
+}
+
 // ─── A/B Test winner selection (runs nightly) ─────────────────────────────────
 
 const AB_TEST_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -424,6 +522,7 @@ export function startScheduler(): void {
     try {
       await processDueTasks();
       await processABTests();
+      await processWeeklyDigest();
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {

@@ -316,11 +316,13 @@ Then append the SBEP_DATA block with action "present_plan".
 
 ## PHASE 2: COLLECT CREDENTIALS (after user confirms the plan)
 
-When the user confirms or says they're ready → respond briefly and warmly (2-3 sentences, sound like a partner who's ready to get to work), then include SBEP_DATA with action "collect_credentials".
+When the user confirms or says they're ready:
+- **If the plan has NO required credentials** (tools that need no API key, or the user already has everything): skip Phase 2 entirely — respond with 1-2 energetic sentences ("Let's go — starting the build right now!") and return action "start_build" directly.
+- **If the plan HAS required credentials**: respond briefly and warmly (2-3 sentences), then include SBEP_DATA with action "collect_credentials" and the list of credentials needed. Wait for the user to submit them.
 
-## PHASE 3: START BUILD (after credentials are submitted)
+## PHASE 3: START BUILD (after credentials are submitted, or immediately when none are needed)
 
-When credentials come in → 1-2 sentences confirming you're starting. Make it feel real — you're actually about to build their system. Include SBEP_DATA with action "start_build".
+When credentials come in (or when skipping Phase 2) → 1-2 sentences confirming you're starting. Make it feel real — you're actually building right now. Include SBEP_DATA with action "start_build".
 
 ## GROUND RULES
 
@@ -436,7 +438,7 @@ For general questions (not a build goal):
 { "action": "general" }
 </SBEP_DATA>
 
-CRITICAL: When user says "I confirm the plan", "let's proceed", "I'm ready", or similar → return "collect_credentials" (NEVER "present_plan" again).
+CRITICAL: When user says "I confirm the plan", "let's proceed", "I'm ready", or similar → if the plan has NO required credentials, return "start_build" immediately (skip collect_credentials entirely). If the plan HAS credentials needed, return "collect_credentials" (NEVER "present_plan" again).
 CRITICAL: When user explicitly provides credentials or asks to start building → return "start_build".
 CRITICAL: When user asks to visit a website, search the web, check a URL, find pricing/info online, or interact with a web page → return "browser_use".
 CRITICAL: When user's system needs to run a task on a recurring schedule (post daily, check hourly, send weekly) → use "create_schedule".
@@ -1738,18 +1740,41 @@ router.post("/ai-orchestrator/execute", async (req, res): Promise<void> => {
     return;
   }
 
-  // 1. Resolve blueprint
-  const [blueprint] = await db.select().from(blueprintsTable)
+  // 1. Resolve blueprint — try DB first, fall back to a synthetic object so ASH can build
+  //    anything on the spot without needing a pre-seeded DB record.
+  const [dbBlueprint] = await db.select().from(blueprintsTable)
     .where(eq(blueprintsTable.slug, parsed.data.blueprintSlug));
-  if (!blueprint) {
-    res.status(404).json({ error: `Blueprint "${parsed.data.blueprintSlug}" not found` });
-    return;
-  }
 
-  // 2. Create system instance
+  const blueprint = dbBlueprint ?? {
+    id: null as number | null,
+    slug: parsed.data.blueprintSlug,
+    name: parsed.data.systemName ?? "Custom System",
+    description: "Custom AI-designed system built on the spot by ASH.",
+    difficulty: "beginner",
+    categoryId: null as number | null,
+    priceCredits: 0,
+    estimatedCost: null as string | null,
+    estimatedTime: null as string | null,
+    status: "active",
+    version: "1.0",
+    authorUserId: null as number | null,
+    source: "ai",
+    reviewStatus: "approved",
+    salesCount: 0,
+    ratingAvg: 0,
+    ratingCount: 0,
+    rejectionReason: null as string | null,
+    estimatedEarnings: null as string | null,
+    requiredTools: null as string | null,
+    setupSteps: null as string | null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  // 2. Create system instance — blueprintId is nullable for custom/on-the-spot builds
   const [instance] = await db.insert(systemInstancesTable).values({
     userId,
-    blueprintId: blueprint.id,
+    blueprintId: blueprint.id ?? undefined,
     name: parsed.data.systemName ?? `My ${blueprint.name}`,
     buildStatus: "building",
   }).returning();

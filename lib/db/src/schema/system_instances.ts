@@ -8,7 +8,7 @@ import { clientWorkspacesTable } from "./client_workspaces";
 export const systemInstancesTable = pgTable("system_instances", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-  blueprintId: integer("blueprint_id").notNull().references(() => blueprintsTable.id),
+  blueprintId: integer("blueprint_id").references(() => blueprintsTable.id),
   name: text("name").notNull(),
   buildStatus: text("build_status").notNull().default("pending"),
   healthStatus: text("health_status").notNull().default("unknown"),

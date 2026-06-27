@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Bot, Zap, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import AIModelBadge from '@/components/AIModelBadge.jsx';
 
 const authH = () => { const t = localStorage.getItem('sbep_auth_token'); return t ? { Authorization: `Bearer ${t}` } : {}; };
 
@@ -18,13 +19,30 @@ const fmtDate = (d) => {
 const AIActivityLog = () => {
   const { currentUser } = useAuth();
   const [systems, setSystems] = useState([]);
+  const [modelMap, setModelMap] = useState({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!currentUser?.id) { setIsLoading(false); return; }
     fetch(`/api/system-instances?userId=${currentUser.id}`, { headers: authH() })
       .then(r => r.ok ? r.json() : { items: [] })
-      .then(d => setSystems((d.items || []).slice(0, 6)))
+      .then(async d => {
+        const items = (d.items || []).slice(0, 6);
+        setSystems(items);
+        // Fetch build session model for any building systems
+        const building = items.filter(s => s.buildStatus === 'building');
+        if (building.length === 0) return;
+        const results = await Promise.allSettled(
+          building.map(s =>
+            fetch(`/api/build-engine/${s.id}/status`, { headers: authH() })
+              .then(r => r.ok ? r.json() : null)
+              .then(data => ({ id: s.id, model: data?.currentModel ?? data?.session?.currentModel ?? null }))
+          )
+        );
+        const map = {};
+        results.forEach(r => { if (r.status === 'fulfilled' && r.value.model) map[r.value.id] = r.value.model; });
+        setModelMap(map);
+      })
       .catch(() => {}).finally(() => setIsLoading(false));
   }, [currentUser?.id]);
 
@@ -49,18 +67,25 @@ const AIActivityLog = () => {
           </div>
         ) : (
           <div className="space-y-2">
-            {systems.map(s => (
-              <div key={s.id} className="flex items-center gap-3 bg-background/30 rounded-lg px-3 py-2.5 border border-border/30">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${s.buildStatus === 'active' || s.buildStatus === 'running' ? 'bg-emerald-400' : s.buildStatus === 'building' ? 'bg-amber-400 animate-pulse' : 'bg-muted-foreground/40'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-foreground truncate">{s.name || 'Unnamed System'}</p>
-                  <p className="text-[10px] text-muted-foreground capitalize">{s.buildStatus}</p>
+            {systems.map(s => {
+              const isBuilding = s.buildStatus === 'building';
+              const currentModel = modelMap[s.id] ?? null;
+              return (
+                <div key={s.id} className="flex items-center gap-3 bg-background/30 rounded-lg px-3 py-2.5 border border-border/30">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${s.buildStatus === 'active' || s.buildStatus === 'running' ? 'bg-emerald-400' : isBuilding ? 'bg-amber-400 animate-pulse' : 'bg-muted-foreground/40'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">{s.name || 'Unnamed System'}</p>
+                    <p className="text-[10px] text-muted-foreground capitalize">{s.buildStatus}</p>
+                  </div>
+                  {currentModel && (
+                    <AIModelBadge model={currentModel} isActive={isBuilding} size="xs" />
+                  )}
+                  <span className="text-[10px] text-muted-foreground shrink-0 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />{fmtDate(s.createdAt || s.created)}
+                  </span>
                 </div>
-                <span className="text-[10px] text-muted-foreground shrink-0 flex items-center gap-1">
-                  <Clock className="w-3 h-3" />{fmtDate(s.createdAt || s.created)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>

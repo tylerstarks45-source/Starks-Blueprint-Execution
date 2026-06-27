@@ -3403,12 +3403,7 @@ const BuilderPage = () => {
               </div>
               {phase === 'building' && buildData?.steps && (
                 <div className="ml-auto flex items-center gap-2 shrink-0">
-                  {activeMode && (
-                    <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0 border rounded-full border-violet-500/40 bg-violet-500/10 text-violet-300">
-                      <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse shrink-0" />
-                      {activeMode.modelLabel}
-                    </span>
-                  )}
+                  {activeMode && <AIModelBadge model={activeMode.model} isActive size="xs" />}
                   <span className="text-[9px] font-mono text-primary/55">
                     {currentStepIdx}/{buildData.steps.length} steps
                   </span>
@@ -3675,12 +3670,7 @@ const BuilderPage = () => {
               <div className="flex items-center justify-center gap-2 py-1.5 flex-wrap">
                 <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
                 <span className="font-mono text-[11px] text-white/42">Building — {buildData?.steps?.length ?? 0} steps in progress</span>
-                {activeMode && (
-                  <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0 border rounded-full border-violet-500/40 bg-violet-500/10 text-violet-300">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse shrink-0" />
-                    {activeMode.modelLabel}
-                  </span>
-                )}
+                {activeMode && <AIModelBadge model={activeMode.model} isActive />}
               </div>
             ) : phase === 'complete' ? (
               <div className="flex items-center justify-center gap-2 py-1.5 text-emerald-400">

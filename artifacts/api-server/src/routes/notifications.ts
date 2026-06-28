@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db, notificationsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../lib/auth";
 import {
@@ -23,7 +23,7 @@ router.get("/notifications", async (req, res): Promise<void> => {
     .select()
     .from(notificationsTable)
     .where(and(...conditions))
-    .orderBy(notificationsTable.createdAt);
+    .orderBy(desc(notificationsTable.createdAt));
   res.json(ListNotificationsResponse.parse(serialize(rows)));
 });
 

@@ -305,13 +305,11 @@ const SystemCommandCenterPage = () => {
   const user = JSON.parse(localStorage.getItem('sbep_auth_user') || '{}');
 
   const handleMilestoneDismiss = () => {
-    const token = localStorage.getItem('sbep_auth_token');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const milestone = notifications.find(n => n.notificationType === 'milestone_reached' && !n.read);
     if (milestone) {
       setNotifications(prev => prev.map(n => n.id === milestone.id ? { ...n, read: true } : n));
-      fetch(`${import.meta.env.BASE_URL ?? '/'}api/notifications/${milestone.id}/read`, {
-        method: 'PATCH', headers,
+      fetch(`/api/notifications/${milestone.id}/read`, {
+        method: 'PATCH', headers: authHeaders(),
       }).catch(() => {});
     }
   };

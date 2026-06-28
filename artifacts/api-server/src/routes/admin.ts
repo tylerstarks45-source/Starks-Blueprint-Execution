@@ -1523,21 +1523,23 @@ router.post("/admin/push-platform-update", requireAdmin, async (req, res): Promi
 router.get("/admin/email-health", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
 
+  // Derive all metrics from timestamp columns so they're additive and not
+  // overwritten as the email progresses through the status lifecycle.
   const thirtyDay = await pool.query<{
     total_sent: string; total_delivered: string; total_opened: string;
     total_clicked: string; total_bounced: string; total_unsubscribed: string;
     total_failed: string; active_senders: string; today_sent: string;
   }>(`
     SELECT
-      COUNT(*) FILTER (WHERE status NOT IN ('failed'))                        AS total_sent,
-      COUNT(*) FILTER (WHERE status = 'delivered')                            AS total_delivered,
-      COUNT(*) FILTER (WHERE status = 'opened'   OR opened_at IS NOT NULL)   AS total_opened,
-      COUNT(*) FILTER (WHERE status = 'clicked'  OR clicked_at IS NOT NULL)  AS total_clicked,
-      COUNT(*) FILTER (WHERE status = 'bounced')                              AS total_bounced,
-      COUNT(*) FILTER (WHERE status = 'unsubscribed')                         AS total_unsubscribed,
+      COUNT(*) FILTER (WHERE status != 'failed')                              AS total_sent,
+      COUNT(*) FILTER (WHERE delivered_at IS NOT NULL)                        AS total_delivered,
+      COUNT(*) FILTER (WHERE opened_at IS NOT NULL)                           AS total_opened,
+      COUNT(*) FILTER (WHERE clicked_at IS NOT NULL)                          AS total_clicked,
+      COUNT(*) FILTER (WHERE bounced_at IS NOT NULL OR status = 'bounced')    AS total_bounced,
+      COUNT(*) FILTER (WHERE unsubscribed_at IS NOT NULL OR status = 'unsubscribed') AS total_unsubscribed,
       COUNT(*) FILTER (WHERE status = 'failed')                               AS total_failed,
       COUNT(DISTINCT user_id)                                                 AS active_senders,
-      COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)                     AS today_sent
+      COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE AND status != 'failed') AS today_sent
     FROM email_deliveries
     WHERE created_at > NOW() - INTERVAL '30 days'
   `);

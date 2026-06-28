@@ -5,7 +5,7 @@ import {
   Mail, Users, Plus, Trash2, ChevronRight, ChevronDown,
   Upload, Sparkles, RefreshCw, Search, Send, List,
   BarChart3, Check, X, Eye, Megaphone, Play, AlertCircle,
-  TrendingUp, MousePointer, Ban
+  TrendingUp, MousePointer, Ban, CheckCheck, UserMinus
 } from 'lucide-react';
 
 const API = '/api';
@@ -260,8 +260,10 @@ function SequenceCard({ seq, api, onDelete, lists }) {
           {stats && stats.sent > 0 && (
             <>
               <StatPill icon={Send} value={stats.sent} label="sent" color="text-sky-400" />
+              {stats.delivered > 0 && <StatPill icon={CheckCheck} value={stats.delivered} label="delivered" color="text-teal-400" />}
               <StatPill icon={Eye} value={`${stats.openRate}%`} label="open" color="text-emerald-400" />
               <StatPill icon={MousePointer} value={`${stats.clickRate}%`} label="click" color="text-violet-400" />
+              {stats.unsubRate > 0 && <StatPill icon={UserMinus} value={`${stats.unsubRate}%`} label="unsub" color="text-orange-400" />}
             </>
           )}
         </div>
@@ -437,8 +439,10 @@ function CampaignCard({ camp, lists, api, onDelete }) {
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <StatPill icon={Send} value={camp.sentCount} label="sent" color="text-sky-400" />
           {stats && <>
+            {stats.delivered > 0 && <StatPill icon={CheckCheck} value={stats.delivered} label="delivered" color="text-teal-400" />}
             <StatPill icon={Eye} value={`${stats.openRate}%`} label="open rate" color="text-emerald-400" />
             <StatPill icon={MousePointer} value={`${stats.clickRate}%`} label="click rate" color="text-violet-400" />
+            {stats.unsubRate > 0 && <StatPill icon={UserMinus} value={`${stats.unsubRate}%`} label="unsub rate" color="text-orange-400" />}
             {stats.bounced > 0 && <StatPill icon={Ban} value={stats.bounced} label="bounced" color="text-red-400" />}
           </>}
         </div>

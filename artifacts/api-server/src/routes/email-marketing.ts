@@ -344,36 +344,43 @@ router.get("/email/sequences/:id/stats", async (req, res): Promise<void> => {
   if (!seq) { res.status(404).json({ error: "Sequence not found" }); return; }
 
   const statsRow = await pool.query<{
-    total: string; sent: string; opened: string; clicked: string;
-    bounced: string; unsubscribed: string; failed: string;
+    total: string; sent: string; delivered: string; opened: string;
+    clicked: string; bounced: string; unsubscribed: string; failed: string;
   }>(
     `SELECT
       COUNT(*) AS total,
-      COUNT(*) FILTER (WHERE status IN ('sent','opened','clicked')) AS sent,
-      COUNT(*) FILTER (WHERE status = 'opened' OR opened_at IS NOT NULL) AS opened,
-      COUNT(*) FILTER (WHERE status = 'clicked' OR clicked_at IS NOT NULL) AS clicked,
-      COUNT(*) FILTER (WHERE status = 'bounced') AS bounced,
-      COUNT(*) FILTER (WHERE status = 'unsubscribed') AS unsubscribed,
+      COUNT(*) FILTER (WHERE status != 'failed') AS sent,
+      COUNT(*) FILTER (WHERE delivered_at IS NOT NULL) AS delivered,
+      COUNT(*) FILTER (WHERE opened_at IS NOT NULL) AS opened,
+      COUNT(*) FILTER (WHERE clicked_at IS NOT NULL) AS clicked,
+      COUNT(*) FILTER (WHERE bounced_at IS NOT NULL OR status = 'bounced') AS bounced,
+      COUNT(*) FILTER (WHERE unsubscribed_at IS NOT NULL OR status = 'unsubscribed') AS unsubscribed,
       COUNT(*) FILTER (WHERE status = 'failed') AS failed
      FROM email_deliveries WHERE sequence_id = $1`,
     [seqId],
   );
-  const r = statsRow.rows[0] ?? { total: "0", sent: "0", opened: "0", clicked: "0", bounced: "0", unsubscribed: "0", failed: "0" };
-  const total = parseInt(r.total, 10);
-  const sent = parseInt(r.sent, 10);
-  const opened = parseInt(r.opened, 10);
-  const clicked = parseInt(r.clicked, 10);
+  const r = statsRow.rows[0] ?? { total: "0", sent: "0", delivered: "0", opened: "0", clicked: "0", bounced: "0", unsubscribed: "0", failed: "0" };
+  const total     = parseInt(r.total, 10);
+  const sent      = parseInt(r.sent, 10);
+  const delivered = parseInt(r.delivered, 10);
+  const opened    = parseInt(r.opened, 10);
+  const clicked   = parseInt(r.clicked, 10);
+  const unsubscribed = parseInt(r.unsubscribed, 10);
+  // Use sent as denominator (delivered may be 0 when webhook not yet configured).
+  const denom = sent > 0 ? sent : 1;
 
   res.json({
     total,
     sent,
+    delivered,
     opened,
     clicked,
     bounced: parseInt(r.bounced, 10),
-    unsubscribed: parseInt(r.unsubscribed, 10),
+    unsubscribed,
     failed: parseInt(r.failed, 10),
-    openRate: sent > 0 ? Math.round((opened / sent) * 1000) / 10 : 0,
-    clickRate: sent > 0 ? Math.round((clicked / sent) * 1000) / 10 : 0,
+    openRate:   Math.round((opened      / denom) * 1000) / 10,
+    clickRate:  Math.round((clicked     / denom) * 1000) / 10,
+    unsubRate:  Math.round((unsubscribed/ denom) * 1000) / 10,
   });
 });
 
@@ -793,32 +800,39 @@ router.get("/email/campaigns/:id/stats", async (req, res): Promise<void> => {
   if (!camp) { res.status(404).json({ error: "Campaign not found" }); return; }
 
   const statsRow = await pool.query<{
-    total: string; opened: string; clicked: string; bounced: string; unsubscribed: string; failed: string;
+    total: string; delivered: string; opened: string; clicked: string;
+    bounced: string; unsubscribed: string; failed: string;
   }>(
     `SELECT
       COUNT(*) AS total,
-      COUNT(*) FILTER (WHERE status = 'opened' OR opened_at IS NOT NULL) AS opened,
-      COUNT(*) FILTER (WHERE status = 'clicked' OR clicked_at IS NOT NULL) AS clicked,
-      COUNT(*) FILTER (WHERE status = 'bounced') AS bounced,
-      COUNT(*) FILTER (WHERE status = 'unsubscribed') AS unsubscribed,
+      COUNT(*) FILTER (WHERE delivered_at IS NOT NULL) AS delivered,
+      COUNT(*) FILTER (WHERE opened_at IS NOT NULL) AS opened,
+      COUNT(*) FILTER (WHERE clicked_at IS NOT NULL) AS clicked,
+      COUNT(*) FILTER (WHERE bounced_at IS NOT NULL OR status = 'bounced') AS bounced,
+      COUNT(*) FILTER (WHERE unsubscribed_at IS NOT NULL OR status = 'unsubscribed') AS unsubscribed,
       COUNT(*) FILTER (WHERE status = 'failed') AS failed
      FROM email_deliveries WHERE campaign_id = $1`,
     [id],
   );
-  const r = statsRow.rows[0] ?? { total: "0", opened: "0", clicked: "0", bounced: "0", unsubscribed: "0", failed: "0" };
-  const sent = camp.sentCount;
-  const opened = parseInt(r.opened, 10);
-  const clicked = parseInt(r.clicked, 10);
+  const r = statsRow.rows[0] ?? { total: "0", delivered: "0", opened: "0", clicked: "0", bounced: "0", unsubscribed: "0", failed: "0" };
+  const sent         = camp.sentCount;
+  const delivered    = parseInt(r.delivered, 10);
+  const opened       = parseInt(r.opened, 10);
+  const clicked      = parseInt(r.clicked, 10);
+  const unsubscribed = parseInt(r.unsubscribed, 10);
+  const denom = sent > 0 ? sent : 1;
 
   res.json({
     ...serialize(camp),
+    delivered,
     opened,
     clicked,
     bounced: parseInt(r.bounced, 10),
-    unsubscribed: parseInt(r.unsubscribed, 10),
+    unsubscribed,
     failed: parseInt(r.failed, 10),
-    openRate: sent > 0 ? Math.round((opened / sent) * 1000) / 10 : 0,
-    clickRate: sent > 0 ? Math.round((clicked / sent) * 1000) / 10 : 0,
+    openRate:  Math.round((opened      / denom) * 1000) / 10,
+    clickRate: Math.round((clicked     / denom) * 1000) / 10,
+    unsubRate: Math.round((unsubscribed/ denom) * 1000) / 10,
   });
 });
 

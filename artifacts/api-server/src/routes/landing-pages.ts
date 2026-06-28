@@ -226,6 +226,27 @@ router.post("/landing-pages/funnel", async (req, res): Promise<void> => {
   // TypeScript loses that narrowing inside nested async functions.
   const authorId = userId as number;
   const { niche, goal, systemInstanceId, emailListId, brandColors } = parsed.data;
+
+  // IDOR guard: verify referenced resources belong to this user before proceeding
+  if (emailListId != null) {
+    const owned = await db.select({ id: emailListsTable.id })
+      .from(emailListsTable)
+      .where(and(eq(emailListsTable.id, emailListId), eq(emailListsTable.userId, userId)));
+    if (owned.length === 0) {
+      res.status(403).json({ error: "Email list not found or access denied" });
+      return;
+    }
+  }
+  if (systemInstanceId != null) {
+    const owned = await db.select({ id: systemInstancesTable.id })
+      .from(systemInstancesTable)
+      .where(and(eq(systemInstancesTable.id, systemInstanceId), eq(systemInstancesTable.userId, userId)));
+    if (owned.length === 0) {
+      res.status(403).json({ error: "System instance not found or access denied" });
+      return;
+    }
+  }
+
   const primary = brandColors?.primary ?? "#8B5CF6";
   const secondary = brandColors?.secondary ?? "#06B6D4";
 

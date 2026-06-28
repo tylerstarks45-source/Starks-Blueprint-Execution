@@ -1325,7 +1325,7 @@ function runConfettiOnCanvas(canvas) {
 }
 
 // ─── Build Terminal ───────────────────────────────────────────────────────────
-const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, phase }) => {
+const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, phase, liveMode, setLiveMode, stepConnectorResults = {}, preflightWarnings = [] }) => {
   const bottomRef = useRef(null);
   const navigate = useNavigate();
   const isComplete = currentIdx >= steps.length && steps.length > 0 && phase === 'complete';
@@ -1480,6 +1480,16 @@ const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, 
                 {liveMode ? 'LIVE' : 'DEMO'}
               </button>
             </div>
+            {/* Pre-flight warnings — missing credentials */}
+            {liveMode && preflightWarnings.length > 0 && (
+              <div className="mx-2 mb-2 px-2 py-1.5 rounded bg-amber-500/10 border border-amber-500/25">
+                <p className="text-[8px] text-amber-400 font-bold uppercase tracking-wide mb-1">Missing credentials</p>
+                {preflightWarnings.map(w => (
+                  <p key={w.id} className="text-[8px] text-amber-300/80 leading-tight">⚠ {w.name}</p>
+                ))}
+                <a href="/connections" className="block mt-1 text-[8px] text-amber-400 underline">Connect →</a>
+              </div>
+            )}
             {steps.map((step, i) => {
               const isDone = i < currentIdx;
               const isActive = i === currentIdx && phase === 'building';
@@ -1823,6 +1833,16 @@ const BuilderPage = () => {
   const [stepExecuting, setStepExecuting] = useState(false);
   const [stepPaused, setStepPaused] = useState(false); // true when recovery card is shown
   const [liveMode, setLiveMode] = useState(false);
+  const [preflightWarnings, setPreflightWarnings] = useState([]);
+  // Auto-enable live mode if user has stored credentials
+  useEffect(() => {
+    const token = localStorage.getItem('sbep_auth_token');
+    if (!token) return;
+    fetch('/api/user-credentials', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(creds => { if (Array.isArray(creds) && creds.length > 0) setLiveMode(true); })
+      .catch(() => {});
+  }, []);
   const [showRevenueModal, setShowRevenueModal] = useState(false);
 
   const chatBottomRef = useRef(null);
@@ -2521,15 +2541,33 @@ const BuilderPage = () => {
         throw new Error(err.error || 'Build initialization failed');
       }
       const data = await resp.json();
+      const steps = data.steps ?? [];
       setBuildData({
         instanceId: data.instanceId,
         sessionId: data.sessionId,
-        steps: data.steps ?? [],
+        steps,
         blueprint: data.blueprint,
       });
       setCurrentStepIdx(0);
       setStepOutputs({});
       setStepRevenues({});
+      setPreflightWarnings([]);
+      // Pre-flight: check for missing credentials if live mode is active
+      if (liveMode && steps.length > 0) {
+        try {
+          const pfResp = await fetch('/api/build-engine/preflight', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ stepDescriptions: steps.map(s => s.notes ?? '') }),
+          });
+          if (pfResp.ok) {
+            const pf = await pfResp.json();
+            if (!pf.ready && pf.missingHints?.length > 0) {
+              setPreflightWarnings(pf.missingHints);
+            }
+          }
+        } catch { /* non-blocking */ }
+      }
       setPhase('building');
       setMessages(prev => [...prev, {
         id: Date.now() + 2,
@@ -3964,6 +4002,10 @@ const BuilderPage = () => {
                 currentIdx={currentStepIdx}
                 instanceId={buildData?.instanceId}
                 phase={phase}
+                liveMode={liveMode}
+                setLiveMode={setLiveMode}
+                stepConnectorResults={stepConnectorResults}
+                preflightWarnings={preflightWarnings}
               />
             </div>
           )}

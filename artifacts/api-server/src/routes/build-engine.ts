@@ -729,6 +729,70 @@ router.post("/build-engine/skip-step", async (req, res): Promise<void> => {
   }
 });
 
+// POST /api/build-engine/preflight
+// Checks whether the user's stored credentials satisfy the connectors a set of
+// build steps may need.  Returns { ready, availableConnectors, missingHints }.
+router.post("/build-engine/preflight", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const body = req.body as { stepDescriptions?: string[] };
+  const stepDescriptions: string[] = Array.isArray(body.stepDescriptions) ? body.stepDescriptions : [];
+
+  // Load all credentials for this user
+  const credRows = await db.select({
+    credentialKey: userCredentialsTable.credentialKey,
+  }).from(userCredentialsTable).where(eq(userCredentialsTable.userId, userId));
+
+  // Derive available connector IDs from credential key prefixes
+  const available = new Set<string>();
+  for (const row of credRows) {
+    const parts = row.credentialKey.split("_");
+    for (let len = 1; len < parts.length; len++) {
+      const candidate = parts.slice(0, len).join("_");
+      if (isKnownConnector(candidate)) { available.add(candidate); break; }
+    }
+  }
+
+  // Scan step descriptions for connector keyword mentions
+  const CONNECTOR_KEYWORDS: Record<string, string[]> = {
+    mailchimp:   ["mailchimp", "email list", "audience", "campaign"],
+    stripe:      ["stripe", "payment", "checkout", "subscription", "billing"],
+    sendgrid:    ["sendgrid", "transactional email", "email send"],
+    twitter:     ["twitter", "tweet", "x.com"],
+    slack:       ["slack", "channel message", "workspace notification"],
+    zapier:      ["zapier", "zap", "automation trigger"],
+    gohighlevel: ["gohighlevel", "go high level", "ghl", "crm pipeline"],
+    convertkit:  ["convertkit", "convert kit", "email sequence", "subscriber tag"],
+    shopify:     ["shopify", "product listing", "storefront", "ecommerce store"],
+    cloudflare:  ["cloudflare", "cdn", "dns record", "worker", "edge deploy"],
+    notion:      ["notion", "database page", "notion page"],
+    airtable:    ["airtable", "airtable base", "grid record"],
+    webhook:     ["webhook", "http trigger", "endpoint notify"],
+  };
+
+  const needed = new Set<string>();
+  for (const desc of stepDescriptions) {
+    const lower = desc.toLowerCase();
+    for (const [id, keywords] of Object.entries(CONNECTOR_KEYWORDS)) {
+      if (keywords.some(kw => lower.includes(kw))) needed.add(id);
+    }
+  }
+
+  const missing = [...needed].filter(id => !available.has(id));
+  const missingHints = missing.map(id => {
+    const connector = getConnector(id, {});
+    return { id, name: connector?.displayName ?? id };
+  });
+
+  res.json({
+    ready: missing.length === 0,
+    availableConnectors: [...available],
+    neededConnectors: [...needed],
+    missingHints,
+  });
+});
+
 // GET /api/build-engine/:systemInstanceId/status
 router.get("/build-engine/:systemInstanceId/status", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);

@@ -10,37 +10,35 @@ import { GoHighLevelConnector } from "./gohighlevel-connector";
 import { SlackConnector } from "./slack-connector";
 import { SendGridConnector } from "./sendgrid-connector";
 import { WebhookConnector } from "./webhook-connector";
-import {
-  GmailStub,
-  GoogleSheetsStub,
-  TikTokStub,
-  MetaStub,
-  YouTubeStub,
-  ShopifyStub,
-  CloudflareStub,
-} from "./stubs";
+import { ShopifyConnector } from "./shopify-connector";
+import { CloudflareConnector } from "./cloudflare-connector";
+import { NotionConnector } from "./notion-connector";
+import { AirtableConnector } from "./airtable-connector";
+import { GmailStub, GoogleSheetsStub, TikTokStub, MetaStub, YouTubeStub } from "./stubs";
 
 type ConnectorCtor = new (creds: Record<string, string>) => BaseConnector;
 
 const REGISTRY: Record<string, ConnectorCtor> = {
-  openrouter: OpenRouterConnector,
-  stripe: StripeConnector,
-  email: EmailConnector,
-  twitter: TwitterConnector,
-  mailchimp: MailchimpConnector,
-  convertkit: ConvertKitConnector,
-  zapier: ZapierConnector,
+  openrouter:  OpenRouterConnector,
+  stripe:      StripeConnector,
+  email:       EmailConnector,
+  twitter:     TwitterConnector,
+  mailchimp:   MailchimpConnector,
+  convertkit:  ConvertKitConnector,
+  zapier:      ZapierConnector,
   gohighlevel: GoHighLevelConnector,
-  slack: SlackConnector,
-  sendgrid: SendGridConnector,
-  webhook: WebhookConnector,
-  gmail: GmailStub,
+  slack:       SlackConnector,
+  sendgrid:    SendGridConnector,
+  webhook:     WebhookConnector,
+  shopify:     ShopifyConnector,
+  cloudflare:  CloudflareConnector,
+  notion:      NotionConnector,
+  airtable:    AirtableConnector,
+  gmail:        GmailStub,
   google_sheets: GoogleSheetsStub,
-  tiktok: TikTokStub,
-  meta: MetaStub,
-  youtube: YouTubeStub,
-  shopify: ShopifyStub,
-  cloudflare: CloudflareStub,
+  tiktok:      TikTokStub,
+  meta:        MetaStub,
+  youtube:     YouTubeStub,
 };
 
 export function getConnector(id: string, creds: Record<string, string> = {}): BaseConnector | null {

@@ -47,7 +47,10 @@ async function resolveFromEmail(userId: number): Promise<string> {
 // HMAC-SHA256 signed token — safe to include in email links.
 
 export function generateUnsubscribeToken(subscriberId: number, email: string): string {
-  const secret = process.env["SESSION_SECRET"] ?? "sbep-unsub-secret";
+  const secret = process.env["SESSION_SECRET"];
+  if (!secret) {
+    throw new Error("SESSION_SECRET is required for unsubscribe token generation");
+  }
   return createHmac("sha256", secret).update(`unsub:${subscriberId}:${email}`).digest("hex");
 }
 

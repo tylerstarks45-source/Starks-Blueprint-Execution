@@ -70,7 +70,7 @@ export type InsertEmailSequenceStep = typeof emailSequenceStepsTable.$inferInser
 
 // ── Email Deliveries ─────────────────────────────────────────────────────────
 // One row per email sent (sequence step or campaign blast).
-// status lifecycle: sent → (opened | clicked | bounced | unsubscribed | failed)
+// status lifecycle: sent → delivered → (opened | clicked | bounced | unsubscribed | failed)
 
 export const emailDeliveriesTable = pgTable("email_deliveries", {
   id: serial("id").primaryKey(),
@@ -84,6 +84,7 @@ export const emailDeliveriesTable = pgTable("email_deliveries", {
   status: text("status").notNull().default("sent"),
   messageId: text("message_id"),
   sentAt: timestamp("sent_at", { withTimezone: true }),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
   openedAt: timestamp("opened_at", { withTimezone: true }),
   clickedAt: timestamp("clicked_at", { withTimezone: true }),
   bouncedAt: timestamp("bounced_at", { withTimezone: true }),

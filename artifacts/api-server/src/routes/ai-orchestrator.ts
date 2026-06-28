@@ -23,6 +23,9 @@ import {
   abTestsTable,
   abVariantsTable,
   userMemoryTable,
+  emailListsTable,
+  emailSequencesTable,
+  emailSequenceStepsTable,
 } from "@workspace/db";
 import { publish, PUBLISHING_CHANNELS } from "../lib/publishing";
 import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
@@ -458,6 +461,19 @@ For creating an A/B test and auto-generating variants on a landing page or email
 testType must be "landing_page" or "email_subject". For landing_page include landingPageId (0 if unknown). For email_subject include sequenceId (0 if unknown). numberOfVariants is the number of treatment variants to generate (1-4); the original is always the control.
 Use generate_ab_variants when the user wants to split-test copy, headlines, or email subject lines to optimise conversion rates.
 
+For creating an email list + automated sequence (when the user's build plan includes email marketing — newsletters, welcome flows, lead nurture, or sales funnels):
+<SBEP_DATA>
+{
+  "action": "create_email_sequence",
+  "listName": "My Email List",
+  "sequenceName": "Welcome Sequence",
+  "goal": "Nurture new subscribers with a 7-email welcome series",
+  "numberOfEmails": 7
+}
+</SBEP_DATA>
+numberOfEmails should be 3-14 depending on the funnel goal. The system will AI-generate all email subjects and bodies automatically.
+Use create_email_sequence when the user's system includes email marketing — building a newsletter, welcome series, lead nurture, or sales funnel. Creates the list, generates the sequence steps with AI, and activates automation.
+
 For general questions (not a build goal):
 <SBEP_DATA>
 { "action": "general" }
@@ -469,6 +485,7 @@ CRITICAL: When user explicitly provides credentials or asks to start building �
 CRITICAL: When user asks to visit a website, search the web, check a URL, find pricing/info online, or interact with a web page → return "browser_use".
 CRITICAL: When user's system needs to run a task on a recurring schedule (post daily, check hourly, send weekly) → use "create_schedule".
 CRITICAL: When user wants to A/B test a landing page or email subject line → use "generate_ab_variants".
+CRITICAL: When user's system includes email marketing, a newsletter, welcome emails, or lead nurture → use "create_email_sequence" to create the list and automation in one step.
 
 === ASH AUTONOMOUS TOOL CAPABILITIES ===
 
@@ -1561,6 +1578,99 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
           structuredData = null;
         } catch (abErr) {
           req.log.warn({ abErr }, "Failed to create A/B test from ASH generate_ab_variants");
+        }
+      }
+    }
+
+    // ── Server-side create_email_sequence handling ────────────────────────────
+    // When ASH emits a create_email_sequence action, create an email list,
+    // AI-generate sequence steps, activate the sequence, and notify the client.
+    if (
+      structuredData != null &&
+      structuredData.action === "create_email_sequence" &&
+      parsed.data.systemInstanceId != null
+    ) {
+      const instanceId = parsed.data.systemInstanceId;
+      const [owned] = await db
+        .select({ id: systemInstancesTable.id })
+        .from(systemInstancesTable)
+        .where(and(eq(systemInstancesTable.id, instanceId), eq(systemInstancesTable.userId, userId)))
+        .limit(1);
+
+      if (owned) {
+        try {
+          const listName     = (structuredData.listName as string) || "Email List";
+          const seqName      = (structuredData.sequenceName as string) || "Email Sequence";
+          const goal         = (structuredData.goal as string) || seqName;
+          const nEmails      = Math.min(Math.max(Number(structuredData.numberOfEmails) || 5, 3), 14);
+
+          // 1. Create the email list
+          const [newList] = await db.insert(emailListsTable).values({ userId, name: listName }).returning();
+
+          // 2. Create the sequence linked to the list
+          const [newSeq] = await db.insert(emailSequencesTable).values({
+            userId,
+            listId: newList.id,
+            name: seqName,
+            description: goal,
+            status: "active",
+          }).returning();
+
+          // 3. AI-generate all email steps
+          const stepPrompt = `Generate a ${nEmails}-email sequence for the following goal: "${goal}".
+Return ONLY valid JSON: {"emails":[{"stepNumber":1,"delayDays":0,"subject":"subject line","body":"email body (2-4 short paragraphs, plain text)"}]}
+- Step 1 delayDays = 0 (immediate). Subsequent steps: 1-3 days apart.
+- Keep bodies conversational, value-focused, and CAN-SPAM compliant.
+- Avoid spammy words. End each email with a clear soft CTA.`;
+
+          const genResult = await complete({
+            systemPrompt: "You are an expert email marketer. Return ONLY raw JSON — no markdown, no code blocks.",
+            prompt: stepPrompt,
+            model: "openai/gpt-4o-mini",
+            userId,
+          });
+
+          let emails: Array<{ stepNumber: number; delayDays: number; subject: string; body: string }> = [];
+          try {
+            const jsonMatch = genResult.content.match(/\{[\s\S]*\}/);
+            const parsed2 = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+            emails = (parsed2.emails ?? []).slice(0, nEmails);
+          } catch { /* fall back to empty */ }
+
+          // 4. Insert steps (if AI returned them)
+          let insertedSteps: Array<{ id: number; stepNumber: number; subject: string }> = [];
+          if (emails.length > 0) {
+            insertedSteps = await db.insert(emailSequenceStepsTable)
+              .values(emails.map((e) => ({
+                sequenceId: newSeq.id,
+                stepNumber: e.stepNumber,
+                delayDays: e.delayDays,
+                subject: e.subject,
+                body: e.body,
+              })))
+              .returning({ id: emailSequenceStepsTable.id, stepNumber: emailSequenceStepsTable.stepNumber, subject: emailSequenceStepsTable.subject });
+          }
+
+          send({
+            type: "tool_result",
+            tool: "create_email_sequence",
+            data: {
+              ok: true,
+              list: { id: newList.id, name: newList.name },
+              sequence: { id: newSeq.id, name: newSeq.name, status: "active", steps: insertedSteps.length },
+            },
+          });
+
+          await db.insert(systemActivityEventsTable).values({
+            systemInstanceId: instanceId,
+            eventType: "action",
+            description: `Email sequence created: "${newSeq.name}" — ${insertedSteps.length} steps, list "${newList.name}"`,
+            metadata: JSON.stringify({ listId: newList.id, sequenceId: newSeq.id, steps: insertedSteps.length }),
+          });
+
+          structuredData = null;
+        } catch (seqErr) {
+          req.log.warn({ seqErr }, "Failed to create email sequence from ASH create_email_sequence");
         }
       }
     }

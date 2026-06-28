@@ -978,9 +978,12 @@ export async function handleSendGridWebhook(req: Request, res: Response): Promis
            WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 AND campaign_id IS NOT NULL LIMIT 1)`,
           [msgPattern],
         );
+      } else if (eventType === "delivered") {
+        await pool.query(
+          `UPDATE email_deliveries SET status = 'delivered', delivered_at = $1 WHERE message_id LIKE $2 AND status = 'sent'`,
+          [now, msgPattern],
+        );
       }
-      // "delivered" events don't need status change — already marked "sent".
-
     } catch (err) {
       req.log.warn({ err, eventType, messageId }, "SendGrid webhook: error processing event");
     }

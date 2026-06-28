@@ -7,6 +7,7 @@ import { sendPushNotification } from "../lib/push";
 import { desc, sql, eq, and, or, ilike, gte, inArray } from "drizzle-orm";
 import {
   db,
+  pool,
   adminUsersTable,
   adminActivityTable,
   systemHealthTable,
@@ -1515,6 +1516,71 @@ router.post("/admin/push-platform-update", requireAdmin, async (req, res): Promi
   );
 
   res.json({ sent: targets.length });
+});
+
+// ── GET /api/admin/email-health ───────────────────────────────────────────────
+// Platform-wide email delivery health and volume stats for the admin dashboard.
+router.get("/admin/email-health", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const thirtyDay = await pool.query<{
+    total_sent: string; total_delivered: string; total_opened: string;
+    total_clicked: string; total_bounced: string; total_unsubscribed: string;
+    total_failed: string; active_senders: string; today_sent: string;
+  }>(`
+    SELECT
+      COUNT(*) FILTER (WHERE status NOT IN ('failed'))                        AS total_sent,
+      COUNT(*) FILTER (WHERE status = 'delivered')                            AS total_delivered,
+      COUNT(*) FILTER (WHERE status = 'opened'   OR opened_at IS NOT NULL)   AS total_opened,
+      COUNT(*) FILTER (WHERE status = 'clicked'  OR clicked_at IS NOT NULL)  AS total_clicked,
+      COUNT(*) FILTER (WHERE status = 'bounced')                              AS total_bounced,
+      COUNT(*) FILTER (WHERE status = 'unsubscribed')                         AS total_unsubscribed,
+      COUNT(*) FILTER (WHERE status = 'failed')                               AS total_failed,
+      COUNT(DISTINCT user_id)                                                 AS active_senders,
+      COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)                     AS today_sent
+    FROM email_deliveries
+    WHERE created_at > NOW() - INTERVAL '30 days'
+  `);
+
+  const campaignRow = await pool.query<{ total_campaigns: string; sent_campaigns: string }>(`
+    SELECT
+      COUNT(*) AS total_campaigns,
+      COUNT(*) FILTER (WHERE status = 'sent') AS sent_campaigns
+    FROM email_campaigns
+    WHERE created_at > NOW() - INTERVAL '30 days'
+  `);
+
+  const stats = thirtyDay.rows[0] ?? {};
+  const camps = campaignRow.rows[0] ?? {};
+
+  const totalSent      = Number(stats.total_sent ?? 0);
+  const totalDelivered = Number(stats.total_delivered ?? 0);
+  const totalOpened    = Number(stats.total_opened ?? 0);
+  const totalClicked   = Number(stats.total_clicked ?? 0);
+  const totalBounced   = Number(stats.total_bounced ?? 0);
+  const totalFailed    = Number(stats.total_failed ?? 0);
+
+  res.json({
+    period: "last_30_days",
+    volume: {
+      totalSent,
+      totalDelivered,
+      totalFailed,
+      todaySent: Number(stats.today_sent ?? 0),
+      activeSenders: Number(stats.active_senders ?? 0),
+    },
+    engagement: {
+      openRate:        totalDelivered > 0 ? +(totalOpened   / totalDelivered * 100).toFixed(1) : 0,
+      clickRate:       totalDelivered > 0 ? +(totalClicked  / totalDelivered * 100).toFixed(1) : 0,
+      bounceRate:      totalSent > 0      ? +(totalBounced  / totalSent      * 100).toFixed(1) : 0,
+      deliveryRate:    totalSent > 0      ? +(totalDelivered/ totalSent      * 100).toFixed(1) : 0,
+      unsubscribes:    Number(stats.total_unsubscribed ?? 0),
+    },
+    campaigns: {
+      total:  Number(camps.total_campaigns ?? 0),
+      sent:   Number(camps.sent_campaigns  ?? 0),
+    },
+  });
 });
 
 export default router;

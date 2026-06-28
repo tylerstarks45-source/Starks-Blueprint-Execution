@@ -347,7 +347,7 @@ const CreditsPage = () => {
       {/* ── YouTube video background ── */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
         <iframe
-          src="https://www.youtube.com/embed/PeY9pWJ2Mbk?autoplay=1&mute=1&loop=1&playlist=PeY9pWJ2Mbk&controls=0&modestbranding=1&rel=0&vq=hd1080&hd=1&quality=hd1080"
+          src="https://www.youtube.com/embed/hSB6nnzNRGU?autoplay=1&mute=1&loop=1&playlist=hSB6nnzNRGU&controls=0&modestbranding=1&rel=0&vq=hd1080&hd=1&quality=hd1080"
           allow="autoplay; encrypted-media"
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           style={{ width: 'max(100%, 177.78vh)', height: 'max(100%, 56.25vw)', minWidth: '100%', minHeight: '100%', border: 'none' }}

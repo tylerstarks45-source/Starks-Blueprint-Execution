@@ -1,11 +1,11 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import PageMeta from '@/components/PageMeta.jsx';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Filter, ArrowRight, Target, Clock, Zap, ChevronDown,
-  Star, ShoppingBag, Users, PlusCircle, Loader2,
+  Star, ShoppingBag, Users, PlusCircle, Loader2, Rocket, X,
 } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -36,6 +36,7 @@ const StarRating = ({ avg = 0, count = 0 }) => {
 
 const BlueprintsPage = () => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
   const [blueprints, setBlueprints] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -48,6 +49,9 @@ const BlueprintsPage = () => {
   const [minRating, setMinRating] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+
+  const [cloningId, setCloningId] = useState(null);
+  const [toastError, setToastError] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -67,6 +71,45 @@ const BlueprintsPage = () => {
     };
     load();
   }, []);
+
+  const handleQuickDeploy = async (e, bp) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+
+    if (cloningId) return;
+    setCloningId(bp.id);
+    setToastError(null);
+
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch(`/api/blueprints/${bp.id}/clone`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data?.error || `Failed to deploy blueprint (${res.status})`;
+        setToastError(msg);
+        return;
+      }
+
+      navigate(`/builder?systemInstanceId=${data.instance.id}`);
+    } catch {
+      setToastError('Network error — please try again.');
+    } finally {
+      setCloningId(null);
+    }
+  };
 
   const handleFilterToggle = (category, option) => {
     setActiveFilters(prev => {
@@ -124,6 +167,24 @@ const BlueprintsPage = () => {
         description="Step-by-step systems to build real AI-powered income streams. Browse our full blueprint library and start building your automated business today."
       />
       <Header />
+
+      {/* Error toast */}
+      <AnimatePresence>
+        {toastError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 px-5 py-3 bg-rose-500/90 backdrop-blur-xl text-white text-sm font-bold rounded-xl shadow-2xl border border-rose-400/50 max-w-sm"
+          >
+            <span className="flex-grow">{toastError}</span>
+            <button onClick={() => setToastError(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <main className="flex-grow pt-16">
 
         {/* Hero */}
@@ -313,6 +374,7 @@ const BlueprintsPage = () => {
                       const diffBadge = DIFF_COLORS[diffKey] || DIFF_COLORS.intermediate;
                       const srcBadge = SOURCE_BADGE[bp.source] ?? SOURCE_BADGE.platform;
                       const isFree = (bp.priceCredits ?? 0) === 0;
+                      const isCloning = cloningId === bp.id;
                       return (
                         <motion.div
                           layout
@@ -321,10 +383,12 @@ const BlueprintsPage = () => {
                           exit={{ opacity: 0, scale: 0.95 }}
                           transition={{ duration: 0.3, delay: index * 0.04 }}
                           key={bp.id}
+                          className="group flex flex-col h-full overflow-hidden bg-card/90 backdrop-blur-xl border border-white/10 rounded-2xl hover:border-primary/50 transition-all duration-300 shadow-xl hover:shadow-[0_0_20px_rgba(0,212,255,0.3)]"
                         >
+                          {/* Card body — links to blueprint detail */}
                           <Link
                             to={`/blueprints/${bp.slug}`}
-                            className="group flex flex-col h-full overflow-hidden bg-card/90 backdrop-blur-xl border border-white/10 rounded-2xl hover:border-primary/50 transition-all duration-300 shadow-xl hover:shadow-[0_0_20px_rgba(0,212,255,0.3)]"
+                            className="flex flex-col flex-grow"
                           >
                             {/* Badges row */}
                             <div className="p-5 pb-0 flex flex-wrap gap-1.5">
@@ -348,35 +412,48 @@ const BlueprintsPage = () => {
                               <p className="text-sm text-zinc-300 font-medium line-clamp-3 mb-3">
                                 {bp.description || 'AI-powered automation system for building scalable income streams.'}
                               </p>
-                              {/* Avg earnings badge */}
-                            {(bp.avgEarningsCents ?? 0) > 0 && (
-                              <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-1.5 py-0.5 rounded">
-                                <Zap className="w-2.5 h-2.5" />
-                                avg ${(bp.avgEarningsCents / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} earned
-                              </span>
-                            )}
-                            {/* Rating */}
+                              {(bp.avgEarningsCents ?? 0) > 0 && (
+                                <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-1.5 py-0.5 rounded">
+                                  <Zap className="w-2.5 h-2.5" />
+                                  avg ${(bp.avgEarningsCents / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} earned
+                                </span>
+                              )}
                               <StarRating avg={bp.ratingAvg} count={bp.ratingCount} />
                             </div>
-
-                            {/* Footer */}
-                            <div className="p-5 pt-0 mt-auto">
-                              <div className="flex items-center justify-between mb-3">
-                                {/* Price */}
-                                <span className={`text-sm font-bold ${isFree ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                  {isFree ? 'Free' : `${bp.priceCredits} credits`}
-                                </span>
-                                {bp.salesCount > 0 && (
-                                  <span className="flex items-center gap-1 text-xs text-zinc-400">
-                                    <ShoppingBag className="w-3 h-3" /> {bp.salesCount}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="w-full py-2.5 px-4 bg-primary/20 text-primary font-bold text-sm text-center rounded-lg border border-primary/30 group-hover:bg-primary group-hover:text-primary-foreground transition-colors flex items-center justify-center gap-2">
-                                View Blueprint <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                              </div>
-                            </div>
                           </Link>
+
+                          {/* Footer — two CTAs */}
+                          <div className="p-5 pt-0">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className={`text-sm font-bold ${isFree ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                {isFree ? 'Free' : `${bp.priceCredits} credits`}
+                              </span>
+                              {bp.salesCount > 0 && (
+                                <span className="flex items-center gap-1 text-xs text-zinc-400">
+                                  <ShoppingBag className="w-3 h-3" /> {bp.salesCount}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <Link
+                                to={`/blueprints/${bp.slug}`}
+                                className="flex-1 py-2.5 px-3 bg-primary/20 text-primary font-bold text-sm text-center rounded-lg border border-primary/30 hover:bg-primary/30 transition-colors flex items-center justify-center gap-1.5"
+                              >
+                                View <ArrowRight className="w-3.5 h-3.5" />
+                              </Link>
+                              <button
+                                onClick={e => handleQuickDeploy(e, bp)}
+                                disabled={isCloning}
+                                className="flex-1 py-2.5 px-3 bg-violet-500/20 text-violet-300 font-bold text-sm text-center rounded-lg border border-violet-500/30 hover:bg-violet-500/30 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                              >
+                                {isCloning ? (
+                                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Deploying…</>
+                                ) : (
+                                  <><Rocket className="w-3.5 h-3.5" /> Quick Deploy</>
+                                )}
+                              </button>
+                            </div>
+                          </div>
                         </motion.div>
                       );
                     })}

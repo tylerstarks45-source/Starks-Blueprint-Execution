@@ -1,4 +1,4 @@
-import { pool, db, usersTable, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable, abTestsTable, abVariantsTable } from "@workspace/db";
+import { pool, db, usersTable, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable, abTestsTable, abVariantsTable, emailSequencesTable, emailSequenceStepsTable, emailSubscribersTable, emailDeliveriesTable } from "@workspace/db";
 import { eq, and, lte, sql } from "drizzle-orm";
 import { logger } from "../logger";
 import { getConnector } from "../connectors/registry";
@@ -8,6 +8,7 @@ import { sendWeeklyDigestEmail } from "../email";
 import { sendPushNotification } from "../push";
 import { computeNextRunAt as _computeNextRunAt } from "../../routes/scheduled-tasks";
 import { publish, PUBLISHING_CHANNELS } from "../publishing";
+import { sendEmailViaCredentials } from "../sendgrid";
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
@@ -512,6 +513,116 @@ async function processABTests(): Promise<void> {
   }
 }
 
+// ─── Email sequence delivery engine ──────────────────────────────────────────
+// Runs every 5 minutes. Finds active sequences and delivers steps that are due
+// to subscribers based on their subscription date + step delayDays.
+
+const EMAIL_SEQUENCE_INTERVAL_MS = 5 * 60 * 1000;
+let lastEmailSequenceRun = 0;
+
+async function processEmailSequences(): Promise<void> {
+  const now = Date.now();
+  if (now - lastEmailSequenceRun < EMAIL_SEQUENCE_INTERVAL_MS) return;
+  lastEmailSequenceRun = now;
+
+  // Get all active sequences that have a linked list
+  const sequences = await pool.query<{
+    id: number;
+    user_id: number;
+    list_id: number;
+  }>(
+    `SELECT id, user_id, list_id FROM email_sequences WHERE status = 'active' AND list_id IS NOT NULL`,
+  );
+  if (sequences.rowCount === 0) return;
+
+  for (const seq of sequences.rows) {
+    try {
+      // Get all steps for this sequence, ordered by delay
+      const stepsRes = await pool.query<{
+        id: number;
+        step_number: number;
+        subject: string;
+        body: string;
+        delay_days: number;
+      }>(
+        `SELECT id, step_number, subject, body, delay_days FROM email_sequence_steps WHERE sequence_id = $1 ORDER BY step_number`,
+        [seq.id],
+      );
+      if (stepsRes.rowCount === 0) continue;
+      const steps = stepsRes.rows;
+
+      // Get active subscribers in the linked list
+      const subsRes = await pool.query<{
+        id: number;
+        email: string;
+        first_name: string | null;
+        last_name: string | null;
+        created_at: Date;
+      }>(
+        `SELECT id, email, first_name, last_name, created_at FROM email_subscribers WHERE list_id = $1 AND status = 'active'`,
+        [seq.list_id],
+      );
+      if (subsRes.rowCount === 0) continue;
+
+      const nowDate = new Date();
+
+      for (const sub of subsRes.rows) {
+        // Determine which step(s) this subscriber is due for
+        // A step is due when: subscribedAt + delayDays <= now
+        // AND the subscriber hasn't received this step yet
+        for (const step of steps) {
+          const dueAt = new Date(sub.created_at);
+          dueAt.setDate(dueAt.getDate() + step.delay_days);
+          if (dueAt > nowDate) continue; // not due yet
+
+          // Check if already delivered
+          const alreadySent = await pool.query<{ count: string }>(
+            `SELECT COUNT(*) AS count FROM email_deliveries WHERE sequence_id = $1 AND step_id = $2 AND subscriber_id = $3`,
+            [seq.id, step.id, sub.id],
+          );
+          if (parseInt(alreadySent.rows[0]?.count ?? "0", 10) > 0) continue;
+
+          // Send the email
+          const vars: Record<string, string> = {
+            firstName: sub.first_name ?? "",
+            lastName: sub.last_name ?? "",
+            email: sub.email,
+          };
+          const result = await sendEmailViaCredentials({
+            userId: seq.user_id,
+            to: sub.email,
+            subject: step.subject,
+            body: step.body,
+            vars,
+          });
+
+          // Record delivery
+          await db.insert(emailDeliveriesTable).values({
+            userId: seq.user_id,
+            subscriberId: sub.id,
+            sequenceId: seq.id,
+            stepId: step.id,
+            toEmail: sub.email,
+            subject: step.subject,
+            status: result.ok ? "sent" : "failed",
+            messageId: result.messageId ?? null,
+            sentAt: result.ok ? new Date() : null,
+            errorMessage: result.error ?? null,
+          }).catch((err: unknown) => {
+            logger.warn({ err, subId: sub.id, stepId: step.id }, "Failed to record sequence delivery");
+          });
+
+          if (!result.ok) {
+            logger.warn({ seqId: seq.id, stepId: step.id, subId: sub.id, error: result.error }, "Sequence step delivery failed");
+          }
+        }
+      }
+    } catch (err: unknown) {
+      logger.warn({ err, seqId: seq.id }, "Error processing email sequence delivery");
+    }
+  }
+}
+
 // ─── Main scheduler loop ──────────────────────────────────────────────────────
 
 export function startScheduler(): void {
@@ -523,6 +634,7 @@ export function startScheduler(): void {
       await processDueTasks();
       await processABTests();
       await processWeeklyDigest();
+      await processEmailSequences();
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {

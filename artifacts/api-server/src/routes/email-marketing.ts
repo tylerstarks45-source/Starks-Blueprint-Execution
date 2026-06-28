@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { db, pool, emailListsTable, emailSubscribersTable, emailSequencesTable, emailSequenceStepsTable } from "@workspace/db";
+import { eq, and, desc, sql, count } from "drizzle-orm";
+import { db, pool, emailListsTable, emailSubscribersTable, emailSequencesTable, emailSequenceStepsTable, emailDeliveriesTable, emailCampaignsTable, usersTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
+import { sendEmailViaCredentials, batchSend } from "../lib/sendgrid";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -270,6 +271,32 @@ router.post("/email/sequences", async (req, res): Promise<void> => {
   res.status(201).json(serialize(row));
 });
 
+router.patch("/email/sequences/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const seqId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const [seq] = await db.select().from(emailSequencesTable)
+    .where(and(eq(emailSequencesTable.id, seqId), eq(emailSequencesTable.userId, userId)));
+  if (!seq) { res.status(404).json({ error: "Sequence not found" }); return; }
+  const parsed = CreateSequenceBody.partial().extend({ status: z.enum(["draft", "active", "paused"]).optional() }).safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const [row] = await db.update(emailSequencesTable).set(parsed.data)
+    .where(and(eq(emailSequencesTable.id, seqId), eq(emailSequencesTable.userId, userId)))
+    .returning();
+  res.json(serialize(row));
+});
+
+router.delete("/email/sequences/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const seqId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const [row] = await db.delete(emailSequencesTable)
+    .where(and(eq(emailSequencesTable.id, seqId), eq(emailSequencesTable.userId, userId)))
+    .returning();
+  if (!row) { res.status(404).json({ error: "Sequence not found" }); return; }
+  res.sendStatus(204);
+});
+
 router.get("/email/sequences/:id/steps", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
@@ -306,7 +333,50 @@ router.post("/email/sequences/:id/steps", async (req, res): Promise<void> => {
   res.status(201).json(serialize(row));
 });
 
-// ── POST /api/email/sequences/generate — ASH generates a full email sequence ─
+// ── GET /api/email/sequences/:id/stats ───────────────────────────────────────
+router.get("/email/sequences/:id/stats", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const seqId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const [seq] = await db.select().from(emailSequencesTable)
+    .where(and(eq(emailSequencesTable.id, seqId), eq(emailSequencesTable.userId, userId)));
+  if (!seq) { res.status(404).json({ error: "Sequence not found" }); return; }
+
+  const statsRow = await pool.query<{
+    total: string; sent: string; opened: string; clicked: string;
+    bounced: string; unsubscribed: string; failed: string;
+  }>(
+    `SELECT
+      COUNT(*) AS total,
+      COUNT(*) FILTER (WHERE status IN ('sent','opened','clicked')) AS sent,
+      COUNT(*) FILTER (WHERE status = 'opened' OR opened_at IS NOT NULL) AS opened,
+      COUNT(*) FILTER (WHERE status = 'clicked' OR clicked_at IS NOT NULL) AS clicked,
+      COUNT(*) FILTER (WHERE status = 'bounced') AS bounced,
+      COUNT(*) FILTER (WHERE status = 'unsubscribed') AS unsubscribed,
+      COUNT(*) FILTER (WHERE status = 'failed') AS failed
+     FROM email_deliveries WHERE sequence_id = $1`,
+    [seqId],
+  );
+  const r = statsRow.rows[0] ?? { total: "0", sent: "0", opened: "0", clicked: "0", bounced: "0", unsubscribed: "0", failed: "0" };
+  const total = parseInt(r.total, 10);
+  const sent = parseInt(r.sent, 10);
+  const opened = parseInt(r.opened, 10);
+  const clicked = parseInt(r.clicked, 10);
+
+  res.json({
+    total,
+    sent,
+    opened,
+    clicked,
+    bounced: parseInt(r.bounced, 10),
+    unsubscribed: parseInt(r.unsubscribed, 10),
+    failed: parseInt(r.failed, 10),
+    openRate: sent > 0 ? Math.round((opened / sent) * 1000) / 10 : 0,
+    clickRate: sent > 0 ? Math.round((clicked / sent) * 1000) / 10 : 0,
+  });
+});
+
+// ── POST /api/email/sequences/generate ───────────────────────────────────────
 router.post("/email/sequences/generate", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
@@ -370,15 +440,46 @@ Make each email valuable, build trust, and drive the goal. Use proven email mark
   res.json({ steps: serialize(steps) });
 });
 
+// ── POST /api/email/sequences/:id/preview ────────────────────────────────────
+// Sends step 1 (or the specified stepNumber) to the authenticated user's own email.
+router.post("/email/sequences/:id/preview", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const seqId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const { stepNumber = 1 } = req.body as { stepNumber?: number };
+
+  const [seq] = await db.select().from(emailSequencesTable)
+    .where(and(eq(emailSequencesTable.id, seqId), eq(emailSequencesTable.userId, userId)));
+  if (!seq) { res.status(404).json({ error: "Sequence not found" }); return; }
+
+  const [step] = await db.select().from(emailSequenceStepsTable)
+    .where(and(eq(emailSequenceStepsTable.sequenceId, seqId), eq(emailSequenceStepsTable.stepNumber, stepNumber)));
+  if (!step) { res.status(404).json({ error: `Step ${stepNumber} not found` }); return; }
+
+  const [user] = await db.select({ email: usersTable.email, name: usersTable.name })
+    .from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  const result = await sendEmailViaCredentials({
+    userId,
+    to: user.email,
+    subject: `[PREVIEW] ${step.subject}`,
+    body: step.body,
+    fromName: "SBEP Preview",
+    vars: { firstName: user.name?.split(" ")[0] ?? "Subscriber", lastName: "", email: user.email },
+  });
+
+  if (!result.ok) {
+    res.status(502).json({ error: result.error ?? "Send failed" });
+    return;
+  }
+
+  res.json({ ok: true, sentTo: user.email, subject: step.subject });
+});
+
 // ── POST /api/email/sequences/:id/broadcast ───────────────────────────────────
-// Starts a broadcast send for a sequence. When an active email_subject A/B test is
-// linked to this sequence (via test.config.sequenceId), subscribers are assigned to
-// variants using a deterministic 1/N even allocator (pick variant with fewest visits).
-// The variant's subject line is returned per subscriber so callers can send the correct
-// email. Variant visit counts are incremented to track send exposure.
-//
-// Open events should be reported via POST /api/ab-tests/convert with
-// eventType "email_open" and the variant's test token for winner selection.
+// Sends the specified step to all active subscribers in the linked list.
+// Performs actual delivery via SendGrid and records each send in email_deliveries.
 const BroadcastBody = z.object({
   stepNumber: z.number().int().min(1).default(1),
 });
@@ -400,7 +501,6 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
   }
   const { stepNumber } = parsed.data;
 
-  // Verify user owns this sequence
   const [seq] = await db.select().from(emailSequencesTable)
     .where(and(eq(emailSequencesTable.id, seqId), eq(emailSequencesTable.userId, userId)));
   if (!seq) {
@@ -408,7 +508,6 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
     return;
   }
 
-  // Fetch the requested step
   const [step] = await db.select().from(emailSequenceStepsTable)
     .where(and(
       eq(emailSequenceStepsTable.sequenceId, seqId),
@@ -419,15 +518,16 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
     return;
   }
 
-  // Fetch all active subscribers for the linked list
   if (!seq.listId) {
     res.status(400).json({ error: "Sequence has no linked list. Attach a list before broadcasting." });
     return;
   }
+
   const subscribers = await db.select({
     id: emailSubscribersTable.id,
     email: emailSubscribersTable.email,
     firstName: emailSubscribersTable.firstName,
+    lastName: emailSubscribersTable.lastName,
   }).from(emailSubscribersTable)
     .where(and(
       eq(emailSubscribersTable.listId, seq.listId),
@@ -435,12 +535,11 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
     ));
 
   if (subscribers.length === 0) {
-    res.json({ sent: 0, abTest: null, assignments: [] });
+    res.json({ sent: 0, failed: 0, message: "No active subscribers in list" });
     return;
   }
 
   // ── A/B subject split ────────────────────────────────────────────────────────
-  // Check for a running email_subject test linked to this sequence.
   const abRows = await pool.query<{ id: number; token: string }>(
     `SELECT id, token FROM ab_tests
      WHERE status = 'running' AND type = 'email_subject'
@@ -448,103 +547,361 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
      LIMIT 1`,
     [seqId],
   );
+  const abTestInfo = abRows.rowCount && abRows.rowCount > 0 ? (abRows.rows[0] ?? null) : null;
 
-  let abTestInfo: { id: number; token: string } | null =
-    abRows.rowCount && abRows.rowCount > 0 ? (abRows.rows[0] ?? null) : null;
-
-  // Build per-subscriber assignments
-  type Assignment = {
-    subscriberId: number;
-    email: string;
-    firstName: string | null;
-    subject: string;
-    body: string;
-    abVariantId: number | null;
-    abToken: string | null;
-  };
-
-  const assignments: Assignment[] = [];
+  let subjectFor: (sub: { id: number }) => string = () => step.subject;
 
   if (abTestInfo) {
-    // Fetch all active variants — subject line is stored in content_ref
-    const variantRows = await pool.query<{ id: number; name: string; visits: number; contentRef: string }>(
-      `SELECT id, name, visits, content_ref AS "contentRef" FROM ab_variants
-       WHERE test_id = $1 AND status = 'active'
-       ORDER BY id ASC`,
+    const variantRows = await pool.query<{ id: number; visits: number; contentRef: string }>(
+      `SELECT id, visits, content_ref AS "contentRef" FROM ab_variants WHERE test_id = $1 AND status = 'active' ORDER BY id`,
       [abTestInfo.id],
     );
     const variants = variantRows.rows;
-
-    if (variants.length < 2) {
-      // Not enough variants — fall back to default subject
-      abTestInfo = null;
-    } else {
-      // 1/N even allocator: assign each subscriber to the variant with fewest visits so far.
-      // We track running totals locally so ties are broken round-robin across the batch.
+    if (variants.length >= 2) {
       const runningVisits = new Map<number, number>(variants.map(v => [v.id, v.visits]));
-
+      const assignMap = new Map<number, string>();
       for (const sub of subscribers) {
-        // Pick variant with fewest running visits
         let chosen = variants[0]!;
         for (const v of variants) {
-          if ((runningVisits.get(v.id) ?? 0) < (runningVisits.get(chosen.id) ?? 0)) {
-            chosen = v;
-          }
+          if ((runningVisits.get(v.id) ?? 0) < (runningVisits.get(chosen.id) ?? 0)) chosen = v;
         }
         runningVisits.set(chosen.id, (runningVisits.get(chosen.id) ?? 0) + 1);
-
-        // The variant's subject line is stored in content_ref (set by generate-variants)
-        const variantSubject = (chosen.contentRef && chosen.contentRef.trim().length > 0)
-          ? chosen.contentRef
-          : step.subject;
-
-        assignments.push({
-          subscriberId: sub.id,
-          email: sub.email,
-          firstName: sub.firstName ?? null,
-          subject: variantSubject,
-          body: step.body,
-          abVariantId: chosen.id,
-          abToken: abTestInfo.token,
-        });
+        assignMap.set(sub.id, (chosen.contentRef && chosen.contentRef.trim()) ? chosen.contentRef : step.subject);
       }
-
-      // Persist incremented visit counts in bulk (one UPDATE per variant)
-      await Promise.all(
-        variants.map(v => {
-          const delta = (runningVisits.get(v.id) ?? 0) - v.visits;
-          if (delta <= 0) return Promise.resolve();
-          return pool.query(
-            `UPDATE ab_variants SET visits = visits + $1 WHERE id = $2`,
-            [delta, v.id],
-          );
-        }),
-      );
+      await Promise.all(variants.map(v => {
+        const delta = (runningVisits.get(v.id) ?? 0) - v.visits;
+        if (delta <= 0) return Promise.resolve();
+        return pool.query(`UPDATE ab_variants SET visits = visits + $1 WHERE id = $2`, [delta, v.id]);
+      }));
+      subjectFor = (sub) => assignMap.get(sub.id) ?? step.subject;
     }
   }
 
-  // Fall back: no A/B test — everyone gets the default step subject
-  if (!abTestInfo) {
-    for (const sub of subscribers) {
-      assignments.push({
-        subscriberId: sub.id,
-        email: sub.email,
-        firstName: sub.firstName ?? null,
-        subject: step.subject,
-        body: step.body,
-        abVariantId: null,
-        abToken: null,
-      });
+  // Respond immediately with 202 — sending happens in background.
+  res.status(202).json({ queued: subscribers.length, message: "Broadcast started in background" });
+
+  // Fire-and-forget delivery
+  setImmediate(async () => {
+    let sentCount = 0;
+    let failedCount = 0;
+    const CONCURRENCY = 10;
+
+    for (let i = 0; i < subscribers.length; i += CONCURRENCY) {
+      const chunk = subscribers.slice(i, i + CONCURRENCY);
+      await Promise.all(chunk.map(async (sub) => {
+        const subject = subjectFor(sub);
+        try {
+          const result = await sendEmailViaCredentials({
+            userId,
+            to: sub.email,
+            subject,
+            body: step.body,
+            vars: { firstName: sub.firstName ?? "", lastName: sub.lastName ?? "", email: sub.email },
+          });
+          await db.insert(emailDeliveriesTable).values({
+            userId,
+            subscriberId: sub.id,
+            sequenceId: seqId,
+            stepId: step.id,
+            toEmail: sub.email,
+            subject,
+            status: result.ok ? "sent" : "failed",
+            messageId: result.messageId ?? null,
+            sentAt: result.ok ? new Date() : null,
+            errorMessage: result.error ?? null,
+          });
+          if (result.ok) sentCount++; else failedCount++;
+        } catch (err) {
+          failedCount++;
+          await db.insert(emailDeliveriesTable).values({
+            userId,
+            subscriberId: sub.id,
+            sequenceId: seqId,
+            stepId: step.id,
+            toEmail: sub.email,
+            subject,
+            status: "failed",
+            errorMessage: err instanceof Error ? err.message : String(err),
+          }).catch(() => { /* non-fatal */ });
+        }
+      }));
     }
+    req.log?.info({ seqId, stepNumber, sentCount, failedCount }, "Broadcast complete");
+  });
+});
+
+// ── CAMPAIGNS ────────────────────────────────────────────────────────────────
+
+const CreateCampaignBody = z.object({
+  name: z.string().min(1).max(200),
+  subject: z.string().min(1).max(300),
+  body: z.string().min(1),
+  fromName: z.string().optional(),
+  listId: z.number().int().optional(),
+});
+
+router.get("/email/campaigns", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const rows = await db.select().from(emailCampaignsTable)
+    .where(eq(emailCampaignsTable.userId, userId))
+    .orderBy(desc(emailCampaignsTable.createdAt));
+  res.json(serialize(rows));
+});
+
+router.post("/email/campaigns", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const parsed = CreateCampaignBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
   }
+  const [row] = await db.insert(emailCampaignsTable).values({ userId, ...parsed.data }).returning();
+  res.status(201).json(serialize(row));
+});
+
+router.patch("/email/campaigns/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const [camp] = await db.select().from(emailCampaignsTable)
+    .where(and(eq(emailCampaignsTable.id, id), eq(emailCampaignsTable.userId, userId)));
+  if (!camp) { res.status(404).json({ error: "Campaign not found" }); return; }
+  if (camp.status === "sent") { res.status(409).json({ error: "Cannot edit a sent campaign" }); return; }
+  const parsed = CreateCampaignBody.partial().safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const [row] = await db.update(emailCampaignsTable).set(parsed.data)
+    .where(and(eq(emailCampaignsTable.id, id), eq(emailCampaignsTable.userId, userId)))
+    .returning();
+  res.json(serialize(row));
+});
+
+router.delete("/email/campaigns/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const [row] = await db.delete(emailCampaignsTable)
+    .where(and(eq(emailCampaignsTable.id, id), eq(emailCampaignsTable.userId, userId)))
+    .returning();
+  if (!row) { res.status(404).json({ error: "Campaign not found" }); return; }
+  res.sendStatus(204);
+});
+
+// ── POST /api/email/campaigns/:id/send ───────────────────────────────────────
+// Blast a campaign to all active subscribers in its linked list.
+router.post("/email/campaigns/:id/send", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+
+  const [camp] = await db.select().from(emailCampaignsTable)
+    .where(and(eq(emailCampaignsTable.id, id), eq(emailCampaignsTable.userId, userId)));
+  if (!camp) { res.status(404).json({ error: "Campaign not found" }); return; }
+  if (camp.status === "sent") { res.status(409).json({ error: "Campaign already sent" }); return; }
+  if (!camp.listId) { res.status(400).json({ error: "Campaign has no linked list" }); return; }
+
+  const subscribers = await db.select({
+    id: emailSubscribersTable.id,
+    email: emailSubscribersTable.email,
+    firstName: emailSubscribersTable.firstName,
+    lastName: emailSubscribersTable.lastName,
+  }).from(emailSubscribersTable)
+    .where(and(eq(emailSubscribersTable.listId, camp.listId), eq(emailSubscribersTable.status, "active")));
+
+  if (subscribers.length === 0) {
+    res.json({ sent: 0, failed: 0, message: "No active subscribers" });
+    return;
+  }
+
+  // Mark as sending and respond
+  await db.update(emailCampaignsTable)
+    .set({ status: "sending", sentAt: new Date() })
+    .where(eq(emailCampaignsTable.id, id));
+
+  res.status(202).json({ queued: subscribers.length, message: "Campaign send started in background" });
+
+  // Fire-and-forget delivery
+  setImmediate(async () => {
+    let sentCount = 0;
+    let failedCount = 0;
+    const CONCURRENCY = 10;
+
+    for (let i = 0; i < subscribers.length; i += CONCURRENCY) {
+      const chunk = subscribers.slice(i, i + CONCURRENCY);
+      await Promise.all(chunk.map(async (sub) => {
+        try {
+          const result = await sendEmailViaCredentials({
+            userId,
+            to: sub.email,
+            subject: camp.subject,
+            body: camp.body,
+            fromName: camp.fromName ?? undefined,
+            vars: { firstName: sub.firstName ?? "", lastName: sub.lastName ?? "", email: sub.email },
+          });
+          await db.insert(emailDeliveriesTable).values({
+            userId,
+            subscriberId: sub.id,
+            campaignId: id,
+            toEmail: sub.email,
+            subject: camp.subject,
+            status: result.ok ? "sent" : "failed",
+            messageId: result.messageId ?? null,
+            sentAt: result.ok ? new Date() : null,
+            errorMessage: result.error ?? null,
+          });
+          if (result.ok) sentCount++; else failedCount++;
+        } catch (err) {
+          failedCount++;
+          await db.insert(emailDeliveriesTable).values({
+            userId,
+            subscriberId: sub.id,
+            campaignId: id,
+            toEmail: sub.email,
+            subject: camp.subject,
+            status: "failed",
+            errorMessage: err instanceof Error ? err.message : String(err),
+          }).catch(() => { /* non-fatal */ });
+        }
+      }));
+    }
+
+    // Update campaign counters
+    await db.update(emailCampaignsTable)
+      .set({
+        status: "sent",
+        sentCount,
+        failedCount,
+      })
+      .where(eq(emailCampaignsTable.id, id));
+
+    req.log?.info({ campaignId: id, sentCount, failedCount }, "Campaign send complete");
+  });
+});
+
+// ── GET /api/email/campaigns/:id/stats ───────────────────────────────────────
+router.get("/email/campaigns/:id/stats", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const [camp] = await db.select().from(emailCampaignsTable)
+    .where(and(eq(emailCampaignsTable.id, id), eq(emailCampaignsTable.userId, userId)));
+  if (!camp) { res.status(404).json({ error: "Campaign not found" }); return; }
+
+  const statsRow = await pool.query<{
+    total: string; opened: string; clicked: string; bounced: string; unsubscribed: string; failed: string;
+  }>(
+    `SELECT
+      COUNT(*) AS total,
+      COUNT(*) FILTER (WHERE status = 'opened' OR opened_at IS NOT NULL) AS opened,
+      COUNT(*) FILTER (WHERE status = 'clicked' OR clicked_at IS NOT NULL) AS clicked,
+      COUNT(*) FILTER (WHERE status = 'bounced') AS bounced,
+      COUNT(*) FILTER (WHERE status = 'unsubscribed') AS unsubscribed,
+      COUNT(*) FILTER (WHERE status = 'failed') AS failed
+     FROM email_deliveries WHERE campaign_id = $1`,
+    [id],
+  );
+  const r = statsRow.rows[0] ?? { total: "0", opened: "0", clicked: "0", bounced: "0", unsubscribed: "0", failed: "0" };
+  const sent = camp.sentCount;
+  const opened = parseInt(r.opened, 10);
+  const clicked = parseInt(r.clicked, 10);
 
   res.json({
-    sent: assignments.length,
-    abTest: abTestInfo
-      ? { testId: abTestInfo.id, token: abTestInfo.token, note: "Report opens via POST /api/ab-tests/convert with eventType=email_open" }
-      : null,
-    assignments,
+    ...serialize(camp),
+    opened,
+    clicked,
+    bounced: parseInt(r.bounced, 10),
+    unsubscribed: parseInt(r.unsubscribed, 10),
+    failed: parseInt(r.failed, 10),
+    openRate: sent > 0 ? Math.round((opened / sent) * 1000) / 10 : 0,
+    clickRate: sent > 0 ? Math.round((clicked / sent) * 1000) / 10 : 0,
   });
+});
+
+// ── POST /api/email/webhooks/sendgrid ────────────────────────────────────────
+// Receives SendGrid Event Webhook payloads to update delivery stats.
+// No auth — verified by presence of sg-event-id header.
+// Configure in SendGrid: Settings → Mail Settings → Event Webhook
+router.post("/email/webhooks/sendgrid", async (req, res): Promise<void> => {
+  const events = Array.isArray(req.body) ? req.body : [req.body];
+  req.log.info({ count: events.length }, "SendGrid webhook: received events");
+
+  for (const evt of events) {
+    const event = evt as Record<string, unknown>;
+    const messageId = (event["sg_message_id"] as string | undefined)?.split(".")[0];
+    const eventType = event["event"] as string | undefined;
+    if (!messageId || !eventType) continue;
+
+    try {
+      const now = new Date();
+      if (eventType === "open") {
+        await pool.query(
+          `UPDATE email_deliveries SET status = 'opened', opened_at = COALESCE(opened_at, $1) WHERE message_id LIKE $2`,
+          [now, `${messageId}%`],
+        );
+        // Update campaign open counter
+        await pool.query(
+          `UPDATE email_campaigns ec SET open_count = open_count + 1
+           WHERE ec.id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1)
+             AND (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1) IS NOT NULL`,
+          [`${messageId}%`],
+        );
+      } else if (eventType === "click") {
+        await pool.query(
+          `UPDATE email_deliveries SET status = 'clicked', clicked_at = COALESCE(clicked_at, $1) WHERE message_id LIKE $2`,
+          [now, `${messageId}%`],
+        );
+        await pool.query(
+          `UPDATE email_campaigns SET click_count = click_count + 1
+           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1)
+             AND (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1) IS NOT NULL`,
+          [`${messageId}%`],
+        );
+      } else if (eventType === "bounce" || eventType === "dropped") {
+        await pool.query(
+          `UPDATE email_deliveries SET status = 'bounced', bounced_at = $1 WHERE message_id LIKE $2`,
+          [now, `${messageId}%`],
+        );
+        // Mark subscriber as bounced
+        await pool.query(
+          `UPDATE email_subscribers SET status = 'bounced'
+           WHERE id = (SELECT subscriber_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1)
+             AND (SELECT subscriber_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1) IS NOT NULL`,
+          [`${messageId}%`],
+        );
+        await pool.query(
+          `UPDATE email_campaigns SET bounce_count = bounce_count + 1
+           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1)
+             AND (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1) IS NOT NULL`,
+          [`${messageId}%`],
+        );
+      } else if (eventType === "unsubscribe" || eventType === "group_unsubscribe") {
+        const toEmail = event["email"] as string | undefined;
+        await pool.query(
+          `UPDATE email_deliveries SET status = 'unsubscribed', unsubscribed_at = $1 WHERE message_id LIKE $2`,
+          [now, `${messageId}%`],
+        );
+        if (toEmail) {
+          await pool.query(
+            `UPDATE email_subscribers SET status = 'unsubscribed' WHERE email = $1`,
+            [toEmail],
+          );
+        }
+        await pool.query(
+          `UPDATE email_campaigns SET unsubscribe_count = unsubscribe_count + 1
+           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1)
+             AND (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1) IS NOT NULL`,
+          [`${messageId}%`],
+        );
+      } else if (eventType === "delivered") {
+        // Confirm delivery — already marked sent, no status change needed
+      }
+    } catch (err) {
+      req.log.warn({ err, eventType, messageId }, "SendGrid webhook: error processing event");
+    }
+  }
+
+  res.json({ ok: true, processed: events.length });
 });
 
 export default router;

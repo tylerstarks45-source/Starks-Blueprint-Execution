@@ -103,6 +103,14 @@ function PageCard({ page, onEdit, onDelete, onPublishToggle, onPreview, copied, 
         <div className="flex items-center gap-3 text-[10px] text-white/30 font-mono mb-3">
           <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3" />{page.pageViews} views</span>
           <span className="text-white/12">·</span>
+          <span className="flex items-center gap-1 text-emerald-400/60">{page.optins ?? 0} opt-ins</span>
+          {page.pageViews > 0 && (
+            <>
+              <span className="text-white/12">·</span>
+              <span className="text-sky-400/60">{((page.optins ?? 0) / page.pageViews * 100).toFixed(1)}% CVR</span>
+            </>
+          )}
+          <span className="text-white/12">·</span>
           <span>{new Date(page.updatedAt).toLocaleDateString()}</span>
         </div>
 
@@ -354,11 +362,12 @@ export default function LandingPagesPage() {
         </div>
 
         {/* Stats bar */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
             { label: 'Total Pages', value: pages.length, color: 'text-violet-400' },
             { label: 'Published', value: pages.filter(p => p.isPublished).length, color: 'text-emerald-400' },
             { label: 'Total Views', value: pages.reduce((a, p) => a + (p.pageViews || 0), 0).toLocaleString(), color: 'text-sky-400' },
+            { label: 'Total Opt-ins', value: pages.reduce((a, p) => a + (p.optins || 0), 0).toLocaleString(), color: 'text-amber-400' },
           ].map(s => (
             <div key={s.label} className="rounded-xl border border-white/8 bg-white/2 p-4 text-center">
               <div className={`text-2xl font-bold font-mono ${s.color}`}>{s.value}</div>

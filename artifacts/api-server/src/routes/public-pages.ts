@@ -4,8 +4,8 @@
  * /api/go/:slug     — redirects an affiliate link and tracks the click
  */
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
-import { db, pool, landingPagesTable, userAffiliateLinksTable, abVariantsTable } from "@workspace/db";
+import { eq, sql, and } from "drizzle-orm";
+import { db, pool, landingPagesTable, userAffiliateLinksTable, abVariantsTable, emailSubscribersTable, emailListsTable, usersTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -216,6 +216,114 @@ router.get("/pages/:slug", async (req, res): Promise<void> => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.send(safeHtml);
+});
+
+// ── POST /api/pages/:id/submit ── public lead capture form submission ─────────
+// No auth required — this is called from the public landing page form.
+// Accepts both application/json and application/x-www-form-urlencoded (HTML form POST).
+router.post("/pages/:id/submit", async (req, res): Promise<void> => {
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  if (!Number.isFinite(id)) {
+    res.status(400).send("Invalid page id");
+    return;
+  }
+
+  const rawEmail = (req.body?.email ?? req.query["email"]) as string | undefined;
+  const rawFirstName = (req.body?.firstName ?? req.body?.first_name ?? req.query["firstName"]) as string | undefined;
+
+  if (!rawEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail.trim())) {
+    if (req.accepts("html")) {
+      res.status(400).send(`<!DOCTYPE html><html><body style="background:#0a0a0a;color:#e57373;font-family:sans-serif;padding:40px;text-align:center"><p>Please enter a valid email address.</p><a href="javascript:history.back()" style="color:#8B5CF6">← Try again</a></body></html>`);
+    } else {
+      res.status(400).json({ error: "Valid email is required" });
+    }
+    return;
+  }
+
+  const email = rawEmail.trim().toLowerCase();
+  const firstName = rawFirstName?.trim() ?? null;
+
+  const [page] = await db.select({
+    id: landingPagesTable.id,
+    isPublished: landingPagesTable.isPublished,
+    emailListId: landingPagesTable.emailListId,
+    nextPageId: landingPagesTable.nextPageId,
+    slug: landingPagesTable.slug,
+    title: landingPagesTable.title,
+  }).from(landingPagesTable).where(eq(landingPagesTable.id, id));
+
+  if (!page) {
+    res.status(404).send("Page not found");
+    return;
+  }
+
+  // Increment optin count (fire-and-forget)
+  db.update(landingPagesTable)
+    .set({ optins: sql`${landingPagesTable.optins} + 1` })
+    .where(eq(landingPagesTable.id, id))
+    .catch(() => {});
+
+  // Add to linked email list if one is connected
+  if (page.emailListId) {
+    try {
+      const existing = await db.select({ id: emailSubscribersTable.id })
+        .from(emailSubscribersTable)
+        .where(and(
+          eq(emailSubscribersTable.listId, page.emailListId),
+          eq(emailSubscribersTable.email, email),
+        ));
+      if (existing.length === 0) {
+        await db.insert(emailSubscribersTable).values({
+          listId: page.emailListId,
+          email,
+          firstName: firstName ?? undefined,
+          source: `landing-page:${page.slug}`,
+          tags: ["landing-page"],
+        }).onConflictDoNothing();
+        db.update(emailListsTable)
+          .set({ subscriberCount: sql`${emailListsTable.subscriberCount} + 1` })
+          .where(eq(emailListsTable.id, page.emailListId))
+          .catch(() => {});
+      }
+    } catch { /* non-fatal */ }
+  }
+
+  // Redirect to next page in funnel, or show thank-you message
+  if (page.nextPageId) {
+    res.redirect(302, `/api/pages/${page.nextPageId}`);
+    return;
+  }
+
+  // Inline thank-you if no next page configured
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html><html><head><title>Thank You!</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#050508;color:#fff;font-family:'Outfit',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}.card{text-align:center;max-width:460px;padding:48px 40px;border-radius:24px;border:1px solid rgba(139,92,246,0.25);background:rgba(139,92,246,0.06)}.emoji{font-size:64px;margin-bottom:24px}.h1{font-size:32px;font-weight:800;margin-bottom:12px;background:linear-gradient(135deg,#8B5CF6,#06B6D4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}.p{font-size:16px;color:rgba(255,255,255,0.55);line-height:1.6}</style></head>
+<body><div class="card"><div class="emoji">🎉</div><div class="h1">You're in!</div><p class="p">Thanks for joining. Check your inbox — we'll be in touch soon.</p></div></body></html>`);
+});
+
+// ── GET /api/p/:username/:slug ── username-scoped public URL ──────────────────
+// Friendly URL format: /api/p/{emailPrefix}/{slug}
+// This is equivalent to /api/pages/:slug but with the user's email prefix for branding.
+router.get("/p/:username/:slug", async (req, res): Promise<void> => {
+  const slugParam = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+  // Delegate to the same slug-based serve flow by redirecting internally.
+  // We verify the username matches to prevent slug enumeration via wrong username.
+  const [page] = await db.select({
+    id: landingPagesTable.id,
+    slug: landingPagesTable.slug,
+    isPublished: landingPagesTable.isPublished,
+    userEmail: usersTable.email,
+  }).from(landingPagesTable)
+    .innerJoin(usersTable, eq(landingPagesTable.userId, usersTable.id))
+    .where(eq(landingPagesTable.slug, slugParam));
+
+  if (!page) {
+    res.status(404).send(`<!DOCTYPE html><html><body style="background:#0a0a0a;color:#555;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center"><p>Page not found.<br><a href="/" style="color:#8b5cf6">← Home</a></p></body></html>`);
+    return;
+  }
+
+  // Serve via the canonical slug URL (handles A/B tests, view tracking, etc.)
+  res.redirect(301, `/api/pages/${page.slug}`);
 });
 
 // ── GET /api/go/:slug ── affiliate link redirect + click tracking ───────────

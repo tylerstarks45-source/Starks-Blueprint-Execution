@@ -1,6 +1,7 @@
 import { pgTable, serial, text, integer, boolean, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { systemInstancesTable } from "./system_instances";
+import { emailListsTable } from "./email_marketing";
 
 export const landingPagesTable = pgTable("landing_pages", {
   id: serial("id").primaryKey(),
@@ -15,7 +16,10 @@ export const landingPagesTable = pgTable("landing_pages", {
   isPublished: boolean("is_published").notNull().default(false),
   publishedAt: timestamp("published_at", { withTimezone: true }),
   pageViews: integer("page_views").notNull().default(0),
+  optins: integer("optins").notNull().default(0),
   customDomain: text("custom_domain"),
+  nextPageId: integer("next_page_id"),
+  emailListId: integer("email_list_id").references(() => emailListsTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

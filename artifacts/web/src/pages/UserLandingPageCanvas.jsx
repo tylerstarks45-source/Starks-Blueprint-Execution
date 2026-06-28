@@ -6,7 +6,7 @@ import {
   Monitor, Smartphone, Palette, Layout, ChevronDown, ChevronUp,
   CheckSquare, Square, Loader2, Copy, Check, ExternalLink, Wand2,
   Type, Image, Users, Star, HelpCircle, PhoneCall, DollarSign,
-  Zap, LayoutTemplate, Send,
+  Zap, LayoutTemplate, Send, Link2, Mail, ArrowRight, BarChart3, TrendingUp,
 } from 'lucide-react';
 
 const API = '/api';
@@ -61,6 +61,12 @@ export default function UserLandingPageCanvas() {
   const [brandOpen, setBrandOpen] = useState(false);
   const [promptOpen, setPromptOpen] = useState(true);
   const [toast, setToast] = useState(null);
+  const [funnelOpen, setFunnelOpen] = useState(false);
+  const [emailLists, setEmailLists] = useState([]);
+  const [allPages, setAllPages] = useState([]);
+  const [savingFunnel, setSavingFunnel] = useState(false);
+  const [funnelEmailListId, setFunnelEmailListId] = useState(null);
+  const [funnelNextPageId, setFunnelNextPageId] = useState(null);
 
   const [prompt, setPrompt] = useState('');
   const [pageType, setPageType] = useState('affiliate');
@@ -100,6 +106,24 @@ export default function UserLandingPageCanvas() {
       iframeRef.current.srcdoc = page.htmlContent;
     }
   }, [page?.htmlContent]);
+
+  useEffect(() => {
+    if (!id) return;
+    Promise.all([
+      fetch(`${API}/landing-pages/email-lists`, { headers: authHeaders() }).then(r => r.ok ? r.json() : []),
+      fetch(`${API}/landing-pages`, { headers: authHeaders() }).then(r => r.ok ? r.json() : []),
+    ]).then(([lists, pages]) => {
+      setEmailLists(Array.isArray(lists) ? lists : []);
+      setAllPages(Array.isArray(pages) ? pages.filter(p => p.id !== parseInt(id, 10)) : []);
+    }).catch(() => {});
+  }, [id]);
+
+  useEffect(() => {
+    if (page) {
+      setFunnelEmailListId(page.emailListId ?? null);
+      setFunnelNextPageId(page.nextPageId ?? null);
+    }
+  }, [page?.emailListId, page?.nextPageId]);
 
   function buildPromptWithSections() {
     const active = SECTIONS.filter(s => enabledSections[s.id]).map(s => s.label);
@@ -183,6 +207,25 @@ export default function UserLandingPageCanvas() {
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleSaveFunnelSettings() {
+    setSavingFunnel(true);
+    try {
+      const body = {
+        emailListId: funnelEmailListId ?? null,
+        nextPageId: funnelNextPageId ?? null,
+      };
+      const res = await fetch(`${API}/landing-pages/${id}`, {
+        method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const updated = await res.json();
+      setPage(updated);
+      showToast('Funnel settings saved!');
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally { setSavingFunnel(false); }
   }
 
   function toggleSection(id) {
@@ -458,6 +501,106 @@ export default function UserLandingPageCanvas() {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Funnel settings */}
+          <div className="border-b border-white/8">
+            <button
+              onClick={() => setFunnelOpen(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-white/80 hover:text-white hover:bg-white/3 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Link2 className="w-4 h-4 text-rose-400" />
+                Funnel Settings
+                {page?.optins > 0 && (
+                  <span className="text-xs bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded-full">
+                    {page.optins} opt-ins
+                  </span>
+                )}
+              </span>
+              {funnelOpen ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
+            </button>
+            {funnelOpen && (
+              <div className="px-4 pb-4 space-y-4">
+                {/* Analytics mini row */}
+                {page && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-white/4 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-mono font-bold text-white">{page.pageViews ?? 0}</p>
+                      <p className="text-xs text-white/30 flex items-center justify-center gap-1 mt-0.5"><BarChart3 className="w-3 h-3"/>Views</p>
+                    </div>
+                    <div className="bg-white/4 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-mono font-bold text-rose-300">{page.optins ?? 0}</p>
+                      <p className="text-xs text-white/30 flex items-center justify-center gap-1 mt-0.5"><Mail className="w-3 h-3"/>Opt-ins</p>
+                    </div>
+                    <div className="bg-white/4 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-mono font-bold text-emerald-300">
+                        {page.pageViews > 0 ? `${((page.optins ?? 0) / page.pageViews * 100).toFixed(1)}%` : '—'}
+                      </p>
+                      <p className="text-xs text-white/30 flex items-center justify-center gap-1 mt-0.5"><TrendingUp className="w-3 h-3"/>CVR</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Public link */}
+                {page?.isPublished && page?.slug && (
+                  <div>
+                    <p className="text-xs text-white/40 mb-1.5">Public URL</p>
+                    <div className="flex items-center gap-2 bg-white/4 rounded-xl px-3 py-2">
+                      <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="text-xs text-white/50 font-mono truncate flex-1">/api/pages/{page.slug}</span>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/api/pages/${page.slug}`); showToast('Copied!'); }}
+                        className="shrink-0 text-white/30 hover:text-white/70 transition-colors"
+                      ><Copy className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Email list */}
+                <div>
+                  <label className="block text-xs text-white/40 mb-1.5 flex items-center gap-1.5">
+                    <Mail className="w-3 h-3" /> Capture leads to Email List
+                  </label>
+                  <select
+                    value={funnelEmailListId ?? ''}
+                    onChange={e => setFunnelEmailListId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white/80 focus:outline-none focus:border-violet-500/50"
+                  >
+                    <option value="">— None —</option>
+                    {emailLists.map(l => (
+                      <option key={l.id} value={l.id}>{l.name} ({l.subscriberCount ?? 0} subs)</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Next page */}
+                <div>
+                  <label className="block text-xs text-white/40 mb-1.5 flex items-center gap-1.5">
+                    <ArrowRight className="w-3 h-3" /> After submit, go to page
+                  </label>
+                  <select
+                    value={funnelNextPageId ?? ''}
+                    onChange={e => setFunnelNextPageId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white/80 focus:outline-none focus:border-violet-500/50"
+                  >
+                    <option value="">— Stay on page (show thank-you inline) —</option>
+                    {allPages.map(p => (
+                      <option key={p.id} value={p.id}>{p.title}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={handleSaveFunnelSettings}
+                  disabled={savingFunnel}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-medium hover:bg-rose-500/25 transition-all disabled:opacity-50"
+                >
+                  {savingFunnel ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  Save Funnel Settings
+                </button>
               </div>
             )}
           </div>

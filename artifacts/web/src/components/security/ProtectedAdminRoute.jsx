@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const ADMIN_EMAILS = ['tylerstarks45@gmail.com', 'tylerstarks77@gmail.com'];
+const ADMIN_EMAILS = ['tylerstarks45@gmail.com', 'tylerstarks77@gmail.com', 'admin@starksglobalgroup.net'];
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'];
 
 const ProtectedAdminRoute = ({ children }) => {

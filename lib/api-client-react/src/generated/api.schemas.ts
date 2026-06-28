@@ -311,7 +311,7 @@ export type SystemInstanceSavedImagesItem = {
 export interface SystemInstance {
   id: number;
   userId: number;
-  blueprintId: number;
+  blueprintId?: number | null;
   name: string;
   buildStatus: string;
   healthStatus: string;

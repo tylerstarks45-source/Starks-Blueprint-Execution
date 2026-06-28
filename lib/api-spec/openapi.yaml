@@ -2530,6 +2530,7 @@ components:
           type: integer
         blueprintId:
           type: integer
+          nullable: true
         name:
           type: string
         buildStatus:
@@ -2552,7 +2553,7 @@ components:
           type: string
         updatedAt:
           type: string
-      required: [id, userId, blueprintId, name, buildStatus, healthStatus, createdAt, updatedAt]
+      required: [id, userId, name, buildStatus, healthStatus, createdAt, updatedAt]
 
     SystemInstanceInput:
       type: object

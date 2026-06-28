@@ -844,7 +844,7 @@ export const ListSystemInstancesQueryParams = zod.object({
 export const ListSystemInstancesResponseItem = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
-  "blueprintId": zod.number(),
+  "blueprintId": zod.number().nullish(),
   "name": zod.string(),
   "buildStatus": zod.string(),
   "healthStatus": zod.string(),
@@ -885,7 +885,7 @@ export const GetSystemInstanceParams = zod.object({
 export const GetSystemInstanceResponse = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
-  "blueprintId": zod.number(),
+  "blueprintId": zod.number().nullish(),
   "name": zod.string(),
   "buildStatus": zod.string(),
   "healthStatus": zod.string(),
@@ -922,7 +922,7 @@ export const UpdateSystemInstanceBody = zod.object({
 export const UpdateSystemInstanceResponse = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
-  "blueprintId": zod.number(),
+  "blueprintId": zod.number().nullish(),
   "name": zod.string(),
   "buildStatus": zod.string(),
   "healthStatus": zod.string(),

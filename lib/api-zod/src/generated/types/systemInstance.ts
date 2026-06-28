@@ -10,7 +10,7 @@ import type { SystemInstanceSavedImagesItem } from './systemInstanceSavedImagesI
 export interface SystemInstance {
   id: number;
   userId: number;
-  blueprintId: number;
+  blueprintId?: number | null;
   name: string;
   buildStatus: string;
   healthStatus: string;

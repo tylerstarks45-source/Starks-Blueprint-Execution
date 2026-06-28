@@ -12,6 +12,7 @@ import {
   systemActivityEventsTable,
   systemRevenueProvidersTable,
   publishedContentTable,
+  openrouterUsageTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { requireAuthActive } from "../lib/auth";
@@ -526,6 +527,51 @@ router.get("/dashboard/performance", async (req, res): Promise<void> => {
     leadsCaptured: Number(leadsRow[0]?.count ?? 0),
     topSystem: topSystem ? serialize(topSystem) : null,
     needsAttention: serialize(needsAttention),
+  });
+});
+
+// GET /api/dashboard/ai-activity — recent AI completions for the current user
+router.get("/dashboard/ai-activity", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const limit = Math.min(Number(req.query.limit ?? 20), 100);
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const [rows, [totals]] = await Promise.all([
+    db
+      .select({
+        id: openrouterUsageTable.id,
+        model: openrouterUsageTable.model,
+        totalTokens: openrouterUsageTable.totalTokens,
+        estimatedCost: openrouterUsageTable.estimatedCost,
+        success: openrouterUsageTable.success,
+        createdAt: openrouterUsageTable.createdAt,
+      })
+      .from(openrouterUsageTable)
+      .where(eq(openrouterUsageTable.userId, userId))
+      .orderBy(sql`${openrouterUsageTable.createdAt} desc`)
+      .limit(limit),
+    db
+      .select({
+        totalCalls: sql<number>`count(*)::int`,
+        totalTokens: sql<number>`coalesce(sum(${openrouterUsageTable.totalTokens}), 0)::int`,
+        totalCost: sql<number>`coalesce(sum(${openrouterUsageTable.estimatedCost}::numeric), 0)`,
+        successRate: sql<number>`round(100.0 * sum(case when ${openrouterUsageTable.success} = 'true' then 1 else 0 end) / nullif(count(*),0), 1)`,
+      })
+      .from(openrouterUsageTable)
+      .where(and(eq(openrouterUsageTable.userId, userId), gte(openrouterUsageTable.createdAt, sevenDaysAgo))),
+  ]);
+
+  res.json({
+    recentActivity: serialize(rows),
+    stats: {
+      totalCalls7d: Number(totals?.totalCalls ?? 0),
+      totalTokens7d: Number(totals?.totalTokens ?? 0),
+      totalCost7d: Number(totals?.totalCost ?? 0),
+      successRate7d: Number(totals?.successRate ?? 100),
+    },
   });
 });
 

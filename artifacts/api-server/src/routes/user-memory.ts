@@ -21,11 +21,8 @@ router.get("/user-memory", async (req, res): Promise<void> => {
   const caller = getTokenPayload(req);
   const admin = caller && isAdminRole(caller.role);
 
-  if (!req.query.userId) {
-    res.status(400).json({ error: "userId query parameter is required" });
-    return;
-  }
-  const targetUserId = Number(req.query.userId);
+  // userId query param is optional — fall back to the JWT caller's own userId
+  const targetUserId = req.query.userId ? Number(req.query.userId) : userId;
   if (!admin && targetUserId !== userId) {
     res.status(403).json({ error: "Access denied" });
     return;

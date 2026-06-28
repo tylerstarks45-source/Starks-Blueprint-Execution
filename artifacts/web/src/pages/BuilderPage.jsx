@@ -3700,14 +3700,25 @@ const BuilderPage = () => {
                   );
                 })}
               </div>
-              <Button
-                className="ml-auto h-7 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold border-0 shrink-0"
-                onClick={() => handleCredentialSubmit(liftedCredValues)}
-                disabled={executeLoading || pendingCreds.some(c => c.required !== false && !(liftedCredValues[c.key] || '').trim())}
-              >
-                {executeLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-                Execute Build
-              </Button>
+              <div className="ml-auto flex items-center gap-2 shrink-0">
+                <Button
+                  className="h-7 gap-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[11px] font-semibold border border-white/10 shrink-0"
+                  onClick={() => executeBuild({}, pendingBlueprintRef.current, pendingSystemNameRef.current)}
+                  disabled={executeLoading}
+                  title="Run a simulated demo build without entering credentials"
+                >
+                  {executeLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                  Demo Build
+                </Button>
+                <Button
+                  className="h-7 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold border-0 shrink-0"
+                  onClick={() => handleCredentialSubmit(liftedCredValues)}
+                  disabled={executeLoading || pendingCreds.some(c => c.required !== false && !(liftedCredValues[c.key] || '').trim())}
+                >
+                  {executeLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                  Execute Build
+                </Button>
+              </div>
             </div>
           )}
 

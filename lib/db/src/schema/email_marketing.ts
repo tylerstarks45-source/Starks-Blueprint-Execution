@@ -1,4 +1,5 @@
 import { pgTable, serial, text, integer, boolean, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./users";
 
 export const emailListsTable = pgTable("email_lists", {
@@ -97,6 +98,9 @@ export const emailDeliveriesTable = pgTable("email_deliveries", {
   index("email_deliveries_campaign_id_idx").on(t.campaignId),
   index("email_deliveries_subscriber_id_idx").on(t.subscriberId),
   index("email_deliveries_message_id_idx").on(t.messageId),
+  // Uniqueness guards — partial (WHERE NOT NULL) so NULLs on unrelated rows don't conflict.
+  uniqueIndex("email_deliveries_campaign_sub_uniq").on(t.campaignId, t.subscriberId).where(sql`campaign_id IS NOT NULL AND subscriber_id IS NOT NULL`),
+  uniqueIndex("email_deliveries_step_sub_uniq").on(t.stepId, t.subscriberId).where(sql`step_id IS NOT NULL AND subscriber_id IS NOT NULL`),
 ]);
 
 export type EmailDelivery = typeof emailDeliveriesTable.$inferSelect;

@@ -619,7 +619,7 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
             messageId: result.messageId ?? null,
             sentAt: result.ok ? new Date() : null,
             errorMessage: result.error ?? null,
-          });
+          }).onConflictDoNothing();
           if (result.ok) sentCount++; else failedCount++;
         } catch (err) {
           failedCount++;
@@ -632,7 +632,7 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
             subject,
             status: "failed",
             errorMessage: err instanceof Error ? err.message : String(err),
-          }).catch(() => { /* non-fatal */ });
+          }).onConflictDoNothing().catch(() => { /* non-fatal */ });
         }
       }));
     }
@@ -708,7 +708,7 @@ router.post("/email/campaigns/:id/send", async (req, res): Promise<void> => {
   const [camp] = await db.select().from(emailCampaignsTable)
     .where(and(eq(emailCampaignsTable.id, id), eq(emailCampaignsTable.userId, userId)));
   if (!camp) { res.status(404).json({ error: "Campaign not found" }); return; }
-  if (camp.status === "sent") { res.status(409).json({ error: "Campaign already sent" }); return; }
+  if (camp.status !== "draft") { res.status(409).json({ error: `Campaign is already ${camp.status} — cannot re-send` }); return; }
   if (!camp.listId) { res.status(400).json({ error: "Campaign has no linked list" }); return; }
 
   const subscribers = await db.select({
@@ -724,10 +724,16 @@ router.post("/email/campaigns/:id/send", async (req, res): Promise<void> => {
     return;
   }
 
-  // Mark as sending and respond
-  await db.update(emailCampaignsTable)
+  // Atomic draft→sending — prevents duplicate blasts from concurrent requests.
+  // Only succeeds when status is still 'draft'; if another request already claimed it, returns nothing.
+  const [claimed] = await db.update(emailCampaignsTable)
     .set({ status: "sending", sentAt: new Date() })
-    .where(eq(emailCampaignsTable.id, id));
+    .where(and(eq(emailCampaignsTable.id, id), eq(emailCampaignsTable.status, "draft")))
+    .returning({ id: emailCampaignsTable.id });
+
+  if (!claimed) {
+    res.status(409).json({ error: "Campaign send already in progress" }); return;
+  }
 
   res.status(202).json({ queued: subscribers.length, message: "Campaign send started in background" });
 
@@ -760,7 +766,7 @@ router.post("/email/campaigns/:id/send", async (req, res): Promise<void> => {
             messageId: result.messageId ?? null,
             sentAt: result.ok ? new Date() : null,
             errorMessage: result.error ?? null,
-          });
+          }).onConflictDoNothing();
           if (result.ok) sentCount++; else failedCount++;
         } catch (err) {
           failedCount++;
@@ -772,7 +778,7 @@ router.post("/email/campaigns/:id/send", async (req, res): Promise<void> => {
             subject: camp.subject,
             status: "failed",
             errorMessage: err instanceof Error ? err.message : String(err),
-          }).catch(() => { /* non-fatal */ });
+          }).onConflictDoNothing().catch(() => { /* non-fatal */ });
         }
       }));
     }
@@ -938,59 +944,64 @@ export async function handleSendGridWebhook(req: Request, res: Response): Promis
       const now = new Date();
 
       if (eventType === "open") {
+        // CTE ensures the counter only increments on the FIRST open (opened_at IS NULL guard).
+        // SendGrid retry/duplicate events for the same messageId will update no rows in the CTE
+        // and therefore won't increment the campaign counter.
         await pool.query(
-          `UPDATE email_deliveries SET status = 'opened', opened_at = COALESCE(opened_at, $1) WHERE message_id LIKE $2`,
+          `WITH first_open AS (
+             UPDATE email_deliveries SET status = 'opened', opened_at = $1
+             WHERE message_id LIKE $2 AND opened_at IS NULL
+             RETURNING campaign_id
+           )
+           UPDATE email_campaigns SET open_count = open_count + 1
+           WHERE id IN (SELECT campaign_id FROM first_open WHERE campaign_id IS NOT NULL)`,
           [now, msgPattern],
-        );
-        await pool.query(
-          `UPDATE email_campaigns SET open_count = open_count + 1
-           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 AND campaign_id IS NOT NULL LIMIT 1)`,
-          [msgPattern],
         );
 
       } else if (eventType === "click") {
         await pool.query(
-          `UPDATE email_deliveries SET status = 'clicked', clicked_at = COALESCE(clicked_at, $1) WHERE message_id LIKE $2`,
+          `WITH first_click AS (
+             UPDATE email_deliveries SET status = 'clicked', clicked_at = $1
+             WHERE message_id LIKE $2 AND clicked_at IS NULL
+             RETURNING campaign_id
+           )
+           UPDATE email_campaigns SET click_count = click_count + 1
+           WHERE id IN (SELECT campaign_id FROM first_click WHERE campaign_id IS NOT NULL)`,
           [now, msgPattern],
-        );
-        await pool.query(
-          `UPDATE email_campaigns SET click_count = click_count + 1
-           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 AND campaign_id IS NOT NULL LIMIT 1)`,
-          [msgPattern],
         );
 
       } else if (eventType === "bounce" || eventType === "dropped") {
         await pool.query(
-          `UPDATE email_deliveries SET status = 'bounced', bounced_at = $1 WHERE message_id LIKE $2`,
+          `WITH first_bounce AS (
+             UPDATE email_deliveries SET status = 'bounced', bounced_at = $1
+             WHERE message_id LIKE $2 AND bounced_at IS NULL
+             RETURNING campaign_id, subscriber_id
+           )
+           UPDATE email_subscribers SET status = 'bounced'
+           WHERE id IN (SELECT subscriber_id FROM first_bounce WHERE subscriber_id IS NOT NULL)`,
           [now, msgPattern],
-        );
-        // Scope subscriber update by id resolved from delivery row — no cross-tenant leak.
-        await pool.query(
-          `UPDATE email_subscribers SET status = 'bounced'
-           WHERE id = (SELECT subscriber_id FROM email_deliveries WHERE message_id LIKE $1 AND subscriber_id IS NOT NULL LIMIT 1)`,
-          [msgPattern],
         );
         await pool.query(
           `UPDATE email_campaigns SET bounce_count = bounce_count + 1
-           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 AND campaign_id IS NOT NULL LIMIT 1)`,
-          [msgPattern],
+           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 AND campaign_id IS NOT NULL AND bounced_at = $2 LIMIT 1)`,
+          [msgPattern, now],
         );
 
       } else if (eventType === "unsubscribe" || eventType === "group_unsubscribe") {
         await pool.query(
-          `UPDATE email_deliveries SET status = 'unsubscribed', unsubscribed_at = $1 WHERE message_id LIKE $2`,
+          `WITH first_unsub AS (
+             UPDATE email_deliveries SET status = 'unsubscribed', unsubscribed_at = $1
+             WHERE message_id LIKE $2 AND unsubscribed_at IS NULL
+             RETURNING campaign_id, subscriber_id
+           )
+           UPDATE email_subscribers SET status = 'unsubscribed'
+           WHERE id IN (SELECT subscriber_id FROM first_unsub WHERE subscriber_id IS NOT NULL)`,
           [now, msgPattern],
-        );
-        // Scope by subscriber_id resolved from the delivery record to avoid cross-tenant writes.
-        await pool.query(
-          `UPDATE email_subscribers SET status = 'unsubscribed'
-           WHERE id = (SELECT subscriber_id FROM email_deliveries WHERE message_id LIKE $1 AND subscriber_id IS NOT NULL LIMIT 1)`,
-          [msgPattern],
         );
         await pool.query(
           `UPDATE email_campaigns SET unsubscribe_count = unsubscribe_count + 1
-           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 AND campaign_id IS NOT NULL LIMIT 1)`,
-          [msgPattern],
+           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 AND campaign_id IS NOT NULL AND unsubscribed_at = $2 LIMIT 1)`,
+          [msgPattern, now],
         );
       } else if (eventType === "delivered") {
         await pool.query(
@@ -1064,7 +1075,7 @@ router.post("/email/campaigns/send", async (req, res): Promise<void> => {
             userId, subscriberId: sub.id, campaignId, toEmail: sub.email, subject: camp.subject,
             status: result.ok ? "sent" : "failed", messageId: result.messageId ?? null,
             sentAt: result.ok ? new Date() : null, errorMessage: result.error ?? null,
-          });
+          }).onConflictDoNothing();
           if (result.ok) sentCount++; else failedCount++;
         } catch (err) {
           failedCount++;
@@ -1072,7 +1083,7 @@ router.post("/email/campaigns/send", async (req, res): Promise<void> => {
             userId, subscriberId: sub.id, campaignId, toEmail: sub.email,
             subject: camp.subject, status: "failed",
             errorMessage: err instanceof Error ? err.message : String(err),
-          }).catch(() => {});
+          }).onConflictDoNothing().catch(() => {});
         }
       }));
     }

@@ -64,7 +64,10 @@ export class GoogleSheetsConnector extends BaseConnector {
   readonly displayName = "Google Sheets";
   readonly category = "data";
   readonly authType = "api_key" as const;
-  readonly requiredCredentials = ["GOOGLE_SHEETS_API_KEY"];
+  // Supports API key OR service account — either credential alone is sufficient.
+  // requiredCredentials is empty so the pre-exec gate doesn't block service-account-only setups;
+  // each action validates the actual available credential internally.
+  readonly requiredCredentials = [] as string[];
   readonly actions = ["readSheet", "appendRow", "updateCell", "createSheet", "getSheetInfo"];
 
   private async authHeader(): Promise<Record<string, string> | null> {

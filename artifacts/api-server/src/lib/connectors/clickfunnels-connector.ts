@@ -13,7 +13,7 @@ export class ClickFunnelsConnector extends BaseConnector {
   readonly category = "funnels";
   readonly authType = "api_key" as const;
   readonly requiredCredentials = ["CLICKFUNNELS_API_SECRET", "CLICKFUNNELS_WORKSPACE_ID"];
-  readonly actions = ["listFunnels", "getFunnel", "listContacts", "createContact", "getContactTags", "listWorkspaces"];
+  readonly actions = ["listFunnels", "getFunnel", "createPage", "listContacts", "createContact", "getContactTags", "listWorkspaces"];
 
   private headers() {
     return {
@@ -97,6 +97,21 @@ export class ClickFunnelsConnector extends BaseConnector {
         if (!res.ok) { const e = await res.text(); return { ok: false, error: `ClickFunnels ${res.status}: ${e.slice(0, 200)}` }; }
         const data = await res.json() as { contact?: { id?: number; email_address?: string } };
         return { ok: true, data: { id: data.contact?.id, email: data.contact?.email_address, message: `Contact ${email} created (ID: ${data.contact?.id})` } };
+      }
+
+      if (action === "createPage") {
+        const funnelId = params["funnelId"] as string;
+        if (!funnelId) return { ok: false, error: "funnelId required" };
+        const name = (params["name"] as string) ?? "New Page";
+        const pageType = (params["pageType"] as string) ?? "landing";
+        const res = await fetch(`${BASE}/workspaces/${wsId}/funnels/${funnelId}/funnel_steps`, {
+          method: "POST",
+          headers: this.headers(),
+          body: JSON.stringify({ funnel_step: { name, step_type: pageType, position: (params["position"] as number) ?? 1 } }),
+        });
+        if (!res.ok) { const e = await res.text(); return { ok: false, error: `ClickFunnels ${res.status}: ${e.slice(0, 200)}` }; }
+        const data = await res.json() as { funnel_step?: { id?: number; name?: string; step_type?: string; position?: number } };
+        return { ok: true, data: { id: data.funnel_step?.id, name: data.funnel_step?.name, type: data.funnel_step?.step_type, position: data.funnel_step?.position, funnelId, message: `Page "${data.funnel_step?.name}" created in funnel ${funnelId} (ID: ${data.funnel_step?.id})` } };
       }
 
       if (action === "getContactTags") {

@@ -1,18 +1,30 @@
 import { BaseConnector, TestResult, ExecResult } from "./base";
 import { getUncachableStripeClient } from "../stripe";
+import Stripe from "stripe";
 
 export class StripeConnector extends BaseConnector {
   readonly id = "stripe";
   readonly displayName = "Stripe Payments";
   readonly category = "payments";
   readonly authType = "api_key" as const;
-  readonly requiredCredentials = [];
-  readonly actions = ["getBalance", "listPayments", "createCheckout", "createPaymentLink", "getSubscriptions"];
+  // requiredCredentials is empty: per-user STRIPE_SECRET_KEY is used when present;
+  // otherwise falls back to the platform Stripe client.
+  readonly requiredCredentials = [] as string[];
+  readonly actions = ["getBalance", "listPayments", "createCheckout", "createPaymentLink", "getSubscriptions", "createProduct", "createPrice"];
+
+  private async getClient(): Promise<Stripe> {
+    const userKey = this.creds["STRIPE_SECRET_KEY"];
+    if (userKey) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return new (Stripe as any)(userKey) as Stripe;
+    }
+    return getUncachableStripeClient();
+  }
 
   async testConnection(): Promise<TestResult> {
     const start = Date.now();
     try {
-      const stripe = await getUncachableStripeClient();
+      const stripe = await this.getClient();
       const balance = await stripe.balance.retrieve();
       const latencyMs = Date.now() - start;
       const available = balance.available.reduce((s, a) => s + a.amount, 0) / 100;
@@ -30,7 +42,7 @@ export class StripeConnector extends BaseConnector {
   async execute(action: string, params: Record<string, unknown>): Promise<ExecResult> {
     if (action === "getBalance") {
       try {
-        const stripe = await getUncachableStripeClient();
+        const stripe = await this.getClient();
         const balance = await stripe.balance.retrieve();
         const available = balance.available.reduce((s, a) => s + a.amount, 0) / 100;
         return {
@@ -48,7 +60,7 @@ export class StripeConnector extends BaseConnector {
 
     if (action === "listPayments") {
       try {
-        const stripe = await getUncachableStripeClient();
+        const stripe = await this.getClient();
         const limit = Math.min(Number(params["limit"] ?? 20), 100);
         const charges = await stripe.charges.list({ limit });
         const payments = charges.data.map(c => ({
@@ -74,7 +86,7 @@ export class StripeConnector extends BaseConnector {
 
     if (action === "createCheckout" || action === "createPaymentLink") {
       try {
-        const stripe = await getUncachableStripeClient();
+        const stripe = await this.getClient();
         const productName = (params["productName"] as string | undefined) ?? "SBEP Product";
         const amountCents = Math.round(Number(params["amountCents"] ?? params["amount"] ?? 1000));
         const currency = ((params["currency"] as string | undefined) ?? "usd").toLowerCase();
@@ -119,7 +131,7 @@ export class StripeConnector extends BaseConnector {
 
     if (action === "getSubscriptions") {
       try {
-        const stripe = await getUncachableStripeClient();
+        const stripe = await this.getClient();
         const limit = Math.min(Number(params["limit"] ?? 20), 100);
         const subs = await stripe.subscriptions.list({ limit, status: "all" });
         const subscriptions = subs.data.map(s => {
@@ -150,6 +162,48 @@ export class StripeConnector extends BaseConnector {
       }
     }
 
-    return { ok: false, error: `Unknown action: ${action}. Available: getBalance, listPayments, createCheckout, createPaymentLink, getSubscriptions` };
+    if (action === "createProduct") {
+      try {
+        const stripe = await this.getClient();
+        const name = (params["name"] as string) ?? "New Product";
+        const description = params["description"] as string | undefined;
+        const images = Array.isArray(params["images"]) ? params["images"] as string[] : undefined;
+        const product = await stripe.products.create({
+          name,
+          ...(description ? { description } : {}),
+          ...(images ? { images } : {}),
+        });
+        return { ok: true, data: { id: product.id, name: product.name, active: product.active, url: `https://dashboard.stripe.com/products/${product.id}`, message: `Stripe product "${product.name}" created (ID: ${product.id})` } };
+      } catch (err: unknown) { return { ok: false, error: String(err) }; }
+    }
+
+    if (action === "createPrice") {
+      try {
+        const stripe = await this.getClient();
+        const productId = params["productId"] as string | undefined;
+        const productName = params["productName"] as string | undefined;
+        if (!productId && !productName) return { ok: false, error: "productId or productName required" };
+        const amountCents = Math.round(Number(params["amountCents"] ?? params["amount"] ?? 1000));
+        const currency = ((params["currency"] as string | undefined) ?? "usd").toLowerCase();
+        const recurring = params["recurring"] as { interval?: string; interval_count?: number } | undefined;
+
+        let resolvedProductId = productId;
+        if (!resolvedProductId && productName) {
+          const product = await stripe.products.create({ name: productName });
+          resolvedProductId = product.id;
+        }
+
+        const priceData: Stripe.PriceCreateParams = {
+          product: resolvedProductId!,
+          unit_amount: amountCents,
+          currency,
+          ...(recurring ? { recurring: { interval: (recurring.interval ?? "month") as Stripe.PriceCreateParams.Recurring["interval"] } } : {}),
+        };
+        const price = await stripe.prices.create(priceData);
+        return { ok: true, data: { id: price.id, productId: resolvedProductId, amountCents, currency: currency.toUpperCase(), recurring: !!recurring, url: `https://dashboard.stripe.com/prices/${price.id}`, message: `Stripe price $${(amountCents / 100).toFixed(2)} ${currency.toUpperCase()}${recurring ? "/mo" : ""} created (ID: ${price.id})` } };
+      } catch (err: unknown) { return { ok: false, error: String(err) }; }
+    }
+
+    return { ok: false, error: `Unknown action: ${action}. Available: getBalance, listPayments, createCheckout, createPaymentLink, getSubscriptions, createProduct, createPrice` };
   }
 }

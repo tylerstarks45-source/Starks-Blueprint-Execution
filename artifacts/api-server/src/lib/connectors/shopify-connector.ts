@@ -7,7 +7,7 @@ export class ShopifyConnector extends BaseConnector {
   readonly category = "ecommerce";
   readonly authType = "api_key" as const;
   readonly requiredCredentials = ["SHOPIFY_SHOP_DOMAIN", "SHOPIFY_ACCESS_TOKEN"];
-  readonly actions = ["createProduct", "getOrders", "getProducts", "syncInventory", "updateProduct"];
+  readonly actions = ["createProduct", "getOrders", "getProducts", "syncInventory", "updateProduct", "createCollection"];
 
   private base() {
     return `https://${this.creds["SHOPIFY_SHOP_DOMAIN"]}/admin/api/2024-01`;
@@ -90,7 +90,18 @@ export class ShopifyConnector extends BaseConnector {
         const data = await res.json() as { product?: { id?: number; title?: string } };
         return { ok: true, data: { id: data.product?.id, title: data.product?.title } };
       }
-      return { ok: false, error: `Unknown Shopify action: ${action}. Available: createProduct, getOrders, getProducts, syncInventory, updateProduct` };
+      if (action === "createCollection") {
+        const title = (params["title"] as string) ?? "New Collection";
+        const body_html = (params["description"] as string) ?? "";
+        const res = await fetch(`${this.base()}/custom_collections.json`, {
+          method: "POST", headers: this.headers(),
+          body: JSON.stringify({ custom_collection: { title, body_html, published: (params["published"] as boolean) ?? false } }),
+        });
+        if (!res.ok) { const e = await res.text(); return { ok: false, error: `Shopify ${res.status}: ${e.slice(0, 200)}` }; }
+        const data = await res.json() as { custom_collection?: { id?: number; title?: string; handle?: string } };
+        return { ok: true, data: { id: data.custom_collection?.id, title: data.custom_collection?.title, handle: data.custom_collection?.handle, message: `Shopify collection "${data.custom_collection?.title}" created (ID: ${data.custom_collection?.id})` } };
+      }
+      return { ok: false, error: `Unknown Shopify action: ${action}. Available: createProduct, getOrders, getProducts, syncInventory, updateProduct, createCollection` };
     } catch (err: unknown) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }

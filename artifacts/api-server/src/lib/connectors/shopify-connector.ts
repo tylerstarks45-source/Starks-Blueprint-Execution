@@ -5,19 +5,21 @@ export class ShopifyConnector extends BaseConnector {
   readonly displayName = "Shopify";
   readonly category = "ecommerce";
   readonly authType = "api_key" as const;
-  readonly requiredCredentials = ["shop_domain", "access_token"];
-  readonly actions = ["createProduct", "getOrders", "syncInventory", "updateProduct", "getProducts"];
+  readonly requiredCredentials = ["SHOPIFY_SHOP_DOMAIN", "SHOPIFY_ACCESS_TOKEN"];
+  readonly actions = ["createProduct", "getOrders", "getProducts", "syncInventory", "updateProduct"];
 
   private base() {
-    return `https://${this.creds["shop_domain"]}/admin/api/2024-01`;
+    return `https://${this.creds["SHOPIFY_SHOP_DOMAIN"]}/admin/api/2024-01`;
   }
   private headers() {
-    return { "X-Shopify-Access-Token": this.creds["access_token"], "Content-Type": "application/json" };
+    return { "X-Shopify-Access-Token": this.creds["SHOPIFY_ACCESS_TOKEN"], "Content-Type": "application/json" };
   }
 
   async testConnection(): Promise<TestResult> {
-    if (!this.creds["shop_domain"] || !this.creds["access_token"]) {
-      return { ok: false, latencyMs: 0, message: "Shopify shop_domain and access_token required" };
+    const domain = this.creds["SHOPIFY_SHOP_DOMAIN"];
+    const token = this.creds["SHOPIFY_ACCESS_TOKEN"];
+    if (!domain || !token) {
+      return { ok: false, latencyMs: 0, message: "SHOPIFY_SHOP_DOMAIN and SHOPIFY_ACCESS_TOKEN required" };
     }
     const start = Date.now();
     try {
@@ -25,7 +27,7 @@ export class ShopifyConnector extends BaseConnector {
       const latencyMs = Date.now() - start;
       if (res.ok) {
         const data = await res.json() as { shop?: { name?: string } };
-        return { ok: true, latencyMs, message: `Connected to ${data.shop?.name ?? this.creds["shop_domain"]}` };
+        return { ok: true, latencyMs, message: `Connected to ${data.shop?.name ?? domain}` };
       }
       return { ok: false, latencyMs, message: `Shopify returned ${res.status}` };
     } catch (err: unknown) {
@@ -34,18 +36,22 @@ export class ShopifyConnector extends BaseConnector {
   }
 
   async execute(action: string, params: Record<string, unknown>): Promise<ExecResult> {
+    const domain = this.creds["SHOPIFY_SHOP_DOMAIN"];
+    const token = this.creds["SHOPIFY_ACCESS_TOKEN"];
+    if (!domain || !token) return { ok: false, error: "SHOPIFY_SHOP_DOMAIN and SHOPIFY_ACCESS_TOKEN required" };
+
     try {
       if (action === "getProducts" || action === "syncInventory") {
         const res = await fetch(`${this.base()}/products.json?limit=10`, { headers: this.headers() });
         if (!res.ok) return { ok: false, error: `Shopify ${res.status}` };
-        const data = await res.json() as { products?: unknown[] };
-        return { ok: true, data: { count: data.products?.length ?? 0, products: data.products?.slice(0, 3) } };
+        const data = await res.json() as { products?: Array<{ id?: number; title?: string }> };
+        return { ok: true, data: { count: data.products?.length ?? 0, products: data.products?.slice(0, 3).map(p => ({ id: p.id, title: p.title })) } };
       }
       if (action === "getOrders") {
         const res = await fetch(`${this.base()}/orders.json?status=any&limit=10`, { headers: this.headers() });
         if (!res.ok) return { ok: false, error: `Shopify ${res.status}` };
         const data = await res.json() as { orders?: unknown[] };
-        return { ok: true, data: { count: data.orders?.length ?? 0 } };
+        return { ok: true, data: { count: data.orders?.length ?? 0, message: `Retrieved ${data.orders?.length ?? 0} recent orders` } };
       }
       if (action === "createProduct") {
         const body = {
@@ -62,8 +68,8 @@ export class ShopifyConnector extends BaseConnector {
           method: "POST", headers: this.headers(), body: JSON.stringify(body),
         });
         if (!res.ok) return { ok: false, error: `Shopify ${res.status}` };
-        const data = await res.json() as { product?: { id?: number; title?: string } };
-        return { ok: true, data: { id: data.product?.id, title: data.product?.title } };
+        const data = await res.json() as { product?: { id?: number; title?: string; admin_graphql_api_id?: string } };
+        return { ok: true, data: { id: data.product?.id, title: data.product?.title, message: `Product "${data.product?.title}" created in draft` } };
       }
       if (action === "updateProduct") {
         const productId = params["productId"] as string;
@@ -73,10 +79,10 @@ export class ShopifyConnector extends BaseConnector {
           method: "PUT", headers: this.headers(), body: JSON.stringify(body),
         });
         if (!res.ok) return { ok: false, error: `Shopify ${res.status}` };
-        const data = await res.json() as { product?: { id?: number } };
-        return { ok: true, data: { id: data.product?.id } };
+        const data = await res.json() as { product?: { id?: number; title?: string } };
+        return { ok: true, data: { id: data.product?.id, title: data.product?.title } };
       }
-      return { ok: false, error: `Unknown Shopify action: ${action}` };
+      return { ok: false, error: `Unknown Shopify action: ${action}. Available: createProduct, getOrders, getProducts, syncInventory, updateProduct` };
     } catch (err: unknown) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }

@@ -5,19 +5,19 @@ export class NotionConnector extends BaseConnector {
   readonly displayName = "Notion";
   readonly category = "productivity";
   readonly authType = "api_key" as const;
-  readonly requiredCredentials = ["api_key"];
+  readonly requiredCredentials = ["NOTION_API_KEY"];
   readonly actions = ["createPage", "appendBlock", "queryDatabase", "createDatabase", "updatePage"];
 
   private headers() {
     return {
-      Authorization: `Bearer ${this.creds["api_key"]}`,
+      Authorization: `Bearer ${this.creds["NOTION_API_KEY"]}`,
       "Content-Type": "application/json",
       "Notion-Version": "2022-06-28",
     };
   }
 
   async testConnection(): Promise<TestResult> {
-    if (!this.creds["api_key"]) return { ok: false, latencyMs: 0, message: "Notion API key required" };
+    if (!this.creds["NOTION_API_KEY"]) return { ok: false, latencyMs: 0, message: "NOTION_API_KEY required" };
     const start = Date.now();
     try {
       const res = await fetch("https://api.notion.com/v1/users/me", { headers: this.headers() });
@@ -33,6 +33,8 @@ export class NotionConnector extends BaseConnector {
   }
 
   async execute(action: string, params: Record<string, unknown>): Promise<ExecResult> {
+    if (!this.creds["NOTION_API_KEY"]) return { ok: false, error: "NOTION_API_KEY required" };
+
     try {
       if (action === "queryDatabase") {
         const dbId = params["databaseId"] as string;
@@ -42,7 +44,7 @@ export class NotionConnector extends BaseConnector {
         });
         if (!res.ok) return { ok: false, error: `Notion ${res.status}` };
         const data = await res.json() as { results?: unknown[] };
-        return { ok: true, data: { count: data.results?.length ?? 0 } };
+        return { ok: true, data: { count: data.results?.length ?? 0, message: `Queried ${data.results?.length ?? 0} records` } };
       }
       if (action === "createPage") {
         const parentId = (params["parentId"] as string) ?? (params["databaseId"] as string);
@@ -59,7 +61,7 @@ export class NotionConnector extends BaseConnector {
         });
         if (!res.ok) return { ok: false, error: `Notion ${res.status}` };
         const data = await res.json() as { id?: string; url?: string };
-        return { ok: true, data: { pageId: data.id, url: data.url } };
+        return { ok: true, data: { pageId: data.id, url: data.url, message: `Page "${params["title"] ?? "New Page"}" created` } };
       }
       if (action === "appendBlock") {
         const blockId = params["pageId"] as string;
@@ -73,9 +75,23 @@ export class NotionConnector extends BaseConnector {
         });
         if (!res.ok) return { ok: false, error: `Notion ${res.status}` };
         const data = await res.json() as { results?: unknown[] };
-        return { ok: true, data: { blocksAdded: data.results?.length ?? 1 } };
+        return { ok: true, data: { blocksAdded: data.results?.length ?? 1, message: "Block appended to Notion page" } };
       }
-      return { ok: false, error: `Unknown Notion action: ${action}` };
+      if (action === "updatePage") {
+        const pageId = params["pageId"] as string;
+        if (!pageId) return { ok: false, error: "pageId required" };
+        const body = {
+          properties: { Name: { title: [{ text: { content: (params["title"] as string) ?? "" } }] } },
+          archived: params["archived"] === true,
+        };
+        const res = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+          method: "PATCH", headers: this.headers(), body: JSON.stringify(body),
+        });
+        if (!res.ok) return { ok: false, error: `Notion ${res.status}` };
+        const data = await res.json() as { id?: string };
+        return { ok: true, data: { pageId: data.id, message: "Notion page updated" } };
+      }
+      return { ok: false, error: `Unknown Notion action: ${action}. Available: createPage, appendBlock, queryDatabase, updatePage` };
     } catch (err: unknown) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }

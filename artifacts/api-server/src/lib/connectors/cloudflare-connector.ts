@@ -5,16 +5,16 @@ export class CloudflareConnector extends BaseConnector {
   readonly displayName = "Cloudflare";
   readonly category = "infrastructure";
   readonly authType = "api_key" as const;
-  readonly requiredCredentials = ["api_token", "account_id"];
+  readonly requiredCredentials = ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"];
   readonly actions = ["deploySite", "purgeCache", "getDNS", "listWorkers", "createWorker"];
 
   private headers() {
-    return { Authorization: `Bearer ${this.creds["api_token"]}`, "Content-Type": "application/json" };
+    return { Authorization: `Bearer ${this.creds["CLOUDFLARE_API_TOKEN"]}`, "Content-Type": "application/json" };
   }
 
   async testConnection(): Promise<TestResult> {
-    if (!this.creds["api_token"]) {
-      return { ok: false, latencyMs: 0, message: "Cloudflare API token required" };
+    if (!this.creds["CLOUDFLARE_API_TOKEN"]) {
+      return { ok: false, latencyMs: 0, message: "CLOUDFLARE_API_TOKEN required" };
     }
     const start = Date.now();
     try {
@@ -24,14 +24,17 @@ export class CloudflareConnector extends BaseConnector {
       const latencyMs = Date.now() - start;
       const data = await res.json() as { success: boolean; result?: { status?: string } };
       if (data.success) return { ok: true, latencyMs, message: `Token ${data.result?.status ?? "active"}` };
-      return { ok: false, latencyMs, message: "Invalid Cloudflare API token" };
+      return { ok: false, latencyMs, message: "Invalid CLOUDFLARE_API_TOKEN" };
     } catch (err: unknown) {
       return { ok: false, latencyMs: Date.now() - start, message: String(err) };
     }
   }
 
   async execute(action: string, params: Record<string, unknown>): Promise<ExecResult> {
-    const accountId = this.creds["account_id"];
+    const token = this.creds["CLOUDFLARE_API_TOKEN"];
+    const accountId = this.creds["CLOUDFLARE_ACCOUNT_ID"];
+    if (!token) return { ok: false, error: "CLOUDFLARE_API_TOKEN required" };
+
     try {
       if (action === "listWorkers") {
         const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts`, {
@@ -39,22 +42,22 @@ export class CloudflareConnector extends BaseConnector {
         });
         if (!res.ok) return { ok: false, error: `Cloudflare ${res.status}` };
         const data = await res.json() as { result?: Array<{ id?: string }> };
-        return { ok: true, data: { count: data.result?.length ?? 0, workers: data.result?.map(w => w.id) } };
+        return { ok: true, data: { count: data.result?.length ?? 0, workers: data.result?.map(w => w.id), message: `Found ${data.result?.length ?? 0} Workers` } };
       }
       if (action === "purgeCache") {
-        const zoneId = (params["zoneId"] as string) ?? this.creds["zone_id"];
-        if (!zoneId) return { ok: false, error: "zoneId required" };
+        const zoneId = (params["zoneId"] as string) ?? this.creds["CLOUDFLARE_ZONE_ID"];
+        if (!zoneId) return { ok: false, error: "zoneId or CLOUDFLARE_ZONE_ID required" };
         const body = params["purgeEverything"] ? { purge_everything: true } : { files: params["files"] ?? [] };
         const res = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/purge_cache`, {
           method: "POST", headers: this.headers(), body: JSON.stringify(body),
         });
         if (!res.ok) return { ok: false, error: `Cloudflare ${res.status}` };
         const data = await res.json() as { success: boolean; result?: { id?: string } };
-        return { ok: data.success, data: { purgeId: data.result?.id } };
+        return { ok: data.success, data: { purgeId: data.result?.id, message: "Cache purged successfully" } };
       }
       if (action === "getDNS") {
-        const zoneId = (params["zoneId"] as string) ?? this.creds["zone_id"];
-        if (!zoneId) return { ok: false, error: "zoneId required" };
+        const zoneId = (params["zoneId"] as string) ?? this.creds["CLOUDFLARE_ZONE_ID"];
+        if (!zoneId) return { ok: false, error: "zoneId or CLOUDFLARE_ZONE_ID required" };
         const res = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?per_page=10`, {
           headers: this.headers(),
         });
@@ -64,16 +67,16 @@ export class CloudflareConnector extends BaseConnector {
       }
       if (action === "createWorker" || action === "deploySite") {
         const scriptName = (params["name"] as string) ?? "sbep-worker";
-        const script = (params["script"] as string) ?? `addEventListener('fetch', e => e.respondWith(new Response('Hello from SBEP!')))`;
+        const script = (params["script"] as string) ?? `addEventListener('fetch', event => { event.respondWith(new Response('Deployed by SBEP', { status: 200 })); });`;
         const res = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts/${scriptName}`,
-          { method: "PUT", headers: { ...this.headers(), "Content-Type": "application/javascript" }, body: script },
+          { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/javascript" }, body: script },
         );
         if (!res.ok) return { ok: false, error: `Cloudflare ${res.status}` };
         const data = await res.json() as { success: boolean };
-        return { ok: data.success, data: { workerName: scriptName } };
+        return { ok: data.success, data: { workerName: scriptName, message: `Worker "${scriptName}" deployed` } };
       }
-      return { ok: false, error: `Unknown Cloudflare action: ${action}` };
+      return { ok: false, error: `Unknown Cloudflare action: ${action}. Available: deploySite, purgeCache, getDNS, listWorkers, createWorker` };
     } catch (err: unknown) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }

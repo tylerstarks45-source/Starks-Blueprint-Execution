@@ -404,12 +404,14 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
       }
     }
 
-    // Derive connector IDs from credential key prefixes (e.g. mailchimp_api_key → mailchimp)
+    // Derive connector IDs from credential key prefixes.
+    // Stored keys are UPPERCASE (e.g. MAILCHIMP_API_KEY, TWITTER_BEARER_TOKEN).
+    // Registry IDs are lowercase (mailchimp, twitter), so we lowercase each candidate.
     const connectorIdSet = new Set<string>();
     for (const key of Object.keys(userCreds)) {
       const parts = key.split("_");
       for (let len = 1; len < parts.length; len++) {
-        const candidate = parts.slice(0, len).join("_");
+        const candidate = parts.slice(0, len).join("_").toLowerCase();
         if (isKnownConnector(candidate)) { connectorIdSet.add(candidate); break; }
       }
     }
@@ -497,9 +499,21 @@ Execute this step now. Write detailed output describing exactly what was configu
         const action = call.action as string | undefined;
         const params = (call.params ?? {}) as Record<string, unknown>;
 
-        if (!connectorId || !action || !isKnownConnector(connectorId)) continue;
+        if (!connectorId || !action || !isKnownConnector(connectorId)) {
+          // Connector not recognised — add a targeted "connect" hint
+          if (connectorId) {
+            connectorResults.push({ connectorId, connectorName: connectorId, action: action ?? "unknown", ok: false, summary: `Connect ${connectorId} at /connections to enable live execution`, latencyMs: 0 });
+          }
+          continue;
+        }
         const connector = getConnector(connectorId, userCreds);
         if (!connector) continue;
+        // Per-step credential gate: check required creds before executing
+        const missingCred = connector.requiredCredentials.find(k => !userCreds[k]);
+        if (missingCred) {
+          connectorResults.push({ connectorId, connectorName: connector.displayName, action, ok: false, summary: `${connector.displayName}: ${missingCred} not configured — connect at /connections`, latencyMs: 0 });
+          continue;
+        }
 
         const startMs = Date.now();
         let execResult: { ok: boolean; data?: unknown; error?: string };
@@ -744,12 +758,13 @@ router.post("/build-engine/preflight", async (req, res): Promise<void> => {
     credentialKey: userCredentialsTable.credentialKey,
   }).from(userCredentialsTable).where(eq(userCredentialsTable.userId, userId));
 
-  // Derive available connector IDs from credential key prefixes
+  // Derive available connector IDs from credential key prefixes.
+  // Stored keys are UPPERCASE (e.g. MAILCHIMP_API_KEY) — lowercase the candidate before lookup.
   const available = new Set<string>();
   for (const row of credRows) {
     const parts = row.credentialKey.split("_");
     for (let len = 1; len < parts.length; len++) {
-      const candidate = parts.slice(0, len).join("_");
+      const candidate = parts.slice(0, len).join("_").toLowerCase();
       if (isKnownConnector(candidate)) { available.add(candidate); break; }
     }
   }

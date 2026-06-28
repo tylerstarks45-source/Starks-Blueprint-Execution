@@ -2310,7 +2310,14 @@ const BuilderPage = () => {
           setPhase('idle');
           return;
         }
-        const data = resp.ok ? await resp.json() : { output: `Completed: ${step.notes}` };
+        if (!resp.ok) {
+          // Non-2xx server error — throw so the catch block shows the recovery card
+          // rather than silently advancing the step as "Completed".
+          let errDetail = `Server error ${resp.status}`;
+          try { const body = await resp.json(); errDetail = body?.error ?? errDetail; } catch { /* ignore */ }
+          throw new Error(errDetail);
+        }
+        const data = await resp.json();
         setStepOutputs(prev => ({ ...prev, [step.id]: data.output ?? `Completed: ${step.notes}` }));
         if (data.revenueCents > 0) {
           setStepRevenues(prev => ({ ...prev, [step.id]: data.revenueCents }));
@@ -2396,9 +2403,46 @@ const BuilderPage = () => {
           return;
         }
         setCurrentStepIdx(i => i + 1);
-      } catch {
-        setStepOutputs(prev => ({ ...prev, [step.id]: `Completed: ${step.notes}` }));
-        setCurrentStepIdx(i => i + 1);
+      } catch (fetchErr) {
+        // Network-level error (fetch itself threw) — show recovery card instead of
+        // silently advancing. The DB step stays in_progress; retry will re-run it.
+        const recoveryId = Date.now() + Math.random();
+        setStepPaused(true);
+        const errMsg = fetchErr instanceof Error ? fetchErr.message : 'Network error — could not reach build server';
+        const retryFn = () => {
+          setMessages(prev => prev.filter(m => m.id !== recoveryId));
+          setStepPaused(false);
+        };
+        const skipFn = async () => {
+          setMessages(prev => prev.filter(m => m.id !== recoveryId));
+          try {
+            await fetch('/api/build-engine/skip-step', {
+              method: 'POST',
+              headers: authHeaders(),
+              body: JSON.stringify({
+                stepId: step.id,
+                sessionId: buildData.sessionId,
+                stepNumber: step.stepNumber,
+                totalSteps: buildData.steps.length,
+                systemInstanceId: buildData.instanceId,
+                blueprintName: buildData.blueprint?.name ?? 'System',
+              }),
+            });
+          } catch { /* non-fatal — server may be unreachable */ }
+          setCurrentStepIdx(i => i + 1);
+          setStepPaused(false);
+        };
+        setMessages(prev => [...prev, {
+          id: recoveryId, role: 'assistant', type: 'error_recovery', ts: Date.now(),
+          data: {
+            message: errMsg,
+            explanation: 'A network error prevented this step from running. Retry to try again — transient errors usually resolve on the next attempt.',
+            stepDescription: step.notes,
+            stepNumber: step.stepNumber,
+          },
+          retryFn,
+          skipFn,
+        }]);
       } finally {
         setStepExecuting(false);
       }

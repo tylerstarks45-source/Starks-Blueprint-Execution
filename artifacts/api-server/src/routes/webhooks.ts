@@ -8,6 +8,7 @@ import { z } from "zod/v4";
 import { enqueue } from "../lib/runtime/jobs";
 import { getConnector } from "../lib/connectors/registry";
 import { decrypt } from "../lib/crypto";
+import { handleSendGridWebhook } from "./email-marketing";
 
 const router: IRouter = Router();
 
@@ -189,8 +190,12 @@ async function dispatchWebhookAction(
 }
 
 // ─── PUBLIC RECEIVER ─────────────────────────────────────────────────────────
-// POST /api/webhooks/:token — no auth, accepts any JSON payload
 
+// SendGrid alias — must be registered before /webhooks/:token so the literal
+// path wins over the wildcard.
+router.post("/webhooks/sendgrid", handleSendGridWebhook);
+
+// POST /api/webhooks/:token — no auth, accepts any JSON payload
 router.post("/webhooks/:token", async (req, res): Promise<void> => {
   const start = Date.now();
   const { token } = req.params as { token: string };

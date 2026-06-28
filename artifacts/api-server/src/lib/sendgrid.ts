@@ -1,3 +1,4 @@
+import { createHmac, createPublicKey, createVerify } from "crypto";
 import { pool } from "@workspace/db";
 import { decrypt } from "./crypto";
 import { logger } from "./logger";
@@ -12,8 +13,8 @@ export interface SendResult {
   error?: string;
 }
 
-// Load user's SENDGRID_API_KEY from the credential vault.
-// Falls back to the platform-level env var if none is set.
+// ── Credential resolution ─────────────────────────────────────────────────────
+
 async function resolveApiKey(userId: number): Promise<string | null> {
   try {
     const rows = await pool.query<{ encrypted_value: string | null }>(
@@ -23,7 +24,7 @@ async function resolveApiKey(userId: number): Promise<string | null> {
     const enc = rows.rows[0]?.encrypted_value;
     if (enc) return await decrypt(enc);
   } catch {
-    // fall through to env var
+    // fall through
   }
   return process.env["SENDGRID_API_KEY"] ?? null;
 }
@@ -37,41 +38,88 @@ async function resolveFromEmail(userId: number): Promise<string> {
     const enc = rows.rows[0]?.encrypted_value;
     if (enc) return await decrypt(enc);
   } catch {
-    // fall through to default
+    // fall through
   }
   return process.env["SENDGRID_FROM_EMAIL"] ?? DEFAULT_FROM_EMAIL;
 }
 
-// Personalize body — replaces {{firstName}}, {{lastName}}, {{email}} tokens.
+// ── Unsubscribe token helpers ─────────────────────────────────────────────────
+// HMAC-SHA256 signed token — safe to include in email links.
+
+export function generateUnsubscribeToken(subscriberId: number, email: string): string {
+  const secret = process.env["SESSION_SECRET"] ?? "sbep-unsub-secret";
+  return createHmac("sha256", secret).update(`unsub:${subscriberId}:${email}`).digest("hex");
+}
+
+// Returns the full https URL for the one-click unsubscribe link.
+export function buildUnsubscribeUrl(baseUrl: string, subscriberId: number, email: string): string {
+  const token = generateUnsubscribeToken(subscriberId, email);
+  return `${baseUrl}/api/email/unsubscribe?sub=${subscriberId}&token=${encodeURIComponent(token)}`;
+}
+
+// Derive the canonical base URL from environment (works on Replit + production).
+export function getBaseUrl(): string {
+  const domains = process.env["REPLIT_DOMAINS"];
+  if (domains) {
+    const first = domains.split(",")[0]?.trim();
+    if (first) return `https://${first}`;
+  }
+  return process.env["APP_BASE_URL"] ?? "https://starksglobalgroup.net";
+}
+
+// ── Webhook signature verification ───────────────────────────────────────────
+// SendGrid Event Webhook uses ECDSA P-256 + SHA-256. The public key is a
+// base64-encoded DER SPKI key from the SendGrid dashboard.
+// Store as SENDGRID_WEBHOOK_PUBLIC_KEY env var or user credential.
+//
+// If the key is not configured, verification is skipped (soft mode).
+// In production, configure the key so spoofed events are rejected.
+
+export function verifyWebhookSignature(
+  publicKeyBase64: string,
+  rawBody: string | Buffer,
+  timestamp: string,
+  signature: string,
+): boolean {
+  try {
+    const publicKeyDer = Buffer.from(publicKeyBase64, "base64");
+    const publicKey = createPublicKey({ key: publicKeyDer, format: "der", type: "spki" });
+    const verifier = createVerify("SHA256");
+    verifier.update(Buffer.from(timestamp));
+    verifier.update(rawBody);
+    return verifier.verify(publicKey, signature, "base64");
+  } catch {
+    return false;
+  }
+}
+
+// ── Template helpers ──────────────────────────────────────────────────────────
+
 function personalize(text: string, vars: Record<string, string>): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
 }
 
-// Build a plain-text email body that appends a CAN-SPAM footer with an
-// unsubscribe link. The unsubscribe URL is added by callers.
-function buildHtml(body: string, unsubscribeUrl?: string): string {
+function buildHtml(body: string, unsubscribeUrl: string): string {
   const escaped = body
     .split("\n")
     .map((l) => `<p style="margin:0 0 12px;line-height:1.6;color:#d4d4d8;">${l || "&nbsp;"}</p>`)
     .join("");
-
-  const footer = unsubscribeUrl
-    ? `<p style="font-size:11px;color:#52525b;margin-top:32px;">
-         You received this email because you subscribed to our list.<br>
-         <a href="${unsubscribeUrl}" style="color:#8844E0;">Unsubscribe</a>
-       </p>`
-    : "";
 
   return `<!DOCTYPE html>
 <html>
 <body style="font-family:system-ui,sans-serif;background:#09090b;max-width:600px;margin:0 auto;padding:32px 20px;">
   <div style="background:#18181b;border-radius:12px;padding:32px;border:1px solid #27272a;">
     ${escaped}
-    ${footer}
+    <p style="font-size:11px;color:#52525b;margin-top:32px;">
+      You received this email because you subscribed to our list.<br>
+      <a href="${unsubscribeUrl}" style="color:#8844E0;">Unsubscribe</a>
+    </p>
   </div>
 </body>
 </html>`;
 }
+
+// ── Core send function ────────────────────────────────────────────────────────
 
 export interface SendEmailOptions {
   userId: number;
@@ -79,12 +127,11 @@ export interface SendEmailOptions {
   subject: string;
   body: string;
   fromName?: string;
-  unsubscribeUrl?: string;
+  /** Full unsubscribe URL — required for all marketing sends (CAN-SPAM). */
+  unsubscribeUrl: string;
   vars?: Record<string, string>;
 }
 
-// Send a single email via SendGrid using the user's stored API key.
-// Returns {ok, messageId} on success or {ok: false, error} on failure.
 export async function sendEmailViaCredentials(opts: SendEmailOptions): Promise<SendResult> {
   const apiKey = await resolveApiKey(opts.userId);
   if (!apiKey) {
@@ -97,7 +144,6 @@ export async function sendEmailViaCredentials(opts: SendEmailOptions): Promise<S
   const vars = opts.vars ?? {};
   const personalizedBody = personalize(opts.body, vars);
   const personalizedSubject = personalize(opts.subject, vars);
-
   const html = buildHtml(personalizedBody, opts.unsubscribeUrl);
 
   const payload = {
@@ -105,7 +151,7 @@ export async function sendEmailViaCredentials(opts: SendEmailOptions): Promise<S
     from: { email: fromEmail, name: fromName },
     subject: personalizedSubject,
     content: [
-      { type: "text/plain", value: personalizedBody },
+      { type: "text/plain", value: personalizedBody + `\n\nUnsubscribe: ${opts.unsubscribeUrl}` },
       { type: "text/html", value: html },
     ],
     tracking_settings: {
@@ -138,9 +184,10 @@ export async function sendEmailViaCredentials(opts: SendEmailOptions): Promise<S
   }
 }
 
-// Batch-send to multiple recipients, recording per-address results.
-// Throttled to 10 concurrent sends to respect rate limits.
+// ── Batch send ────────────────────────────────────────────────────────────────
+
 export interface BatchRecipient {
+  id: number;
   email: string;
   firstName?: string | null;
   lastName?: string | null;
@@ -160,6 +207,7 @@ export async function batchSend(
   body: string,
   fromName?: string,
 ): Promise<BatchResult> {
+  const base = getBaseUrl();
   const results: BatchResult["results"] = [];
   let sent = 0;
   let failed = 0;
@@ -181,6 +229,7 @@ export async function batchSend(
           body,
           fromName,
           vars,
+          unsubscribeUrl: buildUnsubscribeUrl(base, r.id, r.email),
         });
         results.push({ email: r.email, ...result });
         if (result.ok) sent++; else failed++;

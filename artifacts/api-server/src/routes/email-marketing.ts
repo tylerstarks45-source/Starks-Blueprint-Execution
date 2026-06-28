@@ -4,8 +4,9 @@ import { eq, and, desc, sql, count } from "drizzle-orm";
 import { db, pool, emailListsTable, emailSubscribersTable, emailSequencesTable, emailSequenceStepsTable, emailDeliveriesTable, emailCampaignsTable, usersTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
-import { sendEmailViaCredentials, batchSend } from "../lib/sendgrid";
+import { sendEmailViaCredentials, batchSend, generateUnsubscribeToken, buildUnsubscribeUrl, verifyWebhookSignature, getBaseUrl } from "../lib/sendgrid";
 import { z } from "zod";
+import type { Request, Response } from "express";
 
 const router: IRouter = Router();
 
@@ -467,6 +468,7 @@ router.post("/email/sequences/:id/preview", async (req, res): Promise<void> => {
     body: step.body,
     fromName: "SBEP Preview",
     vars: { firstName: user.name?.split(" ")[0] ?? "Subscriber", lastName: "", email: user.email },
+    unsubscribeUrl: `${getBaseUrl()}/api/email/unsubscribe?preview=1`,
   });
 
   if (!result.ok) {
@@ -597,6 +599,7 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
             subject,
             body: step.body,
             vars: { firstName: sub.firstName ?? "", lastName: sub.lastName ?? "", email: sub.email },
+            unsubscribeUrl: buildUnsubscribeUrl(getBaseUrl(), sub.id, sub.email),
           });
           await db.insert(emailDeliveriesTable).values({
             userId,
@@ -738,6 +741,7 @@ router.post("/email/campaigns/:id/send", async (req, res): Promise<void> => {
             body: camp.body,
             fromName: camp.fromName ?? undefined,
             vars: { firstName: sub.firstName ?? "", lastName: sub.lastName ?? "", email: sub.email },
+            unsubscribeUrl: buildUnsubscribeUrl(getBaseUrl(), sub.id, sub.email),
           });
           await db.insert(emailDeliveriesTable).values({
             userId,
@@ -818,13 +822,95 @@ router.get("/email/campaigns/:id/stats", async (req, res): Promise<void> => {
   });
 });
 
-// ── POST /api/email/webhooks/sendgrid ────────────────────────────────────────
-// Receives SendGrid Event Webhook payloads to update delivery stats.
-// No auth — verified by presence of sg-event-id header.
-// Configure in SendGrid: Settings → Mail Settings → Event Webhook
-router.post("/email/webhooks/sendgrid", async (req, res): Promise<void> => {
+// ── GET /api/email/unsubscribe ────────────────────────────────────────────────
+// Public one-click unsubscribe endpoint. No auth required.
+// Link format: /api/email/unsubscribe?sub=<id>&token=<hmac>
+router.get("/email/unsubscribe", async (req, res): Promise<void> => {
+  const subId = parseInt((req.query["sub"] as string) ?? "", 10);
+  const token = (req.query["token"] as string) ?? "";
+
+  // Preview emails use a placeholder URL — just show a friendly page.
+  if (req.query["preview"] === "1") {
+    res.setHeader("Content-Type", "text/html");
+    res.send(`<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px;background:#09090b;color:#d4d4d8;">
+      <h2 style="color:#8844E0;">Unsubscribe Preview</h2>
+      <p>This was a preview email. No action was taken.</p>
+    </body></html>`);
+    return;
+  }
+
+  if (!Number.isFinite(subId) || !token) {
+    res.status(400).setHeader("Content-Type", "text/html").end(
+      `<html><body style="font-family:sans-serif;padding:60px;background:#09090b;color:#d4d4d8;"><h2>Invalid unsubscribe link.</h2></body></html>`,
+    );
+    return;
+  }
+
+  const [sub] = await db.select({ id: emailSubscribersTable.id, email: emailSubscribersTable.email, status: emailSubscribersTable.status })
+    .from(emailSubscribersTable).where(eq(emailSubscribersTable.id, subId));
+
+  if (!sub) {
+    res.status(404).setHeader("Content-Type", "text/html").end(
+      `<html><body style="font-family:sans-serif;padding:60px;background:#09090b;color:#d4d4d8;"><h2>Subscriber not found.</h2></body></html>`,
+    );
+    return;
+  }
+
+  const expectedToken = generateUnsubscribeToken(sub.id, sub.email);
+  if (token !== expectedToken) {
+    res.status(403).setHeader("Content-Type", "text/html").end(
+      `<html><body style="font-family:sans-serif;padding:60px;background:#09090b;color:#d4d4d8;"><h2>Invalid unsubscribe token.</h2></body></html>`,
+    );
+    return;
+  }
+
+  if (sub.status !== "unsubscribed") {
+    await db.update(emailSubscribersTable)
+      .set({ status: "unsubscribed" })
+      .where(eq(emailSubscribersTable.id, sub.id));
+  }
+
+  res.setHeader("Content-Type", "text/html");
+  res.send(`<!DOCTYPE html>
+<html>
+<body style="font-family:system-ui,sans-serif;text-align:center;padding:60px 20px;background:#09090b;color:#d4d4d8;">
+  <div style="max-width:480px;margin:0 auto;background:#18181b;border-radius:16px;padding:48px 32px;border:1px solid #27272a;">
+    <h2 style="color:#8844E0;margin-bottom:8px;">You've been unsubscribed</h2>
+    <p style="color:#71717a;font-size:14px;">You'll no longer receive emails from this list.</p>
+  </div>
+</body>
+</html>`);
+});
+
+// ── Shared SendGrid webhook handler ──────────────────────────────────────────
+// Used by both POST /api/email/webhooks/sendgrid and POST /api/webhooks/sendgrid.
+export async function handleSendGridWebhook(req: Request, res: Response): Promise<void> {
+  // ── Signature verification (ECDSA P-256 / SHA-256) ────────────────────────
+  const rawBody = (req as { rawBody?: Buffer }).rawBody;
+  const signature = req.headers["x-twilio-email-event-webhook-signature"] as string | undefined;
+  const timestamp = req.headers["x-twilio-email-event-webhook-timestamp"] as string | undefined;
+  const publicKey = process.env["SENDGRID_WEBHOOK_PUBLIC_KEY"];
+
+  if (publicKey) {
+    if (rawBody && signature && timestamp) {
+      const valid = verifyWebhookSignature(publicKey, rawBody, timestamp, signature);
+      if (!valid) {
+        req.log.warn({ signature, timestamp }, "SendGrid webhook: invalid signature — rejecting");
+        res.status(403).json({ error: "Invalid webhook signature" });
+        return;
+      }
+    } else {
+      // Key configured but required headers missing — reject in production.
+      if (process.env["NODE_ENV"] !== "development") {
+        req.log.warn({ hasRaw: !!rawBody, hasSig: !!signature, hasTs: !!timestamp }, "SendGrid webhook: missing signature headers");
+        res.status(403).json({ error: "Missing webhook signature headers" });
+        return;
+      }
+    }
+  }
+
   const events = Array.isArray(req.body) ? req.body : [req.body];
-  req.log.info({ count: events.length }, "SendGrid webhook: received events");
+  req.log.info({ count: events.length }, "SendGrid webhook: processing events");
 
   for (const evt of events) {
     const event = evt as Record<string, unknown>;
@@ -832,76 +918,149 @@ router.post("/email/webhooks/sendgrid", async (req, res): Promise<void> => {
     const eventType = event["event"] as string | undefined;
     if (!messageId || !eventType) continue;
 
+    const msgPattern = `${messageId}%`;
+
     try {
       const now = new Date();
+
       if (eventType === "open") {
         await pool.query(
           `UPDATE email_deliveries SET status = 'opened', opened_at = COALESCE(opened_at, $1) WHERE message_id LIKE $2`,
-          [now, `${messageId}%`],
+          [now, msgPattern],
         );
-        // Update campaign open counter
         await pool.query(
-          `UPDATE email_campaigns ec SET open_count = open_count + 1
-           WHERE ec.id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1)
-             AND (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1) IS NOT NULL`,
-          [`${messageId}%`],
+          `UPDATE email_campaigns SET open_count = open_count + 1
+           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 AND campaign_id IS NOT NULL LIMIT 1)`,
+          [msgPattern],
         );
+
       } else if (eventType === "click") {
         await pool.query(
           `UPDATE email_deliveries SET status = 'clicked', clicked_at = COALESCE(clicked_at, $1) WHERE message_id LIKE $2`,
-          [now, `${messageId}%`],
+          [now, msgPattern],
         );
         await pool.query(
           `UPDATE email_campaigns SET click_count = click_count + 1
-           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1)
-             AND (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1) IS NOT NULL`,
-          [`${messageId}%`],
+           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 AND campaign_id IS NOT NULL LIMIT 1)`,
+          [msgPattern],
         );
+
       } else if (eventType === "bounce" || eventType === "dropped") {
         await pool.query(
           `UPDATE email_deliveries SET status = 'bounced', bounced_at = $1 WHERE message_id LIKE $2`,
-          [now, `${messageId}%`],
+          [now, msgPattern],
         );
-        // Mark subscriber as bounced
+        // Scope subscriber update by id resolved from delivery row — no cross-tenant leak.
         await pool.query(
           `UPDATE email_subscribers SET status = 'bounced'
-           WHERE id = (SELECT subscriber_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1)
-             AND (SELECT subscriber_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1) IS NOT NULL`,
-          [`${messageId}%`],
+           WHERE id = (SELECT subscriber_id FROM email_deliveries WHERE message_id LIKE $1 AND subscriber_id IS NOT NULL LIMIT 1)`,
+          [msgPattern],
         );
         await pool.query(
           `UPDATE email_campaigns SET bounce_count = bounce_count + 1
-           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1)
-             AND (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1) IS NOT NULL`,
-          [`${messageId}%`],
+           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 AND campaign_id IS NOT NULL LIMIT 1)`,
+          [msgPattern],
         );
+
       } else if (eventType === "unsubscribe" || eventType === "group_unsubscribe") {
-        const toEmail = event["email"] as string | undefined;
         await pool.query(
           `UPDATE email_deliveries SET status = 'unsubscribed', unsubscribed_at = $1 WHERE message_id LIKE $2`,
-          [now, `${messageId}%`],
+          [now, msgPattern],
         );
-        if (toEmail) {
-          await pool.query(
-            `UPDATE email_subscribers SET status = 'unsubscribed' WHERE email = $1`,
-            [toEmail],
-          );
-        }
+        // Scope by subscriber_id resolved from the delivery record to avoid cross-tenant writes.
+        await pool.query(
+          `UPDATE email_subscribers SET status = 'unsubscribed'
+           WHERE id = (SELECT subscriber_id FROM email_deliveries WHERE message_id LIKE $1 AND subscriber_id IS NOT NULL LIMIT 1)`,
+          [msgPattern],
+        );
         await pool.query(
           `UPDATE email_campaigns SET unsubscribe_count = unsubscribe_count + 1
-           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1)
-             AND (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 LIMIT 1) IS NOT NULL`,
-          [`${messageId}%`],
+           WHERE id = (SELECT campaign_id FROM email_deliveries WHERE message_id LIKE $1 AND campaign_id IS NOT NULL LIMIT 1)`,
+          [msgPattern],
         );
-      } else if (eventType === "delivered") {
-        // Confirm delivery — already marked sent, no status change needed
       }
+      // "delivered" events don't need status change — already marked "sent".
+
     } catch (err) {
       req.log.warn({ err, eventType, messageId }, "SendGrid webhook: error processing event");
     }
   }
 
   res.json({ ok: true, processed: events.length });
+}
+
+// ── POST /api/email/webhooks/sendgrid ────────────────────────────────────────
+router.post("/email/webhooks/sendgrid", handleSendGridWebhook);
+
+// ── POST /api/email/campaigns/send ───────────────────────────────────────────
+// Alias for POST /api/email/campaigns/:id/send — accepts {campaignId} in body.
+// Matches the original task spec path for external callers.
+router.post("/email/campaigns/send", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const { campaignId } = req.body as { campaignId?: number };
+  if (!campaignId || !Number.isFinite(campaignId)) {
+    res.status(400).json({ error: "campaignId is required" });
+    return;
+  }
+
+  const [camp] = await db.select().from(emailCampaignsTable)
+    .where(and(eq(emailCampaignsTable.id, campaignId), eq(emailCampaignsTable.userId, userId)));
+  if (!camp) { res.status(404).json({ error: "Campaign not found" }); return; }
+  if (camp.status === "sent") { res.status(409).json({ error: "Campaign already sent" }); return; }
+  if (!camp.listId) { res.status(400).json({ error: "Campaign has no linked list" }); return; }
+
+  const subscribers = await db.select({
+    id: emailSubscribersTable.id,
+    email: emailSubscribersTable.email,
+    firstName: emailSubscribersTable.firstName,
+    lastName: emailSubscribersTable.lastName,
+  }).from(emailSubscribersTable)
+    .where(and(eq(emailSubscribersTable.listId, camp.listId), eq(emailSubscribersTable.status, "active")));
+
+  if (subscribers.length === 0) {
+    res.json({ sent: 0, failed: 0, message: "No active subscribers" });
+    return;
+  }
+
+  await db.update(emailCampaignsTable).set({ status: "sending", sentAt: new Date() }).where(eq(emailCampaignsTable.id, campaignId));
+  res.status(202).json({ queued: subscribers.length, message: "Campaign send started in background" });
+
+  setImmediate(async () => {
+    const base = getBaseUrl();
+    let sentCount = 0; let failedCount = 0;
+    const CONCURRENCY = 10;
+    for (let i = 0; i < subscribers.length; i += CONCURRENCY) {
+      const chunk = subscribers.slice(i, i + CONCURRENCY);
+      await Promise.all(chunk.map(async (sub) => {
+        try {
+          const result = await sendEmailViaCredentials({
+            userId,
+            to: sub.email,
+            subject: camp.subject,
+            body: camp.body,
+            fromName: camp.fromName ?? undefined,
+            vars: { firstName: sub.firstName ?? "", lastName: sub.lastName ?? "", email: sub.email },
+            unsubscribeUrl: buildUnsubscribeUrl(base, sub.id, sub.email),
+          });
+          await db.insert(emailDeliveriesTable).values({
+            userId, subscriberId: sub.id, campaignId, toEmail: sub.email, subject: camp.subject,
+            status: result.ok ? "sent" : "failed", messageId: result.messageId ?? null,
+            sentAt: result.ok ? new Date() : null, errorMessage: result.error ?? null,
+          });
+          if (result.ok) sentCount++; else failedCount++;
+        } catch (err) {
+          failedCount++;
+          await db.insert(emailDeliveriesTable).values({
+            userId, subscriberId: sub.id, campaignId, toEmail: sub.email,
+            subject: camp.subject, status: "failed",
+            errorMessage: err instanceof Error ? err.message : String(err),
+          }).catch(() => {});
+        }
+      }));
+    }
+    await db.update(emailCampaignsTable).set({ status: "sent", sentCount, failedCount }).where(eq(emailCampaignsTable.id, campaignId));
+  });
 });
 
 export default router;

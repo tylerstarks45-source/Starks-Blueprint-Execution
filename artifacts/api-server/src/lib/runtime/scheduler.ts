@@ -588,12 +588,14 @@ async function processEmailSequences(): Promise<void> {
             lastName: sub.last_name ?? "",
             email: sub.email,
           };
+          const { buildUnsubscribeUrl: buildUrl, getBaseUrl: getBase } = await import("../sendgrid");
           const result = await sendEmailViaCredentials({
             userId: seq.user_id,
             to: sub.email,
             subject: step.subject,
             body: step.body,
             vars,
+            unsubscribeUrl: buildUrl(getBase(), sub.id, sub.email),
           });
 
           // Record delivery

@@ -32,12 +32,23 @@ app.use(
 );
 app.use(cors());
 
-// Capture raw body for Stripe webhook signature verification
+// Capture raw body for webhook signature verification (Stripe + SendGrid).
+// Also manually parses JSON so req.body is still available in route handlers
+// (the readable stream can only be consumed once, so express.json() would see an empty body).
+const RAW_BODY_PATHS = new Set(["/api/stripe/webhook", "/api/email/webhooks/sendgrid", "/api/webhooks/sendgrid"]);
 app.use((req, _res, next) => {
-  if (req.path === "/api/stripe/webhook") {
+  if (RAW_BODY_PATHS.has(req.path)) {
     let data = Buffer.alloc(0);
     req.on("data", (chunk: Buffer) => { data = Buffer.concat([data, chunk]); });
-    req.on("end", () => { (req as any).rawBody = data; next(); });
+    req.on("end", () => {
+      (req as any).rawBody = data;
+      if (data.length > 0) {
+        try { req.body = JSON.parse(data.toString("utf8")); } catch { req.body = {}; }
+      } else {
+        req.body = {};
+      }
+      next();
+    });
   } else {
     next();
   }

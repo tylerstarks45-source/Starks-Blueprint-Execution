@@ -10,6 +10,15 @@ import type { Request, Response } from "express";
 
 const router: IRouter = Router();
 
+// Verifies that a list belongs to the given user. Returns true if ownership is confirmed,
+// false otherwise. Always call this before linking or querying a user-supplied listId.
+async function verifyListOwnership(listId: number, userId: number): Promise<boolean> {
+  const [list] = await db.select({ id: emailListsTable.id })
+    .from(emailListsTable)
+    .where(and(eq(emailListsTable.id, listId), eq(emailListsTable.userId, userId)));
+  return !!list;
+}
+
 const CreateListBody = z.object({
   name: z.string().min(1).max(200),
   description: z.string().optional(),
@@ -268,6 +277,10 @@ router.post("/email/sequences", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  if (parsed.data.listId !== undefined) {
+    const owns = await verifyListOwnership(parsed.data.listId, userId);
+    if (!owns) { res.status(403).json({ error: "List not found or access denied" }); return; }
+  }
   const [row] = await db.insert(emailSequencesTable).values({ userId, ...parsed.data }).returning();
   res.status(201).json(serialize(row));
 });
@@ -281,6 +294,10 @@ router.patch("/email/sequences/:id", async (req, res): Promise<void> => {
   if (!seq) { res.status(404).json({ error: "Sequence not found" }); return; }
   const parsed = CreateSequenceBody.partial().extend({ status: z.enum(["draft", "active", "paused"]).optional() }).safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (parsed.data.listId !== undefined) {
+    const owns = await verifyListOwnership(parsed.data.listId, userId);
+    if (!owns) { res.status(403).json({ error: "List not found or access denied" }); return; }
+  }
   const [row] = await db.update(emailSequencesTable).set(parsed.data)
     .where(and(eq(emailSequencesTable.id, seqId), eq(emailSequencesTable.userId, userId)))
     .returning();
@@ -532,6 +549,10 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
     return;
   }
 
+  // Defense-in-depth: re-verify list ownership even though seq is already user-scoped.
+  const listOwned = await verifyListOwnership(seq.listId, userId);
+  if (!listOwned) { res.status(403).json({ error: "List not found or access denied" }); return; }
+
   const subscribers = await db.select({
     id: emailSubscribersTable.id,
     email: emailSubscribersTable.email,
@@ -667,6 +688,10 @@ router.post("/email/campaigns", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  if (parsed.data.listId !== undefined) {
+    const owns = await verifyListOwnership(parsed.data.listId, userId);
+    if (!owns) { res.status(403).json({ error: "List not found or access denied" }); return; }
+  }
   const [row] = await db.insert(emailCampaignsTable).values({ userId, ...parsed.data }).returning();
   res.status(201).json(serialize(row));
 });
@@ -681,6 +706,10 @@ router.patch("/email/campaigns/:id", async (req, res): Promise<void> => {
   if (camp.status === "sent") { res.status(409).json({ error: "Cannot edit a sent campaign" }); return; }
   const parsed = CreateCampaignBody.partial().safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (parsed.data.listId !== undefined) {
+    const owns = await verifyListOwnership(parsed.data.listId, userId);
+    if (!owns) { res.status(403).json({ error: "List not found or access denied" }); return; }
+  }
   const [row] = await db.update(emailCampaignsTable).set(parsed.data)
     .where(and(eq(emailCampaignsTable.id, id), eq(emailCampaignsTable.userId, userId)))
     .returning();
@@ -710,6 +739,10 @@ router.post("/email/campaigns/:id/send", async (req, res): Promise<void> => {
   if (!camp) { res.status(404).json({ error: "Campaign not found" }); return; }
   if (camp.status !== "draft") { res.status(409).json({ error: `Campaign is already ${camp.status} — cannot re-send` }); return; }
   if (!camp.listId) { res.status(400).json({ error: "Campaign has no linked list" }); return; }
+
+  // Defense-in-depth: re-verify list ownership even though campaign is already user-scoped.
+  const listOwned_send = await verifyListOwnership(camp.listId, userId);
+  if (!listOwned_send) { res.status(403).json({ error: "List not found or access denied" }); return; }
 
   const subscribers = await db.select({
     id: emailSubscribersTable.id,
@@ -1045,6 +1078,10 @@ router.post("/email/campaigns/send", async (req, res): Promise<void> => {
   if (!camp) { res.status(404).json({ error: "Campaign not found" }); return; }
   if (camp.status !== "draft") { res.status(409).json({ error: `Campaign is already ${camp.status} — cannot re-send` }); return; }
   if (!camp.listId) { res.status(400).json({ error: "Campaign has no linked list" }); return; }
+
+  // Defense-in-depth: re-verify list ownership even though campaign is already user-scoped.
+  const listOwned_alias = await verifyListOwnership(camp.listId, userId);
+  if (!listOwned_alias) { res.status(403).json({ error: "List not found or access denied" }); return; }
 
   const subscribers = await db.select({
     id: emailSubscribersTable.id,

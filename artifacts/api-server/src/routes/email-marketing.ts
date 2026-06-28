@@ -911,7 +911,10 @@ export async function handleSendGridWebhook(req: Request, res: Response): Promis
   const timestamp = req.headers["x-twilio-email-event-webhook-timestamp"] as string | undefined;
   const publicKey = process.env["SENDGRID_WEBHOOK_PUBLIC_KEY"];
 
+  const isDev = process.env["NODE_ENV"] === "development";
+
   if (publicKey) {
+    // Key is configured — verify every request.
     if (rawBody && signature && timestamp) {
       const valid = verifyWebhookSignature(publicKey, rawBody, timestamp, signature);
       if (!valid) {
@@ -920,13 +923,18 @@ export async function handleSendGridWebhook(req: Request, res: Response): Promis
         return;
       }
     } else {
-      // Key configured but required headers missing — reject in production.
-      if (process.env["NODE_ENV"] !== "development") {
-        req.log.warn({ hasRaw: !!rawBody, hasSig: !!signature, hasTs: !!timestamp }, "SendGrid webhook: missing signature headers");
-        res.status(403).json({ error: "Missing webhook signature headers" });
-        return;
-      }
+      // Key configured but required headers missing — always reject (signature bypass attempt).
+      req.log.warn({ hasRaw: !!rawBody, hasSig: !!signature, hasTs: !!timestamp }, "SendGrid webhook: missing signature headers");
+      res.status(403).json({ error: "Missing webhook signature headers" });
+      return;
     }
+  } else if (!isDev) {
+    // No key configured in production — fail-closed to prevent forged events.
+    req.log.warn("SendGrid webhook: SENDGRID_WEBHOOK_PUBLIC_KEY not set — rejecting in production");
+    res.status(403).json({ error: "Webhook signature verification not configured" });
+    return;
+  } else {
+    req.log.warn("SendGrid webhook: signature verification disabled (development mode, no SENDGRID_WEBHOOK_PUBLIC_KEY)");
   }
 
   const events = Array.isArray(req.body) ? req.body : [req.body];
@@ -1035,7 +1043,7 @@ router.post("/email/campaigns/send", async (req, res): Promise<void> => {
   const [camp] = await db.select().from(emailCampaignsTable)
     .where(and(eq(emailCampaignsTable.id, campaignId), eq(emailCampaignsTable.userId, userId)));
   if (!camp) { res.status(404).json({ error: "Campaign not found" }); return; }
-  if (camp.status === "sent") { res.status(409).json({ error: "Campaign already sent" }); return; }
+  if (camp.status !== "draft") { res.status(409).json({ error: `Campaign is already ${camp.status} — cannot re-send` }); return; }
   if (!camp.listId) { res.status(400).json({ error: "Campaign has no linked list" }); return; }
 
   const subscribers = await db.select({
@@ -1051,7 +1059,16 @@ router.post("/email/campaigns/send", async (req, res): Promise<void> => {
     return;
   }
 
-  await db.update(emailCampaignsTable).set({ status: "sending", sentAt: new Date() }).where(eq(emailCampaignsTable.id, campaignId));
+  // Atomic draft→sending — prevents duplicate blasts from concurrent/retry requests.
+  const [claimed] = await db.update(emailCampaignsTable)
+    .set({ status: "sending", sentAt: new Date() })
+    .where(and(eq(emailCampaignsTable.id, campaignId), eq(emailCampaignsTable.status, "draft")))
+    .returning({ id: emailCampaignsTable.id });
+
+  if (!claimed) {
+    res.status(409).json({ error: "Campaign send already in progress" }); return;
+  }
+
   res.status(202).json({ queued: subscribers.length, message: "Campaign send started in background" });
 
   setImmediate(async () => {

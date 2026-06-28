@@ -1464,7 +1464,22 @@ const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, 
         {/* Step sidebar */}
         {steps.length > 0 && (
           <div className="w-40 shrink-0 border-r border-white/8 bg-black/40 overflow-y-auto py-3 px-2 space-y-1 ash-scroll">
-            <p className="text-[9px] text-muted-foreground/30 uppercase tracking-widest px-2 mb-2">Steps</p>
+            <div className="flex items-center justify-between px-2 mb-2">
+              <p className="text-[9px] text-muted-foreground/30 uppercase tracking-widest">Steps</p>
+              {/* Live / Demo toggle */}
+              <button
+                onClick={() => setLiveMode(l => !l)}
+                title={liveMode ? 'Live mode — real API calls' : 'Demo mode — simulated output'}
+                className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold border transition-all ${
+                  liveMode
+                    ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                    : 'bg-white/5 border-white/10 text-muted-foreground/40 hover:border-white/20'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${liveMode ? 'bg-rose-400 animate-pulse' : 'bg-white/20'}`} />
+                {liveMode ? 'LIVE' : 'DEMO'}
+              </button>
+            </div>
             {steps.map((step, i) => {
               const isDone = i < currentIdx;
               const isActive = i === currentIdx && phase === 'building';
@@ -1577,6 +1592,29 @@ const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, 
                         className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"
                       />
                     </span>
+                  </motion.div>
+                )}
+
+                {/* Connector execution results (live mode) */}
+                {stepConnectorResults[step.id]?.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="ml-6 mt-0.5 mb-0.5 space-y-0.5"
+                  >
+                    {stepConnectorResults[step.id].map((r, idx) => (
+                      <span
+                        key={idx}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border ${
+                          r.ok
+                            ? 'bg-rose-500/12 border-rose-500/25 text-rose-300'
+                            : 'bg-orange-500/12 border-orange-500/25 text-orange-300'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${r.ok ? 'bg-rose-400 animate-pulse' : 'bg-orange-400'}`} />
+                        {r.ok ? '⚡' : '⚠'} {r.connectorName} → {r.action} {r.ok ? `(${r.latencyMs}ms)` : 'failed'}
+                      </span>
+                    ))}
                   </motion.div>
                 )}
               </React.Fragment>
@@ -1780,9 +1818,11 @@ const BuilderPage = () => {
   const [buildData, setBuildData] = useState(null);
   const [stepOutputs, setStepOutputs] = useState({});
   const [stepRevenues, setStepRevenues] = useState({});
+  const [stepConnectorResults, setStepConnectorResults] = useState({});
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [stepExecuting, setStepExecuting] = useState(false);
   const [stepPaused, setStepPaused] = useState(false); // true when recovery card is shown
+  const [liveMode, setLiveMode] = useState(false);
   const [showRevenueModal, setShowRevenueModal] = useState(false);
 
   const chatBottomRef = useRef(null);
@@ -2302,6 +2342,7 @@ const BuilderPage = () => {
             systemInstanceId: buildData.instanceId,
             sessionId: buildData.sessionId,
             model: activeMode?.model ?? 'openai/gpt-4o',
+            liveMode,
           }),
         });
         if (resp.status === 402) {
@@ -2321,6 +2362,9 @@ const BuilderPage = () => {
         setStepOutputs(prev => ({ ...prev, [step.id]: data.output ?? `Completed: ${step.notes}` }));
         if (data.revenueCents > 0) {
           setStepRevenues(prev => ({ ...prev, [step.id]: data.revenueCents }));
+        }
+        if (data.connectorResults?.length > 0) {
+          setStepConnectorResults(prev => ({ ...prev, [step.id]: data.connectorResults }));
         }
         // Show a recovery card if the AI call failed so the user can retry or skip
         if (data.stepFailed) {

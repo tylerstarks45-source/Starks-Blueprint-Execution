@@ -140,7 +140,7 @@ export default function SystemDetailScreen() {
   return (
     <ScrollView
       style={[styles.root, { backgroundColor: colors.background }]}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + (Platform.OS === "web" ? 84 : Platform.OS === "android" ? 96 : 89) }}
       refreshControl={
         <RefreshControl
           refreshing={isLoading}

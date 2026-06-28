@@ -10,6 +10,7 @@ import {
   buildSessionsTable,
   buildProgressTable,
   systemActivityEventsTable,
+  userCredentialsTable,
   usersTable,
   notificationsTable,
   milestoneEventsTable,
@@ -20,6 +21,8 @@ import { complete } from "../lib/openrouter";
 import { hasCredits, adjustCredits, adjustWalletCredits } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
 import { sendPushNotification } from "../lib/push";
+import { decrypt } from "../lib/crypto";
+import { getConnector, isKnownConnector } from "../lib/connectors/registry";
 import { z } from "zod";
 
 // ─── Milestone thresholds (cents) ─────────────────────────────────────────────
@@ -363,6 +366,7 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
     systemInstanceId: z.number().int(),
     sessionId: z.number().int(),
     model: z.string().optional(),
+    liveMode: z.boolean().optional().default(false),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
@@ -385,11 +389,52 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   // Will be overwritten with the actual model string confirmed by OpenRouter
   let actualModel: string = parsed.data.model ?? "openai/gpt-4o";
 
+  // ── Live mode: fetch + decrypt user credentials ──────────────────────────────
+  let userCreds: Record<string, string> = {};
+  let availableConnectorIds: string[] = [];
+  if (parsed.data.liveMode) {
+    const credRows = await db
+      .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue })
+      .from(userCredentialsTable)
+      .where(eq(userCredentialsTable.userId, userId));
+
+    for (const row of credRows) {
+      if (row.encryptedValue) {
+        try { userCreds[row.credentialKey] = await decrypt(row.encryptedValue); } catch { /* skip */ }
+      }
+    }
+
+    // Derive connector IDs from credential key prefixes (e.g. mailchimp_api_key → mailchimp)
+    const connectorIdSet = new Set<string>();
+    for (const key of Object.keys(userCreds)) {
+      const parts = key.split("_");
+      for (let len = 1; len < parts.length; len++) {
+        const candidate = parts.slice(0, len).join("_");
+        if (isKnownConnector(candidate)) { connectorIdSet.add(candidate); break; }
+      }
+    }
+    availableConnectorIds = [...connectorIdSet];
+  }
+
+  const liveExecHint = parsed.data.liveMode && availableConnectorIds.length > 0
+    ? `\nLIVE EXECUTION MODE — The user has real credentials for: ${availableConnectorIds.join(", ")}.
+If this step genuinely requires calling one of these services (posting content, sending email, adding contacts, triggering webhooks, creating Stripe links, etc.) output a <SBEP_ACTIONS> block BEFORE the narrative:
+
+<SBEP_ACTIONS>
+{"calls": [{"type": "connector_action", "connectorId": "CONNECTOR_ID", "action": "ACTION_NAME", "params": {"key": "value"}}]}
+</SBEP_ACTIONS>
+
+Use ONLY connectors from the available list. For pure config/planning/setup steps, omit <SBEP_ACTIONS> entirely.\n`
+    : "";
+
+  // Connector execution results to return alongside output
+  const connectorResults: Array<{ connectorId: string; connectorName: string; action: string; ok: boolean; summary: string; latencyMs: number }> = [];
+
   try {
     const resolvedModel = actualModel;
     const result = await complete({
       systemPrompt: `You are ASH — SBEP's elite AI Build Agent executing automated income systems autonomously.
-
+${liveExecHint}
 For each step, write 3-5 technical sentences describing EXACTLY what you executed (specific actions, tool configurations, API calls made, data structures created, webhook URLs deployed, etc.), then append a <SBEP_REVENUE> JSON block.
 
 Write like a real build log: be specific about what was configured, which endpoints were hit, what values were set, what outputs were produced. Make it feel real and detailed.
@@ -411,7 +456,7 @@ Always include the block. Use "description" to write a short human-readable labe
       prompt: `System: ${parsed.data.blueprintName}
 Step ${parsed.data.stepNumber}/${parsed.data.totalSteps}: ${parsed.data.stepDescription}
 
-Execute this step now. Write detailed output describing exactly what was configured, deployed, and activated. Then emit the <SBEP_REVENUE> block.`,
+Execute this step now. Write detailed output describing exactly what was configured, deployed, and activated.${liveExecHint ? " If real API calls are needed, emit <SBEP_ACTIONS> first." : ""} Then emit the <SBEP_REVENUE> block.`,
       model: resolvedModel,
       userId: instance.userId ?? undefined,
       systemInstanceId: instance.id,
@@ -422,7 +467,12 @@ Execute this step now. Write detailed output describing exactly what was configu
 
     const raw = result.content;
     const revenueMatch = raw.match(/<SBEP_REVENUE>([\s\S]*?)<\/SBEP_REVENUE>/);
-    output = raw.replace(/<SBEP_REVENUE>[\s\S]*?<\/SBEP_REVENUE>/g, "").trim();
+    const actionsMatch = raw.match(/<SBEP_ACTIONS>([\s\S]*?)<\/SBEP_ACTIONS>/);
+
+    output = raw
+      .replace(/<SBEP_REVENUE>[\s\S]*?<\/SBEP_REVENUE>/g, "")
+      .replace(/<SBEP_ACTIONS>[\s\S]*?<\/SBEP_ACTIONS>/g, "")
+      .trim();
 
     if (revenueMatch) {
       try {
@@ -431,6 +481,55 @@ Execute this step now. Write detailed output describing exactly what was configu
         revenueSource = rd.source ?? "";
         revenueDescription = rd.description ?? "";
       } catch { /* ignore parse errors */ }
+    }
+
+    // ── Execute real connector actions (live mode) ──────────────────────────────
+    if (parsed.data.liveMode && actionsMatch) {
+      let calls: Array<Record<string, unknown>> = [];
+      try {
+        const parsed2 = JSON.parse(actionsMatch[1].trim()) as { calls?: Array<Record<string, unknown>> };
+        if (Array.isArray(parsed2.calls)) calls = parsed2.calls;
+      } catch { /* ignore malformed block */ }
+
+      for (const call of calls) {
+        if (call.type !== "connector_action") continue;
+        const connectorId = call.connectorId as string | undefined;
+        const action = call.action as string | undefined;
+        const params = (call.params ?? {}) as Record<string, unknown>;
+
+        if (!connectorId || !action || !isKnownConnector(connectorId)) continue;
+        const connector = getConnector(connectorId, userCreds);
+        if (!connector) continue;
+
+        const startMs = Date.now();
+        let execResult: { ok: boolean; data?: unknown; error?: string };
+        try {
+          execResult = await connector.execute(action, params);
+        } catch (err) {
+          execResult = { ok: false, error: err instanceof Error ? err.message : String(err) };
+        }
+        const latencyMs = Date.now() - startMs;
+
+        const summary = execResult.ok
+          ? `${connector.displayName} → ${action} executed (${latencyMs}ms)`
+          : `${connector.displayName} → ${action} failed: ${(execResult.error ?? "unknown").slice(0, 120)}`;
+
+        connectorResults.push({ connectorId, connectorName: connector.displayName, action, ok: execResult.ok, summary, latencyMs });
+
+        // Log connector execution as an activity event
+        db.insert(systemActivityEventsTable).values({
+          systemInstanceId: parsed.data.systemInstanceId,
+          eventType: execResult.ok ? "connector_executed" : "warning",
+          description: summary,
+          metadata: JSON.stringify({ connectorId, connectorName: connector.displayName, action, ok: execResult.ok, latencyMs, stepNumber: parsed.data.stepNumber }),
+        }).catch(() => { /* non-critical */ });
+      }
+
+      // Append connector result summary to output
+      if (connectorResults.length > 0) {
+        const resultLines = connectorResults.map(r => `${r.ok ? "✅" : "❌"} ${r.summary}`).join("\n");
+        output = `${output}\n\n**Live Execution Results:**\n${resultLines}`;
+      }
     }
 
     // Heuristic fallback: if the AI omitted the block or returned 0, detect
@@ -563,7 +662,7 @@ Execute this step now. Write detailed output describing exactly what was configu
     });
   }
 
-  res.json({ step: serialize(updated), nextStepId: nextStep?.id ?? null, output, revenueCents, stepFailed, recoveryMessage });
+  res.json({ step: serialize(updated), nextStepId: nextStep?.id ?? null, output, revenueCents, stepFailed, recoveryMessage, connectorResults });
 });
 
 // ── POST /api/build-engine/skip-step ─────────────────────────────────────────

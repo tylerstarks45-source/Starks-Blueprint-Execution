@@ -38,7 +38,8 @@ export default function SystemsScreen() {
   const [filter, setFilter] = useState<FilterStatus>("all");
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
-  const bottomPad = insets.bottom + (Platform.OS === "web" ? 34 : 0);
+  const TAB_BAR_HEIGHT = Platform.OS === "web" ? 84 : Platform.OS === "android" ? 56 : 49;
+  const bottomPad = insets.bottom + TAB_BAR_HEIGHT;
 
   const { data, isLoading, refetch } = useQuery<SystemInstance[]>({
     queryKey: ["system-instances"],

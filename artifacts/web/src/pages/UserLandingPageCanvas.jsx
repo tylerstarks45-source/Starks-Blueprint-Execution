@@ -70,6 +70,8 @@ export default function UserLandingPageCanvas() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorHtml, setEditorHtml] = useState('');
   const [savingEditor, setSavingEditor] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [savingInline, setSavingInline] = useState(false);
 
   const [prompt, setPrompt] = useState('');
   const [pageType, setPageType] = useState('affiliate');
@@ -231,6 +233,72 @@ export default function UserLandingPageCanvas() {
     } catch (e) {
       showToast(e.message, 'error');
     } finally { setSavingEditor(false); }
+  }
+
+  function enableEditMode() {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) { showToast('Preview not ready — generate a page first', 'error'); return; }
+    const selector = 'h1,h2,h3,h4,h5,h6,p,li,button,a,label,span,td,th,dt,dd,blockquote,figcaption';
+    doc.querySelectorAll(selector).forEach(el => {
+      const hasText = [...el.childNodes].some(n => n.nodeType === Node.TEXT_NODE && n.textContent?.trim());
+      if (hasText) {
+        el.setAttribute('contenteditable', 'true');
+        el.setAttribute('data-sbep-edit', '1');
+        el.style.outline = '2px dashed rgba(139,92,246,0.55)';
+        el.style.outlineOffset = '2px';
+        el.style.cursor = 'text';
+        el.style.borderRadius = '3px';
+      }
+    });
+    setEditMode(true);
+  }
+
+  function cancelEditMode() {
+    const doc = iframeRef.current?.contentDocument;
+    if (doc) {
+      doc.querySelectorAll('[data-sbep-edit]').forEach(el => {
+        el.removeAttribute('contenteditable');
+        el.removeAttribute('data-sbep-edit');
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+        el.style.cursor = '';
+        el.style.borderRadius = '';
+      });
+    }
+    setEditMode(false);
+  }
+
+  async function handleSaveInlineEdits() {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    setSavingInline(true);
+    // Strip edit markers from live DOM, then capture clean HTML
+    doc.querySelectorAll('[data-sbep-edit]').forEach(el => {
+      el.removeAttribute('contenteditable');
+      el.removeAttribute('data-sbep-edit');
+      el.style.outline = '';
+      el.style.outlineOffset = '';
+      el.style.cursor = '';
+      el.style.borderRadius = '';
+    });
+    setEditMode(false);
+    const cleanHtml = doc.documentElement.outerHTML;
+    setEditorHtml(cleanHtml);
+    setPage(prev => ({ ...prev, htmlContent: cleanHtml }));
+    if (iframeRef.current) iframeRef.current.srcdoc = cleanHtml;
+    try {
+      const res = await fetch(`${API}/landing-pages/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ htmlContent: cleanHtml }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const updated = await res.json();
+      setPage(updated);
+      showToast('Inline edits saved!');
+    } catch (e) {
+      showToast(e.message || 'Save failed', 'error');
+    } finally { setSavingInline(false); }
   }
 
   async function handleSaveFunnelSettings() {
@@ -729,6 +797,38 @@ export default function UserLandingPageCanvas() {
             </div>
             {hasContent && (
               <div className="flex items-center gap-2">
+                {/* Inline Edit Mode controls */}
+                {editMode ? (
+                  <>
+                    <button
+                      onClick={handleSaveInlineEdits}
+                      disabled={savingInline}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium hover:bg-emerald-500/25 transition-all disabled:opacity-50"
+                    >
+                      {savingInline ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                      Save Edits
+                    </button>
+                    <button
+                      onClick={cancelEditMode}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/10 text-white/40 hover:text-white/60 text-xs transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={enableEditMode}
+                    className="flex items-center gap-1.5 text-xs text-violet-400/70 hover:text-violet-400 transition-colors"
+                    title="Click text blocks in the preview to edit them inline"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    Edit Mode
+                  </button>
+                )}
+
+                {/* Separator */}
+                <span className="w-px h-3 bg-white/10" />
+
                 {page?.isPublished && page?.publicUrl && (
                   <a
                     href={page.publicUrl}

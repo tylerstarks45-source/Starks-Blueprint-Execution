@@ -13,6 +13,7 @@ export const landingPagesTable = pgTable("landing_pages", {
   htmlContent: text("html_content").notNull().default(""),
   metaTitle: text("meta_title"),
   metaDescription: text("meta_description"),
+  publicUrl: text("public_url"),
   isPublished: boolean("is_published").notNull().default(false),
   publishedAt: timestamp("published_at", { withTimezone: true }),
   pageViews: integer("page_views").notNull().default(0),

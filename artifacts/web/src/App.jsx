@@ -23,6 +23,7 @@ import SignupPage from '@/pages/SignupPage.jsx';
 import PricingPage from '@/pages/PricingPage.jsx';
 
 // Secondary public pages — deferred until visited
+const PublicLandingPage      = lazy(() => import('@/pages/PublicLandingPage.jsx'));
 const ProductDetailPage     = lazy(() => import('@/pages/ProductDetailPage.jsx'));
 const ToolDetailPage        = lazy(() => import('@/pages/ToolDetailPage.jsx'));
 const AboutPage             = lazy(() => import('@/pages/AboutPage.jsx'));
@@ -260,6 +261,9 @@ const App = () => {
               <Route path="/analytics" element={
                 <ProtectedRoute><AnalyticsPage /></ProtectedRoute>
               } />
+              {/* Public landing pages — no auth, no chrome */}
+              <Route path="/p/:username/:slug" element={<PublicLandingPage />} />
+
               <Route path="/ref/:code" element={<RefPage />} />
               <Route path="/portal/:token" element={<ClientPortalPage />} />
 

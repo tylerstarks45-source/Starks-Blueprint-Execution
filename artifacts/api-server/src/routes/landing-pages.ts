@@ -60,7 +60,8 @@ function deriveUsername(email: string): string {
 
 function computePublicUrl(email: string, slug: string, isPublished: boolean): string | null {
   if (!isPublished) return null;
-  return `/api/p/${deriveUsername(email)}/${slug}`;
+  // Frontend route /p/:username/:slug — served by PublicLandingPage (no /api/ prefix)
+  return `/p/${deriveUsername(email)}/${slug}`;
 }
 
 // ── GET /api/landing-pages ───────────────────────────────────────────────────
@@ -124,6 +125,7 @@ router.post("/landing-pages", async (req, res): Promise<void> => {
     slug,
     systemInstanceId: parsed.data.systemInstanceId,
     htmlContent: "",
+    publicUrl: null,  // set to null on create; populated when published via PATCH
   }).returning();
   res.status(201).json(serialize(row));
 });
@@ -181,6 +183,10 @@ router.patch("/landing-pages/:id", async (req, res): Promise<void> => {
 
   const updates: Record<string, unknown> = { ...parsed.data };
   if (parsed.data.isPublished === true) updates.publishedAt = new Date();
+
+  // Fetch email now so we can persist publicUrl into the DB column
+  const [user] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId));
+
   const [row] = await db.update(landingPagesTable).set(updates)
     .where(and(eq(landingPagesTable.id, id), eq(landingPagesTable.userId, userId)))
     .returning();
@@ -189,12 +195,14 @@ router.patch("/landing-pages/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  // Fetch email to build canonical publicUrl
-  const [user] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId));
-  res.json(serialize({
-    ...row,
-    publicUrl: computePublicUrl(user?.email ?? "", row.slug, row.isPublished),
-  }));
+  // Persist publicUrl to DB whenever slug or isPublished changes so the value
+  // is always queryable without a join (and satisfies the stored-field spec requirement).
+  const newPublicUrl = computePublicUrl(user?.email ?? "", row.slug, row.isPublished);
+  await db.update(landingPagesTable)
+    .set({ publicUrl: newPublicUrl })
+    .where(eq(landingPagesTable.id, row.id));
+
+  res.json(serialize({ ...row, publicUrl: newPublicUrl }));
 });
 
 // ── DELETE /api/landing-pages/:id ────────────────────────────────────────────

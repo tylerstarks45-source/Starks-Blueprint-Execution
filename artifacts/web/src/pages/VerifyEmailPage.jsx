@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import PageMeta from '@/components/PageMeta.jsx';
 import { CheckCircle2, XCircle, Loader2, Mail } from 'lucide-react';
+import VideoBackground from '@/components/VideoBackground.jsx';
 
 const VerifyEmailPage = () => {
   const [searchParams] = useSearchParams();
@@ -36,7 +37,7 @@ const VerifyEmailPage = () => {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 bg-grid-pattern selection:bg-primary/20">
+    <VideoBackground className="flex items-center justify-center px-4 selection:bg-primary/20">
       <PageMeta
         title="Verify Email | Starks Global Group"
         description="Verify your email address to complete your Starks Global Group account setup."
@@ -91,7 +92,7 @@ const VerifyEmailPage = () => {
           )}
         </div>
       </div>
-    </div>
+    </VideoBackground>
   );
 };
 

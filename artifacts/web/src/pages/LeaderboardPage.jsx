@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Trophy, TrendingUp, Users, Zap, Crown, ArrowRight, Star, ChevronUp } from 'lucide-react';
+import VideoBackground from '@/components/VideoBackground.jsx';
 
 const BASE = import.meta.env.BASE_URL ?? '/';
 
@@ -102,7 +103,7 @@ export default function LeaderboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-['Outfit',sans-serif] overflow-x-hidden">
+    <VideoBackground className="text-foreground overflow-x-hidden">
 
       {/* Nav */}
       <nav className="sticky top-0 z-50 border-b border-white/8 bg-background/80 backdrop-blur-xl">
@@ -354,6 +355,6 @@ export default function LeaderboardPage() {
           </div>
         </div>
       </div>
-    </div>
+    </VideoBackground>
   );
 }

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import PageMeta from '@/components/PageMeta.jsx';
 import { motion } from 'framer-motion';
 import { Loader2, Building2, Layers, Activity, DollarSign, AlertTriangle, CheckCircle2, Clock, Zap } from 'lucide-react';
+import VideoBackground from '@/components/VideoBackground.jsx';
 
 /**
  * Convert a hex color to an "H S% L%" triplet for use inside hsl().
@@ -118,21 +119,21 @@ const ClientPortalPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <VideoBackground className="flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
-      </div>
+      </VideoBackground>
     );
   }
 
   if (notFound || !data) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <VideoBackground className="flex items-center justify-center p-4">
         <div className="text-center max-w-sm">
           <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-foreground mb-2">Portal Not Found</h1>
           <p className="text-muted-foreground text-sm">This portal link may have expired or been reset. Please contact your agency for an updated link.</p>
         </div>
-      </div>
+      </VideoBackground>
     );
   }
 
@@ -141,7 +142,7 @@ const ClientPortalPage = () => {
   const liveSystems = systems.filter(s => s.buildStatus === 'complete').length;
 
   return (
-    <div className="min-h-screen bg-background">
+    <VideoBackground>
       <PageMeta title={`${workspace.name} — Client Portal`} description={`View your AI systems managed by ${agencyName}.`} />
 
       {/* Header */}
@@ -211,7 +212,7 @@ const ClientPortalPage = () => {
           Managed by {agencyName}
         </p>
       </div>
-    </div>
+    </VideoBackground>
   );
 };
 

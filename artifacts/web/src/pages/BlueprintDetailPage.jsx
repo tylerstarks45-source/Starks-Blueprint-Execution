@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import PageMeta from '@/components/PageMeta.jsx';
 import { motion } from 'framer-motion';
+import VideoBackground from '@/components/VideoBackground.jsx';
 import {
   AlertTriangle, Rocket, Clock, Target, Layers, ArrowRight,
   Box, Code, Copy, CheckCircle2, Zap, Play, Loader2, ExternalLink,
@@ -306,7 +307,7 @@ const BlueprintDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <VideoBackground className="flex flex-col">
         <Header />
         <main className="flex-grow flex items-center justify-center">
           <div className="text-center">
@@ -314,13 +315,13 @@ const BlueprintDetailPage = () => {
             <p className="text-muted-foreground font-mono text-sm">Loading blueprint...</p>
           </div>
         </main>
-      </div>
+      </VideoBackground>
     );
   }
 
   if (error || !blueprint) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <VideoBackground className="flex flex-col">
         <PageMeta title="Blueprint Not Found | Starks Global Group" description="The requested blueprint could not be found." robots="noindex, follow" />
         <Header />
         <main className="flex-grow flex items-center justify-center p-4">
@@ -334,7 +335,7 @@ const BlueprintDetailPage = () => {
           </div>
         </main>
         <Footer />
-      </div>
+      </VideoBackground>
     );
   }
 
@@ -361,7 +362,7 @@ const BlueprintDetailPage = () => {
     : `${blueprint.name} — a step-by-step AI system blueprint from Starks Global Group.`;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col bg-grid-pattern selection:bg-primary/20">
+    <VideoBackground className="flex flex-col selection:bg-primary/20">
       <PageMeta
         title={`${blueprint.name} | System Blueprint — Starks Global Group`}
         description={bpDescription}
@@ -788,7 +789,7 @@ const BlueprintDetailPage = () => {
       </main>
 
       <Footer />
-    </div>
+    </VideoBackground>
   );
 };
 

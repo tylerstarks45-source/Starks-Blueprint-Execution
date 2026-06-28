@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import pb from '@/lib/pocketbaseClient';
 import PageMeta from '@/components/PageMeta.jsx';
 import Header from '@/components/Header.jsx';
+import VideoBackground from '@/components/VideoBackground.jsx';
 import Footer from '@/components/Footer.jsx';
 
 const UpdatesPage = () => {
@@ -42,7 +43,7 @@ const UpdatesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <VideoBackground>
       <PageMeta
         title="Platform Updates | Starks Global Group"
         description="Stay up to date with the latest tool additions, new AI system blueprints, and platform improvements from Starks Global Group."
@@ -111,7 +112,7 @@ const UpdatesPage = () => {
       </div>
 
       <Footer />
-    </div>
+    </VideoBackground>
   );
 };
 

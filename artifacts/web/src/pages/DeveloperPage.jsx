@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
+import VideoBackground from '@/components/VideoBackground.jsx';
 import {
   Code, Key, Zap, Shield, Copy, Check, ChevronRight,
   Terminal, Globe, Lock, AlertCircle, ExternalLink,
@@ -204,11 +205,11 @@ while (true) {
 }`;
 
   return (
-    <>
+    <VideoBackground>
       <Helmet><title>Developer API | Starks Global Group</title></Helmet>
       <Header />
 
-      <div className="min-h-screen bg-[#0F1217] text-white">
+      <div className="text-white">
         {/* Hero */}
         <div className="relative border-b border-white/8">
           <div className="absolute inset-0 bg-gradient-to-br from-violet-600/8 via-transparent to-blue-600/5 pointer-events-none" />
@@ -417,6 +418,6 @@ while (true) {
       </div>
 
       <Footer />
-    </>
+    </VideoBackground>
   );
 }

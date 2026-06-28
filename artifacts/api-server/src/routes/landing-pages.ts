@@ -88,7 +88,11 @@ router.get("/landing-pages", async (req, res): Promise<void> => {
     .leftJoin(systemInstancesTable, eq(landingPagesTable.systemInstanceId, systemInstancesTable.id))
     .where(eq(landingPagesTable.userId, userId))
     .orderBy(desc(landingPagesTable.updatedAt));
-  res.json(serialize(rows));
+  const enriched = rows.map(r => ({
+    ...r,
+    publicUrl: r.isPublished ? `/api/pages/${r.slug}` : null,
+  }));
+  res.json(serialize(enriched));
 });
 
 // ── POST /api/landing-pages ──────────────────────────────────────────────────
@@ -128,7 +132,7 @@ router.get("/landing-pages/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Landing page not found" });
     return;
   }
-  res.json(serialize(row));
+  res.json(serialize({ ...row, publicUrl: row.isPublished ? `/api/pages/${row.slug}` : null }));
 });
 
 // ── PATCH /api/landing-pages/:id ─────────────────────────────────────────────
@@ -150,7 +154,7 @@ router.patch("/landing-pages/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Landing page not found" });
     return;
   }
-  res.json(serialize(row));
+  res.json(serialize({ ...row, publicUrl: row.isPublished ? `/api/pages/${row.slug}` : null }));
 });
 
 // ── DELETE /api/landing-pages/:id ────────────────────────────────────────────
@@ -232,9 +236,9 @@ Primary color: ${primary} | Secondary color: ${secondary}`;
 
   const [optinHtml, tyHtml, upsellHtml] = await Promise.all([
     complete({ systemPrompt: basePrompt, model: "openai/gpt-4o", userId: authorId,
-      prompt: `Niche: ${niche} | Goal: ${goal}\nThis is the OPT-IN page.\nInclude a lead capture form that POSTs to /api/pages/${optin.id}/submit with fields: email (required), firstName (optional). Redirect on success goes to /api/pages/${thankyou.id}. Style the form to match dark theme. Include hero, benefits, social proof, and email capture form.` }),
+      prompt: `Niche: ${niche} | Goal: ${goal}\nThis is the OPT-IN page.\nInclude a lead capture form with action="/api/pages/${optin.id}/submit" method="POST" and fields: email (required), firstName (optional). The server handles the redirect after submit. Style the form to match dark theme. Include hero, benefits, social proof, and email capture form.` }),
     complete({ systemPrompt: basePrompt, model: "openai/gpt-4o", userId: authorId,
-      prompt: `Niche: ${niche} | Goal: ${goal}\nThis is the THANK-YOU page after opt-in. Thank them warmly. Say to check their email. Introduce a soft upgrade offer. Link to upsell at /api/pages/${upsell.id}.` }),
+      prompt: `Niche: ${niche} | Goal: ${goal}\nThis is the THANK-YOU page after opt-in. Thank them warmly. Say to check their email. Introduce a soft upgrade offer. Link to upsell at /api/pages/${upsell.slug}.` }),
     complete({ systemPrompt: basePrompt, model: "openai/gpt-4o", userId: authorId,
       prompt: `Niche: ${niche} | Goal: ${goal}\nThis is the UPSELL page. Present a premium offer. Clear price, bold benefits, strong CTA button. This is the final step of the funnel.` }),
   ]);

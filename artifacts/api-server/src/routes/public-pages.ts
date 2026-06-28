@@ -257,6 +257,16 @@ router.post("/pages/:id/submit", async (req, res): Promise<void> => {
     return;
   }
 
+  // Only published pages accept submissions — prevents ID-probing of unpublished pages
+  if (!page.isPublished) {
+    if (req.accepts("html")) {
+      res.status(403).send(`<!DOCTYPE html><html><body style="background:#0a0a0a;color:#e57373;font-family:sans-serif;padding:40px;text-align:center"><p>This page is not currently accepting submissions.</p><a href="javascript:history.back()" style="color:#8B5CF6">← Go back</a></body></html>`);
+    } else {
+      res.status(403).json({ error: "This page is not published" });
+    }
+    return;
+  }
+
   // Increment optin count (fire-and-forget)
   db.update(landingPagesTable)
     .set({ optins: sql`${landingPagesTable.optins} + 1` })
@@ -288,10 +298,15 @@ router.post("/pages/:id/submit", async (req, res): Promise<void> => {
     } catch { /* non-fatal */ }
   }
 
-  // Redirect to next page in funnel, or show thank-you message
+  // Redirect to next page in funnel — resolve ID to slug for canonical URL
   if (page.nextPageId) {
-    res.redirect(302, `/api/pages/${page.nextPageId}`);
-    return;
+    const [nextPage] = await db.select({ slug: landingPagesTable.slug })
+      .from(landingPagesTable).where(eq(landingPagesTable.id, page.nextPageId));
+    if (nextPage) {
+      res.redirect(302, `/api/pages/${nextPage.slug}`);
+      return;
+    }
+    // nextPage was deleted — fall through to inline thank-you
   }
 
   // Inline thank-you if no next page configured
@@ -303,13 +318,13 @@ router.post("/pages/:id/submit", async (req, res): Promise<void> => {
 
 // ── GET /api/p/:username/:slug ── username-scoped public URL ──────────────────
 // Friendly URL format: /api/p/{emailPrefix}/{slug}
-// This is equivalent to /api/pages/:slug but with the user's email prefix for branding.
+// Only resolves when :username matches the page owner's derived username (email prefix).
+// This prevents exposing other users' pages under a wrong username.
 router.get("/p/:username/:slug", async (req, res): Promise<void> => {
+  const username = (Array.isArray(req.params.username) ? req.params.username[0] : req.params.username).toLowerCase();
   const slugParam = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
-  // Delegate to the same slug-based serve flow by redirecting internally.
-  // We verify the username matches to prevent slug enumeration via wrong username.
+
   const [page] = await db.select({
-    id: landingPagesTable.id,
     slug: landingPagesTable.slug,
     isPublished: landingPagesTable.isPublished,
     userEmail: usersTable.email,
@@ -322,7 +337,20 @@ router.get("/p/:username/:slug", async (req, res): Promise<void> => {
     return;
   }
 
-  // Serve via the canonical slug URL (handles A/B tests, view tracking, etc.)
+  // Validate username against page owner — derived from email prefix
+  const derivedUsername = page.userEmail.split("@")[0]!.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-|-$/g, "");
+  if (derivedUsername !== username) {
+    // Wrong owner — return 404 (not 403) to avoid revealing that the slug exists
+    res.status(404).send(`<!DOCTYPE html><html><body style="background:#0a0a0a;color:#555;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center"><p>Page not found.<br><a href="/" style="color:#8b5cf6">← Home</a></p></body></html>`);
+    return;
+  }
+
+  if (!page.isPublished) {
+    res.status(403).send(`<!DOCTYPE html><html><head><title>Coming Soon</title><style>body{background:#0a0a0a;color:#555;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}</style></head><body><p style="color:#8b5cf6">Coming soon.<br><a href="/" style="color:#8b5cf6">← Home</a></p></body></html>`);
+    return;
+  }
+
+  // Redirect to the canonical slug URL (handles A/B tests, view tracking, etc.)
   res.redirect(301, `/api/pages/${page.slug}`);
 });
 

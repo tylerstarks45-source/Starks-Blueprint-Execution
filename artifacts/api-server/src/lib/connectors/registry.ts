@@ -14,6 +14,8 @@ import { ShopifyConnector } from "./shopify-connector";
 import { CloudflareConnector } from "./cloudflare-connector";
 import { NotionConnector } from "./notion-connector";
 import { AirtableConnector } from "./airtable-connector";
+import { LinkedInConnector } from "./linkedin-connector";
+import { WordPressConnector } from "./wordpress-connector";
 import { GmailStub, GoogleSheetsStub, TikTokStub, MetaStub, YouTubeStub } from "./stubs";
 
 type ConnectorCtor = new (creds: Record<string, string>) => BaseConnector;
@@ -34,6 +36,8 @@ const REGISTRY: Record<string, ConnectorCtor> = {
   cloudflare:  CloudflareConnector,
   notion:      NotionConnector,
   airtable:    AirtableConnector,
+  linkedin:    LinkedInConnector,
+  wordpress:   WordPressConnector,
   gmail:        GmailStub,
   google_sheets: GoogleSheetsStub,
   tiktok:      TikTokStub,

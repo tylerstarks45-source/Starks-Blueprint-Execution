@@ -19,7 +19,7 @@ import {
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { hasCredits, adjustCredits, adjustWalletCredits } from "../lib/credits";
-import { requireAuthActive } from "../lib/auth";
+import { requireAuthActive, validateClientWorkspaceId } from "../lib/auth";
 import { sendPushNotification } from "../lib/push";
 import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector } from "../lib/connectors/registry";
@@ -393,10 +393,17 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   let userCreds: Record<string, string> = {};
   let availableConnectorIds: string[] = [];
   if (parsed.data.liveMode) {
+    // Scope credentials to the user's current workspace (clientWorkspaceId) to prevent
+    // cross-workspace credential leakage in multi-tenant / agency contexts.
+    const workspaceId = await validateClientWorkspaceId(req, userId);
+    const credCondition = workspaceId !== null
+      ? and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.clientWorkspaceId, workspaceId))
+      : eq(userCredentialsTable.userId, userId);
+
     const credRows = await db
       .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue })
       .from(userCredentialsTable)
-      .where(eq(userCredentialsTable.userId, userId));
+      .where(credCondition);
 
     for (const row of credRows) {
       if (row.encryptedValue) {
@@ -430,7 +437,7 @@ Use ONLY connectors from the available list. For pure config/planning/setup step
     : "";
 
   // Connector execution results to return alongside output
-  const connectorResults: Array<{ connectorId: string; connectorName: string; action: string; ok: boolean; summary: string; latencyMs: number }> = [];
+  const connectorResults: Array<{ connectorId: string; connectorName: string; action: string; ok: boolean; summary: string; latencyMs: number; confirmation?: unknown }> = [];
 
   try {
     const resolvedModel = actualModel;
@@ -528,7 +535,7 @@ Execute this step now. Write detailed output describing exactly what was configu
           ? `${connector.displayName} → ${action} executed (${latencyMs}ms)`
           : `${connector.displayName} → ${action} failed: ${(execResult.error ?? "unknown").slice(0, 120)}`;
 
-        connectorResults.push({ connectorId, connectorName: connector.displayName, action, ok: execResult.ok, summary, latencyMs });
+        connectorResults.push({ connectorId, connectorName: connector.displayName, action, ok: execResult.ok, summary, latencyMs, confirmation: execResult.data ?? null });
 
         // Log connector execution as an activity event
         db.insert(systemActivityEventsTable).values({
@@ -753,10 +760,14 @@ router.post("/build-engine/preflight", async (req, res): Promise<void> => {
   const body = req.body as { stepDescriptions?: string[] };
   const stepDescriptions: string[] = Array.isArray(body.stepDescriptions) ? body.stepDescriptions : [];
 
-  // Load all credentials for this user
+  // Load all credentials scoped to the user's current workspace (prevents cross-tenant leakage)
+  const pfWorkspaceId = await validateClientWorkspaceId(req, userId);
+  const pfCredCondition = pfWorkspaceId !== null
+    ? and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.clientWorkspaceId, pfWorkspaceId))
+    : eq(userCredentialsTable.userId, userId);
   const credRows = await db.select({
     credentialKey: userCredentialsTable.credentialKey,
-  }).from(userCredentialsTable).where(eq(userCredentialsTable.userId, userId));
+  }).from(userCredentialsTable).where(pfCredCondition);
 
   // Derive available connector IDs from credential key prefixes.
   // Stored keys are UPPERCASE (e.g. MAILCHIMP_API_KEY) — lowercase the candidate before lookup.

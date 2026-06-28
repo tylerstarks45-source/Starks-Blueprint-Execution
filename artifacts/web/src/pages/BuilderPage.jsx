@@ -1561,6 +1561,16 @@ const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, 
                     <span className={isDone ? 'text-emerald-400/80' : isActive ? 'text-foreground' : 'text-muted-foreground/30'}>
                       {step.notes}
                     </span>
+                    {/* Live vs Demo execution badge — visible once step is done */}
+                    {isDone && (
+                      liveMode && (stepConnectorResults[step.id]?.length > 0)
+                        ? <span className="ml-1.5 inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            ⚡ LIVE
+                          </span>
+                        : <span className="ml-1.5 inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-bold bg-white/5 text-white/25 border border-white/10">
+                            ∷ SIM
+                          </span>
+                    )}
                   </span>
                 </motion.div>
 

@@ -297,7 +297,7 @@ Primary color: ${primary} | Secondary color: ${secondary}`;
 
   const [optinHtml, tyHtml, upsellHtml] = await Promise.all([
     complete({ systemPrompt: basePrompt, model: "openai/gpt-4o", userId: authorId,
-      prompt: `Niche: ${niche} | Goal: ${goal}\nThis is the OPT-IN page.\nInclude a lead capture form with action="/api/pages/${optin.id}/submit" method="POST" and fields: email (required), firstName (optional). The server handles the redirect after submit. Style the form to match dark theme. Include hero, benefits, social proof, and email capture form.` }),
+      prompt: `Niche: ${niche} | Goal: ${goal}\nThis is the OPT-IN page.\nInclude a lead capture form with action="/api/landing-pages/${optin.id}/submit" method="POST" and fields: email (required), firstName (optional). The server handles the redirect after submit. Style the form to match dark theme. Include hero, benefits, social proof, and email capture form.` }),
     complete({ systemPrompt: basePrompt, model: "openai/gpt-4o", userId: authorId,
       prompt: `Niche: ${niche} | Goal: ${goal}\nThis is the THANK-YOU page after opt-in. Thank them warmly. Say to check their email. Introduce a soft upgrade offer. Link to upsell at /api/pages/${upsell.slug}.` }),
     complete({ systemPrompt: basePrompt, model: "openai/gpt-4o", userId: authorId,
@@ -351,7 +351,7 @@ router.post("/landing-pages/generate", async (req, res): Promise<void> => {
   const leadCaptureBlock = includeLeadCapture
     ? `\n\nLEAD CAPTURE FORM — REQUIRED:
 Include an email opt-in form in the hero AND near the bottom CTA. Use EXACTLY this HTML structure (do not modify):
-<form action="/api/pages/${page.id}/submit" method="POST" style="display:flex;flex-direction:column;gap:12px;max-width:420px;margin:0 auto">
+<form action="/api/landing-pages/${page.id}/submit" method="POST" style="display:flex;flex-direction:column;gap:12px;max-width:420px;margin:0 auto">
   <input type="text" name="firstName" placeholder="Your first name" style="padding:14px 18px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;font-size:15px;outline:none" />
   <input type="email" name="email" required placeholder="Your best email address" style="padding:14px 18px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;font-size:15px;outline:none" />
   <button type="submit" style="padding:16px;border-radius:10px;background:linear-gradient(135deg,${primary},${secondary});color:#fff;font-weight:700;font-size:16px;border:none;cursor:pointer;letter-spacing:0.5px">Get Free Access →</button>

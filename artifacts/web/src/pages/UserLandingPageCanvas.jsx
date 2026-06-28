@@ -6,7 +6,7 @@ import {
   Monitor, Smartphone, Palette, Layout, ChevronDown, ChevronUp,
   CheckSquare, Square, Loader2, Copy, Check, ExternalLink, Wand2,
   Type, Image, Users, Star, HelpCircle, PhoneCall, DollarSign,
-  Zap, LayoutTemplate, Send, Link2, Mail, ArrowRight, BarChart3, TrendingUp,
+  Zap, LayoutTemplate, Send, Link2, Mail, ArrowRight, BarChart3, TrendingUp, Code2, Edit2,
 } from 'lucide-react';
 
 const API = '/api';
@@ -67,6 +67,9 @@ export default function UserLandingPageCanvas() {
   const [savingFunnel, setSavingFunnel] = useState(false);
   const [funnelEmailListId, setFunnelEmailListId] = useState(null);
   const [funnelNextPageId, setFunnelNextPageId] = useState(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorHtml, setEditorHtml] = useState('');
+  const [savingEditor, setSavingEditor] = useState(false);
 
   const [prompt, setPrompt] = useState('');
   const [pageType, setPageType] = useState('affiliate');
@@ -122,8 +125,9 @@ export default function UserLandingPageCanvas() {
     if (page) {
       setFunnelEmailListId(page.emailListId ?? null);
       setFunnelNextPageId(page.nextPageId ?? null);
+      if (page.htmlContent && !editorHtml) setEditorHtml(page.htmlContent);
     }
-  }, [page?.emailListId, page?.nextPageId]);
+  }, [page?.emailListId, page?.nextPageId, page?.id]);
 
   function buildPromptWithSections() {
     const active = SECTIONS.filter(s => enabledSections[s.id]).map(s => s.label);
@@ -203,10 +207,30 @@ export default function UserLandingPageCanvas() {
   }
 
   function handleCopyLink() {
-    const url = `${window.location.origin}/api/pages/${page?.slug}`;
+    const url = page?.publicUrl
+      ? `${window.location.origin}${page.publicUrl}`
+      : `${window.location.origin}/api/pages/${page?.slug}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleSaveHtml() {
+    setSavingEditor(true);
+    try {
+      const res = await fetch(`${API}/landing-pages/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ htmlContent: editorHtml }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const updated = await res.json();
+      setPage(updated);
+      if (iframeRef.current) iframeRef.current.srcdoc = editorHtml;
+      showToast('Page saved!');
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally { setSavingEditor(false); }
   }
 
   async function handleSaveFunnelSettings() {
@@ -545,14 +569,22 @@ export default function UserLandingPageCanvas() {
                 )}
 
                 {/* Public link */}
-                {page?.isPublished && page?.slug && (
+                {page?.isPublished && (page?.publicUrl ?? page?.slug) && (
                   <div>
                     <p className="text-xs text-white/40 mb-1.5">Public URL</p>
                     <div className="flex items-center gap-2 bg-white/4 rounded-xl px-3 py-2">
                       <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className="text-xs text-white/50 font-mono truncate flex-1">/api/pages/{page.slug}</span>
+                      <span className="text-xs text-white/50 font-mono truncate flex-1">
+                        {page.publicUrl ?? `/api/pages/${page.slug}`}
+                      </span>
                       <button
-                        onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/api/pages/${page.slug}`); showToast('Copied!'); }}
+                        onClick={() => {
+                          const url = page.publicUrl
+                            ? `${window.location.origin}${page.publicUrl}`
+                            : `${window.location.origin}/api/pages/${page.slug}`;
+                          navigator.clipboard.writeText(url);
+                          showToast('Copied!');
+                        }}
                         className="shrink-0 text-white/30 hover:text-white/70 transition-colors"
                       ><Copy className="w-3.5 h-3.5" /></button>
                     </div>
@@ -605,6 +637,49 @@ export default function UserLandingPageCanvas() {
             )}
           </div>
 
+          {/* HTML editor */}
+          <div className="border-b border-white/8">
+            <button
+              onClick={() => { setEditorOpen(v => !v); if (!editorOpen && page?.htmlContent) setEditorHtml(page.htmlContent); }}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-white/80 hover:text-white hover:bg-white/3 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Code2 className="w-4 h-4 text-indigo-400" />
+                Edit HTML
+              </span>
+              {editorOpen ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
+            </button>
+            {editorOpen && (
+              <div className="px-4 pb-4 space-y-3">
+                <p className="text-xs text-white/30">Edit the page HTML directly. Changes update the live preview.</p>
+                <textarea
+                  value={editorHtml}
+                  onChange={e => { setEditorHtml(e.target.value); if (iframeRef.current) iframeRef.current.srcdoc = e.target.value; }}
+                  className="w-full h-64 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white/70 focus:outline-none focus:border-violet-500/50 resize-none"
+                  placeholder="<!DOCTYPE html>..."
+                  spellCheck={false}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveHtml}
+                    disabled={savingEditor || !editorHtml}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-medium hover:bg-indigo-500/25 transition-all disabled:opacity-50"
+                  >
+                    {savingEditor ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    Save HTML
+                  </button>
+                  <button
+                    onClick={() => { if (page?.htmlContent) { setEditorHtml(page.htmlContent); if (iframeRef.current) iframeRef.current.srcdoc = page.htmlContent; } }}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-white/10 text-white/40 hover:text-white/70 text-xs transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Reset
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Page stats */}
           {page && (
             <div className="px-4 py-3 space-y-2">
@@ -653,13 +728,26 @@ export default function UserLandingPageCanvas() {
               )}
             </div>
             {hasContent && (
-              <button
-                onClick={() => window.open(`/api/landing-pages/${id}/preview-html`, '_blank')}
-                className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Open full page
-              </button>
+              <div className="flex items-center gap-2">
+                {page?.isPublished && page?.publicUrl && (
+                  <a
+                    href={page.publicUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-emerald-400/70 hover:text-emerald-400 transition-colors"
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    Live URL
+                  </a>
+                )}
+                <button
+                  onClick={() => window.open(`/api/landing-pages/${id}/preview-html`, '_blank')}
+                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Preview
+                </button>
+              </div>
             )}
           </div>
 

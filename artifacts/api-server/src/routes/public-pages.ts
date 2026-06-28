@@ -218,11 +218,12 @@ router.get("/pages/:slug", async (req, res): Promise<void> => {
   res.send(safeHtml);
 });
 
-// ── POST /api/pages/:id/submit ── public lead capture form submission ─────────
-// No auth required — this is called from the public landing page form.
+// ── POST /api/landing-pages/:id/submit (canonical) + /api/pages/:id/submit (compat) ─
+// No auth required — called from public landing page forms.
 // Accepts both application/json and application/x-www-form-urlencoded (HTML form POST).
-router.post("/pages/:id/submit", async (req, res): Promise<void> => {
-  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+async function handlePageSubmit(req: Parameters<Parameters<typeof router.post>[1]>[0], res: Parameters<Parameters<typeof router.post>[1]>[1]): Promise<void> {
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(rawId ?? "", 10);
   if (!Number.isFinite(id)) {
     res.status(400).send("Invalid page id");
     return;
@@ -314,7 +315,13 @@ router.post("/pages/:id/submit", async (req, res): Promise<void> => {
   res.send(`<!DOCTYPE html><html><head><title>Thank You!</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>*{margin:0;padding:0;box-sizing:border-box}body{background:#050508;color:#fff;font-family:'Outfit',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}.card{text-align:center;max-width:460px;padding:48px 40px;border-radius:24px;border:1px solid rgba(139,92,246,0.25);background:rgba(139,92,246,0.06)}.emoji{font-size:64px;margin-bottom:24px}.h1{font-size:32px;font-weight:800;margin-bottom:12px;background:linear-gradient(135deg,#8B5CF6,#06B6D4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}.p{font-size:16px;color:rgba(255,255,255,0.55);line-height:1.6}</style></head>
 <body><div class="card"><div class="emoji">🎉</div><div class="h1">You're in!</div><p class="p">Thanks for joining. Check your inbox — we'll be in touch soon.</p></div></body></html>`);
-});
+}
+
+// Canonical path per API spec: /api/landing-pages/:id/submit
+router.post("/landing-pages/:id/submit", (req, res) => handlePageSubmit(req, res));
+
+// Compat alias for legacy form actions on already-published pages
+router.post("/pages/:id/submit", (req, res) => handlePageSubmit(req, res));
 
 // ── GET /api/p/:username/:slug ── username-scoped public URL ──────────────────
 // Friendly URL format: /api/p/{emailPrefix}/{slug}

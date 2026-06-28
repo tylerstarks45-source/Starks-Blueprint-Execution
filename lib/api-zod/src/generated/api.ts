@@ -1243,6 +1243,32 @@ export const UpsertUserMemoryResponse = zod.object({
 
 
 /**
+ * @summary Update a user memory record by id
+ */
+export const UpdateUserMemoryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateUserMemoryBody = zod.object({
+  "memoryKey": zod.string().min(1),
+  "memoryValue": zod.string()
+})
+
+export const UpdateUserMemoryResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "systemInstanceId": zod.number().nullish(),
+  "memoryKey": zod.string(),
+  "memoryValue": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
  * @summary Delete a user memory record
  */
 export const DeleteUserMemoryParams = zod.object({

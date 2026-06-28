@@ -1373,6 +1373,31 @@ paths:
                 $ref: "#/components/schemas/UserMemoryRecord"
 
   /user-memory/{id}:
+    put:
+      operationId: updateUserMemory
+      tags: [user-memory]
+      summary: Update a user memory record by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserMemoryUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserMemoryRecord"
+        "404":
+          description: Not found
     delete:
       operationId: deleteUserMemory
       tags: [user-memory]
@@ -2829,6 +2854,16 @@ components:
         memoryValue:
           type: string
       required: [userId, memoryKey, memoryValue]
+
+    UserMemoryUpdate:
+      type: object
+      properties:
+        memoryKey:
+          type: string
+          minLength: 1
+        memoryValue:
+          type: string
+      required: [memoryKey, memoryValue]
 
     # ── User Credentials ────────────────────────────────────────────────────
     UserCredentialSafe:

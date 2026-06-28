@@ -3397,8 +3397,8 @@ const BuilderPage = () => {
                 <div className="px-2 space-y-0.5">
                   {ashMemory.slice(0, 15).map(entry => (
                     <div key={entry.id} className="px-2 py-1.5 rounded-lg border border-white/5 bg-white/2 hover:bg-white/4 transition-all">
-                      <p className="text-[9px] font-mono text-primary/55 font-bold truncate">{entry.key}</p>
-                      <p className="text-[10px] text-white/40 font-mono truncate mt-0.5">{entry.value || '—'}</p>
+                      <p className="text-[9px] font-mono text-primary/55 font-bold truncate">{entry.memoryKey}</p>
+                      <p className="text-[10px] text-white/40 font-mono truncate mt-0.5">{entry.memoryValue || '—'}</p>
                     </div>
                   ))}
                   {ashMemory.length > 15 && (

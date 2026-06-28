@@ -117,6 +117,7 @@ export * from './userCredentialSafe';
 export * from './userInput';
 export * from './userMemoryInput';
 export * from './userMemoryRecord';
+export * from './userMemoryUpdate';
 export * from './userUpdate';
 export * from './walletCreditPurchase';
 export * from './walletTierConfig';

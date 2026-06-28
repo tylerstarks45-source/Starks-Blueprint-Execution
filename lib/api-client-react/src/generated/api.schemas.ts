@@ -498,6 +498,12 @@ export interface UserMemoryInput {
   memoryValue: string;
 }
 
+export interface UserMemoryUpdate {
+  /** @minLength 1 */
+  memoryKey: string;
+  memoryValue: string;
+}
+
 export interface UserCredentialSafe {
   id: number;
   userId: number;

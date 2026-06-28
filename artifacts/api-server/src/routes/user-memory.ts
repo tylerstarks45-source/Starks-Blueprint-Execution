@@ -1,12 +1,15 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { db, userMemoryTable } from "@workspace/db";
 import { requireAuthActive, getTokenPayload, isAdminRole } from "../lib/auth";
 import {
   ListUserMemoryResponse,
   UpsertUserMemoryResponse,
   UpsertUserMemoryBody,
+  UpdateUserMemoryBody,
+  UpdateUserMemoryParams,
+  UpdateUserMemoryResponse,
   DeleteUserMemoryParams,
 } from "@workspace/api-zod";
 
@@ -59,6 +62,8 @@ router.post("/user-memory", async (req, res): Promise<void> => {
   const conditions = [eq(userMemoryTable.userId, memUserId), eq(userMemoryTable.memoryKey, memoryKey)];
   if (systemInstanceId != null) {
     conditions.push(eq(userMemoryTable.systemInstanceId, systemInstanceId));
+  } else {
+    conditions.push(isNull(userMemoryTable.systemInstanceId));
   }
   const [existing] = await db.select().from(userMemoryTable).where(and(...conditions));
 
@@ -73,6 +78,41 @@ router.post("/user-memory", async (req, res): Promise<void> => {
     [row] = await db.insert(userMemoryTable).values(parsed.data).returning();
   }
   res.json(UpsertUserMemoryResponse.parse(serialize(row)));
+});
+
+router.put("/user-memory/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const params = UpdateUserMemoryParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = UpdateUserMemoryBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const [existing] = await db
+    .select()
+    .from(userMemoryTable)
+    .where(eq(userMemoryTable.id, params.data.id));
+  if (!existing) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const caller = getTokenPayload(req);
+  const admin = caller && isAdminRole(caller.role);
+  if (!admin && existing.userId !== userId) {
+    res.status(403).json({ error: "Access denied" });
+    return;
+  }
+  const [updated] = await db
+    .update(userMemoryTable)
+    .set({ memoryKey: body.data.memoryKey, memoryValue: body.data.memoryValue })
+    .where(eq(userMemoryTable.id, params.data.id))
+    .returning();
+  res.json(UpdateUserMemoryResponse.parse(serialize(updated)));
 });
 
 router.delete("/user-memory/:id", async (req, res): Promise<void> => {

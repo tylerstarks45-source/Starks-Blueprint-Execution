@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext.jsx';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Brain, Plus, Trash2, Edit3, Save, X,
-  Loader2, Search, ChevronDown, ChevronRight, Wand2,
+  Loader2, Search, ChevronDown, ChevronRight, Globe, Layers,
   Check, RefreshCw, Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,7 @@ export default function MemoryPage() {
   const { currentUser } = useAuth();
 
   const [memory, setMemory] = useState([]);
+  const [systems, setSystems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -60,6 +61,8 @@ export default function MemoryPage() {
   const [addingNew, setAddingNew] = useState(false);
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
+  const [newScope, setNewScope] = useState('global');
+  const [newSystemId, setNewSystemId] = useState('');
   const [collapsed, setCollapsed] = useState({});
 
   const loadMemory = useCallback(async () => {
@@ -72,12 +75,24 @@ export default function MemoryPage() {
         const items = Array.isArray(data) ? data : (data?.items ?? []);
         setMemory(items);
       }
-    } catch { /* ignore */ } finally {
+    } catch { } finally {
       setLoading(false);
     }
   }, [currentUser?.id]);
 
-  useEffect(() => { loadMemory(); }, [loadMemory]);
+  const loadSystems = useCallback(async () => {
+    if (!currentUser?.id) return;
+    try {
+      const res = await fetch(`/api/system-instances?userId=${currentUser.id}&limit=100`, { headers: authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : (data?.items ?? []);
+        setSystems(items);
+      }
+    } catch { }
+  }, [currentUser?.id]);
+
+  useEffect(() => { loadMemory(); loadSystems(); }, [loadMemory, loadSystems]);
 
   const saveEdit = async () => {
     if (!editingId || !editKey.trim()) return;
@@ -86,52 +101,70 @@ export default function MemoryPage() {
       const res = await fetch(`/api/user-memory/${editingId}`, {
         method: 'PUT',
         headers: authHeaders(),
-        body: JSON.stringify({ key: editKey, value: editValue }),
+        body: JSON.stringify({ memoryKey: editKey, memoryValue: editValue }),
       });
       if (res.ok) {
         const updated = await res.json();
         setMemory(prev => prev.map(m => m.id === editingId ? updated : m));
         setEditingId(null);
         toast.success('Memory updated');
+      } else {
+        toast.error('Update failed');
       }
     } catch { toast.error('Update failed'); } finally { setSaving(false); }
   };
 
   const deleteEntry = async (id) => {
     try {
-      await fetch(`/api/user-memory/${id}`, { method: 'DELETE', headers: authHeaders() });
-      setMemory(prev => prev.filter(m => m.id !== id));
-      toast.success('Memory deleted');
+      const res = await fetch(`/api/user-memory/${id}`, { method: 'DELETE', headers: authHeaders() });
+      if (res.ok) {
+        setMemory(prev => prev.filter(m => m.id !== id));
+        toast.success('Memory deleted');
+      } else {
+        toast.error('Delete failed');
+      }
     } catch { toast.error('Delete failed'); }
   };
 
   const addEntry = async () => {
-    if (!newKey.trim()) return;
+    if (!newKey.trim() || !currentUser?.id) return;
     setSaving(true);
     try {
+      const body = {
+        userId: currentUser.id,
+        memoryKey: newKey.trim(),
+        memoryValue: newValue,
+      };
+      if (newScope === 'system' && newSystemId) {
+        body.systemInstanceId = Number(newSystemId);
+      }
       const res = await fetch('/api/user-memory', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ key: newKey, value: newValue }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         const created = await res.json();
         setMemory(prev => [created, ...prev]);
         setNewKey('');
         setNewValue('');
+        setNewScope('global');
+        setNewSystemId('');
         setAddingNew(false);
         toast.success('Memory added');
+      } else {
+        toast.error('Add failed');
       }
     } catch { toast.error('Add failed'); } finally { setSaving(false); }
   };
 
   const filtered = memory.filter(m =>
-    !search || (m.key ?? '').toLowerCase().includes(search.toLowerCase()) ||
-    (m.value ?? '').toLowerCase().includes(search.toLowerCase())
+    !search || (m.memoryKey ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (m.memoryValue ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   const grouped = filtered.reduce((acc, m) => {
-    const cat = categorize(m.key);
+    const cat = categorize(m.memoryKey);
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(m);
     return acc;
@@ -181,7 +214,7 @@ export default function MemoryPage() {
           <div className="flex items-start gap-2.5 p-3 rounded-xl border border-primary/15 bg-primary/5 mb-5">
             <Info className="w-4 h-4 text-primary/60 shrink-0 mt-0.5" />
             <p className="text-xs text-white/45 leading-relaxed">
-              ASH uses this memory to personalize your builds. It automatically learns your business context, preferences, and goals as you chat — you can also add your own entries below.
+              ASH uses this memory to personalize your builds. It automatically learns your business context, preferences, and goals as you chat — you can also add your own entries below. Global entries apply to all conversations; system-specific entries only apply when working on that system.
             </p>
           </div>
 
@@ -204,6 +237,7 @@ export default function MemoryPage() {
           {addingNew && (
             <div className="border border-primary/25 bg-primary/5 rounded-xl p-4 mb-4 space-y-3">
               <p className="text-[11px] font-mono text-primary font-bold">New Memory Entry</p>
+
               <div className="grid grid-cols-2 gap-2">
                 <input
                   value={newKey}
@@ -214,16 +248,56 @@ export default function MemoryPage() {
                 <input
                   value={newValue}
                   onChange={e => setNewValue(e.target.value)}
-                  placeholder="Value"
+                  placeholder="Value (e.g. Fitness & wellness)"
                   className="bg-black/40 border border-white/12 rounded-lg px-3 py-2 text-xs font-mono text-white/65 placeholder:text-white/22 focus:outline-none focus:border-primary/40"
                 />
               </div>
+
+              {/* Scope selector */}
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-mono text-white/35 shrink-0">Scope:</p>
+                <button
+                  onClick={() => setNewScope('global')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-mono border transition-all ${
+                    newScope === 'global'
+                      ? 'bg-primary/15 border-primary/35 text-primary'
+                      : 'bg-white/4 border-white/10 text-white/35 hover:text-white/55'
+                  }`}
+                >
+                  <Globe className="w-2.5 h-2.5" />
+                  Global
+                </button>
+                <button
+                  onClick={() => setNewScope('system')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-mono border transition-all ${
+                    newScope === 'system'
+                      ? 'bg-violet-500/15 border-violet-500/35 text-violet-400'
+                      : 'bg-white/4 border-white/10 text-white/35 hover:text-white/55'
+                  }`}
+                >
+                  <Layers className="w-2.5 h-2.5" />
+                  System-specific
+                </button>
+                {newScope === 'system' && (
+                  <select
+                    value={newSystemId}
+                    onChange={e => setNewSystemId(e.target.value)}
+                    className="flex-1 bg-black/40 border border-violet-500/25 rounded-lg px-2 py-1 text-[10px] font-mono text-white/55 focus:outline-none focus:border-violet-500/45"
+                  >
+                    <option value="">— pick a system —</option>
+                    {systems.map(s => (
+                      <option key={s.id} value={s.id}>{s.name || `System #${s.id}`}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
               <div className="flex gap-2">
-                <Button onClick={addEntry} disabled={saving || !newKey.trim()} size="sm" className="h-8 text-xs">
+                <Button onClick={addEntry} disabled={saving || !newKey.trim() || (newScope === 'system' && !newSystemId)} size="sm" className="h-8 text-xs">
                   {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                   Add
                 </Button>
-                <button onClick={() => setAddingNew(false)} className="px-3 h-8 text-xs text-white/35 hover:text-white/55 font-mono">Cancel</button>
+                <button onClick={() => { setAddingNew(false); setNewScope('global'); setNewSystemId(''); }} className="px-3 h-8 text-xs text-white/35 hover:text-white/55 font-mono">Cancel</button>
               </div>
             </div>
           )}
@@ -238,7 +312,7 @@ export default function MemoryPage() {
             <div className="text-center py-12">
               <Brain className="w-10 h-10 text-white/8 mx-auto mb-3" />
               <p className="text-white/25 text-sm font-mono">No memory entries yet</p>
-              <p className="text-white/15 text-xs font-mono mt-1">Chat with ASH to build context automatically</p>
+              <p className="text-white/15 text-xs font-mono mt-1">Chat with ASH to build context automatically, or add your own above</p>
             </div>
           )}
 
@@ -285,15 +359,28 @@ export default function MemoryPage() {
                         ) : (
                           <div className="flex items-start gap-3">
                             <div className="flex-1 min-w-0">
-                              <p className={`text-[10px] font-mono font-bold ${catConfig.color} mb-0.5`}>{entry.key}</p>
-                              <p className="text-[11px] text-white/55 font-mono leading-relaxed break-words">{entry.value || '—'}</p>
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <p className={`text-[10px] font-mono font-bold ${catConfig.color}`}>{entry.memoryKey}</p>
+                                {entry.systemInstanceId ? (
+                                  <span className="text-[8px] font-mono text-violet-400/60 bg-violet-500/8 border border-violet-500/15 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                    <Layers className="w-2 h-2" />
+                                    system #{entry.systemInstanceId}
+                                  </span>
+                                ) : (
+                                  <span className="text-[8px] font-mono text-white/25 bg-white/4 border border-white/8 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                    <Globe className="w-2 h-2" />
+                                    global
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-white/55 font-mono leading-relaxed break-words">{entry.memoryValue || '—'}</p>
                               {entry.updatedAt && (
                                 <p className="text-[8px] text-white/18 font-mono mt-1">{formatTime(entry.updatedAt)}</p>
                               )}
                             </div>
                             <div className="flex gap-1 shrink-0">
                               <button
-                                onClick={() => { setEditingId(entry.id); setEditKey(entry.key); setEditValue(entry.value ?? ''); }}
+                                onClick={() => { setEditingId(entry.id); setEditKey(entry.memoryKey); setEditValue(entry.memoryValue ?? ''); }}
                                 className="p-1.5 rounded text-white/20 hover:text-white/50 hover:bg-white/8 transition-all"
                               >
                                 <Edit3 className="w-3 h-3" />

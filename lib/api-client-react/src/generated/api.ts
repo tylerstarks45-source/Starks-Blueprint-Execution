@@ -111,6 +111,7 @@ import type {
   UserInput,
   UserMemoryInput,
   UserMemoryRecord,
+  UserMemoryUpdate,
   UserUpdate,
   WalletCreditPurchase
 } from './api.schemas';
@@ -4668,6 +4669,78 @@ export const useUpsertUserMemory = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpsertUserMemoryMutationOptions(options));
+    }
+
+export const getUpdateUserMemoryUrl = (id: number,) => {
+
+
+
+
+  return `/api/user-memory/${id}`
+}
+
+/**
+ * @summary Update a user memory record by id
+ */
+export const updateUserMemory = async (id: number,
+    userMemoryUpdate: UserMemoryUpdate, options?: RequestInit): Promise<UserMemoryRecord> => {
+
+  return customFetch<UserMemoryRecord>(getUpdateUserMemoryUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      userMemoryUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateUserMemoryMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserMemory>>, TError,{id: number;data: BodyType<UserMemoryUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateUserMemory>>, TError,{id: number;data: BodyType<UserMemoryUpdate>}, TContext> => {
+
+const mutationKey = ['updateUserMemory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUserMemory>>, {id: number;data: BodyType<UserMemoryUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateUserMemory(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateUserMemoryMutationResult = NonNullable<Awaited<ReturnType<typeof updateUserMemory>>>
+    export type UpdateUserMemoryMutationBody = BodyType<UserMemoryUpdate>
+    export type UpdateUserMemoryMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a user memory record by id
+ */
+export const useUpdateUserMemory = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserMemory>>, TError,{id: number;data: BodyType<UserMemoryUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateUserMemory>>,
+        TError,
+        {id: number;data: BodyType<UserMemoryUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateUserMemoryMutationOptions(options));
     }
 
 export const getDeleteUserMemoryUrl = (id: number,) => {

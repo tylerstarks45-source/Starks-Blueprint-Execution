@@ -12,7 +12,7 @@ export class TeachableConnector extends BaseConnector {
   readonly category = "courses";
   readonly authType = "api_key" as const;
   readonly requiredCredentials = ["TEACHABLE_API_KEY"];
-  readonly actions = ["listCourses", "getCourse", "listStudents", "enrollStudent", "getCourseRevenue", "listCoupons"];
+  readonly actions = ["listCourses", "getCourse", "createCourse", "listStudents", "enrollStudent", "getCourseRevenue", "listCoupons"];
 
   private headers() {
     return {
@@ -93,6 +93,23 @@ export class TeachableConnector extends BaseConnector {
         const data = await res.json() as { revenue?: { total_cents?: number; currency?: string } };
         const total = data.revenue?.total_cents ?? 0;
         return { ok: true, data: { totalCents: total, totalDollars: (total / 100).toFixed(2), currency: data.revenue?.currency, message: `Course ${courseId} revenue: $${(total / 100).toFixed(2)} ${data.revenue?.currency ?? ""}` } };
+      }
+
+      if (action === "createCourse") {
+        const name = (params["name"] as string) ?? "New Course";
+        const heading = (params["heading"] as string) ?? "";
+        const description = (params["description"] as string) ?? "";
+        const price = Math.round(Number(params["price"] ?? 0));
+        const courseType = (params["courseType"] as string) ?? "course";
+        const body: Record<string, unknown> = { name, heading, description, price, course_type: courseType };
+        if (params["imageUrl"]) body["image_url"] = params["imageUrl"];
+        const res = await fetch(`${BASE}/courses`, {
+          method: "POST", headers: this.headers(), body: JSON.stringify(body),
+        });
+        if (!res.ok) { const e = await res.text(); return { ok: false, error: `Teachable ${res.status}: ${e.slice(0, 200)}` }; }
+        const data = await res.json() as { course?: { id?: number; name?: string; heading?: string; is_published?: boolean; price?: number } };
+        const c = data.course;
+        return { ok: true, data: { id: c?.id, name: c?.name, heading: c?.heading, price: c?.price, published: c?.is_published, message: `Course "${c?.name}" created in Teachable (ID: ${c?.id})` } };
       }
 
       if (action === "listCoupons") {

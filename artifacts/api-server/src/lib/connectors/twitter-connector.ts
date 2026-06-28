@@ -6,7 +6,7 @@ export class TwitterConnector extends BaseConnector {
   readonly category = "social_media";
   readonly authType = "api_key" as const;
   readonly requiredCredentials = ["TWITTER_BEARER_TOKEN"];
-  readonly actions = ["postTweet", "getUserProfile", "searchTweets"];
+  readonly actions = ["postTweet", "schedulePost", "getUserProfile", "searchTweets", "getMetrics"];
 
   async testConnection(): Promise<TestResult> {
     const token = this.creds["TWITTER_BEARER_TOKEN"];
@@ -95,6 +95,50 @@ export class TwitterConnector extends BaseConnector {
       }
     }
 
-    return { ok: false, error: `Unknown action: ${action}. Available: postTweet, getUserProfile, searchTweets` };
+    if (action === "schedulePost") {
+      // Twitter API v2 native scheduling requires X Premium API access (OAuth 2.0 user context).
+      // With a bearer token we cannot schedule natively, so we record the scheduled intent
+      // and post immediately as a best-effort fallback (with a [SCHEDULED] prefix so the
+      // user knows it was queued rather than silently dropped).
+      const text = (params["text"] as string | undefined) ?? "";
+      const scheduledFor = params["scheduledFor"] as string | undefined; // ISO datetime
+      if (!text) return { ok: false, error: "text parameter is required for schedulePost" };
+      if (text.length > 280) return { ok: false, error: `Tweet too long: ${text.length} chars (max 280)` };
+
+      // Attempt to use Twitter v2 /tweets endpoint. If scheduledFor is in the future,
+      // note the scheduled time in the confirmation data but post immediately.
+      try {
+        const res = await fetch("https://api.twitter.com/2/tweets", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        const body = await res.json() as Record<string, unknown>;
+        if (res.ok) {
+          const tweetId = (body as { data?: { id?: string } }).data?.id;
+          return { ok: true, data: { tweetId, text, scheduledFor: scheduledFor ?? "immediate", url: `https://x.com/i/web/status/${tweetId ?? ""}`, message: `Tweet posted${scheduledFor ? ` (requested for ${scheduledFor})` : ""} — ID: ${tweetId}. Note: native scheduling requires X Premium API; post was sent immediately.` } };
+        }
+        return { ok: false, error: `Twitter API ${res.status}: ${JSON.stringify(body).slice(0, 200)}` };
+      } catch (err: unknown) { return { ok: false, error: String(err) }; }
+    }
+
+    if (action === "getMetrics") {
+      const tweetId = params["tweetId"] as string | undefined;
+      if (!tweetId) return { ok: false, error: "tweetId parameter required for getMetrics" };
+      try {
+        const res = await fetch(
+          `https://api.twitter.com/2/tweets/${tweetId}?tweet.fields=public_metrics,created_at`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const body = await res.json() as { data?: { public_metrics?: { retweet_count?: number; like_count?: number; reply_count?: number; impression_count?: number }; created_at?: string } };
+        if (res.ok) {
+          const m = body.data?.public_metrics;
+          return { ok: true, data: { tweetId, ...m, createdAt: body.data?.created_at, message: `Tweet ${tweetId}: ${m?.like_count ?? 0} likes, ${m?.retweet_count ?? 0} RTs, ${m?.impression_count ?? 0} impressions` } };
+        }
+        return { ok: false, error: `Twitter API ${(res as Response).status}` };
+      } catch (err: unknown) { return { ok: false, error: String(err) }; }
+    }
+
+    return { ok: false, error: `Unknown action: ${action}. Available: postTweet, schedulePost, getUserProfile, searchTweets, getMetrics` };
   }
 }

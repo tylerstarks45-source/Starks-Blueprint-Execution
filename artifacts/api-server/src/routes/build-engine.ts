@@ -493,11 +493,28 @@ Execute this step now. Write detailed output describing exactly what was configu
     }
 
     // ── Execute real connector actions (live mode) ──────────────────────────────
-    if (parsed.data.liveMode && actionsMatch) {
+    // Supports two formats:
+    // 1. <SBEP_ACTIONS>{"calls":[...]} </SBEP_ACTIONS>  (primary tag format)
+    // 2. ```json\n{"calls":[...]\n```  (JSON code block fallback for tool_call-style responses)
+    if (parsed.data.liveMode && (actionsMatch || raw.includes('"connector_action"'))) {
       let calls: Array<Record<string, unknown>> = [];
       try {
-        const parsed2 = JSON.parse(actionsMatch[1].trim()) as { calls?: Array<Record<string, unknown>> };
-        if (Array.isArray(parsed2.calls)) calls = parsed2.calls;
+        // Priority 1: dedicated XML tag
+        if (actionsMatch) {
+          const parsed2 = JSON.parse(actionsMatch[1].trim()) as { calls?: Array<Record<string, unknown>> };
+          if (Array.isArray(parsed2.calls)) calls = parsed2.calls;
+        }
+        // Priority 2: JSON code blocks containing connector_action entries
+        if (calls.length === 0) {
+          const codeBlocks = raw.matchAll(/```(?:json)?\s*([\s\S]*?)```/g);
+          for (const block of codeBlocks) {
+            try {
+              const parsed3 = JSON.parse(block[1].trim()) as { calls?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>;
+              const items = Array.isArray(parsed3) ? parsed3 : (parsed3.calls ?? []);
+              if (items.some(i => i.type === "connector_action")) { calls = items; break; }
+            } catch { /* skip invalid block */ }
+          }
+        }
       } catch { /* ignore malformed block */ }
 
       for (const call of calls) {

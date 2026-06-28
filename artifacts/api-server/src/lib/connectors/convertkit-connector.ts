@@ -6,7 +6,7 @@ export class ConvertKitConnector extends BaseConnector {
   readonly category = "email_marketing";
   readonly authType = "api_key" as const;
   readonly requiredCredentials = ["CONVERTKIT_API_KEY"];
-  readonly actions = ["addSubscriber", "getForms", "tagSubscriber"];
+  readonly actions = ["addSubscriber", "getForms", "tagSubscriber", "createSequence", "getSequences", "addSubscriberToSequence"];
 
   async testConnection(): Promise<TestResult> {
     const apiKey = this.creds["CONVERTKIT_API_KEY"];
@@ -103,6 +103,53 @@ export class ConvertKitConnector extends BaseConnector {
       }
     }
 
-    return { ok: false, error: `Unknown action: ${action}. Available: addSubscriber, getForms, tagSubscriber` };
+    if (action === "getSequences") {
+      try {
+        const res = await fetch(`https://api.convertkit.com/v3/sequences?api_key=${apiKey}`);
+        const body = await res.json() as { courses?: Array<{ id?: number; name?: string; created_at?: string }> };
+        if (res.ok) {
+          return { ok: true, data: { sequences: body.courses ?? [], count: body.courses?.length ?? 0, message: `Found ${body.courses?.length ?? 0} sequence(s)` } };
+        }
+        return { ok: false, error: `ConvertKit API ${res.status}: ${JSON.stringify(body).slice(0, 200)}` };
+      } catch (err: unknown) { return { ok: false, error: String(err) }; }
+    }
+
+    if (action === "createSequence") {
+      // ConvertKit API v3 does not expose a create-sequence endpoint for API-key auth;
+      // sequences must be created in the UI. We return a descriptive result so the
+      // build step can proceed with clear guidance rather than silently failing.
+      const name = (params["name"] as string) ?? "New Sequence";
+      return {
+        ok: true,
+        data: {
+          name,
+          status: "manual_required",
+          message: `ConvertKit sequences cannot be created via API key auth — please create "${name}" manually in ConvertKit → Sequences, then use addSubscriberToSequence with the resulting sequence ID.`,
+          docsUrl: "https://app.convertkit.com/sequences",
+        },
+      };
+    }
+
+    if (action === "addSubscriberToSequence") {
+      const email = params["email"] as string | undefined;
+      const sequenceId = (params["sequenceId"] as string | undefined) ?? (this.creds["CONVERTKIT_SEQUENCE_ID"] ?? "");
+      if (!email) return { ok: false, error: "email required" };
+      if (!sequenceId) return { ok: false, error: "sequenceId or CONVERTKIT_SEQUENCE_ID required" };
+      try {
+        const res = await fetch(`https://api.convertkit.com/v3/sequences/${sequenceId}/subscribe`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_key: apiKey, email }),
+        });
+        const body = await res.json() as Record<string, unknown>;
+        if (res.ok) {
+          const sub = (body["subscription"] ?? body) as Record<string, unknown>;
+          return { ok: true, data: { email, sequenceId, subscriberId: (sub["subscriber"] as Record<string, unknown>)?.["id"], message: `${email} added to ConvertKit sequence ${sequenceId}` } };
+        }
+        return { ok: false, error: `ConvertKit API ${res.status}: ${JSON.stringify(body).slice(0, 200)}` };
+      } catch (err: unknown) { return { ok: false, error: String(err) }; }
+    }
+
+    return { ok: false, error: `Unknown action: ${action}. Available: addSubscriber, getForms, tagSubscriber, createSequence, getSequences, addSubscriberToSequence` };
   }
 }

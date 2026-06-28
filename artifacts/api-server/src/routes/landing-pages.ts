@@ -58,6 +58,11 @@ function deriveUsername(email: string): string {
   return email.split("@")[0]!.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/^-|-$/g, "");
 }
 
+function computePublicUrl(email: string, slug: string, isPublished: boolean): string | null {
+  if (!isPublished) return null;
+  return `/api/p/${deriveUsername(email)}/${slug}`;
+}
+
 // ── GET /api/landing-pages ───────────────────────────────────────────────────
 router.get("/landing-pages", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
@@ -83,14 +88,16 @@ router.get("/landing-pages", async (req, res): Promise<void> => {
       createdAt: landingPagesTable.createdAt,
       updatedAt: landingPagesTable.updatedAt,
       systemName: systemInstancesTable.name,
+      userEmail: usersTable.email,
     })
     .from(landingPagesTable)
     .leftJoin(systemInstancesTable, eq(landingPagesTable.systemInstanceId, systemInstancesTable.id))
+    .innerJoin(usersTable, eq(landingPagesTable.userId, usersTable.id))
     .where(eq(landingPagesTable.userId, userId))
     .orderBy(desc(landingPagesTable.updatedAt));
-  const enriched = rows.map(r => ({
+  const enriched = rows.map(({ userEmail, ...r }) => ({
     ...r,
-    publicUrl: r.isPublished ? `/api/pages/${r.slug}` : null,
+    publicUrl: computePublicUrl(userEmail, r.slug, r.isPublished),
   }));
   res.json(serialize(enriched));
 });
@@ -126,13 +133,19 @@ router.get("/landing-pages/:id", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
-  const [row] = await db.select().from(landingPagesTable)
+  const [row] = await db
+    .select({ page: landingPagesTable, userEmail: usersTable.email })
+    .from(landingPagesTable)
+    .innerJoin(usersTable, eq(landingPagesTable.userId, usersTable.id))
     .where(and(eq(landingPagesTable.id, id), eq(landingPagesTable.userId, userId)));
   if (!row) {
     res.status(404).json({ error: "Landing page not found" });
     return;
   }
-  res.json(serialize({ ...row, publicUrl: row.isPublished ? `/api/pages/${row.slug}` : null }));
+  res.json(serialize({
+    ...row.page,
+    publicUrl: computePublicUrl(row.userEmail, row.page.slug, row.page.isPublished),
+  }));
 });
 
 // ── PATCH /api/landing-pages/:id ─────────────────────────────────────────────
@@ -145,6 +158,27 @@ router.patch("/landing-pages/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  // IDOR guard: ensure referenced emailListId and nextPageId belong to this user
+  if (parsed.data.emailListId != null) {
+    const owned = await db.select({ id: emailListsTable.id })
+      .from(emailListsTable)
+      .where(and(eq(emailListsTable.id, parsed.data.emailListId), eq(emailListsTable.userId, userId)));
+    if (owned.length === 0) {
+      res.status(403).json({ error: "Email list not found or access denied" });
+      return;
+    }
+  }
+  if (parsed.data.nextPageId != null) {
+    const owned = await db.select({ id: landingPagesTable.id })
+      .from(landingPagesTable)
+      .where(and(eq(landingPagesTable.id, parsed.data.nextPageId), eq(landingPagesTable.userId, userId)));
+    if (owned.length === 0) {
+      res.status(403).json({ error: "Next page not found or access denied" });
+      return;
+    }
+  }
+
   const updates: Record<string, unknown> = { ...parsed.data };
   if (parsed.data.isPublished === true) updates.publishedAt = new Date();
   const [row] = await db.update(landingPagesTable).set(updates)
@@ -154,7 +188,13 @@ router.patch("/landing-pages/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Landing page not found" });
     return;
   }
-  res.json(serialize({ ...row, publicUrl: row.isPublished ? `/api/pages/${row.slug}` : null }));
+
+  // Fetch email to build canonical publicUrl
+  const [user] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId));
+  res.json(serialize({
+    ...row,
+    publicUrl: computePublicUrl(user?.email ?? "", row.slug, row.isPublished),
+  }));
 });
 
 // ── DELETE /api/landing-pages/:id ────────────────────────────────────────────

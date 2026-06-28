@@ -1,4 +1,5 @@
 import { BaseConnector, TestResult, ExecResult } from "./base";
+import { isBlockedUrl } from "./ssrf-guard";
 
 export class ShopifyConnector extends BaseConnector {
   readonly id = "shopify";
@@ -21,6 +22,10 @@ export class ShopifyConnector extends BaseConnector {
     if (!domain || !token) {
       return { ok: false, latencyMs: 0, message: "SHOPIFY_SHOP_DOMAIN and SHOPIFY_ACCESS_TOKEN required" };
     }
+    // Validate constructed URL to prevent SSRF via crafted shop domains
+    if (isBlockedUrl(`https://${domain}`)) {
+      return { ok: false, latencyMs: 0, message: "SHOPIFY_SHOP_DOMAIN resolves to a blocked or private address" };
+    }
     const start = Date.now();
     try {
       const res = await fetch(`${this.base()}/shop.json`, { headers: this.headers() });
@@ -39,6 +44,9 @@ export class ShopifyConnector extends BaseConnector {
     const domain = this.creds["SHOPIFY_SHOP_DOMAIN"];
     const token = this.creds["SHOPIFY_ACCESS_TOKEN"];
     if (!domain || !token) return { ok: false, error: "SHOPIFY_SHOP_DOMAIN and SHOPIFY_ACCESS_TOKEN required" };
+    if (isBlockedUrl(`https://${domain}`)) {
+      return { ok: false, error: "SHOPIFY_SHOP_DOMAIN resolves to a blocked or private address" };
+    }
 
     try {
       if (action === "getProducts" || action === "syncInventory") {

@@ -26,28 +26,12 @@ export class GmailStub extends OAuthStub {
   readonly actions = ["sendEmail", "readInbox", "createDraft", "searchEmails"];
 }
 
-export class GoogleSheetsStub extends OAuthStub {
-  readonly id = "google_sheets";
-  readonly displayName = "Google Sheets";
-  readonly category = "data";
-  readonly requiredCredentials = ["client_id", "client_secret", "refresh_token"];
-  readonly actions = ["readSheet", "appendRow", "updateCell", "createSheet"];
-}
-
 export class TikTokStub extends OAuthStub {
   readonly id = "tiktok";
   readonly displayName = "TikTok";
   readonly category = "social_media";
   readonly requiredCredentials = ["access_token"];
   readonly actions = ["uploadVideo", "getAnalytics", "schedulePost", "getFollowers"];
-}
-
-export class MetaStub extends OAuthStub {
-  readonly id = "meta";
-  readonly displayName = "Meta (Facebook/Instagram)";
-  readonly category = "social_media";
-  readonly requiredCredentials = ["access_token", "page_id"];
-  readonly actions = ["createAd", "getInsights", "publishPost", "getPageAnalytics"];
 }
 
 export class YouTubeStub extends OAuthStub {

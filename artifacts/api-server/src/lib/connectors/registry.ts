@@ -16,7 +16,12 @@ import { NotionConnector } from "./notion-connector";
 import { AirtableConnector } from "./airtable-connector";
 import { LinkedInConnector } from "./linkedin-connector";
 import { WordPressConnector } from "./wordpress-connector";
-import { GmailStub, GoogleSheetsStub, TikTokStub, MetaStub, YouTubeStub } from "./stubs";
+import { GoogleSheetsConnector } from "./google-sheets-connector";
+import { MetaConnector } from "./meta-connector";
+import { BeehiivConnector } from "./beehiiv-connector";
+import { TeachableConnector } from "./teachable-connector";
+import { ClickFunnelsConnector } from "./clickfunnels-connector";
+import { GmailStub, TikTokStub, YouTubeStub } from "./stubs";
 
 type ConnectorCtor = new (creds: Record<string, string>) => BaseConnector;
 
@@ -36,13 +41,16 @@ const REGISTRY: Record<string, ConnectorCtor> = {
   cloudflare:  CloudflareConnector,
   notion:      NotionConnector,
   airtable:    AirtableConnector,
-  linkedin:    LinkedInConnector,
-  wordpress:   WordPressConnector,
-  gmail:        GmailStub,
-  google_sheets: GoogleSheetsStub,
-  tiktok:      TikTokStub,
-  meta:        MetaStub,
-  youtube:     YouTubeStub,
+  linkedin:      LinkedInConnector,
+  wordpress:     WordPressConnector,
+  google_sheets: GoogleSheetsConnector,
+  meta:          MetaConnector,
+  beehiiv:       BeehiivConnector,
+  teachable:     TeachableConnector,
+  clickfunnels:  ClickFunnelsConnector,
+  gmail:         GmailStub,
+  tiktok:        TikTokStub,
+  youtube:       YouTubeStub,
 };
 
 export function getConnector(id: string, creds: Record<string, string> = {}): BaseConnector | null {

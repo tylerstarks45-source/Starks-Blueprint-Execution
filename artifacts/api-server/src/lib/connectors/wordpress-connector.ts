@@ -1,4 +1,5 @@
 import { BaseConnector, TestResult, ExecResult } from "./base";
+import { validateExternalUrl } from "./ssrf-guard";
 
 export class WordPressConnector extends BaseConnector {
   readonly id = "wordpress";
@@ -26,6 +27,8 @@ export class WordPressConnector extends BaseConnector {
     if (!url || !user || !pass) {
       return { ok: false, latencyMs: 0, message: "WORDPRESS_SITE_URL, WORDPRESS_USERNAME, and WORDPRESS_APP_PASSWORD required" };
     }
+    const ssrfErr = validateExternalUrl(url, "WORDPRESS_SITE_URL");
+    if (ssrfErr) return { ok: false, latencyMs: 0, message: ssrfErr };
     const start = Date.now();
     try {
       const res = await fetch(`${this.base()}/users/me`, { headers: this.headers() });
@@ -45,6 +48,8 @@ export class WordPressConnector extends BaseConnector {
     const user = this.creds["WORDPRESS_USERNAME"];
     const pass = this.creds["WORDPRESS_APP_PASSWORD"];
     if (!url || !user || !pass) return { ok: false, error: "WORDPRESS_SITE_URL, WORDPRESS_USERNAME, WORDPRESS_APP_PASSWORD required" };
+    const ssrfErr = validateExternalUrl(url, "WORDPRESS_SITE_URL");
+    if (ssrfErr) return { ok: false, error: ssrfErr };
 
     try {
       if (action === "getPosts") {

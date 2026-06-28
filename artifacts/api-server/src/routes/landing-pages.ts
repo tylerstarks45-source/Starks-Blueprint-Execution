@@ -317,14 +317,26 @@ Primary color: ${primary} | Secondary color: ${secondary}`;
     return m ? m[0] : r.content;
   };
 
+  // Persist HTML content for all three pages
   await Promise.all([
     db.update(landingPagesTable).set({ htmlContent: extractHtml(optinHtml) }).where(eq(landingPagesTable.id, optin.id)),
     db.update(landingPagesTable).set({ htmlContent: extractHtml(tyHtml) }).where(eq(landingPagesTable.id, thankyou.id)),
     db.update(landingPagesTable).set({ htmlContent: extractHtml(upsellHtml) }).where(eq(landingPagesTable.id, upsell.id)),
   ]);
 
+  // Auto-publish all funnel pages so lead capture works immediately.
+  // The submit endpoint (403 guard) requires isPublished=true.
+  const [userRecord] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, authorId));
+  const uname = deriveUsername(userRecord?.email ?? "");
+  const publishedAt = new Date();
+  await Promise.all([
+    db.update(landingPagesTable).set({ isPublished: true, publishedAt, publicUrl: `/p/${uname}/${optin.slug}` }).where(eq(landingPagesTable.id, optin.id)),
+    db.update(landingPagesTable).set({ isPublished: true, publishedAt, publicUrl: `/p/${uname}/${thankyou.slug}` }).where(eq(landingPagesTable.id, thankyou.id)),
+    db.update(landingPagesTable).set({ isPublished: true, publishedAt, publicUrl: `/p/${uname}/${upsell.slug}` }).where(eq(landingPagesTable.id, upsell.id)),
+  ]);
+
   const freshPages = await db.select().from(landingPagesTable)
-    .where(and(eq(landingPagesTable.userId, userId), eq(landingPagesTable.userId, userId)))
+    .where(eq(landingPagesTable.userId, authorId))
     .orderBy(desc(landingPagesTable.createdAt)).limit(3);
 
   res.status(201).json(serialize({ pages: freshPages, funnelOrder: [optin.id, thankyou.id, upsell.id] }));

@@ -10,6 +10,7 @@ import { logger } from "../logger";
 import { complete } from "../openrouter";
 import { sendPushNotification } from "../push";
 import { fetchPage } from "../browser/crawler";
+import { isBlockedUrl } from "../connectors/ssrf-guard";
 
 const POLL_INTERVAL_MS = 5_000;
 let running = false;
@@ -238,7 +239,9 @@ async function handleBusinessHealthAnalysis(payload: Record<string, unknown>): P
   if (!business) throw new Error(`Business ${businessId} not found`);
 
   let siteContext = "No website URL is on file for this business.";
-  if (business.websiteUrl) {
+  if (business.websiteUrl && isBlockedUrl(business.websiteUrl)) {
+    siteContext = `The website URL on file (${business.websiteUrl}) targets a private, loopback, or reserved address and was not fetched. Treat this as a data-quality issue — ask the user to provide a real public URL.`;
+  } else if (business.websiteUrl) {
     try {
       const page = await fetchPage(business.websiteUrl);
       if (page.error) {

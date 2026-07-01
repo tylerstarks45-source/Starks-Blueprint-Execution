@@ -88,20 +88,27 @@ export default function HealthScoreCard({ businessId, compact = false, className
 
   if (compact) {
     return (
-      <div className={`flex items-center gap-2 ${className}`} onClick={(e) => e.stopPropagation()}>
-        {analyzing ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] font-mono text-muted-foreground/70">
-            <RefreshCw className="w-3 h-3 animate-spin" /> Analyzing…
-          </span>
-        ) : latest ? (
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-mono font-semibold ring-1 ${badge.ring} border-white/10 ${badge.text}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-            {latest.overallHealth}% Health
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] font-mono text-muted-foreground/50">
-            No score yet
-          </span>
+      <div className={`flex flex-col gap-1 min-w-0 ${className}`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          {analyzing ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] font-mono text-muted-foreground/70">
+              <RefreshCw className="w-3 h-3 animate-spin" /> Analyzing…
+            </span>
+          ) : latest ? (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-mono font-semibold ring-1 ${badge.ring} border-white/10 ${badge.text}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+              {latest.overallHealth}% Health
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] font-mono text-muted-foreground/50">
+              No score yet
+            </span>
+          )}
+        </div>
+        {latest?.summary && !analyzing && (
+          <p className="text-[11px] text-muted-foreground/60 leading-snug truncate" title={latest.summary}>
+            {latest.summary}
+          </p>
         )}
       </div>
     );

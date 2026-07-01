@@ -10,3 +10,5 @@ Analysis is auto-triggered (fire-and-forget, wrapped in try/catch, never blocks 
 **Why:** matches the existing build-progress polling UX users already know, and keeps the credit-gated OpenRouter call (via `complete()`) off the request path.
 
 **How to apply:** after any `lib/db` schema change here, remember `pnpm --filter @workspace/db run push` must be run in *every* environment separately (dev DB pushes don't propagate automatically) — a missing table produced a raw Drizzle "Failed query" HTML error page with no schema hint, not a clean 404/500.
+
+Any server-side crawl/fetch of a user-supplied URL (e.g. `business.websiteUrl`) must be checked with `lib/connectors/ssrf-guard.ts`'s `isBlockedUrl()`/`validateExternalUrl()` before calling Playwright's `fetchPage()`. That guard already exists for the connector integrations — reuse it, don't write a new one, for any future feature that fetches a stored/user-controlled URL server-side.

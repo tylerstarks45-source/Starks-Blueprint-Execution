@@ -18,11 +18,20 @@ const POLL_INTERVAL_MS = 5_000;
 let running = false;
 
 // Decrypt credentials for a system instance's tools.
+// `user_credentials.user_id` references the owning platform user (usersTable.id),
+// NOT the system instance id, so we must resolve the instance's owner first.
 export async function loadCredentials(systemInstanceId: number): Promise<Record<string, string>> {
+  const [instance] = await db
+    .select({ userId: systemInstancesTable.userId })
+    .from(systemInstancesTable)
+    .where(eq(systemInstancesTable.id, systemInstanceId));
+
+  if (!instance) return {};
+
   const rows = await db
     .select()
     .from(userCredentialsTable)
-    .where(eq(userCredentialsTable.userId, systemInstanceId));
+    .where(eq(userCredentialsTable.userId, instance.userId));
 
   const creds: Record<string, string> = {};
   for (const row of rows) {

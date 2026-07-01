@@ -1,10 +1,11 @@
-import { eq, and, lt } from "drizzle-orm";
+import { eq, and, lt, sql } from "drizzle-orm";
 import {
   db,
   systemConnectorsTable,
   runtimeJobsTable,
   businessesTable,
   businessOperationsSettingsTable,
+  pendingApprovalsTable,
   usersTable,
   type OperationsPermissions,
   DEFAULT_OPERATIONS_PERMISSIONS,
@@ -206,23 +207,48 @@ export async function attemptSelfHeal(
           message: `Could not escalate unfixable connector ${connector.connector} to Pending Approval — business ${businessId} has no resolvable owner`,
         });
       } else {
-        await createPendingApproval({
-          businessId,
-          userId: ownerId,
-          category: "autoFixHighRisk",
-          riskLevel: "high",
-          title: `Reconnect ${connector.connector} manually`,
-          description: `Auto-reconnect failed for ${connector.connector}: ${result.detail}. This likely needs updated credentials.`,
-          payload: { systemInstanceId, connectorId: connector.connector },
-        });
-        await logMonitoringEvent({
-          systemInstanceId,
-          businessId,
-          eventType: "escalated",
-          action: "reconnect",
-          status: "escalated",
-          message: `Escalated unfixable connector ${connector.connector} to Pending Approval`,
-        });
+        const existingApproval = await db
+          .select({ id: pendingApprovalsTable.id })
+          .from(pendingApprovalsTable)
+          .where(
+            and(
+              eq(pendingApprovalsTable.businessId, businessId),
+              eq(pendingApprovalsTable.status, "pending"),
+              eq(pendingApprovalsTable.category, "autoFixHighRisk"),
+              sql`${pendingApprovalsTable.payload}->>'systemInstanceId' = ${String(systemInstanceId)}`,
+              sql`${pendingApprovalsTable.payload}->>'connectorId' = ${connector.connector}`,
+            ),
+          )
+          .limit(1);
+
+        if (existingApproval.length > 0) {
+          await logMonitoringEvent({
+            systemInstanceId,
+            businessId,
+            eventType: "escalated",
+            action: "reconnect",
+            status: "skipped",
+            message: `Connector ${connector.connector} already has a pending approval — skipping duplicate escalation`,
+          });
+        } else {
+          await createPendingApproval({
+            businessId,
+            userId: ownerId,
+            category: "autoFixHighRisk",
+            riskLevel: "high",
+            title: `Reconnect ${connector.connector} manually`,
+            description: `Auto-reconnect failed for ${connector.connector}: ${result.detail}. This likely needs updated credentials.`,
+            payload: { systemInstanceId, connectorId: connector.connector },
+          });
+          await logMonitoringEvent({
+            systemInstanceId,
+            businessId,
+            eventType: "escalated",
+            action: "reconnect",
+            status: "escalated",
+            message: `Escalated unfixable connector ${connector.connector} to Pending Approval`,
+          });
+        }
       }
     }
   }

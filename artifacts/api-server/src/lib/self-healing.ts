@@ -110,10 +110,14 @@ async function reconnectExpiredConnector(
 }
 
 // ─── Fix #2: retry a failed runtime_job ────────────────────────────────────
-// Precondition: job status = 'failed', not already retried by self-heal
-// (attempt < maxAttempts + 1 guard avoids infinite loops).
+// Precondition: job status = 'failed'. Self-heal is bounded to a single
+// requeue per job via `selfHealRetryCount` (checked by the caller before
+// calling this), since `attempt` gets reset below and can't be used as the
+// loop guard on its own.
 // Postcondition: job requeued with status 'queued', attempt reset so the
-// worker's normal retry/backoff logic re-runs it fresh.
+// worker's normal retry/backoff logic re-runs it fresh, selfHealRetryCount
+// incremented (never reset) so a second failure escalates instead of
+// requeueing again.
 async function retryFailedJob(jobId: string): Promise<SelfHealResult> {
   const [job] = await db.select().from(runtimeJobsTable).where(eq(runtimeJobsTable.jobId, jobId)).limit(1);
   if (!job || job.status !== "failed") {
@@ -122,7 +126,14 @@ async function retryFailedJob(jobId: string): Promise<SelfHealResult> {
 
   await db
     .update(runtimeJobsTable)
-    .set({ status: "queued", attempt: 0, error: null, startedAt: null, completedAt: null })
+    .set({
+      status: "queued",
+      attempt: 0,
+      error: null,
+      startedAt: null,
+      completedAt: null,
+      selfHealRetryCount: job.selfHealRetryCount + 1,
+    })
     .where(eq(runtimeJobsTable.jobId, jobId));
 
   return { action: "retry_job", attempted: true, fixed: true, detail: `Requeued failed job ${jobId}` };
@@ -259,7 +270,6 @@ export async function attemptSelfHeal(
     .where(and(eq(runtimeJobsTable.systemInstanceId, systemInstanceId), eq(runtimeJobsTable.status, "failed")));
 
   for (const job of failedJobs) {
-    if (job.attempt >= job.maxAttempts + 1) continue; // already retried by self-heal once — avoid infinite loop
     if (!canAutoFix) {
       await logMonitoringEvent({
         systemInstanceId,
@@ -271,6 +281,57 @@ export async function attemptSelfHeal(
       });
       continue;
     }
+
+    if (job.selfHealRetryCount >= 1) {
+      // Already requeued once by self-heal and failed again — stop retrying
+      // and escalate instead of looping forever.
+      await logMonitoringEvent({
+        systemInstanceId,
+        businessId,
+        eventType: "self_heal",
+        action: "retry_job",
+        status: "skipped",
+        message: `Job ${job.jobId} (${job.jobType}) failed again after a self-heal retry — not retrying further`,
+        metadata: { jobId: job.jobId, jobType: job.jobType },
+      });
+
+      if (businessId && ownerId != null) {
+        const existingApproval = await db
+          .select({ id: pendingApprovalsTable.id })
+          .from(pendingApprovalsTable)
+          .where(
+            and(
+              eq(pendingApprovalsTable.businessId, businessId),
+              eq(pendingApprovalsTable.status, "pending"),
+              eq(pendingApprovalsTable.category, "autoFixHighRisk"),
+              sql`${pendingApprovalsTable.payload}->>'jobId' = ${job.jobId}`,
+            ),
+          )
+          .limit(1);
+
+        if (existingApproval.length === 0) {
+          await createPendingApproval({
+            businessId,
+            userId: ownerId,
+            category: "autoFixHighRisk",
+            riskLevel: "high",
+            title: `Investigate repeatedly failing job (${job.jobType})`,
+            description: `Job ${job.jobId} (${job.jobType}) failed again after an automatic retry and needs manual investigation.`,
+            payload: { systemInstanceId, jobId: job.jobId, jobType: job.jobType },
+          });
+          await logMonitoringEvent({
+            systemInstanceId,
+            businessId,
+            eventType: "escalated",
+            action: "retry_job",
+            status: "escalated",
+            message: `Escalated repeatedly failing job ${job.jobId} to Pending Approval`,
+          });
+        }
+      }
+      continue;
+    }
+
     const result = await retryFailedJob(job.jobId);
     if (result.attempted) results.push(result);
     await logMonitoringEvent({

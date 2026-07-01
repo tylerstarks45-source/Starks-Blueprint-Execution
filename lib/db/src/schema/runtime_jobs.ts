@@ -16,6 +16,12 @@ export const runtimeJobsTable = pgTable("runtime_jobs", {
   attempt: integer("attempt").notNull().default(0),
   maxAttempts: integer("max_attempts").notNull().default(3),
   error: text("error"),
+  // Counts self-healing requeues specifically (distinct from `attempt`,
+  // which retryFailedJob() resets to 0 on each requeue so the worker's
+  // normal per-run retry/backoff logic re-runs fresh). This field is never
+  // reset, so self-healing can bound itself to one requeue per job and
+  // escalate to Pending Approval instead of looping forever.
+  selfHealRetryCount: integer("self_heal_retry_count").notNull().default(0),
   runAfter: timestamp("run_after", { withTimezone: true }).notNull().defaultNow(),
   queuedAt: timestamp("queued_at", { withTimezone: true }).notNull().defaultNow(),
   startedAt: timestamp("started_at", { withTimezone: true }),

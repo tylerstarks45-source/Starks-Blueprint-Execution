@@ -1600,6 +1600,57 @@ export interface RecomputeHealthResponse {
   summary: MonitoringSummary;
 }
 
+export type SystemLogCategory = typeof SystemLogCategory[keyof typeof SystemLogCategory];
+
+
+export const SystemLogCategory = {
+  build: 'build',
+  deploy: 'deploy',
+  automation: 'automation',
+  browser: 'browser',
+  connection: 'connection',
+  hosting: 'hosting',
+  api: 'api',
+  error: 'error',
+  recovery: 'recovery',
+  maintenance: 'maintenance',
+  optimization: 'optimization',
+  scaling: 'scaling',
+} as const;
+
+export type SystemLogSeverity = typeof SystemLogSeverity[keyof typeof SystemLogSeverity];
+
+
+export const SystemLogSeverity = {
+  info: 'info',
+  warning: 'warning',
+  error: 'error',
+  critical: 'critical',
+} as const;
+
+export type SystemLogMetadata = { [key: string]: unknown };
+
+export interface SystemLog {
+  id: number;
+  systemInstanceId: number | null;
+  businessId: number | null;
+  userId: number | null;
+  category: SystemLogCategory;
+  severity: SystemLogSeverity;
+  component: string | null;
+  action: string | null;
+  message: string;
+  metadata: SystemLogMetadata;
+  createdAt: string;
+}
+
+export interface LogsResponse {
+  logs: SystemLog[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export type ListBlueprintsParams = {
 status?: string;
 categoryId?: number;
@@ -1665,6 +1716,43 @@ export const ListSystemInstancesOrder = {
   asc: 'asc',
   desc: 'desc',
 } as const;
+
+export type GetSystemLogsParams = {
+category?: string;
+severity?: string;
+component?: string;
+action?: string;
+q?: string;
+from?: string;
+to?: string;
+page?: number;
+pageSize?: number;
+};
+
+export type GetBusinessLogsParams = {
+category?: string;
+severity?: string;
+component?: string;
+action?: string;
+q?: string;
+from?: string;
+to?: string;
+page?: number;
+pageSize?: number;
+};
+
+export type GetAdminLogsParams = {
+category?: string;
+severity?: string;
+component?: string;
+action?: string;
+q?: string;
+userId?: number;
+from?: string;
+to?: string;
+page?: number;
+pageSize?: number;
+};
 
 export type ListBuildSessionsParams = {
 systemInstanceId?: number;

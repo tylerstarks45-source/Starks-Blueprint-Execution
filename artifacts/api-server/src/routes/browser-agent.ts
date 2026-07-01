@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuthActive } from "../lib/auth";
 import { runBrowserAgent } from "../lib/browser/agent";
+import { logEvent } from "../lib/log-event";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -36,13 +37,57 @@ router.post("/browser-agent/run", async (req, res): Promise<void> => {
     res.write(": keepalive\n\n");
   }, 15000);
 
+  void logEvent({
+    userId,
+    category: "browser",
+    severity: "info",
+    component: "browser-agent",
+    action: "run",
+    message: `Browser agent started: "${task.slice(0, 120)}" at ${startUrl}`,
+    metadata: { startUrl },
+  });
+
   try {
     for await (const event of runBrowserAgent(task, startUrl, userId)) {
       send(event);
-      if (event.type === "done" || event.type === "error") break;
+      if (event.type === "error") {
+        void logEvent({
+          userId,
+          category: "browser",
+          severity: "error",
+          component: "browser-agent",
+          action: "error",
+          message: event.message ?? "Browser agent error",
+          metadata: { startUrl },
+        });
+      }
+      if (event.type === "done" || event.type === "error") {
+        if (event.type === "done") {
+          void logEvent({
+            userId,
+            category: "browser",
+            severity: "info",
+            component: "browser-agent",
+            action: "done",
+            message: `Browser agent finished: ${(event.result ?? "completed").slice(0, 200)}`,
+            metadata: { startUrl },
+          });
+        }
+        break;
+      }
     }
   } catch (err: unknown) {
-    send({ type: "error", message: err instanceof Error ? err.message : "Browser agent failed" });
+    const msg = err instanceof Error ? err.message : "Browser agent failed";
+    send({ type: "error", message: msg });
+    void logEvent({
+      userId,
+      category: "browser",
+      severity: "error",
+      component: "browser-agent",
+      action: "error",
+      message: msg,
+      metadata: { startUrl },
+    });
   } finally {
     clearInterval(keepAlive);
     send({ type: "end" });

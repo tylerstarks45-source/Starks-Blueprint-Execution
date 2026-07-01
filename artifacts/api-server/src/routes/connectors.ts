@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuthActive } from "../lib/auth";
 import { listConnectors, getConnector, isKnownConnector } from "../lib/connectors/registry";
 import { enqueue } from "../lib/runtime/jobs";
+import { logEvent } from "../lib/log-event";
 
 const router: IRouter = Router();
 
@@ -55,6 +56,20 @@ router.post("/connectors/:id/test", async (req, res): Promise<void> => {
   }
 
   const result = await connector.testConnection();
+
+  void logEvent({
+    systemInstanceId: systemInstanceId ?? null,
+    userId,
+    category: "connection",
+    severity: result.ok ? "info" : "warning",
+    component: connector.displayName,
+    action: "test_connection",
+    message: result.ok
+      ? `${connector.displayName} connection test succeeded`
+      : `${connector.displayName} connection test failed: ${(result.message ?? "unknown").slice(0, 160)}`,
+    metadata: { connectorId, ok: result.ok },
+  });
+
   res.json({
     connectorId,
     ...result,

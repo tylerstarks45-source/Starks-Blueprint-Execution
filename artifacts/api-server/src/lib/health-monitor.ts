@@ -15,8 +15,11 @@ import {
   monitoringLogEventsTable,
   type HealthIssue,
   type HealthStatusLevel,
+  type LogCategory,
+  type LogSeverity,
 } from "@workspace/db";
 import { logger } from "./logger";
+import { logEvent } from "./log-event";
 
 // ─── Shared scoring helpers ────────────────────────────────────────────────
 // Heuristic, DB-signal-based scoring — intentionally lightweight (no live
@@ -94,6 +97,28 @@ export async function logMonitoringEvent(input: {
     status: input.status,
     message: input.message,
     metadata: input.metadata ?? {},
+  });
+
+  // Mirror into the unified logging center (best-effort, never throws).
+  const category: LogCategory =
+    input.eventType === "health_check" ? "maintenance" : input.eventType === "escalated" ? "recovery" : "recovery";
+  const severity: LogSeverity =
+    input.status === "failed"
+      ? "error"
+      : input.status === "escalated"
+        ? "warning"
+        : input.status === "skipped"
+          ? "info"
+          : "info";
+  void logEvent({
+    systemInstanceId: input.systemInstanceId ?? null,
+    businessId: input.businessId ?? null,
+    category,
+    severity,
+    component: "monitoring",
+    action: input.action ?? input.eventType,
+    message: input.message,
+    metadata: { ...(input.metadata ?? {}), eventType: input.eventType, status: input.status },
   });
 }
 

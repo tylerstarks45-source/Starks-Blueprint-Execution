@@ -54,6 +54,7 @@ import businessesRouter from "./businesses";
 import businessHealthRouter from "./business-health";
 import approvalsRouter from "./approvals";
 import monitoringRouter from "./monitoring";
+import logsRouter from "./logs";
 
 const router: IRouter = Router();
 
@@ -112,5 +113,6 @@ router.use(businessesRouter);
 router.use(businessHealthRouter);
 router.use(approvalsRouter);
 router.use(monitoringRouter);
+router.use(logsRouter);
 
 export default router;

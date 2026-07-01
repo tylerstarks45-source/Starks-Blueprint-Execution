@@ -85,8 +85,11 @@ import type {
   DomainSearchResponse,
   DomainsStatus,
   ErrorResponse,
+  GetAdminLogsParams,
   GetAdminRevenueParams,
   GetAdminUsageByUserParams,
+  GetBusinessLogsParams,
+  GetSystemLogsParams,
   HealthStatus,
   ListAdminActivityParams,
   ListAffiliateLinksParams,
@@ -104,6 +107,7 @@ import type {
   ListToolsParams,
   ListUserCredentialsParams,
   ListUserMemoryParams,
+  LogsResponse,
   Notification,
   NotificationInput,
   OpenrouterRequest,
@@ -4008,6 +4012,268 @@ export const useRecomputeSystemMonitoring = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getRecomputeSystemMonitoringMutationOptions(options));
     }
+
+export const getGetSystemLogsUrl = (id: number,
+    params?: GetSystemLogsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/system-instances/${id}/logs?${stringifiedParams}` : `/api/system-instances/${id}/logs`
+}
+
+/**
+ * @summary List unified logs for a system instance with filters + pagination
+ */
+export const getSystemLogs = async (id: number,
+    params?: GetSystemLogsParams, options?: RequestInit): Promise<LogsResponse> => {
+
+  return customFetch<LogsResponse>(getGetSystemLogsUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSystemLogsQueryKey = (id: number,
+    params?: GetSystemLogsParams,) => {
+    return [
+    `/api/system-instances/${id}/logs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSystemLogsQueryOptions = <TData = Awaited<ReturnType<typeof getSystemLogs>>, TError = ErrorType<ErrorResponse>>(id: number,
+    params?: GetSystemLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSystemLogsQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSystemLogs>>> = ({ signal }) => getSystemLogs(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSystemLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSystemLogsQueryResult = NonNullable<Awaited<ReturnType<typeof getSystemLogs>>>
+export type GetSystemLogsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List unified logs for a system instance with filters + pagination
+ */
+
+export function useGetSystemLogs<TData = Awaited<ReturnType<typeof getSystemLogs>>, TError = ErrorType<ErrorResponse>>(
+ id: number,
+    params?: GetSystemLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSystemLogsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBusinessLogsUrl = (id: number,
+    params?: GetBusinessLogsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/businesses/${id}/logs?${stringifiedParams}` : `/api/businesses/${id}/logs`
+}
+
+/**
+ * @summary List unified logs for a business with filters + pagination
+ */
+export const getBusinessLogs = async (id: number,
+    params?: GetBusinessLogsParams, options?: RequestInit): Promise<LogsResponse> => {
+
+  return customFetch<LogsResponse>(getGetBusinessLogsUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessLogsQueryKey = (id: number,
+    params?: GetBusinessLogsParams,) => {
+    return [
+    `/api/businesses/${id}/logs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBusinessLogsQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessLogs>>, TError = ErrorType<ErrorResponse>>(id: number,
+    params?: GetBusinessLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessLogsQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessLogs>>> = ({ signal }) => getBusinessLogs(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessLogsQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessLogs>>>
+export type GetBusinessLogsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List unified logs for a business with filters + pagination
+ */
+
+export function useGetBusinessLogs<TData = Awaited<ReturnType<typeof getBusinessLogs>>, TError = ErrorType<ErrorResponse>>(
+ id: number,
+    params?: GetBusinessLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessLogsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetAdminLogsUrl = (params?: GetAdminLogsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/logs?${stringifiedParams}` : `/api/admin/logs`
+}
+
+/**
+ * @summary Platform-wide unified logs (admin only) with filters + pagination
+ */
+export const getAdminLogs = async (params?: GetAdminLogsParams, options?: RequestInit): Promise<LogsResponse> => {
+
+  return customFetch<LogsResponse>(getGetAdminLogsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminLogsQueryKey = (params?: GetAdminLogsParams,) => {
+    return [
+    `/api/admin/logs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminLogsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminLogs>>, TError = ErrorType<ErrorResponse>>(params?: GetAdminLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminLogsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminLogs>>> = ({ signal }) => getAdminLogs(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminLogsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminLogs>>>
+export type GetAdminLogsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Platform-wide unified logs (admin only) with filters + pagination
+ */
+
+export function useGetAdminLogs<TData = Awaited<ReturnType<typeof getAdminLogs>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetAdminLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminLogsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListBuildSessionsUrl = (params?: ListBuildSessionsParams,) => {
   const normalizedParams = new URLSearchParams();

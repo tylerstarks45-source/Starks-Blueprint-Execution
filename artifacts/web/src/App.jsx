@@ -56,6 +56,8 @@ const LibraryPage           = lazy(() => import('@/pages/LibraryPage.jsx'));
 const SavedSystemsPage      = lazy(() => import('@/pages/SavedSystemsPage.jsx'));
 const BuildPage             = lazy(() => import('@/pages/BuildPage.jsx'));
 const UserSystemDetailPage  = lazy(() => import('@/pages/UserSystemDetailPage.jsx'));
+const SystemLogsPage        = lazy(() => import('@/pages/SystemLogsPage.jsx'));
+const BusinessLogsPage      = lazy(() => import('@/pages/BusinessLogsPage.jsx'));
 const ConnectionsHubPage    = lazy(() => import('@/pages/ConnectionsHubPage.jsx'));
 const SocialAccountsPage    = lazy(() => import('@/pages/SocialAccountsPage.jsx'));
 const SocialCalendarPage    = lazy(() => import('@/pages/SocialCalendarPage.jsx'));
@@ -239,6 +241,9 @@ const App = () => {
               <Route path="/systems/:id" element={
                 <ProtectedRoute><UserSystemDetailPage /></ProtectedRoute>
               } />
+              <Route path="/systems/:id/logs" element={
+                <ProtectedRoute><SystemLogsPage /></ProtectedRoute>
+              } />
               <Route path="/connections" element={
                 <ProtectedRoute><ConnectionsHubPage /></ProtectedRoute>
               } />
@@ -257,6 +262,9 @@ const App = () => {
               <Route path="/business-portfolio/:id" element={<BusinessDetailRedirect />} />
               <Route path="/business/:id" element={
                 <ProtectedRoute><BusinessCommandCenterPage /></ProtectedRoute>
+              } />
+              <Route path="/business/:id/logs" element={
+                <ProtectedRoute><BusinessLogsPage /></ProtectedRoute>
               } />
               <Route path="/business-import" element={
                 <ProtectedRoute><BusinessImportWizardPage /></ProtectedRoute>

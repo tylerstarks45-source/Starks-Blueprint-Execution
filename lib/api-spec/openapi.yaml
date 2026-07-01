@@ -1186,6 +1186,189 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ── Unified Logging Center ────────────────────────────────────────────────
+  /system-instances/{id}/logs:
+    get:
+      operationId: getSystemLogs
+      tags: [system-instances]
+      summary: List unified logs for a system instance with filters + pagination
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: severity
+          in: query
+          schema:
+            type: string
+        - name: component
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Filtered, paginated logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogsResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /businesses/{id}/logs:
+    get:
+      operationId: getBusinessLogs
+      tags: [businesses]
+      summary: List unified logs for a business with filters + pagination
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: severity
+          in: query
+          schema:
+            type: string
+        - name: component
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Filtered, paginated logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogsResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/logs:
+    get:
+      operationId: getAdminLogs
+      tags: [admin]
+      summary: Platform-wide unified logs (admin only) with filters + pagination
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: severity
+          in: query
+          schema:
+            type: string
+        - name: component
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: userId
+          in: query
+          schema:
+            type: integer
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Filtered, paginated platform-wide logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogsResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ── Build Sessions ────────────────────────────────────────────────────────
   /build-sessions:
     get:
@@ -5165,3 +5348,59 @@ components:
         summary:
           $ref: "#/components/schemas/MonitoringSummary"
       required: [overallScore, status, selfHealActionsTaken, summary]
+
+    SystemLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        systemInstanceId:
+          oneOf:
+            - type: integer
+            - type: "null"
+        businessId:
+          oneOf:
+            - type: integer
+            - type: "null"
+        userId:
+          oneOf:
+            - type: integer
+            - type: "null"
+        category:
+          type: string
+          enum: [build, deploy, automation, browser, connection, hosting, api, error, recovery, maintenance, optimization, scaling]
+        severity:
+          type: string
+          enum: [info, warning, error, critical]
+        component:
+          oneOf:
+            - type: string
+            - type: "null"
+        action:
+          oneOf:
+            - type: string
+            - type: "null"
+        message:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, systemInstanceId, businessId, userId, category, severity, component, action, message, metadata, createdAt]
+
+    LogsResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/SystemLog"
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+      required: [logs, total, page, pageSize]

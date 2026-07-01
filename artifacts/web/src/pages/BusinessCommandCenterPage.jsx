@@ -6,7 +6,7 @@ import {
   ArrowLeft, Building2, Globe, Wrench, Download, Link2, RefreshCw,
   FileText, TrendingUp, BarChart3, Server, Plug, Sparkles, Bell,
   ListChecks, LineChart as LineChartIcon, Rocket, ExternalLink, AlertTriangle,
-  ShieldCheck,
+  ShieldCheck, ScrollText,
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import AuthLayout from '@/components/AuthLayout.jsx';
@@ -215,6 +215,12 @@ export default function BusinessCommandCenterPage() {
               )}
             </div>
           </div>
+          <button
+            onClick={() => navigate(`/business/${business.id}/logs`)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-xs font-mono text-muted-foreground hover:text-foreground hover:border-white/20 transition-colors shrink-0"
+          >
+            <ScrollText className="w-3.5 h-3.5" /> View Logs
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

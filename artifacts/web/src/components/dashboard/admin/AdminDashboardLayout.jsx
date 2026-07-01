@@ -29,6 +29,7 @@ class AdminErrorBoundary extends React.Component {
 import {
   LayoutDashboard, DollarSign, BrainCircuit, Server, TrendingUp,
   Users, Bell, ShieldCheck, CreditCard, ShoppingBag, Globe, Share2, Trophy, GitBranch,
+  ScrollText,
 } from 'lucide-react';
 
 import AdminPlatformMetricsCard from './AdminPlatformMetricsCard.jsx';
@@ -61,6 +62,7 @@ import AdminCommunityBlueprintsPanel from './AdminCommunityBlueprintsPanel.jsx';
 import AdminReferralsPanel from '@/components/admin/AdminReferralsPanel.jsx';
 import AdminSocialProofPanel from './AdminSocialProofPanel.jsx';
 import AdminCohortsPanel from './AdminCohortsPanel.jsx';
+import AdminLogsPanel from './AdminLogsPanel.jsx';
 
 import CreditBalanceCard from '@/components/admin/CreditBalanceCard.jsx';
 import UsageOverviewCard from '@/components/admin/UsageOverviewCard.jsx';
@@ -81,6 +83,7 @@ const TABS = [
   { key: 'systems',      label: 'Systems',         icon: Server,          path: '/admin/systems' },
   { key: 'health',        label: 'Platform Health', icon: ShieldCheck,     path: '/admin/health' },
   { key: 'activity',      label: 'Activity',        icon: Bell,            path: '/admin/activity' },
+  { key: 'logs',          label: 'Logs',            icon: ScrollText,      path: '/admin/logs' },
 ];
 
 function useActiveTab() {
@@ -247,6 +250,11 @@ const AdminDashboardLayout = () => {
               <AdminPlatformErrorLogsPanel />
             </div>
           </div>
+        )}
+
+        {/* ── Logs tab ─────────────────────────────────────────────────────── */}
+        {activeTab === 'logs' && (
+          <AdminLogsPanel />
         )}
 
         {/* ── Activity / Audit tab ─────────────────────────────────────────── */}

@@ -1124,6 +1124,120 @@ export const RecomputeSystemMonitoringResponse = zod.object({
 
 
 /**
+ * @summary List unified logs for a system instance with filters + pagination
+ */
+export const GetSystemLogsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetSystemLogsQueryParams = zod.object({
+  "category": zod.coerce.string().optional(),
+  "severity": zod.coerce.string().optional(),
+  "component": zod.coerce.string().optional(),
+  "action": zod.coerce.string().optional(),
+  "q": zod.coerce.string().optional(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "page": zod.coerce.number().optional(),
+  "pageSize": zod.coerce.number().optional()
+})
+
+export const GetSystemLogsResponse = zod.object({
+  "logs": zod.array(zod.object({
+  "id": zod.number(),
+  "systemInstanceId": zod.union([zod.number(),zod.null()]),
+  "businessId": zod.union([zod.number(),zod.null()]),
+  "userId": zod.union([zod.number(),zod.null()]),
+  "category": zod.enum(['build', 'deploy', 'automation', 'browser', 'connection', 'hosting', 'api', 'error', 'recovery', 'maintenance', 'optimization', 'scaling']),
+  "severity": zod.enum(['info', 'warning', 'error', 'critical']),
+  "component": zod.union([zod.string(),zod.null()]),
+  "action": zod.union([zod.string(),zod.null()]),
+  "message": zod.string(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "pageSize": zod.number()
+})
+
+
+/**
+ * @summary List unified logs for a business with filters + pagination
+ */
+export const GetBusinessLogsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetBusinessLogsQueryParams = zod.object({
+  "category": zod.coerce.string().optional(),
+  "severity": zod.coerce.string().optional(),
+  "component": zod.coerce.string().optional(),
+  "action": zod.coerce.string().optional(),
+  "q": zod.coerce.string().optional(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "page": zod.coerce.number().optional(),
+  "pageSize": zod.coerce.number().optional()
+})
+
+export const GetBusinessLogsResponse = zod.object({
+  "logs": zod.array(zod.object({
+  "id": zod.number(),
+  "systemInstanceId": zod.union([zod.number(),zod.null()]),
+  "businessId": zod.union([zod.number(),zod.null()]),
+  "userId": zod.union([zod.number(),zod.null()]),
+  "category": zod.enum(['build', 'deploy', 'automation', 'browser', 'connection', 'hosting', 'api', 'error', 'recovery', 'maintenance', 'optimization', 'scaling']),
+  "severity": zod.enum(['info', 'warning', 'error', 'critical']),
+  "component": zod.union([zod.string(),zod.null()]),
+  "action": zod.union([zod.string(),zod.null()]),
+  "message": zod.string(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "pageSize": zod.number()
+})
+
+
+/**
+ * @summary Platform-wide unified logs (admin only) with filters + pagination
+ */
+export const GetAdminLogsQueryParams = zod.object({
+  "category": zod.coerce.string().optional(),
+  "severity": zod.coerce.string().optional(),
+  "component": zod.coerce.string().optional(),
+  "action": zod.coerce.string().optional(),
+  "q": zod.coerce.string().optional(),
+  "userId": zod.coerce.number().optional(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "page": zod.coerce.number().optional(),
+  "pageSize": zod.coerce.number().optional()
+})
+
+export const GetAdminLogsResponse = zod.object({
+  "logs": zod.array(zod.object({
+  "id": zod.number(),
+  "systemInstanceId": zod.union([zod.number(),zod.null()]),
+  "businessId": zod.union([zod.number(),zod.null()]),
+  "userId": zod.union([zod.number(),zod.null()]),
+  "category": zod.enum(['build', 'deploy', 'automation', 'browser', 'connection', 'hosting', 'api', 'error', 'recovery', 'maintenance', 'optimization', 'scaling']),
+  "severity": zod.enum(['info', 'warning', 'error', 'critical']),
+  "component": zod.union([zod.string(),zod.null()]),
+  "action": zod.union([zod.string(),zod.null()]),
+  "message": zod.string(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "pageSize": zod.number()
+})
+
+
+/**
  * @summary List build sessions
  */
 export const ListBuildSessionsQueryParams = zod.object({

@@ -2982,6 +2982,7 @@ export default function UserSystemDetailPage() {
                 disabled={actionLoading}
               />
             )}
+            <ControlBtn label="Logs" icon="≣" variant="ghost" onClick={() => navigate(`/systems/${id}/logs`)} />
             <ControlBtn label="Refresh" icon="⟳" variant="ghost" onClick={fetchData} disabled={loading} />
             <ControlBtn label="Delete" icon="✕" variant="red" onClick={() => setShowDelete(true)} disabled={actionLoading} />
           </div>

@@ -1032,6 +1032,76 @@ export const GetSystemRevenueResponse = zod.object({
 
 
 /**
+ * @summary Get the latest per-dimension health score for a system instance, plus history
+ */
+export const GetSystemMonitoringParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetSystemMonitoringResponse = zod.object({
+  "latest": zod.union([zod.object({
+  "id": zod.number(),
+  "systemInstanceId": zod.number(),
+  "overallScore": zod.number(),
+  "status": zod.enum(['healthy', 'degraded', 'critical']),
+  "connectionScore": zod.number(),
+  "hostingScore": zod.number(),
+  "apiScore": zod.number(),
+  "seoScore": zod.number(),
+  "performanceScore": zod.number(),
+  "securityScore": zod.number(),
+  "revenueScore": zod.number(),
+  "automationScore": zod.number(),
+  "issues": zod.array(zod.object({
+  "dimension": zod.enum(['connection', 'hosting', 'api', 'seo', 'performance', 'security', 'revenue', 'automation']),
+  "severity": zod.enum(['low', 'high']),
+  "message": zod.string(),
+  "autoFixable": zod.boolean(),
+  "autoFixed": zod.boolean()
+})),
+  "computedAt": zod.string()
+}),zod.null()]),
+  "history": zod.array(zod.object({
+  "id": zod.number(),
+  "systemInstanceId": zod.number(),
+  "overallScore": zod.number(),
+  "status": zod.enum(['healthy', 'degraded', 'critical']),
+  "connectionScore": zod.number(),
+  "hostingScore": zod.number(),
+  "apiScore": zod.number(),
+  "seoScore": zod.number(),
+  "performanceScore": zod.number(),
+  "securityScore": zod.number(),
+  "revenueScore": zod.number(),
+  "automationScore": zod.number(),
+  "issues": zod.array(zod.object({
+  "dimension": zod.enum(['connection', 'hosting', 'api', 'seo', 'performance', 'security', 'revenue', 'automation']),
+  "severity": zod.enum(['low', 'high']),
+  "message": zod.string(),
+  "autoFixable": zod.boolean(),
+  "autoFixed": zod.boolean()
+})),
+  "computedAt": zod.string()
+})),
+  "canAutoFix": zod.boolean()
+})
+
+
+/**
+ * @summary Recompute health now and run the whitelisted self-healing pass
+ */
+export const RecomputeSystemMonitoringParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RecomputeSystemMonitoringResponse = zod.object({
+  "overallScore": zod.number(),
+  "status": zod.string(),
+  "selfHealActionsTaken": zod.number()
+})
+
+
+/**
  * @summary List build sessions
  */
 export const ListBuildSessionsQueryParams = zod.object({
@@ -2405,6 +2475,76 @@ export const GetBusinessHealthResponse = zod.object({
  */
 export const AnalyzeBusinessHealthParams = zod.object({
   "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Get the latest per-dimension health score for a business, plus history
+ */
+export const GetBusinessMonitoringParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetBusinessMonitoringResponse = zod.object({
+  "latest": zod.union([zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "overallScore": zod.number(),
+  "status": zod.enum(['healthy', 'degraded', 'critical']),
+  "connectionScore": zod.number(),
+  "hostingScore": zod.number(),
+  "apiScore": zod.number(),
+  "seoScore": zod.number(),
+  "performanceScore": zod.number(),
+  "securityScore": zod.number(),
+  "revenueScore": zod.number(),
+  "automationScore": zod.number(),
+  "issues": zod.array(zod.object({
+  "dimension": zod.enum(['connection', 'hosting', 'api', 'seo', 'performance', 'security', 'revenue', 'automation']),
+  "severity": zod.enum(['low', 'high']),
+  "message": zod.string(),
+  "autoFixable": zod.boolean(),
+  "autoFixed": zod.boolean()
+})),
+  "computedAt": zod.string()
+}),zod.null()]),
+  "history": zod.array(zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "overallScore": zod.number(),
+  "status": zod.enum(['healthy', 'degraded', 'critical']),
+  "connectionScore": zod.number(),
+  "hostingScore": zod.number(),
+  "apiScore": zod.number(),
+  "seoScore": zod.number(),
+  "performanceScore": zod.number(),
+  "securityScore": zod.number(),
+  "revenueScore": zod.number(),
+  "automationScore": zod.number(),
+  "issues": zod.array(zod.object({
+  "dimension": zod.enum(['connection', 'hosting', 'api', 'seo', 'performance', 'security', 'revenue', 'automation']),
+  "severity": zod.enum(['low', 'high']),
+  "message": zod.string(),
+  "autoFixable": zod.boolean(),
+  "autoFixed": zod.boolean()
+})),
+  "computedAt": zod.string()
+})),
+  "canAutoFix": zod.boolean()
+})
+
+
+/**
+ * @summary Recompute health now (and run self-healing on the linked system instance, if any)
+ */
+export const RecomputeBusinessMonitoringParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RecomputeBusinessMonitoringResponse = zod.object({
+  "overallScore": zod.number(),
+  "status": zod.string(),
+  "selfHealActionsTaken": zod.number()
 })
 
 

@@ -22,3 +22,5 @@
 - [Business Command Center architecture](business-command-center.md) — portfolio + `/business/:id` detail page share one `/overview` endpoint; must test with an `imported` business with zero data for empty-state coverage.
 - [Premium tier-gate pattern](premium-tier-gate.md) — stricter-than-paywall gates (e.g. Operator/Empire only) need their own allow-set + 403 helper; don't reuse the free-vs-paid SubscriptionGate check. FOUNDER_ADMIN bypasses, SUPER_ADMIN does not.
 - [Dev workflow build-not-watch gotcha](dev-workflow-build-not-watch.md) — api-server's dev command runs `build && start` once; new/changed routes 404 with Express's default page until the workflow is restarted.
+- [Heuristic monitoring vs AI health scoring](monitoring-vs-ai-health.md) — two parallel health systems exist (heuristic `/monitoring`, AI-driven `/health`); keep them visually and architecturally distinct, don't merge.
+- [System instance detail page naming trap](system-detail-page-naming.md) — `SystemDetailTemplate.jsx` is the blueprint marketing page, NOT the live system instance page; that's `UserSystemDetailPage.jsx`.

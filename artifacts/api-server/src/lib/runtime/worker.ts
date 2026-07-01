@@ -11,12 +11,14 @@ import { complete } from "../openrouter";
 import { sendPushNotification } from "../push";
 import { fetchPage } from "../browser/crawler";
 import { isBlockedUrl } from "../connectors/ssrf-guard";
+import { computeSystemHealth } from "../health-monitor";
+import { attemptSelfHeal } from "../self-healing";
 
 const POLL_INTERVAL_MS = 5_000;
 let running = false;
 
 // Decrypt credentials for a system instance's tools.
-async function loadCredentials(systemInstanceId: number): Promise<Record<string, string>> {
+export async function loadCredentials(systemInstanceId: number): Promise<Record<string, string>> {
   const rows = await db
     .select()
     .from(userCredentialsTable)
@@ -54,6 +56,18 @@ async function handleConnectorTest(payload: Record<string, unknown>): Promise<un
       result.ok ? "connected" : "error",
       result.ok ? null : result.message,
     );
+
+    // Event-triggered recompute + self-heal on connector failure (Task #246).
+    if (!result.ok) {
+      (async () => {
+        try {
+          await computeSystemHealth(systemInstanceId);
+          await attemptSelfHeal(systemInstanceId, loadCredentials);
+        } catch (healErr) {
+          logger.warn({ healErr, systemInstanceId }, "Event-triggered health recompute failed");
+        }
+      })();
+    }
   }
 
   return result;
@@ -390,6 +404,18 @@ async function processJob(): Promise<void> {
             );
           }
         } catch { /* non-fatal */ }
+      })();
+    }
+
+    // Event-triggered recompute + self-heal on final failure (Task #246).
+    if (finalFailure && job.systemInstanceId) {
+      (async () => {
+        try {
+          await computeSystemHealth(job.systemInstanceId!);
+          await attemptSelfHeal(job.systemInstanceId!, loadCredentials);
+        } catch (healErr) {
+          logger.warn({ healErr, systemInstanceId: job.systemInstanceId }, "Event-triggered health recompute failed");
+        }
       })();
     }
   }

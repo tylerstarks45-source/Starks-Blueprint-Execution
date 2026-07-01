@@ -1480,6 +1480,106 @@ export interface PendingApproval {
   updatedAt: string;
 }
 
+export type HealthIssueDimension = typeof HealthIssueDimension[keyof typeof HealthIssueDimension];
+
+
+export const HealthIssueDimension = {
+  connection: 'connection',
+  hosting: 'hosting',
+  api: 'api',
+  seo: 'seo',
+  performance: 'performance',
+  security: 'security',
+  revenue: 'revenue',
+  automation: 'automation',
+} as const;
+
+export type HealthIssueSeverity = typeof HealthIssueSeverity[keyof typeof HealthIssueSeverity];
+
+
+export const HealthIssueSeverity = {
+  low: 'low',
+  high: 'high',
+} as const;
+
+export interface HealthIssue {
+  dimension: HealthIssueDimension;
+  severity: HealthIssueSeverity;
+  message: string;
+  autoFixable: boolean;
+  autoFixed: boolean;
+}
+
+export type SystemHealthScoreStatus = typeof SystemHealthScoreStatus[keyof typeof SystemHealthScoreStatus];
+
+
+export const SystemHealthScoreStatus = {
+  healthy: 'healthy',
+  degraded: 'degraded',
+  critical: 'critical',
+} as const;
+
+export interface SystemHealthScore {
+  id: number;
+  systemInstanceId: number;
+  overallScore: number;
+  status: SystemHealthScoreStatus;
+  connectionScore: number;
+  hostingScore: number;
+  apiScore: number;
+  seoScore: number;
+  performanceScore: number;
+  securityScore: number;
+  revenueScore: number;
+  automationScore: number;
+  issues: HealthIssue[];
+  computedAt: string;
+}
+
+export type BusinessHealthMetricStatus = typeof BusinessHealthMetricStatus[keyof typeof BusinessHealthMetricStatus];
+
+
+export const BusinessHealthMetricStatus = {
+  healthy: 'healthy',
+  degraded: 'degraded',
+  critical: 'critical',
+} as const;
+
+export interface BusinessHealthMetric {
+  id: number;
+  businessId: number;
+  overallScore: number;
+  status: BusinessHealthMetricStatus;
+  connectionScore: number;
+  hostingScore: number;
+  apiScore: number;
+  seoScore: number;
+  performanceScore: number;
+  securityScore: number;
+  revenueScore: number;
+  automationScore: number;
+  issues: HealthIssue[];
+  computedAt: string;
+}
+
+export interface SystemMonitoringResponse {
+  latest: SystemHealthScore | null;
+  history: SystemHealthScore[];
+  canAutoFix: boolean;
+}
+
+export interface BusinessMonitoringResponse {
+  latest: BusinessHealthMetric | null;
+  history: BusinessHealthMetric[];
+  canAutoFix: boolean;
+}
+
+export interface RecomputeHealthResponse {
+  overallScore: number;
+  status: string;
+  selfHealActionsTaken: number;
+}
+
 export type ListBlueprintsParams = {
 status?: string;
 categoryId?: number;

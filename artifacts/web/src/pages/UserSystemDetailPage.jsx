@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import AuthLayout from '@/components/AuthLayout.jsx';
+import HealthDashboardCard from '@/components/HealthDashboardCard.jsx';
 import { toast } from 'sonner';
 import {
   AreaChart,
@@ -3013,6 +3014,9 @@ export default function UserSystemDetailPage() {
             accent="amber"
           />
         </div>
+
+        {/* ── Monitoring & Self-Healing ── */}
+        <HealthDashboardCard systemInstanceId={instance.id} />
 
         {/* ── Connected Tools Grid ── */}
         {blueprint?.requiredTools && blueprint.requiredTools.length > 0 && (

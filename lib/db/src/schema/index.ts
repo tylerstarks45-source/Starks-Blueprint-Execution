@@ -57,3 +57,6 @@ export * from "./business_connections";
 export * from "./business_health_scores";
 export * from "./business_operations_settings";
 export * from "./pending_approvals";
+export * from "./system_health_scores";
+export * from "./business_health_metrics";
+export * from "./monitoring_log_events";

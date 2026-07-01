@@ -65,6 +65,7 @@ import type {
   BusinessConnectionInput,
   BusinessHealthResponse,
   BusinessInput,
+  BusinessMonitoringResponse,
   BusinessOperationsSettings,
   BusinessOperationsSettingsInput,
   BusinessOverviewResponse,
@@ -110,6 +111,7 @@ import type {
   OpenrouterUsageRecord,
   OpenrouterUsageSummary,
   PendingApproval,
+  RecomputeHealthResponse,
   RotateKeyBody,
   RotateKeyResult,
   ScheduledPost,
@@ -123,6 +125,7 @@ import type {
   SystemInstance,
   SystemInstanceInput,
   SystemInstanceUpdate,
+  SystemMonitoringResponse,
   SystemRevenueBatchRequest,
   SystemRevenueBatchResponse,
   SystemRevenueStats,
@@ -3858,6 +3861,153 @@ export function useGetSystemRevenue<TData = Awaited<ReturnType<typeof getSystemR
 
 
 
+
+export const getGetSystemMonitoringUrl = (id: number,) => {
+
+
+
+
+  return `/api/system-instances/${id}/monitoring`
+}
+
+/**
+ * @summary Get the latest per-dimension health score for a system instance, plus history
+ */
+export const getSystemMonitoring = async (id: number, options?: RequestInit): Promise<SystemMonitoringResponse> => {
+
+  return customFetch<SystemMonitoringResponse>(getGetSystemMonitoringUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSystemMonitoringQueryKey = (id: number,) => {
+    return [
+    `/api/system-instances/${id}/monitoring`
+    ] as const;
+    }
+
+
+export const getGetSystemMonitoringQueryOptions = <TData = Awaited<ReturnType<typeof getSystemMonitoring>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemMonitoring>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSystemMonitoringQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSystemMonitoring>>> = ({ signal }) => getSystemMonitoring(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSystemMonitoring>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSystemMonitoringQueryResult = NonNullable<Awaited<ReturnType<typeof getSystemMonitoring>>>
+export type GetSystemMonitoringQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get the latest per-dimension health score for a system instance, plus history
+ */
+
+export function useGetSystemMonitoring<TData = Awaited<ReturnType<typeof getSystemMonitoring>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemMonitoring>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSystemMonitoringQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRecomputeSystemMonitoringUrl = (id: number,) => {
+
+
+
+
+  return `/api/system-instances/${id}/monitoring/recompute`
+}
+
+/**
+ * @summary Recompute health now and run the whitelisted self-healing pass
+ */
+export const recomputeSystemMonitoring = async (id: number, options?: RequestInit): Promise<RecomputeHealthResponse> => {
+
+  return customFetch<RecomputeHealthResponse>(getRecomputeSystemMonitoringUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRecomputeSystemMonitoringMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recomputeSystemMonitoring>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recomputeSystemMonitoring>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['recomputeSystemMonitoring'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recomputeSystemMonitoring>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  recomputeSystemMonitoring(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecomputeSystemMonitoringMutationResult = NonNullable<Awaited<ReturnType<typeof recomputeSystemMonitoring>>>
+
+    export type RecomputeSystemMonitoringMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Recompute health now and run the whitelisted self-healing pass
+ */
+export const useRecomputeSystemMonitoring = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recomputeSystemMonitoring>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recomputeSystemMonitoring>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRecomputeSystemMonitoringMutationOptions(options));
+    }
 
 export const getListBuildSessionsUrl = (params?: ListBuildSessionsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -8749,6 +8899,153 @@ export const useAnalyzeBusinessHealth = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getAnalyzeBusinessHealthMutationOptions(options));
+    }
+
+export const getGetBusinessMonitoringUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/monitoring`
+}
+
+/**
+ * @summary Get the latest per-dimension health score for a business, plus history
+ */
+export const getBusinessMonitoring = async (id: number, options?: RequestInit): Promise<BusinessMonitoringResponse> => {
+
+  return customFetch<BusinessMonitoringResponse>(getGetBusinessMonitoringUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessMonitoringQueryKey = (id: number,) => {
+    return [
+    `/api/businesses/${id}/monitoring`
+    ] as const;
+    }
+
+
+export const getGetBusinessMonitoringQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessMonitoring>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessMonitoring>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessMonitoringQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessMonitoring>>> = ({ signal }) => getBusinessMonitoring(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessMonitoring>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessMonitoringQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessMonitoring>>>
+export type GetBusinessMonitoringQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get the latest per-dimension health score for a business, plus history
+ */
+
+export function useGetBusinessMonitoring<TData = Awaited<ReturnType<typeof getBusinessMonitoring>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessMonitoring>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessMonitoringQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRecomputeBusinessMonitoringUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/monitoring/recompute`
+}
+
+/**
+ * @summary Recompute health now (and run self-healing on the linked system instance, if any)
+ */
+export const recomputeBusinessMonitoring = async (id: number, options?: RequestInit): Promise<RecomputeHealthResponse> => {
+
+  return customFetch<RecomputeHealthResponse>(getRecomputeBusinessMonitoringUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRecomputeBusinessMonitoringMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recomputeBusinessMonitoring>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recomputeBusinessMonitoring>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['recomputeBusinessMonitoring'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recomputeBusinessMonitoring>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  recomputeBusinessMonitoring(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecomputeBusinessMonitoringMutationResult = NonNullable<Awaited<ReturnType<typeof recomputeBusinessMonitoring>>>
+
+    export type RecomputeBusinessMonitoringMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Recompute health now (and run self-healing on the linked system instance, if any)
+ */
+export const useRecomputeBusinessMonitoring = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recomputeBusinessMonitoring>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recomputeBusinessMonitoring>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRecomputeBusinessMonitoringMutationOptions(options));
     }
 
 export const getGetBusinessOperationsSettingsUrl = (id: number,) => {

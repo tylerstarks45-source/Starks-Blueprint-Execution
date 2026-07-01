@@ -9,6 +9,9 @@ import { sendPushNotification } from "../push";
 import { computeNextRunAt as _computeNextRunAt } from "../../routes/scheduled-tasks";
 import { publish, PUBLISHING_CHANNELS } from "../publishing";
 import { sendEmailViaCredentials, getBaseUrl as getSocialBaseUrl } from "../sendgrid";
+import { recomputeAllActiveSystemsHealth, recomputeAllActiveBusinessesHealth } from "../health-monitor";
+import { attemptSelfHeal } from "../self-healing";
+import { loadCredentials as loadSystemCredentials } from "./worker";
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
@@ -722,6 +725,47 @@ async function processDuePosts(): Promise<void> {
   }
 }
 
+// ─── Continuous monitoring & self-healing tick (Task #246) ───────────────────
+// Runs every 5 minutes: recomputes per-dimension health scores for every
+// active system instance and business, then runs the whitelisted low-risk
+// self-healing pass for each active system instance. Elevated-risk fixes are
+// escalated to a Pending Approval inside attemptSelfHeal() rather than run
+// here — this tick never applies anything outside the low-risk whitelist.
+
+const HEALTH_MONITOR_INTERVAL_MS = 5 * 60 * 1000;
+let lastHealthMonitorRun = 0;
+
+async function processHealthMonitoring(): Promise<void> {
+  const now = Date.now();
+  if (now - lastHealthMonitorRun < HEALTH_MONITOR_INTERVAL_MS) return;
+  lastHealthMonitorRun = now;
+
+  try {
+    const systemCount = await recomputeAllActiveSystemsHealth();
+    const businessCount = await recomputeAllActiveBusinessesHealth();
+    logger.info({ systemCount, businessCount }, "Health monitoring recompute complete");
+  } catch (err) {
+    logger.warn({ err }, "Health monitoring recompute failed");
+  }
+
+  try {
+    const activeInstances = await db
+      .select({ id: systemInstancesTable.id })
+      .from(systemInstancesTable)
+      .where(sql`${systemInstancesTable.buildStatus} in ('running', 'building')`);
+
+    for (const { id } of activeInstances) {
+      try {
+        await attemptSelfHeal(id, loadSystemCredentials);
+      } catch (err) {
+        logger.warn({ err, systemInstanceId: id }, "Self-healing pass failed for system instance");
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, "Self-healing tick failed");
+  }
+}
+
 // ─── Main scheduler loop ──────────────────────────────────────────────────────
 
 export function startScheduler(): void {
@@ -735,6 +779,7 @@ export function startScheduler(): void {
       await processWeeklyDigest();
       await processEmailSequences();
       await processDuePosts();
+      await processHealthMonitoring();
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {

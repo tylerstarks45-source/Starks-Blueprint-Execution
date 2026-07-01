@@ -1136,6 +1136,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/SystemRevenueStats"
 
+  /system-instances/{id}/monitoring:
+    get:
+      operationId: getSystemMonitoring
+      tags: [system-instances]
+      summary: Get the latest per-dimension health score for a system instance, plus history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Latest health score and history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemMonitoringResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /system-instances/{id}/monitoring/recompute:
+    post:
+      operationId: recomputeSystemMonitoring
+      tags: [system-instances]
+      summary: Recompute health now and run the whitelisted self-healing pass
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recomputed health score plus any self-healing actions taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecomputeHealthResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ── Build Sessions ────────────────────────────────────────────────────────
   /build-sessions:
     get:
@@ -2547,6 +2597,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyzeBusinessHealthResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /businesses/{id}/monitoring:
+    get:
+      operationId: getBusinessMonitoring
+      tags: [businesses]
+      summary: Get the latest per-dimension health score for a business, plus history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Latest health score and history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessMonitoringResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /businesses/{id}/monitoring/recompute:
+    post:
+      operationId: recomputeBusinessMonitoring
+      tags: [businesses]
+      summary: Recompute health now (and run self-healing on the linked system instance, if any)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recomputed health score plus any self-healing actions taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecomputeHealthResponse"
         "404":
           description: Not found
           content:
@@ -4895,3 +4995,134 @@ components:
         updatedAt:
           type: string
       required: [id, businessId, userId, category, riskLevel, title, status, createdAt, updatedAt]
+
+    # ── Continuous Monitoring & Self-Healing (Task #246) ─────────────────────
+    HealthIssue:
+      type: object
+      properties:
+        dimension:
+          type: string
+          enum: [connection, hosting, api, seo, performance, security, revenue, automation]
+        severity:
+          type: string
+          enum: [low, high]
+        message:
+          type: string
+        autoFixable:
+          type: boolean
+        autoFixed:
+          type: boolean
+      required: [dimension, severity, message, autoFixable, autoFixed]
+
+    SystemHealthScore:
+      type: object
+      properties:
+        id:
+          type: integer
+        systemInstanceId:
+          type: integer
+        overallScore:
+          type: integer
+        status:
+          type: string
+          enum: [healthy, degraded, critical]
+        connectionScore:
+          type: integer
+        hostingScore:
+          type: integer
+        apiScore:
+          type: integer
+        seoScore:
+          type: integer
+        performanceScore:
+          type: integer
+        securityScore:
+          type: integer
+        revenueScore:
+          type: integer
+        automationScore:
+          type: integer
+        issues:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthIssue"
+        computedAt:
+          type: string
+      required: [id, systemInstanceId, overallScore, status, connectionScore, hostingScore, apiScore, seoScore, performanceScore, securityScore, revenueScore, automationScore, issues, computedAt]
+
+    BusinessHealthMetric:
+      type: object
+      properties:
+        id:
+          type: integer
+        businessId:
+          type: integer
+        overallScore:
+          type: integer
+        status:
+          type: string
+          enum: [healthy, degraded, critical]
+        connectionScore:
+          type: integer
+        hostingScore:
+          type: integer
+        apiScore:
+          type: integer
+        seoScore:
+          type: integer
+        performanceScore:
+          type: integer
+        securityScore:
+          type: integer
+        revenueScore:
+          type: integer
+        automationScore:
+          type: integer
+        issues:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthIssue"
+        computedAt:
+          type: string
+      required: [id, businessId, overallScore, status, connectionScore, hostingScore, apiScore, seoScore, performanceScore, securityScore, revenueScore, automationScore, issues, computedAt]
+
+    SystemMonitoringResponse:
+      type: object
+      properties:
+        latest:
+          oneOf:
+            - $ref: "#/components/schemas/SystemHealthScore"
+            - type: "null"
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/SystemHealthScore"
+        canAutoFix:
+          type: boolean
+      required: [latest, history, canAutoFix]
+
+    BusinessMonitoringResponse:
+      type: object
+      properties:
+        latest:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessHealthMetric"
+            - type: "null"
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/BusinessHealthMetric"
+        canAutoFix:
+          type: boolean
+      required: [latest, history, canAutoFix]
+
+    RecomputeHealthResponse:
+      type: object
+      properties:
+        overallScore:
+          type: integer
+        status:
+          type: string
+        selfHealActionsTaken:
+          type: integer
+      required: [overallScore, status, selfHealActionsTaken]

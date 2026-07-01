@@ -11,6 +11,7 @@ import {
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import HealthScoreCard from '@/components/HealthScoreCard.jsx';
+import HealthDashboardCard from '@/components/HealthDashboardCard.jsx';
 import ApprovalsQueue from '@/components/ApprovalsQueue.jsx';
 import OperationsModePanel from '@/components/OperationsModePanel.jsx';
 import { getAuthHeaders } from '@/lib/apiHeaders.js';
@@ -239,6 +240,11 @@ export default function BusinessCommandCenterPage() {
           {/* Health */}
           <div className="lg:col-span-1">
             <HealthScoreCard businessId={business.id} />
+          </div>
+
+          {/* Monitoring & Self-Healing */}
+          <div className="lg:col-span-3">
+            <HealthDashboardCard businessId={business.id} />
           </div>
 
           {/* Revenue Trend chart (larger) */}

@@ -1562,22 +1562,42 @@ export interface BusinessHealthMetric {
   computedAt: string;
 }
 
+export type MonitoringSummaryNextScheduledTask = {
+  id: number;
+  name: string;
+  nextRunAt: string;
+} | null;
+
+/**
+ * Dashboard-level signals shown alongside the per-dimension scores: current in-flight tasks, warning/error issue counts, the last successful run, and the next scheduled task.
+ */
+export interface MonitoringSummary {
+  currentTasks: number;
+  warningsCount: number;
+  errorsCount: number;
+  lastSuccessfulRun: string | null;
+  nextScheduledTask: MonitoringSummaryNextScheduledTask;
+}
+
 export interface SystemMonitoringResponse {
   latest: SystemHealthScore | null;
   history: SystemHealthScore[];
   canAutoFix: boolean;
+  summary: MonitoringSummary;
 }
 
 export interface BusinessMonitoringResponse {
   latest: BusinessHealthMetric | null;
   history: BusinessHealthMetric[];
   canAutoFix: boolean;
+  summary: MonitoringSummary;
 }
 
 export interface RecomputeHealthResponse {
   overallScore: number;
   status: string;
   selfHealActionsTaken: number;
+  summary: MonitoringSummary;
 }
 
 export type ListBlueprintsParams = {

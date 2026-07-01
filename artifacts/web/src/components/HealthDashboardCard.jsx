@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Activity, RefreshCw, AlertTriangle, Wrench, ChevronDown, ChevronUp } from 'lucide-react';
+import { Activity, RefreshCw, AlertTriangle, Wrench, ChevronDown, ChevronUp, ListChecks, ShieldAlert, CheckCircle2, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
 
 const authHeaders = () => {
@@ -96,6 +96,7 @@ export default function HealthDashboardCard({ systemInstanceId, businessId, clas
   const latest = data?.latest ?? null;
   const statusMeta = STATUS_META[latest?.status] ?? { label: 'Unknown', dot: 'bg-zinc-500', text: 'text-zinc-400', ring: 'ring-zinc-500/30' };
   const issues = latest?.issues ?? [];
+  const summary = data?.summary ?? null;
 
   return (
     <div className={`rounded-2xl border border-white/10 bg-black/70 p-6 ${className}`}>
@@ -145,6 +146,45 @@ export default function HealthDashboardCard({ systemInstanceId, businessId, clas
               </div>
             ))}
           </div>
+
+          {summary && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              <div className="rounded-lg border border-white/10 bg-white/5 p-2.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50 font-mono uppercase mb-1">
+                  <ListChecks className="w-3 h-3" /> Current tasks
+                </div>
+                <div className="text-sm font-bold font-mono text-foreground">{summary.currentTasks}</div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-2.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50 font-mono uppercase mb-1">
+                  <ShieldAlert className="w-3 h-3" /> Warnings / Errors
+                </div>
+                <div className="text-sm font-bold font-mono">
+                  <span className="text-amber-400">{summary.warningsCount}</span>
+                  <span className="text-muted-foreground/40 mx-1">/</span>
+                  <span className="text-rose-400">{summary.errorsCount}</span>
+                </div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-2.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50 font-mono uppercase mb-1">
+                  <CheckCircle2 className="w-3 h-3" /> Last successful run
+                </div>
+                <div className="text-[11px] font-mono text-foreground/80">
+                  {summary.lastSuccessfulRun ? new Date(summary.lastSuccessfulRun).toLocaleString() : '—'}
+                </div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-2.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50 font-mono uppercase mb-1">
+                  <CalendarClock className="w-3 h-3" /> Next scheduled task
+                </div>
+                <div className="text-[11px] font-mono text-foreground/80 truncate" title={summary.nextScheduledTask?.name}>
+                  {summary.nextScheduledTask
+                    ? `${summary.nextScheduledTask.name} · ${new Date(summary.nextScheduledTask.nextRunAt).toLocaleString()}`
+                    : '—'}
+                </div>
+              </div>
+            </div>
+          )}
 
           {issues.length > 0 && (
             <button

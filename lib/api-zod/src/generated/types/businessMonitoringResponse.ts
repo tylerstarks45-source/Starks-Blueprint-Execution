@@ -6,9 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BusinessHealthMetric } from './businessHealthMetric';
+import type { MonitoringSummary } from './monitoringSummary';
 
 export interface BusinessMonitoringResponse {
   latest: BusinessHealthMetric | null;
   history: BusinessHealthMetric[];
   canAutoFix: boolean;
+  summary: MonitoringSummary;
 }

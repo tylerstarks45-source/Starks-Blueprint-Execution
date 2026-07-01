@@ -124,6 +124,8 @@ export * from './listSystemInstancesSort';
 export * from './listToolsParams';
 export * from './listUserCredentialsParams';
 export * from './listUserMemoryParams';
+export * from './monitoringSummary';
+export * from './monitoringSummaryNextScheduledTask';
 export * from './notification';
 export * from './notificationInput';
 export * from './openrouterRequest';

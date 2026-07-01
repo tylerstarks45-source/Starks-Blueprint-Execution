@@ -5086,6 +5086,39 @@ components:
           type: string
       required: [id, businessId, overallScore, status, connectionScore, hostingScore, apiScore, seoScore, performanceScore, securityScore, revenueScore, automationScore, issues, computedAt]
 
+    MonitoringSummary:
+      type: object
+      description: >-
+        Dashboard-level signals shown alongside the per-dimension scores:
+        current in-flight tasks, warning/error issue counts, the last
+        successful run, and the next scheduled task.
+      properties:
+        currentTasks:
+          type: integer
+        warningsCount:
+          type: integer
+        errorsCount:
+          type: integer
+        lastSuccessfulRun:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        nextScheduledTask:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+                nextRunAt:
+                  type: string
+                  format: date-time
+              required: [id, name, nextRunAt]
+            - type: "null"
+      required: [currentTasks, warningsCount, errorsCount, lastSuccessfulRun, nextScheduledTask]
+
     SystemMonitoringResponse:
       type: object
       properties:
@@ -5099,7 +5132,9 @@ components:
             $ref: "#/components/schemas/SystemHealthScore"
         canAutoFix:
           type: boolean
-      required: [latest, history, canAutoFix]
+        summary:
+          $ref: "#/components/schemas/MonitoringSummary"
+      required: [latest, history, canAutoFix, summary]
 
     BusinessMonitoringResponse:
       type: object
@@ -5114,7 +5149,9 @@ components:
             $ref: "#/components/schemas/BusinessHealthMetric"
         canAutoFix:
           type: boolean
-      required: [latest, history, canAutoFix]
+        summary:
+          $ref: "#/components/schemas/MonitoringSummary"
+      required: [latest, history, canAutoFix, summary]
 
     RecomputeHealthResponse:
       type: object
@@ -5125,4 +5162,6 @@ components:
           type: string
         selfHealActionsTaken:
           type: integer
-      required: [overallScore, status, selfHealActionsTaken]
+        summary:
+          $ref: "#/components/schemas/MonitoringSummary"
+      required: [overallScore, status, selfHealActionsTaken, summary]

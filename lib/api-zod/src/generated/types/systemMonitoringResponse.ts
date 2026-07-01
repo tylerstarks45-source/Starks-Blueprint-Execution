@@ -5,10 +5,12 @@
  * Starks Global Group Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { MonitoringSummary } from './monitoringSummary';
 import type { SystemHealthScore } from './systemHealthScore';
 
 export interface SystemMonitoringResponse {
   latest: SystemHealthScore | null;
   history: SystemHealthScore[];
   canAutoFix: boolean;
+  summary: MonitoringSummary;
 }

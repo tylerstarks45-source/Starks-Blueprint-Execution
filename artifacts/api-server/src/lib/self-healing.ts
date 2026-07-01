@@ -1,10 +1,11 @@
-import { eq, and, inArray, lt } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import {
   db,
   systemConnectorsTable,
   runtimeJobsTable,
   businessesTable,
   businessOperationsSettingsTable,
+  usersTable,
   type OperationsPermissions,
   DEFAULT_OPERATIONS_PERMISSIONS,
 } from "@workspace/db";
@@ -12,6 +13,7 @@ import { getConnector } from "./connectors/registry";
 import { logger } from "./logger";
 import { logMonitoringEvent } from "./health-monitor";
 import { createPendingApproval } from "./approvals";
+import { hasOperationsModeAccess } from "./operations-gate";
 
 const STUCK_JOB_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes "active" with no progress
 
@@ -30,14 +32,26 @@ export interface SelfHealResult {
 // Resolve Operations Mode permissions for the business that owns a system
 // instance (if any). Systems with no owning business, or no operations
 // settings row yet, are treated as monitor-only (no auto-fix permission).
-async function resolvePermissions(systemInstanceId: number): Promise<{ businessId: number | null; permissions: OperationsPermissions }> {
+//
+// canAutoFix additionally enforces the Operator/Empire tier gate
+// (hasOperationsModeAccess) on the *owner's current* membershipTier/role —
+// not just the stored permissions flag. This matters because a business's
+// businessOperationsSettings.permissions row can retain autoFixLowRisk=true
+// after the owner's subscription is downgraded below Operator; without this
+// check, background self-heal (scheduler tick, event-triggered recompute)
+// would keep auto-fixing for an account that no longer has Operations Mode
+// entitlement, even though `requireOperationsTier` blocks the settings
+// *routes* themselves.
+async function resolvePermissions(
+  systemInstanceId: number,
+): Promise<{ businessId: number | null; ownerId: number | null; canAutoFix: boolean }> {
   const [business] = await db
-    .select({ id: businessesTable.id })
+    .select({ id: businessesTable.id, ownerId: businessesTable.ownerId })
     .from(businessesTable)
     .where(eq(businessesTable.systemInstanceId, systemInstanceId))
     .limit(1);
 
-  if (!business) return { businessId: null, permissions: DEFAULT_OPERATIONS_PERMISSIONS };
+  if (!business) return { businessId: null, ownerId: null, canAutoFix: false };
 
   const [settings] = await db
     .select()
@@ -45,8 +59,18 @@ async function resolvePermissions(systemInstanceId: number): Promise<{ businessI
     .where(eq(businessOperationsSettingsTable.businessId, business.id))
     .limit(1);
 
-  if (!settings || !settings.enabled) return { businessId: business.id, permissions: DEFAULT_OPERATIONS_PERMISSIONS };
-  return { businessId: business.id, permissions: settings.permissions as OperationsPermissions };
+  const permissions: OperationsPermissions =
+    settings?.enabled ? (settings.permissions as OperationsPermissions) : DEFAULT_OPERATIONS_PERMISSIONS;
+
+  const [owner] = await db
+    .select({ membershipTier: usersTable.membershipTier, role: usersTable.role })
+    .from(usersTable)
+    .where(eq(usersTable.id, business.ownerId));
+
+  const canAutoFix =
+    permissions.autoFixLowRisk === true && hasOperationsModeAccess(owner?.membershipTier, owner?.role);
+
+  return { businessId: business.id, ownerId: business.ownerId, canAutoFix };
 }
 
 // ─── Fix #1: reconnect an expired/errored connector ────────────────────────
@@ -136,8 +160,7 @@ export async function attemptSelfHeal(
   systemInstanceId: number,
   loadCredentials: (systemInstanceId: number) => Promise<Record<string, string>>,
 ): Promise<SelfHealResult[]> {
-  const { businessId, permissions } = await resolvePermissions(systemInstanceId);
-  const canAutoFix = permissions.autoFixLowRisk === true;
+  const { businessId, ownerId, canAutoFix } = await resolvePermissions(systemInstanceId);
 
   const results: SelfHealResult[] = [];
 
@@ -170,23 +193,37 @@ export async function attemptSelfHeal(
     });
 
     if (!result.fixed && businessId) {
-      await createPendingApproval({
-        businessId,
-        userId: (await db.select({ ownerId: businessesTable.ownerId }).from(businessesTable).where(eq(businessesTable.id, businessId)).limit(1))[0]?.ownerId ?? 0,
-        category: "autoFixHighRisk",
-        riskLevel: "high",
-        title: `Reconnect ${connector.connector} manually`,
-        description: `Auto-reconnect failed for ${connector.connector}: ${result.detail}. This likely needs updated credentials.`,
-        payload: { systemInstanceId, connectorId: connector.connector },
-      });
-      await logMonitoringEvent({
-        systemInstanceId,
-        businessId,
-        eventType: "escalated",
-        action: "reconnect",
-        status: "escalated",
-        message: `Escalated unfixable connector ${connector.connector} to Pending Approval`,
-      });
+      if (ownerId == null) {
+        // No valid owner to attach the approval to — don't create a
+        // dangling/incorrect pending_approvals row (FK requires a real
+        // userId). Log the escalation failure so it's still visible.
+        await logMonitoringEvent({
+          systemInstanceId,
+          businessId,
+          eventType: "escalated",
+          action: "reconnect",
+          status: "failed",
+          message: `Could not escalate unfixable connector ${connector.connector} to Pending Approval — business ${businessId} has no resolvable owner`,
+        });
+      } else {
+        await createPendingApproval({
+          businessId,
+          userId: ownerId,
+          category: "autoFixHighRisk",
+          riskLevel: "high",
+          title: `Reconnect ${connector.connector} manually`,
+          description: `Auto-reconnect failed for ${connector.connector}: ${result.detail}. This likely needs updated credentials.`,
+          payload: { systemInstanceId, connectorId: connector.connector },
+        });
+        await logMonitoringEvent({
+          systemInstanceId,
+          businessId,
+          eventType: "escalated",
+          action: "reconnect",
+          status: "escalated",
+          message: `Escalated unfixable connector ${connector.connector} to Pending Approval`,
+        });
+      }
     }
   }
 

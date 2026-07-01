@@ -5,9 +5,11 @@
  * Starks Global Group Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { MonitoringSummary } from './monitoringSummary';
 
 export interface RecomputeHealthResponse {
   overallScore: number;
   status: string;
   selfHealActionsTaken: number;
+  summary: MonitoringSummary;
 }

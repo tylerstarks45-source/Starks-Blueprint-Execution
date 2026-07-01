@@ -1083,7 +1083,18 @@ export const GetSystemMonitoringResponse = zod.object({
 })),
   "computedAt": zod.string()
 })),
-  "canAutoFix": zod.boolean()
+  "canAutoFix": zod.boolean(),
+  "summary": zod.object({
+  "currentTasks": zod.number(),
+  "warningsCount": zod.number(),
+  "errorsCount": zod.number(),
+  "lastSuccessfulRun": zod.union([zod.coerce.date(),zod.null()]),
+  "nextScheduledTask": zod.union([zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "nextRunAt": zod.coerce.date()
+}),zod.null()])
+}).describe('Dashboard-level signals shown alongside the per-dimension scores: current in-flight tasks, warning\/error issue counts, the last successful run, and the next scheduled task.')
 })
 
 
@@ -1097,7 +1108,18 @@ export const RecomputeSystemMonitoringParams = zod.object({
 export const RecomputeSystemMonitoringResponse = zod.object({
   "overallScore": zod.number(),
   "status": zod.string(),
-  "selfHealActionsTaken": zod.number()
+  "selfHealActionsTaken": zod.number(),
+  "summary": zod.object({
+  "currentTasks": zod.number(),
+  "warningsCount": zod.number(),
+  "errorsCount": zod.number(),
+  "lastSuccessfulRun": zod.union([zod.coerce.date(),zod.null()]),
+  "nextScheduledTask": zod.union([zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "nextRunAt": zod.coerce.date()
+}),zod.null()])
+}).describe('Dashboard-level signals shown alongside the per-dimension scores: current in-flight tasks, warning\/error issue counts, the last successful run, and the next scheduled task.')
 })
 
 
@@ -2530,7 +2552,18 @@ export const GetBusinessMonitoringResponse = zod.object({
 })),
   "computedAt": zod.string()
 })),
-  "canAutoFix": zod.boolean()
+  "canAutoFix": zod.boolean(),
+  "summary": zod.object({
+  "currentTasks": zod.number(),
+  "warningsCount": zod.number(),
+  "errorsCount": zod.number(),
+  "lastSuccessfulRun": zod.union([zod.coerce.date(),zod.null()]),
+  "nextScheduledTask": zod.union([zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "nextRunAt": zod.coerce.date()
+}),zod.null()])
+}).describe('Dashboard-level signals shown alongside the per-dimension scores: current in-flight tasks, warning\/error issue counts, the last successful run, and the next scheduled task.')
 })
 
 
@@ -2544,7 +2577,18 @@ export const RecomputeBusinessMonitoringParams = zod.object({
 export const RecomputeBusinessMonitoringResponse = zod.object({
   "overallScore": zod.number(),
   "status": zod.string(),
-  "selfHealActionsTaken": zod.number()
+  "selfHealActionsTaken": zod.number(),
+  "summary": zod.object({
+  "currentTasks": zod.number(),
+  "warningsCount": zod.number(),
+  "errorsCount": zod.number(),
+  "lastSuccessfulRun": zod.union([zod.coerce.date(),zod.null()]),
+  "nextScheduledTask": zod.union([zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "nextRunAt": zod.coerce.date()
+}),zod.null()])
+}).describe('Dashboard-level signals shown alongside the per-dimension scores: current in-flight tasks, warning\/error issue counts, the last successful run, and the next scheduled task.')
 })
 
 

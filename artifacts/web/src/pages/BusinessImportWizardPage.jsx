@@ -97,7 +97,7 @@ export default function BusinessImportWizardPage() {
 
   const removeConnection = (id) => setConnections(prev => prev.filter(c => c.id !== id));
 
-  const canProceedStep0 = form.name.trim().length > 0;
+  const canProceedStep0 = form.name.trim().length > 0 && form.businessType.length > 0;
 
   const handleBack = () => {
     if (step === 0) { navigate('/business-portfolio'); return; }
@@ -106,7 +106,11 @@ export default function BusinessImportWizardPage() {
 
   const handleNext = () => {
     if (step === 0 && !canProceedStep0) {
-      toast.error('Give your business a name to continue');
+      toast.error(
+        form.name.trim().length === 0
+          ? 'Give your business a name to continue'
+          : 'Pick a business type to continue',
+      );
       return;
     }
     setStep(s => Math.min(s + 1, STEPS.length - 1));

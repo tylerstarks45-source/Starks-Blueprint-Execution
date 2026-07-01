@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, desc } from "drizzle-orm";
-import { db, businessesTable, businessConnectionsTable } from "@workspace/db";
+import { db, businessesTable, businessConnectionsTable, userCredentialsTable } from "@workspace/db";
 import { getActiveCallerPayload, validateClientWorkspaceId } from "../lib/auth";
 import {
   ListBusinessesResponse,
@@ -191,6 +191,19 @@ router.post("/businesses/:id/connections", async (req, res): Promise<void> => {
   if (!business || business.ownerId !== caller.id) {
     res.status(404).json({ error: "Not found" });
     return;
+  }
+
+  // If a vault credential is being linked, ensure it belongs to the caller.
+  if (body.data.userCredentialId != null) {
+    const [credential] = await db
+      .select({ userId: userCredentialsTable.userId })
+      .from(userCredentialsTable)
+      .where(eq(userCredentialsTable.id, body.data.userCredentialId));
+
+    if (!credential || credential.userId !== caller.id) {
+      res.status(404).json({ error: "Credential not found" });
+      return;
+    }
   }
 
   const [row] = await db

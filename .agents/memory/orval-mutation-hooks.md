@@ -1,24 +1,19 @@
 ---
-name: Orval mutation hooks not generated in this repo
-description: Why POST/PATCH/DELETE endpoints have no generated react-query hook in lib/api-client-react, and what to use instead.
+name: Orval codegen only emits query hooks; mutations use raw fetch
+description: Durable convention for how to call POST/PATCH/DELETE endpoints from the web frontend in this repo.
 ---
 
-Orval codegen in this repo only emits query hooks (`useListX`, `useGetX`) for GET endpoints. No mutation
-hooks (`useCreateX`, `useUpdateX`, `useDeleteX`) are generated for POST/PATCH/DELETE paths, even though the
-underlying fetcher functions and Zod body/param schemas are generated.
+**Rule:** Orval codegen in this repo emits query hooks only (GET → `useListX`/`useGetX`). It does not emit
+mutation hooks for POST/PATCH/DELETE. For any create/update/delete from the web frontend, call `fetch()`
+directly with an `Authorization: Bearer <sbep_auth_token>` header — do not look for a generated
+`useCreateX`/`useDeleteX` hook, and do not add one.
 
-**Why:** the current Orval config/mustache templates in `lib/api-client-react` are scoped to query hooks only;
-this isn't a bug in a specific spec, it's a repo-wide codegen convention (confirmed as of 2026-07 when adding
-the businesses endpoints).
+**Why:** the generated fetchers and Zod body/param schemas exist, but the hook templates are scoped to queries
+by design. This matches the established page convention (e.g. ConnectionsHubPage, SystemsListPage), so raw
+fetch keeps new pages consistent with siblings rather than introducing a one-off hook pattern.
 
-**How to apply:** for page-level mutations (create/update/delete), follow the existing frontend convention
-already used in `ConnectionsHubPage.jsx` / `SystemsListPage.jsx`: call `fetch()` directly with
-`Authorization: Bearer <sbep_auth_token>` headers, not a generated mutation hook. Only GET-backed lists/detail
-views should use the generated `useListX`/`useGetX` hooks (and even those are often skipped in favor of raw
-fetch + local state to match sibling pages).
-
-Also: when an OpenAPI schema is referenced only as a nested/response field (e.g. a "connection" object nested
-inside a "business with connections" response) and never appears as its own top-level request/response body,
-Orval does not emit a standalone named Zod export for it — only the request Body/Params schemas get names. For
-the route handler's response, either reuse the closest existing schema with a matching shape or return
-`serialize(row)` unparsed rather than inventing a schema call that doesn't exist.
+**How to apply:** wire GET-backed lists/detail views with the generated query hooks (or raw fetch + local
+state to match nearby pages); wire all mutations with raw fetch. Also: an OpenAPI schema referenced only as a
+nested/response field (never its own top-level request/response body) gets no standalone named Zod export —
+reuse the closest matching schema or return `serialize(row)` unparsed rather than inventing a nonexistent
+schema call.

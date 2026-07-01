@@ -51,13 +51,26 @@ const openPageInBrowser = (page) => {
   }
 };
 
+// Detects assistant messages that read like a build plan (numbered steps +
+// Step/Phase language + builder vocabulary) but never emitted a structured
+// SBEP_DATA block, so the persistent "confirm this plan" banner can still
+// surface a way to trigger the plan-confirmation flow.
+const PLAN_VOCAB_WORDS = ['blueprint', 'system', 'credential', 'deploy', 'build', 'automation', 'workflow', 'integration', 'tool'];
+function isPlanLikeContent(text) {
+  if (!text || text.length < 40) return false;
+  const hasNumberedList = /(^|\n)\s*(\d+[.)]|step\s*\d+|phase\s*\d+)/i.test(text);
+  const hasStepOrPhaseWord = /\b(step|phase)\b/i.test(text);
+  const vocabHits = PLAN_VOCAB_WORDS.reduce((count, w) => (new RegExp(`\\b${w}\\b`, 'i').test(text) ? count + 1 : count), 0);
+  return hasNumberedList && hasStepOrPhaseWord && vocabHits >= 2;
+}
+
 const STARTER_PROMPTS = [
-  'TikTok affiliate marketing machine',
-  'YouTube automation channel with AI content',
-  'AI lead generation agency for local businesses',
-  'Shopify dropshipping store with email automation',
-  'Digital course funnel with email sequences',
-  'LinkedIn B2B outreach & client acquisition system',
+  'Build an affiliate marketing system',
+  'Create a digital product business',
+  'Launch a coaching funnel',
+  'Start a dropshipping store',
+  'Automate my content creation',
+  'Build an email marketing machine',
 ];
 
 // ── AI Agent Power Modes ──────────────────────────────────────────────────────
@@ -2735,12 +2748,7 @@ const BuilderPage = () => {
           } else if (event.type === 'done') {
             doneData = event;
             const finalContent = event.content ?? fullStreamContent.replace(/<SBEP_DATA>[\s\S]*/g, '').trim();
-            const upperContent = finalContent.toUpperCase();
-            const missingPlan = !event.structuredData && (
-              upperContent.includes('BUILD PLAN') ||
-              upperContent.includes('SYSTEM ANALYSIS') ||
-              (upperContent.includes('BLUEPRINT') && upperContent.includes('STEP'))
-            );
+            const missingPlan = !event.structuredData && isPlanLikeContent(finalContent);
             setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: finalContent, streaming: false, missingPlan: missingPlan || undefined } : m));
             setThinkingSteps([]);
             setThinkingCurrentIdx(-1);
@@ -3927,7 +3935,10 @@ const BuilderPage = () => {
                   {STARTER_PROMPTS.map((g, i) => (
                     <button
                       key={i}
-                      onClick={() => sendMessage(g)}
+                      onClick={() => {
+                        setInput(g);
+                        setTimeout(() => inputRef.current?.focus(), 0);
+                      }}
                       className="w-full text-left text-[11px] px-3 py-3 rounded-xl border border-white/10 bg-black/35 hover:bg-black/55 hover:border-primary/30 text-white/50 hover:text-white transition-colors flex items-start gap-2.5"
                     >
                       <Zap className="w-3.5 h-3.5 text-primary/50 shrink-0 mt-0.5" />

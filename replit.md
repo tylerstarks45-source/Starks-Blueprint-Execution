@@ -16,6 +16,13 @@ An AI-powered automation platform for starksglobalgroup.net. Users select bluepr
 - `DATABASE_URL` — Postgres connection string (auto-provisioned)
 - `SESSION_SECRET` — JWT signing secret (provisioned)
 - `OPENROUTER_API_KEY` — OpenRouter API key for AI agent features
+- `AI_INTEGRATIONS_OPENAI_API_KEY` / `AI_INTEGRATIONS_OPENAI_BASE_URL` — Replit-managed OpenAI AI integration (provisioned). Powers the platform-level TTS fallback in `POST /api/media-gen/tts` when a user has no ElevenLabs key.
+
+### Optional — Namecheap domain registration
+
+- `NAMECHEAP_API_KEY`, `NAMECHEAP_API_USER`, `NAMECHEAP_CLIENT_IP` — enable live domain search/purchase via Namecheap. Without these, `/api/domains/*` routes degrade gracefully (HTTP 200 with `configured: false` / `success: false`) instead of failing — the Domains page (`/domains`) still renders and explains that registration isn't activated yet.
+- `NAMECHEAP_SANDBOX` — set to `"true"` to hit Namecheap's sandbox API instead of live.
+- `GET /api/domains/status` — health check endpoint reporting `{configured, mode, reachable, message}`.
 
 ## Stack
 

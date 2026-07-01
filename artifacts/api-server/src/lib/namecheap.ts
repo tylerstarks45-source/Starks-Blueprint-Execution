@@ -29,6 +29,42 @@ function getCredentials() {
   return { ApiKey: key, ApiUser: user, UserName: process.env.NAMECHEAP_USERNAME || user, ClientIp: ip };
 }
 
+/** Whether all required Namecheap env vars are present. Used for graceful degradation. */
+export function isNamecheapConfigured(): boolean {
+  return Boolean(
+    process.env.NAMECHEAP_API_KEY &&
+    process.env.NAMECHEAP_API_USER &&
+    process.env.NAMECHEAP_CLIENT_IP
+  );
+}
+
+/** Which Namecheap environment is targeted — used for status reporting. */
+export function namecheapMode(): "sandbox" | "live" {
+  return process.env.NAMECHEAP_SANDBOX === "true" ? "sandbox" : "live";
+}
+
+/**
+ * Lightweight connectivity check — calls a cheap read-only Namecheap command
+ * and reports whether credentials are valid and the API is reachable.
+ */
+export async function pingNamecheap(): Promise<{ ok: boolean; message: string }> {
+  if (!isNamecheapConfigured()) {
+    return { ok: false, message: "Namecheap credentials not configured." };
+  }
+  try {
+    await callApi("namecheap.users.getPricing", {
+      ProductType: "DOMAIN",
+      ProductCategory: "REGISTER",
+      ActionName: "REGISTER",
+      ProductName: ".com",
+    });
+    return { ok: true, message: "Namecheap API reachable." };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Namecheap API unreachable";
+    return { ok: false, message: msg };
+  }
+}
+
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", parseAttributeValue: true });
 
 async function callApi(command: string, extra: Record<string, string> = {}): Promise<Record<string, unknown>> {

@@ -44,6 +44,8 @@ tags:
     description: Notification management
   - name: social
     description: Social media scheduling and content calendar
+  - name: domains
+    description: Domain search, purchase, and DNS management (Namecheap)
 
 paths:
   /healthz:
@@ -1467,6 +1469,193 @@ paths:
       responses:
         "204":
           description: Deleted
+
+  # ── Domains ───────────────────────────────────────────────────────────────
+  /domains:
+    get:
+      operationId: listUserDomains
+      tags: [domains]
+      summary: List the current user's registered domains
+      responses:
+        "200":
+          description: List of domains
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserDomain"
+
+  /domains/status:
+    get:
+      operationId: getDomainsStatus
+      tags: [domains]
+      summary: Health check for the Namecheap integration
+      responses:
+        "200":
+          description: Domain service status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DomainsStatus"
+
+  /domains/search:
+    post:
+      operationId: searchDomains
+      tags: [domains]
+      summary: Check availability and pricing across common TLDs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DomainSearchBody"
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DomainSearchResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /domains/purchase:
+    post:
+      operationId: purchaseDomain
+      tags: [domains]
+      summary: Purchase a domain via Namecheap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DomainPurchaseBody"
+      responses:
+        "201":
+          description: Domain purchased and recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDomain"
+        "200":
+          description: Purchase not completed (e.g. service not configured)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DomainPurchaseFailure"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /domains/{id}/link:
+    patch:
+      operationId: linkDomainToPage
+      tags: [domains]
+      summary: Link (or unlink) a domain to a landing page
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DomainLinkBody"
+      responses:
+        "200":
+          description: Updated domain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDomain"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /domains/{id}/verify-dns:
+    post:
+      operationId: verifyDomainDns
+      tags: [domains]
+      summary: Verify CNAME DNS propagation for a domain
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DomainDnsVerifyResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /domains/{id}/dns-setup:
+    get:
+      operationId: getDomainDnsSetup
+      tags: [domains]
+      summary: Get CNAME DNS setup instructions for a domain
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: DNS setup instructions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DomainDnsSetupResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /domains/{id}:
+    delete:
+      operationId: deleteUserDomain
+      tags: [domains]
+      summary: Remove a domain record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   # ── OpenRouter ────────────────────────────────────────────────────────────
   /openrouter/complete:
@@ -3843,3 +4032,197 @@ components:
         config:
           $ref: "#/components/schemas/WhiteLabelConfig"
       required: [verified, domain, target, instructions, config]
+
+    # ── Domains ─────────────────────────────────────────────────────────────
+    UserDomain:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        domain:
+          type: string
+        status:
+          type: string
+        namecheapOrderId:
+          type: ["string", "null"]
+        autoRenew:
+          type: boolean
+        expiresAt:
+          type: ["string", "null"]
+        purchasedAt:
+          type: ["string", "null"]
+        linkedPageId:
+          type: ["integer", "null"]
+        dnsVerified:
+          type: boolean
+        dnsVerifiedAt:
+          type: ["string", "null"]
+        years:
+          type: integer
+        price:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        linkedPageTitle:
+          type: ["string", "null"]
+        linkedPageSlug:
+          type: ["string", "null"]
+      required: [id, userId, domain, status]
+
+    DomainsStatus:
+      type: object
+      properties:
+        configured:
+          type: boolean
+        mode:
+          type: string
+          enum: [sandbox, live]
+        reachable:
+          type: boolean
+        reason:
+          type: string
+        message:
+          type: string
+      required: [configured, mode]
+
+    DomainCheckResult:
+      type: object
+      properties:
+        domain:
+          type: string
+        available:
+          type: boolean
+        premium:
+          type: boolean
+        price:
+          type: number
+      required: [domain, available, premium]
+
+    DomainSearchBody:
+      type: object
+      properties:
+        query:
+          type: string
+          minLength: 2
+          maxLength: 63
+      required: [query]
+
+    DomainSearchResponse:
+      type: object
+      properties:
+        configured:
+          type: boolean
+        reason:
+          type: string
+        message:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/DomainCheckResult"
+      required: [configured, results]
+
+    DomainRegistrant:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        address1:
+          type: string
+        city:
+          type: string
+        stateProvince:
+          type: string
+        postalCode:
+          type: string
+        country:
+          type: string
+          minLength: 2
+          maxLength: 2
+        phone:
+          type: string
+      required: [firstName, lastName, email, address1, city, stateProvince, postalCode, phone]
+
+    DomainPurchaseBody:
+      type: object
+      properties:
+        domain:
+          type: string
+          minLength: 3
+        years:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 1
+        registrant:
+          $ref: "#/components/schemas/DomainRegistrant"
+      required: [domain, registrant]
+
+    DomainPurchaseFailure:
+      type: object
+      properties:
+        success:
+          type: boolean
+        reason:
+          type: string
+        message:
+          type: string
+      required: [success, reason, message]
+
+    DomainLinkBody:
+      type: object
+      properties:
+        pageId:
+          type: ["integer", "null"]
+      required: [pageId]
+
+    DomainDnsVerifyResponse:
+      type: object
+      properties:
+        verified:
+          type: boolean
+        target:
+          type: string
+        id:
+          type: integer
+        domain:
+          type: string
+      required: [verified, target]
+
+    DomainDnsRecord:
+      type: object
+      properties:
+        type:
+          type: string
+        host:
+          type: string
+        value:
+          type: string
+        ttl:
+          type: integer
+      required: [type, host, value, ttl]
+
+    DomainDnsSetupResponse:
+      type: object
+      properties:
+        domain:
+          type: string
+        target:
+          type: string
+        records:
+          type: array
+          items:
+            $ref: "#/components/schemas/DomainDnsRecord"
+        instructions:
+          type: array
+          items:
+            type: string
+      required: [domain, target, records, instructions]

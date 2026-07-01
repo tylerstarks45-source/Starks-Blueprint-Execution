@@ -23,7 +23,7 @@ const NAV_GROUPS = [
     items: [
       { label: 'Email',         path: '/email-marketing', icon: Mail },
       { label: 'Landing Pages', path: '/landing-pages',  icon: Globe },
-      { label: 'Domains',       path: '/my-stack',        icon: Globe2 },
+      { label: 'Domains',       path: '/domains',         icon: Globe2 },
       { label: 'Affiliates',    path: '/affiliate-links', icon: Link2 },
     ],
   },

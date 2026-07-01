@@ -1097,6 +1097,131 @@ export interface WhiteLabelVerifyResponse {
   config: WhiteLabelConfig;
 }
 
+export interface UserDomain {
+  id: number;
+  userId: number;
+  domain: string;
+  status: string;
+  /** @nullable */
+  namecheapOrderId?: string | null;
+  autoRenew?: boolean;
+  /** @nullable */
+  expiresAt?: string | null;
+  /** @nullable */
+  purchasedAt?: string | null;
+  /** @nullable */
+  linkedPageId?: number | null;
+  dnsVerified?: boolean;
+  /** @nullable */
+  dnsVerifiedAt?: string | null;
+  years?: number;
+  /** @nullable */
+  price?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  /** @nullable */
+  linkedPageTitle?: string | null;
+  /** @nullable */
+  linkedPageSlug?: string | null;
+}
+
+export type DomainsStatusMode = typeof DomainsStatusMode[keyof typeof DomainsStatusMode];
+
+
+export const DomainsStatusMode = {
+  sandbox: 'sandbox',
+  live: 'live',
+} as const;
+
+export interface DomainsStatus {
+  configured: boolean;
+  mode: DomainsStatusMode;
+  reachable?: boolean;
+  reason?: string;
+  message?: string;
+}
+
+export interface DomainCheckResult {
+  domain: string;
+  available: boolean;
+  premium: boolean;
+  price?: number;
+}
+
+export interface DomainSearchBody {
+  /**
+     * @minLength 2
+     * @maxLength 63
+     */
+  query: string;
+}
+
+export interface DomainSearchResponse {
+  configured: boolean;
+  reason?: string;
+  message?: string;
+  results: DomainCheckResult[];
+}
+
+export interface DomainRegistrant {
+  firstName: string;
+  lastName: string;
+  email: string;
+  address1: string;
+  city: string;
+  stateProvince: string;
+  postalCode: string;
+  /**
+     * @minLength 2
+     * @maxLength 2
+     */
+  country?: string;
+  phone: string;
+}
+
+export interface DomainPurchaseBody {
+  /** @minLength 3 */
+  domain: string;
+  /**
+     * @minimum 1
+     * @maximum 10
+     */
+  years?: number;
+  registrant: DomainRegistrant;
+}
+
+export interface DomainPurchaseFailure {
+  success: boolean;
+  reason: string;
+  message: string;
+}
+
+export interface DomainLinkBody {
+  /** @nullable */
+  pageId: number | null;
+}
+
+export interface DomainDnsVerifyResponse {
+  verified: boolean;
+  target: string;
+  id?: number;
+  domain?: string;
+}
+
+export interface DomainDnsRecord {
+  type: string;
+  host: string;
+  value: string;
+  ttl: number;
+}
+
+export interface DomainDnsSetupResponse {
+  domain: string;
+  target: string;
+  records: DomainDnsRecord[];
+  instructions: string[];
+}
+
 export type ListBlueprintsParams = {
 status?: string;
 categoryId?: number;

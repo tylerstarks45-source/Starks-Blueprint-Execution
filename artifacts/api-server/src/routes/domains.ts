@@ -15,7 +15,14 @@ import { serialize } from "../lib/serialize";
 import { eq, and, desc } from "drizzle-orm";
 import { db, userDomainsTable, landingPagesTable, systemInstancesTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
-import { checkDomains, purchaseDomain, verifyDnsCname } from "../lib/namecheap";
+import {
+  checkDomains,
+  purchaseDomain,
+  verifyDnsCname,
+  isNamecheapConfigured,
+  namecheapMode,
+  pingNamecheap,
+} from "../lib/namecheap";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -76,18 +83,44 @@ router.post("/domains/search", async (req, res): Promise<void> => {
   const tlds = [".com", ".net", ".org", ".io", ".co", ".app", ".dev", ".ai", ".store"];
   const domains = tlds.map(t => `${base}${t}`);
 
-  if (!process.env.NAMECHEAP_API_KEY) {
-    res.status(503).json({ error: "Domain search is not configured. Please contact support." });
+  if (!isNamecheapConfigured()) {
+    res.json({
+      configured: false,
+      reason: "service_not_configured",
+      message: "Domain registration is not set up yet. Contact support to enable it.",
+      results: domains.map(d => ({ domain: d, available: false, premium: false })),
+    });
     return;
   }
 
   try {
     const results = await checkDomains(domains);
-    res.json(results);
+    res.json({ configured: true, results });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Domain search failed";
     res.status(500).json({ error: msg });
   }
+});
+
+// ── GET /api/domains/status ──────────────────────────────────────────────────
+router.get("/domains/status", async (_req, res): Promise<void> => {
+  if (!isNamecheapConfigured()) {
+    res.json({
+      configured: false,
+      mode: namecheapMode(),
+      reason: "service_not_configured",
+      message: "Set NAMECHEAP_API_KEY, NAMECHEAP_API_USER, and NAMECHEAP_CLIENT_IP to enable domain registration.",
+    });
+    return;
+  }
+
+  const ping = await pingNamecheap();
+  res.json({
+    configured: true,
+    mode: namecheapMode(),
+    reachable: ping.ok,
+    message: ping.message,
+  });
 });
 
 // ── POST /api/domains/purchase ───────────────────────────────────────────────
@@ -116,8 +149,12 @@ router.post("/domains/purchase", async (req, res): Promise<void> => {
 
   const { domain, years, registrant } = parsed.data;
 
-  if (!process.env.NAMECHEAP_API_KEY) {
-    res.status(503).json({ error: "Domain purchasing is not configured. Please contact support." });
+  if (!isNamecheapConfigured()) {
+    res.json({
+      success: false,
+      reason: "service_not_configured",
+      message: "Domain purchasing is not set up yet. Contact support to enable it.",
+    });
     return;
   }
 

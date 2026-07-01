@@ -5,6 +5,20 @@ import { db, pool, userCredentialsTable, generatedFilesTable, runtimeJobsTable }
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { decrypt } from "../lib/crypto";
 import { randomUUID } from "crypto";
+import { textToSpeech } from "@workspace/integrations-openai-ai-server/audio";
+
+const OPENAI_TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"] as const;
+type OpenAiTtsVoice = (typeof OPENAI_TTS_VOICES)[number];
+
+function mapVoiceStyleToOpenAi(style: string): OpenAiTtsVoice {
+  const s = style.toLowerCase();
+  if (s.includes("warm") || s.includes("narrator")) return "fable";
+  if (s.includes("professional") || s.includes("authoritative")) return "onyx";
+  if (s.includes("energetic")) return "shimmer";
+  if (s.includes("calm")) return "nova";
+  if (s.includes("friendly")) return "alloy";
+  return OPENAI_TTS_VOICES.find(v => v === s) ?? "alloy";
+}
 
 const router: IRouter = Router();
 
@@ -695,17 +709,46 @@ router.post("/media-gen/tts", async (req, res): Promise<void> => {
   const elevenLabsKey = await getUserCredential(userId, "ELEVENLABS_API_KEY");
 
   if (!elevenLabsKey) {
-    res.json({
-      status: "needs_credentials",
-      message: "Text-to-speech requires an ElevenLabs API key.",
-      text: text.slice(0, 100) + (text.length > 100 ? "…" : ""),
-      voice,
-      connectUrl: "/connections?category=voice-ai",
-      providers: [
-        { name: "ElevenLabs", key: "ELEVENLABS_API_KEY", url: "https://elevenlabs.io/app/settings/api-keys", desc: "Ultra-realistic AI voices" },
-        { name: "PlayHT", key: "PLAYHT_API_KEY", url: "https://play.ht/app/api-access", desc: "300+ voices across 30+ languages" },
-      ],
-    });
+    // Fallback to the platform-level OpenAI TTS integration so voice generation
+    // works out-of-the-box without requiring users to bring their own ElevenLabs key.
+    try {
+      const openAiVoice = mapVoiceStyleToOpenAi(voice);
+      const audioBuffer = await textToSpeech(text, openAiVoice, "mp3");
+      const base64Audio = audioBuffer.toString("base64");
+      const dataUri = `data:audio/mpeg;base64,${base64Audio}`;
+
+      const fileId = await saveMediaFile(
+        userId,
+        `tts-${Date.now()}.mp3`,
+        "audio",
+        dataUri,
+        `TTS: ${text.slice(0, 80)}… (voice: ${openAiVoice})`,
+      );
+
+      res.json({
+        status: "success",
+        provider: "openai",
+        audioBase64: base64Audio,
+        mimeType: "audio/mpeg",
+        voice: openAiVoice,
+        characterCount: text.length,
+        fileId,
+        message: "Generated using the built-in OpenAI voice. Connect ElevenLabs in the Connections Hub for premium ultra-realistic voices.",
+      });
+    } catch (err) {
+      req.log.error({ err }, "OpenAI TTS fallback failed");
+      res.json({
+        status: "needs_credentials",
+        message: "Text-to-speech is temporarily unavailable. Connect an ElevenLabs API key for reliable voice generation.",
+        text: text.slice(0, 100) + (text.length > 100 ? "…" : ""),
+        voice,
+        connectUrl: "/connections?category=voice-ai",
+        providers: [
+          { name: "ElevenLabs", key: "ELEVENLABS_API_KEY", url: "https://elevenlabs.io/app/settings/api-keys", desc: "Ultra-realistic AI voices" },
+          { name: "PlayHT", key: "PLAYHT_API_KEY", url: "https://play.ht/app/api-access", desc: "300+ voices across 30+ languages" },
+        ],
+      });
+    }
     return;
   }
 

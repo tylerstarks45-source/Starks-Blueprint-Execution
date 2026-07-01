@@ -59,6 +59,7 @@ const SocialAccountsPage    = lazy(() => import('@/pages/SocialAccountsPage.jsx'
 const SocialCalendarPage    = lazy(() => import('@/pages/SocialCalendarPage.jsx'));
 const SystemsListPage       = lazy(() => import('@/pages/SystemsListPage.jsx'));
 const MyStackPage           = lazy(() => import('@/pages/MyStackPage.jsx'));
+const DomainsPage           = lazy(() => import('@/pages/DomainsPage.jsx'));
 const CreditsPage           = lazy(() => import('@/pages/CreditsPage.jsx'));
 const WorkspacePage         = lazy(() => import('@/pages/WorkspacePage.jsx'));
 const MemoryPage            = lazy(() => import('@/pages/MemoryPage.jsx'));
@@ -207,6 +208,9 @@ const App = () => {
               } />
               <Route path="/my-stack" element={
                 <ProtectedRoute><MyStackPage /></ProtectedRoute>
+              } />
+              <Route path="/domains" element={
+                <ProtectedRoute><DomainsPage /></ProtectedRoute>
               } />
               <Route path="/build/:systemInstanceId" element={
                 <ProtectedRoute><BuildRedirect /></ProtectedRoute>

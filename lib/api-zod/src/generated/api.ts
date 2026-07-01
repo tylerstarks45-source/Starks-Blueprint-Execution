@@ -1318,6 +1318,179 @@ export const DeleteUserCredentialParams = zod.object({
 
 
 /**
+ * @summary List the current user's registered domains
+ */
+export const ListUserDomainsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "domain": zod.string(),
+  "status": zod.string(),
+  "namecheapOrderId": zod.string().nullish(),
+  "autoRenew": zod.boolean().optional(),
+  "expiresAt": zod.string().nullish(),
+  "purchasedAt": zod.string().nullish(),
+  "linkedPageId": zod.number().nullish(),
+  "dnsVerified": zod.boolean().optional(),
+  "dnsVerifiedAt": zod.string().nullish(),
+  "years": zod.number().optional(),
+  "price": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional(),
+  "linkedPageTitle": zod.string().nullish(),
+  "linkedPageSlug": zod.string().nullish()
+})
+export const ListUserDomainsResponse = zod.array(ListUserDomainsResponseItem)
+
+
+/**
+ * @summary Health check for the Namecheap integration
+ */
+export const GetDomainsStatusResponse = zod.object({
+  "configured": zod.boolean(),
+  "mode": zod.enum(['sandbox', 'live']),
+  "reachable": zod.boolean().optional(),
+  "reason": zod.string().optional(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Check availability and pricing across common TLDs
+ */
+export const searchDomainsBodyQueryMin = 2;
+export const searchDomainsBodyQueryMax = 63;
+
+
+
+export const SearchDomainsBody = zod.object({
+  "query": zod.string().min(searchDomainsBodyQueryMin).max(searchDomainsBodyQueryMax)
+})
+
+export const SearchDomainsResponse = zod.object({
+  "configured": zod.boolean(),
+  "reason": zod.string().optional(),
+  "message": zod.string().optional(),
+  "results": zod.array(zod.object({
+  "domain": zod.string(),
+  "available": zod.boolean(),
+  "premium": zod.boolean(),
+  "price": zod.number().optional()
+}))
+})
+
+
+/**
+ * @summary Purchase a domain via Namecheap
+ */
+export const purchaseDomainBodyDomainMin = 3;
+
+export const purchaseDomainBodyYearsDefault = 1;
+export const purchaseDomainBodyYearsMax = 10;
+
+export const purchaseDomainBodyRegistrantCountryMin = 2;
+export const purchaseDomainBodyRegistrantCountryMax = 2;
+
+
+
+export const PurchaseDomainBody = zod.object({
+  "domain": zod.string().min(purchaseDomainBodyDomainMin),
+  "years": zod.number().min(1).max(purchaseDomainBodyYearsMax).default(purchaseDomainBodyYearsDefault),
+  "registrant": zod.object({
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "email": zod.string(),
+  "address1": zod.string(),
+  "city": zod.string(),
+  "stateProvince": zod.string(),
+  "postalCode": zod.string(),
+  "country": zod.string().min(purchaseDomainBodyRegistrantCountryMin).max(purchaseDomainBodyRegistrantCountryMax).optional(),
+  "phone": zod.string()
+})
+})
+
+export const PurchaseDomainResponse = zod.object({
+  "success": zod.boolean(),
+  "reason": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Link (or unlink) a domain to a landing page
+ */
+export const LinkDomainToPageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const LinkDomainToPageBody = zod.object({
+  "pageId": zod.number().nullable()
+})
+
+export const LinkDomainToPageResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "domain": zod.string(),
+  "status": zod.string(),
+  "namecheapOrderId": zod.string().nullish(),
+  "autoRenew": zod.boolean().optional(),
+  "expiresAt": zod.string().nullish(),
+  "purchasedAt": zod.string().nullish(),
+  "linkedPageId": zod.number().nullish(),
+  "dnsVerified": zod.boolean().optional(),
+  "dnsVerifiedAt": zod.string().nullish(),
+  "years": zod.number().optional(),
+  "price": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional(),
+  "linkedPageTitle": zod.string().nullish(),
+  "linkedPageSlug": zod.string().nullish()
+})
+
+
+/**
+ * @summary Verify CNAME DNS propagation for a domain
+ */
+export const VerifyDomainDnsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const VerifyDomainDnsResponse = zod.object({
+  "verified": zod.boolean(),
+  "target": zod.string(),
+  "id": zod.number().optional(),
+  "domain": zod.string().optional()
+})
+
+
+/**
+ * @summary Get CNAME DNS setup instructions for a domain
+ */
+export const GetDomainDnsSetupParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetDomainDnsSetupResponse = zod.object({
+  "domain": zod.string(),
+  "target": zod.string(),
+  "records": zod.array(zod.object({
+  "type": zod.string(),
+  "host": zod.string(),
+  "value": zod.string(),
+  "ttl": zod.number()
+})),
+  "instructions": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Remove a domain record
+ */
+export const DeleteUserDomainParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
  * @summary Send a completion request to OpenRouter
  */
 

@@ -64,6 +64,14 @@ import type {
   CreditConfig,
   CreditTransaction,
   CrossSystemActivityEvent,
+  DomainDnsSetupResponse,
+  DomainDnsVerifyResponse,
+  DomainLinkBody,
+  DomainPurchaseBody,
+  DomainPurchaseFailure,
+  DomainSearchBody,
+  DomainSearchResponse,
+  DomainsStatus,
   ErrorResponse,
   GetAdminRevenueParams,
   GetAdminUsageByUserParams,
@@ -113,6 +121,7 @@ import type {
   User,
   UserCredentialInput,
   UserCredentialSafe,
+  UserDomain,
   UserInput,
   UserMemoryInput,
   UserMemoryRecord,
@@ -5041,6 +5050,591 @@ export const useDeleteUserCredential = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteUserCredentialMutationOptions(options));
+    }
+
+export const getListUserDomainsUrl = () => {
+
+
+
+
+  return `/api/domains`
+}
+
+/**
+ * @summary List the current user's registered domains
+ */
+export const listUserDomains = async ( options?: RequestInit): Promise<UserDomain[]> => {
+
+  return customFetch<UserDomain[]>(getListUserDomainsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListUserDomainsQueryKey = () => {
+    return [
+    `/api/domains`
+    ] as const;
+    }
+
+
+export const getListUserDomainsQueryOptions = <TData = Awaited<ReturnType<typeof listUserDomains>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listUserDomains>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListUserDomainsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listUserDomains>>> = ({ signal }) => listUserDomains({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listUserDomains>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListUserDomainsQueryResult = NonNullable<Awaited<ReturnType<typeof listUserDomains>>>
+export type ListUserDomainsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the current user's registered domains
+ */
+
+export function useListUserDomains<TData = Awaited<ReturnType<typeof listUserDomains>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listUserDomains>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListUserDomainsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetDomainsStatusUrl = () => {
+
+
+
+
+  return `/api/domains/status`
+}
+
+/**
+ * @summary Health check for the Namecheap integration
+ */
+export const getDomainsStatus = async ( options?: RequestInit): Promise<DomainsStatus> => {
+
+  return customFetch<DomainsStatus>(getGetDomainsStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDomainsStatusQueryKey = () => {
+    return [
+    `/api/domains/status`
+    ] as const;
+    }
+
+
+export const getGetDomainsStatusQueryOptions = <TData = Awaited<ReturnType<typeof getDomainsStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDomainsStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDomainsStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDomainsStatus>>> = ({ signal }) => getDomainsStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDomainsStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDomainsStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getDomainsStatus>>>
+export type GetDomainsStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Health check for the Namecheap integration
+ */
+
+export function useGetDomainsStatus<TData = Awaited<ReturnType<typeof getDomainsStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDomainsStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDomainsStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSearchDomainsUrl = () => {
+
+
+
+
+  return `/api/domains/search`
+}
+
+/**
+ * @summary Check availability and pricing across common TLDs
+ */
+export const searchDomains = async (domainSearchBody: DomainSearchBody, options?: RequestInit): Promise<DomainSearchResponse> => {
+
+  return customFetch<DomainSearchResponse>(getSearchDomainsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      domainSearchBody,)
+  }
+);}
+
+
+
+
+export const getSearchDomainsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchDomains>>, TError,{data: BodyType<DomainSearchBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof searchDomains>>, TError,{data: BodyType<DomainSearchBody>}, TContext> => {
+
+const mutationKey = ['searchDomains'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof searchDomains>>, {data: BodyType<DomainSearchBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  searchDomains(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SearchDomainsMutationResult = NonNullable<Awaited<ReturnType<typeof searchDomains>>>
+    export type SearchDomainsMutationBody = BodyType<DomainSearchBody>
+    export type SearchDomainsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Check availability and pricing across common TLDs
+ */
+export const useSearchDomains = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchDomains>>, TError,{data: BodyType<DomainSearchBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof searchDomains>>,
+        TError,
+        {data: BodyType<DomainSearchBody>},
+        TContext
+      > => {
+      return useMutation(getSearchDomainsMutationOptions(options));
+    }
+
+export const getPurchaseDomainUrl = () => {
+
+
+
+
+  return `/api/domains/purchase`
+}
+
+/**
+ * @summary Purchase a domain via Namecheap
+ */
+export const purchaseDomain = async (domainPurchaseBody: DomainPurchaseBody, options?: RequestInit): Promise<DomainPurchaseFailure | UserDomain> => {
+
+  return customFetch<DomainPurchaseFailure | UserDomain>(getPurchaseDomainUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      domainPurchaseBody,)
+  }
+);}
+
+
+
+
+export const getPurchaseDomainMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purchaseDomain>>, TError,{data: BodyType<DomainPurchaseBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof purchaseDomain>>, TError,{data: BodyType<DomainPurchaseBody>}, TContext> => {
+
+const mutationKey = ['purchaseDomain'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof purchaseDomain>>, {data: BodyType<DomainPurchaseBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  purchaseDomain(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PurchaseDomainMutationResult = NonNullable<Awaited<ReturnType<typeof purchaseDomain>>>
+    export type PurchaseDomainMutationBody = BodyType<DomainPurchaseBody>
+    export type PurchaseDomainMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Purchase a domain via Namecheap
+ */
+export const usePurchaseDomain = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purchaseDomain>>, TError,{data: BodyType<DomainPurchaseBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof purchaseDomain>>,
+        TError,
+        {data: BodyType<DomainPurchaseBody>},
+        TContext
+      > => {
+      return useMutation(getPurchaseDomainMutationOptions(options));
+    }
+
+export const getLinkDomainToPageUrl = (id: number,) => {
+
+
+
+
+  return `/api/domains/${id}/link`
+}
+
+/**
+ * @summary Link (or unlink) a domain to a landing page
+ */
+export const linkDomainToPage = async (id: number,
+    domainLinkBody: DomainLinkBody, options?: RequestInit): Promise<UserDomain> => {
+
+  return customFetch<UserDomain>(getLinkDomainToPageUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      domainLinkBody,)
+  }
+);}
+
+
+
+
+export const getLinkDomainToPageMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkDomainToPage>>, TError,{id: number;data: BodyType<DomainLinkBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof linkDomainToPage>>, TError,{id: number;data: BodyType<DomainLinkBody>}, TContext> => {
+
+const mutationKey = ['linkDomainToPage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof linkDomainToPage>>, {id: number;data: BodyType<DomainLinkBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  linkDomainToPage(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LinkDomainToPageMutationResult = NonNullable<Awaited<ReturnType<typeof linkDomainToPage>>>
+    export type LinkDomainToPageMutationBody = BodyType<DomainLinkBody>
+    export type LinkDomainToPageMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Link (or unlink) a domain to a landing page
+ */
+export const useLinkDomainToPage = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkDomainToPage>>, TError,{id: number;data: BodyType<DomainLinkBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof linkDomainToPage>>,
+        TError,
+        {id: number;data: BodyType<DomainLinkBody>},
+        TContext
+      > => {
+      return useMutation(getLinkDomainToPageMutationOptions(options));
+    }
+
+export const getVerifyDomainDnsUrl = (id: number,) => {
+
+
+
+
+  return `/api/domains/${id}/verify-dns`
+}
+
+/**
+ * @summary Verify CNAME DNS propagation for a domain
+ */
+export const verifyDomainDns = async (id: number, options?: RequestInit): Promise<DomainDnsVerifyResponse> => {
+
+  return customFetch<DomainDnsVerifyResponse>(getVerifyDomainDnsUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getVerifyDomainDnsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyDomainDns>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyDomainDns>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['verifyDomainDns'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyDomainDns>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  verifyDomainDns(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyDomainDnsMutationResult = NonNullable<Awaited<ReturnType<typeof verifyDomainDns>>>
+
+    export type VerifyDomainDnsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Verify CNAME DNS propagation for a domain
+ */
+export const useVerifyDomainDns = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyDomainDns>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyDomainDns>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getVerifyDomainDnsMutationOptions(options));
+    }
+
+export const getGetDomainDnsSetupUrl = (id: number,) => {
+
+
+
+
+  return `/api/domains/${id}/dns-setup`
+}
+
+/**
+ * @summary Get CNAME DNS setup instructions for a domain
+ */
+export const getDomainDnsSetup = async (id: number, options?: RequestInit): Promise<DomainDnsSetupResponse> => {
+
+  return customFetch<DomainDnsSetupResponse>(getGetDomainDnsSetupUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDomainDnsSetupQueryKey = (id: number,) => {
+    return [
+    `/api/domains/${id}/dns-setup`
+    ] as const;
+    }
+
+
+export const getGetDomainDnsSetupQueryOptions = <TData = Awaited<ReturnType<typeof getDomainDnsSetup>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDomainDnsSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDomainDnsSetupQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDomainDnsSetup>>> = ({ signal }) => getDomainDnsSetup(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDomainDnsSetup>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDomainDnsSetupQueryResult = NonNullable<Awaited<ReturnType<typeof getDomainDnsSetup>>>
+export type GetDomainDnsSetupQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get CNAME DNS setup instructions for a domain
+ */
+
+export function useGetDomainDnsSetup<TData = Awaited<ReturnType<typeof getDomainDnsSetup>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDomainDnsSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDomainDnsSetupQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDeleteUserDomainUrl = (id: number,) => {
+
+
+
+
+  return `/api/domains/${id}`
+}
+
+/**
+ * @summary Remove a domain record
+ */
+export const deleteUserDomain = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteUserDomainUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteUserDomainMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteUserDomain>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteUserDomain>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteUserDomain'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteUserDomain>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteUserDomain(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteUserDomainMutationResult = NonNullable<Awaited<ReturnType<typeof deleteUserDomain>>>
+
+    export type DeleteUserDomainMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Remove a domain record
+ */
+export const useDeleteUserDomain = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteUserDomain>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteUserDomain>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteUserDomainMutationOptions(options));
     }
 
 export const getOpenrouterCompleteUrl = () => {

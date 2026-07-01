@@ -12,7 +12,8 @@ export type JobType =
   | "ash_task"
   | "send_email"
   | "media_gen_video"
-  | "media_gen_audio";
+  | "media_gen_audio"
+  | "business_health_analysis";
 
 export type JobStatus = "queued" | "active" | "completed" | "failed" | "retrying" | "cancelled";
 

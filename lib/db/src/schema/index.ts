@@ -54,3 +54,4 @@ export * from "./api_key_usage_events";
 export * from "./scheduled_posts";
 export * from "./businesses";
 export * from "./business_connections";
+export * from "./business_health_scores";

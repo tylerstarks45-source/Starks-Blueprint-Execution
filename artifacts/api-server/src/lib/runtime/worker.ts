@@ -1,11 +1,15 @@
 import { claimNextJob, completeJob, failJob, upsertConnectorStatus, resetOrphanedJobs } from "./jobs";
 import { getConnector } from "../connectors/registry";
-import { db, pool, systemInstancesTable, userCredentialsTable, systemActivityEventsTable, usersTable } from "@workspace/db";
+import {
+  db, pool, systemInstancesTable, userCredentialsTable, systemActivityEventsTable, usersTable,
+  businessesTable, businessHealthScoresTable,
+} from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { decrypt } from "../crypto";
 import { logger } from "../logger";
 import { complete } from "../openrouter";
 import { sendPushNotification } from "../push";
+import { fetchPage } from "../browser/crawler";
 
 const POLL_INTERVAL_MS = 5_000;
 let running = false;
@@ -187,6 +191,135 @@ async function handleSendEmail(payload: Record<string, unknown>): Promise<unknow
   return { ok: true, to, subject };
 }
 
+// ─── business_health_analysis handler ────────────────────────────────────────
+// Runs an ASH analysis pass over a business: optionally fetches the live
+// website via the browser crawler, then asks OpenRouter for a structured JSON
+// health score (overall + 5 sub-scores, opportunities/risks/recommendations),
+// and writes a fresh business_health_scores row.
+
+interface HealthAnalysisPayload {
+  businessId: number;
+  userId: number;
+}
+
+interface HealthAnalysisJson {
+  overallHealth: number;
+  automationScore: number;
+  growthScore: number;
+  marketingScore: number;
+  seoScore: number;
+  contentScore: number;
+  summary: string;
+  revenueOpportunities: string[];
+  operationalRisks: string[];
+  missingIntegrations: string[];
+  recommendations: string[];
+  estimatedGrowthPotential: string;
+}
+
+function clampScore(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return 50;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === "string").slice(0, 12);
+}
+
+async function handleBusinessHealthAnalysis(payload: Record<string, unknown>): Promise<unknown> {
+  const { businessId, userId } = payload as unknown as HealthAnalysisPayload;
+
+  const [business] = await db
+    .select()
+    .from(businessesTable)
+    .where(eq(businessesTable.id, businessId));
+  if (!business) throw new Error(`Business ${businessId} not found`);
+
+  let siteContext = "No website URL is on file for this business.";
+  if (business.websiteUrl) {
+    try {
+      const page = await fetchPage(business.websiteUrl);
+      if (page.error) {
+        siteContext = `Attempted to load ${business.websiteUrl} but failed: ${page.error}. Treat this as a strong operational risk (site may be down or unreachable).`;
+      } else {
+        siteContext = `Live site check of ${page.finalUrl} — Title: "${page.title}" (HTTP ${page.statusCode}).\nVisible text (first 2000 chars):\n${page.text.slice(0, 2000)}\nLinks found: ${page.links.length}. Forms found: ${page.forms.length}.`;
+      }
+    } catch (err) {
+      siteContext = `Could not check the live site (${business.websiteUrl}): ${err instanceof Error ? err.message : String(err)}.`;
+    }
+  }
+
+  const prompt = `Analyze this business and produce a Business Health Score.
+
+Business name: ${business.name}
+Business type: ${business.businessType}
+Revenue model: ${business.revenueModel ?? "unknown"}
+Origin: ${business.origin === "built" ? "Built on SBEP by ASH" : "Imported from an existing business"}
+Status: ${business.status}
+Notes: ${business.notes ?? "(none)"}
+
+${siteContext}
+
+Respond with ONLY a single JSON object (no markdown, no prose) with this exact shape:
+{
+  "overallHealth": <0-100 integer>,
+  "automationScore": <0-100 integer, how automated/hands-off the business is>,
+  "growthScore": <0-100 integer, growth trajectory/momentum>,
+  "marketingScore": <0-100 integer, marketing presence/effectiveness>,
+  "seoScore": <0-100 integer, SEO/discoverability>,
+  "contentScore": <0-100 integer, content quality/freshness>,
+  "summary": "<1-2 sentence plain-English explanation of the overall score>",
+  "revenueOpportunities": ["<short concrete opportunity>", ...up to 5],
+  "operationalRisks": ["<short concrete risk>", ...up to 5],
+  "missingIntegrations": ["<tool/platform that would help but isn't connected>", ...up to 5],
+  "recommendations": ["<short concrete next step>", ...up to 5],
+  "estimatedGrowthPotential": "<short phrase, e.g. 'High — untapped SEO traffic'>"
+}`;
+
+  const result = await complete({
+    prompt,
+    systemPrompt:
+      "You are ASH, an AI business analyst for the SBEP platform. You objectively score businesses on automation, " +
+      "growth, marketing, SEO, and content, then surface concrete, actionable opportunities and risks. Be honest — " +
+      "score low when evidence is thin or the site is unreachable. Always respond with strictly valid JSON matching the requested shape.",
+    model: "openai/gpt-4o-mini",
+    userId,
+  });
+
+  let parsed: Partial<HealthAnalysisJson>;
+  try {
+    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+    parsed = JSON.parse(jsonMatch ? jsonMatch[0] : result.content);
+  } catch {
+    throw new Error("ASH returned a non-JSON health analysis response");
+  }
+
+  const [row] = await db
+    .insert(businessHealthScoresTable)
+    .values({
+      businessId,
+      overallHealth: clampScore(parsed.overallHealth),
+      automationScore: clampScore(parsed.automationScore),
+      growthScore: clampScore(parsed.growthScore),
+      marketingScore: clampScore(parsed.marketingScore),
+      seoScore: clampScore(parsed.seoScore),
+      contentScore: clampScore(parsed.contentScore),
+      summary: typeof parsed.summary === "string" ? parsed.summary.slice(0, 500) : null,
+      revenueOpportunities: toStringArray(parsed.revenueOpportunities),
+      operationalRisks: toStringArray(parsed.operationalRisks),
+      missingIntegrations: toStringArray(parsed.missingIntegrations),
+      recommendations: toStringArray(parsed.recommendations),
+      estimatedGrowthPotential:
+        typeof parsed.estimatedGrowthPotential === "string" ? parsed.estimatedGrowthPotential.slice(0, 200) : null,
+    })
+    .returning();
+
+  logger.info({ businessId, overallHealth: row.overallHealth }, "Business health analysis completed");
+  return { ok: true, businessId, healthScoreId: row.id, overallHealth: row.overallHealth };
+}
+
 // ─── Main Worker Loop ─────────────────────────────────────────────────────────
 
 async function processJob(): Promise<void> {
@@ -214,6 +347,9 @@ async function processJob(): Promise<void> {
         break;
       case "send_email":
         result = await handleSendEmail(payload);
+        break;
+      case "business_health_analysis":
+        result = await handleBusinessHealthAnalysis(payload);
         break;
       default:
         throw new Error(`Unknown job type: ${job.jobType}`);

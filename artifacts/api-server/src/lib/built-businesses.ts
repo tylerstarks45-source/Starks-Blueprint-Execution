@@ -1,6 +1,17 @@
 import { eq, isNull, and } from "drizzle-orm";
 import { db, businessesTable, systemInstancesTable, type SystemInstance } from "@workspace/db";
 import { logger } from "./logger";
+import { enqueue } from "./runtime/jobs";
+
+// Best-effort: kick off an ASH health analysis pass for a freshly created
+// business. Never blocks or fails the caller — this is fire-and-forget.
+async function triggerHealthAnalysis(businessId: number, userId: number): Promise<void> {
+  try {
+    await enqueue("business_health_analysis", { businessId, userId }, { priority: 5 });
+  } catch (err) {
+    logger.warn({ err, businessId }, "Failed to enqueue initial business health analysis (non-fatal)");
+  }
+}
 
 // A "business" is the new top-level container. ASH-built systems
 // (system_instances) are surfaced in the Business Portfolio as origin="built"
@@ -62,7 +73,8 @@ export async function ensureBuiltBusiness(
       .where(and(eq(businessesTable.systemInstanceId, si.id), eq(businessesTable.origin, "built")));
     if (existing) return;
 
-    await db.insert(businessesTable).values(businessValuesForSystem(si));
+    const [created] = await db.insert(businessesTable).values(businessValuesForSystem(si)).returning({ id: businessesTable.id });
+    if (created) await triggerHealthAnalysis(created.id, si.userId);
   } catch (err) {
     logger.warn({ err, systemInstanceId: si.id }, "ensureBuiltBusiness failed (non-fatal)");
   }

@@ -2479,6 +2479,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /businesses/{id}/health:
+    get:
+      operationId: getBusinessHealth
+      tags: [businesses]
+      summary: Get the latest health score for a business, plus history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Latest health score and history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessHealthResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /businesses/{id}/health/analyze:
+    post:
+      operationId: analyzeBusinessHealth
+      tags: [businesses]
+      summary: Kick off an async ASH health analysis pass for a business
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "202":
+          description: Analysis job enqueued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeBusinessHealthResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -4500,3 +4550,83 @@ components:
               items:
                 $ref: "#/components/schemas/BusinessConnection"
           required: [connections]
+
+    BusinessHealthScore:
+      type: object
+      properties:
+        id:
+          type: integer
+        businessId:
+          type: integer
+        overallHealth:
+          type: integer
+        automationScore:
+          type: integer
+        growthScore:
+          type: integer
+        marketingScore:
+          type: integer
+        seoScore:
+          type: integer
+        contentScore:
+          type: integer
+        summary:
+          type: ["string", "null"]
+        revenueOpportunities:
+          type: array
+          items:
+            type: string
+        operationalRisks:
+          type: array
+          items:
+            type: string
+        missingIntegrations:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        estimatedGrowthPotential:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - businessId
+        - overallHealth
+        - automationScore
+        - growthScore
+        - marketingScore
+        - seoScore
+        - contentScore
+        - revenueOpportunities
+        - operationalRisks
+        - missingIntegrations
+        - recommendations
+        - createdAt
+
+    BusinessHealthResponse:
+      type: object
+      properties:
+        latest:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessHealthScore"
+            - type: "null"
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/BusinessHealthScore"
+        analyzing:
+          type: boolean
+      required: [latest, history, analyzing]
+
+    AnalyzeBusinessHealthResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+      required: [jobId, status]

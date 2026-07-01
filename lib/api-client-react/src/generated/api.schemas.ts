@@ -1364,6 +1364,37 @@ export type BusinessWithConnections = Business & {
   connections: BusinessConnection[];
 };
 
+export interface BusinessHealthScore {
+  id: number;
+  businessId: number;
+  overallHealth: number;
+  automationScore: number;
+  growthScore: number;
+  marketingScore: number;
+  seoScore: number;
+  contentScore: number;
+  /** @nullable */
+  summary?: string | null;
+  revenueOpportunities: string[];
+  operationalRisks: string[];
+  missingIntegrations: string[];
+  recommendations: string[];
+  /** @nullable */
+  estimatedGrowthPotential?: string | null;
+  createdAt: string;
+}
+
+export interface BusinessHealthResponse {
+  latest: BusinessHealthScore | null;
+  history: BusinessHealthScore[];
+  analyzing: boolean;
+}
+
+export interface AnalyzeBusinessHealthResponse {
+  jobId: string;
+  status: string;
+}
+
 export type ListBlueprintsParams = {
 status?: string;
 categoryId?: number;

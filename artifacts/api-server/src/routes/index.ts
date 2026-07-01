@@ -51,6 +51,7 @@ import analyticsRouter from "./analytics";
 import socialRouter from "./social";
 import socialOAuthRouter from "./social-oauth";
 import businessesRouter from "./businesses";
+import businessHealthRouter from "./business-health";
 
 const router: IRouter = Router();
 
@@ -106,5 +107,6 @@ router.use(analyticsRouter);
 router.use(socialRouter);
 router.use(socialOAuthRouter);
 router.use(businessesRouter);
+router.use(businessHealthRouter);
 
 export default router;

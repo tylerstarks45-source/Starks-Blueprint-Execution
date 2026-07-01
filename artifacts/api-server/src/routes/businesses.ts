@@ -3,6 +3,8 @@ import { serialize } from "../lib/serialize";
 import { eq, and, desc } from "drizzle-orm";
 import { db, businessesTable, businessConnectionsTable, userCredentialsTable } from "@workspace/db";
 import { getActiveCallerPayload, validateClientWorkspaceId } from "../lib/auth";
+import { enqueue } from "../lib/runtime/jobs";
+import { logger } from "../lib/logger";
 import {
   ListBusinessesResponse,
   CreateBusinessBody,
@@ -73,6 +75,13 @@ router.post("/businesses", async (req, res): Promise<void> => {
       ...(clientWorkspaceId !== null ? { clientWorkspaceId } : {}),
     })
     .returning();
+
+  // Fire-and-forget: kick off ASH's first health analysis pass. Never blocks
+  // or fails the create response — this mirrors ensureBuiltBusiness's approach
+  // for built businesses.
+  enqueue("business_health_analysis", { businessId: row.id, userId: caller.id }, { priority: 5 }).catch((err) => {
+    logger.warn({ err, businessId: row.id }, "Failed to enqueue initial business health analysis (non-fatal)");
+  });
 
   res.status(201).json(UpdateBusinessResponse.parse(serialize(row)));
 });

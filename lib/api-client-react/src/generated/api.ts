@@ -37,6 +37,7 @@ import type {
   AffiliateLink,
   AffiliateLinkInput,
   AffiliateLinkUpdate,
+  AnalyzeBusinessHealthResponse,
   Blueprint,
   BlueprintCategory,
   BlueprintCategoryInput,
@@ -62,6 +63,7 @@ import type {
   Business,
   BusinessConnection,
   BusinessConnectionInput,
+  BusinessHealthResponse,
   BusinessInput,
   BusinessUpdate,
   BusinessWithConnections,
@@ -8517,5 +8519,152 @@ export const useAddBusinessConnection = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getAddBusinessConnectionMutationOptions(options));
+    }
+
+export const getGetBusinessHealthUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/health`
+}
+
+/**
+ * @summary Get the latest health score for a business, plus history
+ */
+export const getBusinessHealth = async (id: number, options?: RequestInit): Promise<BusinessHealthResponse> => {
+
+  return customFetch<BusinessHealthResponse>(getGetBusinessHealthUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessHealthQueryKey = (id: number,) => {
+    return [
+    `/api/businesses/${id}/health`
+    ] as const;
+    }
+
+
+export const getGetBusinessHealthQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessHealth>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessHealth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessHealthQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessHealth>>> = ({ signal }) => getBusinessHealth(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessHealth>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessHealthQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessHealth>>>
+export type GetBusinessHealthQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get the latest health score for a business, plus history
+ */
+
+export function useGetBusinessHealth<TData = Awaited<ReturnType<typeof getBusinessHealth>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessHealth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessHealthQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAnalyzeBusinessHealthUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/health/analyze`
+}
+
+/**
+ * @summary Kick off an async ASH health analysis pass for a business
+ */
+export const analyzeBusinessHealth = async (id: number, options?: RequestInit): Promise<AnalyzeBusinessHealthResponse> => {
+
+  return customFetch<AnalyzeBusinessHealthResponse>(getAnalyzeBusinessHealthUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAnalyzeBusinessHealthMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeBusinessHealth>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeBusinessHealth>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['analyzeBusinessHealth'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeBusinessHealth>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  analyzeBusinessHealth(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeBusinessHealthMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeBusinessHealth>>>
+
+    export type AnalyzeBusinessHealthMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Kick off an async ASH health analysis pass for a business
+ */
+export const useAnalyzeBusinessHealth = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeBusinessHealth>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeBusinessHealth>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getAnalyzeBusinessHealthMutationOptions(options));
     }
 

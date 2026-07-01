@@ -5,6 +5,7 @@ import {
   RefreshCw, FileText,
 } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout.jsx';
+import HealthScoreCard from '@/components/HealthScoreCard.jsx';
 import { Helmet } from 'react-helmet';
 import { toast } from 'sonner';
 
@@ -112,6 +113,8 @@ export default function BusinessDetailPage() {
             </div>
           )}
         </div>
+
+        <HealthScoreCard businessId={business.id} className="mb-6" />
 
         <div className="rounded-2xl border border-white/10 bg-black/70 p-6">
           <div className="flex items-center justify-between mb-4">

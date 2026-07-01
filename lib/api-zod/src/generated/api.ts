@@ -2339,3 +2339,57 @@ export const AddBusinessConnectionBody = zod.object({
 })
 
 
+/**
+ * @summary Get the latest health score for a business, plus history
+ */
+export const GetBusinessHealthParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetBusinessHealthResponse = zod.object({
+  "latest": zod.union([zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "overallHealth": zod.number(),
+  "automationScore": zod.number(),
+  "growthScore": zod.number(),
+  "marketingScore": zod.number(),
+  "seoScore": zod.number(),
+  "contentScore": zod.number(),
+  "summary": zod.string().nullish(),
+  "revenueOpportunities": zod.array(zod.string()),
+  "operationalRisks": zod.array(zod.string()),
+  "missingIntegrations": zod.array(zod.string()),
+  "recommendations": zod.array(zod.string()),
+  "estimatedGrowthPotential": zod.string().nullish(),
+  "createdAt": zod.string()
+}),zod.null()]),
+  "history": zod.array(zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "overallHealth": zod.number(),
+  "automationScore": zod.number(),
+  "growthScore": zod.number(),
+  "marketingScore": zod.number(),
+  "seoScore": zod.number(),
+  "contentScore": zod.number(),
+  "summary": zod.string().nullish(),
+  "revenueOpportunities": zod.array(zod.string()),
+  "operationalRisks": zod.array(zod.string()),
+  "missingIntegrations": zod.array(zod.string()),
+  "recommendations": zod.array(zod.string()),
+  "estimatedGrowthPotential": zod.string().nullish(),
+  "createdAt": zod.string()
+})),
+  "analyzing": zod.boolean()
+})
+
+
+/**
+ * @summary Kick off an async ASH health analysis pass for a business
+ */
+export const AnalyzeBusinessHealthParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+

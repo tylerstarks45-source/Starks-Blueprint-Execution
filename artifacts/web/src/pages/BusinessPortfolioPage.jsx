@@ -6,6 +6,7 @@ import {
   MoreVertical, RefreshCw,
 } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout.jsx';
+import HealthScoreCard from '@/components/HealthScoreCard.jsx';
 import { Helmet } from 'react-helmet';
 import { toast } from 'sonner';
 
@@ -82,6 +83,7 @@ function BusinessCard({ business, onView, onDelete }) {
           <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
           {status.label}
         </span>
+        <HealthScoreCard businessId={business.id} compact />
       </div>
 
       {business.websiteUrl && (

@@ -48,6 +48,7 @@ import leaderboardRouter from "./leaderboard";
 import researchRouter from "./research";
 import developerRouter from "./developer";
 import analyticsRouter from "./analytics";
+import socialRouter from "./social";
 
 const router: IRouter = Router();
 
@@ -100,5 +101,6 @@ router.use(leaderboardRouter);
 router.use(researchRouter);
 router.use(developerRouter);
 router.use(analyticsRouter);
+router.use(socialRouter);
 
 export default router;

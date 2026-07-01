@@ -56,6 +56,7 @@ const BuildPage             = lazy(() => import('@/pages/BuildPage.jsx'));
 const UserSystemDetailPage  = lazy(() => import('@/pages/UserSystemDetailPage.jsx'));
 const ConnectionsHubPage    = lazy(() => import('@/pages/ConnectionsHubPage.jsx'));
 const SocialAccountsPage    = lazy(() => import('@/pages/SocialAccountsPage.jsx'));
+const SocialCalendarPage    = lazy(() => import('@/pages/SocialCalendarPage.jsx'));
 const SystemsListPage       = lazy(() => import('@/pages/SystemsListPage.jsx'));
 const MyStackPage           = lazy(() => import('@/pages/MyStackPage.jsx'));
 const CreditsPage           = lazy(() => import('@/pages/CreditsPage.jsx'));
@@ -218,6 +219,9 @@ const App = () => {
               } />
               <Route path="/social-accounts" element={
                 <ProtectedRoute><SocialAccountsPage /></ProtectedRoute>
+              } />
+              <Route path="/social" element={
+                <ProtectedRoute><SocialCalendarPage /></ProtectedRoute>
               } />
               <Route path="/systems" element={
                 <ProtectedRoute><SystemsListPage /></ProtectedRoute>

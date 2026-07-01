@@ -214,6 +214,109 @@ async function publishInstagram(creds: Record<string, string>, params: PublishPa
   }
 }
 
+// ── LinkedIn ───────────────────────────────────────────────────────────────────
+async function publishLinkedIn(creds: Record<string, string>, params: PublishParams): Promise<PublishResult> {
+  const token = creds["LINKEDIN_ACCESS_TOKEN"];
+  if (!token) return { ok: false, error: "LINKEDIN_ACCESS_TOKEN credential not found. Add it in Connections Hub." };
+
+  try {
+    const profileRes = await fetch("https://api.linkedin.com/v2/userinfo", {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    });
+    if (!profileRes.ok) return { ok: false, error: `LinkedIn profile fetch failed: ${profileRes.status}` };
+    const profile = await profileRes.json() as { sub?: string };
+    const authorUrn = `urn:li:person:${profile.sub}`;
+    const text = params.content.slice(0, 3000);
+
+    const res = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-Restli-Protocol-Version": "2.0.0",
+      },
+      body: JSON.stringify({
+        author: authorUrn,
+        lifecycleState: "PUBLISHED",
+        specificContent: {
+          "com.linkedin.ugc.ShareContent": {
+            shareCommentary: { text },
+            shareMediaCategory: "NONE",
+          },
+        },
+        visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      return { ok: false, error: `LinkedIn API ${res.status}: ${err.slice(0, 200)}` };
+    }
+    const postId = res.headers.get("x-restli-id") ?? "unknown";
+    return { ok: true, publishedUrl: "https://www.linkedin.com/feed/", externalId: postId, data: { postId, text } };
+  } catch (err: unknown) {
+    return { ok: false, error: String(err) };
+  }
+}
+
+// ── TikTok ─────────────────────────────────────────────────────────────────────
+async function publishTikTok(creds: Record<string, string>, params: PublishParams): Promise<PublishResult> {
+  const token = creds["TIKTOK_ACCESS_TOKEN"];
+  if (!token) return { ok: false, error: "TIKTOK_ACCESS_TOKEN credential not found. Add it in Connections Hub." };
+  const videoUrl = params.imageUrl ?? (params.extraParams?.["videoUrl"] as string | undefined);
+  if (!videoUrl) return { ok: false, error: "A video URL is required to publish to TikTok (attach media)." };
+
+  try {
+    const res = await fetch("https://open.tiktokapis.com/v2/post/publish/video/init/", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" },
+      body: JSON.stringify({
+        post_info: {
+          title: params.content.slice(0, 2200),
+          privacy_level: "SELF_ONLY",
+          disable_duet: false,
+          disable_comment: false,
+          disable_stitch: false,
+        },
+        source_info: { source: "PULL_FROM_URL", video_url: videoUrl },
+      }),
+    });
+    const body = await res.json() as { data?: { publish_id?: string }; error?: { code?: string; message?: string } };
+    if (!res.ok || (body.error && body.error.code !== "ok")) {
+      return { ok: false, error: body.error?.message ?? `TikTok API ${res.status}` };
+    }
+    const publishId = body.data?.publish_id ?? "unknown";
+    return { ok: true, publishedUrl: "https://www.tiktok.com/", externalId: publishId, data: { publishId } };
+  } catch (err: unknown) {
+    return { ok: false, error: String(err) };
+  }
+}
+
+// ── Facebook Page ────────────────────────────────────────────────────────────────
+async function publishFacebook(creds: Record<string, string>, params: PublishParams): Promise<PublishResult> {
+  const token = creds["FACEBOOK_PAGE_ACCESS_TOKEN"] ?? creds["META_ACCESS_TOKEN"];
+  const pageId = creds["FACEBOOK_PAGE_ID"];
+  if (!token) return { ok: false, error: "FACEBOOK_PAGE_ACCESS_TOKEN credential not found. Add it in Connections Hub." };
+  if (!pageId) return { ok: false, error: "FACEBOOK_PAGE_ID credential not found. Add it in Connections Hub." };
+
+  try {
+    const message = params.content.slice(0, 63206);
+    const body: Record<string, string> = { message, access_token: token };
+    if (params.imageUrl) body["link"] = params.imageUrl;
+
+    const res = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const resBody = await res.json() as Record<string, unknown>;
+    if (!res.ok) return { ok: false, error: `Facebook API ${res.status}: ${JSON.stringify(resBody).slice(0, 200)}` };
+    const postId = resBody["id"] as string;
+    return { ok: true, publishedUrl: `https://www.facebook.com/${postId}`, externalId: postId, data: { postId, message } };
+  } catch (err: unknown) {
+    return { ok: false, error: String(err) };
+  }
+}
+
 // ── Mailchimp ──────────────────────────────────────────────────────────────────
 async function publishMailchimp(creds: Record<string, string>, params: PublishParams): Promise<PublishResult> {
   const apiKey = creds["MAILCHIMP_API_KEY"];
@@ -456,6 +559,9 @@ export const PUBLISHING_CHANNELS: Record<string, {
 }> = {
   twitter:    { displayName: "X (Twitter)",  icon: "𝕏",  credentialKeys: ["TWITTER_BEARER_TOKEN"],    contentTypes: ["tweet"] },
   instagram:  { displayName: "Instagram",    icon: "📸", credentialKeys: ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID"], contentTypes: ["post"] },
+  linkedin:   { displayName: "LinkedIn",     icon: "in", credentialKeys: ["LINKEDIN_ACCESS_TOKEN"],    contentTypes: ["post"] },
+  tiktok:     { displayName: "TikTok",       icon: "🎵", credentialKeys: ["TIKTOK_ACCESS_TOKEN"],      contentTypes: ["video"] },
+  facebook:   { displayName: "Facebook",     icon: "📘", credentialKeys: ["FACEBOOK_PAGE_ACCESS_TOKEN", "FACEBOOK_PAGE_ID"], contentTypes: ["post"] },
   mailchimp:  { displayName: "Mailchimp",    icon: "🐒", credentialKeys: ["MAILCHIMP_API_KEY"],        contentTypes: ["email"] },
   convertkit: { displayName: "ConvertKit",   icon: "✉",  credentialKeys: ["CONVERTKIT_API_KEY"],      contentTypes: ["email"] },
   wordpress:  { displayName: "WordPress",    icon: "🌐", credentialKeys: ["WORDPRESS_SITE_URL", "WORDPRESS_USERNAME", "WORDPRESS_APP_PASSWORD"], contentTypes: ["blog_post"] },
@@ -471,6 +577,9 @@ export async function publish(
   switch (channel) {
     case "twitter":    return publishTwitter(creds, params);
     case "instagram":  return publishInstagram(creds, params);
+    case "linkedin":   return publishLinkedIn(creds, params);
+    case "tiktok":     return publishTikTok(creds, params);
+    case "facebook":   return publishFacebook(creds, params);
     case "mailchimp":  return publishMailchimp(creds, params);
     case "convertkit": return publishConvertKit(creds, params);
     case "wordpress":  return publishWordPress(creds, params);

@@ -21,7 +21,8 @@ import { MetaConnector } from "./meta-connector";
 import { BeehiivConnector } from "./beehiiv-connector";
 import { TeachableConnector } from "./teachable-connector";
 import { ClickFunnelsConnector } from "./clickfunnels-connector";
-import { GmailStub, TikTokStub, YouTubeStub } from "./stubs";
+import { TikTokConnector } from "./tiktok-connector";
+import { GmailStub, YouTubeStub } from "./stubs";
 
 type ConnectorCtor = new (creds: Record<string, string>) => BaseConnector;
 
@@ -49,7 +50,7 @@ const REGISTRY: Record<string, ConnectorCtor> = {
   teachable:     TeachableConnector,
   clickfunnels:  ClickFunnelsConnector,
   gmail:         GmailStub,
-  tiktok:        TikTokStub,
+  tiktok:        TikTokConnector,
   youtube:       YouTubeStub,
 };
 

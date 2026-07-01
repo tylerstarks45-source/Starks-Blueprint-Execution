@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Layers, Bot, Mail, Globe, Link2, Plug, Share2,
   ShoppingBag, BookOpen, CreditCard, ShieldCheck, ChevronLeft, ChevronRight,
-  LogOut, X, Settings, Globe2, Zap, Users,
+  LogOut, X, Settings, Globe2, Zap, Users, Calendar,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useClient } from '@/contexts/ClientContext.jsx';
@@ -32,6 +32,7 @@ const NAV_GROUPS = [
     items: [
       { label: 'Connections',   path: '/connections',      icon: Plug },
       { label: 'Social',        path: '/social-accounts',  icon: Share2 },
+      { label: 'Content Calendar', path: '/social',        icon: Calendar },
     ],
   },
   {

@@ -946,6 +946,107 @@ export interface NotificationInput {
   read?: boolean;
 }
 
+export interface ScheduledPost {
+  id: number;
+  userId: number;
+  /** @nullable */
+  systemInstanceId?: number | null;
+  platform: string;
+  content: string;
+  mediaUrls: string[];
+  /** @nullable */
+  linkUrl?: string | null;
+  scheduledAt: string;
+  /** @nullable */
+  publishedAt?: string | null;
+  status: string;
+  /** @nullable */
+  platformPostId?: string | null;
+  /** @nullable */
+  publishedUrl?: string | null;
+  /** @nullable */
+  errorMessage?: string | null;
+  clickCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ScheduledPostInputPlatform = typeof ScheduledPostInputPlatform[keyof typeof ScheduledPostInputPlatform];
+
+
+export const ScheduledPostInputPlatform = {
+  twitter: 'twitter',
+  linkedin: 'linkedin',
+  instagram: 'instagram',
+  tiktok: 'tiktok',
+  facebook: 'facebook',
+} as const;
+
+export type ScheduledPostInputStatus = typeof ScheduledPostInputStatus[keyof typeof ScheduledPostInputStatus];
+
+
+export const ScheduledPostInputStatus = {
+  scheduled: 'scheduled',
+  publishing: 'publishing',
+  published: 'published',
+  failed: 'failed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ScheduledPostInput {
+  /** @nullable */
+  systemInstanceId?: number | null;
+  platform: ScheduledPostInputPlatform;
+  /** @minLength 1 */
+  content: string;
+  mediaUrls?: string[];
+  /** @nullable */
+  linkUrl?: string | null;
+  scheduledAt: string;
+  status?: ScheduledPostInputStatus;
+}
+
+export type ScheduledPostUpdatePlatform = typeof ScheduledPostUpdatePlatform[keyof typeof ScheduledPostUpdatePlatform];
+
+
+export const ScheduledPostUpdatePlatform = {
+  twitter: 'twitter',
+  linkedin: 'linkedin',
+  instagram: 'instagram',
+  tiktok: 'tiktok',
+  facebook: 'facebook',
+} as const;
+
+export type ScheduledPostUpdateStatus = typeof ScheduledPostUpdateStatus[keyof typeof ScheduledPostUpdateStatus];
+
+
+export const ScheduledPostUpdateStatus = {
+  scheduled: 'scheduled',
+  publishing: 'publishing',
+  published: 'published',
+  failed: 'failed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ScheduledPostUpdate {
+  platform?: ScheduledPostUpdatePlatform;
+  /** @minLength 1 */
+  content?: string;
+  mediaUrls?: string[];
+  /** @nullable */
+  linkUrl?: string | null;
+  scheduledAt?: string;
+  status?: ScheduledPostUpdateStatus;
+}
+
+export interface SocialAnalyticsRow {
+  platform: string;
+  totalPosts: number;
+  published: number;
+  failed: number;
+  totalClicks: number;
+}
+
 export interface WhiteLabelConfig {
   id: number;
   userId: number;
@@ -1131,5 +1232,11 @@ perPage?: number;
 export type ListNotificationsParams = {
 userId?: number;
 unreadOnly?: boolean;
+};
+
+export type ListSocialPostsParams = {
+from?: string;
+to?: string;
+status?: string;
 };
 

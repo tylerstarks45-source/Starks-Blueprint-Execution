@@ -1,4 +1,4 @@
-import { pool, db, usersTable, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable, abTestsTable, abVariantsTable, emailSequencesTable, emailSequenceStepsTable, emailSubscribersTable, emailDeliveriesTable } from "@workspace/db";
+import { pool, db, usersTable, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable, abTestsTable, abVariantsTable, emailSequencesTable, emailSequenceStepsTable, emailSubscribersTable, emailDeliveriesTable, scheduledPostsTable } from "@workspace/db";
 import { eq, and, lte, sql } from "drizzle-orm";
 import { logger } from "../logger";
 import { getConnector } from "../connectors/registry";
@@ -625,6 +625,100 @@ async function processEmailSequences(): Promise<void> {
   }
 }
 
+// ─── Social post scheduler ────────────────────────────────────────────────────
+// Runs every 5 minutes. Publishes due scheduled_posts rows to their target
+// platform via the publishing dispatcher, mirroring processEmailSequences().
+
+const SOCIAL_POSTS_INTERVAL_MS = 5 * 60 * 1000;
+let lastSocialPostsRun = 0;
+
+async function processDuePosts(): Promise<void> {
+  const now = Date.now();
+  if (now - lastSocialPostsRun < SOCIAL_POSTS_INTERVAL_MS) return;
+  lastSocialPostsRun = now;
+
+  const nowDate = new Date();
+
+  // Claim due posts atomically — flip to 'publishing' immediately to prevent double-firing.
+  const claimed = await pool.query<{
+    id: number;
+    user_id: number;
+    system_instance_id: number | null;
+    platform: string;
+    content: string;
+    media_urls: string[];
+    link_url: string | null;
+  }>(
+    `UPDATE scheduled_posts
+     SET status = 'publishing', updated_at = NOW()
+     WHERE id IN (
+       SELECT id FROM scheduled_posts
+       WHERE status = 'scheduled' AND scheduled_at <= $1
+       ORDER BY scheduled_at
+       LIMIT 25
+       FOR UPDATE SKIP LOCKED
+     )
+     RETURNING id, user_id, system_instance_id, platform, content, media_urls, link_url`,
+    [nowDate],
+  );
+
+  if (claimed.rowCount === 0) return;
+
+  logger.info({ count: claimed.rowCount }, "Scheduler processing due social posts");
+
+  for (const row of claimed.rows) {
+    try {
+      const creds = await loadUserCredentials(row.user_id);
+      const mediaUrls = Array.isArray(row.media_urls) ? row.media_urls : [];
+      const result = await publish(row.platform, creds, {
+        channel: row.platform,
+        contentType: "post",
+        content: row.link_url ? `${row.content}\n\n${row.link_url}` : row.content,
+        imageUrl: mediaUrls[0],
+      });
+
+      if (result.ok) {
+        await pool.query(
+          `UPDATE scheduled_posts
+           SET status = 'published', published_at = $1, platform_post_id = $2, published_url = $3, error_message = NULL
+           WHERE id = $4`,
+          [nowDate, result.externalId ?? null, result.publishedUrl ?? null, row.id],
+        );
+      } else {
+        await pool.query(
+          `UPDATE scheduled_posts SET status = 'failed', error_message = $1 WHERE id = $2`,
+          [(result.error ?? "Unknown error").slice(0, 500), row.id],
+        );
+        await db.insert(notificationsTable).values({
+          userId: row.user_id,
+          title: `Scheduled ${row.platform} post failed`,
+          message: `Your ${row.platform} post scheduled for ${nowDate.toLocaleString()} failed to publish: ${(result.error ?? "Unknown error").slice(0, 200)}. Edit and reschedule it from the Content Calendar.`,
+          notificationType: "error",
+          read: false,
+        }).catch(() => {});
+      }
+
+      if (row.system_instance_id != null) {
+        await db.insert(systemActivityEventsTable).values({
+          systemInstanceId: row.system_instance_id,
+          eventType: result.ok ? "action" : "error",
+          description: result.ok
+            ? `Scheduled post published to ${PUBLISHING_CHANNELS[row.platform]?.displayName ?? row.platform}`
+            : `Scheduled post to ${PUBLISHING_CHANNELS[row.platform]?.displayName ?? row.platform} failed: ${(result.error ?? "").slice(0, 150)}`,
+          metadata: JSON.stringify({ scheduledPostId: row.id, platform: row.platform, ok: result.ok }),
+        }).catch(() => {});
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      await pool.query(
+        `UPDATE scheduled_posts SET status = 'failed', error_message = $1 WHERE id = $2`,
+        [errorMsg.slice(0, 500), row.id],
+      ).catch(() => {});
+      logger.error({ err, postId: row.id }, "Scheduled post publish threw an error");
+    }
+  }
+}
+
 // ─── Main scheduler loop ──────────────────────────────────────────────────────
 
 export function startScheduler(): void {
@@ -637,6 +731,7 @@ export function startScheduler(): void {
       await processABTests();
       await processWeeklyDigest();
       await processEmailSequences();
+      await processDuePosts();
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {

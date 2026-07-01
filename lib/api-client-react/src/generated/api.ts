@@ -77,6 +77,7 @@ import type {
   ListNotificationsParams,
   ListOpenrouterUsageParams,
   ListPlatformUsersParams,
+  ListSocialPostsParams,
   ListSystemInstancesParams,
   ListToolsParams,
   ListUserCredentialsParams,
@@ -89,6 +90,10 @@ import type {
   OpenrouterUsageSummary,
   RotateKeyBody,
   RotateKeyResult,
+  ScheduledPost,
+  ScheduledPostInput,
+  ScheduledPostUpdate,
+  SocialAnalyticsRow,
   SystemActivityEvent,
   SystemActivityEventInput,
   SystemHealthInput,
@@ -7015,4 +7020,455 @@ export const useMarkNotificationRead = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getMarkNotificationReadMutationOptions(options));
     }
+
+export const getListSocialPostsUrl = (params?: ListSocialPostsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/social/posts?${stringifiedParams}` : `/api/social/posts`
+}
+
+/**
+ * @summary List the caller's scheduled social posts
+ */
+export const listSocialPosts = async (params?: ListSocialPostsParams, options?: RequestInit): Promise<ScheduledPost[]> => {
+
+  return customFetch<ScheduledPost[]>(getListSocialPostsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSocialPostsQueryKey = (params?: ListSocialPostsParams,) => {
+    return [
+    `/api/social/posts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSocialPostsQueryOptions = <TData = Awaited<ReturnType<typeof listSocialPosts>>, TError = ErrorType<unknown>>(params?: ListSocialPostsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSocialPosts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSocialPostsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSocialPosts>>> = ({ signal }) => listSocialPosts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSocialPosts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSocialPostsQueryResult = NonNullable<Awaited<ReturnType<typeof listSocialPosts>>>
+export type ListSocialPostsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the caller's scheduled social posts
+ */
+
+export function useListSocialPosts<TData = Awaited<ReturnType<typeof listSocialPosts>>, TError = ErrorType<unknown>>(
+ params?: ListSocialPostsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSocialPosts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSocialPostsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateSocialPostUrl = () => {
+
+
+
+
+  return `/api/social/posts`
+}
+
+/**
+ * @summary Create a scheduled social post
+ */
+export const createSocialPost = async (scheduledPostInput: ScheduledPostInput, options?: RequestInit): Promise<ScheduledPost> => {
+
+  return customFetch<ScheduledPost>(getCreateSocialPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      scheduledPostInput,)
+  }
+);}
+
+
+
+
+export const getCreateSocialPostMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSocialPost>>, TError,{data: BodyType<ScheduledPostInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSocialPost>>, TError,{data: BodyType<ScheduledPostInput>}, TContext> => {
+
+const mutationKey = ['createSocialPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSocialPost>>, {data: BodyType<ScheduledPostInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSocialPost(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSocialPostMutationResult = NonNullable<Awaited<ReturnType<typeof createSocialPost>>>
+    export type CreateSocialPostMutationBody = BodyType<ScheduledPostInput>
+    export type CreateSocialPostMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a scheduled social post
+ */
+export const useCreateSocialPost = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSocialPost>>, TError,{data: BodyType<ScheduledPostInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSocialPost>>,
+        TError,
+        {data: BodyType<ScheduledPostInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSocialPostMutationOptions(options));
+    }
+
+export const getGetSocialPostUrl = (id: number,) => {
+
+
+
+
+  return `/api/social/posts/${id}`
+}
+
+/**
+ * @summary Get a scheduled social post
+ */
+export const getSocialPost = async (id: number, options?: RequestInit): Promise<ScheduledPost> => {
+
+  return customFetch<ScheduledPost>(getGetSocialPostUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSocialPostQueryKey = (id: number,) => {
+    return [
+    `/api/social/posts/${id}`
+    ] as const;
+    }
+
+
+export const getGetSocialPostQueryOptions = <TData = Awaited<ReturnType<typeof getSocialPost>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSocialPost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSocialPostQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSocialPost>>> = ({ signal }) => getSocialPost(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSocialPost>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSocialPostQueryResult = NonNullable<Awaited<ReturnType<typeof getSocialPost>>>
+export type GetSocialPostQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get a scheduled social post
+ */
+
+export function useGetSocialPost<TData = Awaited<ReturnType<typeof getSocialPost>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSocialPost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSocialPostQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateSocialPostUrl = (id: number,) => {
+
+
+
+
+  return `/api/social/posts/${id}`
+}
+
+/**
+ * @summary Update or reschedule a scheduled social post
+ */
+export const updateSocialPost = async (id: number,
+    scheduledPostUpdate: ScheduledPostUpdate, options?: RequestInit): Promise<ScheduledPost> => {
+
+  return customFetch<ScheduledPost>(getUpdateSocialPostUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      scheduledPostUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateSocialPostMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSocialPost>>, TError,{id: number;data: BodyType<ScheduledPostUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSocialPost>>, TError,{id: number;data: BodyType<ScheduledPostUpdate>}, TContext> => {
+
+const mutationKey = ['updateSocialPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSocialPost>>, {id: number;data: BodyType<ScheduledPostUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateSocialPost(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSocialPostMutationResult = NonNullable<Awaited<ReturnType<typeof updateSocialPost>>>
+    export type UpdateSocialPostMutationBody = BodyType<ScheduledPostUpdate>
+    export type UpdateSocialPostMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update or reschedule a scheduled social post
+ */
+export const useUpdateSocialPost = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSocialPost>>, TError,{id: number;data: BodyType<ScheduledPostUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSocialPost>>,
+        TError,
+        {id: number;data: BodyType<ScheduledPostUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateSocialPostMutationOptions(options));
+    }
+
+export const getDeleteSocialPostUrl = (id: number,) => {
+
+
+
+
+  return `/api/social/posts/${id}`
+}
+
+/**
+ * @summary Delete a scheduled social post
+ */
+export const deleteSocialPost = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteSocialPostUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteSocialPostMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSocialPost>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSocialPost>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteSocialPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSocialPost>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteSocialPost(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSocialPostMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSocialPost>>>
+
+    export type DeleteSocialPostMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a scheduled social post
+ */
+export const useDeleteSocialPost = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSocialPost>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSocialPost>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSocialPostMutationOptions(options));
+    }
+
+export const getGetSocialAnalyticsUrl = () => {
+
+
+
+
+  return `/api/social/analytics`
+}
+
+/**
+ * @summary Get per-platform social post analytics for the caller
+ */
+export const getSocialAnalytics = async ( options?: RequestInit): Promise<SocialAnalyticsRow[]> => {
+
+  return customFetch<SocialAnalyticsRow[]>(getGetSocialAnalyticsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSocialAnalyticsQueryKey = () => {
+    return [
+    `/api/social/analytics`
+    ] as const;
+    }
+
+
+export const getGetSocialAnalyticsQueryOptions = <TData = Awaited<ReturnType<typeof getSocialAnalytics>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSocialAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSocialAnalyticsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSocialAnalytics>>> = ({ signal }) => getSocialAnalytics({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSocialAnalytics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSocialAnalyticsQueryResult = NonNullable<Awaited<ReturnType<typeof getSocialAnalytics>>>
+export type GetSocialAnalyticsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get per-platform social post analytics for the caller
+ */
+
+export function useGetSocialAnalytics<TData = Awaited<ReturnType<typeof getSocialAnalytics>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSocialAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSocialAnalyticsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

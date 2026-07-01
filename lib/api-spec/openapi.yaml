@@ -42,6 +42,8 @@ tags:
     description: Admin control center
   - name: notifications
     description: Notification management
+  - name: social
+    description: Social media scheduling and content calendar
 
 paths:
   /healthz:
@@ -2009,6 +2011,139 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /social/posts:
+    get:
+      operationId: listSocialPosts
+      tags: [social]
+      summary: List the caller's scheduled social posts
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of scheduled posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScheduledPost"
+    post:
+      operationId: createSocialPost
+      tags: [social]
+      summary: Create a scheduled social post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduledPostInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledPost"
+
+  /social/posts/{id}:
+    get:
+      operationId: getSocialPost
+      tags: [social]
+      summary: Get a scheduled social post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The scheduled post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledPost"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateSocialPost
+      tags: [social]
+      summary: Update or reschedule a scheduled social post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduledPostUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledPost"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSocialPost
+      tags: [social]
+      summary: Delete a scheduled social post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /social/analytics:
+    get:
+      operationId: getSocialAnalytics
+      tags: [social]
+      summary: Get per-platform social post analytics for the caller
+      responses:
+        "200":
+          description: Per-platform aggregates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SocialAnalyticsRow"
+
 components:
   schemas:
     HealthStatus:
@@ -3530,6 +3665,106 @@ components:
         read:
           type: boolean
       required: [title, message]
+
+    # ── Social / Content Calendar ───────────────────────────────────────────
+    ScheduledPost:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        systemInstanceId:
+          type: ["integer", "null"]
+        platform:
+          type: string
+        content:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        linkUrl:
+          type: ["string", "null"]
+        scheduledAt:
+          type: string
+        publishedAt:
+          type: ["string", "null"]
+        status:
+          type: string
+        platformPostId:
+          type: ["string", "null"]
+        publishedUrl:
+          type: ["string", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        clickCount:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, userId, platform, content, mediaUrls, scheduledAt, status, clickCount, createdAt, updatedAt]
+
+    ScheduledPostInput:
+      type: object
+      properties:
+        systemInstanceId:
+          type: ["integer", "null"]
+        platform:
+          type: string
+          enum: [twitter, linkedin, instagram, tiktok, facebook]
+        content:
+          type: string
+          minLength: 1
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        linkUrl:
+          type: ["string", "null"]
+        scheduledAt:
+          type: string
+        status:
+          type: string
+          enum: [scheduled, publishing, published, failed, cancelled]
+      required: [platform, content, scheduledAt]
+
+    ScheduledPostUpdate:
+      type: object
+      properties:
+        platform:
+          type: string
+          enum: [twitter, linkedin, instagram, tiktok, facebook]
+        content:
+          type: string
+          minLength: 1
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        linkUrl:
+          type: ["string", "null"]
+        scheduledAt:
+          type: string
+        status:
+          type: string
+          enum: [scheduled, publishing, published, failed, cancelled]
+
+    SocialAnalyticsRow:
+      type: object
+      properties:
+        platform:
+          type: string
+        totalPosts:
+          type: integer
+        published:
+          type: integer
+        failed:
+          type: integer
+        totalClicks:
+          type: integer
+      required: [platform, totalPosts, published, failed, totalClicks]
 
     # ── White-Label ─────────────────────────────────────────────────────────
     WhiteLabelConfig:

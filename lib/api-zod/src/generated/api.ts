@@ -1889,3 +1889,137 @@ export const MarkNotificationReadResponse = zod.object({
 })
 
 
+/**
+ * @summary List the caller's scheduled social posts
+ */
+export const ListSocialPostsQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "status": zod.coerce.string().optional()
+})
+
+export const ListSocialPostsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "systemInstanceId": zod.number().nullish(),
+  "platform": zod.string(),
+  "content": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "linkUrl": zod.string().nullish(),
+  "scheduledAt": zod.string(),
+  "publishedAt": zod.string().nullish(),
+  "status": zod.string(),
+  "platformPostId": zod.string().nullish(),
+  "publishedUrl": zod.string().nullish(),
+  "errorMessage": zod.string().nullish(),
+  "clickCount": zod.number(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListSocialPostsResponse = zod.array(ListSocialPostsResponseItem)
+
+
+/**
+ * @summary Create a scheduled social post
+ */
+
+
+
+export const CreateSocialPostBody = zod.object({
+  "systemInstanceId": zod.number().nullish(),
+  "platform": zod.enum(['twitter', 'linkedin', 'instagram', 'tiktok', 'facebook']),
+  "content": zod.string().min(1),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "linkUrl": zod.string().nullish(),
+  "scheduledAt": zod.string(),
+  "status": zod.enum(['scheduled', 'publishing', 'published', 'failed', 'cancelled']).optional()
+})
+
+
+/**
+ * @summary Get a scheduled social post
+ */
+export const GetSocialPostParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetSocialPostResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "systemInstanceId": zod.number().nullish(),
+  "platform": zod.string(),
+  "content": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "linkUrl": zod.string().nullish(),
+  "scheduledAt": zod.string(),
+  "publishedAt": zod.string().nullish(),
+  "status": zod.string(),
+  "platformPostId": zod.string().nullish(),
+  "publishedUrl": zod.string().nullish(),
+  "errorMessage": zod.string().nullish(),
+  "clickCount": zod.number(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Update or reschedule a scheduled social post
+ */
+export const UpdateSocialPostParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateSocialPostBody = zod.object({
+  "platform": zod.enum(['twitter', 'linkedin', 'instagram', 'tiktok', 'facebook']).optional(),
+  "content": zod.string().min(1).optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "linkUrl": zod.string().nullish(),
+  "scheduledAt": zod.string().optional(),
+  "status": zod.enum(['scheduled', 'publishing', 'published', 'failed', 'cancelled']).optional()
+})
+
+export const UpdateSocialPostResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "systemInstanceId": zod.number().nullish(),
+  "platform": zod.string(),
+  "content": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "linkUrl": zod.string().nullish(),
+  "scheduledAt": zod.string(),
+  "publishedAt": zod.string().nullish(),
+  "status": zod.string(),
+  "platformPostId": zod.string().nullish(),
+  "publishedUrl": zod.string().nullish(),
+  "errorMessage": zod.string().nullish(),
+  "clickCount": zod.number(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a scheduled social post
+ */
+export const DeleteSocialPostParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Get per-platform social post analytics for the caller
+ */
+export const GetSocialAnalyticsResponseItem = zod.object({
+  "platform": zod.string(),
+  "totalPosts": zod.number(),
+  "published": zod.number(),
+  "failed": zod.number(),
+  "totalClicks": zod.number()
+})
+export const GetSocialAnalyticsResponse = zod.array(GetSocialAnalyticsResponseItem)
+
+

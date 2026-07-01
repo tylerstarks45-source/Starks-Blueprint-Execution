@@ -26,6 +26,8 @@ import {
   emailListsTable,
   emailSequencesTable,
   emailSequenceStepsTable,
+  scheduledPostsTable,
+  SOCIAL_PLATFORMS,
 } from "@workspace/db";
 import { publish, PUBLISHING_CHANNELS } from "../lib/publishing";
 import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
@@ -549,6 +551,15 @@ You can call these tools at any time to enrich your responses. Use them proactiv
    For FUTURE/SCHEDULED publishing (e.g. "post this tomorrow", "schedule for next week"), use create_schedule with actionType "publish" instead.
    Use publish_content when user says "post this", "publish to my blog", "send this email to my list", "tweet this", "update my YouTube video", or when a build step requires distributing content to a channel immediately.
    Schedule example: {"action": "create_schedule", "taskName": "Weekly Tweet", "scheduleType": "weekly", "scheduleConfig": {"dayOfWeek": 1, "hour": 9}, "actionType": "publish", "actionParams": {"channel": "twitter", "contentType": "tweet", "content": "Your tweet text"}}
+
+9. **Schedule Social Post** (Add a post to the user's Content Calendar for one specific future date/time — LIGHTWEIGHT, one-off scheduling)
+   Use for: "schedule this tweet for tomorrow at 9am", "queue up a LinkedIn post for Friday", "add these 5 posts to my content calendar next week".
+   Platforms: twitter, linkedin, instagram, tiktok, facebook
+   Use tool_calls with type "schedule_post" — this creates a row in the Content Calendar (visible + editable at /social) rather than firing a generic recurring scheduled_task.
+   Prefer schedule_post over create_schedule when the user is planning social content for specific calendar dates. Prefer create_schedule for recurring/automated non-social actions.
+   Params: platform (required), content (required), scheduledAt (required, ISO 8601 datetime), mediaUrls (optional array of URLs), linkUrl (optional URL for click-tracked links).
+   SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "schedule_post", "platform": "twitter", "content": "Big announcement coming tomorrow 👀", "scheduledAt": "2026-07-05T14:00:00Z", "linkUrl": "https://example.com/launch"}]}
+   You can schedule multiple posts across platforms/dates in one call by including multiple schedule_post entries.
 
 You can chain multiple tools in a single call:
 <SBEP_DATA>
@@ -1248,6 +1259,87 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
         (structuredData as Record<string, unknown>).calls = calls.filter(c => c.type !== "connector_action");
         if ((structuredData.calls as unknown[]).length === 0) {
           structuredData = null; // No other tool calls remain
+        }
+      }
+    }
+
+    // ── Server-side schedule_post handling ────────────────────────────────────
+    // ASH's schedule_post tool_calls create Content Calendar rows directly
+    // (visible/editable at /social) rather than a generic recurring scheduled_task.
+    if (
+      structuredData != null &&
+      structuredData.action === "tool_calls" &&
+      Array.isArray(structuredData.calls)
+    ) {
+      const allCalls = structuredData.calls as Array<Record<string, unknown>>;
+      const schedulePostCalls = allCalls.filter(c => c.type === "schedule_post");
+
+      if (schedulePostCalls.length > 0) {
+        let verifiedInstanceId: number | undefined;
+        const requestedInstanceId = parsed.data.systemInstanceId;
+        if (requestedInstanceId != null) {
+          const [owned] = await db
+            .select({ id: systemInstancesTable.id })
+            .from(systemInstancesTable)
+            .where(and(
+              eq(systemInstancesTable.id, requestedInstanceId),
+              eq(systemInstancesTable.userId, userId),
+            ))
+            .limit(1);
+          if (owned) verifiedInstanceId = requestedInstanceId;
+        }
+
+        for (const call of schedulePostCalls) {
+          const platform = call.platform as string | undefined;
+          const content = call.content as string | undefined;
+          const scheduledAtRaw = call.scheduledAt as string | undefined;
+          const linkUrl = (call.linkUrl as string | undefined) ?? null;
+          const mediaUrls = Array.isArray(call.mediaUrls) ? (call.mediaUrls as string[]) : [];
+
+          if (!platform || !content || !scheduledAtRaw || !(SOCIAL_PLATFORMS as readonly string[]).includes(platform)) {
+            send({ type: "tool_result", tool: "schedule_post", data: { ok: false, error: "schedule_post requires a valid platform, content, and scheduledAt." } });
+            continue;
+          }
+          const scheduledAt = new Date(scheduledAtRaw);
+          if (isNaN(scheduledAt.getTime())) {
+            send({ type: "tool_result", tool: "schedule_post", data: { ok: false, error: `Invalid scheduledAt: ${scheduledAtRaw}` } });
+            continue;
+          }
+
+          try {
+            const [row] = await db.insert(scheduledPostsTable).values({
+              userId,
+              systemInstanceId: verifiedInstanceId ?? null,
+              platform,
+              content,
+              mediaUrls,
+              linkUrl,
+              scheduledAt,
+              status: "scheduled",
+            }).returning();
+
+            if (verifiedInstanceId != null) {
+              db.insert(systemActivityEventsTable).values({
+                systemInstanceId: verifiedInstanceId,
+                eventType: "action",
+                description: `Scheduled a ${platform} post for ${scheduledAt.toLocaleString()}`,
+                metadata: JSON.stringify({ scheduledPostId: row.id, platform }),
+              }).catch(() => { /* non-critical */ });
+            }
+
+            send({
+              type: "tool_result",
+              tool: "schedule_post",
+              data: { ok: true, postId: row.id, platform, scheduledAt: scheduledAt.toISOString(), content },
+            });
+          } catch (err: unknown) {
+            send({ type: "tool_result", tool: "schedule_post", data: { ok: false, error: err instanceof Error ? err.message : String(err) } });
+          }
+        }
+
+        (structuredData as Record<string, unknown>).calls = allCalls.filter(c => c.type !== "schedule_post");
+        if ((structuredData.calls as unknown[]).length === 0) {
+          structuredData = null;
         }
       }
     }

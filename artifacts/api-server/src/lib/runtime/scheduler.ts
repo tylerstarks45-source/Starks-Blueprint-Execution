@@ -8,7 +8,7 @@ import { sendWeeklyDigestEmail } from "../email";
 import { sendPushNotification } from "../push";
 import { computeNextRunAt as _computeNextRunAt } from "../../routes/scheduled-tasks";
 import { publish, PUBLISHING_CHANNELS } from "../publishing";
-import { sendEmailViaCredentials } from "../sendgrid";
+import { sendEmailViaCredentials, getBaseUrl as getSocialBaseUrl } from "../sendgrid";
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
@@ -670,10 +670,13 @@ async function processDuePosts(): Promise<void> {
     try {
       const creds = await loadUserCredentials(row.user_id);
       const mediaUrls = Array.isArray(row.media_urls) ? row.media_urls : [];
+      // Route the outbound link through the click-tracking redirect so
+      // clicks are counted before landing on the destination page.
+      const trackedLink = row.link_url ? `${getSocialBaseUrl()}/api/r/${row.id}` : null;
       const result = await publish(row.platform, creds, {
         channel: row.platform,
         contentType: "post",
-        content: row.link_url ? `${row.content}\n\n${row.link_url}` : row.content,
+        content: trackedLink ? `${row.content}\n\n${trackedLink}` : row.content,
         imageUrl: mediaUrls[0],
       });
 

@@ -4,7 +4,7 @@ export class TwitterConnector extends BaseConnector {
   readonly id = "twitter";
   readonly displayName = "Twitter / X";
   readonly category = "social_media";
-  readonly authType = "api_key" as const;
+  readonly authType = "oauth2" as const;
   readonly requiredCredentials = ["TWITTER_BEARER_TOKEN"];
   readonly actions = ["postTweet", "schedulePost", "getUserProfile", "searchTweets", "getMetrics"];
 

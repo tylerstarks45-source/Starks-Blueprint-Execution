@@ -13,3 +13,4 @@
 - [Frontend auth token pattern](frontend-auth-token.md) — never use AuthContext.token (doesn't exist); always read localStorage.getItem('sbep_auth_token') directly in fetch helpers.
 - [Blueprint source values](blueprint-source-values.md) — seeded rows have source='admin'; treat 'admin' === 'platform' (official) everywhere in frontend filters and badge maps.
 - [Social scheduler pattern](social-scheduler-pattern.md) — content-calendar scheduling uses a dedicated ASH tool_calls type + claim-and-publish scheduler loop, distinct from generic create_schedule.
+- [Social OAuth connector pattern](social-oauth-pattern.md) — OAuth tokens are stored under the same credential keys manual-paste connectors already read; verify UI "connected" keys match connector's requiredCredentials, not a hardcoded page key.

@@ -49,6 +49,7 @@ import researchRouter from "./research";
 import developerRouter from "./developer";
 import analyticsRouter from "./analytics";
 import socialRouter from "./social";
+import socialOAuthRouter from "./social-oauth";
 
 const router: IRouter = Router();
 
@@ -102,5 +103,6 @@ router.use(researchRouter);
 router.use(developerRouter);
 router.use(analyticsRouter);
 router.use(socialRouter);
+router.use(socialOAuthRouter);
 
 export default router;

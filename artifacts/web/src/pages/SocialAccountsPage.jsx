@@ -12,9 +12,15 @@ const authHeaders = () => {
     : { 'Content-Type': 'application/json' };
 };
 
+const startOAuth = (oauthPlatform) => {
+  const token = localStorage.getItem('sbep_auth_token');
+  window.location.href = `/api/social/oauth/${oauthPlatform}/authorize?token=${encodeURIComponent(token || '')}`;
+};
+
 const SOCIAL_PLATFORMS = [
   {
     key: 'TIKTOK_ACCESS_TOKEN',
+    oauthPlatform: 'tiktok',
     name: 'TikTok',
     handle: '@yourtiktok',
     icon: '🎵',
@@ -35,7 +41,8 @@ const SOCIAL_PLATFORMS = [
     ],
   },
   {
-    key: 'INSTAGRAM_ACCESS_TOKEN',
+    key: 'META_ACCESS_TOKEN',
+    oauthPlatform: 'instagram',
     name: 'Instagram',
     handle: '@yourinstagram',
     icon: '📸',
@@ -56,7 +63,8 @@ const SOCIAL_PLATFORMS = [
     ],
   },
   {
-    key: 'FACEBOOK_PAGE_TOKEN',
+    key: 'META_ACCESS_TOKEN',
+    oauthPlatform: 'facebook',
     name: 'Facebook',
     handle: 'Your Page',
     icon: '👥',
@@ -78,6 +86,7 @@ const SOCIAL_PLATFORMS = [
   },
   {
     key: 'TWITTER_BEARER_TOKEN',
+    oauthPlatform: 'twitter',
     name: 'X (Twitter)',
     handle: '@yourhandle',
     icon: '𝕏',
@@ -98,7 +107,8 @@ const SOCIAL_PLATFORMS = [
     ],
   },
   {
-    key: 'LINKEDIN_API_KEY',
+    key: 'LINKEDIN_ACCESS_TOKEN',
+    oauthPlatform: 'linkedin',
     name: 'LinkedIn',
     handle: 'Your Profile',
     icon: '💼',
@@ -330,9 +340,9 @@ function PlatformCard({ platform, credential, onConnect, onDisconnect }) {
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
           {isConnected ? (
-            <>
+            <div className="flex gap-2">
               <button
                 onClick={() => onConnect(platform)}
                 className="flex-1 py-2 rounded-xl text-xs font-semibold bg-white/6 border border-white/10 text-white/55 hover:text-white/80 hover:border-white/20 transition-colors"
@@ -345,15 +355,26 @@ function PlatformCard({ platform, credential, onConnect, onDisconnect }) {
               >
                 Disconnect
               </button>
-            </>
+            </div>
           ) : (
-            <button
-              onClick={() => onConnect(platform)}
-              className={`w-full py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r ${platform.gradient} border ${platform.border} text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-2`}
-            >
-              <span>{platform.icon}</span>
-              Connect {platform.name}
-            </button>
+            <>
+              {platform.oauthPlatform && (
+                <button
+                  onClick={() => startOAuth(platform.oauthPlatform)}
+                  className={`w-full py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r ${platform.gradient} border ${platform.border} text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-2`}
+                >
+                  <span>{platform.icon}</span>
+                  Connect {platform.name} with OAuth
+                </button>
+              )}
+              <button
+                onClick={() => onConnect(platform)}
+                className={`w-full py-2 rounded-xl text-xs font-semibold ${platform.oauthPlatform ? 'bg-white/4 border border-white/10 text-white/40 hover:text-white/60' : `bg-gradient-to-r ${platform.gradient} border ${platform.border} text-white hover:opacity-90`} transition-colors flex items-center justify-center gap-2`}
+              >
+                {!platform.oauthPlatform && <span>{platform.icon}</span>}
+                {platform.oauthPlatform ? 'Or paste a token manually' : `Connect ${platform.name}`}
+              </button>
+            </>
           )}
         </div>
       </div>

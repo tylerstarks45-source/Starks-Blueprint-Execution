@@ -4,7 +4,7 @@ export class LinkedInConnector extends BaseConnector {
   readonly id = "linkedin";
   readonly displayName = "LinkedIn";
   readonly category = "social_media";
-  readonly authType = "api_key" as const;
+  readonly authType = "oauth2" as const;
   readonly requiredCredentials = ["LINKEDIN_ACCESS_TOKEN"];
   readonly actions = ["getProfile", "createPost", "getCompanyUpdates", "shareContent"];
 

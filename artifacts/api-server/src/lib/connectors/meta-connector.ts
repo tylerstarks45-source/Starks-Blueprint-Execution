@@ -11,7 +11,7 @@ export class MetaConnector extends BaseConnector {
   readonly id = "meta";
   readonly displayName = "Meta (Facebook/Instagram)";
   readonly category = "social_media";
-  readonly authType = "api_key" as const;
+  readonly authType = "oauth2" as const;
   readonly requiredCredentials = ["META_ACCESS_TOKEN", "META_PAGE_ID"];
   readonly actions = ["publishPost", "publishInstagramPost", "getPageInsights", "getPageAnalytics", "createAd", "getAdAccounts"];
 

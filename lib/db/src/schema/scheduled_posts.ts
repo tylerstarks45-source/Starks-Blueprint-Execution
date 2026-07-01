@@ -7,7 +7,7 @@ import { systemInstancesTable } from "./system_instances";
 export const SOCIAL_PLATFORMS = ["twitter", "linkedin", "instagram", "tiktok", "facebook"] as const;
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];
 
-export const SOCIAL_POST_STATUSES = ["draft", "scheduled", "publishing", "published", "failed"] as const;
+export const SOCIAL_POST_STATUSES = ["scheduled", "publishing", "published", "failed", "cancelled"] as const;
 export type SocialPostStatus = (typeof SOCIAL_POST_STATUSES)[number];
 
 export const scheduledPostsTable = pgTable("scheduled_posts", {

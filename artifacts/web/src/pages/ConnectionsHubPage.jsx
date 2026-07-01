@@ -638,6 +638,22 @@ export default function ConnectionsHubPage() {
 
   useEffect(() => { loadCredentials(); }, [loadCredentials]);
 
+  // Feedback after an OAuth redirect back from /api/social/oauth/:platform/callback
+  useEffect(() => {
+    const oauthStatus = searchParams.get('oauth');
+    if (!oauthStatus) return;
+    const platform = searchParams.get('platform') || 'account';
+    if (oauthStatus === 'success') {
+      toast.success(`${platform.charAt(0).toUpperCase() + platform.slice(1)} connected via OAuth`);
+      loadCredentials();
+    } else if (oauthStatus === 'error') {
+      const message = searchParams.get('message') || 'OAuth connection failed';
+      toast.error(`${platform.charAt(0).toUpperCase() + platform.slice(1)}: ${message}`);
+    }
+    navigate('/connections', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // Map credentialKey → credential data for quick lookup
   const credMap = Object.fromEntries(credentials.map(c => [c.credentialKey, c]));
 

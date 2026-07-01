@@ -2321,6 +2321,21 @@ export const DeleteBusinessParams = zod.object({
 
 
 /**
+ * @summary Get lightweight aggregate stats for a business (for portfolio cards + command center header)
+ */
+export const GetBusinessOverviewParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetBusinessOverviewResponse = zod.object({
+  "connectionsCount": zod.number(),
+  "revenueCents": zod.number(),
+  "lastActivityAt": zod.string().nullable(),
+  "healthStatus": zod.union([zod.literal('healthy'),zod.literal('needs_attention'),zod.literal('at_risk'),zod.literal(null)]).nullable()
+})
+
+
+/**
  * @summary Attach a platform/tool connection to a business
  */
 export const AddBusinessConnectionParams = zod.object({

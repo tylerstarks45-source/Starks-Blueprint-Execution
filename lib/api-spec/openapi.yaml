@@ -2448,6 +2448,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /businesses/{id}/overview:
+    get:
+      operationId: getBusinessOverview
+      tags: [businesses]
+      summary: Get lightweight aggregate stats for a business (for portfolio cards + command center header)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Business overview stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessOverviewResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /businesses/{id}/connections:
     post:
       operationId: addBusinessConnection
@@ -4550,6 +4575,20 @@ components:
               items:
                 $ref: "#/components/schemas/BusinessConnection"
           required: [connections]
+
+    BusinessOverviewResponse:
+      type: object
+      properties:
+        connectionsCount:
+          type: integer
+        revenueCents:
+          type: integer
+        lastActivityAt:
+          type: ["string", "null"]
+        healthStatus:
+          type: ["string", "null"]
+          enum: [healthy, needs_attention, at_risk, null]
+      required: [connectionsCount, revenueCents, lastActivityAt, healthStatus]
 
     BusinessHealthScore:
       type: object

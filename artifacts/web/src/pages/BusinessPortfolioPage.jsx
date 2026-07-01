@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Building2, Plus, ArrowRight, Globe, Wrench, Download, Trash2,
-  MoreVertical, RefreshCw,
+  MoreVertical, RefreshCw, Plug, Clock,
 } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import HealthScoreCard from '@/components/HealthScoreCard.jsx';
@@ -26,7 +26,26 @@ const STATUS_META = {
   archived: { label: 'Archived', dot: 'bg-zinc-500' },
 };
 
-function BusinessCard({ business, onView, onDelete }) {
+function timeAgo(iso) {
+  if (!iso) return null;
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function centsToDisplay(cents) {
+  if (!cents) return '$0';
+  const dollars = cents / 100;
+  if (dollars < 1) return `$${dollars.toFixed(2)}`;
+  if (dollars >= 1000) return `$${(dollars / 1000).toFixed(1)}k`;
+  return `$${dollars.toFixed(2)}`;
+}
+
+function BusinessCard({ business, overview, onView, onDelete }) {
   const origin = ORIGIN_META[business.origin] ?? ORIGIN_META.imported;
   const OriginIcon = origin.icon;
   const status = STATUS_META[(business.status || '').toLowerCase()] ?? STATUS_META.active;
@@ -93,6 +112,31 @@ function BusinessCard({ business, onView, onDelete }) {
         </div>
       )}
 
+      <div className="grid grid-cols-3 gap-2 py-2 border-t border-white/8">
+        <div>
+          <p className="text-[9px] uppercase tracking-wider text-muted-foreground/40 font-mono mb-0.5">Revenue</p>
+          <p className="text-sm font-semibold font-mono text-emerald-400">
+            {overview ? centsToDisplay(overview.revenueCents) : '—'}
+          </p>
+        </div>
+        <div>
+          <p className="text-[9px] uppercase tracking-wider text-muted-foreground/40 font-mono mb-0.5 inline-flex items-center gap-1">
+            <Plug className="w-2.5 h-2.5" /> Links
+          </p>
+          <p className="text-sm font-semibold font-mono text-foreground">
+            {overview ? overview.connectionsCount : '—'}
+          </p>
+        </div>
+        <div>
+          <p className="text-[9px] uppercase tracking-wider text-muted-foreground/40 font-mono mb-0.5 inline-flex items-center gap-1">
+            <Clock className="w-2.5 h-2.5" /> Active
+          </p>
+          <p className="text-sm font-semibold font-mono text-foreground truncate">
+            {overview ? (timeAgo(overview.lastActivityAt) || '—') : '—'}
+          </p>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between mt-auto pt-1">
         <span className="text-[10px] text-muted-foreground/40 font-mono">
           {business.revenueModel || 'No revenue model set'}
@@ -108,6 +152,7 @@ function BusinessCard({ business, onView, onDelete }) {
 export default function BusinessPortfolioPage() {
   const navigate = useNavigate();
   const [businesses, setBusinesses] = useState([]);
+  const [overviews, setOverviews] = useState({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
@@ -117,6 +162,19 @@ export default function BusinessPortfolioPage() {
       if (!res.ok) throw new Error('Failed to load businesses');
       const data = await res.json();
       setBusinesses(data);
+
+      const pairs = await Promise.all(
+        data.map(async (b) => {
+          try {
+            const oRes = await fetch(`/api/businesses/${b.id}/overview`, { headers: authHeaders() });
+            if (!oRes.ok) return [b.id, null];
+            return [b.id, await oRes.json()];
+          } catch {
+            return [b.id, null];
+          }
+        }),
+      );
+      setOverviews(Object.fromEntries(pairs));
     } catch (err) {
       toast.error(err.message || 'Failed to load businesses');
     } finally {
@@ -212,7 +270,8 @@ export default function BusinessPortfolioPage() {
               <BusinessCard
                 key={business.id}
                 business={business}
-                onView={(b) => navigate(`/business-portfolio/${b.id}`)}
+                overview={overviews[business.id]}
+                onView={(b) => navigate(`/business/${b.id}`)}
                 onDelete={handleDelete}
               />
             ))}

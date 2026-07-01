@@ -19,3 +19,4 @@
 - [Numeric ID string-method bug](numeric-id-string-methods.md) — DB ids are `serial` integers, not strings/UUIDs; never call `.substring()`/`.slice()` directly on an `.id` field, always wrap with `String(id)` first.
 - [Expo mobile web output surfaces](expo-web-pwa-output.md) — `+html.tsx`/`public/manifest.json` only affect `expo export -p web`; this app's real prod web surface is the hand-rolled `server/templates/landing-page.html`.
 - [Business Health Analysis Engine](business-health-scores.md) — async job-based scoring, `analyzing` derived from runtime_jobs payload scan, auto-triggered on creation only (not backfill), remember to `db push` per env.
+- [Business Command Center architecture](business-command-center.md) — portfolio + `/business/:id` detail page share one `/overview` endpoint; must test with an `imported` business with zero data for empty-state coverage.

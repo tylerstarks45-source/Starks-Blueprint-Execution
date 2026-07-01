@@ -69,6 +69,8 @@ export * from './businessInput';
 export * from './businessInputBusinessType';
 export * from './businessInputOrigin';
 export * from './businessOrigin';
+export * from './businessOverviewResponse';
+export * from './businessOverviewResponseHealthStatus';
 export * from './businessUpdate';
 export * from './businessUpdateBusinessType';
 export * from './businessWithConnections';

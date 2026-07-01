@@ -1,7 +1,14 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, desc } from "drizzle-orm";
-import { db, businessesTable, businessConnectionsTable, userCredentialsTable } from "@workspace/db";
+import { eq, and, desc, sql } from "drizzle-orm";
+import {
+  db,
+  businessesTable,
+  businessConnectionsTable,
+  businessHealthScoresTable,
+  systemActivityEventsTable,
+  userCredentialsTable,
+} from "@workspace/db";
 import { getActiveCallerPayload, validateClientWorkspaceId } from "../lib/auth";
 import { enqueue } from "../lib/runtime/jobs";
 import { logger } from "../lib/logger";
@@ -14,9 +21,18 @@ import {
   UpdateBusinessBody,
   UpdateBusinessResponse,
   DeleteBusinessParams,
+  GetBusinessOverviewParams,
+  GetBusinessOverviewResponse,
   AddBusinessConnectionParams,
   AddBusinessConnectionBody,
 } from "@workspace/api-zod";
+
+function healthStatusFromScore(score: number | null | undefined): "healthy" | "needs_attention" | "at_risk" | null {
+  if (score == null) return null;
+  if (score >= 70) return "healthy";
+  if (score >= 40) return "needs_attention";
+  return "at_risk";
+}
 
 const router: IRouter = Router();
 
@@ -182,6 +198,91 @@ router.delete("/businesses/:id", async (req, res): Promise<void> => {
 
   await db.delete(businessesTable).where(eq(businessesTable.id, params.data.id));
   res.sendStatus(204);
+});
+
+// ─── GET /api/businesses/:id/overview ────────────────────────────────────────
+// Lightweight aggregate stats used by the portfolio cards and the command
+// center header: connection count, lifetime revenue (from the linked system
+// instance, if any), last-activity timestamp, and a health status bucket.
+
+router.get("/businesses/:id/overview", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const params = GetBusinessOverviewParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [business] = await db
+    .select({ id: businessesTable.id, updatedAt: businessesTable.updatedAt, systemInstanceId: businessesTable.systemInstanceId })
+    .from(businessesTable)
+    .where(and(eq(businessesTable.id, params.data.id), eq(businessesTable.ownerId, caller.id)));
+
+  if (!business) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  const [connectionAgg] = await db
+    .select({
+      count: sql<number>`count(*)`,
+      lastUpdatedAt: sql<string | null>`max(${businessConnectionsTable.updatedAt})`,
+    })
+    .from(businessConnectionsTable)
+    .where(eq(businessConnectionsTable.businessId, business.id));
+
+  const [latestHealth] = await db
+    .select({ overallHealth: businessHealthScoresTable.overallHealth, createdAt: businessHealthScoresTable.createdAt })
+    .from(businessHealthScoresTable)
+    .where(eq(businessHealthScoresTable.businessId, business.id))
+    .orderBy(desc(businessHealthScoresTable.createdAt))
+    .limit(1);
+
+  let revenueCents = 0;
+  let latestActivityAt: Date | null = null;
+  if (business.systemInstanceId != null) {
+    const [revenueAgg] = await db
+      .select({
+        total: sql<number>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)`,
+      })
+      .from(systemActivityEventsTable)
+      .where(
+        and(
+          eq(systemActivityEventsTable.systemInstanceId, business.systemInstanceId),
+          eq(systemActivityEventsTable.eventType, "revenue"),
+        ),
+      );
+    revenueCents = Number(revenueAgg?.total ?? 0);
+
+    const [latestActivity] = await db
+      .select({ createdAt: systemActivityEventsTable.createdAt })
+      .from(systemActivityEventsTable)
+      .where(eq(systemActivityEventsTable.systemInstanceId, business.systemInstanceId))
+      .orderBy(desc(systemActivityEventsTable.createdAt))
+      .limit(1);
+    latestActivityAt = latestActivity?.createdAt ?? null;
+  }
+
+  const candidates = [
+    business.updatedAt,
+    connectionAgg?.lastUpdatedAt ? new Date(connectionAgg.lastUpdatedAt) : null,
+    latestHealth?.createdAt ?? null,
+    latestActivityAt,
+  ].filter((d): d is Date => d != null);
+  const lastActivityAt = candidates.length > 0 ? new Date(Math.max(...candidates.map((d) => d.getTime()))) : null;
+
+  res.json(
+    GetBusinessOverviewResponse.parse(
+      serialize({
+        connectionsCount: Number(connectionAgg?.count ?? 0),
+        revenueCents,
+        lastActivityAt,
+        healthStatus: healthStatusFromScore(latestHealth?.overallHealth),
+      }),
+    ),
+  );
 });
 
 // ─── POST /api/businesses/:id/connections ─────────────────────────────────────

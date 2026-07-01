@@ -1364,6 +1364,27 @@ export type BusinessWithConnections = Business & {
   connections: BusinessConnection[];
 };
 
+/**
+ * @nullable
+ */
+export type BusinessOverviewResponseHealthStatus = typeof BusinessOverviewResponseHealthStatus[keyof typeof BusinessOverviewResponseHealthStatus] | null;
+
+
+export const BusinessOverviewResponseHealthStatus = {
+  healthy: 'healthy',
+  needs_attention: 'needs_attention',
+  at_risk: 'at_risk',
+} as const;
+
+export interface BusinessOverviewResponse {
+  connectionsCount: number;
+  revenueCents: number;
+  /** @nullable */
+  lastActivityAt: string | null;
+  /** @nullable */
+  healthStatus: BusinessOverviewResponseHealthStatus;
+}
+
 export interface BusinessHealthScore {
   id: number;
   businessId: number;

@@ -65,6 +65,7 @@ import type {
   BusinessConnectionInput,
   BusinessHealthResponse,
   BusinessInput,
+  BusinessOverviewResponse,
   BusinessUpdate,
   BusinessWithConnections,
   CreditBalance,
@@ -8448,6 +8449,83 @@ export const useDeleteBusiness = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getDeleteBusinessMutationOptions(options));
     }
+
+export const getGetBusinessOverviewUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/overview`
+}
+
+/**
+ * @summary Get lightweight aggregate stats for a business (for portfolio cards + command center header)
+ */
+export const getBusinessOverview = async (id: number, options?: RequestInit): Promise<BusinessOverviewResponse> => {
+
+  return customFetch<BusinessOverviewResponse>(getGetBusinessOverviewUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessOverviewQueryKey = (id: number,) => {
+    return [
+    `/api/businesses/${id}/overview`
+    ] as const;
+    }
+
+
+export const getGetBusinessOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessOverview>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessOverviewQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessOverview>>> = ({ signal }) => getBusinessOverview(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessOverview>>>
+export type GetBusinessOverviewQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get lightweight aggregate stats for a business (for portfolio cards + command center header)
+ */
+
+export function useGetBusinessOverview<TData = Awaited<ReturnType<typeof getBusinessOverview>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessOverviewQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getAddBusinessConnectionUrl = (id: number,) => {
 

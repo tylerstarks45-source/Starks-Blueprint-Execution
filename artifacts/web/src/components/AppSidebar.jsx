@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useClient } from '@/contexts/ClientContext.jsx';
 import NotificationBell from '@/components/NotificationBell.jsx';
 import ClientWorkspaceSwitcher from '@/components/ClientWorkspaceSwitcher.jsx';
+import BusinessSwitcher from '@/components/BusinessSwitcher.jsx';
 
 const NAV_GROUPS = [
   {
@@ -138,6 +139,9 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
 
       {/* ── Client workspace switcher ─────────────── */}
       {isAgencyUser && <ClientWorkspaceSwitcher collapsed={collapsed} />}
+
+      {/* ── Business switcher ─────────────────────── */}
+      <BusinessSwitcher collapsed={collapsed} />
 
       {/* ── Build with ASH — primary CTA ─────────── */}
       <div className={`px-2 pt-3 pb-1 shrink-0 ${collapsed ? 'flex justify-center' : ''}`}>

@@ -8,6 +8,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext.jsx';
 import { CreditsModalProvider } from '@/contexts/CreditsModalContext.jsx';
 import { ClientProvider } from '@/contexts/ClientContext.jsx';
+import { BusinessProvider } from '@/contexts/BusinessContext.jsx';
 import { WhiteLabelProvider, useWhiteLabel } from '@/contexts/WhiteLabelContext.jsx';
 import OutOfCreditsModal from '@/components/OutOfCreditsModal.jsx';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
@@ -63,7 +64,7 @@ const MyStackPage           = lazy(() => import('@/pages/MyStackPage.jsx'));
 const DomainsPage           = lazy(() => import('@/pages/DomainsPage.jsx'));
 const BusinessPortfolioPage     = lazy(() => import('@/pages/BusinessPortfolioPage.jsx'));
 const BusinessImportWizardPage  = lazy(() => import('@/pages/BusinessImportWizardPage.jsx'));
-const BusinessDetailPage        = lazy(() => import('@/pages/BusinessDetailPage.jsx'));
+const BusinessCommandCenterPage = lazy(() => import('@/pages/BusinessCommandCenterPage.jsx'));
 const CreditsPage           = lazy(() => import('@/pages/CreditsPage.jsx'));
 const WorkspacePage         = lazy(() => import('@/pages/WorkspacePage.jsx'));
 const MemoryPage            = lazy(() => import('@/pages/MemoryPage.jsx'));
@@ -118,6 +119,12 @@ const ToolDetailRedirect = () => {
   return <Navigate to={`/marketplace/product/${id}`} replace />;
 };
 
+// Redirect legacy /business-portfolio/:id → /business/:id (command center)
+const BusinessDetailRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/business/${id}`} replace />;
+};
+
 const NotFoundPage = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 text-center">
     <h1 className="text-7xl font-extrabold text-primary mb-4">404</h1>
@@ -169,6 +176,7 @@ const App = () => {
     <Router>
       <AuthProvider>
         <ClientProvider>
+        <BusinessProvider>
         <CreditsModalProvider>
           <WhiteLabelHelmet />
 
@@ -246,8 +254,9 @@ const App = () => {
               <Route path="/business-portfolio" element={
                 <ProtectedRoute><BusinessPortfolioPage /></ProtectedRoute>
               } />
-              <Route path="/business-portfolio/:id" element={
-                <ProtectedRoute><BusinessDetailPage /></ProtectedRoute>
+              <Route path="/business-portfolio/:id" element={<BusinessDetailRedirect />} />
+              <Route path="/business/:id" element={
+                <ProtectedRoute><BusinessCommandCenterPage /></ProtectedRoute>
               } />
               <Route path="/business-import" element={
                 <ProtectedRoute><BusinessImportWizardPage /></ProtectedRoute>
@@ -326,6 +335,7 @@ const App = () => {
 
           <Toaster position="bottom-right" />
         </CreditsModalProvider>
+        </BusinessProvider>
         </ClientProvider>
       </AuthProvider>
     </Router>

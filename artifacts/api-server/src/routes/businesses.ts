@@ -58,12 +58,18 @@ router.post("/businesses", async (req, res): Promise<void> => {
 
   const clientWorkspaceId = await validateClientWorkspaceId(req, caller.id);
 
+  // The user-facing create flow only produces imported businesses. `origin`
+  // and `systemInstanceId` are internal-only (managed by ensureBuiltBusiness/
+  // backfillBuiltBusinesses); never trust them from client input, otherwise a
+  // caller could attach a business to another user's system instance (IDOR).
+  const { systemInstanceId: _ignoredSystemInstanceId, origin: _ignoredOrigin, ...safeData } = parsed.data;
+
   const [row] = await db
     .insert(businessesTable)
     .values({
-      ...parsed.data,
+      ...safeData,
       ownerId: caller.id,
-      origin: parsed.data.origin ?? "imported",
+      origin: "imported",
       ...(clientWorkspaceId !== null ? { clientWorkspaceId } : {}),
     })
     .returning();
@@ -130,9 +136,13 @@ router.patch("/businesses/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  // `systemInstanceId` is internal-only; never let a client rewrite the
+  // built/imported linkage via PATCH (IDOR / integrity).
+  const { systemInstanceId: _ignoredSystemInstanceId, ...safeUpdate } = body.data;
+
   const [row] = await db
     .update(businessesTable)
-    .set({ ...body.data, updatedAt: new Date() })
+    .set({ ...safeUpdate, updatedAt: new Date() })
     .where(eq(businessesTable.id, params.data.id))
     .returning();
 

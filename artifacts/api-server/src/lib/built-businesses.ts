@@ -32,7 +32,13 @@ export async function backfillBuiltBusinesses(): Promise<void> {
         clientWorkspaceId: systemInstancesTable.clientWorkspaceId,
       })
       .from(systemInstancesTable)
-      .leftJoin(businessesTable, eq(businessesTable.systemInstanceId, systemInstancesTable.id))
+      .leftJoin(
+        businessesTable,
+        and(
+          eq(businessesTable.systemInstanceId, systemInstancesTable.id),
+          eq(businessesTable.origin, "built"),
+        ),
+      )
       .where(isNull(businessesTable.id));
 
     if (orphans.length === 0) return;

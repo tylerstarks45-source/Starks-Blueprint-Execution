@@ -154,11 +154,34 @@ async function publishTwitter(creds: Record<string, string>, params: PublishPara
 }
 
 // ── Instagram ──────────────────────────────────────────────────────────────────
+// Resolves the Instagram Business Account ID linked to a Facebook Page, so
+// OAuth-connected users (who only have META_ACCESS_TOKEN + META_PAGE_ID)
+// don't need to separately supply an Instagram User ID.
+async function resolveInstagramUserId(pageId: string, token: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://graph.facebook.com/v19.0/${pageId}?fields=instagram_business_account&access_token=${encodeURIComponent(token)}`);
+    if (!res.ok) return null;
+    const data = await res.json() as { instagram_business_account?: { id?: string } };
+    return data.instagram_business_account?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function publishInstagram(creds: Record<string, string>, params: PublishParams): Promise<PublishResult> {
   const token = creds["INSTAGRAM_ACCESS_TOKEN"] ?? creds["META_ACCESS_TOKEN"];
-  const igUserId = creds["INSTAGRAM_USER_ID"] ?? creds["IG_USER_ID"];
   if (!token) return { ok: false, error: "INSTAGRAM_ACCESS_TOKEN credential not found. Add it in Connections Hub." };
-  if (!igUserId) return { ok: false, error: "INSTAGRAM_USER_ID credential not found. Add your Instagram User ID in Connections Hub." };
+
+  let igUserId: string | undefined = creds["INSTAGRAM_USER_ID"] ?? creds["IG_USER_ID"];
+  if (!igUserId && creds["META_PAGE_ID"]) {
+    igUserId = (await resolveInstagramUserId(creds["META_PAGE_ID"], token)) ?? undefined;
+  }
+  if (!igUserId) {
+    return {
+      ok: false,
+      error: "Could not determine your Instagram Business Account. Make sure an Instagram Professional account is linked to your connected Facebook Page, or add INSTAGRAM_USER_ID manually in Connections Hub.",
+    };
+  }
 
   try {
     const caption = params.content.slice(0, 2200);
@@ -294,7 +317,7 @@ async function publishTikTok(creds: Record<string, string>, params: PublishParam
 // ── Facebook Page ────────────────────────────────────────────────────────────────
 async function publishFacebook(creds: Record<string, string>, params: PublishParams): Promise<PublishResult> {
   const token = creds["FACEBOOK_PAGE_ACCESS_TOKEN"] ?? creds["META_ACCESS_TOKEN"];
-  const pageId = creds["FACEBOOK_PAGE_ID"];
+  const pageId = creds["FACEBOOK_PAGE_ID"] ?? creds["META_PAGE_ID"];
   if (!token) return { ok: false, error: "FACEBOOK_PAGE_ACCESS_TOKEN credential not found. Add it in Connections Hub." };
   if (!pageId) return { ok: false, error: "FACEBOOK_PAGE_ID credential not found. Add it in Connections Hub." };
 

@@ -6,6 +6,7 @@ import { tierSystemLimit } from "../lib/credits";
 import { z } from "zod/v4";
 import { getActiveCallerPayload, requireAuthActive, validateClientWorkspaceId } from "../lib/auth";
 import { checkMilestones } from "../lib/milestones";
+import { ensureBuiltBusiness } from "../lib/built-businesses";
 import {
   ListSystemInstancesResponse,
   GetSystemInstanceResponse,
@@ -165,6 +166,10 @@ router.post("/system-instances", async (req, res): Promise<void> => {
     .insert(systemInstancesTable)
     .values({ ...parsed.data, userId, ...(clientWorkspaceId !== null ? { clientWorkspaceId } : {}) })
     .returning();
+
+  // Surface the new ASH-built system in the Business Portfolio (best-effort).
+  await ensureBuiltBusiness(row);
+
   res.status(201).json(GetSystemInstanceResponse.parse(serialize(row)));
 });
 

@@ -2207,7 +2207,7 @@ export const ListBusinessesResponseItem = zod.object({
   "id": zod.number(),
   "ownerId": zod.number(),
   "name": zod.string(),
-  "businessType": zod.string(),
+  "businessType": zod.enum(['shopify', 'wordpress', 'youtube', 'affiliate', 'saas', 'leadgen', 'newsletter', 'ecommerce', 'blog', 'membership', 'agency', 'custom']),
   "revenueModel": zod.string().nullish(),
   "websiteUrl": zod.string().nullish(),
   "origin": zod.enum(['built', 'imported']),
@@ -2229,7 +2229,7 @@ export const ListBusinessesResponse = zod.array(ListBusinessesResponseItem)
 
 export const CreateBusinessBody = zod.object({
   "name": zod.string().min(1),
-  "businessType": zod.string(),
+  "businessType": zod.enum(['shopify', 'wordpress', 'youtube', 'affiliate', 'saas', 'leadgen', 'newsletter', 'ecommerce', 'blog', 'membership', 'agency', 'custom']),
   "revenueModel": zod.string().optional(),
   "websiteUrl": zod.string().optional(),
   "origin": zod.enum(['built', 'imported']).optional(),
@@ -2250,7 +2250,7 @@ export const GetBusinessResponse = zod.object({
   "id": zod.number(),
   "ownerId": zod.number(),
   "name": zod.string(),
-  "businessType": zod.string(),
+  "businessType": zod.enum(['shopify', 'wordpress', 'youtube', 'affiliate', 'saas', 'leadgen', 'newsletter', 'ecommerce', 'blog', 'membership', 'agency', 'custom']),
   "revenueModel": zod.string().nullish(),
   "websiteUrl": zod.string().nullish(),
   "origin": zod.enum(['built', 'imported']),
@@ -2287,7 +2287,7 @@ export const UpdateBusinessParams = zod.object({
 
 export const UpdateBusinessBody = zod.object({
   "name": zod.string().min(1).optional(),
-  "businessType": zod.string().optional(),
+  "businessType": zod.enum(['shopify', 'wordpress', 'youtube', 'affiliate', 'saas', 'leadgen', 'newsletter', 'ecommerce', 'blog', 'membership', 'agency', 'custom']).optional(),
   "revenueModel": zod.string().optional(),
   "websiteUrl": zod.string().optional(),
   "status": zod.string().optional(),
@@ -2299,7 +2299,7 @@ export const UpdateBusinessResponse = zod.object({
   "id": zod.number(),
   "ownerId": zod.number(),
   "name": zod.string(),
-  "businessType": zod.string(),
+  "businessType": zod.enum(['shopify', 'wordpress', 'youtube', 'affiliate', 'saas', 'leadgen', 'newsletter', 'ecommerce', 'blog', 'membership', 'agency', 'custom']),
   "revenueModel": zod.string().nullish(),
   "websiteUrl": zod.string().nullish(),
   "origin": zod.enum(['built', 'imported']),

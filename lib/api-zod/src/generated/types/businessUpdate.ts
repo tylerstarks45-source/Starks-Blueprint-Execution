@@ -5,11 +5,12 @@
  * Starks Global Group Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { BusinessUpdateBusinessType } from './businessUpdateBusinessType';
 
 export interface BusinessUpdate {
   /** @minLength 1 */
   name?: string;
-  businessType?: string;
+  businessType?: BusinessUpdateBusinessType;
   revenueModel?: string;
   websiteUrl?: string;
   status?: string;

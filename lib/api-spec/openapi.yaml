@@ -4385,6 +4385,7 @@ components:
           type: string
         businessType:
           type: string
+          enum: [shopify, wordpress, youtube, affiliate, saas, leadgen, newsletter, ecommerce, blog, membership, agency, custom]
         revenueModel:
           type: ["string", "null"]
         websiteUrl:
@@ -4414,6 +4415,7 @@ components:
           minLength: 1
         businessType:
           type: string
+          enum: [shopify, wordpress, youtube, affiliate, saas, leadgen, newsletter, ecommerce, blog, membership, agency, custom]
         revenueModel:
           type: string
         websiteUrl:
@@ -4437,6 +4439,7 @@ components:
           minLength: 1
         businessType:
           type: string
+          enum: [shopify, wordpress, youtube, affiliate, saas, leadgen, newsletter, ecommerce, blog, membership, agency, custom]
         revenueModel:
           type: string
         websiteUrl:

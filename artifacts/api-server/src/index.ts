@@ -6,6 +6,7 @@ import { setKeyRotatedAt } from "./lib/crypto";
 import { startWorker } from "./lib/runtime/worker";
 import { startScheduler } from "./lib/runtime/scheduler";
 import { startRevenueSync } from "./lib/revenue/sync";
+import { backfillBuiltBusinesses } from "./lib/built-businesses";
 
 async function start() {
   const rawPort = process.env["PORT"];
@@ -66,6 +67,8 @@ async function start() {
     startScheduler();
     // Start the revenue sync worker (polls enabled providers hourly)
     startRevenueSync();
+    // Ensure every existing ASH-built system shows up in the Business Portfolio.
+    backfillBuiltBusinesses().catch(() => {});
   });
 }
 

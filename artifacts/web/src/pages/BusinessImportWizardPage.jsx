@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Building2, Check, Plus, Trash2,
-  Loader2, Sparkles, Link2, Globe,
+  Loader2, Sparkles, Link2, Globe, ShieldCheck, KeyRound,
 } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { Helmet } from 'react-helmet';
@@ -17,9 +17,22 @@ const authHeaders = () => {
 };
 
 const BUSINESS_TYPES = [
-  'E-commerce', 'SaaS', 'Agency', 'Coaching / Course', 'Content / Media',
-  'Local Service', 'Affiliate / Content Site', 'Marketplace', 'Other',
+  { value: 'shopify',    label: 'Shopify Store' },
+  { value: 'ecommerce',  label: 'E-commerce' },
+  { value: 'wordpress',  label: 'WordPress Site' },
+  { value: 'youtube',    label: 'YouTube Channel' },
+  { value: 'affiliate',  label: 'Affiliate Site' },
+  { value: 'saas',       label: 'SaaS Product' },
+  { value: 'newsletter', label: 'Newsletter' },
+  { value: 'blog',       label: 'Blog' },
+  { value: 'membership', label: 'Membership' },
+  { value: 'leadgen',    label: 'Lead Gen' },
+  { value: 'agency',     label: 'Agency' },
+  { value: 'custom',     label: 'Other / Custom' },
 ];
+
+const businessTypeLabel = (value) =>
+  BUSINESS_TYPES.find(t => t.value === value)?.label ?? value;
 
 const REVENUE_MODELS = [
   'Subscription', 'One-time sales', 'Affiliate commissions', 'Ads',
@@ -84,6 +97,36 @@ export default function BusinessImportWizardPage() {
   const [connections, setConnections] = useState([]);
   const [newConn, setNewConn] = useState({ connectionType: 'social', platformName: '', apiKeyValue: '' });
 
+  // Existing credentials from the Connections Hub vault, so users can link a
+  // platform they've already connected instead of re-entering secrets.
+  const [vaultCreds, setVaultCreds] = useState([]);
+  const [loadingVault, setLoadingVault] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/user-credentials', { headers: authHeaders() });
+        if (!res.ok) throw new Error('Failed to load credentials');
+        const rows = await res.json();
+        if (active) setVaultCreds(Array.isArray(rows) ? rows : []);
+      } catch {
+        if (active) setVaultCreds([]);
+      } finally {
+        if (active) setLoadingVault(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  const credDisplayName = (cred) => {
+    try {
+      const meta = cred.metadata ? JSON.parse(cred.metadata) : null;
+      if (meta?.displayName) return meta.displayName;
+    } catch { /* ignore malformed metadata */ }
+    return cred.credentialKey;
+  };
+
   const updateForm = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
   const addConnection = () => {
@@ -93,6 +136,20 @@ export default function BusinessImportWizardPage() {
     }
     setConnections(prev => [...prev, { ...newConn, id: `${Date.now()}` }]);
     setNewConn({ connectionType: 'social', platformName: '', apiKeyValue: '' });
+  };
+
+  const addVaultConnection = (cred) => {
+    if (connections.some(c => c.userCredentialId === cred.id)) {
+      toast.info('That credential is already linked');
+      return;
+    }
+    setConnections(prev => [...prev, {
+      id: `vault-${cred.id}`,
+      connectionType: 'other',
+      platformName: credDisplayName(cred),
+      userCredentialId: cred.id,
+      fromVault: true,
+    }]);
   };
 
   const removeConnection = (id) => setConnections(prev => prev.filter(c => c.id !== id));
@@ -146,8 +203,8 @@ export default function BusinessImportWizardPage() {
             body: JSON.stringify({
               connectionType: conn.connectionType,
               platformName: conn.platformName.trim(),
-              status: 'pending',
-              metadata: conn.apiKeyValue ? { hasCredentialHint: true } : undefined,
+              userCredentialId: conn.userCredentialId ?? undefined,
+              status: conn.userCredentialId ? 'connected' : 'pending',
             }),
           });
         } catch {
@@ -213,15 +270,15 @@ export default function BusinessImportWizardPage() {
                 <div className="flex flex-wrap gap-2">
                   {BUSINESS_TYPES.map(type => (
                     <button
-                      key={type}
-                      onClick={() => updateForm('businessType', type)}
+                      key={type.value}
+                      onClick={() => updateForm('businessType', type.value)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        form.businessType === type
+                        form.businessType === type.value
                           ? 'bg-primary/20 border border-primary/40 text-primary'
                           : 'bg-white/5 border border-white/10 text-muted-foreground/70 hover:text-foreground hover:bg-white/10'
                       }`}
                     >
-                      {type}
+                      {type.label}
                     </button>
                   ))}
                 </div>
@@ -282,8 +339,45 @@ export default function BusinessImportWizardPage() {
               className="rounded-2xl border border-white/10 bg-black/70 p-6 space-y-5"
             >
               <p className="text-xs text-muted-foreground/60">
-                Add the platforms this business already uses. You can connect real credentials later from the Connections Hub — this just tells ASH what to look for.
+                Add the platforms this business already uses. Link credentials you've already saved in the Connections Hub, or add a platform for ASH to look for later.
               </p>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-xs font-semibold text-foreground">Link from your Connections Hub</span>
+                </div>
+                {loadingVault ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground/50">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading saved credentials…
+                  </div>
+                ) : vaultCreds.length === 0 ? (
+                  <p className="text-xs text-muted-foreground/50">
+                    No saved credentials yet. Add them in the Connections Hub, or add a platform manually below.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {vaultCreds.map(cred => {
+                      const linked = connections.some(c => c.userCredentialId === cred.id);
+                      return (
+                        <button
+                          key={cred.id}
+                          onClick={() => addVaultConnection(cred)}
+                          disabled={linked}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                            linked
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 cursor-default'
+                              : 'bg-white/5 border-white/10 text-foreground hover:bg-white/10'
+                          }`}
+                        >
+                          {linked ? <Check className="w-3.5 h-3.5" /> : <KeyRound className="w-3.5 h-3.5" />}
+                          {credDisplayName(cred)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
               {connections.length > 0 && (
                 <div className="space-y-2">
@@ -292,9 +386,15 @@ export default function BusinessImportWizardPage() {
                       <div className="flex items-center gap-2 min-w-0">
                         <Link2 className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
                         <span className="text-sm text-foreground truncate">{conn.platformName}</span>
-                        <span className="text-[10px] font-mono text-muted-foreground/50 uppercase">
-                          {CONNECTION_TYPES.find(t => t.key === conn.connectionType)?.label}
-                        </span>
+                        {conn.fromVault ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400 uppercase">
+                            <ShieldCheck className="w-3 h-3" /> Vault
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-muted-foreground/50 uppercase">
+                            {CONNECTION_TYPES.find(t => t.key === conn.connectionType)?.label}
+                          </span>
+                        )}
                       </div>
                       <button onClick={() => removeConnection(conn.id)} className="text-muted-foreground/50 hover:text-rose-400 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
@@ -354,7 +454,7 @@ export default function BusinessImportWizardPage() {
                 {form.businessType && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground/60">Type</span>
-                    <span className="text-foreground font-medium">{form.businessType}</span>
+                    <span className="text-foreground font-medium">{businessTypeLabel(form.businessType)}</span>
                   </div>
                 )}
                 {form.revenueModel && (

@@ -5,12 +5,13 @@
  * Starks Global Group Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { BusinessInputBusinessType } from './businessInputBusinessType';
 import type { BusinessInputOrigin } from './businessInputOrigin';
 
 export interface BusinessInput {
   /** @minLength 1 */
   name: string;
-  businessType: string;
+  businessType: BusinessInputBusinessType;
   revenueModel?: string;
   websiteUrl?: string;
   origin?: BusinessInputOrigin;

@@ -1222,6 +1222,24 @@ export interface DomainDnsSetupResponse {
   instructions: string[];
 }
 
+export type BusinessBusinessType = typeof BusinessBusinessType[keyof typeof BusinessBusinessType];
+
+
+export const BusinessBusinessType = {
+  shopify: 'shopify',
+  wordpress: 'wordpress',
+  youtube: 'youtube',
+  affiliate: 'affiliate',
+  saas: 'saas',
+  leadgen: 'leadgen',
+  newsletter: 'newsletter',
+  ecommerce: 'ecommerce',
+  blog: 'blog',
+  membership: 'membership',
+  agency: 'agency',
+  custom: 'custom',
+} as const;
+
 export type BusinessOrigin = typeof BusinessOrigin[keyof typeof BusinessOrigin];
 
 
@@ -1234,7 +1252,7 @@ export interface Business {
   id: number;
   ownerId: number;
   name: string;
-  businessType: string;
+  businessType: BusinessBusinessType;
   /** @nullable */
   revenueModel?: string | null;
   /** @nullable */
@@ -1251,6 +1269,24 @@ export interface Business {
   updatedAt: string;
 }
 
+export type BusinessInputBusinessType = typeof BusinessInputBusinessType[keyof typeof BusinessInputBusinessType];
+
+
+export const BusinessInputBusinessType = {
+  shopify: 'shopify',
+  wordpress: 'wordpress',
+  youtube: 'youtube',
+  affiliate: 'affiliate',
+  saas: 'saas',
+  leadgen: 'leadgen',
+  newsletter: 'newsletter',
+  ecommerce: 'ecommerce',
+  blog: 'blog',
+  membership: 'membership',
+  agency: 'agency',
+  custom: 'custom',
+} as const;
+
 export type BusinessInputOrigin = typeof BusinessInputOrigin[keyof typeof BusinessInputOrigin];
 
 
@@ -1262,7 +1298,7 @@ export const BusinessInputOrigin = {
 export interface BusinessInput {
   /** @minLength 1 */
   name: string;
-  businessType: string;
+  businessType: BusinessInputBusinessType;
   revenueModel?: string;
   websiteUrl?: string;
   origin?: BusinessInputOrigin;
@@ -1271,10 +1307,28 @@ export interface BusinessInput {
   notes?: string;
 }
 
+export type BusinessUpdateBusinessType = typeof BusinessUpdateBusinessType[keyof typeof BusinessUpdateBusinessType];
+
+
+export const BusinessUpdateBusinessType = {
+  shopify: 'shopify',
+  wordpress: 'wordpress',
+  youtube: 'youtube',
+  affiliate: 'affiliate',
+  saas: 'saas',
+  leadgen: 'leadgen',
+  newsletter: 'newsletter',
+  ecommerce: 'ecommerce',
+  blog: 'blog',
+  membership: 'membership',
+  agency: 'agency',
+  custom: 'custom',
+} as const;
+
 export interface BusinessUpdate {
   /** @minLength 1 */
   name?: string;
-  businessType?: string;
+  businessType?: BusinessUpdateBusinessType;
   revenueModel?: string;
   websiteUrl?: string;
   status?: string;

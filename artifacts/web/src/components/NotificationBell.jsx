@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell, CheckCheck, X, Zap, AlertCircle, Info, Star } from 'lucide-react';
+import { Bell, CheckCheck, X, Zap, AlertCircle, Info, Star, ShieldAlert } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 
 const authH = () => {
@@ -35,21 +36,48 @@ const typeDot = (type) => {
 
 const NotificationBell = ({ sidebarMode = false, collapsed = false }) => {
   const { currentUser, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const ref = useRef(null);
 
-  const unreadCount = notifications.filter((n) => !n.read && !n.isRead).length;
+  const unreadCount = notifications.filter((n) => !n.read && !n.isRead).length + pendingApprovals.length;
+
+  // Pending ASH Operations Mode approvals are surfaced in the bell alongside
+  // regular notifications — they always count as "unread" until the owner
+  // approves/rejects them from the Approval Queue.
+  const feedItems = [
+    ...pendingApprovals.map((a) => ({
+      id: `approval-${a.id}`,
+      approvalId: a.id,
+      businessId: a.businessId,
+      title: a.title,
+      message: a.description || 'ASH is waiting on your approval.',
+      type: 'approval_pending',
+      createdAt: a.createdAt,
+      read: false,
+      isApproval: true,
+    })),
+    ...notifications,
+  ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
   const fetchNotifications = useCallback(async () => {
     if (!currentUser?.id) return;
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/notifications?userId=${currentUser.id}`, { headers: authH() });
-      if (res.ok) {
-        const data = await res.json();
+      const [notifRes, approvalsRes] = await Promise.all([
+        fetch(`/api/notifications?userId=${currentUser.id}`, { headers: authH() }),
+        fetch('/api/approvals?status=pending', { headers: authH() }),
+      ]);
+      if (notifRes.ok) {
+        const data = await notifRes.json();
         setNotifications(Array.isArray(data) ? data.slice(0, 20) : []);
+      }
+      if (approvalsRes.ok) {
+        const data = await approvalsRes.json();
+        setPendingApprovals(Array.isArray(data) ? data : []);
       }
     } catch { /* silently ignore */ } finally {
       setIsLoading(false);
@@ -57,7 +85,10 @@ const NotificationBell = ({ sidebarMode = false, collapsed = false }) => {
   }, [currentUser?.id]);
 
   useEffect(() => {
-    if (isAuthenticated) fetchNotifications();
+    if (!isAuthenticated) return;
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000);
+    return () => clearInterval(interval);
   }, [fetchNotifications, isAuthenticated]);
 
   useEffect(() => {
@@ -78,6 +109,15 @@ const NotificationBell = ({ sidebarMode = false, collapsed = false }) => {
   const markAllRead = (e) => {
     e.stopPropagation();
     notifications.filter((n) => !n.read && !n.isRead).forEach((n) => markRead(n.id));
+  };
+
+  const handleItemClick = (item) => {
+    if (item.isApproval) {
+      setIsOpen(false);
+      if (item.businessId) navigate(`/business/${item.businessId}`);
+      return;
+    }
+    markRead(item.id);
   };
 
   if (!isAuthenticated) return null;
@@ -155,25 +195,25 @@ const NotificationBell = ({ sidebarMode = false, collapsed = false }) => {
                 <div className="py-8 flex items-center justify-center">
                   <div className="w-5 h-5 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
                 </div>
-              ) : notifications.length === 0 ? (
+              ) : feedItems.length === 0 ? (
                 <div className="py-10 text-center">
                   <Bell className="w-8 h-8 text-white/12 mx-auto mb-2.5" />
                   <p className="text-sm text-white/30 font-mono">No notifications yet</p>
                   <p className="text-[10px] text-white/18 font-mono mt-1">ASH activity will appear here</p>
                 </div>
               ) : (
-                notifications.map((n, i) => {
-                  const unread = !n.read && !n.isRead;
-                  const IconComp = typeIcon(n.type);
+                feedItems.map((n, i) => {
+                  const unread = n.isApproval || (!n.read && !n.isRead);
+                  const IconComp = n.isApproval ? ShieldAlert : typeIcon(n.type);
                   return (
                     <button
                       key={`${n.id}-${i}`}
-                      onClick={() => markRead(n.id)}
+                      onClick={() => handleItemClick(n)}
                       className={`w-full text-left px-4 py-3 border-b border-white/4 last:border-0 hover:bg-white/3 transition-colors ${unread ? 'bg-violet-500/4' : ''}`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${unread ? 'bg-violet-500/15 border border-violet-500/20' : 'bg-white/4 border border-white/8'}`}>
-                          <IconComp className={`w-3 h-3 ${unread ? 'text-violet-400' : 'text-white/30'}`} />
+                        <div className={`mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${n.isApproval ? 'bg-amber-500/15 border border-amber-500/20' : unread ? 'bg-violet-500/15 border border-violet-500/20' : 'bg-white/4 border border-white/8'}`}>
+                          <IconComp className={`w-3 h-3 ${n.isApproval ? 'text-amber-400' : unread ? 'text-violet-400' : 'text-white/30'}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={`text-xs leading-snug font-medium ${unread ? 'text-white/85' : 'text-white/50'}`}>
@@ -182,10 +222,12 @@ const NotificationBell = ({ sidebarMode = false, collapsed = false }) => {
                           {n.title && n.message && (
                             <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">{n.message}</p>
                           )}
-                          <p className="text-[9px] text-white/22 font-mono mt-1">{fmtDate(n.createdAt)}</p>
+                          <p className="text-[9px] text-white/22 font-mono mt-1">
+                            {n.isApproval ? 'Needs approval · ' : ''}{fmtDate(n.createdAt)}
+                          </p>
                         </div>
                         {unread && (
-                          <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${typeDot(n.type)}`} />
+                          <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${n.isApproval ? 'bg-amber-400' : typeDot(n.type)}`} />
                         )}
                       </div>
                     </button>
@@ -238,22 +280,22 @@ const NotificationBell = ({ sidebarMode = false, collapsed = false }) => {
               <div className="py-8 flex items-center justify-center">
                 <div className="w-5 h-5 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
               </div>
-            ) : notifications.length === 0 ? (
+            ) : feedItems.length === 0 ? (
               <div className="py-10 text-center">
                 <Bell className="w-8 h-8 text-white/12 mx-auto mb-2" />
                 <p className="text-sm text-white/30 font-mono">No notifications yet</p>
               </div>
             ) : (
-              notifications.map((n, i) => {
-                const unread = !n.read && !n.isRead;
+              feedItems.map((n, i) => {
+                const unread = n.isApproval || (!n.read && !n.isRead);
                 return (
                   <button
                     key={`${n.id}-${i}`}
-                    onClick={() => markRead(n.id)}
+                    onClick={() => handleItemClick(n)}
                     className={`w-full text-left px-4 py-3 border-b border-white/4 last:border-0 hover:bg-white/3 transition-colors ${unread ? 'bg-violet-500/4' : ''}`}
                   >
                     <div className="flex items-start gap-2.5">
-                      {unread && <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />}
+                      {unread && <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${n.isApproval ? 'bg-amber-400' : 'bg-violet-400'}`} />}
                       <div className={unread ? '' : 'ml-4'}>
                         <p className={`text-xs font-medium leading-snug ${unread ? 'text-white/85' : 'text-white/50'}`}>
                           {n.title || n.message}
@@ -261,7 +303,9 @@ const NotificationBell = ({ sidebarMode = false, collapsed = false }) => {
                         {n.title && n.message && (
                           <p className="text-[10px] text-white/30 mt-0.5">{n.message}</p>
                         )}
-                        <p className="text-[9px] text-white/22 font-mono mt-1">{fmtDate(n.createdAt)}</p>
+                        <p className="text-[9px] text-white/22 font-mono mt-1">
+                          {n.isApproval ? 'Needs approval · ' : ''}{fmtDate(n.createdAt)}
+                        </p>
                       </div>
                     </div>
                   </button>

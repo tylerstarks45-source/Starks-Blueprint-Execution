@@ -46,6 +46,8 @@ tags:
     description: Social media scheduling and content calendar
   - name: domains
     description: Domain search, purchase, and DNS management (Namecheap)
+  - name: businesses
+    description: Business Import Center — imported and built business profiles
 
 paths:
   /healthz:
@@ -2333,6 +2335,150 @@ paths:
                 items:
                   $ref: "#/components/schemas/SocialAnalyticsRow"
 
+  # ── Businesses (Business Import Center) ──────────────────────────────────
+  /businesses:
+    get:
+      operationId: listBusinesses
+      tags: [businesses]
+      summary: List businesses owned by the caller (built + imported)
+      parameters:
+        - name: origin
+          in: query
+          description: Filter by origin
+          schema:
+            type: string
+            enum: [built, imported]
+      responses:
+        "200":
+          description: List of businesses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Business"
+    post:
+      operationId: createBusiness
+      tags: [businesses]
+      summary: Create a business (from the import wizard, or wrap an existing system instance)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Business"
+
+  /businesses/{id}:
+    get:
+      operationId: getBusiness
+      tags: [businesses]
+      summary: Get a business by id (includes its connections)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Business with connections
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessWithConnections"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateBusiness
+      tags: [businesses]
+      summary: Update a business
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Business"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteBusiness
+      tags: [businesses]
+      summary: Delete a business
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /businesses/{id}/connections:
+    post:
+      operationId: addBusinessConnection
+      tags: [businesses]
+      summary: Attach a platform/tool connection to a business
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessConnectionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessConnection"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -4226,3 +4372,128 @@ components:
           items:
             type: string
       required: [domain, target, records, instructions]
+
+    # ── Businesses (Business Import Center) ────────────────────────────────
+    Business:
+      type: object
+      properties:
+        id:
+          type: integer
+        ownerId:
+          type: integer
+        name:
+          type: string
+        businessType:
+          type: string
+        revenueModel:
+          type: ["string", "null"]
+        websiteUrl:
+          type: ["string", "null"]
+        origin:
+          type: string
+          enum: [built, imported]
+        status:
+          type: string
+        systemInstanceId:
+          type: ["integer", "null"]
+        notes:
+          type: ["string", "null"]
+        clientWorkspaceId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, ownerId, name, businessType, origin, status, createdAt, updatedAt]
+
+    BusinessInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        businessType:
+          type: string
+        revenueModel:
+          type: string
+        websiteUrl:
+          type: string
+        origin:
+          type: string
+          enum: [built, imported]
+        status:
+          type: string
+        systemInstanceId:
+          type: integer
+        notes:
+          type: string
+      required: [name, businessType]
+
+    BusinessUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        businessType:
+          type: string
+        revenueModel:
+          type: string
+        websiteUrl:
+          type: string
+        status:
+          type: string
+        systemInstanceId:
+          type: ["integer", "null"]
+        notes:
+          type: string
+
+    BusinessConnection:
+      type: object
+      properties:
+        id:
+          type: integer
+        businessId:
+          type: integer
+        connectionType:
+          type: string
+        platformName:
+          type: string
+        userCredentialId:
+          type: ["integer", "null"]
+        status:
+          type: string
+        metadata:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, businessId, connectionType, platformName, status, createdAt, updatedAt]
+
+    BusinessConnectionInput:
+      type: object
+      properties:
+        connectionType:
+          type: string
+        platformName:
+          type: string
+          minLength: 1
+        userCredentialId:
+          type: integer
+        status:
+          type: string
+        metadata:
+          type: string
+      required: [connectionType, platformName]
+
+    BusinessWithConnections:
+      allOf:
+        - $ref: "#/components/schemas/Business"
+        - type: object
+          properties:
+            connections:
+              type: array
+              items:
+                $ref: "#/components/schemas/BusinessConnection"
+          required: [connections]

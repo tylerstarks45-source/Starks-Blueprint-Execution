@@ -2196,3 +2196,146 @@ export const GetSocialAnalyticsResponseItem = zod.object({
 export const GetSocialAnalyticsResponse = zod.array(GetSocialAnalyticsResponseItem)
 
 
+/**
+ * @summary List businesses owned by the caller (built + imported)
+ */
+export const ListBusinessesQueryParams = zod.object({
+  "origin": zod.enum(['built', 'imported']).optional().describe('Filter by origin')
+})
+
+export const ListBusinessesResponseItem = zod.object({
+  "id": zod.number(),
+  "ownerId": zod.number(),
+  "name": zod.string(),
+  "businessType": zod.string(),
+  "revenueModel": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "origin": zod.enum(['built', 'imported']),
+  "status": zod.string(),
+  "systemInstanceId": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "clientWorkspaceId": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListBusinessesResponse = zod.array(ListBusinessesResponseItem)
+
+
+/**
+ * @summary Create a business (from the import wizard, or wrap an existing system instance)
+ */
+
+
+
+export const CreateBusinessBody = zod.object({
+  "name": zod.string().min(1),
+  "businessType": zod.string(),
+  "revenueModel": zod.string().optional(),
+  "websiteUrl": zod.string().optional(),
+  "origin": zod.enum(['built', 'imported']).optional(),
+  "status": zod.string().optional(),
+  "systemInstanceId": zod.number().optional(),
+  "notes": zod.string().optional()
+})
+
+
+/**
+ * @summary Get a business by id (includes its connections)
+ */
+export const GetBusinessParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetBusinessResponse = zod.object({
+  "id": zod.number(),
+  "ownerId": zod.number(),
+  "name": zod.string(),
+  "businessType": zod.string(),
+  "revenueModel": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "origin": zod.enum(['built', 'imported']),
+  "status": zod.string(),
+  "systemInstanceId": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "clientWorkspaceId": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "connections": zod.array(zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "connectionType": zod.string(),
+  "platformName": zod.string(),
+  "userCredentialId": zod.number().nullish(),
+  "status": zod.string(),
+  "metadata": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+}))
+
+
+/**
+ * @summary Update a business
+ */
+export const UpdateBusinessParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateBusinessBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "businessType": zod.string().optional(),
+  "revenueModel": zod.string().optional(),
+  "websiteUrl": zod.string().optional(),
+  "status": zod.string().optional(),
+  "systemInstanceId": zod.number().nullish(),
+  "notes": zod.string().optional()
+})
+
+export const UpdateBusinessResponse = zod.object({
+  "id": zod.number(),
+  "ownerId": zod.number(),
+  "name": zod.string(),
+  "businessType": zod.string(),
+  "revenueModel": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "origin": zod.enum(['built', 'imported']),
+  "status": zod.string(),
+  "systemInstanceId": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "clientWorkspaceId": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a business
+ */
+export const DeleteBusinessParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Attach a platform/tool connection to a business
+ */
+export const AddBusinessConnectionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const AddBusinessConnectionBody = zod.object({
+  "connectionType": zod.string(),
+  "platformName": zod.string().min(1),
+  "userCredentialId": zod.number().optional(),
+  "status": zod.string().optional(),
+  "metadata": zod.string().optional()
+})
+
+

@@ -52,3 +52,5 @@ export * from "./white_label_configs";
 export * from "./api_keys";
 export * from "./api_key_usage_events";
 export * from "./scheduled_posts";
+export * from "./businesses";
+export * from "./business_connections";

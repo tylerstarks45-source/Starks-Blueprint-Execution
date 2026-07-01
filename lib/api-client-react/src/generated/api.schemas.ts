@@ -1222,6 +1222,94 @@ export interface DomainDnsSetupResponse {
   instructions: string[];
 }
 
+export type BusinessOrigin = typeof BusinessOrigin[keyof typeof BusinessOrigin];
+
+
+export const BusinessOrigin = {
+  built: 'built',
+  imported: 'imported',
+} as const;
+
+export interface Business {
+  id: number;
+  ownerId: number;
+  name: string;
+  businessType: string;
+  /** @nullable */
+  revenueModel?: string | null;
+  /** @nullable */
+  websiteUrl?: string | null;
+  origin: BusinessOrigin;
+  status: string;
+  /** @nullable */
+  systemInstanceId?: number | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  clientWorkspaceId?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BusinessInputOrigin = typeof BusinessInputOrigin[keyof typeof BusinessInputOrigin];
+
+
+export const BusinessInputOrigin = {
+  built: 'built',
+  imported: 'imported',
+} as const;
+
+export interface BusinessInput {
+  /** @minLength 1 */
+  name: string;
+  businessType: string;
+  revenueModel?: string;
+  websiteUrl?: string;
+  origin?: BusinessInputOrigin;
+  status?: string;
+  systemInstanceId?: number;
+  notes?: string;
+}
+
+export interface BusinessUpdate {
+  /** @minLength 1 */
+  name?: string;
+  businessType?: string;
+  revenueModel?: string;
+  websiteUrl?: string;
+  status?: string;
+  /** @nullable */
+  systemInstanceId?: number | null;
+  notes?: string;
+}
+
+export interface BusinessConnection {
+  id: number;
+  businessId: number;
+  connectionType: string;
+  platformName: string;
+  /** @nullable */
+  userCredentialId?: number | null;
+  status: string;
+  /** @nullable */
+  metadata?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BusinessConnectionInput {
+  connectionType: string;
+  /** @minLength 1 */
+  platformName: string;
+  userCredentialId?: number;
+  status?: string;
+  metadata?: string;
+}
+
+export type BusinessWithConnections = Business & {
+  connections: BusinessConnection[];
+};
+
 export type ListBlueprintsParams = {
 status?: string;
 categoryId?: number;
@@ -1364,4 +1452,19 @@ from?: string;
 to?: string;
 status?: string;
 };
+
+export type ListBusinessesParams = {
+/**
+ * Filter by origin
+ */
+origin?: ListBusinessesOrigin;
+};
+
+export type ListBusinessesOrigin = typeof ListBusinessesOrigin[keyof typeof ListBusinessesOrigin];
+
+
+export const ListBusinessesOrigin = {
+  built: 'built',
+  imported: 'imported',
+} as const;
 

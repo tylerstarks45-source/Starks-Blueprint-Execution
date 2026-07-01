@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Layers, Server, Coins, Crown, Zap, ArrowRight, KeyRound, LayoutList, Globe, Link2, Mail } from 'lucide-react';
+import { Layers, Server, Coins, Crown, Zap, ArrowRight, KeyRound, LayoutList, Globe, Link2, Mail, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 
@@ -142,6 +142,13 @@ const UserDashboardHeader = () => {
           >
             <Mail className="w-4 h-4 text-sky-400" />
             Email
+          </button>
+          <button
+            onClick={() => navigate('/business-portfolio')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/6 border border-white/10 text-foreground font-semibold text-sm hover:bg-white/10 active:scale-[0.97] transition-all whitespace-nowrap"
+          >
+            <Building2 className="w-4 h-4 text-blue-400" />
+            Businesses
           </button>
           <button
             onClick={() => navigate('/builder')}

@@ -61,6 +61,9 @@ const SocialCalendarPage    = lazy(() => import('@/pages/SocialCalendarPage.jsx'
 const SystemsListPage       = lazy(() => import('@/pages/SystemsListPage.jsx'));
 const MyStackPage           = lazy(() => import('@/pages/MyStackPage.jsx'));
 const DomainsPage           = lazy(() => import('@/pages/DomainsPage.jsx'));
+const BusinessPortfolioPage     = lazy(() => import('@/pages/BusinessPortfolioPage.jsx'));
+const BusinessImportWizardPage  = lazy(() => import('@/pages/BusinessImportWizardPage.jsx'));
+const BusinessDetailPage        = lazy(() => import('@/pages/BusinessDetailPage.jsx'));
 const CreditsPage           = lazy(() => import('@/pages/CreditsPage.jsx'));
 const WorkspacePage         = lazy(() => import('@/pages/WorkspacePage.jsx'));
 const MemoryPage            = lazy(() => import('@/pages/MemoryPage.jsx'));
@@ -239,6 +242,15 @@ const App = () => {
               } />
               <Route path="/systems" element={
                 <ProtectedRoute><SystemsListPage /></ProtectedRoute>
+              } />
+              <Route path="/business-portfolio" element={
+                <ProtectedRoute><BusinessPortfolioPage /></ProtectedRoute>
+              } />
+              <Route path="/business-portfolio/:id" element={
+                <ProtectedRoute><BusinessDetailPage /></ProtectedRoute>
+              } />
+              <Route path="/business-import" element={
+                <ProtectedRoute><BusinessImportWizardPage /></ProtectedRoute>
               } />
               <Route path="/builder" element={
                 <ProtectedRoute><BuilderPage /></ProtectedRoute>

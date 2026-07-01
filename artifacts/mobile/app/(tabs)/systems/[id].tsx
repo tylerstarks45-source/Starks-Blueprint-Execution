@@ -137,10 +137,13 @@ export default function SystemDetailScreen() {
     system.buildStatus === "completed" ||
     system.buildStatus === "paused";
 
+  const TAB_BAR_HEIGHT = Platform.OS === "web" ? 84 : Platform.OS === "android" ? 56 : 49;
+  const bottomPad = insets.bottom + TAB_BAR_HEIGHT;
+
   return (
     <ScrollView
       style={[styles.root, { backgroundColor: colors.background }]}
-      contentContainerStyle={{ paddingBottom: insets.bottom + (Platform.OS === "web" ? 84 : Platform.OS === "android" ? 96 : 89) }}
+      contentContainerStyle={{ paddingBottom: bottomPad + 24 }}
       refreshControl={
         <RefreshControl
           refreshing={isLoading}

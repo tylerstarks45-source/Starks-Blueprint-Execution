@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Linking,
   Modal,
   Platform,
@@ -66,6 +67,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 // ─── Connect Sheet ────────────────────────────────────────────────────────────
 
 function ConnectSheet({ tool, onClose, onConnected, colors }: ConnectSheetProps) {
+  const insets = useSafeAreaInsets();
   const [credKey, setCredKey] = useState("");
   const [credValue, setCredValue] = useState("");
   const [saving, setSaving] = useState(false);
@@ -99,72 +101,81 @@ function ConnectSheet({ tool, onClose, onConnected, colors }: ConnectSheetProps)
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={sheet.overlay}>
+      <KeyboardAvoidingView
+        style={sheet.overlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-        <View style={[sheet.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[sheet.panel, { backgroundColor: colors.card, borderColor: colors.border, maxHeight: "88%" }]}>
           <View style={sheet.handle} />
-          <Text style={[sheet.title, { color: colors.foreground }]}>Connect {tool.name}</Text>
-          <Text style={[sheet.sub, { color: colors.mutedForeground }]}>
-            Enter your API key or access token to connect this tool to your account.
-          </Text>
-
-          <View style={sheet.field}>
-            <Text style={[sheet.fieldLabel, { color: colors.mutedForeground }]}>Credential name (e.g. API_KEY)</Text>
-            <TextInput
-              style={[sheet.fieldInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
-              value={credKey}
-              onChangeText={setCredKey}
-              placeholder="e.g. OPENAI_API_KEY"
-              placeholderTextColor={colors.mutedForeground}
-              autoCapitalize="characters"
-            />
-          </View>
-
-          <View style={sheet.field}>
-            <Text style={[sheet.fieldLabel, { color: colors.mutedForeground }]}>Value (kept encrypted)</Text>
-            <TextInput
-              style={[sheet.fieldInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
-              value={credValue}
-              onChangeText={setCredValue}
-              placeholder="Paste your key here"
-              placeholderTextColor={colors.mutedForeground}
-              secureTextEntry
-            />
-          </View>
-
-          {tool.websiteUrl && (
-            <TouchableOpacity onPress={() => Linking.openURL(tool.websiteUrl!).catch(() => {})} activeOpacity={0.7}>
-              <Text style={[sheet.getKeyLink, { color: colors.primary }]}>
-                Get your {tool.name} key →
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            style={[sheet.connectBtn, { backgroundColor: colors.primary }]}
-            onPress={handleConnect}
-            disabled={saving}
-            activeOpacity={0.85}
+          <ScrollView
+            contentContainerStyle={{ gap: 14, paddingBottom: insets.bottom + 24 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={sheet.connectBtnText}>Save & Connect</Text>
-            )}
-          </TouchableOpacity>
+            <Text style={[sheet.title, { color: colors.foreground }]}>Connect {tool.name}</Text>
+            <Text style={[sheet.sub, { color: colors.mutedForeground }]}>
+              Enter your API key or access token to connect this tool to your account.
+            </Text>
 
-          <TouchableOpacity style={sheet.cancelBtn} onPress={onClose} activeOpacity={0.7}>
-            <Text style={[sheet.cancelBtnText, { color: colors.mutedForeground }]}>Cancel</Text>
-          </TouchableOpacity>
+            <View style={sheet.field}>
+              <Text style={[sheet.fieldLabel, { color: colors.mutedForeground }]}>Credential name (e.g. API_KEY)</Text>
+              <TextInput
+                style={[sheet.fieldInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
+                value={credKey}
+                onChangeText={setCredKey}
+                placeholder="e.g. OPENAI_API_KEY"
+                placeholderTextColor={colors.mutedForeground}
+                autoCapitalize="characters"
+              />
+            </View>
+
+            <View style={sheet.field}>
+              <Text style={[sheet.fieldLabel, { color: colors.mutedForeground }]}>Value (kept encrypted)</Text>
+              <TextInput
+                style={[sheet.fieldInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
+                value={credValue}
+                onChangeText={setCredValue}
+                placeholder="Paste your key here"
+                placeholderTextColor={colors.mutedForeground}
+                secureTextEntry
+              />
+            </View>
+
+            {tool.websiteUrl && (
+              <TouchableOpacity onPress={() => Linking.openURL(tool.websiteUrl!).catch(() => {})} activeOpacity={0.7}>
+                <Text style={[sheet.getKeyLink, { color: colors.primary }]}>
+                  Get your {tool.name} key →
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[sheet.connectBtn, { backgroundColor: colors.primary }]}
+              onPress={handleConnect}
+              disabled={saving}
+              activeOpacity={0.85}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={sheet.connectBtnText}>Save & Connect</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={sheet.cancelBtn} onPress={onClose} activeOpacity={0.7}>
+              <Text style={[sheet.cancelBtnText, { color: colors.mutedForeground }]}>Cancel</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const sheet = StyleSheet.create({
   overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" },
-  panel: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, padding: 24, paddingBottom: 48, gap: 14 },
+  panel: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, paddingTop: 24, paddingHorizontal: 24 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#6B7A9960", alignSelf: "center", marginBottom: 4 },
   title: { fontSize: 20, fontWeight: "700" },
   sub: { fontSize: 13, lineHeight: 18, marginTop: -4 },

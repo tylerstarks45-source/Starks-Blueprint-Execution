@@ -542,7 +542,7 @@ export default function BuildScreen() {
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: colors.background }]}
       behavior="padding"
-      keyboardVerticalOffset={0}
+      keyboardVerticalOffset={TAB_BAR_HEIGHT}
     >
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 14, borderBottomColor: colors.border, backgroundColor: colors.background }]}>

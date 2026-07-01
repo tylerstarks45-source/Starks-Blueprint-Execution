@@ -10,6 +10,7 @@ import { CreditsModalProvider } from '@/contexts/CreditsModalContext.jsx';
 import { ClientProvider } from '@/contexts/ClientContext.jsx';
 import { WhiteLabelProvider, useWhiteLabel } from '@/contexts/WhiteLabelContext.jsx';
 import OutOfCreditsModal from '@/components/OutOfCreditsModal.jsx';
+import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 
 // Security Routes
 import ProtectedRoute from '@/components/security/ProtectedRoute.jsx';
@@ -121,9 +122,17 @@ const NotFoundPage = () => (
     <p className="text-xl text-muted-foreground mb-8 max-w-md">
       The page you're looking for doesn't exist, has been moved, or is under construction.
     </p>
-    <a href="/" className="px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-lg shadow-md hover:bg-primary/90 hover:scale-105 transition-all">
-      Return to Safety
-    </a>
+    <div className="flex items-center gap-3 flex-wrap justify-center">
+      <a href="/" className="px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-lg shadow-md hover:bg-primary/90 hover:scale-105 transition-all">
+        Return home
+      </a>
+      <a href="/dashboard" className="px-8 py-3 border border-border font-semibold rounded-lg text-foreground hover:bg-muted/30 transition-all">
+        Go to dashboard
+      </a>
+      <a href="/blueprints" className="px-8 py-3 border border-border font-semibold rounded-lg text-foreground hover:bg-muted/30 transition-all">
+        Browse blueprints
+      </a>
+    </div>
   </div>
 );
 
@@ -160,6 +169,7 @@ const App = () => {
         <CreditsModalProvider>
           <WhiteLabelHelmet />
 
+          <ErrorBoundary>
           <Suspense fallback={<PageFallback />}>
             <Routes>
               {/* Critical public pages — eager */}
@@ -297,6 +307,7 @@ const App = () => {
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
+          </ErrorBoundary>
 
           {/* Global credit exhaustion modal — listens for sbep:out-of-credits events */}
           <OutOfCreditsModal />

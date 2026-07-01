@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton.jsx';
 import {
   Image, Video, Music, Mic, ChevronDown, Download, Copy,
   Check, Loader2, ExternalLink, Play, Pause, RefreshCw,
@@ -797,8 +798,16 @@ export default function MediaGenPage() {
               </div>
 
               {galleryLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-4 h-4 animate-spin text-white/25" />
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="rounded-xl border border-white/6 bg-white/2 p-3 flex items-center gap-3">
+                      <Skeleton className="w-14 h-14 rounded-lg shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-2.5 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : galleryForTab.length === 0 ? (
                 <div className="rounded-xl border border-white/6 bg-white/2 px-4 py-8 text-center">

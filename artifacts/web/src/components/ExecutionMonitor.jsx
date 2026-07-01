@@ -55,7 +55,7 @@ const ExecutionMonitor = ({ systemId }) => {
               <div key={exec.id} className="flex items-center justify-between p-3 bg-muted/20 border border-border rounded-lg">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-bold text-foreground">Run #{exec.id.slice(-6)}</span>
+                    <span className="text-sm font-bold text-foreground">Run #{String(exec.id).slice(-6)}</span>
                     <SystemStatusBadge status={exec.status === 'completed' ? 'Running' : exec.status === 'failed' ? 'Error' : 'Deploying'} size="sm" />
                   </div>
                   <span className="text-[10px] text-muted-foreground">

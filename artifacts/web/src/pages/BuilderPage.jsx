@@ -3629,7 +3629,7 @@ const BuilderPage = () => {
                                     >Resume</button>
                                     {s.phase === 'complete' && (
                                       <button
-                                        onClick={(e) => { e.stopPropagation(); const blob = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ash-build-${s.id.slice(0,8)}.json`; a.click(); URL.revokeObjectURL(url); }}
+                                        onClick={(e) => { e.stopPropagation(); const blob = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ash-build-${String(s.id).slice(0,8)}.json`; a.click(); URL.revokeObjectURL(url); }}
                                         className="flex-1 text-[9px] font-mono font-semibold text-white/38 hover:text-white/65 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/18 rounded-md py-1 transition-all"
                                       >Export</button>
                                     )}
@@ -3923,15 +3923,15 @@ const BuilderPage = () => {
             {messages.length === 1 && phase === 'idle' && (
               <div className="mt-2">
                 <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono mb-2">Quick start</p>
-                <div className="grid grid-cols-1 gap-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {STARTER_PROMPTS.map((g, i) => (
                     <button
                       key={i}
                       onClick={() => sendMessage(g)}
-                      className="w-full text-left text-[11px] px-3 py-2 rounded-lg border border-white/10 bg-black/35 hover:bg-black/55 hover:border-white/18 text-white/42 hover:text-white transition-colors flex items-center gap-2"
+                      className="w-full text-left text-[11px] px-3 py-3 rounded-xl border border-white/10 bg-black/35 hover:bg-black/55 hover:border-primary/30 text-white/50 hover:text-white transition-colors flex items-start gap-2.5"
                     >
-                      <Zap className="w-3 h-3 text-primary/45 shrink-0" />
-                      {g}
+                      <Zap className="w-3.5 h-3.5 text-primary/50 shrink-0 mt-0.5" />
+                      <span className="leading-snug">{g}</span>
                     </button>
                   ))}
                 </div>
@@ -4001,6 +4001,25 @@ const BuilderPage = () => {
 
             <div ref={chatBottomRef} />
           </div>
+
+          {/* Persistent plan confirmation banner — shown whenever ASH's last reply reads like a build plan but no structured plan card appeared */}
+          {(() => {
+            const lastMsg = messages[messages.length - 1];
+            const showConfirmBanner = lastMsg?.role === 'assistant' && lastMsg?.missingPlan && phase !== 'planning' && !chatLoading;
+            if (!showConfirmBanner) return null;
+            return (
+              <div className="shrink-0 border-t border-amber-500/25 bg-amber-500/10 px-4 py-2.5 flex items-center gap-2.5 flex-wrap">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <p className="text-[11px] text-amber-200 flex-1 min-w-[160px]">This looks like a build plan — confirm it so ASH can start building.</p>
+                <Button
+                  className="h-7 gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-semibold border border-amber-500/40 shrink-0"
+                  onClick={() => sendMessage('Please output the SBEP_DATA plan block for the system you just described. Include action, blueprint, systemName, buildSteps, and requiredCredentials.')}
+                >
+                  Confirm this plan
+                </Button>
+              </div>
+            );
+          })()}
 
           {/* Build terminal — slides in when building */}
           {buildData && (phase === 'building' || phase === 'complete') && (

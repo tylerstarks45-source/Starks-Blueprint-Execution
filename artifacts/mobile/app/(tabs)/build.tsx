@@ -17,7 +17,13 @@ import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getToken } from "@/lib/api";
+
+function getStreamBaseUrl(): string {
+  const domain = process.env["EXPO_PUBLIC_DOMAIN"];
+  if (domain) return `https://${domain}`;
+  return "";
+}
 
 // ─── TTS helper ───────────────────────────────────────────────────────────────
 
@@ -386,6 +392,73 @@ export default function BuildScreen() {
 
   const genId = () => `${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
 
+  // Native (iOS/Android) fetch doesn't reliably support incremental streamed
+  // body reads, so only Platform.OS === "web" uses the real SSE stream;
+  // native falls back to the non-streaming /ai-orchestrator/chat endpoint.
+  const sendStreaming = useCallback(async (text: string, loadingId: string, currentHistory: Array<{ role: "user" | "assistant"; content: string }>) => {
+    const token = await getToken();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
+    const resp = await fetch(`${getStreamBaseUrl()}/api/ai-orchestrator/stream`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        message: text,
+        history: currentHistory,
+        planMode: ashMode === "plan",
+      }),
+    });
+
+    if (resp.status === 402) throw new Error("Out of AI credits. Top up to continue.");
+    if (!resp.ok || !resp.body) throw new Error("ASH request failed");
+
+    setMessages((prev) => prev.map((m) => (m.id === loadingId ? { ...m, loading: false, content: "" } : m)));
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let fullContent = "";
+    let finalContent = "";
+    let action: string | undefined;
+    let plan: BuildPlan | undefined;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        let event: any;
+        try { event = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (event.type === "token") {
+          fullContent += event.delta ?? "";
+          const clean = fullContent
+            .replace(/<SBEP_DATA>[\s\S]*?<\/SBEP_DATA>/g, "")
+            .replace(/<SBEP_DATA>[\s\S]*/g, "")
+            .trim();
+          setMessages((prev) => prev.map((m) => (m.id === loadingId ? { ...m, content: clean } : m)));
+        } else if (event.type === "done") {
+          finalContent = event.content ?? fullContent;
+          const structured = event.structuredData;
+          action = structured?.action;
+          plan = structured ? extractBuildPlan(JSON.stringify(structured), structured.action) ?? undefined : undefined;
+        } else if (event.type === "error") {
+          throw new Error(event.message ?? "Stream error");
+        }
+      }
+    }
+
+    setMessages((prev) => prev.map((m) => (m.id === loadingId ? { ...m, content: finalContent, loading: false, buildPlan: plan ?? null } : m)));
+    return { content: finalContent, action };
+  }, [ashMode]);
+
   const send = useCallback(async (overrideText?: string) => {
     const text = (overrideText ?? input).trim();
     if (!text || sending) return;
@@ -402,37 +475,47 @@ export default function BuildScreen() {
     setMessages((prev) => [loadingMsg, userMsg, ...prev]);
 
     try {
-      const data = await apiFetch<ChatResponse>("/ai-orchestrator/chat", {
-        method: "POST",
-        body: JSON.stringify({
-          message: text,
-          history: currentHistory,
-          chatOnly: ashMode === "chat",
-          planMode: ashMode === "plan",
-        }),
-      });
+      let content: string;
+      let action: string | undefined;
 
-      const action = data.action ?? data.action_type;
-      // Prefer structured plan from response; fall back to markdown-extracted plan
-      const buildPlan = data.plan ?? extractBuildPlan(data.content, action);
+      if (Platform.OS === "web") {
+        const result = await sendStreaming(text, loadingId, currentHistory);
+        content = result.content;
+        action = result.action;
+      } else {
+        const data = await apiFetch<ChatResponse>("/ai-orchestrator/chat", {
+          method: "POST",
+          body: JSON.stringify({
+            message: text,
+            history: currentHistory,
+            chatOnly: ashMode === "chat",
+            planMode: ashMode === "plan",
+          }),
+        });
 
-      const assistantMsg: ChatMessage = {
-        id: loadingId,
-        role: "assistant",
-        content: data.content,
-        buildPlan,
-      };
+        action = data.action ?? data.action_type;
+        // Prefer structured plan from response; fall back to markdown-extracted plan
+        const buildPlan = data.plan ?? extractBuildPlan(data.content, action);
+        content = data.content;
 
-      setMessages((prev) => prev.map((m) => (m.id === loadingId ? assistantMsg : m)));
+        const assistantMsg: ChatMessage = {
+          id: loadingId,
+          role: "assistant",
+          content: data.content,
+          buildPlan,
+        };
+        setMessages((prev) => prev.map((m) => (m.id === loadingId ? assistantMsg : m)));
+      }
+
       setHistory((h) => [
-        { role: "assistant", content: data.content },
+        { role: "assistant", content },
         { role: "user", content: text },
         ...h.slice(0, 18),
       ]);
 
       // TTS auto-playback if voice responses are enabled
-      if (voiceResponseEnabled && data.content) {
-        void playTTSResponse(data.content);
+      if (voiceResponseEnabled && content) {
+        void playTTSResponse(content);
       }
 
       if (action === "collect_credentials" || action === "start_build") {
@@ -448,7 +531,7 @@ export default function BuildScreen() {
     } finally {
       setSending(false);
     }
-  }, [input, sending, history, ashMode, voiceResponseEnabled]);
+  }, [input, sending, history, ashMode, voiceResponseEnabled, sendStreaming]);
 
   const TAB_BAR_HEIGHT = Platform.OS === "web" ? 84 : Platform.OS === "android" ? 56 : 49;
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);

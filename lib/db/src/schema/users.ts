@@ -20,6 +20,7 @@ export const usersTable = pgTable("users", {
   emailVerifyToken: text("email_verify_token"),
   emailVerifyExpiry: timestamp("email_verify_expiry", { withTimezone: true }),
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  onboardingChecklistDismissed: boolean("onboarding_checklist_dismissed").notNull().default(false),
   milestonesReached: jsonb("milestones_reached").$type<Array<{ amount: number; reachedAt: string }>>().default([]),
   socialProofConsent: boolean("social_proof_consent").notNull().default(false),
   notifyRevenue: boolean("notify_revenue").notNull().default(true),

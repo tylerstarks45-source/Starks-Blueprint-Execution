@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useId, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import ReferAndEarnBanner from '@/components/dashboard/user/ReferAndEarnBanner.jsx';
+import OnboardingChecklist from '@/components/dashboard/user/OnboardingChecklist.jsx';
 import UserMyBlueprintsPanel from '@/components/dashboard/user/UserMyBlueprintsPanel.jsx';
 import CommunityWinsCard from '@/components/dashboard/user/CommunityWinsCard.jsx';
 import MilestoneCelebrationModal from '@/components/MilestoneCelebrationModal.jsx';
@@ -637,6 +638,9 @@ const SystemCommandCenterPage = () => {
           </div>
         </div>
       </HudPanel>
+
+      {/* ══ ONBOARDING CHECKLIST — dismissable 4-step progress card for new users ══ */}
+      <OnboardingChecklist />
 
       {/* ══ REFER & EARN BANNER — shown for free/builder/operator users ══════ */}
       {['free', 'builder'].includes((user.subscriptionTier ?? 'free').toLowerCase()) && (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 
 import AuthLayout from '@/components/AuthLayout.jsx';
+import { Skeleton } from '@/components/ui/skeleton.jsx';
 import {
   Mail, Users, Plus, Trash2, ChevronRight, ChevronDown,
   Upload, Sparkles, RefreshCw, Search, Send, List,
@@ -658,7 +659,16 @@ export default function EmailMarketingPage() {
 
         {loading ? (
           <div className="space-y-3">
-            {[1, 2].map(i => <div key={i} className="h-20 rounded-2xl bg-white/3 border border-white/6 animate-pulse" />)}
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-20 rounded-2xl bg-white/3 border border-white/6 p-4 flex items-center gap-4">
+                <Skeleton className="w-9 h-9 rounded-lg shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3.5 w-1/3" />
+                  <Skeleton className="h-2.5 w-1/4" />
+                </div>
+                <Skeleton className="h-7 w-20 rounded-lg shrink-0" />
+              </div>
+            ))}
           </div>
 
         ) : tab === 'lists' ? (

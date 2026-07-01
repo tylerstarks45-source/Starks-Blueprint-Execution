@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import pb from '@/lib/pocketbaseClient.js';
 import AuthLayout from '@/components/AuthLayout.jsx';
+import { Skeleton } from '@/components/ui/skeleton.jsx';
 import { Search, Activity, Settings, BarChart2, Box } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -80,10 +81,25 @@ const SavedSystemsPage = () => {
 
             <div className="space-y-3">
               {isLoading ? (
-                <div className="p-8 text-center bg-card/80 backdrop-blur-xl rounded-2xl border border-white/10 shadow-lg"><Activity className="w-6 h-6 animate-spin mx-auto text-primary" /></div>
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="p-4 rounded-xl border border-white/10 bg-card/80 backdrop-blur-xl shadow-lg space-y-3">
+                      <div className="flex justify-between items-start">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-4 w-14 rounded-full" />
+                      </div>
+                      <Skeleton className="h-1 w-full rounded-full" />
+                    </div>
+                  ))}
+                </div>
               ) : systems.length === 0 ? (
-                <div className="p-8 border border-white/20 bg-card/80 backdrop-blur-xl rounded-xl text-center text-zinc-300 text-sm font-bold shadow-lg">
-                  No deployed systems found.
+                <div className="p-8 border border-white/20 bg-card/80 backdrop-blur-xl rounded-xl text-center shadow-lg">
+                  <Box className="w-8 h-8 mx-auto mb-3 text-zinc-500" />
+                  <p className="text-zinc-300 text-sm font-bold mb-1">No deployed systems yet</p>
+                  <p className="text-zinc-400 text-xs font-medium mb-4">Pick a blueprint and let ASH build your first system.</p>
+                  <Link to="/blueprints" className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 transition-colors">
+                    Browse blueprints →
+                  </Link>
                 </div>
               ) : (
                 systems.map(sys => {
@@ -117,7 +133,7 @@ const SavedSystemsPage = () => {
                     <h2 className="text-2xl font-extrabold text-foreground mb-2 font-mono text-shadow-md">{selectedSystem.blueprint?.name || selectedSystem.systemName || 'Unnamed System'}</h2>
                     <div className="flex items-center gap-3">
                       <SystemStatusBadge status={selectedSystem.status === 'Active' ? 'Running' : 'Draft'} />
-                      <span className="text-xs text-zinc-300 font-mono font-bold">ID: {selectedSystem.id.substring(0,8)}</span>
+                      <span className="text-xs text-zinc-300 font-mono font-bold">ID: {String(selectedSystem.id).substring(0,8)}</span>
                     </div>
                   </div>
                 </div>

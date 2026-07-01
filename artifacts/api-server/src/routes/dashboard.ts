@@ -13,6 +13,9 @@ import {
   systemRevenueProvidersTable,
   publishedContentTable,
   openrouterUsageTable,
+  chatSessionsTable,
+  userCredentialsTable,
+  usersTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
 import { requireAuthActive } from "../lib/auth";
@@ -573,6 +576,94 @@ router.get("/dashboard/ai-activity", async (req, res): Promise<void> => {
       successRate7d: Number(totals?.successRate ?? 100),
     },
   });
+});
+
+// GET /api/dashboard/onboarding-progress — 4-step onboarding checklist state for the current user
+router.get("/dashboard/onboarding-progress", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const [user] = await db
+    .select({ dismissed: usersTable.onboardingChecklistDismissed })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+
+  const [[chatRow], [systemRow], [credentialRow], [buildRow]] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(chatSessionsTable)
+      .where(and(eq(chatSessionsTable.userId, userId), sql`${chatSessionsTable.messageCount} > 0`)),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(systemInstancesTable)
+      .where(eq(systemInstancesTable.userId, userId)),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(userCredentialsTable)
+      .where(eq(userCredentialsTable.userId, userId)),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(systemInstancesTable)
+      .where(and(
+        eq(systemInstancesTable.userId, userId),
+        inArray(systemInstancesTable.buildStatus, ["active", "completed"]),
+      )),
+  ]);
+
+  const steps = [
+    {
+      id: "chat",
+      label: "Chat with ASH about your goal",
+      description: "Tell ASH what kind of income system you want to build.",
+      done: Number(chatRow?.count ?? 0) > 0,
+      actionUrl: "/builder",
+      actionLabel: "Open Builder",
+    },
+    {
+      id: "system",
+      label: "Create your first system",
+      description: "Pick a blueprint or let ASH design one for you.",
+      done: Number(systemRow?.count ?? 0) > 0,
+      actionUrl: "/blueprints",
+      actionLabel: "Browse Blueprints",
+    },
+    {
+      id: "credential",
+      label: "Connect a tool",
+      description: "Link an account so ASH can operate on your behalf.",
+      done: Number(credentialRow?.count ?? 0) > 0,
+      actionUrl: "/connections",
+      actionLabel: "Connect Tools",
+    },
+    {
+      id: "build",
+      label: "Launch your first build",
+      description: "Complete a build so your system goes live.",
+      done: Number(buildRow?.count ?? 0) > 0,
+      actionUrl: "/systems",
+      actionLabel: "View Systems",
+    },
+  ];
+
+  res.json({
+    steps,
+    completedCount: steps.filter((s) => s.done).length,
+    totalCount: steps.length,
+    dismissed: user?.dismissed ?? false,
+  });
+});
+
+// POST /api/dashboard/onboarding-progress/dismiss — hide the onboarding checklist card
+router.post("/dashboard/onboarding-progress/dismiss", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  await db
+    .update(usersTable)
+    .set({ onboardingChecklistDismissed: true })
+    .where(eq(usersTable.id, userId));
+
+  res.json({ dismissed: true });
 });
 
 // GET /api/dashboard/blueprints — all published blueprints (no auth required)

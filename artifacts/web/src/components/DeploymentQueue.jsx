@@ -53,7 +53,7 @@ const DeploymentQueue = ({ systemId }) => {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-bold text-foreground">Deploy #{dep.id.slice(-6)}</span>
+                      <span className="text-sm font-bold text-foreground">Deploy #{String(dep.id).slice(-6)}</span>
                       {idx === 0 && dep.status === 'queued' && (
                         <span className="text-[10px] bg-secondary/20 text-secondary px-2 py-0.5 rounded font-bold uppercase tracking-wider">Pos: {dep.queue_position || 1}</span>
                       )}

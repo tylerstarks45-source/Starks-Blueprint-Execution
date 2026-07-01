@@ -1,4 +1,4 @@
-import { eq, and, lt, sql } from "drizzle-orm";
+import { eq, and, or, lt, gt, inArray, isNotNull, sql } from "drizzle-orm";
 import {
   db,
   systemConnectorsTable,
@@ -6,6 +6,9 @@ import {
   businessesTable,
   businessOperationsSettingsTable,
   pendingApprovalsTable,
+  systemInstancesTable,
+  monitoringLogEventsTable,
+  userCredentialsTable,
   usersTable,
   type OperationsPermissions,
   DEFAULT_OPERATIONS_PERMISSIONS,
@@ -15,8 +18,10 @@ import { logger } from "./logger";
 import { logMonitoringEvent } from "./health-monitor";
 import { createPendingApproval } from "./approvals";
 import { hasOperationsModeAccess } from "./operations-gate";
+import { restartSystem, DeploymentError } from "./runtime/deployment";
 
 const STUCK_JOB_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes "active" with no progress
+const RESTART_WORKER_COOLDOWN_MS = 30 * 60 * 1000; // don't restart the same worker more than once per 30 minutes
 
 // Whitelisted low-risk self-healing actions. Each is a pure-ish function
 // with a clear precondition (what's broken) and postcondition (what "fixed"
@@ -77,9 +82,13 @@ async function resolvePermissions(
 // ─── Fix #1: reconnect an expired/errored connector ────────────────────────
 // Precondition: a system_connector row has status 'error'.
 // Postcondition: re-testing with the currently stored credentials succeeds
-// and the row is updated to 'connected'. If it still fails, we can't fix it
-// without new credentials from the user — that's an escalation, not a retry
-// loop, since there's no stored refresh-token flow to fall back on.
+// and the row is updated to 'connected' — this is the "stored refresh flow":
+// we check the user's *stored* credential record (status/expiresAt) rather
+// than blindly retrying. If the stored token is genuinely expired, no
+// connector in this codebase implements an OAuth refresh-token exchange, so
+// retrying testConnection() would just fail identically forever. In that
+// case we skip straight to "can't fix, needs new credentials" instead of
+// looping — that's an escalation, not a retry loop.
 async function reconnectExpiredConnector(
   systemInstanceId: number,
   connectorId: string,
@@ -89,6 +98,42 @@ async function reconnectExpiredConnector(
   const connector = getConnector(connectorId, creds);
   if (!connector) {
     return { action: "reconnect", attempted: true, fixed: false, detail: `Unknown connector ${connectorId}` };
+  }
+
+  const [instance] = await db
+    .select({ userId: systemInstancesTable.userId })
+    .from(systemInstancesTable)
+    .where(eq(systemInstancesTable.id, systemInstanceId));
+
+  if (instance && connector.requiredCredentials.length > 0) {
+    const expiredCred = await db
+      .select({ id: userCredentialsTable.id, credentialKey: userCredentialsTable.credentialKey })
+      .from(userCredentialsTable)
+      .where(
+        and(
+          eq(userCredentialsTable.userId, instance.userId),
+          inArray(userCredentialsTable.credentialKey, connector.requiredCredentials),
+          or(
+            eq(userCredentialsTable.status, "expired"),
+            and(isNotNull(userCredentialsTable.expiresAt), lt(userCredentialsTable.expiresAt, new Date())),
+          ),
+        ),
+      )
+      .limit(1);
+
+    if (expiredCred.length > 0) {
+      await db
+        .update(systemConnectorsTable)
+        .set({ status: "error", lastTestedAt: new Date(), errorMessage: "Stored credential is expired" })
+        .where(and(eq(systemConnectorsTable.systemInstanceId, systemInstanceId), eq(systemConnectorsTable.connector, connectorId)));
+
+      return {
+        action: "reconnect",
+        attempted: true,
+        fixed: false,
+        detail: `${connectorId}'s stored credential (${expiredCred[0]!.credentialKey}) is expired and this connector has no OAuth refresh-token flow — needs a new credential from the user`,
+      };
+    }
   }
 
   const result = await connector.testConnection();
@@ -160,6 +205,32 @@ async function clearStuckJob(jobId: string): Promise<SelfHealResult> {
     .where(eq(runtimeJobsTable.jobId, jobId));
 
   return { action: "clear_stuck", attempted: true, fixed: true, detail: `Cleared stuck job ${jobId}` };
+}
+
+// ─── Fix #4: restart a crashed worker ──────────────────────────────────────
+// Precondition: system_instances.buildStatus = 'failed' (the deployment
+// state machine only allows a fresh 'deploying' transition from 'failed',
+// 'built', or 'paused' — a system stuck at 'failed' means its worker
+// process crashed/exited and needs a fresh deploy to come back up).
+// Postcondition: restartSystem() moves it back through built -> deploying,
+// same path a user hits via POST /api/runtime/systems/:id/restart.
+async function restartWorker(systemInstanceId: number): Promise<SelfHealResult> {
+  const [instance] = await db
+    .select({ buildStatus: systemInstancesTable.buildStatus })
+    .from(systemInstancesTable)
+    .where(eq(systemInstancesTable.id, systemInstanceId));
+
+  if (!instance || instance.buildStatus !== "failed") {
+    return { action: "restart_worker", attempted: false, fixed: false, detail: `System ${systemInstanceId} is not in a crashed state` };
+  }
+
+  try {
+    await restartSystem(systemInstanceId);
+    return { action: "restart_worker", attempted: true, fixed: true, detail: `Restarted worker for system ${systemInstanceId}` };
+  } catch (err) {
+    const detail = err instanceof DeploymentError ? err.message : String(err);
+    return { action: "restart_worker", attempted: true, fixed: false, detail: `Restart failed for system ${systemInstanceId}: ${detail}` };
+  }
 }
 
 // ─── Orchestrator ───────────────────────────────────────────────────────────
@@ -380,6 +451,98 @@ export async function attemptSelfHeal(
       message: result.detail,
       metadata: { jobId: job.jobId, jobType: job.jobType },
     });
+  }
+
+  const [instance] = await db
+    .select({ buildStatus: systemInstancesTable.buildStatus })
+    .from(systemInstancesTable)
+    .where(eq(systemInstancesTable.id, systemInstanceId));
+
+  if (instance?.buildStatus === "failed") {
+    if (!canAutoFix) {
+      await logMonitoringEvent({
+        systemInstanceId,
+        businessId,
+        eventType: "health_check",
+        action: "restart_worker",
+        status: "skipped",
+        message: `System ${systemInstanceId}'s worker crashed but auto-fix is not enabled`,
+      });
+    } else {
+      const cooldownStart = new Date(Date.now() - RESTART_WORKER_COOLDOWN_MS);
+      const recentRestart = await db
+        .select({ id: monitoringLogEventsTable.id })
+        .from(monitoringLogEventsTable)
+        .where(
+          and(
+            eq(monitoringLogEventsTable.systemInstanceId, systemInstanceId),
+            eq(monitoringLogEventsTable.eventType, "self_heal"),
+            eq(monitoringLogEventsTable.action, "restart_worker"),
+            gt(monitoringLogEventsTable.createdAt, cooldownStart),
+          ),
+        )
+        .limit(1);
+
+      if (recentRestart.length > 0) {
+        // Already tried a restart recently and it's still failed — stop
+        // looping and escalate instead of restarting every tick.
+        await logMonitoringEvent({
+          systemInstanceId,
+          businessId,
+          eventType: "self_heal",
+          action: "restart_worker",
+          status: "skipped",
+          message: `System ${systemInstanceId} crashed again after a recent self-heal restart — not retrying further`,
+        });
+
+        if (businessId && ownerId != null) {
+          const existingApproval = await db
+            .select({ id: pendingApprovalsTable.id })
+            .from(pendingApprovalsTable)
+            .where(
+              and(
+                eq(pendingApprovalsTable.businessId, businessId),
+                eq(pendingApprovalsTable.status, "pending"),
+                eq(pendingApprovalsTable.category, "autoFixHighRisk"),
+                sql`${pendingApprovalsTable.payload}->>'systemInstanceId' = ${String(systemInstanceId)}`,
+                sql`${pendingApprovalsTable.payload}->>'action' = 'restart_worker'`,
+              ),
+            )
+            .limit(1);
+
+          if (existingApproval.length === 0) {
+            await createPendingApproval({
+              businessId,
+              userId: ownerId,
+              category: "autoFixHighRisk",
+              riskLevel: "high",
+              title: `Investigate crashed worker (system ${systemInstanceId})`,
+              description: `System ${systemInstanceId}'s worker crashed again shortly after an automatic restart and needs manual investigation.`,
+              payload: { systemInstanceId, action: "restart_worker" },
+            });
+            await logMonitoringEvent({
+              systemInstanceId,
+              businessId,
+              eventType: "escalated",
+              action: "restart_worker",
+              status: "escalated",
+              message: `Escalated repeatedly crashing worker for system ${systemInstanceId} to Pending Approval`,
+            });
+          }
+        }
+      } else {
+        const result = await restartWorker(systemInstanceId);
+        if (result.attempted) results.push(result);
+        await logMonitoringEvent({
+          systemInstanceId,
+          businessId,
+          eventType: "self_heal",
+          action: result.action,
+          status: result.fixed ? "success" : "failed",
+          message: result.detail,
+        });
+      }
+    }
   }
 
   if (results.length > 0) {

@@ -16,8 +16,38 @@ import {
   StoreUserCredentialBody,
   DeleteUserCredentialParams,
 } from "@workspace/api-zod";
+import { computeSystemHealth } from "../lib/health-monitor";
+import { attemptSelfHeal } from "../lib/self-healing";
+import { loadCredentials } from "../lib/runtime/worker";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+
+// Event-triggered recompute + self-heal (Task #246) for "integration
+// disconnect" events: when a stored credential moves to a disconnected/
+// expired/needs-reconnect state (or is deleted outright), every system
+// instance owned by that user may now have a broken connector, so recompute
+// health and let attemptSelfHeal decide whether to auto-fix or escalate —
+// same fire-and-forget pattern as handleConnectorTest in runtime/worker.ts.
+const DISCONNECT_STATUSES = new Set(["disconnected", "expired", "needs_reconnect", "invalid"]);
+
+function triggerDisconnectRecompute(ownerUserId: number): void {
+  (async () => {
+    try {
+      const instances = await db
+        .select({ id: systemInstancesTable.id })
+        .from(systemInstancesTable)
+        .where(eq(systemInstancesTable.userId, ownerUserId));
+
+      for (const { id } of instances) {
+        await computeSystemHealth(id);
+        await attemptSelfHeal(id, loadCredentials);
+      }
+    } catch (err) {
+      logger.warn({ err, ownerUserId }, "Event-triggered health recompute failed (credential disconnect)");
+    }
+  })();
+}
 
 // ─── GET /api/user-credentials/summary ──────────────────────────────────────
 // Returns credential metadata (no values) including Connection Hub fields.
@@ -365,6 +395,11 @@ router.patch("/user-credentials/:id", async (req, res): Promise<void> => {
   if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
 
   await db.update(userCredentialsTable).set(updates).where(eq(userCredentialsTable.id, credId));
+
+  if (status && DISCONNECT_STATUSES.has(status)) {
+    triggerDisconnectRecompute(existing.userId);
+  }
+
   res.sendStatus(204);
 });
 
@@ -389,6 +424,7 @@ router.delete("/user-credentials/:id", async (req, res): Promise<void> => {
   if (existing.userId !== caller.id) { res.status(403).json({ error: "Forbidden" }); return; }
 
   await db.delete(userCredentialsTable).where(eq(userCredentialsTable.id, params.data.id));
+  triggerDisconnectRecompute(existing.userId);
   res.sendStatus(204);
 });
 

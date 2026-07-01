@@ -6,10 +6,13 @@ import {
   ArrowLeft, Building2, Globe, Wrench, Download, Link2, RefreshCw,
   FileText, TrendingUp, BarChart3, Server, Plug, Sparkles, Bell,
   ListChecks, LineChart as LineChartIcon, Rocket, ExternalLink, AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import HealthScoreCard from '@/components/HealthScoreCard.jsx';
+import ApprovalsQueue from '@/components/ApprovalsQueue.jsx';
+import OperationsModePanel from '@/components/OperationsModePanel.jsx';
 import { getAuthHeaders } from '@/lib/apiHeaders.js';
 import { useBusiness } from '@/contexts/BusinessContext.jsx';
 
@@ -378,9 +381,14 @@ export default function BusinessCommandCenterPage() {
             )}
           </SectionCard>
 
-          {/* Tasks */}
-          <SectionCard icon={ListChecks} title="Tasks">
-            <p className="text-sm text-muted-foreground/60">Task &amp; approval queue coming soon.</p>
+          {/* Tasks / Approval Queue */}
+          <SectionCard icon={ListChecks} title="Approval Queue">
+            <ApprovalsQueue businessId={business.id} />
+          </SectionCard>
+
+          {/* ASH Operations Mode */}
+          <SectionCard icon={ShieldCheck} title="ASH Operations Mode">
+            <OperationsModePanel businessId={business.id} />
           </SectionCard>
 
           {/* Growth Recommendations */}

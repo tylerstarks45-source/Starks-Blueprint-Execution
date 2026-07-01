@@ -65,6 +65,8 @@ import type {
   BusinessConnectionInput,
   BusinessHealthResponse,
   BusinessInput,
+  BusinessOperationsSettings,
+  BusinessOperationsSettingsInput,
   BusinessOverviewResponse,
   BusinessUpdate,
   BusinessWithConnections,
@@ -87,6 +89,7 @@ import type {
   HealthStatus,
   ListAdminActivityParams,
   ListAffiliateLinksParams,
+  ListApprovalsParams,
   ListBlueprintsParams,
   ListBuildOutputsParams,
   ListBuildProgressParams,
@@ -106,6 +109,7 @@ import type {
   OpenrouterResponse,
   OpenrouterUsageRecord,
   OpenrouterUsageSummary,
+  PendingApproval,
   RotateKeyBody,
   RotateKeyResult,
   ScheduledPost,
@@ -128,6 +132,7 @@ import type {
   ToolCategoryUpdate,
   ToolInput,
   ToolUpdate,
+  UpgradeRequiredResponse,
   User,
   UserCredentialInput,
   UserCredentialSafe,
@@ -8744,5 +8749,378 @@ export const useAnalyzeBusinessHealth = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getAnalyzeBusinessHealthMutationOptions(options));
+    }
+
+export const getGetBusinessOperationsSettingsUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/operations-settings`
+}
+
+/**
+ * @summary Get ASH Operations Mode settings (enabled flag + permission grants) for a business
+ */
+export const getBusinessOperationsSettings = async (id: number, options?: RequestInit): Promise<BusinessOperationsSettings> => {
+
+  return customFetch<BusinessOperationsSettings>(getGetBusinessOperationsSettingsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessOperationsSettingsQueryKey = (id: number,) => {
+    return [
+    `/api/businesses/${id}/operations-settings`
+    ] as const;
+    }
+
+
+export const getGetBusinessOperationsSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessOperationsSettings>>, TError = ErrorType<UpgradeRequiredResponse | ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessOperationsSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessOperationsSettingsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessOperationsSettings>>> = ({ signal }) => getBusinessOperationsSettings(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessOperationsSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessOperationsSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessOperationsSettings>>>
+export type GetBusinessOperationsSettingsQueryError = ErrorType<UpgradeRequiredResponse | ErrorResponse>
+
+
+/**
+ * @summary Get ASH Operations Mode settings (enabled flag + permission grants) for a business
+ */
+
+export function useGetBusinessOperationsSettings<TData = Awaited<ReturnType<typeof getBusinessOperationsSettings>>, TError = ErrorType<UpgradeRequiredResponse | ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessOperationsSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessOperationsSettingsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateBusinessOperationsSettingsUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/operations-settings`
+}
+
+/**
+ * @summary Enable/disable ASH Operations Mode and update permission grants for a business
+ */
+export const updateBusinessOperationsSettings = async (id: number,
+    businessOperationsSettingsInput: BusinessOperationsSettingsInput, options?: RequestInit): Promise<BusinessOperationsSettings> => {
+
+  return customFetch<BusinessOperationsSettings>(getUpdateBusinessOperationsSettingsUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      businessOperationsSettingsInput,)
+  }
+);}
+
+
+
+
+export const getUpdateBusinessOperationsSettingsMutationOptions = <TError = ErrorType<UpgradeRequiredResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBusinessOperationsSettings>>, TError,{id: number;data: BodyType<BusinessOperationsSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBusinessOperationsSettings>>, TError,{id: number;data: BodyType<BusinessOperationsSettingsInput>}, TContext> => {
+
+const mutationKey = ['updateBusinessOperationsSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBusinessOperationsSettings>>, {id: number;data: BodyType<BusinessOperationsSettingsInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateBusinessOperationsSettings(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBusinessOperationsSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateBusinessOperationsSettings>>>
+    export type UpdateBusinessOperationsSettingsMutationBody = BodyType<BusinessOperationsSettingsInput>
+    export type UpdateBusinessOperationsSettingsMutationError = ErrorType<UpgradeRequiredResponse | ErrorResponse>
+
+    /**
+ * @summary Enable/disable ASH Operations Mode and update permission grants for a business
+ */
+export const useUpdateBusinessOperationsSettings = <TError = ErrorType<UpgradeRequiredResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBusinessOperationsSettings>>, TError,{id: number;data: BodyType<BusinessOperationsSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBusinessOperationsSettings>>,
+        TError,
+        {id: number;data: BodyType<BusinessOperationsSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateBusinessOperationsSettingsMutationOptions(options));
+    }
+
+export const getListApprovalsUrl = (params?: ListApprovalsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/approvals?${stringifiedParams}` : `/api/approvals`
+}
+
+/**
+ * @summary List the caller's pending approvals (ASH Operations Mode queue)
+ */
+export const listApprovals = async (params?: ListApprovalsParams, options?: RequestInit): Promise<PendingApproval[]> => {
+
+  return customFetch<PendingApproval[]>(getListApprovalsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApprovalsQueryKey = (params?: ListApprovalsParams,) => {
+    return [
+    `/api/approvals`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListApprovalsQueryOptions = <TData = Awaited<ReturnType<typeof listApprovals>>, TError = ErrorType<unknown>>(params?: ListApprovalsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApprovals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApprovalsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApprovals>>> = ({ signal }) => listApprovals(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApprovals>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApprovalsQueryResult = NonNullable<Awaited<ReturnType<typeof listApprovals>>>
+export type ListApprovalsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the caller's pending approvals (ASH Operations Mode queue)
+ */
+
+export function useListApprovals<TData = Awaited<ReturnType<typeof listApprovals>>, TError = ErrorType<unknown>>(
+ params?: ListApprovalsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApprovals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApprovalsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getApprovePendingApprovalUrl = (id: number,) => {
+
+
+
+
+  return `/api/approvals/${id}/approve`
+}
+
+/**
+ * @summary Approve a pending approval item
+ */
+export const approvePendingApproval = async (id: number, options?: RequestInit): Promise<PendingApproval> => {
+
+  return customFetch<PendingApproval>(getApprovePendingApprovalUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getApprovePendingApprovalMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approvePendingApproval>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approvePendingApproval>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['approvePendingApproval'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approvePendingApproval>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  approvePendingApproval(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApprovePendingApprovalMutationResult = NonNullable<Awaited<ReturnType<typeof approvePendingApproval>>>
+
+    export type ApprovePendingApprovalMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Approve a pending approval item
+ */
+export const useApprovePendingApproval = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approvePendingApproval>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approvePendingApproval>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getApprovePendingApprovalMutationOptions(options));
+    }
+
+export const getRejectPendingApprovalUrl = (id: number,) => {
+
+
+
+
+  return `/api/approvals/${id}/reject`
+}
+
+/**
+ * @summary Reject a pending approval item
+ */
+export const rejectPendingApproval = async (id: number, options?: RequestInit): Promise<PendingApproval> => {
+
+  return customFetch<PendingApproval>(getRejectPendingApprovalUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRejectPendingApprovalMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectPendingApproval>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectPendingApproval>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['rejectPendingApproval'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectPendingApproval>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  rejectPendingApproval(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectPendingApprovalMutationResult = NonNullable<Awaited<ReturnType<typeof rejectPendingApproval>>>
+
+    export type RejectPendingApprovalMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Reject a pending approval item
+ */
+export const useRejectPendingApproval = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectPendingApproval>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectPendingApproval>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRejectPendingApprovalMutationOptions(options));
     }
 

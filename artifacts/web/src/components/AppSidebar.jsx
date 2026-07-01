@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Layers, Bot, Mail, Globe, Link2, Plug, Share2,
@@ -67,6 +67,30 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
 
   const isActive = (path) =>
     location.pathname === path || location.pathname.startsWith(`${path}/`);
+
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+
+  const fetchPendingApprovals = useCallback(async () => {
+    if (!currentUser?.id) return;
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const res = await fetch('/api/approvals?status=pending', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingApprovals(Array.isArray(data) ? data.length : 0);
+      }
+    } catch {
+      // silently ignore — badge is non-critical
+    }
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    fetchPendingApprovals();
+    const interval = setInterval(fetchPendingApprovals, 60000);
+    return () => clearInterval(interval);
+  }, [fetchPendingApprovals]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -189,13 +213,25 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
                       : 'text-white/45 hover:text-white/85 hover:bg-white/5 border border-transparent',
                   ].join(' ')}
                 >
-                  <item.icon
-                    className={`shrink-0 transition-colors ${collapsed ? 'w-5 h-5' : 'w-4 h-4'} ${active ? 'text-violet-400' : 'text-white/40 group-hover:text-white/70'}`}
-                  />
+                  <span className="relative shrink-0">
+                    <item.icon
+                      className={`shrink-0 transition-colors ${collapsed ? 'w-5 h-5' : 'w-4 h-4'} ${active ? 'text-violet-400' : 'text-white/40 group-hover:text-white/70'}`}
+                    />
+                    {item.path === '/business-portfolio' && pendingApprovals > 0 && collapsed && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 flex items-center justify-center bg-violet-500 text-white text-[8px] font-bold rounded-full px-0.5 leading-none">
+                        {pendingApprovals > 9 ? '9+' : pendingApprovals}
+                      </span>
+                    )}
+                  </span>
                   {!collapsed && (
                     <span className="font-medium truncate leading-none">{item.label}</span>
                   )}
-                  {active && !collapsed && (
+                  {item.path === '/business-portfolio' && pendingApprovals > 0 && !collapsed && (
+                    <span className="ml-auto shrink-0 min-w-[18px] flex items-center justify-center bg-violet-500/80 text-white text-[9px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+                      {pendingApprovals > 9 ? '9+' : pendingApprovals}
+                    </span>
+                  )}
+                  {active && !collapsed && !(item.path === '/business-portfolio' && pendingApprovals > 0) && (
                     <span className="ml-auto w-1 h-1 rounded-full bg-violet-400 shrink-0" />
                   )}
                 </Link>

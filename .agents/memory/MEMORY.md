@@ -20,3 +20,5 @@
 - [Expo mobile web output surfaces](expo-web-pwa-output.md) — `+html.tsx`/`public/manifest.json` only affect `expo export -p web`; this app's real prod web surface is the hand-rolled `server/templates/landing-page.html`.
 - [Business Health Analysis Engine](business-health-scores.md) — async job-based scoring, `analyzing` derived from runtime_jobs payload scan, auto-triggered on creation only (not backfill), remember to `db push` per env.
 - [Business Command Center architecture](business-command-center.md) — portfolio + `/business/:id` detail page share one `/overview` endpoint; must test with an `imported` business with zero data for empty-state coverage.
+- [Premium tier-gate pattern](premium-tier-gate.md) — stricter-than-paywall gates (e.g. Operator/Empire only) need their own allow-set + 403 helper; don't reuse the free-vs-paid SubscriptionGate check. FOUNDER_ADMIN bypasses, SUPER_ADMIN does not.
+- [Dev workflow build-not-watch gotcha](dev-workflow-build-not-watch.md) — api-server's dev command runs `build && start` once; new/changed routes 404 with Express's default page until the workflow is restarted.

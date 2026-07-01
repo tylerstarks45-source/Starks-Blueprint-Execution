@@ -2408,3 +2408,131 @@ export const AnalyzeBusinessHealthParams = zod.object({
 })
 
 
+/**
+ * @summary Get ASH Operations Mode settings (enabled flag + permission grants) for a business
+ */
+export const GetBusinessOperationsSettingsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetBusinessOperationsSettingsResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "enabled": zod.boolean(),
+  "permissions": zod.object({
+  "monitorOnly": zod.boolean(),
+  "draftContent": zod.boolean(),
+  "schedulePosts": zod.boolean(),
+  "autoFixLowRisk": zod.boolean(),
+  "autoFixHighRisk": zod.boolean()
+}),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Enable/disable ASH Operations Mode and update permission grants for a business
+ */
+export const UpdateBusinessOperationsSettingsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateBusinessOperationsSettingsBody = zod.object({
+  "enabled": zod.boolean().optional(),
+  "permissions": zod.object({
+  "monitorOnly": zod.boolean(),
+  "draftContent": zod.boolean(),
+  "schedulePosts": zod.boolean(),
+  "autoFixLowRisk": zod.boolean(),
+  "autoFixHighRisk": zod.boolean()
+}).optional()
+})
+
+export const UpdateBusinessOperationsSettingsResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "enabled": zod.boolean(),
+  "permissions": zod.object({
+  "monitorOnly": zod.boolean(),
+  "draftContent": zod.boolean(),
+  "schedulePosts": zod.boolean(),
+  "autoFixLowRisk": zod.boolean(),
+  "autoFixHighRisk": zod.boolean()
+}),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary List the caller's pending approvals (ASH Operations Mode queue)
+ */
+export const ListApprovalsQueryParams = zod.object({
+  "status": zod.coerce.string().optional(),
+  "businessId": zod.coerce.number().optional()
+})
+
+export const ListApprovalsResponseItem = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "userId": zod.number(),
+  "category": zod.string(),
+  "riskLevel": zod.enum(['low', 'high']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "payload": zod.record(zod.string(), zod.unknown()).optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "resolvedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListApprovalsResponse = zod.array(ListApprovalsResponseItem)
+
+
+/**
+ * @summary Approve a pending approval item
+ */
+export const ApprovePendingApprovalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ApprovePendingApprovalResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "userId": zod.number(),
+  "category": zod.string(),
+  "riskLevel": zod.enum(['low', 'high']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "payload": zod.record(zod.string(), zod.unknown()).optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "resolvedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Reject a pending approval item
+ */
+export const RejectPendingApprovalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RejectPendingApprovalResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "userId": zod.number(),
+  "category": zod.string(),
+  "riskLevel": zod.enum(['low', 'high']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "payload": zod.record(zod.string(), zod.unknown()).optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "resolvedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+

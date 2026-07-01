@@ -55,3 +55,5 @@ export * from "./scheduled_posts";
 export * from "./businesses";
 export * from "./business_connections";
 export * from "./business_health_scores";
+export * from "./business_operations_settings";
+export * from "./pending_approvals";

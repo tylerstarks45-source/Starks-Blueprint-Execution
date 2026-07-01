@@ -6,10 +6,13 @@ import {
   businessesTable,
   businessConnectionsTable,
   businessHealthScoresTable,
+  businessOperationsSettingsTable,
   systemActivityEventsTable,
   userCredentialsTable,
+  DEFAULT_OPERATIONS_PERMISSIONS,
 } from "@workspace/db";
 import { getActiveCallerPayload, validateClientWorkspaceId } from "../lib/auth";
+import { requireOperationsTier } from "../lib/operations-gate";
 import { enqueue } from "../lib/runtime/jobs";
 import { logger } from "../lib/logger";
 import {
@@ -25,6 +28,11 @@ import {
   GetBusinessOverviewResponse,
   AddBusinessConnectionParams,
   AddBusinessConnectionBody,
+  GetBusinessOperationsSettingsParams,
+  GetBusinessOperationsSettingsResponse,
+  UpdateBusinessOperationsSettingsParams,
+  UpdateBusinessOperationsSettingsBody,
+  UpdateBusinessOperationsSettingsResponse,
 } from "@workspace/api-zod";
 
 function healthStatusFromScore(score: number | null | undefined): "healthy" | "needs_attention" | "at_risk" | null {
@@ -336,6 +344,119 @@ router.post("/businesses/:id/connections", async (req, res): Promise<void> => {
     .returning();
 
   res.status(201).json(serialize(row));
+});
+
+// ─── GET /api/businesses/:id/operations-settings ─────────────────────────────
+// ASH Operations Mode — per-business toggle + permission grants. Gated to
+// Operator/Empire tiers (FOUNDER_ADMIN bypasses). Returns default (disabled,
+// all-but-monitorOnly-denied) settings if none have been saved yet.
+
+router.get("/businesses/:id/operations-settings", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const params = GetBusinessOperationsSettingsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [business] = await db
+    .select({ ownerId: businessesTable.ownerId })
+    .from(businessesTable)
+    .where(eq(businessesTable.id, params.data.id));
+
+  if (!business || business.ownerId !== caller.id) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  if (!(await requireOperationsTier(req, res, caller.id))) return;
+
+  const [existing] = await db
+    .select()
+    .from(businessOperationsSettingsTable)
+    .where(eq(businessOperationsSettingsTable.businessId, params.data.id));
+
+  if (existing) {
+    res.json(GetBusinessOperationsSettingsResponse.parse(serialize(existing)));
+    return;
+  }
+
+  // No row yet — return sensible defaults without persisting until the user
+  // actually saves a change via PATCH.
+  res.json(
+    GetBusinessOperationsSettingsResponse.parse(
+      serialize({
+        id: 0,
+        businessId: params.data.id,
+        enabled: false,
+        permissions: DEFAULT_OPERATIONS_PERMISSIONS,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    ),
+  );
+});
+
+// ─── PATCH /api/businesses/:id/operations-settings ───────────────────────────
+
+router.patch("/businesses/:id/operations-settings", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const params = UpdateBusinessOperationsSettingsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const body = UpdateBusinessOperationsSettingsBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const [business] = await db
+    .select({ ownerId: businessesTable.ownerId })
+    .from(businessesTable)
+    .where(eq(businessesTable.id, params.data.id));
+
+  if (!business || business.ownerId !== caller.id) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  if (!(await requireOperationsTier(req, res, caller.id))) return;
+
+  const [existing] = await db
+    .select()
+    .from(businessOperationsSettingsTable)
+    .where(eq(businessOperationsSettingsTable.businessId, params.data.id));
+
+  const patch: { enabled?: boolean; permissions?: Record<string, boolean> } = {};
+  if (body.data.enabled !== undefined) patch.enabled = body.data.enabled;
+  if (body.data.permissions !== undefined) patch.permissions = body.data.permissions;
+
+  let row;
+  if (existing) {
+    [row] = await db
+      .update(businessOperationsSettingsTable)
+      .set(patch)
+      .where(eq(businessOperationsSettingsTable.businessId, params.data.id))
+      .returning();
+  } else {
+    [row] = await db
+      .insert(businessOperationsSettingsTable)
+      .values({
+        businessId: params.data.id,
+        enabled: patch.enabled ?? false,
+        permissions: patch.permissions ?? DEFAULT_OPERATIONS_PERMISSIONS,
+      })
+      .returning();
+  }
+
+  res.json(UpdateBusinessOperationsSettingsResponse.parse(serialize(row)));
 });
 
 export default router;

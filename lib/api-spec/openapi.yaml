@@ -2554,6 +2554,146 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /businesses/{id}/operations-settings:
+    get:
+      operationId: getBusinessOperationsSettings
+      tags: [businesses]
+      summary: Get ASH Operations Mode settings (enabled flag + permission grants) for a business
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Operations Mode settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessOperationsSettings"
+        "403":
+          description: Operations Mode requires an Operator or Empire plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpgradeRequiredResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateBusinessOperationsSettings
+      tags: [businesses]
+      summary: Enable/disable ASH Operations Mode and update permission grants for a business
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessOperationsSettingsInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessOperationsSettings"
+        "403":
+          description: Operations Mode requires an Operator or Empire plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpgradeRequiredResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /approvals:
+    get:
+      operationId: listApprovals
+      tags: [approvals]
+      summary: List the caller's pending approvals (ASH Operations Mode queue)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: businessId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of pending approvals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PendingApproval"
+
+  /approvals/{id}/approve:
+    post:
+      operationId: approvePendingApproval
+      tags: [approvals]
+      summary: Approve a pending approval item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingApproval"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /approvals/{id}/reject:
+    post:
+      operationId: rejectPendingApproval
+      tags: [approvals]
+      summary: Reject a pending approval item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingApproval"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -4669,3 +4809,89 @@ components:
         status:
           type: string
       required: [jobId, status]
+
+    # ── ASH Operations Mode (Task #245) ──────────────────────────────────────
+    UpgradeRequiredResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        requiredTiers:
+          type: array
+          items:
+            type: string
+      required: [error, code]
+
+    OperationsPermissions:
+      type: object
+      properties:
+        monitorOnly:
+          type: boolean
+        draftContent:
+          type: boolean
+        schedulePosts:
+          type: boolean
+        autoFixLowRisk:
+          type: boolean
+        autoFixHighRisk:
+          type: boolean
+      required: [monitorOnly, draftContent, schedulePosts, autoFixLowRisk, autoFixHighRisk]
+
+    BusinessOperationsSettings:
+      type: object
+      properties:
+        id:
+          type: integer
+        businessId:
+          type: integer
+        enabled:
+          type: boolean
+        permissions:
+          $ref: "#/components/schemas/OperationsPermissions"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, businessId, enabled, permissions, createdAt, updatedAt]
+
+    BusinessOperationsSettingsInput:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        permissions:
+          $ref: "#/components/schemas/OperationsPermissions"
+
+    PendingApproval:
+      type: object
+      properties:
+        id:
+          type: integer
+        businessId:
+          type: integer
+        userId:
+          type: integer
+        category:
+          type: string
+        riskLevel:
+          type: string
+          enum: [low, high]
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        payload:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        resolvedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, businessId, userId, category, riskLevel, title, status, createdAt, updatedAt]

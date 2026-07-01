@@ -1416,6 +1416,70 @@ export interface AnalyzeBusinessHealthResponse {
   status: string;
 }
 
+export interface UpgradeRequiredResponse {
+  error: string;
+  code: string;
+  requiredTiers?: string[];
+}
+
+export interface OperationsPermissions {
+  monitorOnly: boolean;
+  draftContent: boolean;
+  schedulePosts: boolean;
+  autoFixLowRisk: boolean;
+  autoFixHighRisk: boolean;
+}
+
+export interface BusinessOperationsSettings {
+  id: number;
+  businessId: number;
+  enabled: boolean;
+  permissions: OperationsPermissions;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BusinessOperationsSettingsInput {
+  enabled?: boolean;
+  permissions?: OperationsPermissions;
+}
+
+export type PendingApprovalRiskLevel = typeof PendingApprovalRiskLevel[keyof typeof PendingApprovalRiskLevel];
+
+
+export const PendingApprovalRiskLevel = {
+  low: 'low',
+  high: 'high',
+} as const;
+
+export type PendingApprovalPayload = { [key: string]: unknown };
+
+export type PendingApprovalStatus = typeof PendingApprovalStatus[keyof typeof PendingApprovalStatus];
+
+
+export const PendingApprovalStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface PendingApproval {
+  id: number;
+  businessId: number;
+  userId: number;
+  category: string;
+  riskLevel: PendingApprovalRiskLevel;
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  payload?: PendingApprovalPayload;
+  status: PendingApprovalStatus;
+  /** @nullable */
+  resolvedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type ListBlueprintsParams = {
 status?: string;
 categoryId?: number;
@@ -1573,4 +1637,9 @@ export const ListBusinessesOrigin = {
   built: 'built',
   imported: 'imported',
 } as const;
+
+export type ListApprovalsParams = {
+status?: string;
+businessId?: number;
+};
 

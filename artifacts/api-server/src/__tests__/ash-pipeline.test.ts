@@ -40,8 +40,10 @@ vi.mock("../lib/credits", async (importOriginal) => {
 // ─── Now import app and DB (after mocks are hoisted) ─────────────────────────
 
 import app from "../app";
-import { db, usersTable, systemInstancesTable, buildSessionsTable, buildProgressTable, systemActivityEventsTable } from "@workspace/db";
+import { db, usersTable, systemInstancesTable, buildSessionsTable, buildProgressTable, systemActivityEventsTable, userCredentialsTable } from "@workspace/db";
 import { complete as _complete } from "../lib/openrouter";
+import { encrypt } from "../lib/crypto";
+import { TwitterConnector } from "../lib/connectors/twitter-connector";
 
 const mockComplete = vi.mocked(_complete);
 
@@ -319,6 +321,52 @@ describe("POST /api/build-engine/execute-step", () => {
     expect(revenueEvent).toBeUndefined();
   });
 
+  it("REGRESSION (task #272): AI narrative dollar claims are stripped, never stored or shown verbatim", async () => {
+    const step2 = steps.find((s) => s.stepNumber === 2)!;
+    expect(step2).toBeDefined();
+
+    mockComplete.mockResolvedValueOnce(
+      fakeCompletion(
+        "Deployed the affiliate link tracker, configured ClickBank webhook — $4.50 earned so far, with $1,200 in projected monthly revenue.",
+      ),
+    );
+
+    const res = await request(app)
+      .post("/api/build-engine/execute-step")
+      .set(auth())
+      .send({
+        stepId: step2.id,
+        stepDescription: "Deploy affiliate link tracker for revenue attribution",
+        blueprintName: "AI Blog Content Machine",
+        stepNumber: 2,
+        totalSteps: steps.length,
+        systemInstanceId: instanceId,
+        sessionId,
+      });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+
+    // The API response's own output/notes must never surface a raw,
+    // unverified dollar figure — narrative dollar claims are sanitized
+    // server-side regardless of what the AI model says.
+    const responseText = JSON.stringify(res.body);
+    expect(responseText).not.toMatch(/\$\s?\d/);
+
+    const [dbStep] = await db
+      .select({ notes: buildProgressTable.notes })
+      .from(buildProgressTable)
+      .where(eq(buildProgressTable.id, step2.id));
+    expect(dbStep.notes).not.toMatch(/\$\s?\d/);
+
+    const events = await db
+      .select()
+      .from(systemActivityEventsTable)
+      .where(eq(systemActivityEventsTable.systemInstanceId, instanceId));
+    for (const e of events) {
+      expect(e.description).not.toMatch(/\$\s?\d/);
+    }
+  });
+
   it("final step: sets buildStatus=active, healthStatus=healthy, session=completed", async () => {
     const lastStep = steps.find((s) => s.stepNumber === steps.length)!;
     expect(lastStep).toBeDefined();
@@ -376,6 +424,89 @@ describe("POST /api/build-engine/execute-step", () => {
     const liveEvent = events.find((e) => e.description.includes("System is now live"));
     expect(liveEvent).toBeDefined();
     expect(liveEvent?.eventType).toBe("action");
+  });
+});
+
+// ─── 2b. Live Mode really calls connector.execute() (task #272) ─────────────
+
+describe("POST /api/build-engine/execute-step (liveMode)", () => {
+  it("REGRESSION (task #272): live mode invokes the real connector.execute(), not just narrative text", async () => {
+    // Give the test user a fake Twitter credential so the endpoint's
+    // credential-derived connector detection recognises "twitter" as available.
+    await db.insert(userCredentialsTable).values({
+      userId: testUserId,
+      credentialKey: "TWITTER_BEARER_TOKEN",
+      encryptedValue: encrypt("fake-bearer-token-for-test"),
+      status: "connected",
+    });
+
+    // Spy on the real connector's execute() method so we can assert it was
+    // actually invoked with the parsed action/params — proving Live Mode
+    // performs a genuine connector call rather than only generating narrative.
+    const executeSpy = vi
+      .spyOn(TwitterConnector.prototype, "execute")
+      .mockResolvedValueOnce({ ok: true, data: { id: "tweet_123" } });
+
+    try {
+      // Fresh single-step instance so this test is independent of step ordering elsewhere.
+      mockComplete.mockResolvedValueOnce(
+        fakeCompletion(
+          JSON.stringify({ categoryIds: [1], buildPlan: ["Step 1: announce launch on social media"] }),
+        ),
+      );
+      const execRes = await request(app)
+        .post("/api/ai-orchestrator/execute")
+        .set(auth())
+        .send({ blueprintSlug: "ai-blog-machine", systemName: "Live Mode Connector Test System" });
+      expect(execRes.status, JSON.stringify(execRes.body)).toBe(201);
+      const { instanceId, sessionId, steps: liveSteps } = execRes.body as {
+        instanceId: number;
+        sessionId: number;
+        steps: Array<{ id: number; stepNumber: number; notes: string }>;
+      };
+
+      // Re-queue the postTweet AI response since the plan-generation call above consumed one mock.
+      mockComplete.mockResolvedValueOnce(
+        fakeCompletion(
+          '<SBEP_ACTIONS>{"calls":[{"type":"connector_action","connectorId":"twitter","action":"postTweet","params":{"text":"Launching our new system!"}}]}</SBEP_ACTIONS>\n' +
+            "Posted an update to Twitter announcing the launch.",
+        ),
+      );
+
+      const res = await request(app)
+        .post("/api/build-engine/execute-step")
+        .set(auth())
+        .send({
+          stepId: liveSteps[0].id,
+          stepDescription: liveSteps[0].notes,
+          blueprintName: "AI Blog Content Machine",
+          stepNumber: 1,
+          totalSteps: 1,
+          systemInstanceId: instanceId,
+          sessionId,
+          liveMode: true,
+        });
+
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+
+      // The real TwitterConnector.execute() was actually called with the
+      // parsed action/params — this is the "genuine connector action" guarantee,
+      // not just an AI narrative claiming an action happened.
+      expect(executeSpy).toHaveBeenCalledTimes(1);
+      expect(executeSpy).toHaveBeenCalledWith("postTweet", { text: "Launching our new system!" });
+
+      // A connector_executed activity event (not a "revenue" event) was recorded.
+      const events = await db
+        .select()
+        .from(systemActivityEventsTable)
+        .where(eq(systemActivityEventsTable.systemInstanceId, instanceId));
+      const connectorEvent = events.find((e) => e.eventType === "connector_executed");
+      expect(connectorEvent).toBeDefined();
+      expect(connectorEvent?.description).toContain("Twitter");
+    } finally {
+      executeSpy.mockRestore();
+      await db.delete(userCredentialsTable).where(eq(userCredentialsTable.userId, testUserId));
+    }
   });
 });
 

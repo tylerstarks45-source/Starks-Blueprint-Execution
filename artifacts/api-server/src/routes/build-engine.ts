@@ -243,6 +243,17 @@ router.post("/build-engine/start", async (req, res): Promise<void> => {
 // Build-step narration (including any AI commentary about "earning" money)
 // is purely descriptive text and must never be parsed into a dollar amount
 // written to systemActivityEventsTable — see task #272.
+//
+// Defense in depth: even though the AI is explicitly instructed never to
+// claim a dollar amount was earned, models don't always comply. Any literal
+// dollar-amount pattern (e.g. "$4.50 earned") appearing in the narrative
+// text is stripped and replaced with a neutral, clearly-labeled placeholder
+// before it is stored or shown to the user, so no unverified dollar figure
+// can ever reach the UI outside of the real Revenue tab.
+const UNVERIFIED_DOLLAR_AMOUNT_RE = /\$\s?\d[\d,]*(?:\.\d{1,2})?/g;
+function stripUnverifiedMoneyClaims(text: string): string {
+  return text.replace(UNVERIFIED_DOLLAR_AMOUNT_RE, "[verified earnings shown in the Revenue tab]");
+}
 
 // POST /api/build-engine/execute-step
 router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
@@ -353,10 +364,12 @@ Execute this step now. Write detailed output describing exactly what was configu
     const raw = result.content;
     const actionsMatch = raw.match(/<SBEP_ACTIONS>([\s\S]*?)<\/SBEP_ACTIONS>/);
 
-    output = raw
-      .replace(/<SBEP_REVENUE>[\s\S]*?<\/SBEP_REVENUE>/g, "")
-      .replace(/<SBEP_ACTIONS>[\s\S]*?<\/SBEP_ACTIONS>/g, "")
-      .trim();
+    output = stripUnverifiedMoneyClaims(
+      raw
+        .replace(/<SBEP_REVENUE>[\s\S]*?<\/SBEP_REVENUE>/g, "")
+        .replace(/<SBEP_ACTIONS>[\s\S]*?<\/SBEP_ACTIONS>/g, "")
+        .trim(),
+    );
 
     // ── Execute real connector actions (live mode) ──────────────────────────────
     // Supports two formats:

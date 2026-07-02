@@ -1,5 +1,6 @@
 import { BaseConnector, TestResult, ExecResult } from "./base";
 import { getGoogleAccessToken } from "./google-oauth-helper";
+import { validateExternalUrl } from "./ssrf-guard";
 
 // YouTube Data API v3 connector. Requires a Google OAuth 2.0 app + refresh
 // token (with youtube.force-ssl / youtube.upload scope) pasted into
@@ -98,6 +99,8 @@ export class YouTubeConnector extends BaseConnector {
         const tags = (params["tags"] as string[] | undefined) ?? [];
         const privacyStatus = (params["privacyStatus"] as string | undefined) ?? "private";
         if (!videoUrl) return { ok: false, error: "videoUrl (a public URL to the video file) is required for uploadVideo" };
+        const ssrfErr = validateExternalUrl(videoUrl, "videoUrl");
+        if (ssrfErr) return { ok: false, error: ssrfErr };
 
         const videoRes = await fetch(videoUrl);
         if (!videoRes.ok) return { ok: false, error: `Could not fetch video from videoUrl (${videoRes.status})` };

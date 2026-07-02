@@ -149,7 +149,14 @@ router.get("/social/oauth/:platform/callback", async (req, res): Promise<void> =
         return;
       }
       await Promise.all([
+        // The Page token (META_ACCESS_TOKEN) is what connectors actually call
+        // the Graph API with. The long-lived *user* token is stored
+        // separately (META_USER_ACCESS_TOKEN) purely so self-healing can
+        // later re-run fb_exchange_token on it and re-derive a fresh Page
+        // token — fb_exchange_token is only valid for user tokens, not Page
+        // tokens, so the two must never be conflated under the same key.
         upsertCredential(statePayload.userId, "META_ACCESS_TOKEN", page.pageAccessToken, expiresAt),
+        upsertCredential(statePayload.userId, "META_USER_ACCESS_TOKEN", userToken, expiresAt),
         upsertCredential(statePayload.userId, "META_PAGE_ID", page.pageId),
       ]);
     } else {

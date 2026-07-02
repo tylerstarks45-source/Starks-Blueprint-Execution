@@ -29,6 +29,7 @@ import {
   refreshCredentialKeyFor,
   upsertCredential,
   getDecryptedCredential,
+  fetchMetaPageCredentials,
 } from "./social-oauth";
 import type { SocialPlatform } from "@workspace/db";
 
@@ -158,24 +159,41 @@ async function reconnectExpiredConnector(
 
       if (platform && cfg && isOAuthConfigured(platform) && platformSupportsRefresh(platform)) {
         try {
-          const refreshResult =
-            platform === "facebook" || platform === "instagram"
-              ? await (async () => {
-                  const currentToken = await getDecryptedCredential(instance.userId, cfg.credentialKey);
-                  if (!currentToken) throw new Error("No stored access token to refresh from — reconnect manually");
-                  return refreshMetaLongLivedToken(currentToken);
-                })()
-              : await (async () => {
-                  const refreshToken = await getDecryptedCredential(instance.userId, refreshCredentialKeyFor(cfg));
-                  if (!refreshToken) throw new Error(`No stored refresh token for ${connectorId} — reconnect manually via Connections Hub`);
-                  return refreshWithRefreshToken(platform, cfg, refreshToken);
-                })();
+          if (platform === "facebook" || platform === "instagram") {
+            // Meta's fb_exchange_token grant only accepts a *user* token, never
+            // a Page token — so refresh must run against the long-lived user
+            // token (stored separately as META_USER_ACCESS_TOKEN), then
+            // re-derive a fresh Page token from it. Refreshing straight from
+            // META_ACCESS_TOKEN (the Page token) would fail or silently
+            // corrupt the credential.
+            const currentUserToken = await getDecryptedCredential(instance.userId, "META_USER_ACCESS_TOKEN");
+            if (!currentUserToken) {
+              throw new Error("No stored Meta user token to refresh from — reconnect manually via Connections Hub");
+            }
+            const refreshedUser = await refreshMetaLongLivedToken(currentUserToken);
+            const newExpiresAt = refreshedUser.expiresInSeconds ? new Date(Date.now() + refreshedUser.expiresInSeconds * 1000) : null;
 
-          const newExpiresAt = refreshResult.expiresInSeconds ? new Date(Date.now() + refreshResult.expiresInSeconds * 1000) : null;
-          await upsertCredential(instance.userId, cfg.credentialKey, refreshResult.accessToken, newExpiresAt);
-          const rotatedRefreshToken = refreshResult.extra?.["refresh_token"] as string | undefined;
-          if (rotatedRefreshToken) {
-            await upsertCredential(instance.userId, refreshCredentialKeyFor(cfg), rotatedRefreshToken);
+            const page = await fetchMetaPageCredentials(refreshedUser.accessToken);
+            if (!page) {
+              throw new Error("Meta user token refreshed, but no Facebook Page was found — reconnect manually via Connections Hub");
+            }
+
+            await Promise.all([
+              upsertCredential(instance.userId, "META_USER_ACCESS_TOKEN", refreshedUser.accessToken, newExpiresAt),
+              upsertCredential(instance.userId, "META_ACCESS_TOKEN", page.pageAccessToken, newExpiresAt),
+              upsertCredential(instance.userId, "META_PAGE_ID", page.pageId),
+            ]);
+          } else {
+            const refreshToken = await getDecryptedCredential(instance.userId, refreshCredentialKeyFor(cfg));
+            if (!refreshToken) throw new Error(`No stored refresh token for ${connectorId} — reconnect manually via Connections Hub`);
+            const refreshResult = await refreshWithRefreshToken(platform, cfg, refreshToken);
+
+            const newExpiresAt = refreshResult.expiresInSeconds ? new Date(Date.now() + refreshResult.expiresInSeconds * 1000) : null;
+            await upsertCredential(instance.userId, cfg.credentialKey, refreshResult.accessToken, newExpiresAt);
+            const rotatedRefreshToken = refreshResult.extra?.["refresh_token"] as string | undefined;
+            if (rotatedRefreshToken) {
+              await upsertCredential(instance.userId, refreshCredentialKeyFor(cfg), rotatedRefreshToken);
+            }
           }
 
           const freshCreds = await loadCredentials(systemInstanceId);

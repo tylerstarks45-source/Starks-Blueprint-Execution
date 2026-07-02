@@ -284,8 +284,8 @@ while (true) {
             <p className="text-white/50 mb-6">
               Rate limits are applied per API key per 60-second window. Exceeding the limit returns <code className="px-1.5 py-0.5 rounded bg-white/8 text-white/70 text-xs font-mono">429 Too Many Requests</code>.
             </p>
-            <div className="overflow-hidden rounded-xl border border-white/8">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-xl border border-white/8">
+              <table className="w-full text-sm min-w-[420px]">
                 <thead>
                   <tr className="border-b border-white/8 bg-white/3">
                     <th className="text-left px-5 py-3 text-xs font-mono text-white/40 uppercase tracking-widest">Tier</th>
@@ -362,8 +362,8 @@ while (true) {
           {/* Error codes */}
           <section id="errors">
             <h2 className="text-2xl font-extrabold font-mono mb-2">Error Codes</h2>
-            <div className="overflow-hidden rounded-xl border border-white/8">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-xl border border-white/8">
+              <table className="w-full text-sm min-w-[420px]">
                 <thead>
                   <tr className="border-b border-white/8 bg-white/3">
                     <th className="text-left px-5 py-3 text-xs font-mono text-white/40 uppercase tracking-widest">Status</th>

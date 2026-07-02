@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const ADMIN_EMAILS = ['tylerstarks45@gmail.com', 'tylerstarks77@gmail.com', 'admin@starksglobalgroup.net'];
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'];
 
 const ProtectedAdminRoute = ({ children }) => {
@@ -14,7 +13,6 @@ const ProtectedAdminRoute = ({ children }) => {
 
   const isAuthorisedAdmin =
     isAuthenticated &&
-    ADMIN_EMAILS.includes(currentUser?.email) &&
     ADMIN_ROLES.includes(currentUserRole);
 
   useEffect(() => {

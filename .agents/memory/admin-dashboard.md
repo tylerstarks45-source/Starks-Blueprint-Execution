@@ -43,12 +43,14 @@ fine because it already uses `currentUserRole` from AuthContext.
 `data.user`), which is correct and reactive. Treat any `/api/auth/me` consumer carefully — the
 payload is wrapped in `{ user }`.
 
-## Admin email allowlist is duplicated in 4 places
-The set of authorised admin emails is hardcoded as a constant in 4 separate files — all must be
-kept in sync when adding/removing admin accounts (the actual addresses live in those files, not here):
-1. `artifacts/web/src/components/security/ProtectedAdminRoute.jsx` — ADMIN_EMAILS array
-2. `artifacts/web/src/components/dashboard/DashboardRouter.jsx` — ADMIN_EMAILS array
-3. `artifacts/web/src/components/security/SubscriptionGate.jsx` — ADMIN_EMAILS array
-4. `artifacts/api-server/src/lib/auth.ts` — ADMIN_EMAILS Set (requireAdmin function)
-
-**Why:** Single-email constant was in 4 separate files; adding a second admin email required all 4 to be updated simultaneously.
+## Admin gating is now role-only (email allowlists removed)
+`DashboardRouter.jsx`, `ProtectedAdminRoute.jsx`, and backend `requireAdmin()`/`isAdminRole()` all
+gate purely on role (`SUPER_ADMIN`/`ADMIN`/`admin`/`FOUNDER_ADMIN`) — no hardcoded email allow-lists
+remain in the live route-gating path. `ProtectedAdminRoute` was the actual enforcement point blocking
+`/admin` and `/admin-dashboard` routes; it still had an `ADMIN_EMAILS` check even after
+`DashboardRouter`'s allow-list was removed, so any admin not in that list bounced to `/dashboard`.
+**Why:** two components independently gated the same admin surface; fixing one without the other left
+the bug half-fixed. `SubscriptionGate.jsx` still has a leftover `ADMIN_EMAILS` array but is dead code
+(not imported/used by any route) — leave it alone unless it gets wired up, in which case fix it too.
+**How to apply:** when touching admin access control, grep for `ADMIN_EMAILS` across the whole `web`
+package, not just the file you're already editing — the same bug pattern tends to be duplicated.

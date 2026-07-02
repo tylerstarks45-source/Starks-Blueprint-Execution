@@ -1,5 +1,12 @@
 {pkgs}: {
   deps = [
+    pkgs.gdk-pixbuf
+    pkgs.openssl
+    pkgs.pkg-config
+    pkgs.librsvg
+    pkgs.libsoup_3
+    pkgs.gtk3
+    pkgs.webkitgtk_4_1
     pkgs.chromium
     pkgs.libgbm
     pkgs.libGL

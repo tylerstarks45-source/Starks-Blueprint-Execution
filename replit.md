@@ -54,6 +54,12 @@ An AI-powered automation platform for starksglobalgroup.net. Users select bluepr
 - **Zod date serialization**: Drizzle returns JS `Date` objects; the generated Zod schemas expect strings. The `serialize()` helper does `JSON.parse(JSON.stringify(data))` before every `.parse()` call to coerce dates.
 - **JWT auth**: bcryptjs + jsonwebtoken, tokens stored in localStorage as `sbep_auth_token`. Session secret from `SESSION_SECRET` env var.
 
+## PWA & Desktop
+
+- `artifacts/web` is installable as a PWA: `public/manifest.json`, `public/icons/` (192/512 + apple-touch-icon, generated from `artifacts/mobile/assets/images/icon.png`), theme-color/apple meta tags in `index.html`.
+- Production-only service worker via `vite-plugin-pwa` (configured in `artifacts/web/vite.config.ts`), registered manually in `src/main.jsx` gated on `import.meta.env.PROD` — no effect in dev. Provides an offline fallback shell (`public/offline.html`) and precaches build assets.
+- `artifacts/desktop` — a Tauri v2 desktop shell wrapping the web app (`@workspace/desktop`). The window loads a remote URL (`DESKTOP_APP_URL` env var, defaults to `http://localhost:22333` in dev / `https://starksglobalgroup.net` in prod) rather than bundling frontend assets. Not added to the root `tsconfig.json` references (no TypeScript). See `artifacts/desktop/README.md` for dev/build commands and requirements.
+
 ## Product
 
 - **Blueprints**: Pre-built AI system architectures (8 live). Each has steps, difficulty, cost/time estimates.

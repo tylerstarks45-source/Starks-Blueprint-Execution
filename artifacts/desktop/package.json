@@ -1,0 +1,15 @@
+{
+  "name": "@workspace/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lightweight Tauri desktop shell wrapping the Starks Global Group web app",
+  "scripts": {
+    "dev": "DESKTOP_APP_URL=${DESKTOP_APP_URL:-http://localhost:22333} tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.1"
+  }
+}

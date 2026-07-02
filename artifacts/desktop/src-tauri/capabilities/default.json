@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window loading the Starks Global Group web app",
+  "windows": ["main"],
+  "local": false,
+  "remote": {
+    "urls": ["https://starksglobalgroup.net", "https://*.starksglobalgroup.net", "http://localhost:*"]
+  },
+  "permissions": ["core:default"]
+}

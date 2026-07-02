@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { VitePWA } from "vite-plugin-pwa";
 
 // PORT is only used by the dev/preview server — it is not needed during
 // `vite build`, so fall back to a sensible default when it is absent.
@@ -17,6 +18,34 @@ export default defineConfig({
   plugins: [
     react(),
     runtimeErrorOverlay(),
+    // Minimal offline-fallback service worker. `injectRegister: false` means
+    // no auto-registration script is injected — registration happens
+    // manually in `src/main.jsx`, gated on `import.meta.env.PROD`, so normal
+    // dev/browser behavior is completely unaffected.
+    VitePWA({
+      injectRegister: false,
+      registerType: "autoUpdate",
+      manifest: false,
+      includeManifestIcons: false,
+      devOptions: {
+        enabled: false,
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
+        navigateFallback: "/offline.html",
+        navigateFallbackDenylist: [/^\/api\//],
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "pages-cache",
+              networkTimeoutSeconds: 3,
+            },
+          },
+        ],
+      },
+    }),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [

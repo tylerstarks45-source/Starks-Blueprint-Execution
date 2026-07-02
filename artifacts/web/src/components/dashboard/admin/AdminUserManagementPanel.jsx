@@ -245,18 +245,18 @@ const AdminUserManagementPanel = () => {
           <p className="text-sm text-destructive p-4">{error}</p>
         ) : (
           <>
-            {/* Mobile: stacked cards */}
-            <div className="md:hidden divide-y divide-border/30">
+            {/* Mobile: stacked key/value cards, no horizontal scrolling needed */}
+            <div className="sm:hidden divide-y divide-border/30">
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="p-3"><Skeleton className="h-16 w-full" /></div>
+                  <div key={i} className="p-4"><Skeleton className="h-16 w-full" /></div>
                 ))
               ) : users.length === 0 ? (
                 <p className="text-center text-sm text-muted-foreground italic py-8">No users match your filters.</p>
               ) : (
                 users.map((user) => (
-                  <div key={user.id} className="p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
+                  <div key={user.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
                       <button
                         type="button"
                         onClick={() => viewRevenue(user)}
@@ -267,7 +267,7 @@ const AdminUserManagementPanel = () => {
                         <div className="text-xs text-muted-foreground group-hover:text-emerald-500/70 transition-colors truncate">{user.email}</div>
                       </button>
                       {busyId === user.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin shrink-0 text-muted-foreground" />
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0 text-muted-foreground mt-1" />
                       ) : (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -303,36 +303,45 @@ const AdminUserManagementPanel = () => {
                         </DropdownMenu>
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="secondary" className={
-                        user.role === 'FOUNDER_ADMIN' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
-                        user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? 'bg-primary/10 text-primary' : 'bg-muted'
-                      }>
-                        {user.role === 'FOUNDER_ADMIN' ? '👑 FOUNDER' : user.role}
-                      </Badge>
-                      {user.active ? (
-                        <span className="text-xs bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded font-medium">Active</span>
-                      ) : (
-                        <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded font-medium">Suspended</span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between text-xs font-mono">
-                      <div>
-                        {usageMap[user.id] ? (
-                          <span className="text-muted-foreground">{compact(usageMap[user.id].requests)} req · {usd(usageMap[user.id].costUsd)}</span>
+                    <div className="grid grid-cols-2 gap-y-2 gap-x-3 text-xs">
+                      <div className="text-muted-foreground">Role</div>
+                      <div className="text-right">
+                        <Badge variant="secondary" className={
+                          user.role === 'FOUNDER_ADMIN' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
+                          user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? 'bg-primary/10 text-primary' : 'bg-muted'
+                        }>
+                          {user.role === 'FOUNDER_ADMIN' ? '👑 FOUNDER' : user.role}
+                        </Badge>
+                      </div>
+                      <div className="text-muted-foreground">Status</div>
+                      <div className="text-right">
+                        {user.active ? (
+                          <span className="text-xs bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded font-medium">Active</span>
                         ) : (
-                          <span className="text-muted-foreground">No usage yet</span>
+                          <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded font-medium">Suspended</span>
                         )}
                       </div>
-                      <div className="text-foreground">{num(user.creditsBalance)} credits</div>
+                      <div className="text-muted-foreground">AI Usage</div>
+                      <div className="text-right font-mono">
+                        {usageMap[user.id] ? (
+                          <div className="leading-tight">
+                            <div>{compact(usageMap[user.id].requests)} req · {compact(usageMap[user.id].tokens)} tok</div>
+                            <div className="text-muted-foreground">{usd(usageMap[user.id].costUsd)}</div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </div>
+                      <div className="text-muted-foreground">Credits</div>
+                      <div className="text-right font-mono">{num(user.creditsBalance)}</div>
                     </div>
                   </div>
                 ))
               )}
             </div>
 
-            {/* Desktop/tablet: table */}
-            <Table className="hidden md:table">
+            {/* Desktop/tablet: full table */}
+            <Table className="hidden sm:table">
               <TableHeader>
                 <TableRow className="hover:bg-transparent bg-muted/10">
                   <TableHead>User</TableHead>

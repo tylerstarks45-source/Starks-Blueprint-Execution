@@ -76,12 +76,18 @@ export const AuthProvider = ({ children }) => {
         const res = await fetch('/api/auth/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
+        // Guard against a race: if auth state changed (e.g. a new login
+        // completed, or logout happened) while this request was in flight,
+        // this response refers to the OLD token and must not clobber the
+        // newer session that's now active.
+        if (pb.authStore.token !== token) return;
         if (!res.ok) {
           pb.authStore.clear();
           updateReactState(null);
           return;
         }
         const { user: freshUser } = await res.json();
+        if (pb.authStore.token !== token) return;
         // Refresh with the server's authoritative record (id/role/credits),
         // in case the cached copy was stale.
         pb.authStore.save(token, freshUser);

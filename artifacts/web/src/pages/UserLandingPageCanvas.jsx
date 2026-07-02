@@ -841,7 +841,22 @@ export default function UserLandingPageCanvas() {
                   </a>
                 )}
                 <button
-                  onClick={() => window.open(`/api/landing-pages/${id}/preview-html`, '_blank')}
+                  onClick={async () => {
+                    const previewWin = window.open('', '_blank', 'noopener,noreferrer');
+                    try {
+                      const resp = await fetch(`${API}/landing-pages/${id}/preview-session`, {
+                        method: 'POST',
+                        headers: authHeaders(),
+                      });
+                      if (!resp.ok) throw new Error('Could not start preview');
+                      const { previewToken } = await resp.json();
+                      const url = `${API}/landing-pages/${id}/preview-html?previewToken=${encodeURIComponent(previewToken)}`;
+                      if (previewWin) previewWin.location.href = url;
+                      else window.open(url, '_blank', 'noopener,noreferrer');
+                    } catch {
+                      previewWin?.close();
+                    }
+                  }}
                   className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />

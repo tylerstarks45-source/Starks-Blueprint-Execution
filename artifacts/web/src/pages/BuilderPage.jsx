@@ -34,20 +34,42 @@ const authHeaders = () => {
 };
 
 // Opens a landing page in a new browser tab.
-// Published pages use the permanent public URL; unpublished use the
-// auth-token-gated preview endpoint so the user doesn't need to re-login.
-const openPageInBrowser = (page) => {
+// Published pages use the permanent public URL. Unpublished pages exchange
+// the current session (Authorization header, never a URL) for a short-lived,
+// single-use, page-scoped preview code via preview-session, then open the
+// preview with only that opaque code in the URL — never the real auth token.
+const openPageInBrowser = async (page) => {
   if (page.isPublished) {
     window.open(`/api/pages/${page.slug}`, '_blank', 'noopener,noreferrer');
-  } else {
-    const token = localStorage.getItem('sbep_auth_token');
-    if (token) {
+    return;
+  }
+
+  // Open the tab synchronously (before the await) so browsers don't treat it
+  // as a blocked popup; we redirect it once we have the preview code.
+  const previewWin = window.open('', '_blank', 'noopener,noreferrer');
+  try {
+    const resp = await fetch(`/api/landing-pages/${page.id}/preview-session`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      throw new Error(body?.error || `Could not start preview (${resp.status})`);
+    }
+    const { previewToken } = await resp.json();
+    if (previewWin) {
+      previewWin.location.href = `/api/landing-pages/${page.id}/preview-html?previewToken=${encodeURIComponent(previewToken)}`;
+    } else {
+      // Popup was blocked — fall back to opening now that we have the URL.
       window.open(
-        `/api/landing-pages/${page.id}/preview-html?token=${encodeURIComponent(token)}`,
+        `/api/landing-pages/${page.id}/preview-html?previewToken=${encodeURIComponent(previewToken)}`,
         '_blank',
         'noopener,noreferrer',
       );
     }
+  } catch (err) {
+    previewWin?.close();
+    toast.error(err instanceof Error ? err.message : 'Could not open preview.');
   }
 };
 
@@ -2272,8 +2294,18 @@ const BuilderPage = () => {
                   } catch { /* ignore malformed lines */ }
                 }
               }
+            } else if (!sseResp.ok) {
+              throw new Error(`Recovery explanation request failed (${sseResp.status})`);
             }
-          } catch { /* non-fatal — use default explanation */ }
+          } catch (explainErr) {
+            // Non-fatal — the recovery card still renders with a sensible default
+            // explanation, but let the user know the AI explanation didn't load.
+            toast.error(
+              explainErr instanceof Error
+                ? `Could not load a detailed explanation: ${explainErr.message}. Showing a generic tip instead.`
+                : 'Could not load a detailed explanation — showing a generic tip instead.',
+            );
+          }
 
           const retryFn = () => {
             setMessages(prev => prev.filter(m => m.id !== recoveryId));
@@ -2281,10 +2313,12 @@ const BuilderPage = () => {
             setStepPaused(false);
           };
           const skipFn = async () => {
-            setMessages(prev => prev.filter(m => m.id !== recoveryId));
-            // Tell the server to mark this step as skipped and advance session state
+            // Tell the server to mark this step as skipped and advance session state.
+            // Only dismiss the recovery card and advance local state once the server
+            // confirms the skip — otherwise the frontend would diverge from the DB
+            // (step still "in_progress" server-side while the UI moved on).
             try {
-              await fetch('/api/build-engine/skip-step', {
+              const skipResp = await fetch('/api/build-engine/skip-step', {
                 method: 'POST',
                 headers: authHeaders(),
                 body: JSON.stringify({
@@ -2296,9 +2330,17 @@ const BuilderPage = () => {
                   blueprintName: buildData.blueprint?.name ?? 'System',
                 }),
               });
-            } catch { /* non-fatal */ }
-            setCurrentStepIdx(i => i + 1);
-            setStepPaused(false);
+              if (!skipResp.ok) {
+                const body = await skipResp.json().catch(() => ({}));
+                throw new Error(body?.error || `Skip failed (${skipResp.status})`);
+              }
+              setMessages(prev => prev.filter(m => m.id !== recoveryId));
+              setCurrentStepIdx(i => i + 1);
+              setStepPaused(false);
+            } catch (skipErr) {
+              toast.error(skipErr instanceof Error ? skipErr.message : 'Failed to skip step — please try again.');
+              // Leave the recovery card and paused state in place so the user can retry.
+            }
           };
           setMessages(prev => [...prev, {
             id: recoveryId, role: 'assistant', type: 'error_recovery', ts: Date.now(),
@@ -2325,9 +2367,8 @@ const BuilderPage = () => {
           setStepPaused(false);
         };
         const skipFn = async () => {
-          setMessages(prev => prev.filter(m => m.id !== recoveryId));
           try {
-            await fetch('/api/build-engine/skip-step', {
+            const skipResp = await fetch('/api/build-engine/skip-step', {
               method: 'POST',
               headers: authHeaders(),
               body: JSON.stringify({
@@ -2339,9 +2380,17 @@ const BuilderPage = () => {
                 blueprintName: buildData.blueprint?.name ?? 'System',
               }),
             });
-          } catch { /* non-fatal — server may be unreachable */ }
-          setCurrentStepIdx(i => i + 1);
-          setStepPaused(false);
+            if (!skipResp.ok) {
+              const body = await skipResp.json().catch(() => ({}));
+              throw new Error(body?.error || `Skip failed (${skipResp.status})`);
+            }
+            setMessages(prev => prev.filter(m => m.id !== recoveryId));
+            setCurrentStepIdx(i => i + 1);
+            setStepPaused(false);
+          } catch (skipErr) {
+            toast.error(skipErr instanceof Error ? skipErr.message : 'Failed to skip step — the server may be unreachable. Try again.');
+            // Leave the recovery card and paused state in place so the user can retry.
+          }
         };
         setMessages(prev => [...prev, {
           id: recoveryId, role: 'assistant', type: 'error_recovery', ts: Date.now(),
@@ -2398,7 +2447,9 @@ const BuilderPage = () => {
       setCurrentStepIdx(0);
       setStepOutputs({});
       setPreflightWarnings([]);
-      // Pre-flight: check for missing credentials if live mode is active
+      // Pre-flight: check for missing credentials if live mode is active.
+      // A failed check must not silently pretend everything is ready — the user
+      // is in Live Mode and could otherwise miss a real missing-credential warning.
       if (liveMode && steps.length > 0) {
         try {
           const pfResp = await fetch('/api/build-engine/preflight', {
@@ -2406,13 +2457,21 @@ const BuilderPage = () => {
             headers: authHeaders(),
             body: JSON.stringify({ stepDescriptions: steps.map(s => s.notes ?? '') }),
           });
-          if (pfResp.ok) {
-            const pf = await pfResp.json();
-            if (!pf.ready && pf.missingHints?.length > 0) {
-              setPreflightWarnings(pf.missingHints);
-            }
+          if (!pfResp.ok) {
+            const body = await pfResp.json().catch(() => ({}));
+            throw new Error(body?.error || `Pre-flight check failed (${pfResp.status})`);
           }
-        } catch { /* non-blocking */ }
+          const pf = await pfResp.json();
+          if (!pf.ready && pf.missingHints?.length > 0) {
+            setPreflightWarnings(pf.missingHints);
+          }
+        } catch (pfErr) {
+          toast.error(
+            pfErr instanceof Error
+              ? `Could not verify Live Mode credentials: ${pfErr.message}. Proceeding, but some connector steps may fail if credentials are missing.`
+              : 'Could not verify Live Mode credentials — proceeding, but some connector steps may fail if credentials are missing.',
+          );
+        }
       }
       setPhase('building');
       setMessages(prev => [...prev, {

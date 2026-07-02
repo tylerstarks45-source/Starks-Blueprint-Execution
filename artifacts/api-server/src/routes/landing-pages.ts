@@ -6,10 +6,26 @@ import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
 import { z } from "zod";
 import { randomBytes } from "crypto";
-import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env["SESSION_SECRET"]!;
-const PREVIEW_TOKEN_MAX_AGE_SECS = 24 * 60 * 60; // 24 hours
+// ─── Short-lived, single-use preview exchange tokens ─────────────────────────
+// Opening an unpublished page preview in a new tab used to pass the user's
+// real auth JWT as a `?token=` query param — that risks the token leaking via
+// browser history, server access logs, or the Referer header, and it stayed
+// valid for up to 24h. Instead, the authenticated Builder session exchanges
+// itself (via a normal POST with an Authorization header — never in a URL)
+// for a random opaque preview code that is scoped to exactly one page,
+// expires in 2 minutes, and is deleted the moment it's used once.
+const PREVIEW_SESSION_TTL_MS = 2 * 60 * 1000;
+interface PreviewSession { userId: number; pageId: number; expiresAt: number }
+const previewSessions = new Map<string, PreviewSession>();
+
+function cleanupExpiredPreviewSessions(): void {
+  const now = Date.now();
+  for (const [token, session] of previewSessions) {
+    if (session.expiresAt <= now) previewSessions.delete(token);
+  }
+}
+setInterval(cleanupExpiredPreviewSessions, 60 * 1000).unref();
 
 const router: IRouter = Router();
 
@@ -423,51 +439,67 @@ Generate a complete HTML page that would genuinely convert visitors into buyers/
   res.json(serialize(updated));
 });
 
+// ── POST /api/landing-pages/:id/preview-session ───────────────────────────────
+// Exchanges the caller's normal Authorization-header auth for a short-lived,
+// single-use, page-scoped opaque preview code. The Builder UI calls this
+// (auth header, never a URL) right before opening a preview tab, then puts
+// only the opaque code — never the real JWT — in the tab's URL.
+router.post("/landing-pages/:id/preview-session", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const [row] = await db.select({ id: landingPagesTable.id }).from(landingPagesTable)
+    .where(and(eq(landingPagesTable.id, id), eq(landingPagesTable.userId, userId)));
+  if (!row) {
+    res.status(404).json({ error: "Landing page not found" });
+    return;
+  }
+
+  const previewToken = randomBytes(24).toString("hex");
+  const expiresAt = Date.now() + PREVIEW_SESSION_TTL_MS;
+  previewSessions.set(previewToken, { userId, pageId: id, expiresAt });
+
+  res.json({ previewToken, expiresAt });
+});
+
 // ── GET /api/landing-pages/:id/preview-html ──────────────────────────────────
-// Returns the raw HTML for iframe preview (auth required).
-// Also accepts ?token=<jwt> query param so users can open pages in a new
-// browser tab without a separate login — the same JWT is passed in the URL.
-// Preview tokens are capped at 24 hours even if the underlying JWT has a longer TTL.
+// Returns the raw HTML for iframe preview. Two auth paths:
+//  1. Normal Authorization header (used for the in-app editor iframe).
+//  2. `?previewToken=<opaque>` — a single-use code minted by the
+//     preview-session endpoint above; consumed (deleted) on first use and
+//     expires after 2 minutes, so even if it ends up in browser history or
+//     server logs it's already worthless.
 router.get("/landing-pages/:id/preview-html", async (req, res): Promise<void> => {
   let userId: number | null = null;
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
 
-  const queryToken = typeof req.query["token"] === "string" ? req.query["token"] : null;
-  if (queryToken) {
-    // Verify the token inline so we can enforce the 24h preview cap independently
-    // of the JWT's own expiry (JWTs are issued with 7d expiry for normal sessions).
-    try {
-      const payload = jwt.verify(queryToken, JWT_SECRET) as jwt.JwtPayload;
-      const id = Number(payload["sub"]);
-      if (!Number.isFinite(id)) {
-        res.status(401).send("Invalid preview token");
-        return;
-      }
-      const issuedAt = Number(payload["iat"] ?? 0);
-      const ageSecs = Math.floor(Date.now() / 1000) - issuedAt;
-      if (ageSecs > PREVIEW_TOKEN_MAX_AGE_SECS) {
-        res.status(401).send(
-          `<!DOCTYPE html><html><head><title>Preview Expired</title><style>body{background:#0a0a0a;color:#888;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}p{max-width:400px}a{color:#0ea5e9}</style></head>` +
-          `<body><p>This preview link has expired (24-hour limit).<br>Open the <a href="/builder">Builder</a> and click Preview again to get a fresh link.</p></body></html>`,
-        );
-        return;
-      }
-      // Enforce the same active-account check as requireAuthActive so suspended
-      // users cannot access preview HTML even with a valid, unexpired JWT.
-      const [user] = await db.select({ active: usersTable.active }).from(usersTable).where(eq(usersTable.id, id));
-      if (!user || user.active === false) {
-        res.status(403).send("Account suspended");
-        return;
-      }
-      userId = id;
-    } catch {
-      res.status(401).send("Invalid or expired preview token");
+  const previewToken = typeof req.query["previewToken"] === "string" ? req.query["previewToken"] : null;
+  if (previewToken) {
+    const session = previewSessions.get(previewToken);
+    // Consume immediately regardless of outcome — single use only.
+    previewSessions.delete(previewToken);
+
+    if (!session || session.expiresAt <= Date.now() || session.pageId !== id) {
+      res.status(401).send(
+        `<!DOCTYPE html><html><head><title>Preview Expired</title><style>body{background:#0a0a0a;color:#888;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}p{max-width:400px}a{color:#0ea5e9}</style></head>` +
+        `<body><p>This preview link has expired or was already used.<br>Open the <a href="/builder">Builder</a> and click Preview again to get a fresh link.</p></body></html>`,
+      );
       return;
     }
+
+    // Enforce the same active-account check as requireAuthActive.
+    const [user] = await db.select({ active: usersTable.active }).from(usersTable).where(eq(usersTable.id, session.userId));
+    if (!user || user.active === false) {
+      res.status(403).send("Account suspended");
+      return;
+    }
+    userId = session.userId;
   } else {
     userId = await requireAuthActive(req, res);
     if (userId === null) return;
   }
-  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+
   const [row] = await db.select().from(landingPagesTable)
     .where(and(eq(landingPagesTable.id, id), eq(landingPagesTable.userId, userId)));
   if (!row) {

@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { db, landingPagesTable, systemInstancesTable, usersTable, emailListsTable, emailSubscribersTable } from "@workspace/db";
+import { db, landingPagesTable, systemInstancesTable, usersTable, emailListsTable, emailSubscribersTable, landingPagePreviewSessionsTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
 import { z } from "zod";
 import { randomBytes } from "crypto";
+import { logger } from "../lib/logger";
 
 // ─── Short-lived, single-use preview exchange tokens ─────────────────────────
 // Opening an unpublished page preview in a new tab used to pass the user's
@@ -15,14 +16,18 @@ import { randomBytes } from "crypto";
 // itself (via a normal POST with an Authorization header — never in a URL)
 // for a random opaque preview code that is scoped to exactly one page,
 // expires in 2 minutes, and is deleted the moment it's used once.
+//
+// Backed by Postgres (landing_page_preview_sessions), not an in-process Map —
+// the mint (POST preview-session) and consume (GET preview-html) requests
+// must work correctly even if they land on different horizontally-scaled API
+// instances, or if the server restarts between the two calls.
 const PREVIEW_SESSION_TTL_MS = 2 * 60 * 1000;
-interface PreviewSession { userId: number; pageId: number; expiresAt: number }
-const previewSessions = new Map<string, PreviewSession>();
 
-function cleanupExpiredPreviewSessions(): void {
-  const now = Date.now();
-  for (const [token, session] of previewSessions) {
-    if (session.expiresAt <= now) previewSessions.delete(token);
+async function cleanupExpiredPreviewSessions(): Promise<void> {
+  try {
+    await db.delete(landingPagePreviewSessionsTable).where(sql`expires_at <= now()`);
+  } catch (err) {
+    logger.warn({ err }, "Failed to clean up expired landing page preview sessions");
   }
 }
 setInterval(cleanupExpiredPreviewSessions, 60 * 1000).unref();
@@ -457,8 +462,8 @@ router.post("/landing-pages/:id/preview-session", async (req, res): Promise<void
   }
 
   const previewToken = randomBytes(24).toString("hex");
-  const expiresAt = Date.now() + PREVIEW_SESSION_TTL_MS;
-  previewSessions.set(previewToken, { userId, pageId: id, expiresAt });
+  const expiresAt = new Date(Date.now() + PREVIEW_SESSION_TTL_MS);
+  await db.insert(landingPagePreviewSessionsTable).values({ previewToken, userId, pageId: id, expiresAt });
 
   res.json({ previewToken, expiresAt });
 });
@@ -476,11 +481,14 @@ router.get("/landing-pages/:id/preview-html", async (req, res): Promise<void> =>
 
   const previewToken = typeof req.query["previewToken"] === "string" ? req.query["previewToken"] : null;
   if (previewToken) {
-    const session = previewSessions.get(previewToken);
-    // Consume immediately regardless of outcome — single use only.
-    previewSessions.delete(previewToken);
+    // Atomically delete-and-return so the code is consumed exactly once even
+    // under concurrent requests or across horizontally-scaled instances.
+    const [session] = await db
+      .delete(landingPagePreviewSessionsTable)
+      .where(eq(landingPagePreviewSessionsTable.previewToken, previewToken))
+      .returning();
 
-    if (!session || session.expiresAt <= Date.now() || session.pageId !== id) {
+    if (!session || session.expiresAt.getTime() <= Date.now() || session.pageId !== id) {
       res.status(401).send(
         `<!DOCTYPE html><html><head><title>Preview Expired</title><style>body{background:#0a0a0a;color:#888;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}p{max-width:400px}a{color:#0ea5e9}</style></head>` +
         `<body><p>This preview link has expired or was already used.<br>Open the <a href="/builder">Builder</a> and click Preview again to get a fresh link.</p></body></html>`,

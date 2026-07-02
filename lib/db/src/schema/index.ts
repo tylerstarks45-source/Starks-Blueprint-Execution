@@ -61,5 +61,6 @@ export * from "./pending_approvals";
 export * from "./system_health_scores";
 export * from "./business_health_metrics";
 export * from "./monitoring_log_events";
+export * from "./landing_page_preview_sessions";
 
 export * from "./system_logs";

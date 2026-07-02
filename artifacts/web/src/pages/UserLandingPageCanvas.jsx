@@ -855,6 +855,7 @@ export default function UserLandingPageCanvas() {
                       else window.open(url, '_blank', 'noopener,noreferrer');
                     } catch {
                       previewWin?.close();
+                      showToast('Could not open preview. Please try again.', 'error');
                     }
                   }}
                   className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"

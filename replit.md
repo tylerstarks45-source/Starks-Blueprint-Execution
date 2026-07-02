@@ -54,6 +54,16 @@ An AI-powered automation platform for starksglobalgroup.net. Users select bluepr
 - **Zod date serialization**: Drizzle returns JS `Date` objects; the generated Zod schemas expect strings. The `serialize()` helper does `JSON.parse(JSON.stringify(data))` before every `.parse()` call to coerce dates.
 - **JWT auth**: bcryptjs + jsonwebtoken, tokens stored in localStorage as `sbep_auth_token`. Session secret from `SESSION_SECRET` env var.
 
+## Runtime maintenance & scaling (verified 2026-07-02)
+
+ASH-managed systems keep running unattended via three always-on loops, all confirmed live during the Task #273 hardening pass:
+
+- **Stuck job recovery**: `runtime/worker.ts` polls every 5s. On process startup, `resetOrphanedJobs()` requeues any job left `active` by a crash/restart. Failures retry with exponential backoff (`30s × 2^attempt`) up to `maxAttempts`, then are marked permanently failed and trigger a self-heal + push notification. Verified live: an out-of-credits job retried twice with correct backoff timing, then failed permanently as designed; `runtime_jobs` had zero stuck rows.
+  - **Known gap** (tracked as a follow-up task): orphan recovery only runs at worker *startup*, not periodically — a job hung mid-run while the process stays alive has no watchdog to reclaim it.
+- **Recurring scheduled tasks**: `runtime/scheduler.ts` polls every `POLL_INTERVAL_MS` and drives due-task execution, A/B test conclusion, weekly digest, email sequences, due social posts, and a 5-minute health-monitoring + self-healing pass (`self-healing.ts`) over every active system instance. Verified live in server logs during this session (weekly digest, health-monitor recompute, per-user AI-credit failures handled gracefully).
+- **24h business improvement pass**: `processImprovementPasses()` in `runtime/scheduler.ts` enqueues a `business_improvement_pass` job for every active business once per day. Verified live: enqueued and executed successfully for active businesses in this session.
+  - **Known gap** (tracked as a follow-up task): when this pass (or the weekly digest) fails due to the user being out of AI credits, it's logged server-side only — there's no user-facing notification that their automation paused.
+
 ## PWA & Desktop
 
 - `artifacts/web` is installable as a PWA: `public/manifest.json`, `public/icons/` (192/512 + apple-touch-icon, generated from `artifacts/mobile/assets/images/icon.png`), theme-color/apple meta tags in `index.html`.

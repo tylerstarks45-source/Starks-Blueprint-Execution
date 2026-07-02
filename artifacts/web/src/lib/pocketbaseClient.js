@@ -143,6 +143,13 @@ class SBEPCollection {
   }
 
   async authWithPassword(email, password, _opts = {}) {
+    // Always clear any pre-existing session BEFORE attempting a new login.
+    // This guarantees a stale token/user object from a previous account on
+    // this device (e.g. a shared device, or an old test session) can never
+    // bleed into the new session — the only way `authStore.model` can be
+    // populated after this call is from a fresh, server-verified response
+    // for the credentials just submitted.
+    pocketbaseClient.authStore.clear();
     const data = await apiRequest('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),

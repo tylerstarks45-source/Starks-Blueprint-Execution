@@ -56,8 +56,44 @@ export const AuthProvider = ({ children }) => {
     if (listenerAttachedRef.current) return;
     listenerAttachedRef.current = true;
 
-    updateReactState(pb.authStore.model);
-    setIsLoading(false);
+    // Optimistically render the cached session immediately (avoids a flash
+    // of "logged out" on every page load), but then re-verify it against the
+    // server. This closes the gap where a device could be trusting a stale
+    // or tampered `localStorage` user object indefinitely (7-day token) —
+    // if the token is invalid/expired, or the server's current record for
+    // that user id no longer matches what's cached, we clear the session
+    // and force a fresh login instead of silently showing wrong/stale data.
+    const cachedModel = pb.authStore.model;
+    updateReactState(cachedModel);
+
+    const verifySession = async () => {
+      const token = pb.authStore.token;
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          pb.authStore.clear();
+          updateReactState(null);
+          return;
+        }
+        const { user: freshUser } = await res.json();
+        // Refresh with the server's authoritative record (id/role/credits),
+        // in case the cached copy was stale.
+        pb.authStore.save(token, freshUser);
+        updateReactState(freshUser);
+      } catch {
+        // Network error verifying session — keep the optimistic cached
+        // state rather than logging the user out on a flaky connection.
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    verifySession();
 
     const unsubscribe = pb.authStore.onChange((_token, model) => {
       updateReactState(model);

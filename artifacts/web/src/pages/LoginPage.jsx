@@ -51,7 +51,13 @@ const LoginPage = () => {
         const userObj = result.data?.record || result.data?.user || result.data;
         const role = userObj?.role || 'USER';
         const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN'];
-        toast.success("Welcome back. System access granted.");
+        // Surface the authenticated account's email in the toast. If a browser's
+        // saved-password autofill silently substituted a different account than
+        // the one the user meant to type, this makes the mismatch immediately
+        // visible instead of the user only noticing once they see dashboard data.
+        toast.success(
+          userObj?.email ? `Welcome back, ${userObj.email}.` : "Welcome back. System access granted."
+        );
         // Use window.location.replace instead of navigate() so the page does a
         // full reload after login. This guarantees AuthContext initialises from
         // the freshly-written localStorage values (set synchronously by

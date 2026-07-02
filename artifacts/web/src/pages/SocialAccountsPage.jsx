@@ -149,26 +149,18 @@ const SOCIAL_PLATFORMS = [
       'Paste your access token below',
     ],
   },
+];
+
+// YouTube (and Gmail) need three linked OAuth fields (refresh token + client
+// id/secret), which this page's single-field-per-platform modal can't
+// capture. Rather than let users "connect" with a lone API key that the real
+// YouTubeConnector will just reject, point them at the Connections Hub,
+// which has the full multi-field flow.
+const OAUTH_ONLY_ELSEWHERE = [
   {
-    key: 'YOUTUBE_API_KEY',
     name: 'YouTube',
-    handle: 'Your Channel',
     icon: '▶',
-    gradient: 'from-[#ff0000]/20 to-[#cc0000]/10',
-    border: 'border-[#ff0000]/25',
-    dot: 'bg-[#ff0000]',
-    glow: 'shadow-[#ff0000]/10',
-    label: 'API Key',
-    placeholder: 'Paste your YouTube Data API Key…',
-    description: 'Manage your channel, schedule uploads, track analytics, and automate YouTube income systems.',
-    ashCapabilities: ['Schedule video uploads', 'Track channel analytics', 'Generate video metadata', 'Optimize for SEO'],
-    docsUrl: 'https://console.developers.google.com/',
-    guide: [
-      'Go to console.developers.google.com',
-      'Create a project → Enable "YouTube Data API v3"',
-      'Go to Credentials → Create API Key',
-      'Paste the API key below',
-    ],
+    reason: 'Requires a refresh token plus OAuth client ID/secret — set it up from the Connections Hub.',
   },
 ];
 
@@ -186,16 +178,20 @@ function ConnectModal({ platform, existingData, onClose, onSaved }) {
     if (!value.trim()) { toast.error('Please paste your token or key'); return; }
     setSaving(true);
     try {
+      const userId = currentUser?.id != null ? Number(currentUser.id) : undefined;
       const res = await fetch('/api/user-credentials', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({
-          userId: currentUser?.id,
+          userId,
           credentialKey: platform.key,
           encryptedValue: btoa(value.trim()),
         }),
       });
-      if (!res.ok) throw new Error('Failed to save');
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || `Failed to save (${res.status})`);
+      }
       toast.success(`${platform.name} connected to ASH`);
       onSaved();
       onClose();
@@ -281,9 +277,10 @@ function ConnectModal({ platform, existingData, onClose, onSaved }) {
   );
 }
 
-function PlatformCard({ platform, credential, onConnect, onDisconnect }) {
+function PlatformCard({ platform, credential, onConnect, onDisconnect, onTest, testState }) {
   const isConnected = !!credential;
   const [expanded, setExpanded] = useState(false);
+  const needsReconnect = testState?.checked && testState?.ok === false;
 
   return (
     <div className={`relative rounded-2xl border ${platform.border} bg-gradient-to-br ${platform.gradient} backdrop-blur-sm overflow-hidden transition-all duration-300 hover:shadow-lg hover:${platform.glow}`}>
@@ -298,13 +295,24 @@ function PlatformCard({ platform, credential, onConnect, onDisconnect }) {
               <p className="text-xs text-white/35 font-mono">{platform.handle}</p>
             </div>
           </div>
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${isConnected ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400' : 'bg-white/4 border-white/10 text-white/30'}`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-white/20'}`} />
-            {isConnected ? 'Connected' : 'Not Connected'}
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${
+            needsReconnect ? 'bg-amber-500/10 border-amber-500/25 text-amber-400'
+            : isConnected ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
+            : 'bg-white/4 border-white/10 text-white/30'
+          }`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${needsReconnect ? 'bg-amber-400' : isConnected ? 'bg-emerald-400' : 'bg-white/20'}`} />
+            {needsReconnect ? 'Needs Reconnect' : isConnected ? 'Connected' : 'Not Connected'}
           </div>
         </div>
 
         <p className="text-xs text-white/55 leading-relaxed mb-4">{platform.description}</p>
+
+        {isConnected && testState?.checked && (
+          <div className={`mb-4 rounded-lg border p-2.5 flex items-center gap-2 text-[11px] ${testState.ok ? 'bg-emerald-500/5 border-emerald-500/15 text-emerald-400' : 'bg-amber-500/5 border-amber-500/15 text-amber-400'}`}>
+            <span>{testState.ok ? '✓' : '⚠'}</span>
+            <span className="leading-snug">{testState.message}</span>
+          </div>
+        )}
 
         {isConnected && (
           <div className="mb-4">
@@ -343,6 +351,15 @@ function PlatformCard({ platform, credential, onConnect, onDisconnect }) {
         <div className="flex flex-col gap-2">
           {isConnected ? (
             <div className="flex gap-2">
+              {onTest && (
+                <button
+                  onClick={() => onTest(platform, credential)}
+                  disabled={testState?.testing}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold bg-white/6 border border-white/10 text-white/55 hover:text-white/80 hover:border-white/20 transition-colors disabled:opacity-50"
+                >
+                  {testState?.testing ? 'Testing…' : 'Test'}
+                </button>
+              )}
               <button
                 onClick={() => onConnect(platform)}
                 className="flex-1 py-2 rounded-xl text-xs font-semibold bg-white/6 border border-white/10 text-white/55 hover:text-white/80 hover:border-white/20 transition-colors"
@@ -387,6 +404,7 @@ export default function SocialAccountsPage() {
   const [credentials, setCredentials] = useState({});
   const [loading, setLoading] = useState(true);
   const [modalPlatform, setModalPlatform] = useState(null);
+  const [testStates, setTestStates] = useState({});
 
   const fetchCredentials = async () => {
     if (!currentUser?.id) return;
@@ -412,6 +430,22 @@ export default function SocialAccountsPage() {
       toast.success(`${platformName} disconnected`);
       fetchCredentials();
     } catch { toast.error('Failed to disconnect'); }
+  };
+
+  const handleTest = async (platform, credential) => {
+    setTestStates(prev => ({ ...prev, [platform.key]: { checked: true, testing: true } }));
+    try {
+      const res = await fetch(`/api/user-credentials/${credential.id}/test`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      setTestStates(prev => ({ ...prev, [platform.key]: { checked: true, testing: false, ok: !!data.ok, message: data.message } }));
+      if (data.ok) toast.success(`${platform.name}: ${data.message}`);
+      else toast.error(`${platform.name}: ${data.message}`);
+    } catch {
+      setTestStates(prev => ({ ...prev, [platform.key]: { checked: true, testing: false, ok: false, message: 'Test request failed' } }));
+    }
   };
 
   const connectedCount = SOCIAL_PLATFORMS.filter(p => credentials[p.key]).length;
@@ -451,10 +485,32 @@ export default function SocialAccountsPage() {
                   credential={credentials[platform.key]}
                   onConnect={setModalPlatform}
                   onDisconnect={handleDisconnect}
+                  onTest={handleTest}
+                  testState={testStates[platform.key]}
                 />
               ))
           }
         </div>
+
+        {OAUTH_ONLY_ELSEWHERE.length > 0 && (
+          <div className="mb-12 rounded-2xl border border-white/8 bg-white/3 p-5">
+            <p className="text-[11px] text-white/40 font-mono font-semibold uppercase tracking-widest mb-3">Set up from the Connections Hub</p>
+            <div className="space-y-2">
+              {OAUTH_ONLY_ELSEWHERE.map(item => (
+                <div key={item.name} className="flex items-start gap-3">
+                  <span className="text-lg">{item.icon}</span>
+                  <div>
+                    <p className="text-sm text-white/80 font-semibold">{item.name}</p>
+                    <p className="text-xs text-white/45">{item.reason}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Link to="/connections" className="inline-flex items-center gap-1.5 mt-3 pt-3 border-t border-white/8 text-[11px] text-violet-400 hover:text-violet-300 transition-colors">
+              Go to Connections Hub →
+            </Link>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-10">
           {[

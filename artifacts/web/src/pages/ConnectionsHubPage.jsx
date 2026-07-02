@@ -62,11 +62,18 @@ const CATALOG = [
   { key: 'PLAYHT_API_KEY',       name: 'PlayHT',       category: 'voice-ai',       icon: '▶',   accent: 'emerald', label: 'API Key',       placeholder: 'v3_…',          description: 'AI voice generation with emotion and emphasis control.',                  docsUrl: 'https://play.ht/app/api-access',                affiliateUrl: 'https://play.ht/?sid=starks', testable: false },
   { key: 'MURF_API_KEY',         name: 'Murf',         category: 'voice-ai',       icon: '🔊',  accent: 'blue',    label: 'API Key',       placeholder: 'murf-…',        description: 'Professional AI voiceovers with 120+ voices across 20 languages.',      docsUrl: 'https://murf.ai/',                              affiliateUrl: 'https://murf.ai/?sid=starks', testable: false },
   // ── Social Media ───────────────────────────────────────────────────────────
-  { key: 'TIKTOK_ACCESS_TOKEN',  name: 'TikTok',       category: 'social',         icon: '🎵',  accent: 'pink',    label: 'Access Token',  placeholder: 'Access token…', description: 'Content automation and analytics for TikTok growth blueprints.',       docsUrl: 'https://developers.tiktok.com/',                affiliateUrl: null, testable: false },
-  { key: 'YOUTUBE_API_KEY',      name: 'YouTube',      category: 'social',         icon: '▶',   accent: 'red',     label: 'API Key',       placeholder: 'AIza…',         description: 'YouTube Data API for content scheduling and channel management.',        docsUrl: 'https://console.developers.google.com/',        affiliateUrl: null, testable: false },
-  { key: 'META_ACCESS_TOKEN',    name: 'Meta',         category: 'social',         icon: '👥',  accent: 'blue',    label: 'Access Token',  placeholder: 'EAAr…',         description: 'Facebook & Instagram automation for social media blueprints.',          docsUrl: 'https://developers.facebook.com/',              affiliateUrl: null, testable: false },
-  { key: 'LINKEDIN_API_KEY',     name: 'LinkedIn',     category: 'social',         icon: '💼',  accent: 'blue',    label: 'Access Token',  placeholder: 'AQX…',          description: 'LinkedIn API for B2B content and lead generation automation.',          docsUrl: 'https://www.linkedin.com/developers/',          affiliateUrl: null, testable: false },
-  { key: 'TWITTER_BEARER_TOKEN', name: 'X (Twitter)',  category: 'social',         icon: '𝕏',   accent: 'violet',  label: 'Bearer Token',  placeholder: 'AAAA…',         description: 'X (Twitter) API v2 for tweet automation and audience analytics.',       docsUrl: 'https://developer.twitter.com/',                affiliateUrl: null, testable: false },
+  { key: 'TIKTOK_ACCESS_TOKEN',  name: 'TikTok',       category: 'social',         icon: '🎵',  accent: 'pink',    label: 'Access Token',  placeholder: 'Access token…', description: 'Content automation and analytics for TikTok growth blueprints.',       docsUrl: 'https://developers.tiktok.com/',                affiliateUrl: null, testable: true },
+  { key: 'YOUTUBE_REFRESH_TOKEN', name: 'YouTube',      category: 'social',         icon: '▶',   accent: 'red',     label: 'Refresh Token', placeholder: '1//…',          description: 'YouTube Data API for channel analytics, subscribers, and video uploads.', docsUrl: 'https://developers.google.com/oauthplayground', affiliateUrl: null, testable: true,
+    extraFields: [
+      { key: 'YOUTUBE_CLIENT_ID',     label: 'OAuth Client ID',     placeholder: '….apps.googleusercontent.com' },
+      { key: 'YOUTUBE_CLIENT_SECRET', label: 'OAuth Client Secret', placeholder: 'GOCSPX-…' },
+    ] },
+  { key: 'META_ACCESS_TOKEN',    name: 'Meta',         category: 'social',         icon: '👥',  accent: 'blue',    label: 'Access Token',  placeholder: 'EAAr…',         description: 'Facebook & Instagram automation for social media blueprints.',          docsUrl: 'https://developers.facebook.com/',              affiliateUrl: null, testable: true,
+    extraFields: [
+      { key: 'META_PAGE_ID', label: 'Page ID', placeholder: '1234567890' },
+    ] },
+  { key: 'LINKEDIN_API_KEY',     name: 'LinkedIn',     category: 'social',         icon: '💼',  accent: 'blue',    label: 'Access Token',  placeholder: 'AQX…',          description: 'LinkedIn API for B2B content and lead generation automation. LinkedIn does not issue refresh tokens for standard apps — this token expires (~60 days) and must be manually reconnected.', docsUrl: 'https://www.linkedin.com/developers/', affiliateUrl: null, testable: true },
+  { key: 'TWITTER_BEARER_TOKEN', name: 'X (Twitter)',  category: 'social',         icon: '𝕏',   accent: 'violet',  label: 'Bearer Token',  placeholder: 'AAAA…',         description: 'X (Twitter) API v2 for tweet automation and audience analytics.',       docsUrl: 'https://developer.twitter.com/',                affiliateUrl: null, testable: true },
   { key: 'THREADS_ACCESS_TOKEN',  name: 'Threads',      category: 'social',         icon: '🧵',  accent: 'violet',  label: 'Access Token',  placeholder: 'thr_…',         description: 'Threads by Meta API for text-based social content automation.',          docsUrl: 'https://developers.facebook.com/docs/threads',  affiliateUrl: null, testable: false },
   { key: 'PINTEREST_API_KEY',    name: 'Pinterest',    category: 'social',         icon: '📌',  accent: 'red',     label: 'Access Token',  placeholder: 'ppa_…',         description: 'Pinterest API for pin scheduling and board automation blueprints.',       docsUrl: 'https://developers.pinterest.com/docs/getting-started/', affiliateUrl: null, testable: false },
   { key: 'INSTAGRAM_ACCESS_TOKEN', name: 'Instagram', category: 'social',         icon: '📸',  accent: 'pink',    label: 'Access Token',  placeholder: 'IGAT_…',        description: 'Instagram Graph API for Reels, posts, and story automation.',            docsUrl: 'https://developers.facebook.com/docs/instagram-api', affiliateUrl: null, testable: false },
@@ -104,7 +111,11 @@ const CATALOG = [
   // ── Infrastructure ─────────────────────────────────────────────────────────
   { key: 'CLOUDFLARE_API_KEY',   name: 'Cloudflare',   category: 'infrastructure', icon: '☁',   accent: 'amber',   label: 'API Key',       placeholder: 'Global API Key…', description: 'DNS, Workers, and CDN for deployment and hosting blueprints.',       docsUrl: 'https://dash.cloudflare.com/profile/api-tokens', affiliateUrl: null, testable: false },
   { key: 'SUPABASE_SERVICE_KEY', name: 'Supabase',     category: 'infrastructure', icon: '🗄',   accent: 'emerald', label: 'Service Key',   placeholder: 'eyJ…',           description: 'Managed Postgres + Auth + Storage for database-driven blueprints.',   docsUrl: 'https://supabase.com/dashboard/project/_/settings/api', affiliateUrl: 'https://supabase.com/?sid=starks', testable: false },
-  { key: 'GMAIL_REFRESH_TOKEN',  name: 'Gmail',        category: 'infrastructure', icon: '✉',   accent: 'red',     label: 'Refresh Token', placeholder: '1//…',           description: 'Gmail API for email outreach and cold-email automation.',             docsUrl: 'https://developers.google.com/oauthplayground', affiliateUrl: null, testable: false },
+  { key: 'GMAIL_REFRESH_TOKEN',  name: 'Gmail',        category: 'infrastructure', icon: '✉',   accent: 'red',     label: 'Refresh Token', placeholder: '1//…',           description: 'Gmail API for email outreach, inbox reading, and cold-email automation.', docsUrl: 'https://developers.google.com/oauthplayground', affiliateUrl: null, testable: true,
+    extraFields: [
+      { key: 'GMAIL_CLIENT_ID',     label: 'OAuth Client ID',     placeholder: '….apps.googleusercontent.com' },
+      { key: 'GMAIL_CLIENT_SECRET', label: 'OAuth Client Secret', placeholder: 'GOCSPX-…' },
+    ] },
   { key: 'AWS_ACCESS_KEY',       name: 'AWS',          category: 'infrastructure', icon: '☁',   accent: 'amber',   label: 'Access Key',    placeholder: 'AKIA…',          description: 'Amazon Web Services for cloud deployment and scaling blueprints.',     docsUrl: 'https://console.aws.amazon.com/iam/',           affiliateUrl: null, testable: false },
   { key: 'VERCEL_TOKEN',         name: 'Vercel',       category: 'infrastructure', icon: '▲',   accent: 'blue',    label: 'API Token',     placeholder: 'vercel_…',      description: 'Vercel serverless deployment for frontend and edge function blueprints.', docsUrl: 'https://vercel.com/account/tokens',             affiliateUrl: 'https://vercel.com/?sid=starks', testable: false },
   { key: 'NETLIFY_ACCESS_TOKEN', name: 'Netlify',      category: 'infrastructure', icon: '🌐',  accent: 'emerald', label: 'Access Token',  placeholder: 'netlify-…',     description: 'Netlify hosting and edge functions for JAMstack blueprint deployments.', docsUrl: 'https://app.netlify.com/user/applications',     affiliateUrl: 'https://netlify.com/?sid=starks', testable: false },
@@ -164,7 +175,9 @@ function timeAgo(iso) {
 // ─── CONNECT / EDIT SLIDE-OVER ────────────────────────────────────────────────
 
 function ConnectSlideOver({ integration, existingData, userId, onClose, onSaved }) {
+  const extraFields = integration.extraFields ?? [];
   const [value, setValue] = useState('');
+  const [extraValues, setExtraValues] = useState(() => Object.fromEntries(extraFields.map(f => [f.key, ''])));
   const [showValue, setShowValue] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -175,19 +188,33 @@ function ConnectSlideOver({ integration, existingData, userId, onClose, onSaved 
 
   const handleSave = async () => {
     if (!value.trim()) { toast.error('Please enter a value'); return; }
+    const missingExtra = extraFields.filter(f => !extraValues[f.key]?.trim());
+    if (missingExtra.length > 0) {
+      toast.error(`Please enter a value for ${missingExtra[0].label}`);
+      return;
+    }
     setSaving(true);
     setTestResult(null);
     try {
-      const res = await fetch('/api/user-credentials', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
-          userId,
-          credentialKey: integration.key,
-          encryptedValue: btoa(value.trim()),
-        }),
-      });
-      if (!res.ok) throw new Error('Failed to save');
+      const fieldsToSave = [
+        { credentialKey: integration.key, value: value.trim() },
+        ...extraFields.map(f => ({ credentialKey: f.key, value: extraValues[f.key].trim() })),
+      ];
+      for (const field of fieldsToSave) {
+        const res = await fetch('/api/user-credentials', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            userId: userId != null ? Number(userId) : undefined,
+            credentialKey: field.credentialKey,
+            encryptedValue: btoa(field.value),
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.error || `Failed to save (${res.status})`);
+        }
+      }
       toast.success(`${integration.name} ${existingData ? 'updated' : 'connected'}`);
       onSaved();
       onClose();
@@ -300,6 +327,24 @@ function ConnectSlideOver({ integration, existingData, userId, onClose, onSaved 
             </div>
             <p className="text-xs text-gray-600 mt-1.5">Stored with AES-256-GCM encryption. Never exposed in responses.</p>
           </div>
+
+          {extraFields.map(field => (
+            <div key={field.key}>
+              <label className="block text-xs font-mono uppercase tracking-widest text-gray-500 mb-2">
+                {field.label}
+              </label>
+              <input
+                type="password"
+                value={extraValues[field.key] ?? ''}
+                onChange={(e) => setExtraValues(v => ({ ...v, [field.key]: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                placeholder={existingData ? '••••••••••••••••' : field.placeholder}
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white font-mono placeholder-gray-700 focus:outline-none focus:ring-1 focus:ring-white/20"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+          ))}
 
           <div className="rounded-xl bg-white/2 border border-white/5 p-4 space-y-2">
             <p className="text-xs font-semibold text-gray-300">Where to get your {integration.label}</p>

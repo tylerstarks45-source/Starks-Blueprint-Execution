@@ -20,6 +20,22 @@ import { computeSystemHealth } from "../lib/health-monitor";
 import { attemptSelfHeal } from "../lib/self-healing";
 import { loadCredentials } from "../lib/runtime/worker";
 import { logger } from "../lib/logger";
+import { getConnector } from "../lib/connectors/registry";
+
+// Maps a catalog credentialKey to the connector registry id + the exact
+// credential key names the connector's constructor expects (which may differ
+// from the catalog key, e.g. LinkedIn stores under LINKEDIN_API_KEY in the
+// Connections Hub but the connector reads LINKEDIN_ACCESS_TOKEN). Used to
+// route "Test" clicks in the Connections Hub through the real connector
+// implementations instead of the generic non-empty-string check below.
+const KEY_TO_CONNECTOR: Record<string, { connectorId: string; keyMap?: Record<string, string> }> = {
+  GMAIL_REFRESH_TOKEN: { connectorId: "gmail" },
+  YOUTUBE_REFRESH_TOKEN: { connectorId: "youtube" },
+  TWITTER_BEARER_TOKEN: { connectorId: "twitter" },
+  META_ACCESS_TOKEN: { connectorId: "meta" },
+  TIKTOK_ACCESS_TOKEN: { connectorId: "tiktok" },
+  LINKEDIN_API_KEY: { connectorId: "linkedin", keyMap: { LINKEDIN_API_KEY: "LINKEDIN_ACCESS_TOKEN" } },
+};
 
 const router: IRouter = Router();
 
@@ -337,6 +353,43 @@ router.post("/user-credentials/:id/test", async (req, res): Promise<void> => {
         testOk = false;
         testMessage = `Stripe returned ${r.status}`;
         newStatus = "needs_reconnect";
+      }
+    } else if (KEY_TO_CONNECTOR[cred.credentialKey]) {
+      // Route through the real connector implementation for anything with
+      // one registered (gmail, youtube, twitter, meta, tiktok, linkedin) so
+      // "Test" in the Connections Hub reflects the same health signal ASH
+      // and self-healing rely on, not just a "looks non-empty" placeholder.
+      const { connectorId, keyMap } = KEY_TO_CONNECTOR[cred.credentialKey]!;
+
+      // Multi-key connectors (gmail/youtube) need sibling credentials too —
+      // gather every stored credential for this user and build the creds
+      // record the connector constructor expects.
+      const allRows = await db
+        .select()
+        .from(userCredentialsTable)
+        .where(eq(userCredentialsTable.userId, userId));
+
+      const creds: Record<string, string> = {};
+      for (const row of allRows) {
+        try {
+          const decrypted = decrypt(row.encryptedValue);
+          const mappedKey = keyMap?.[row.credentialKey] ?? row.credentialKey;
+          creds[mappedKey] = decrypted;
+        } catch {
+          // Skip rows that fail to decrypt; connector will report missing creds.
+        }
+      }
+
+      const connector = getConnector(connectorId, creds);
+      if (!connector) {
+        testOk = false;
+        testMessage = `No connector registered for ${connectorId}`;
+        newStatus = "needs_reconnect";
+      } else {
+        const result = await connector.testConnection();
+        testOk = result.ok;
+        testMessage = result.message;
+        newStatus = result.ok ? "connected" : "needs_reconnect";
       }
     } else {
       // For other keys: verify non-empty and reasonable length

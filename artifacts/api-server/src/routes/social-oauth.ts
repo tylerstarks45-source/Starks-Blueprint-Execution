@@ -1,8 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, userCredentialsTable, SOCIAL_PLATFORMS, type SocialPlatform } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { SOCIAL_PLATFORMS, type SocialPlatform } from "@workspace/db";
 import { getUserId } from "../lib/auth";
-import { encrypt } from "../lib/crypto";
 import { getBaseUrl } from "../lib/sendgrid";
 import {
   SOCIAL_OAUTH_CONFIGS,
@@ -12,7 +10,10 @@ import {
   verifyOAuthState,
   buildAuthorizeUrl,
   exchangeCodeForToken,
+  exchangeForLongLivedMetaToken,
   fetchMetaPageCredentials,
+  upsertCredential,
+  refreshCredentialKeyFor,
 } from "../lib/social-oauth";
 
 const router: IRouter = Router();
@@ -34,28 +35,6 @@ function isSocialPlatform(value: string): value is SocialPlatform {
 
 function redirectUriFor(platform: string): string {
   return `${getBaseUrl()}/api/social/oauth/${platform}/callback`;
-}
-
-async function upsertCredential(userId: number, credentialKey: string, plaintext: string): Promise<void> {
-  const [existing] = await db
-    .select({ id: userCredentialsTable.id })
-    .from(userCredentialsTable)
-    .where(and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.credentialKey, credentialKey)));
-
-  const encryptedValue = encrypt(plaintext);
-  if (existing) {
-    await db.update(userCredentialsTable)
-      .set({ encryptedValue, status: "connected", connectedAt: new Date(), updatedAt: new Date() })
-      .where(eq(userCredentialsTable.id, existing.id));
-  } else {
-    await db.insert(userCredentialsTable).values({
-      userId,
-      credentialKey,
-      encryptedValue,
-      status: "connected",
-      connectedAt: new Date(),
-    });
-  }
 }
 
 // ─── GET /api/social/oauth/:platform/authorize ────────────────────────────────
@@ -150,17 +129,37 @@ router.get("/social/oauth/:platform/callback", async (req, res): Promise<void> =
     const result = await exchangeCodeForToken(platform, cfg, code, statePayload.redirectUri, statePayload.codeVerifier);
 
     if (platform === "facebook" || platform === "instagram") {
-      const page = await fetchMetaPageCredentials(result.accessToken);
+      // Exchange the short-lived (~1-2hr) user token for a long-lived one
+      // (~60 days) *before* deriving the Page token, so the Page token
+      // inherits the long lifetime and self-healing can refresh it later
+      // via the same fb_exchange_token re-exchange.
+      let userToken = result.accessToken;
+      let expiresAt: Date | null = null;
+      try {
+        const longLived = await exchangeForLongLivedMetaToken(result.accessToken);
+        userToken = longLived.accessToken;
+        expiresAt = longLived.expiresInSeconds ? new Date(Date.now() + longLived.expiresInSeconds * 1000) : null;
+      } catch {
+        // Fall back to the short-lived token if the exchange fails — still usable immediately.
+      }
+
+      const page = await fetchMetaPageCredentials(userToken);
       if (!page) {
         failRedirect("Connected, but no Facebook Page was found on this account. Create/admin a Page first, then reconnect.");
         return;
       }
       await Promise.all([
-        upsertCredential(statePayload.userId, "META_ACCESS_TOKEN", page.pageAccessToken),
+        upsertCredential(statePayload.userId, "META_ACCESS_TOKEN", page.pageAccessToken, expiresAt),
         upsertCredential(statePayload.userId, "META_PAGE_ID", page.pageId),
       ]);
     } else {
-      await upsertCredential(statePayload.userId, cfg.credentialKey, result.accessToken);
+      const expiresAt = result.expiresInSeconds ? new Date(Date.now() + result.expiresInSeconds * 1000) : null;
+      await upsertCredential(statePayload.userId, cfg.credentialKey, result.accessToken, expiresAt);
+
+      const refreshToken = result.extra?.["refresh_token"] as string | undefined;
+      if (refreshToken) {
+        await upsertCredential(statePayload.userId, refreshCredentialKeyFor(cfg), refreshToken);
+      }
     }
 
     res.redirect(`${webBase}/connections?oauth=success&platform=${encodeURIComponent(platform)}`);

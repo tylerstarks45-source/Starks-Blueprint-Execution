@@ -20,6 +20,29 @@ import { createPendingApproval } from "./approvals";
 import { hasOperationsModeAccess } from "./operations-gate";
 import { runRootCauseResearch } from "./research-loop";
 import { restartSystem, DeploymentError } from "./runtime/deployment";
+import {
+  SOCIAL_OAUTH_CONFIGS,
+  isOAuthConfigured,
+  platformSupportsRefresh,
+  refreshWithRefreshToken,
+  refreshMetaLongLivedToken,
+  refreshCredentialKeyFor,
+  upsertCredential,
+  getDecryptedCredential,
+} from "./social-oauth";
+import type { SocialPlatform } from "@workspace/db";
+
+// Maps a connector registry id to the OAuth platform key it shares a
+// credential vault entry with (see SOCIAL_OAUTH_CONFIGS). Connectors not
+// listed here (gmail, youtube, stripe, etc.) don't go through the social
+// OAuth refresh path — they either self-refresh per call or have no
+// automatic refresh mechanism at all.
+const CONNECTOR_TO_OAUTH_PLATFORM: Partial<Record<string, SocialPlatform>> = {
+  twitter: "twitter",
+  linkedin: "linkedin",
+  meta: "facebook",
+  tiktok: "tiktok",
+};
 
 const STUCK_JOB_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes "active" with no progress
 const RESTART_WORKER_COOLDOWN_MS = 30 * 60 * 1000; // don't restart the same worker more than once per 30 minutes
@@ -90,13 +113,13 @@ async function resolvePermissions(
 // ─── Fix #1: reconnect an expired/errored connector ────────────────────────
 // Precondition: a system_connector row has status 'error'.
 // Postcondition: re-testing with the currently stored credentials succeeds
-// and the row is updated to 'connected' — this is the "stored refresh flow":
-// we check the user's *stored* credential record (status/expiresAt) rather
-// than blindly retrying. If the stored token is genuinely expired, no
-// connector in this codebase implements an OAuth refresh-token exchange, so
-// retrying testConnection() would just fail identically forever. In that
-// case we skip straight to "can't fix, needs new credentials" instead of
-// looping — that's an escalation, not a retry loop.
+// and the row is updated to 'connected'. When the stored credential is
+// actually expired, this first attempts a *real* OAuth refresh for the
+// platforms that support one (Twitter/X, TikTok via refresh_token; Meta via
+// fb_exchange_token re-exchange) before retesting. LinkedIn (standard apps
+// get no refresh token) and any connector without an OAuth config are
+// non-refreshable — those are flagged accurately and escalated to the user
+// for a fresh manual reconnect instead of looping on a doomed retry.
 async function reconnectExpiredConnector(
   systemInstanceId: number,
   connectorId: string,
@@ -130,16 +153,84 @@ async function reconnectExpiredConnector(
       .limit(1);
 
     if (expiredCred.length > 0) {
+      const platform = CONNECTOR_TO_OAUTH_PLATFORM[connectorId];
+      const cfg = platform ? SOCIAL_OAUTH_CONFIGS[platform] : undefined;
+
+      if (platform && cfg && isOAuthConfigured(platform) && platformSupportsRefresh(platform)) {
+        try {
+          const refreshResult =
+            platform === "facebook" || platform === "instagram"
+              ? await (async () => {
+                  const currentToken = await getDecryptedCredential(instance.userId, cfg.credentialKey);
+                  if (!currentToken) throw new Error("No stored access token to refresh from — reconnect manually");
+                  return refreshMetaLongLivedToken(currentToken);
+                })()
+              : await (async () => {
+                  const refreshToken = await getDecryptedCredential(instance.userId, refreshCredentialKeyFor(cfg));
+                  if (!refreshToken) throw new Error(`No stored refresh token for ${connectorId} — reconnect manually via Connections Hub`);
+                  return refreshWithRefreshToken(platform, cfg, refreshToken);
+                })();
+
+          const newExpiresAt = refreshResult.expiresInSeconds ? new Date(Date.now() + refreshResult.expiresInSeconds * 1000) : null;
+          await upsertCredential(instance.userId, cfg.credentialKey, refreshResult.accessToken, newExpiresAt);
+          const rotatedRefreshToken = refreshResult.extra?.["refresh_token"] as string | undefined;
+          if (rotatedRefreshToken) {
+            await upsertCredential(instance.userId, refreshCredentialKeyFor(cfg), rotatedRefreshToken);
+          }
+
+          const freshCreds = await loadCredentials(systemInstanceId);
+          const freshConnector = getConnector(connectorId, freshCreds);
+          const retest = freshConnector ? await freshConnector.testConnection() : { ok: false, message: "connector unavailable after refresh" };
+
+          await db
+            .update(systemConnectorsTable)
+            .set({ status: retest.ok ? "connected" : "error", lastTestedAt: new Date(), errorMessage: retest.ok ? null : retest.message })
+            .where(and(eq(systemConnectorsTable.systemInstanceId, systemInstanceId), eq(systemConnectorsTable.connector, connectorId)));
+
+          return {
+            action: "reconnect",
+            attempted: true,
+            fixed: retest.ok,
+            detail: retest.ok
+              ? `${connectorId} access token refreshed automatically and reconnected`
+              : `${connectorId} token refreshed but the connector is still failing: ${retest.message}`,
+          };
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          await db
+            .update(systemConnectorsTable)
+            .set({ status: "error", lastTestedAt: new Date(), errorMessage: `Automatic token refresh failed: ${message}` })
+            .where(and(eq(systemConnectorsTable.systemInstanceId, systemInstanceId), eq(systemConnectorsTable.connector, connectorId)));
+
+          return {
+            action: "reconnect",
+            attempted: true,
+            fixed: false,
+            detail: `${connectorId}'s access expired and automatic token refresh failed (${message}) — needs a new credential from the user`,
+          };
+        }
+      }
+
+      // Non-refreshable: no OAuth config for this connector, OAuth app not
+      // configured on the platform, or the platform (LinkedIn) doesn't issue
+      // refresh tokens at all. Flag it clearly instead of retrying forever.
+      const nonRefreshableReason =
+        platform === "linkedin"
+          ? "LinkedIn does not issue refresh tokens to standard apps"
+          : platform && cfg && !isOAuthConfigured(platform)
+            ? `${cfg.clientIdEnv} is not configured on this platform`
+            : "this connector has no OAuth refresh-token flow";
+
       await db
         .update(systemConnectorsTable)
-        .set({ status: "error", lastTestedAt: new Date(), errorMessage: "Stored credential is expired" })
+        .set({ status: "error", lastTestedAt: new Date(), errorMessage: `Stored credential is expired (${nonRefreshableReason})` })
         .where(and(eq(systemConnectorsTable.systemInstanceId, systemInstanceId), eq(systemConnectorsTable.connector, connectorId)));
 
       return {
         action: "reconnect",
         attempted: true,
         fixed: false,
-        detail: `${connectorId}'s stored credential (${expiredCred[0]!.credentialKey}) is expired and this connector has no OAuth refresh-token flow — needs a new credential from the user`,
+        detail: `${connectorId}'s stored credential (${expiredCred[0]!.credentialKey}) is expired and non-refreshable (${nonRefreshableReason}) — needs a new credential from the user`,
       };
     }
   }

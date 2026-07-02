@@ -22,7 +22,8 @@ import { BeehiivConnector } from "./beehiiv-connector";
 import { TeachableConnector } from "./teachable-connector";
 import { ClickFunnelsConnector } from "./clickfunnels-connector";
 import { TikTokConnector } from "./tiktok-connector";
-import { GmailStub, YouTubeStub } from "./stubs";
+import { GmailConnector } from "./gmail-connector";
+import { YouTubeConnector } from "./youtube-connector";
 
 type ConnectorCtor = new (creds: Record<string, string>) => BaseConnector;
 
@@ -49,9 +50,9 @@ const REGISTRY: Record<string, ConnectorCtor> = {
   beehiiv:       BeehiivConnector,
   teachable:     TeachableConnector,
   clickfunnels:  ClickFunnelsConnector,
-  gmail:         GmailStub,
+  gmail:         GmailConnector,
   tiktok:        TikTokConnector,
-  youtube:       YouTubeStub,
+  youtube:       YouTubeConnector,
 };
 
 export function getConnector(id: string, creds: Record<string, string> = {}): BaseConnector | null {

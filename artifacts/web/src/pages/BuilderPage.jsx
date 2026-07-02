@@ -1286,151 +1286,18 @@ const PlanReviewCard = ({ planData, aiMode, chatLoading, onConfirm, onEdit }) =>
   );
 };
 
-// ─── Confetti helpers ─────────────────────────────────────────────────────────
-const CONFETTI_COLORS = ['#34d399', '#818cf8', '#f472b6', '#fbbf24', '#60a5fa', '#a78bfa'];
-
-function runConfettiOnCanvas(canvas) {
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width;
-  const H = canvas.height;
-  const count = 90;
-  const particles = Array.from({ length: count }, () => ({
-    x: Math.random() * W,
-    y: Math.random() * H * 0.4 - H * 0.1,
-    vx: (Math.random() - 0.5) * 4,
-    vy: Math.random() * 3 + 2,
-    rotation: Math.random() * Math.PI * 2,
-    rotationSpeed: (Math.random() - 0.5) * 0.2,
-    w: Math.random() * 8 + 4,
-    h: Math.random() * 5 + 3,
-    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-    opacity: 1,
-  }));
-  let frame;
-  const start = performance.now();
-  const duration = 2600;
-  function draw(now) {
-    const elapsed = now - start;
-    ctx.clearRect(0, 0, W, H);
-    const progress = Math.min(elapsed / duration, 1);
-    particles.forEach(p => {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.08;
-      p.rotation += p.rotationSpeed;
-      p.opacity = progress > 0.65 ? 1 - (progress - 0.65) / 0.35 : 1;
-      ctx.save();
-      ctx.globalAlpha = p.opacity;
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rotation);
-      ctx.fillStyle = p.color;
-      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-      ctx.restore();
-    });
-    if (elapsed < duration) {
-      frame = requestAnimationFrame(draw);
-    } else {
-      ctx.clearRect(0, 0, W, H);
-    }
-  }
-  frame = requestAnimationFrame(draw);
-  return () => cancelAnimationFrame(frame);
-}
-
 // ─── Build Terminal ───────────────────────────────────────────────────────────
-const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, phase, liveMode, setLiveMode, stepConnectorResults = {}, preflightWarnings = [] }) => {
+const BuildTerminal = ({ steps, outputs, currentIdx, instanceId, phase, liveMode, setLiveMode, stepConnectorResults = {}, preflightWarnings = [] }) => {
   const bottomRef = useRef(null);
   const navigate = useNavigate();
   const isComplete = currentIdx >= steps.length && steps.length > 0 && phase === 'complete';
-  const [flashTotal, setFlashTotal] = useState(false);
-  const prevTotalRef = useRef(0);
-  const hasCelebratedRef = useRef(false);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const canvasRef = useRef(null);
-  const cancelConfettiRef = useRef(null);
-
-  const totalRevenueCents = Object.values(revenues).reduce((sum, v) => sum + (v ?? 0), 0);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [outputs, currentIdx, isComplete]);
 
-  useEffect(() => {
-    if (totalRevenueCents > prevTotalRef.current) {
-      setFlashTotal(true);
-      const t = setTimeout(() => setFlashTotal(false), 1200);
-
-      // First-ever dollar — celebrate once per build
-      if (!hasCelebratedRef.current && prevTotalRef.current === 0 && totalRevenueCents > 0) {
-        hasCelebratedRef.current = true;
-        setShowCelebration(true);
-        if (canvasRef.current) {
-          cancelConfettiRef.current = runConfettiOnCanvas(canvasRef.current);
-        }
-      }
-
-      prevTotalRef.current = totalRevenueCents;
-      return () => clearTimeout(t);
-    }
-    prevTotalRef.current = totalRevenueCents;
-  }, [totalRevenueCents]);
-
-  // Auto-hide the celebration banner after 3 s, independent of revenue updates
-  useEffect(() => {
-    if (!showCelebration) return;
-    const hide = setTimeout(() => setShowCelebration(false), 3000);
-    return () => clearTimeout(hide);
-  }, [showCelebration]);
-
-  // Cancel any running confetti RAF on unmount
-  useEffect(() => {
-    return () => { cancelConfettiRef.current?.(); };
-  }, []);
-
-  // Resize canvas when it mounts
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const parent = canvas.parentElement;
-    if (!parent) return;
-    const ro = new ResizeObserver(() => {
-      canvas.width = parent.offsetWidth;
-      canvas.height = parent.offsetHeight;
-    });
-    ro.observe(parent);
-    canvas.width = parent.offsetWidth;
-    canvas.height = parent.offsetHeight;
-    return () => ro.disconnect();
-  }, []);
-
   return (
     <div className="flex flex-col h-full bg-black/90 rounded-xl border border-white/10 overflow-hidden font-mono relative">
-      {/* Confetti canvas — always in DOM so ResizeObserver can size it; transparent when idle */}
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 pointer-events-none z-50"
-      />
-
-      {/* First Revenue celebration banner */}
-      <AnimatePresence>
-        {showCelebration && (
-          <motion.div
-            key="first-revenue-banner"
-            initial={{ opacity: 0, y: -20, scale: 0.92 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 340, damping: 26 }}
-            className="absolute top-14 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
-          >
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-400/50 bg-black/80 backdrop-blur-sm shadow-[0_0_24px_rgba(52,211,153,0.35)] text-emerald-300 font-bold text-sm whitespace-nowrap">
-              <span className="text-lg">🎉</span>
-              First Revenue Earned!
-              <span className="text-lg">🎉</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* macOS chrome */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-black/60 shrink-0">
         <div className="flex gap-1.5">
@@ -1443,20 +1310,6 @@ const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, 
           ASH Build Engine · Autonomous Mode
         </span>
         <div className="ml-auto flex items-center gap-3">
-          {totalRevenueCents > 0 && (
-            <motion.div
-              animate={flashTotal ? { scale: [1, 1.18, 1], opacity: [1, 1, 1] } : {}}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-bold transition-all ${
-                flashTotal
-                  ? 'bg-emerald-500/30 border-emerald-400/60 text-emerald-300 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
-                  : 'bg-emerald-500/12 border-emerald-500/25 text-emerald-400'
-              }`}
-            >
-              <DollarSign className="w-2.5 h-2.5" />
-              Total earned: ${(totalRevenueCents / 100).toFixed(2)}
-            </motion.div>
-          )}
           {phase === 'building' ? (
             <>
               <Activity className="w-3 h-3 text-emerald-400 animate-pulse" />
@@ -1607,27 +1460,6 @@ const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, 
                   </motion.div>
                 )}
 
-                {/* Revenue badge */}
-                {revenues[step.id] > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -6, scale: 0.85 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                    className="ml-6 mt-0.5 mb-0.5"
-                  >
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
-                      <DollarSign className="w-2.5 h-2.5" />
-                      ${(revenues[step.id] / 100).toFixed(2)} earned
-                      <motion.span
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: [0, 1, 0] }}
-                        transition={{ duration: 0.8, delay: 0.1 }}
-                        className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"
-                      />
-                    </span>
-                  </motion.div>
-                )}
-
                 {/* Connector execution results (live mode) */}
                 {stepConnectorResults[step.id]?.length > 0 && (
                   <motion.div
@@ -1670,7 +1502,7 @@ const BuildTerminal = ({ steps, outputs, revenues = {}, currentIdx, instanceId, 
                   All {steps.length} build steps completed. Your system is live and running.
                 </p>
                 <button
-                  onClick={() => navigate(`/systems/${instanceId}`, { state: { buildRevenueCents: totalRevenueCents } })}
+                  onClick={() => navigate(`/systems/${instanceId}`)}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/30 transition-colors"
                 >
                   View System <ExternalLink className="w-3 h-3" />
@@ -1729,7 +1561,7 @@ const getCheckpoints = (userId) => {
   } catch { return []; }
 };
 
-const saveCheckpoint = (userId, { messages, phase, buildData, stepOutputs, stepRevenues, currentStepIdx, activatedSkills, mode, selectedBp }) => {
+const saveCheckpoint = (userId, { messages, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp }) => {
   if (!userId) return;
   const userMsgs = messages.filter(m => m.id !== 'welcome' && m.role === 'user');
   if (userMsgs.length === 0) return;
@@ -1743,7 +1575,6 @@ const saveCheckpoint = (userId, { messages, phase, buildData, stepOutputs, stepR
     messages,
     buildData,
     stepOutputs,
-    stepRevenues,
     currentStepIdx,
     activatedSkills,
     mode,
@@ -1850,7 +1681,6 @@ const BuilderPage = () => {
   // Build execution
   const [buildData, setBuildData] = useState(null);
   const [stepOutputs, setStepOutputs] = useState({});
-  const [stepRevenues, setStepRevenues] = useState({});
   const [stepConnectorResults, setStepConnectorResults] = useState({});
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [stepExecuting, setStepExecuting] = useState(false);
@@ -2050,7 +1880,6 @@ const BuilderPage = () => {
       setActivatedSkills(saved.activatedSkills ?? []);
       if (saved.buildData) setBuildData(saved.buildData);
       if (saved.stepOutputs) setStepOutputs(saved.stepOutputs);
-      if (saved.stepRevenues) setStepRevenues(saved.stepRevenues);
       if (typeof saved.currentStepIdx === 'number') setCurrentStepIdx(saved.currentStepIdx);
       if (saved.mode) setMode(saved.mode);
       if (saved.selectedBp) setSelectedBp(saved.selectedBp);
@@ -2076,7 +1905,6 @@ const BuilderPage = () => {
           activatedSkills,
           buildData,
           stepOutputs,
-          stepRevenues,
           currentStepIdx,
           mode,
           selectedBp,
@@ -2088,7 +1916,7 @@ const BuilderPage = () => {
     }, 400);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, phase, activatedSkills, buildData, stepOutputs, stepRevenues, currentStepIdx, mode, selectedBp, pendingCreds, currentUser?.id]);
+  }, [messages, phase, activatedSkills, buildData, stepOutputs, currentStepIdx, mode, selectedBp, pendingCreds, currentUser?.id]);
 
   // ── Load saved sessions from DB ───────────────────────────────────────────
   const loadSavedSessions = useCallback(async () => {
@@ -2357,12 +2185,11 @@ const BuilderPage = () => {
         description: `${buildData.blueprint?.name ?? 'Your system'} is ready.`,
       });
       // Save a checkpoint for the completed build before redirecting
-      saveCheckpoint(currentUser?.id, { messages, phase: 'complete', buildData, stepOutputs, stepRevenues, currentStepIdx, activatedSkills, mode, selectedBp });
+      saveCheckpoint(currentUser?.id, { messages, phase: 'complete', buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp });
       setCheckpoints(getCheckpoints(currentUser?.id));
       // Auto-redirect after 3 seconds — keep session so user can return to history
-      const buildRevenueCents = Object.values(stepRevenues).reduce((s, v) => s + (v ?? 0), 0);
       const timer = setTimeout(() => {
-        navigate(`/systems/${buildData.instanceId}`, { state: { buildRevenueCents } });
+        navigate(`/systems/${buildData.instanceId}`);
       }, 3000);
       return () => clearTimeout(timer);
     }
@@ -2403,9 +2230,6 @@ const BuilderPage = () => {
         }
         const data = await resp.json();
         setStepOutputs(prev => ({ ...prev, [step.id]: data.output ?? `Completed: ${step.notes}` }));
-        if (data.revenueCents > 0) {
-          setStepRevenues(prev => ({ ...prev, [step.id]: data.revenueCents }));
-        }
         if (data.connectorResults?.length > 0) {
           setStepConnectorResults(prev => ({ ...prev, [step.id]: data.connectorResults }));
         }
@@ -2573,7 +2397,6 @@ const BuilderPage = () => {
       });
       setCurrentStepIdx(0);
       setStepOutputs({});
-      setStepRevenues({});
       setPreflightWarnings([]);
       // Pre-flight: check for missing credentials if live mode is active
       if (liveMode && steps.length > 0) {
@@ -2988,7 +2811,7 @@ const BuilderPage = () => {
         { id: Date.now(), role: 'user', content: msg, ts: Date.now() },
         { id: msgId, role: 'assistant', content: finalMsg, ts: Date.now() },
       ];
-      saveCheckpoint(currentUser?.id, { messages: updatedMessages, phase, buildData, stepOutputs, stepRevenues, currentStepIdx, activatedSkills, mode, selectedBp });
+      saveCheckpoint(currentUser?.id, { messages: updatedMessages, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp });
       setCheckpoints(getCheckpoints(currentUser?.id));
     } catch (err) {
       if (err?.name === 'AbortError') {
@@ -3083,7 +2906,6 @@ const BuilderPage = () => {
     setActivatedSkills(cp.activatedSkills ?? []);
     setBuildData(cp.buildData ?? null);
     setStepOutputs(cp.stepOutputs ?? {});
-    setStepRevenues(cp.stepRevenues ?? {});
     setCurrentStepIdx(cp.currentStepIdx ?? 0);
     setMode(cp.mode ?? 'custom');
     setSelectedBp(cp.selectedBp ?? null);
@@ -3978,10 +3800,7 @@ const BuilderPage = () => {
 
                 <div className="flex flex-col gap-2">
                   <button
-                    onClick={() => {
-                      const buildRevenueCents = Object.values(stepRevenues).reduce((s, v) => s + (v ?? 0), 0);
-                      navigate(`/systems/${buildData.instanceId}`, { state: { buildRevenueCents } });
-                    }}
+                    onClick={() => navigate(`/systems/${buildData.instanceId}`)}
                     className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-emerald-500/18 hover:bg-emerald-500/28 border border-emerald-500/35 text-emerald-300 text-xs font-bold transition-colors"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -4038,7 +3857,6 @@ const BuilderPage = () => {
               <BuildTerminal
                 steps={buildData?.steps ?? []}
                 outputs={stepOutputs}
-                revenues={stepRevenues}
                 currentIdx={currentStepIdx}
                 instanceId={buildData?.instanceId}
                 phase={phase}

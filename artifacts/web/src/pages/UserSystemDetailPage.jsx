@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import HealthDashboardCard from '@/components/HealthDashboardCard.jsx';
 import { toast } from 'sonner';
@@ -1433,7 +1433,7 @@ function RealRevenuePanel({ instanceId }) {
 
 // ─── REVENUE SECTION ──────────────────────────────────────────────────────────
 
-function RevenueSection({ instanceId, buildStatus, buildRevenueCents = 0 }) {
+function RevenueSection({ instanceId, buildStatus }) {
   const [revenue, setRevenue] = useState(null);
   const [activity, setActivity] = useState([]);
   const [loadingRevenue, setLoadingRevenue] = useState(true);
@@ -1482,13 +1482,11 @@ function RevenueSection({ instanceId, buildStatus, buildRevenueCents = 0 }) {
     return () => clearInterval(interval);
   }, [fetchActivity, buildStatus]);
 
-  // Use the build-time total as a floor for Lifetime until the API catches up.
-  const effectiveLifetimeCents = Math.max(revenue?.lifetimeCents ?? 0, buildRevenueCents);
   const revenueCards = [
     { label: 'Today',      value: revenue ? centsToDisplay(revenue.todayCents)    : '$0', accent: 'emerald' },
     { label: 'This Week',  value: revenue ? centsToDisplay(revenue.weekCents)     : '$0', accent: 'emerald' },
     { label: 'This Month', value: revenue ? centsToDisplay(revenue.monthCents)    : '$0', accent: 'emerald' },
-    { label: 'Lifetime',   value: centsToDisplay(effectiveLifetimeCents),                 accent: 'emerald' },
+    { label: 'Lifetime',   value: centsToDisplay(revenue?.lifetimeCents ?? 0),            accent: 'emerald' },
   ];
 
   return (
@@ -2718,8 +2716,6 @@ function WebhooksPanel({ instanceId }) {
 export default function UserSystemDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const buildRevenueCents = location.state?.buildRevenueCents ?? 0;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -3351,7 +3347,7 @@ export default function UserSystemDetailPage() {
         <PublishedContentPanel instanceId={id} />
 
         {/* ── Revenue + Live Activity ── */}
-        <RevenueSection instanceId={id} buildStatus={instance?.buildStatus} buildRevenueCents={buildRevenueCents} />
+        <RevenueSection instanceId={id} buildStatus={instance?.buildStatus} />
 
       </div>
     </div>

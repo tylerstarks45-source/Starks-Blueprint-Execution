@@ -6,7 +6,8 @@
  *  2. POST /api/build-engine/execute-step — completes steps, inserts activity events
  *  3. Final step transitions system to buildStatus="active", healthStatus="healthy",
  *     session status="completed"
- *  4. Revenue events are inserted for steps matching revenue-signal keywords
+ *  4. Build-step execution NEVER fabricates a "revenue" activity event —
+ *     real revenue only ever comes from the connected-provider sync (task #272)
  *  5. POST /api/ai-orchestrator/chat     — returns structuredData (smoke test)
  *
  * Mocks:
@@ -211,8 +212,7 @@ describe("POST /api/build-engine/execute-step", () => {
     // execute-step calls complete() once for the AI-generated output
     mockComplete.mockResolvedValueOnce(
       fakeCompletion(
-        "Configured OpenRouter API key, set up content generation pipeline, validated webhook endpoints.\n" +
-          '<SBEP_REVENUE>{"revenueCents": 0, "source": "", "description": ""}</SBEP_REVENUE>',
+        "Configured OpenRouter API key, set up content generation pipeline, validated webhook endpoints.",
       ),
     );
 
@@ -231,7 +231,7 @@ describe("POST /api/build-engine/execute-step", () => {
 
     expect(res.status, JSON.stringify(res.body)).toBe(200);
 
-    const body = res.body as { step: { status: string }; nextStepId: number | null; revenueCents: number };
+    const body = res.body as { step: { status: string }; nextStepId: number | null };
     expect(body.step.status).toBe("completed");
     expect(body.nextStepId).toBeGreaterThan(0); // there is a next step
 
@@ -267,16 +267,20 @@ describe("POST /api/build-engine/execute-step", () => {
     expect(stepEvent?.eventType).toBe("action");
   });
 
-  it("step 2 (revenue step): inserts revenue activity event", async () => {
+  it("REGRESSION (task #272): step mentioning revenue keywords never fabricates a revenue event", async () => {
     const step2 = steps.find((s) => s.stepNumber === 2)!;
     expect(step2).toBeDefined();
 
-    // Step 2 description contains "affiliate link tracker" → revenue keyword
-    // The AI mock returns 0 revenue, so the heuristic fallback should kick in.
+    // Even though this step's narrative and description are packed with
+    // revenue-signal language ("affiliate link tracker", "$4.50 earned", a
+    // literal legacy <SBEP_REVENUE> tag an AI model might still emit), the
+    // pipeline must NEVER translate any of this into a real "revenue"
+    // activity event or a non-zero response field. Real revenue only comes
+    // from the connected-provider sync (lib/revenue/sync.ts).
     mockComplete.mockResolvedValueOnce(
       fakeCompletion(
-        "Deployed the affiliate link tracker, configured ClickBank webhook, tracking links active.\n" +
-          '<SBEP_REVENUE>{"revenueCents": 0, "source": "", "description": ""}</SBEP_REVENUE>',
+        "Deployed the affiliate link tracker, configured ClickBank webhook, tracking links active — $4.50 earned.\n" +
+          '<SBEP_REVENUE>{"revenueCents": 450, "source": "affiliate", "description": "Affiliate click recorded"}</SBEP_REVENUE>',
       ),
     );
 
@@ -295,18 +299,24 @@ describe("POST /api/build-engine/execute-step", () => {
 
     expect(res.status, JSON.stringify(res.body)).toBe(200);
 
-    const body = res.body as { revenueCents: number };
-    // Heuristic should detect "affiliate link tracker" keyword and return > 0
-    expect(body.revenueCents).toBeGreaterThan(0);
+    // The response must not carry any fabricated revenue figure.
+    expect((res.body as Record<string, unknown>).revenueCents).toBeUndefined();
 
-    // Verify revenue event was inserted in DB
+    // Any leftover legacy <SBEP_REVENUE> tag content must be stripped from
+    // the stored step narrative, never left dangling as a "confirmed" figure.
+    const [dbStep] = await db
+      .select({ notes: buildProgressTable.notes })
+      .from(buildProgressTable)
+      .where(eq(buildProgressTable.id, step2.id));
+    expect(dbStep.notes).not.toContain("SBEP_REVENUE");
+
+    // No revenue activity event was inserted for this system instance.
     const events = await db
       .select()
       .from(systemActivityEventsTable)
       .where(eq(systemActivityEventsTable.systemInstanceId, instanceId));
     const revenueEvent = events.find((e) => e.eventType === "revenue");
-    expect(revenueEvent).toBeDefined();
-    expect((revenueEvent?.amountCents ?? 0)).toBeGreaterThan(0);
+    expect(revenueEvent).toBeUndefined();
   });
 
   it("final step: sets buildStatus=active, healthStatus=healthy, session=completed", async () => {
@@ -315,8 +325,7 @@ describe("POST /api/build-engine/execute-step", () => {
 
     mockComplete.mockResolvedValueOnce(
       fakeCompletion(
-        "Email campaign launched, subscriber list activated, monetisation layer live.\n" +
-          '<SBEP_REVENUE>{"revenueCents": 0, "source": "", "description": ""}</SBEP_REVENUE>',
+        "Email campaign launched, subscriber list activated, monetisation layer live.",
       ),
     );
 
@@ -382,10 +391,7 @@ describe("GET /api/build-engine/:id/status", () => {
         ),
       )
       .mockResolvedValueOnce(
-        fakeCompletion(
-          "System deployed live.\n" +
-            '<SBEP_REVENUE>{"revenueCents": 150, "source": "launch", "description": "System launched"}</SBEP_REVENUE>',
-        ),
+        fakeCompletion("System deployed live."),
       );
 
     const execRes = await request(app)

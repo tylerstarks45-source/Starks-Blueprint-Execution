@@ -13,7 +13,6 @@ import {
   userCredentialsTable,
   usersTable,
   notificationsTable,
-  milestoneEventsTable,
   referralCodesTable,
   referralEventsTable,
 } from "@workspace/db";
@@ -26,85 +25,10 @@ import { getConnector, isKnownConnector } from "../lib/connectors/registry";
 import { logEvent } from "../lib/log-event";
 import { z } from "zod";
 
-// ─── Milestone thresholds (cents) ─────────────────────────────────────────────
-const MILESTONE_THRESHOLDS: Record<number, string> = {
-  100:      "$1",
-  10000:    "$100",
-  50000:    "$500",
-  100000:   "$1K",
-  500000:   "$5K",
-  1000000:  "$10K",
-  5000000:  "$50K",
-  10000000: "$100K",
-};
-
-async function fireMilestoneIfNew(
-  userId: number,
-  systemInstanceId: number,
-  blueprintName: string,
-): Promise<void> {
-  try {
-    // Compute user's new lifetime revenue total
-    const totResult = await db.execute(sql`
-      SELECT COALESCE(SUM(sae.amount_cents), 0)::bigint AS lifetime_cents
-      FROM system_activity_events sae
-      JOIN system_instances si ON si.id = sae.system_instance_id
-      WHERE si.user_id = ${userId} AND sae.event_type = 'revenue'
-    `);
-    const totRow = (totResult as unknown as { rows: Array<{ lifetime_cents: string }> }).rows[0];
-    const lifetimeCents = Number(totRow?.lifetime_cents ?? 0);
-
-    // Find the HIGHEST milestone threshold the user has crossed
-    const threshold = Object.keys(MILESTONE_THRESHOLDS)
-      .map(Number)
-      .sort((a, b) => b - a)          // descending — largest first
-      .find(t => lifetimeCents >= t); // first match is the highest crossed
-    if (!threshold) return;
-
-    const label = MILESTONE_THRESHOLDS[threshold];
-
-    // Check if this milestone was already recorded for this user
-    const [existing] = await db
-      .select({ id: milestoneEventsTable.id })
-      .from(milestoneEventsTable)
-      .where(sql`${milestoneEventsTable.userId} = ${userId} AND ${milestoneEventsTable.amountCents} = ${threshold}`);
-    if (existing) return;
-
-    // Record the milestone
-    await db.insert(milestoneEventsTable).values({
-      userId,
-      systemInstanceId,
-      amountCents: threshold,
-      milestoneLabel: label,
-      systemType: blueprintName,
-    });
-
-    // Fire an in-app notification
-    await db.insert(notificationsTable).values({
-      userId,
-      title: `🎉 Milestone Reached — ${label}!`,
-      message: `You just crossed the ${label} lifetime earnings milestone on "${blueprintName}". Keep building!`,
-      notificationType: "milestone_reached",
-      read: false,
-    });
-
-    // Mobile push (non-fatal)
-    const [uRow] = await db
-      .select({ expoPushToken: usersTable.expoPushToken })
-      .from(usersTable)
-      .where(eq(usersTable.id, userId));
-    if (uRow?.expoPushToken) {
-      void sendPushNotification(
-        uRow.expoPushToken,
-        `🎉 Milestone: ${label}!`,
-        `You've earned ${label} lifetime with "${blueprintName}"!`,
-        { type: "milestone", amountCents: threshold },
-      );
-    }
-  } catch {
-    /* non-fatal */
-  }
-}
+// NOTE: real revenue milestones are recorded by lib/milestones.ts's
+// checkMilestones(), invoked from the real revenue sync (lib/revenue/sync.ts).
+// There is intentionally no build-step-driven milestone path here anymore —
+// see task #272.
 
 async function fireReferralActivationPayout(userId: number): Promise<void> {
   try {
@@ -312,46 +236,13 @@ router.post("/build-engine/start", async (req, res): Promise<void> => {
   res.status(201).json({ session: serialize(session), steps: serialize(steps) });
 });
 
-// Revenue-signal keyword heuristic — used as a fallback when the AI omits or
-// zero-fills the <SBEP_REVENUE> block. Matches only against the step description
-// (never the blueprint name) so blueprint naming cannot cause false positives.
-//
-// Non-revenue guard: steps that are clearly infrastructure/setup/test work are
-// excluded first, before any positive revenue match is attempted.
-function deriveHeuristicRevenue(
-  stepDescription: string,
-): { cents: number; source: string; description: string } {
-  const desc = stepDescription.toLowerCase();
-
-  // Exclude steps that describe setup, configuration, testing, or validation —
-  // these never produce direct income regardless of other keywords present.
-  const isNonRevenueStep =
-    /\b(configure|configuration|set up|setting up|initializ|connect(ing)?|integrat(e|ing)|wire up|validate|validation|test(ing)?|check(ing)?|verify|verif|install|provision|scaffold|create account|register account|api connection)\b/.test(desc);
-  if (isNonRevenueStep) return { cents: 0, source: "", description: "" };
-
-  // Income-producing pattern checks — ordered most-specific first.
-  if (/\baffiliate (link|click|tracker|tracking)\b|click tracker|tracking link|referral link|commission link/.test(desc)) {
-    const cents = 150 + Math.floor(Math.random() * 550);
-    return { cents, source: "affiliate", description: `Affiliate link deployed — $${(cents / 100).toFixed(2)} earned` };
-  }
-  if (/\bsales funnel\b|checkout flow|lead capture|opt.?in form|landing page.*\blive\b/.test(desc)) {
-    const cents = 250 + Math.floor(Math.random() * 850);
-    return { cents, source: "sales_funnel", description: `Sales funnel activated — $${(cents / 100).toFixed(2)} earned` };
-  }
-  if (/email campaign|newsletter.*\bsent\b|broadcast.*email|email.*\blive\b/.test(desc)) {
-    const cents = 75 + Math.floor(Math.random() * 300);
-    return { cents, source: "email_campaign", description: `Email campaign sent — $${(cents / 100).toFixed(2)} earned` };
-  }
-  if (/content.*\bpublish\b|post.*\blive\b|article.*\bpublish\b|ad placement|sponsored slot/.test(desc)) {
-    const cents = 50 + Math.floor(Math.random() * 300);
-    return { cents, source: "content", description: `Monetised content published — $${(cents / 100).toFixed(2)} earned` };
-  }
-  if (/\bdeploy.*\blive\b|\blaunch.*\blive\b|\bactivate.*\blive\b|\bgo.?live\b/.test(desc)) {
-    const cents = 100 + Math.floor(Math.random() * 200);
-    return { cents, source: "launch", description: `System segment launched — $${(cents / 100).toFixed(2)} earned` };
-  }
-  return { cents: 0, source: "", description: "" };
-}
+// NOTE: this route intentionally does NOT fabricate revenue. A system's real
+// revenue total is only ever incremented by the real revenue sync
+// (lib/revenue/sync.ts, from connected Stripe/PayPal/Gumroad accounts) or by
+// a verifiable connector action tied to an actual transaction/webhook.
+// Build-step narration (including any AI commentary about "earning" money)
+// is purely descriptive text and must never be parsed into a dollar amount
+// written to systemActivityEventsTable — see task #272.
 
 // POST /api/build-engine/execute-step
 router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
@@ -382,9 +273,6 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   }
 
   let output = "";
-  let revenueCents = 0;
-  let revenueSource = "";
-  let revenueDescription = "";
   let stepFailed = false;
   let recoveryMessage = "";
   // Will be overwritten with the actual model string confirmed by OpenRouter
@@ -445,28 +333,15 @@ Use ONLY connectors from the available list. For pure config/planning/setup step
     const result = await complete({
       systemPrompt: `You are ASH — SBEP's elite AI Build Agent executing automated income systems autonomously.
 ${liveExecHint}
-For each step, write 3-5 technical sentences describing EXACTLY what you executed (specific actions, tool configurations, API calls made, data structures created, webhook URLs deployed, etc.), then append a <SBEP_REVENUE> JSON block.
+For each step, write 3-5 technical sentences describing EXACTLY what you executed (specific actions, tool configurations, API calls made, data structures created, webhook URLs deployed, etc.).
 
 Write like a real build log: be specific about what was configured, which endpoints were hit, what values were set, what outputs were produced. Make it feel real and detailed.
 
-Revenue rules — set revenueCents > 0 ONLY if this specific step directly produces measurable income:
-- Deploying an affiliate link tracker or recording an affiliate click: 100–800 cents
-- Publishing monetised content (email campaign sent, post published to audience): 50–400 cents
-- Completing a sales funnel, checkout flow, or lead capture: 200–1200 cents
-- Setting up ad placements or sponsored slots that go live: 150–600 cents
-- Activating a subscription billing flow or payment processor: 300–1500 cents
-- Infrastructure/config steps (APIs wired, workflows created, accounts connected): 0 cents
-- Testing/validation steps with no live traffic: 0 cents
-
-<SBEP_REVENUE>
-{"revenueCents": 0, "source": "", "description": ""}
-</SBEP_REVENUE>
-
-Always include the block. Use "description" to write a short human-readable label like "Affiliate click recorded — $4.50 earned".`,
+Do NOT claim or imply that this step generated real revenue or a specific dollar amount — actual earnings are only ever reported from real connected payment providers (Stripe/PayPal/Gumroad), never from build narration.`,
       prompt: `System: ${parsed.data.blueprintName}
 Step ${parsed.data.stepNumber}/${parsed.data.totalSteps}: ${parsed.data.stepDescription}
 
-Execute this step now. Write detailed output describing exactly what was configured, deployed, and activated.${liveExecHint ? " If real API calls are needed, emit <SBEP_ACTIONS> first." : ""} Then emit the <SBEP_REVENUE> block.`,
+Execute this step now. Write detailed output describing exactly what was configured, deployed, and activated.${liveExecHint ? " If real API calls are needed, emit <SBEP_ACTIONS> first." : ""}`,
       model: resolvedModel,
       userId: instance.userId ?? undefined,
       systemInstanceId: instance.id,
@@ -476,22 +351,12 @@ Execute this step now. Write detailed output describing exactly what was configu
     actualModel = result.model;
 
     const raw = result.content;
-    const revenueMatch = raw.match(/<SBEP_REVENUE>([\s\S]*?)<\/SBEP_REVENUE>/);
     const actionsMatch = raw.match(/<SBEP_ACTIONS>([\s\S]*?)<\/SBEP_ACTIONS>/);
 
     output = raw
       .replace(/<SBEP_REVENUE>[\s\S]*?<\/SBEP_REVENUE>/g, "")
       .replace(/<SBEP_ACTIONS>[\s\S]*?<\/SBEP_ACTIONS>/g, "")
       .trim();
-
-    if (revenueMatch) {
-      try {
-        const rd = JSON.parse(revenueMatch[1].trim()) as { revenueCents?: number; source?: string; description?: string };
-        revenueCents = typeof rd.revenueCents === "number" && rd.revenueCents > 0 ? Math.round(rd.revenueCents) : 0;
-        revenueSource = rd.source ?? "";
-        revenueDescription = rd.description ?? "";
-      } catch { /* ignore parse errors */ }
-    }
 
     // ── Execute real connector actions (live mode) ──────────────────────────────
     // Supports two formats:
@@ -582,17 +447,6 @@ Execute this step now. Write detailed output describing exactly what was configu
         output = `${output}\n\n**Live Execution Results:**\n${resultLines}`;
       }
     }
-
-    // Heuristic fallback: if the AI omitted the block or returned 0, detect
-    // revenue-producing outcomes from keyword signals in the step description.
-    if (revenueCents === 0) {
-      const heuristic = deriveHeuristicRevenue(parsed.data.stepDescription);
-      if (heuristic.cents > 0) {
-        revenueCents = heuristic.cents;
-        revenueSource = heuristic.source;
-        revenueDescription = heuristic.description;
-      }
-    }
   } catch (err) {
     // AI call failed — flag for frontend recovery UI
     stepFailed = true;
@@ -653,24 +507,8 @@ Execute this step now. Write detailed output describing exactly what was configu
     component: "build-engine",
     action: "execute_step",
     message: `Step ${parsed.data.stepNumber}/${parsed.data.totalSteps} complete — ${stepSummary}`,
-    metadata: { stepId: parsed.data.stepId, stepNumber: parsed.data.stepNumber, model: actualModel, revenueCents },
+    metadata: { stepId: parsed.data.stepId, stepNumber: parsed.data.stepNumber, model: actualModel },
   });
-
-  // Write a revenue event if this step produced income
-  if (revenueCents > 0) {
-    const revDesc = revenueDescription.trim().length > 0
-      ? revenueDescription
-      : `Step ${parsed.data.stepNumber} — ${revenueSource || "automated revenue"} · $${(revenueCents / 100).toFixed(2)} earned`;
-    await db.insert(systemActivityEventsTable).values({
-      systemInstanceId: parsed.data.systemInstanceId,
-      eventType: "revenue",
-      amountCents: revenueCents,
-      description: revDesc,
-      metadata: JSON.stringify({ stepId: parsed.data.stepId, stepNumber: parsed.data.stepNumber, source: revenueSource }),
-    });
-    // Fire milestone check asynchronously — non-blocking
-    void fireMilestoneIfNew(userId, parsed.data.systemInstanceId, parsed.data.blueprintName);
-  }
 
   // Mark next pending step as in_progress
   const allSteps = await db.select().from(buildProgressTable)
@@ -746,7 +584,7 @@ Execute this step now. Write detailed output describing exactly what was configu
     });
   }
 
-  res.json({ step: serialize(updated), nextStepId: nextStep?.id ?? null, output, revenueCents, stepFailed, recoveryMessage, connectorResults });
+  res.json({ step: serialize(updated), nextStepId: nextStep?.id ?? null, output, stepFailed, recoveryMessage, connectorResults });
 });
 
 // ── POST /api/build-engine/skip-step ─────────────────────────────────────────

@@ -331,3 +331,90 @@ export async function getDecryptedCredential(userId: number, credentialKey: stri
     return null;
   }
 }
+
+// Single shared implementation of "actually refresh this platform's access
+// token" — used both reactively (self-healing, once a connector has already
+// failed) and proactively (loadCredentials, before a connector is even
+// invoked, so near-expiry tokens get rotated ahead of a real failure).
+// Throws with a user-actionable message on failure; callers decide how to
+// surface that (escalate to a pending approval, log-and-skip, etc).
+export async function refreshTokenForPlatform(userId: number, platform: SocialPlatform): Promise<void> {
+  const cfg = SOCIAL_OAUTH_CONFIGS[platform];
+  if (!cfg || !isOAuthConfigured(platform) || !platformSupportsRefresh(platform)) {
+    throw new Error(`${platform} does not support automatic token refresh — reconnect manually via Connections Hub`);
+  }
+
+  if (platform === "facebook" || platform === "instagram") {
+    // Meta's fb_exchange_token grant only accepts a *user* token, never a
+    // Page token — refresh must run against the long-lived user token
+    // (stored separately as META_USER_ACCESS_TOKEN), then re-derive a fresh
+    // Page token from it.
+    const currentUserToken = await getDecryptedCredential(userId, "META_USER_ACCESS_TOKEN");
+    if (!currentUserToken) {
+      throw new Error("No stored Meta user token to refresh from — reconnect manually via Connections Hub");
+    }
+    const refreshedUser = await refreshMetaLongLivedToken(currentUserToken);
+    const newExpiresAt = refreshedUser.expiresInSeconds ? new Date(Date.now() + refreshedUser.expiresInSeconds * 1000) : null;
+
+    const page = await fetchMetaPageCredentials(refreshedUser.accessToken);
+    if (!page) {
+      throw new Error("Meta user token refreshed, but no Facebook Page was found — reconnect manually via Connections Hub");
+    }
+
+    await Promise.all([
+      upsertCredential(userId, "META_USER_ACCESS_TOKEN", refreshedUser.accessToken, newExpiresAt),
+      upsertCredential(userId, "META_ACCESS_TOKEN", page.pageAccessToken, newExpiresAt),
+      upsertCredential(userId, "META_PAGE_ID", page.pageId),
+    ]);
+    return;
+  }
+
+  const refreshToken = await getDecryptedCredential(userId, refreshCredentialKeyFor(cfg));
+  if (!refreshToken) throw new Error(`No stored refresh token for ${platform} — reconnect manually via Connections Hub`);
+  const refreshResult = await refreshWithRefreshToken(platform, cfg, refreshToken);
+
+  const newExpiresAt = refreshResult.expiresInSeconds ? new Date(Date.now() + refreshResult.expiresInSeconds * 1000) : null;
+  await upsertCredential(userId, cfg.credentialKey, refreshResult.accessToken, newExpiresAt);
+  const rotatedRefreshToken = refreshResult.extra?.["refresh_token"] as string | undefined;
+  if (rotatedRefreshToken) {
+    await upsertCredential(userId, refreshCredentialKeyFor(cfg), rotatedRefreshToken);
+  }
+}
+
+// Threshold before real expiry at which a proactive refresh is attempted —
+// wide enough to beat a token dying mid-way through a long-running job.
+const PROACTIVE_REFRESH_WINDOW_MS = 15 * 60 * 1000;
+
+// Scans a user's refreshable social credentials for ones that are already
+// expired or about to expire, and refreshes them in place. Called from
+// loadCredentials() on every connector invocation (test, execute, health
+// check) so tokens get rotated ahead of a real failure instead of only after
+// a connector has already broken. Non-refreshable platforms (e.g. LinkedIn)
+// are left alone here — their eventual real-world failure is still caught by
+// the reactive self-healing path, which correctly escalates instead of
+// looping.
+export async function refreshExpiringCredentials(userId: number): Promise<void> {
+  const platforms: SocialPlatform[] = ["twitter", "tiktok", "facebook", "instagram"];
+  const soon = new Date(Date.now() + PROACTIVE_REFRESH_WINDOW_MS);
+
+  for (const platform of platforms) {
+    const cfg = SOCIAL_OAUTH_CONFIGS[platform];
+    if (!cfg || !isOAuthConfigured(platform)) continue;
+
+    const [row] = await db
+      .select({ expiresAt: userCredentialsTable.expiresAt, status: userCredentialsTable.status })
+      .from(userCredentialsTable)
+      .where(and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.credentialKey, cfg.credentialKey)));
+
+    if (!row || row.status !== "connected" || !row.expiresAt || row.expiresAt > soon) continue;
+
+    try {
+      await refreshTokenForPlatform(userId, platform);
+    } catch {
+      // Leave the credential as-is — the next real connector call (or
+      // self-healing after it fails) will surface and escalate the error.
+      // Proactive refresh is a best-effort optimization, not the sole
+      // safety net.
+    }
+  }
+}

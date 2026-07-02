@@ -15,6 +15,7 @@ import { isBlockedUrl } from "../connectors/ssrf-guard";
 import { computeSystemHealth } from "../health-monitor";
 import { attemptSelfHeal } from "../self-healing";
 import { logEvent } from "../log-event";
+import { refreshExpiringCredentials } from "../social-oauth";
 
 const POLL_INTERVAL_MS = 5_000;
 let running = false;
@@ -29,6 +30,19 @@ export async function loadCredentials(systemInstanceId: number): Promise<Record<
     .where(eq(systemInstancesTable.id, systemInstanceId));
 
   if (!instance) return {};
+
+  // Best-effort proactive refresh: rotate any refreshable social token that
+  // is expired or within its expiry window *before* a connector call is even
+  // attempted, so the common case is "token was already fresh" rather than
+  // "connector failed, then self-healing fixed it on the next pass".
+  // Non-refreshable platforms and failed refresh attempts are left as-is —
+  // the reactive self-healing path (see self-healing.ts) is still the
+  // backstop that surfaces and escalates a real failure.
+  try {
+    await refreshExpiringCredentials(instance.userId);
+  } catch (err) {
+    logger.warn({ err, systemInstanceId }, "Proactive credential refresh check failed");
+  }
 
   const rows = await db
     .select()

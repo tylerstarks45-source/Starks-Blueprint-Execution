@@ -35,6 +35,12 @@ const KEY_TO_CONNECTOR: Record<string, { connectorId: string; keyMap?: Record<st
   META_ACCESS_TOKEN: { connectorId: "meta" },
   TIKTOK_ACCESS_TOKEN: { connectorId: "tiktok" },
   LINKEDIN_API_KEY: { connectorId: "linkedin", keyMap: { LINKEDIN_API_KEY: "LINKEDIN_ACCESS_TOKEN" } },
+  // OAuth-connected LinkedIn accounts (via Connections Hub "Connect with
+  // LinkedIn") save straight under LINKEDIN_ACCESS_TOKEN — the same key the
+  // connector expects natively, so no keyMap is needed. Without this entry,
+  // OAuth-connected LinkedIn credentials would silently skip real connector
+  // testing and fall back to the generic non-empty-string check.
+  LINKEDIN_ACCESS_TOKEN: { connectorId: "linkedin" },
 };
 
 const router: IRouter = Router();

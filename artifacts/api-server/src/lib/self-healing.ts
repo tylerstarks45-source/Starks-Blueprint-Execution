@@ -24,6 +24,13 @@ import { restartSystem, DeploymentError } from "./runtime/deployment";
 const STUCK_JOB_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes "active" with no progress
 const RESTART_WORKER_COOLDOWN_MS = 30 * 60 * 1000; // don't restart the same worker more than once per 30 minutes
 
+// Minimum research confidence required to auto-re-apply a whitelisted fix
+// instead of escalating to Pending Approval. Requires BOTH Operations Mode
+// autoFixLowRisk permission (canAutoFix) AND the research step confirming
+// this is a known, previously-whitelisted failure mode — a low-confidence
+// or novel diagnosis always falls through to human approval.
+const AUTO_APPLY_CONFIDENCE_THRESHOLD = 60;
+
 // Whitelisted low-risk self-healing actions. Each is a pure-ish function
 // with a clear precondition (what's broken) and postcondition (what "fixed"
 // means) — see task-246 step 3. Anything outside this whitelist (e.g. novel
@@ -321,23 +328,42 @@ export async function attemptSelfHeal(
             errorMessage: result.detail,
             context: "A whitelisted auto-reconnect attempt already failed for this connector.",
           });
-          await createPendingApproval({
-            businessId,
-            userId: ownerId,
-            category: "autoFixHighRisk",
-            riskLevel: "high",
-            title: `Reconnect ${connector.connector} manually`,
-            description: `${research.explanationForUser}\n\nDiagnosis: ${research.diagnosis}\nProposed fix: ${research.proposedFix}`,
-            payload: { systemInstanceId, connectorId: connector.connector, research },
-          });
-          await logMonitoringEvent({
-            systemInstanceId,
-            businessId,
-            eventType: "escalated",
-            action: "reconnect",
-            status: "escalated",
-            message: `Escalated unfixable connector ${connector.connector} to Pending Approval (research confidence ${research.confidence}%)`,
-          });
+
+          let autoApplied = false;
+          if (canAutoFix && research.isKnownWhitelistedFix && research.confidence >= AUTO_APPLY_CONFIDENCE_THRESHOLD) {
+            const retryResult = await reconnectExpiredConnector(systemInstanceId, connector.connector, loadCredentials);
+            results.push(retryResult);
+            await logMonitoringEvent({
+              systemInstanceId,
+              businessId,
+              eventType: "self_heal",
+              action: retryResult.action,
+              status: retryResult.fixed ? "success" : "failed",
+              message: `Auto-applied researched fix (confidence ${research.confidence}%): ${retryResult.detail}`,
+              metadata: { connectorId: connector.connector, research },
+            });
+            autoApplied = retryResult.fixed;
+          }
+
+          if (!autoApplied) {
+            await createPendingApproval({
+              businessId,
+              userId: ownerId,
+              category: "autoFixHighRisk",
+              riskLevel: "high",
+              title: `Reconnect ${connector.connector} manually`,
+              description: `${research.explanationForUser}\n\nDiagnosis: ${research.diagnosis}\nProposed fix: ${research.proposedFix}`,
+              payload: { systemInstanceId, connectorId: connector.connector, research },
+            });
+            await logMonitoringEvent({
+              systemInstanceId,
+              businessId,
+              eventType: "escalated",
+              action: "reconnect",
+              status: "escalated",
+              message: `Escalated unfixable connector ${connector.connector} to Pending Approval (research confidence ${research.confidence}%)`,
+            });
+          }
         }
       }
     }
@@ -396,23 +422,42 @@ export async function attemptSelfHeal(
             errorMessage: job.error ?? "(no error message recorded)",
             context: `Job ${job.jobId} was already retried once by self-heal and failed again.`,
           });
-          await createPendingApproval({
-            businessId,
-            userId: ownerId,
-            category: "autoFixHighRisk",
-            riskLevel: "high",
-            title: `Investigate repeatedly failing job (${job.jobType})`,
-            description: `${research.explanationForUser}\n\nDiagnosis: ${research.diagnosis}\nProposed fix: ${research.proposedFix}`,
-            payload: { systemInstanceId, jobId: job.jobId, jobType: job.jobType, research },
-          });
-          await logMonitoringEvent({
-            systemInstanceId,
-            businessId,
-            eventType: "escalated",
-            action: "retry_job",
-            status: "escalated",
-            message: `Escalated repeatedly failing job ${job.jobId} to Pending Approval (research confidence ${research.confidence}%)`,
-          });
+
+          let autoApplied = false;
+          if (canAutoFix && research.isKnownWhitelistedFix && research.confidence >= AUTO_APPLY_CONFIDENCE_THRESHOLD) {
+            const retryResult = await retryFailedJob(job.jobId);
+            if (retryResult.attempted) results.push(retryResult);
+            await logMonitoringEvent({
+              systemInstanceId,
+              businessId,
+              eventType: "self_heal",
+              action: retryResult.action,
+              status: retryResult.fixed ? "success" : "failed",
+              message: `Auto-applied researched fix (confidence ${research.confidence}%): ${retryResult.detail}`,
+              metadata: { jobId: job.jobId, jobType: job.jobType, research },
+            });
+            autoApplied = retryResult.fixed;
+          }
+
+          if (!autoApplied) {
+            await createPendingApproval({
+              businessId,
+              userId: ownerId,
+              category: "autoFixHighRisk",
+              riskLevel: "high",
+              title: `Investigate repeatedly failing job (${job.jobType})`,
+              description: `${research.explanationForUser}\n\nDiagnosis: ${research.diagnosis}\nProposed fix: ${research.proposedFix}`,
+              payload: { systemInstanceId, jobId: job.jobId, jobType: job.jobType, research },
+            });
+            await logMonitoringEvent({
+              systemInstanceId,
+              businessId,
+              eventType: "escalated",
+              action: "retry_job",
+              status: "escalated",
+              message: `Escalated repeatedly failing job ${job.jobId} to Pending Approval (research confidence ${research.confidence}%)`,
+            });
+          }
         }
       }
       continue;
@@ -533,23 +578,42 @@ export async function attemptSelfHeal(
               errorMessage: `System ${systemInstanceId}'s worker keeps crashing (buildStatus stuck at 'failed')`,
               context: "An automatic restart already ran recently and the worker crashed again.",
             });
-            await createPendingApproval({
-              businessId,
-              userId: ownerId,
-              category: "autoFixHighRisk",
-              riskLevel: "high",
-              title: `Investigate crashed worker (system ${systemInstanceId})`,
-              description: `${research.explanationForUser}\n\nDiagnosis: ${research.diagnosis}\nProposed fix: ${research.proposedFix}`,
-              payload: { systemInstanceId, action: "restart_worker", research },
-            });
-            await logMonitoringEvent({
-              systemInstanceId,
-              businessId,
-              eventType: "escalated",
-              action: "restart_worker",
-              status: "escalated",
-              message: `Escalated repeatedly crashing worker for system ${systemInstanceId} to Pending Approval (research confidence ${research.confidence}%)`,
-            });
+
+            let autoApplied = false;
+            if (canAutoFix && research.isKnownWhitelistedFix && research.confidence >= AUTO_APPLY_CONFIDENCE_THRESHOLD) {
+              const retryResult = await restartWorker(systemInstanceId);
+              if (retryResult.attempted) results.push(retryResult);
+              await logMonitoringEvent({
+                systemInstanceId,
+                businessId,
+                eventType: "self_heal",
+                action: retryResult.action,
+                status: retryResult.fixed ? "success" : "failed",
+                message: `Auto-applied researched fix (confidence ${research.confidence}%): ${retryResult.detail}`,
+                metadata: { research },
+              });
+              autoApplied = retryResult.fixed;
+            }
+
+            if (!autoApplied) {
+              await createPendingApproval({
+                businessId,
+                userId: ownerId,
+                category: "autoFixHighRisk",
+                riskLevel: "high",
+                title: `Investigate crashed worker (system ${systemInstanceId})`,
+                description: `${research.explanationForUser}\n\nDiagnosis: ${research.diagnosis}\nProposed fix: ${research.proposedFix}`,
+                payload: { systemInstanceId, action: "restart_worker", research },
+              });
+              await logMonitoringEvent({
+                systemInstanceId,
+                businessId,
+                eventType: "escalated",
+                action: "restart_worker",
+                status: "escalated",
+                message: `Escalated repeatedly crashing worker for system ${systemInstanceId} to Pending Approval (research confidence ${research.confidence}%)`,
+              });
+            }
           }
         }
       } else {

@@ -1,14 +1,12 @@
 ---
 name: Root-cause research loop design
-description: How autonomous root-cause diagnosis of unresolved system errors is implemented (task #248), and why it uses OpenRouter web search instead of the Playwright browser agent.
+description: Why autonomous root-cause diagnosis of unresolved system errors uses web-search completions instead of the URL-based browser agent, and how it gates auto-apply vs pending approval.
 ---
 
-`artifacts/api-server/src/lib/research-loop.ts` (`runRootCauseResearch()`) is the "browser research" primitive self-healing.ts calls right before creating a Pending Approval for an error that survived a whitelisted auto-fix attempt (reconnect connector, retry job, restart worker).
+When a whitelisted self-heal action (reconnect/retry/restart) fails, escalation runs a research step before creating a Pending Approval, rather than escalating blind.
 
-It is implemented as two chained OpenRouter completions:
-1. A web-grounded search via `complete({ prompt, model: "perplexity/llama-3.1-sonar-large-128k-online" })` — same pattern already used by the ASH Research Lab (`routes/research.ts`).
-2. A synthesis step against `gpt-4o-mini` that turns the search result + error context into strict JSON: `{diagnosis, proposedFix, explanationForUser, confidence, isKnownWhitelistedFix}`.
+**Why not the real browser agent?** The browser agent requires a known starting URL to navigate to. Root-cause research starts from an arbitrary error message with no URL — there's no "search and compare" entry point for bare queries. A web-grounded search completion (search model → synthesis model producing structured diagnosis/fix/confidence JSON) satisfies the research intent without forcing a URL-less flow into a URL-based tool.
 
-**Why not the real Playwright browser agent (`lib/browser/agent.ts`)?** `runBrowserAgent(startUrl, ...)` requires a known starting URL to navigate to. Root-cause research starts from an arbitrary error message with no URL — there's no "search and compare" entry point for bare queries. Reusing the existing Perplexity-backed completion pattern satisfies the "browser research" intent without inventing a new automation mode.
+**Auto-apply gate:** research confidence alone must not be enough to skip human review. Auto-re-applying the same whitelisted fix requires BOTH the existing Operations Mode auto-fix permission AND the research step explicitly confirming it's a known/previously-whitelisted failure mode; anything below the confidence bar or outside that whitelist still falls through to Pending Approval.
 
-**How to apply:** If a future task needs deeper agentic web research triggered by an error (not a URL), reuse `runRootCauseResearch()` or its two-step pattern rather than trying to force the Playwright agent into a URL-less flow. Never throws — always returns a (possibly low-confidence) result so callers can still create a meaningful approval.
+**Why:** keeps auto-apply strictly bounded to "the platform already knows how to fix this and is highly confident," so novel or ambiguous failures always get a human in the loop — never throws, always returns a result so a decision can still be made even on research failure.

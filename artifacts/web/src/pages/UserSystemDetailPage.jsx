@@ -1505,7 +1505,7 @@ function RevenueSection({ instanceId, buildStatus }) {
             {revenueCards.map(({ label, value }) => (
               <div key={label} className="rounded-lg bg-white/3 border border-white/5 p-3 text-center">
                 <p className="text-[10px] uppercase tracking-widest text-gray-600 font-mono mb-1">{label}</p>
-                <p className={`text-xl font-bold font-mono ${(label === 'Lifetime' ? effectiveLifetimeCents : revenue && (label === 'Today' ? revenue.todayCents : label === 'This Week' ? revenue.weekCents : revenue.monthCents)) > 0 ? 'text-emerald-400' : 'text-white'}`}>
+                <p className={`text-xl font-bold font-mono ${(label === 'Lifetime' ? (revenue?.lifetimeCents ?? 0) : revenue && (label === 'Today' ? revenue.todayCents : label === 'This Week' ? revenue.weekCents : revenue.monthCents)) > 0 ? 'text-emerald-400' : 'text-white'}`}>
                   {value}
                 </p>
               </div>

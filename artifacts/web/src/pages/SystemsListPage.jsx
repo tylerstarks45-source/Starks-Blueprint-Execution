@@ -143,61 +143,67 @@ const SystemRow = ({ system, lifetimeCents, onView, onRebuild, onRename, onToggl
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-4 rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm hover:bg-black/90 hover:border-white/20 transition-all"
+      className="group flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_auto_auto_auto_auto_auto] sm:items-center sm:gap-4 px-4 sm:px-5 py-4 rounded-xl border border-white/10 bg-black/80 backdrop-blur-sm hover:bg-black/90 hover:border-white/20 transition-all"
     >
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-          {system.systemName || system.name || 'Untitled System'}
-        </p>
-        <p className="text-xs text-muted-foreground/60 font-mono truncate mt-0.5">
-          {system.blueprintName || system.blueprint?.name || `Blueprint #${system.blueprintId}`}
-        </p>
+      <div className="flex items-start justify-between gap-3 sm:contents">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+            {system.systemName || system.name || 'Untitled System'}
+          </p>
+          <p className="text-xs text-muted-foreground/60 font-mono truncate mt-0.5">
+            {system.blueprintName || system.blueprint?.name || `Blueprint #${system.blueprintId}`}
+          </p>
+        </div>
+
+        <StatusBadge status={system.buildStatus} />
       </div>
 
-      <StatusBadge status={system.buildStatus} />
+      <div className="flex items-center gap-4 flex-wrap sm:contents">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground/50 font-mono whitespace-nowrap">
+          <Clock className="w-3 h-3 shrink-0" />
+          {formatUpdated(updatedAt)}
+        </div>
 
-      <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground/50 font-mono whitespace-nowrap">
-        <Clock className="w-3 h-3 shrink-0" />
-        {formatUpdated(updatedAt)}
+        <div className="flex items-center sm:justify-end min-w-[64px]">
+          {lifetimeCents === undefined ? (
+            <span className="text-xs font-mono text-muted-foreground/30">…</span>
+          ) : revenueDisplay ? (
+            <span className="text-xs font-mono font-semibold text-emerald-400">{revenueDisplay}</span>
+          ) : (
+            <span className="text-xs font-mono text-muted-foreground/30">—</span>
+          )}
+        </div>
       </div>
 
-      <div className="hidden md:flex items-center justify-end min-w-[64px]">
-        {lifetimeCents === undefined ? (
-          <span className="text-xs font-mono text-muted-foreground/30">…</span>
-        ) : revenueDisplay ? (
-          <span className="text-xs font-mono font-semibold text-emerald-400">{revenueDisplay}</span>
+      <div className="flex items-center gap-2 sm:contents">
+        {canRebuild ? (
+          <button
+            onClick={() => onRebuild(system)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-300 text-xs font-semibold font-mono hover:bg-amber-400/20 active:scale-[0.97] transition-all whitespace-nowrap"
+          >
+            <RotateCcw className="w-3 h-3" />
+            Rebuild
+          </button>
         ) : (
-          <span className="text-xs font-mono text-muted-foreground/30">—</span>
+          <div className="hidden sm:block w-[76px]" />
         )}
-      </div>
 
-      {canRebuild ? (
         <button
-          onClick={() => onRebuild(system)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-300 text-xs font-semibold font-mono hover:bg-amber-400/20 active:scale-[0.97] transition-all whitespace-nowrap"
+          onClick={() => onView(system)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-foreground text-xs font-semibold hover:bg-white/10 hover:text-primary active:scale-[0.97] transition-all whitespace-nowrap flex-1 sm:flex-initial justify-center sm:justify-start"
         >
-          <RotateCcw className="w-3 h-3" />
-          Rebuild
+          View
+          <ArrowRight className="w-3 h-3" />
         </button>
-      ) : (
-        <div className="w-[76px]" />
-      )}
 
-      <button
-        onClick={() => onView(system)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-foreground text-xs font-semibold hover:bg-white/10 hover:text-primary active:scale-[0.97] transition-all whitespace-nowrap"
-      >
-        View
-        <ArrowRight className="w-3 h-3" />
-      </button>
-
-      <OverflowMenu
-        system={system}
-        onRename={() => onRename(system)}
-        onTogglePause={() => onTogglePause(system)}
-        onDelete={() => onDelete(system)}
-        busy={busy}
-      />
+        <OverflowMenu
+          system={system}
+          onRename={() => onRename(system)}
+          onTogglePause={() => onTogglePause(system)}
+          onDelete={() => onDelete(system)}
+          busy={busy}
+        />
+      </div>
     </motion.div>
   );
 };
@@ -635,8 +641,8 @@ const SystemsListPage = () => {
           </motion.div>
         ) : (
           <div className="space-y-2">
-            {/* Table header */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-2">
+            {/* Table header — desktop/tablet only; mobile uses a card layout with inline sort controls */}
+            <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] items-center gap-4 px-5 py-2">
               <button
                 onClick={() => handleSort('name')}
                 className="flex items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 hover:text-muted-foreground transition-colors select-none"
@@ -651,7 +657,7 @@ const SystemsListPage = () => {
               </button>
               <button
                 onClick={() => handleSort('updatedAt')}
-                className="hidden sm:flex items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 hover:text-muted-foreground transition-colors select-none"
+                className="flex items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40 hover:text-muted-foreground transition-colors select-none"
               >
                 Updated<SortIcon col="updatedAt" />
               </button>
@@ -661,6 +667,26 @@ const SystemsListPage = () => {
               <span className="w-[76px]" />
               <span />
               <span />
+            </div>
+
+            {/* Mobile sort control — card layout has no column headers, so surface sort here */}
+            <div className="flex sm:hidden items-center gap-2 px-1 pb-1 flex-wrap">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40">Sort</span>
+              {[
+                { col: 'name', label: 'Name' },
+                { col: 'buildStatus', label: 'Status' },
+                { col: 'updatedAt', label: 'Updated' },
+              ].map(({ col, label }) => (
+                <button
+                  key={col}
+                  onClick={() => handleSort(col)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-mono transition-colors ${
+                    sortCol === col ? 'bg-white/10 text-foreground' : 'text-muted-foreground/50 hover:text-muted-foreground'
+                  }`}
+                >
+                  {label}<SortIcon col={col} />
+                </button>
+              ))}
             </div>
 
             {systems.map((system, i) => (

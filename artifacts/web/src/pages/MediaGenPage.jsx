@@ -75,7 +75,7 @@ function AudioPlayer({ src, label }) {
     <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/4 border border-white/8">
       <button
         onClick={toggle}
-        className="w-8 h-8 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/25 flex items-center justify-center shrink-0 transition-all"
+        className="w-10 h-10 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/25 flex items-center justify-center shrink-0 transition-all"
       >
         {playing ? <Pause className="w-3.5 h-3.5 text-emerald-400" /> : <Play className="w-3.5 h-3.5 text-emerald-400 ml-0.5" />}
       </button>

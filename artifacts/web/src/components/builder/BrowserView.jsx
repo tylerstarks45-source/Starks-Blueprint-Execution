@@ -140,10 +140,12 @@ export default function BrowserView({ task, startUrl, authToken, onResult, onClo
         <div className="flex gap-1.5 shrink-0">
           <button
             onClick={handleClose}
-            className="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-500 transition-colors flex items-center justify-center group"
+            className="p-2 -m-1 flex items-center justify-center group"
             title="Close browser"
           >
-            <X className="w-1.5 h-1.5 text-red-900 opacity-0 group-hover:opacity-100" />
+            <span className="w-3 h-3 rounded-full bg-red-500/80 group-hover:bg-red-500 transition-colors flex items-center justify-center">
+              <X className="w-1.5 h-1.5 text-red-900 opacity-60 md:opacity-0 md:group-hover:opacity-100" />
+            </span>
           </button>
           <div className="w-3 h-3 rounded-full bg-yellow-500/40" />
           <div className="w-3 h-3 rounded-full bg-green-500/40" />

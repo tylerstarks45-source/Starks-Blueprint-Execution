@@ -82,7 +82,7 @@ function TrackingPixelDrawer({ link, onClose }) {
             <h2 className="text-sm font-bold text-white">Tracking Setup</h2>
             <p className="text-[10px] text-white/35 font-mono truncate">{link.name}</p>
           </div>
-          <button onClick={onClose} className="ml-auto w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white transition-colors">
+          <button onClick={onClose} className="ml-auto w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white transition-colors shrink-0">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>

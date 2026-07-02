@@ -482,24 +482,27 @@ const PricingPage = () => {
           >
             <div className="max-w-4xl mx-auto">
               <h2 className="text-2xl font-bold font-mono text-center mb-8">Full Plan Comparison</h2>
-              <div className="rounded-2xl border border-white/10 bg-black/50 backdrop-blur-sm overflow-hidden">
-                <div className="grid grid-cols-5 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground bg-white/4 px-6 py-4">
-                  <div>Feature</div>
-                  <div className="text-center text-emerald-400">Free</div>
-                  <div className="text-center text-blue-400">Builder</div>
-                  <div className="text-center text-violet-400">Operator</div>
-                  <div className="text-center text-amber-400">Empire</div>
-                </div>
-                {COMPARISON.map((row, i) => (
-                  <div key={i} className={`grid grid-cols-5 px-6 py-3.5 text-sm ${i % 2 === 0 ? 'bg-white/2' : ''} border-t border-white/5`}>
-                    <div className="text-muted-foreground">{row.label}</div>
-                    <div className="text-center font-mono text-xs">{row.free === '✓' ? <span className="text-emerald-400">✓</span> : row.free === '✗' ? <span className="opacity-25">✗</span> : row.free}</div>
-                    <div className="text-center font-mono text-xs">{row.builder === '✓' ? <span className="text-emerald-400">✓</span> : row.builder === '✗' ? <span className="opacity-25">✗</span> : row.builder}</div>
-                    <div className="text-center font-mono text-xs">{row.operator === '✓' ? <span className="text-emerald-400">✓</span> : row.operator === '✗' ? <span className="opacity-25">✗</span> : row.operator}</div>
-                    <div className="text-center font-mono text-xs">{row.empire === '✓' ? <span className="text-emerald-400">✓</span> : row.empire === '✗' ? <span className="opacity-25">✗</span> : row.empire}</div>
+              <div className="rounded-2xl border border-white/10 bg-black/50 backdrop-blur-sm overflow-x-auto">
+                <div className="min-w-[560px] sm:min-w-0">
+                  <div className="grid grid-cols-5 gap-2 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground bg-white/4 px-4 sm:px-6 py-4">
+                    <div>Feature</div>
+                    <div className="text-center text-emerald-400">Free</div>
+                    <div className="text-center text-blue-400">Builder</div>
+                    <div className="text-center text-violet-400">Operator</div>
+                    <div className="text-center text-amber-400">Empire</div>
                   </div>
-                ))}
+                  {COMPARISON.map((row, i) => (
+                    <div key={i} className={`grid grid-cols-5 gap-2 px-4 sm:px-6 py-3.5 text-sm ${i % 2 === 0 ? 'bg-white/2' : ''} border-t border-white/5`}>
+                      <div className="text-muted-foreground">{row.label}</div>
+                      <div className="text-center font-mono text-xs">{row.free === '✓' ? <span className="text-emerald-400">✓</span> : row.free === '✗' ? <span className="opacity-25">✗</span> : row.free}</div>
+                      <div className="text-center font-mono text-xs">{row.builder === '✓' ? <span className="text-emerald-400">✓</span> : row.builder === '✗' ? <span className="opacity-25">✗</span> : row.builder}</div>
+                      <div className="text-center font-mono text-xs">{row.operator === '✓' ? <span className="text-emerald-400">✓</span> : row.operator === '✗' ? <span className="opacity-25">✗</span> : row.operator}</div>
+                      <div className="text-center font-mono text-xs">{row.empire === '✓' ? <span className="text-emerald-400">✓</span> : row.empire === '✗' ? <span className="opacity-25">✗</span> : row.empire}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
+              <p className="sm:hidden text-center text-[11px] text-muted-foreground mt-2">Swipe to see all plans →</p>
             </div>
           </motion.section>
         )}

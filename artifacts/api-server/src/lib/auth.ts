@@ -177,11 +177,8 @@ export async function validateClientWorkspaceId(
   return workspace ? workspace.id : null;
 }
 
-// Accounts authorised for admin access — must have an admin role AND appear in this list.
-const ADMIN_EMAILS = new Set(["tylerstarks45@gmail.com", "tylerstarks77@gmail.com"]);
-
-// Verifies the caller is authenticated AND is in ADMIN_EMAILS AND has an admin role AND is not suspended.
-// Sends 401 (no/invalid token), 403 (suspended, not admin, or wrong email) and returns null on failure.
+// Verifies the caller is authenticated AND has an admin role AND is not suspended.
+// Sends 401 (no/invalid token), 403 (suspended or not admin) and returns null on failure.
 export async function requireAdmin(
   req: Request,
   res: Response,
@@ -192,15 +189,11 @@ export async function requireAdmin(
     return null;
   }
   const [user] = await db
-    .select({ role: usersTable.role, active: usersTable.active, email: usersTable.email })
+    .select({ role: usersTable.role, active: usersTable.active })
     .from(usersTable)
     .where(eq(usersTable.id, id));
   if (!user || user.active === false) {
     res.status(403).json({ error: "Account suspended" });
-    return null;
-  }
-  if (!ADMIN_EMAILS.has(user.email)) {
-    res.status(403).json({ error: "Admin privileges required" });
     return null;
   }
   const role = user.role ?? "USER";

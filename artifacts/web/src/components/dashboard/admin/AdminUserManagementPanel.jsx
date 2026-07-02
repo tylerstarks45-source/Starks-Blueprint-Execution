@@ -244,77 +244,34 @@ const AdminUserManagementPanel = () => {
         {error ? (
           <p className="text-sm text-destructive p-4">{error}</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent bg-muted/10">
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">AI Usage</TableHead>
-                <TableHead className="text-right">Credits</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Mobile: stacked cards */}
+            <div className="md:hidden divide-y divide-border/30">
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={6}><Skeleton className="h-6 w-full" /></TableCell>
-                  </TableRow>
+                  <div key={i} className="p-3"><Skeleton className="h-16 w-full" /></div>
                 ))
               ) : users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-sm text-muted-foreground italic py-8">
-                    No users match your filters.
-                  </TableCell>
-                </TableRow>
+                <p className="text-center text-sm text-muted-foreground italic py-8">No users match your filters.</p>
               ) : (
                 users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
+                  <div key={user.id} className="p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
                       <button
                         type="button"
                         onClick={() => viewRevenue(user)}
-                        className="text-left group"
+                        className="text-left group min-w-0"
                         title="View revenue for this user"
                       >
-                        <div className="font-medium text-sm group-hover:text-emerald-400 transition-colors">{user.name || '—'}</div>
-                        <div className="text-xs text-muted-foreground group-hover:text-emerald-500/70 transition-colors">{user.email}</div>
+                        <div className="font-medium text-sm group-hover:text-emerald-400 transition-colors truncate">{user.name || '—'}</div>
+                        <div className="text-xs text-muted-foreground group-hover:text-emerald-500/70 transition-colors truncate">{user.email}</div>
                       </button>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={
-                        user.role === 'FOUNDER_ADMIN' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
-                        user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? 'bg-primary/10 text-primary' : 'bg-muted'
-                      }>
-                        {user.role === 'FOUNDER_ADMIN' ? '👑 FOUNDER' : user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {user.active ? (
-                        <span className="text-xs bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded font-medium">Active</span>
-                      ) : (
-                        <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded font-medium">Suspended</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-xs">
-                      {usageMap[user.id] ? (
-                        <div className="leading-tight">
-                          <div>{compact(usageMap[user.id].requests)} req · {compact(usageMap[user.id].tokens)} tok</div>
-                          <div className="text-muted-foreground">{usd(usageMap[user.id].costUsd)}</div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm">{num(user.creditsBalance)}</TableCell>
-                    <TableCell className="text-right">
                       {busyId === user.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin inline-block text-muted-foreground" />
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0 text-muted-foreground" />
                       ) : (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreHorizontal className="w-4 h-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuLabel>Change Role</DropdownMenuLabel>
@@ -345,12 +302,144 @@ const AdminUserManagementPanel = () => {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary" className={
+                        user.role === 'FOUNDER_ADMIN' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
+                        user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? 'bg-primary/10 text-primary' : 'bg-muted'
+                      }>
+                        {user.role === 'FOUNDER_ADMIN' ? '👑 FOUNDER' : user.role}
+                      </Badge>
+                      {user.active ? (
+                        <span className="text-xs bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded font-medium">Active</span>
+                      ) : (
+                        <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded font-medium">Suspended</span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <div>
+                        {usageMap[user.id] ? (
+                          <span className="text-muted-foreground">{compact(usageMap[user.id].requests)} req · {usd(usageMap[user.id].costUsd)}</span>
+                        ) : (
+                          <span className="text-muted-foreground">No usage yet</span>
+                        )}
+                      </div>
+                      <div className="text-foreground">{num(user.creditsBalance)} credits</div>
+                    </div>
+                  </div>
                 ))
               )}
-            </TableBody>
-          </Table>
+            </div>
+
+            {/* Desktop/tablet: table */}
+            <Table className="hidden md:table">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent bg-muted/10">
+                  <TableHead>User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">AI Usage</TableHead>
+                  <TableHead className="text-right">Credits</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell colSpan={6}><Skeleton className="h-6 w-full" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-sm text-muted-foreground italic py-8">
+                      No users match your filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => viewRevenue(user)}
+                          className="text-left group"
+                          title="View revenue for this user"
+                        >
+                          <div className="font-medium text-sm group-hover:text-emerald-400 transition-colors">{user.name || '—'}</div>
+                          <div className="text-xs text-muted-foreground group-hover:text-emerald-500/70 transition-colors">{user.email}</div>
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={
+                          user.role === 'FOUNDER_ADMIN' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
+                          user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? 'bg-primary/10 text-primary' : 'bg-muted'
+                        }>
+                          {user.role === 'FOUNDER_ADMIN' ? '👑 FOUNDER' : user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {user.active ? (
+                          <span className="text-xs bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded font-medium">Active</span>
+                        ) : (
+                          <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded font-medium">Suspended</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {usageMap[user.id] ? (
+                          <div className="leading-tight">
+                            <div>{compact(usageMap[user.id].requests)} req · {compact(usageMap[user.id].tokens)} tok</div>
+                            <div className="text-muted-foreground">{usd(usageMap[user.id].costUsd)}</div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">{num(user.creditsBalance)}</TableCell>
+                      <TableCell className="text-right">
+                        {busyId === user.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin inline-block text-muted-foreground" />
+                        ) : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="w-4 h-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuLabel>Change Role</DropdownMenuLabel>
+                              {ROLE_OPTIONS.map((r) => (
+                                <DropdownMenuItem key={r} disabled={r === user.role} onClick={() => changeRole(user, r)}>
+                                  <ShieldCheck className="w-4 h-4 mr-2" /> {r}
+                                </DropdownMenuItem>
+                              ))}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setDetailUserId(user.id)}>
+                                <Eye className="w-4 h-4 mr-2" /> View Full Detail
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => viewRevenue(user)}>
+                                <TrendingUp className="w-4 h-4 mr-2" /> View Revenue
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEditDialog(user)}>
+                                <Pencil className="w-4 h-4 mr-2" /> Edit Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setCreditUser(user); setCreditDelta(''); setCreditReason(''); }}>
+                                <Coins className="w-4 h-4 mr-2" /> Adjust Credits
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => sendReset(user)}>
+                                <Mail className="w-4 h-4 mr-2" /> Send Password Reset
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => toggleSuspend(user)} className={user.active ? 'text-destructive' : 'text-emerald-600'}>
+                                {user.active ? <><Ban className="w-4 h-4 mr-2" /> Suspend</> : <><CheckCircle2 className="w-4 h-4 mr-2" /> Reactivate</>}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </>
         )}
         {totalPages > 1 && (
           <div className="flex items-center justify-between p-3 border-t border-border/30">

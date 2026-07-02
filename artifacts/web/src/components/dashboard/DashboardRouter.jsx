@@ -6,7 +6,6 @@ import { Loader2 } from 'lucide-react';
 import AdminDashboardLayout from './admin/AdminDashboardLayout.jsx';
 import UserDashboardLayout from './user/UserDashboardLayout.jsx';
 
-const ADMIN_EMAILS = ['tylerstarks45@gmail.com', 'tylerstarks77@gmail.com'];
 const ADMIN_ROLES = ['admin', 'ADMIN', 'SUPER_ADMIN', 'FOUNDER_ADMIN'];
 
 const DashboardRouter = () => {
@@ -42,9 +41,7 @@ const DashboardRouter = () => {
     );
   }
 
-  const isAdminUser =
-    ADMIN_ROLES.includes(role) &&
-    ADMIN_EMAILS.includes(currentUser?.email);
+  const isAdminUser = ADMIN_ROLES.includes(role);
 
   if (isAdminUser) {
     return <AdminDashboardLayout />;

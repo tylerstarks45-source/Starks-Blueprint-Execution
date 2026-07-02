@@ -130,7 +130,7 @@ function PostModal({ initial, defaultDate, onClose, onSaved, onDeleted }) {
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-mono text-white/40 mb-2">Platform</label>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {PLATFORMS.map((p) => {
                 const Icon = p.icon;
                 const active = platform === p.key;
@@ -378,7 +378,7 @@ export default function SocialCalendarPage() {
                 <div
                   key={i}
                   className={[
-                    'min-h-[110px] border-b border-r border-white/5 p-1.5 sm:p-2 cursor-pointer hover:bg-white/3 transition-colors',
+                    'min-h-[64px] sm:min-h-[110px] border-b border-r border-white/5 p-1 sm:p-2 cursor-pointer hover:bg-white/3 transition-colors',
                     i % 7 === 6 ? 'border-r-0' : '',
                     !inMonth ? 'opacity-30' : '',
                   ].join(' ')}

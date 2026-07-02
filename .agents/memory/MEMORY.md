@@ -1,4 +1,4 @@
-- [Admin dashboard contract & roles](admin-dashboard.md) — real admin UI is AdminDashboardLayout (not the page); Zod strips fields absent from openapi.yaml; admin roles kept in lockstep; DashboardRouter also requires a hardcoded email allow-list, not just an admin role, to show it.
+- [Admin dashboard contract & roles](admin-dashboard.md) — real admin UI is AdminDashboardLayout (not the page); Zod strips fields absent from openapi.yaml; admin roles kept in lockstep. Both frontend DashboardRouter and backend requireAdmin() had hardcoded email allow-lists gating admin access on top of role checks — removed, now role-only.
 - [FOUNDER_ADMIN role](founder-admin.md) — bypass pattern: check role in hasCredits(), openrouter.ts credit gate, system-instances.ts limit; 8 frontend files need updating when adding new admin roles.
 - [Connections Hub architecture](connections-hub.md) — Credential Vault upgraded to Connections Hub; schema columns, new test/patch endpoints, 40+ integration catalog, builder integration pattern.
 - [DB schema change workflow](db-schema-workflow.md) — adding columns requires: push → typecheck:libs → api-server typecheck, in that order.

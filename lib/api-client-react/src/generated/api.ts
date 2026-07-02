@@ -23,6 +23,7 @@ import type {
   AdminActivity,
   AdminActivityInput,
   AdminAnalytics,
+  AdminBusinessOpsAnalytics,
   AdminCreditAdjust,
   AdminCreditAdjustResult,
   AdminDashboard,
@@ -87,6 +88,7 @@ import type {
   DomainsStatus,
   ErrorResponse,
   GenerateBusinessRecommendationsResponse,
+  GetAdminBusinessOpsAnalyticsParams,
   GetAdminLogsParams,
   GetAdminRevenueParams,
   GetAdminUsageByUserParams,
@@ -7514,6 +7516,90 @@ export function useGetAdminRevenue<TData = Awaited<ReturnType<typeof getAdminRev
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAdminRevenueQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetAdminBusinessOpsAnalyticsUrl = (params?: GetAdminBusinessOpsAnalyticsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/business-ops-analytics?${stringifiedParams}` : `/api/admin/business-ops-analytics`
+}
+
+/**
+ * @summary Platform-wide business operations analytics (admin only)
+ */
+export const getAdminBusinessOpsAnalytics = async (params?: GetAdminBusinessOpsAnalyticsParams, options?: RequestInit): Promise<AdminBusinessOpsAnalytics> => {
+
+  return customFetch<AdminBusinessOpsAnalytics>(getGetAdminBusinessOpsAnalyticsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminBusinessOpsAnalyticsQueryKey = (params?: GetAdminBusinessOpsAnalyticsParams,) => {
+    return [
+    `/api/admin/business-ops-analytics`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminBusinessOpsAnalyticsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminBusinessOpsAnalytics>>, TError = ErrorType<unknown>>(params?: GetAdminBusinessOpsAnalyticsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminBusinessOpsAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminBusinessOpsAnalyticsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminBusinessOpsAnalytics>>> = ({ signal }) => getAdminBusinessOpsAnalytics(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminBusinessOpsAnalytics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminBusinessOpsAnalyticsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminBusinessOpsAnalytics>>>
+export type GetAdminBusinessOpsAnalyticsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Platform-wide business operations analytics (admin only)
+ */
+
+export function useGetAdminBusinessOpsAnalytics<TData = Awaited<ReturnType<typeof getAdminBusinessOpsAnalytics>>, TError = ErrorType<unknown>>(
+ params?: GetAdminBusinessOpsAnalyticsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminBusinessOpsAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminBusinessOpsAnalyticsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

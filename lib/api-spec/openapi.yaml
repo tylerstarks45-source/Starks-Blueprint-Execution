@@ -2247,6 +2247,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminRevenueActivity"
 
+  /admin/business-ops-analytics:
+    get:
+      operationId: getAdminBusinessOpsAnalytics
+      tags: [admin]
+      summary: Platform-wide business operations analytics (admin only)
+      parameters:
+        - name: businessId
+          in: query
+          schema:
+            type: integer
+          description: Scope all metrics to a single business for drill-down
+      responses:
+        "200":
+          description: Business operations analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBusinessOpsAnalytics"
+
   /admin/credentials/rotate-key:
     post:
       operationId: rotateCredentialKey
@@ -4577,6 +4596,67 @@ components:
           items:
             $ref: "#/components/schemas/AdminDailyRevenue"
       required: [stats, byBlueprint, recentEvents, dailyRevenue]
+
+    AdminBusinessOpsTotals:
+      type: object
+      properties:
+        total: { type: integer }
+        built: { type: integer }
+        imported: { type: integer }
+      required: [total, built, imported]
+
+    AdminBusinessOpsErrorGroup:
+      type: object
+      properties:
+        component: { type: ["string", "null"] }
+        message: { type: string }
+        severity: { type: string }
+        count: { type: integer }
+        lastSeenAt: { type: string }
+      required: [component, message, severity, count, lastSeenAt]
+
+    AdminBusinessOpsBusinessOption:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        origin: { type: string }
+      required: [id, name, origin]
+
+    AdminBusinessOpsAnalytics:
+      type: object
+      properties:
+        scopedBusinessId: { type: ["integer", "null"] }
+        totals: { $ref: "#/components/schemas/AdminBusinessOpsTotals" }
+        avgHealthScore: { type: ["number", "null"] }
+        automationSuccessRate: { type: number }
+        automationEventCount: { type: integer }
+        browserResearchUsageCount: { type: integer }
+        browserResearchSuccessRate: { type: number }
+        marketplaceConversions: { type: integer }
+        avgBuildTimeSeconds: { type: ["number", "null"] }
+        avgRecoveryTimeSeconds: { type: ["number", "null"] }
+        mostCommonErrors:
+          type: array
+          items: { $ref: "#/components/schemas/AdminBusinessOpsErrorGroup" }
+        businesses:
+          type: array
+          items: { $ref: "#/components/schemas/AdminBusinessOpsBusinessOption" }
+      required:
+        [
+          scopedBusinessId,
+          totals,
+          avgHealthScore,
+          automationSuccessRate,
+          automationEventCount,
+          browserResearchUsageCount,
+          browserResearchSuccessRate,
+          marketplaceConversions,
+          avgBuildTimeSeconds,
+          avgRecoveryTimeSeconds,
+          mostCommonErrors,
+          businesses,
+        ]
 
     # ── Notifications ───────────────────────────────────────────────────────
     Notification:

@@ -28,6 +28,12 @@ import {
   platformSettingsTable,
   encryptionKeyRotationsTable,
   scheduledTasksTable,
+  businessesTable,
+  businessHealthScoresTable,
+  systemLogsTable,
+  pendingApprovalsTable,
+  monitoringLogEventsTable,
+  businessRecommendationsTable,
 } from "@workspace/db";
 import { z } from "zod/v4";
 import { requireAdmin } from "../lib/auth";
@@ -46,6 +52,7 @@ import {
   GetAdminHealthResponse,
   GetAdminUsageByUserResponse,
   GetAdminRevenueResponse,
+  GetAdminBusinessOpsAnalyticsResponse,
   TestAdminOpenRouterResponse,
   ListPlatformUsersResponse,
   ListPlatformUsersQueryParams,
@@ -703,6 +710,166 @@ router.get("/admin/revenue", async (req, res): Promise<void> => {
           amountCents: e.amountCents ?? 0,
         })),
         dailyRevenue: dailyRevenueResult.rows,
+      }),
+    ),
+  );
+});
+
+// ── Business operations analytics (task #249) ────────────────────────────────
+// Platform-wide business-ops metrics computed from real data: businesses,
+// business_health_scores, system_logs, pending_approvals, and
+// business_recommendations. Optional ?businessId scopes every metric (except
+// the platform-wide totals tile) to a single business for drill-down, reusing
+// the same filter pattern as /admin/revenue.
+router.get("/admin/business-ops-analytics", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const businessIdParam = req.query.businessId ? Number(req.query.businessId) : null;
+  if (businessIdParam !== null && (!Number.isInteger(businessIdParam) || businessIdParam < 1)) {
+    res.status(400).json({ error: "businessId must be a positive integer" });
+    return;
+  }
+  const businessId = businessIdParam;
+  const businessCond = businessId !== null ? sql`AND business_id = ${businessId}` : sql``;
+
+  const [
+    totalsRows,
+    healthRows,
+    automationRows,
+    browserResearchRows,
+    errorRows,
+    marketplaceRows,
+    buildTimeRows,
+    recoveryTimeRows,
+    businessOptionRows,
+  ] = await Promise.all([
+    db
+      .select({
+        total: sql<number>`count(*)::int`,
+        built: sql<number>`count(*) filter (where ${businessesTable.origin} = 'built')::int`,
+        imported: sql<number>`count(*) filter (where ${businessesTable.origin} = 'imported')::int`,
+      })
+      .from(businessesTable),
+
+    db.execute<{ avg_health: string | null }>(sql`
+      SELECT AVG(latest.overall_health) AS avg_health
+      FROM (
+        SELECT DISTINCT ON (business_id) business_id, overall_health
+        FROM business_health_scores
+        WHERE 1=1 ${businessCond}
+        ORDER BY business_id, created_at DESC
+      ) latest
+    `),
+
+    db.execute<{ success_count: number; total_count: number }>(sql`
+      SELECT
+        count(*) FILTER (WHERE status = 'success')::int AS success_count,
+        count(*)::int AS total_count
+      FROM monitoring_log_events
+      WHERE event_type = 'self_heal' ${businessCond}
+    `),
+
+    db.execute<{ browser_count: number; research_started: number; research_completed: number }>(sql`
+      SELECT
+        count(*) FILTER (WHERE category = 'browser')::int AS browser_count,
+        count(*) FILTER (WHERE component = 'research-loop' AND action = 'research_started')::int AS research_started,
+        count(*) FILTER (WHERE component = 'research-loop' AND action = 'research_completed')::int AS research_completed
+      FROM system_logs
+      WHERE 1=1 ${businessCond}
+    `),
+
+    db.execute<{ component: string | null; message: string; severity: string; count: number; last_seen_at: string }>(sql`
+      SELECT component, message, severity, count(*)::int AS count, max(created_at) AS last_seen_at
+      FROM system_logs
+      WHERE severity IN ('error', 'critical') ${businessCond}
+      GROUP BY component, message, severity
+      ORDER BY count DESC
+      LIMIT 10
+    `),
+
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(businessRecommendationsTable)
+      .where(
+        businessId !== null
+          ? and(
+              eq(businessRecommendationsTable.status, "applied"),
+              sql`${businessRecommendationsTable.suggestedToolId} is not null`,
+              eq(businessRecommendationsTable.businessId, businessId),
+            )
+          : and(
+              eq(businessRecommendationsTable.status, "applied"),
+              sql`${businessRecommendationsTable.suggestedToolId} is not null`,
+            ),
+      ),
+
+    db.execute<{ avg_seconds: string | null }>(sql`
+      SELECT AVG(EXTRACT(EPOCH FROM (activated.activated_at - build_start.min_at))) AS avg_seconds
+      FROM (
+        SELECT system_instance_id, MIN(created_at) AS min_at
+        FROM system_logs
+        WHERE category = 'build' AND system_instance_id IS NOT NULL ${businessCond}
+        GROUP BY system_instance_id
+      ) build_start
+      JOIN (
+        SELECT system_instance_id, MIN(created_at) AS activated_at
+        FROM system_logs
+        WHERE category = 'deploy' AND action = 'system_activated' AND system_instance_id IS NOT NULL ${businessCond}
+        GROUP BY system_instance_id
+      ) activated ON activated.system_instance_id = build_start.system_instance_id
+      WHERE activated.activated_at > build_start.min_at
+    `),
+
+    db.execute<{ avg_seconds: string | null }>(sql`
+      SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at))) AS avg_seconds
+      FROM pending_approvals
+      WHERE resolved_at IS NOT NULL ${businessCond}
+    `),
+
+    db
+      .select({ id: businessesTable.id, name: businessesTable.name, origin: businessesTable.origin })
+      .from(businessesTable)
+      .orderBy(businessesTable.name)
+      .limit(200),
+  ]);
+
+  const [totalsRow] = totalsRows;
+  const avgHealthRaw = healthRows.rows[0]?.avg_health;
+  const automation = automationRows.rows[0] ?? { success_count: 0, total_count: 0 };
+  const browserResearch = browserResearchRows.rows[0] ?? { browser_count: 0, research_started: 0, research_completed: 0 };
+  const [marketplaceRow] = marketplaceRows;
+  const avgBuildRaw = buildTimeRows.rows[0]?.avg_seconds;
+  const avgRecoveryRaw = recoveryTimeRows.rows[0]?.avg_seconds;
+
+  res.json(
+    GetAdminBusinessOpsAnalyticsResponse.parse(
+      serialize({
+        scopedBusinessId: businessId,
+        totals: {
+          total: totalsRow?.total ?? 0,
+          built: totalsRow?.built ?? 0,
+          imported: totalsRow?.imported ?? 0,
+        },
+        avgHealthScore: avgHealthRaw != null ? Math.round(Number(avgHealthRaw) * 10) / 10 : null,
+        automationSuccessRate:
+          automation.total_count > 0 ? Math.round((automation.success_count / automation.total_count) * 10000) / 100 : 0,
+        automationEventCount: automation.total_count,
+        browserResearchUsageCount: browserResearch.browser_count + browserResearch.research_started,
+        browserResearchSuccessRate:
+          browserResearch.research_started > 0
+            ? Math.round((browserResearch.research_completed / browserResearch.research_started) * 10000) / 100
+            : 0,
+        marketplaceConversions: marketplaceRow?.count ?? 0,
+        avgBuildTimeSeconds: avgBuildRaw != null ? Math.round(Number(avgBuildRaw)) : null,
+        avgRecoveryTimeSeconds: avgRecoveryRaw != null ? Math.round(Number(avgRecoveryRaw)) : null,
+        mostCommonErrors: errorRows.rows.map((r) => ({
+          component: r.component,
+          message: r.message,
+          severity: r.severity,
+          count: r.count,
+          lastSeenAt: r.last_seen_at,
+        })),
+        businesses: businessOptionRows,
       }),
     ),
   );

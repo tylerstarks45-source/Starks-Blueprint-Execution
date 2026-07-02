@@ -2114,6 +2114,43 @@ export const GetAdminRevenueResponse = zod.object({
 
 
 /**
+ * @summary Platform-wide business operations analytics (admin only)
+ */
+export const GetAdminBusinessOpsAnalyticsQueryParams = zod.object({
+  "businessId": zod.coerce.number().optional().describe('Scope all metrics to a single business for drill-down')
+})
+
+export const GetAdminBusinessOpsAnalyticsResponse = zod.object({
+  "scopedBusinessId": zod.number().nullable(),
+  "totals": zod.object({
+  "total": zod.number(),
+  "built": zod.number(),
+  "imported": zod.number()
+}),
+  "avgHealthScore": zod.number().nullable(),
+  "automationSuccessRate": zod.number(),
+  "automationEventCount": zod.number(),
+  "browserResearchUsageCount": zod.number(),
+  "browserResearchSuccessRate": zod.number(),
+  "marketplaceConversions": zod.number(),
+  "avgBuildTimeSeconds": zod.number().nullable(),
+  "avgRecoveryTimeSeconds": zod.number().nullable(),
+  "mostCommonErrors": zod.array(zod.object({
+  "component": zod.string().nullable(),
+  "message": zod.string(),
+  "severity": zod.string(),
+  "count": zod.number(),
+  "lastSeenAt": zod.string()
+})),
+  "businesses": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "origin": zod.string()
+}))
+})
+
+
+/**
  * @summary Re-encrypt all credential rows with a new key (admin only)
  */
 export const rotateCredentialKeyBodyNewKeyHexMin = 64;

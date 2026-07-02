@@ -29,7 +29,7 @@ class AdminErrorBoundary extends React.Component {
 import {
   LayoutDashboard, DollarSign, BrainCircuit, Server, TrendingUp,
   Users, Bell, ShieldCheck, CreditCard, ShoppingBag, Globe, Share2, Trophy, GitBranch,
-  ScrollText,
+  ScrollText, Building2,
 } from 'lucide-react';
 
 import AdminPlatformMetricsCard from './AdminPlatformMetricsCard.jsx';
@@ -63,6 +63,7 @@ import AdminReferralsPanel from '@/components/admin/AdminReferralsPanel.jsx';
 import AdminSocialProofPanel from './AdminSocialProofPanel.jsx';
 import AdminCohortsPanel from './AdminCohortsPanel.jsx';
 import AdminLogsPanel from './AdminLogsPanel.jsx';
+import AdminBusinessOpsCard from './AdminBusinessOpsCard.jsx';
 
 import CreditBalanceCard from '@/components/admin/CreditBalanceCard.jsx';
 import UsageOverviewCard from '@/components/admin/UsageOverviewCard.jsx';
@@ -80,6 +81,7 @@ const TABS = [
   { key: 'referrals',    label: 'Referrals',       icon: Share2,          path: '/admin/referrals' },
   { key: 'social-proof', label: 'Social Proof',    icon: Trophy,          path: '/admin/social-proof' },
   { key: 'cohorts',      label: 'Cohorts',         icon: GitBranch,       path: '/admin/cohorts' },
+  { key: 'business-ops', label: 'Business Ops',    icon: Building2,       path: '/admin/business-ops' },
   { key: 'systems',      label: 'Systems',         icon: Server,          path: '/admin/systems' },
   { key: 'health',        label: 'Platform Health', icon: ShieldCheck,     path: '/admin/health' },
   { key: 'activity',      label: 'Activity',        icon: Bell,            path: '/admin/activity' },
@@ -226,6 +228,11 @@ const AdminDashboardLayout = () => {
         {/* ── Cohorts tab ──────────────────────────────────────────────────── */}
         {activeTab === 'cohorts' && (
           <AdminCohortsPanel />
+        )}
+
+        {/* ── Business Ops tab ─────────────────────────────────────────────── */}
+        {activeTab === 'business-ops' && (
+          <AdminBusinessOpsCard />
         )}
 
         {/* ── Systems tab ──────────────────────────────────────────────────── */}

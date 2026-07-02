@@ -925,6 +925,46 @@ export interface AdminRevenueActivity {
   dailyRevenue: AdminDailyRevenue[];
 }
 
+export interface AdminBusinessOpsTotals {
+  total: number;
+  built: number;
+  imported: number;
+}
+
+export interface AdminBusinessOpsErrorGroup {
+  /** @nullable */
+  component: string | null;
+  message: string;
+  severity: string;
+  count: number;
+  lastSeenAt: string;
+}
+
+export interface AdminBusinessOpsBusinessOption {
+  id: number;
+  name: string;
+  origin: string;
+}
+
+export interface AdminBusinessOpsAnalytics {
+  /** @nullable */
+  scopedBusinessId: number | null;
+  totals: AdminBusinessOpsTotals;
+  /** @nullable */
+  avgHealthScore: number | null;
+  automationSuccessRate: number;
+  automationEventCount: number;
+  browserResearchUsageCount: number;
+  browserResearchSuccessRate: number;
+  marketplaceConversions: number;
+  /** @nullable */
+  avgBuildTimeSeconds: number | null;
+  /** @nullable */
+  avgRecoveryTimeSeconds: number | null;
+  mostCommonErrors: AdminBusinessOpsErrorGroup[];
+  businesses: AdminBusinessOpsBusinessOption[];
+}
+
 export interface Notification {
   id: number;
   /** @nullable */
@@ -1866,6 +1906,13 @@ from?: string;
  * Inclusive end date for a custom range (YYYY-MM-DD); overrides days
  */
 to?: string;
+};
+
+export type GetAdminBusinessOpsAnalyticsParams = {
+/**
+ * Scope all metrics to a single business for drill-down
+ */
+businessId?: number;
 };
 
 export type ListPlatformUsersParams = {

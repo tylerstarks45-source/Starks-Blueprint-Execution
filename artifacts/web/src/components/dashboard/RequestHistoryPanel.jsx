@@ -47,7 +47,7 @@ const RequestHistoryPanel = () => {
       </CardHeader>
       <CardContent className="pt-4">
         {summary && (
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
             <div className="bg-muted/20 p-3 rounded-lg border border-border/50 text-center">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Requests</p>
               <p className="text-xl font-bold font-mono">{summary.totalRequests || 0}</p>

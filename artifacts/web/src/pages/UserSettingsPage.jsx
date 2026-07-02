@@ -982,7 +982,7 @@ function DeveloperTab({ user }) {
       {usage && (
         <div className="space-y-4">
           {/* Summary cards */}
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {[
               { label: 'This Month', value: (usage.totalMonthlyCallCount ?? 0).toLocaleString(), icon: Zap, color: 'text-violet-400' },
               { label: 'Tokens (30d)', value: (usage.totalTokenUsage30d ?? 0).toLocaleString(), icon: Activity, color: 'text-blue-400' },

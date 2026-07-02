@@ -627,7 +627,7 @@ export default function EmailMarketingPage() {
         </div>
 
         {/* Stats bar */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
             { label: 'Lists', value: lists.length, icon: List, color: 'text-sky-400' },
             { label: 'Subscribers', value: totalSubs.toLocaleString(), icon: Users, color: 'text-violet-400' },

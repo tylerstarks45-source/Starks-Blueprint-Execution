@@ -48,7 +48,7 @@ const AIActivityLogPanel = () => {
       </CardHeader>
       <CardContent className="pt-5">
         {summary && (
-          <div className="grid grid-cols-3 gap-5 mb-6">
+          <div className="grid grid-cols-3 gap-2 sm:gap-5 mb-6">
             <div className="bg-muted/10 p-4 rounded-xl border border-border/30 shadow-sm text-center">
               <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-1.5">Total Operations</p>
               <p className="text-2xl font-bold font-mono text-foreground/90">{summary.totalRequests || 0}</p>

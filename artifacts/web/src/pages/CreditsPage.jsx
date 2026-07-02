@@ -675,14 +675,14 @@ const CreditsPage = () => {
             </div>
           ) : (
             <div>
-              <div className="grid grid-cols-4 gap-3 pb-2 border-b border-white/8 mb-1 px-1">
+              <div className="hidden sm:grid grid-cols-4 gap-3 pb-2 border-b border-white/8 mb-1 px-1">
                 {['Date', 'Type', 'Amount', 'Balance After'].map(h => (
                   <div key={h} className="text-[9px] uppercase tracking-widest text-white/30 font-bold">{h}</div>
                 ))}
               </div>
               <div className="divide-y divide-white/5">
                 {transactions.slice(0, 20).map(tx => (
-                  <div key={tx.id} className="grid grid-cols-4 gap-3 py-3 px-1 hover:bg-white/[0.02] rounded-lg transition-colors">
+                  <div key={tx.id} className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1 py-3 px-1 hover:bg-white/[0.02] rounded-lg transition-colors">
                     <span className="text-xs text-white/40 font-mono">{fmtTx(tx)}</span>
                     <span className="text-xs text-white/70 font-mono truncate">{txLabel(tx.type)}</span>
                     <span className={`text-xs font-bold font-mono tabular-nums ${txColor(tx.type, tx.amount)}`}>

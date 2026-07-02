@@ -155,7 +155,7 @@ export default function HealthScoreCard({ businessId, compact = false, className
             </div>
           </div>
 
-          <div className="grid grid-cols-5 gap-2 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
             {SUB_SCORES.map((s) => (
               <div key={s.key} className="text-center">
                 <div className="text-sm font-bold font-mono text-foreground">{latest[s.key]}</div>

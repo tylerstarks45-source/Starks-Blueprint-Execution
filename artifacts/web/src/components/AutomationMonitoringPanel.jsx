@@ -34,9 +34,9 @@ const AutomationMonitoringPanel = () => {
       </CardHeader>
       <CardContent className="pt-4">
         {isLoading ? (
-          <div className="grid grid-cols-3 gap-3 animate-pulse">{[0,1,2].map(i=><div key={i} className="h-16 bg-muted/40 rounded-xl"/>)}</div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 animate-pulse">{[0,1,2].map(i=><div key={i} className="h-16 bg-muted/40 rounded-xl"/>)}</div>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <div className="bg-muted/10 rounded-xl p-3 border border-border/30 text-center">
               <p className="text-2xl font-bold font-mono text-foreground">{stats.total}</p>
               <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Total</p>

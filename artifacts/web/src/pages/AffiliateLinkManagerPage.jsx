@@ -194,7 +194,7 @@ function LinkCard({ link, onDelete, onEdit, copied, onCopy, onTrackingSetup }) {
           </div>
 
           {/* Conversion Funnel */}
-          <div className="mt-3 grid grid-cols-4 gap-2">
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
               { label: 'Clicks', value: clicks.toLocaleString(), icon: MousePointerClick, color: 'text-sky-400' },
               { label: 'Conversions', value: conversions.toLocaleString(), icon: ShoppingCart, color: 'text-emerald-400' },

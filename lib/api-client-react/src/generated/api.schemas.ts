@@ -1416,6 +1416,62 @@ export interface AnalyzeBusinessHealthResponse {
   status: string;
 }
 
+export type BusinessRecommendationCategory = typeof BusinessRecommendationCategory[keyof typeof BusinessRecommendationCategory];
+
+
+export const BusinessRecommendationCategory = {
+  conversion: 'conversion',
+  seo: 'seo',
+  marketing: 'marketing',
+  automation: 'automation',
+  revenue: 'revenue',
+  content: 'content',
+  risk: 'risk',
+} as const;
+
+export type BusinessRecommendationStatus = typeof BusinessRecommendationStatus[keyof typeof BusinessRecommendationStatus];
+
+
+export const BusinessRecommendationStatus = {
+  new: 'new',
+  dismissed: 'dismissed',
+  applied: 'applied',
+  stale: 'stale',
+} as const;
+
+export type BusinessRecommendationSourceType = typeof BusinessRecommendationSourceType[keyof typeof BusinessRecommendationSourceType];
+
+
+export const BusinessRecommendationSourceType = {
+  improvement_pass: 'improvement_pass',
+  root_cause_research: 'root_cause_research',
+} as const;
+
+export interface BusinessRecommendation {
+  id: number;
+  businessId: number;
+  category: BusinessRecommendationCategory;
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  confidence: number;
+  status: BusinessRecommendationStatus;
+  sourceType: BusinessRecommendationSourceType;
+  /** @nullable */
+  suggestedToolId?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListBusinessRecommendationsResponse {
+  recommendations: BusinessRecommendation[];
+}
+
+export interface GenerateBusinessRecommendationsResponse {
+  jobId: string;
+  status: string;
+}
+
 export interface UpgradeRequiredResponse {
   error: string;
   code: string;
@@ -1844,6 +1900,20 @@ export type ListBusinessesOrigin = typeof ListBusinessesOrigin[keyof typeof List
 export const ListBusinessesOrigin = {
   built: 'built',
   imported: 'imported',
+} as const;
+
+export type GetBusinessRecommendationsParams = {
+status?: GetBusinessRecommendationsStatus;
+};
+
+export type GetBusinessRecommendationsStatus = typeof GetBusinessRecommendationsStatus[keyof typeof GetBusinessRecommendationsStatus];
+
+
+export const GetBusinessRecommendationsStatus = {
+  new: 'new',
+  dismissed: 'dismissed',
+  applied: 'applied',
+  stale: 'stale',
 } as const;
 
 export type ListApprovalsParams = {

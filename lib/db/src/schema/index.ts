@@ -4,6 +4,7 @@ export * from "./blueprint_steps";
 export * from "./tool_categories";
 export * from "./tools";
 export * from "./tool_credential_requirements";
+export * from "./business_recommendations";
 export * from "./affiliate_links";
 export * from "./users";
 export * from "./system_instances";

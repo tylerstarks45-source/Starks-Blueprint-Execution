@@ -2787,6 +2787,122 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /businesses/{id}/recommendations:
+    get:
+      operationId: getBusinessRecommendations
+      tags: [businesses]
+      summary: List AI Improvement Engine recommendations for a business
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [new, dismissed, applied, stale]
+      responses:
+        "200":
+          description: Recommendations for the business
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListBusinessRecommendationsResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /businesses/{id}/recommendations/generate:
+    post:
+      operationId: generateBusinessRecommendations
+      tags: [businesses]
+      summary: Kick off an async AI Improvement Engine pass for a business
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "202":
+          description: Improvement pass job enqueued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateBusinessRecommendationsResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /businesses/{id}/recommendations/{recId}/dismiss:
+    post:
+      operationId: dismissBusinessRecommendation
+      tags: [businesses]
+      summary: Dismiss a recommendation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: recId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated recommendation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessRecommendation"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /businesses/{id}/recommendations/{recId}/apply:
+    post:
+      operationId: applyBusinessRecommendation
+      tags: [businesses]
+      summary: Mark a recommendation as applied
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: recId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated recommendation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessRecommendation"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /businesses/{id}/monitoring:
     get:
       operationId: getBusinessMonitoring
@@ -5085,6 +5201,64 @@ components:
       required: [latest, history, analyzing]
 
     AnalyzeBusinessHealthResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+      required: [jobId, status]
+
+    # ── AI Improvement Engine (Task #248) ────────────────────────────────────
+    BusinessRecommendation:
+      type: object
+      properties:
+        id:
+          type: integer
+        businessId:
+          type: integer
+        category:
+          type: string
+          enum: [conversion, seo, marketing, automation, revenue, content, risk]
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        confidence:
+          type: integer
+        status:
+          type: string
+          enum: [new, dismissed, applied, stale]
+        sourceType:
+          type: string
+          enum: [improvement_pass, root_cause_research]
+        suggestedToolId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - businessId
+        - category
+        - title
+        - confidence
+        - status
+        - sourceType
+        - createdAt
+        - updatedAt
+
+    ListBusinessRecommendationsResponse:
+      type: object
+      properties:
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/BusinessRecommendation"
+      required: [recommendations]
+
+    GenerateBusinessRecommendationsResponse:
       type: object
       properties:
         jobId:

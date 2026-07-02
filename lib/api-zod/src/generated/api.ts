@@ -2615,6 +2615,88 @@ export const AnalyzeBusinessHealthParams = zod.object({
 
 
 /**
+ * @summary List AI Improvement Engine recommendations for a business
+ */
+export const GetBusinessRecommendationsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetBusinessRecommendationsQueryParams = zod.object({
+  "status": zod.enum(['new', 'dismissed', 'applied', 'stale']).optional()
+})
+
+export const GetBusinessRecommendationsResponse = zod.object({
+  "recommendations": zod.array(zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "category": zod.enum(['conversion', 'seo', 'marketing', 'automation', 'revenue', 'content', 'risk']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "confidence": zod.number(),
+  "status": zod.enum(['new', 'dismissed', 'applied', 'stale']),
+  "sourceType": zod.enum(['improvement_pass', 'root_cause_research']),
+  "suggestedToolId": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Kick off an async AI Improvement Engine pass for a business
+ */
+export const GenerateBusinessRecommendationsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Dismiss a recommendation
+ */
+export const DismissBusinessRecommendationParams = zod.object({
+  "id": zod.coerce.number(),
+  "recId": zod.coerce.number()
+})
+
+export const DismissBusinessRecommendationResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "category": zod.enum(['conversion', 'seo', 'marketing', 'automation', 'revenue', 'content', 'risk']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "confidence": zod.number(),
+  "status": zod.enum(['new', 'dismissed', 'applied', 'stale']),
+  "sourceType": zod.enum(['improvement_pass', 'root_cause_research']),
+  "suggestedToolId": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Mark a recommendation as applied
+ */
+export const ApplyBusinessRecommendationParams = zod.object({
+  "id": zod.coerce.number(),
+  "recId": zod.coerce.number()
+})
+
+export const ApplyBusinessRecommendationResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "category": zod.enum(['conversion', 'seo', 'marketing', 'automation', 'revenue', 'content', 'risk']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "confidence": zod.number(),
+  "status": zod.enum(['new', 'dismissed', 'applied', 'stale']),
+  "sourceType": zod.enum(['improvement_pass', 'root_cause_research']),
+  "suggestedToolId": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
  * @summary Get the latest per-dimension health score for a business, plus history
  */
 export const GetBusinessMonitoringParams = zod.object({

@@ -2,9 +2,10 @@ import { claimNextJob, completeJob, failJob, upsertConnectorStatus, resetOrphane
 import { getConnector } from "../connectors/registry";
 import {
   db, pool, systemInstancesTable, userCredentialsTable, systemActivityEventsTable, usersTable,
-  businessesTable, businessHealthScoresTable,
+  businessesTable, businessHealthScoresTable, businessRecommendationsTable, toolsTable, toolCategoriesTable,
+  type RecommendationCategory,
 } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { decrypt } from "../crypto";
 import { logger } from "../logger";
 import { complete } from "../openrouter";
@@ -13,6 +14,7 @@ import { fetchPage } from "../browser/crawler";
 import { isBlockedUrl } from "../connectors/ssrf-guard";
 import { computeSystemHealth } from "../health-monitor";
 import { attemptSelfHeal } from "../self-healing";
+import { logEvent } from "../log-event";
 
 const POLL_INTERVAL_MS = 5_000;
 let running = false;
@@ -346,6 +348,173 @@ Respond with ONLY a single JSON object (no markdown, no prose) with this exact s
   return { ok: true, businessId, healthScoreId: row.id, overallHealth: row.overallHealth };
 }
 
+// ─── business_improvement_pass handler (Task #248) ─────────────────────────
+// Scheduled AI Improvement Engine pass: analyzes the business + live site,
+// checks the Marketplace catalog first for any tool recommendations, and
+// produces categorized, confidence-scored recommendations stored in
+// business_recommendations for the Growth Recommendations panel.
+
+interface ImprovementPassPayload {
+  businessId: number;
+}
+
+interface RawRecommendation {
+  category: string;
+  title: string;
+  description: string;
+  confidence: number;
+  suggestedToolSlug?: string | null;
+}
+
+const RECOMMENDATION_CATEGORY_SET = new Set<RecommendationCategory>([
+  "conversion", "seo", "marketing", "automation", "revenue", "content", "risk",
+]);
+
+async function handleBusinessImprovementPass(payload: Record<string, unknown>): Promise<unknown> {
+  const { businessId } = payload as unknown as ImprovementPassPayload;
+
+  const [business] = await db.select().from(businessesTable).where(eq(businessesTable.id, businessId));
+  if (!business) throw new Error(`Business ${businessId} not found`);
+
+  await logEvent({
+    businessId,
+    category: "optimization",
+    severity: "info",
+    component: "improvement-engine",
+    action: "pass_started",
+    message: `Improvement pass started for business "${business.name}"`,
+  });
+
+  let siteContext = "No website URL is on file for this business.";
+  if (business.websiteUrl && isBlockedUrl(business.websiteUrl)) {
+    siteContext = `The website URL on file (${business.websiteUrl}) targets a private/reserved address and was not fetched.`;
+  } else if (business.websiteUrl) {
+    try {
+      const page = await fetchPage(business.websiteUrl);
+      siteContext = page.error
+        ? `Attempted to load ${business.websiteUrl} but failed: ${page.error}.`
+        : `Live site check of ${page.finalUrl} — Title: "${page.title}" (HTTP ${page.statusCode}).\nVisible text (first 1500 chars):\n${page.text.slice(0, 1500)}\nLinks found: ${page.links.length}. Forms found: ${page.forms.length}.`;
+    } catch (err) {
+      siteContext = `Could not check the live site: ${err instanceof Error ? err.message : String(err)}.`;
+    }
+  }
+
+  // Marketplace-first: load the active tool catalog so the AI recommends
+  // tools we already sell/support before ever suggesting an external one.
+  const marketplaceTools = await db
+    .select({
+      id: toolsTable.id,
+      name: toolsTable.name,
+      description: toolsTable.description,
+      category: toolCategoriesTable.name,
+    })
+    .from(toolsTable)
+    .leftJoin(toolCategoriesTable, eq(toolsTable.categoryId, toolCategoriesTable.id))
+    .where(eq(toolsTable.activeStatus, true));
+
+  const marketplaceContext = marketplaceTools.length
+    ? marketplaceTools.map((t) => `- "${t.name}" (${t.category ?? "uncategorized"}): ${t.description ?? "no description"}`).join("\n")
+    : "(Marketplace catalog is currently empty.)";
+
+  const prompt = `You are running a scheduled AI Improvement Engine pass for a business on the SBEP platform.
+
+Business name: ${business.name}
+Business type: ${business.businessType}
+Revenue model: ${business.revenueModel ?? "unknown"}
+Status: ${business.status}
+Notes: ${business.notes ?? "(none)"}
+
+${siteContext}
+
+Our Marketplace already sells/curates these tools — ALWAYS check this list first and prefer recommending one of these by exact name over any external tool:
+${marketplaceContext}
+
+Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY a JSON array (no markdown, no prose), each item shaped exactly like:
+{
+  "category": "<one of: conversion, seo, marketing, automation, revenue, content, risk>",
+  "title": "<short actionable title, <= 80 chars>",
+  "description": "<1-3 sentences explaining the recommendation and why it matters>",
+  "confidence": <0-100 integer, how confident you are this is a real, worthwhile opportunity>,
+  "suggestedToolSlug": "<exact Marketplace tool name from the list above if one directly helps, else null>"
+}`;
+
+  const result = await complete({
+    prompt,
+    systemPrompt:
+      "You are ASH, an AI growth analyst for the SBEP platform. You produce specific, actionable recommendations " +
+      "grounded in the evidence given — never generic filler. You always check the Marketplace tool list first and " +
+      "only suggest an external tool (by leaving suggestedToolSlug null and naming it in the description) when nothing " +
+      "in the Marketplace fits. Always respond with strictly valid JSON matching the requested shape.",
+    model: "openai/gpt-4o-mini",
+    userId: business.ownerId,
+  });
+
+  let parsed: unknown;
+  try {
+    const jsonMatch = result.content.match(/\[[\s\S]*\]/);
+    parsed = JSON.parse(jsonMatch ? jsonMatch[0] : result.content);
+  } catch {
+    throw new Error("ASH returned a non-JSON improvement pass response");
+  }
+  if (!Array.isArray(parsed)) throw new Error("ASH improvement pass response was not a JSON array");
+
+  const raw = parsed as RawRecommendation[];
+  const toolByName = new Map(marketplaceTools.map((t) => [t.name.toLowerCase(), t.id]));
+
+  // Supersede the previous pass's unactioned recommendations instead of
+  // letting them pile up forever — dismissed/applied history is preserved.
+  await db
+    .update(businessRecommendationsTable)
+    .set({ status: "stale", resolvedAt: new Date() })
+    .where(
+      and(
+        eq(businessRecommendationsTable.businessId, businessId),
+        eq(businessRecommendationsTable.sourceType, "improvement_pass"),
+        eq(businessRecommendationsTable.status, "new"),
+      ),
+    );
+
+  let inserted = 0;
+  let marketplaceMatches = 0;
+  for (const item of raw.slice(0, 8)) {
+    if (typeof item?.title !== "string" || typeof item?.description !== "string") continue;
+    const category: RecommendationCategory = RECOMMENDATION_CATEGORY_SET.has(item.category as RecommendationCategory)
+      ? (item.category as RecommendationCategory)
+      : "automation";
+    const confidence = Math.max(0, Math.min(100, Math.round(Number(item.confidence) || 50)));
+    const suggestedToolId = item.suggestedToolSlug
+      ? (toolByName.get(item.suggestedToolSlug.toLowerCase()) ?? null)
+      : null;
+    if (suggestedToolId) marketplaceMatches++;
+
+    await db.insert(businessRecommendationsTable).values({
+      businessId,
+      category,
+      title: item.title.slice(0, 200),
+      description: item.description.slice(0, 1000),
+      confidence,
+      status: "new",
+      sourceType: "improvement_pass",
+      suggestedToolId,
+      payload: { rawSuggestedToolSlug: item.suggestedToolSlug ?? null },
+    });
+    inserted++;
+  }
+
+  await logEvent({
+    businessId,
+    category: "optimization",
+    severity: "info",
+    component: "improvement-engine",
+    action: "pass_completed",
+    message: `Improvement pass completed for "${business.name}": ${inserted} recommendation(s), ${marketplaceMatches} matched to Marketplace tools`,
+    metadata: { inserted, marketplaceMatches },
+  });
+
+  logger.info({ businessId, inserted, marketplaceMatches }, "Business improvement pass completed");
+  return { ok: true, businessId, inserted, marketplaceMatches };
+}
+
 // ─── Main Worker Loop ─────────────────────────────────────────────────────────
 
 async function processJob(): Promise<void> {
@@ -376,6 +545,9 @@ async function processJob(): Promise<void> {
         break;
       case "business_health_analysis":
         result = await handleBusinessHealthAnalysis(payload);
+        break;
+      case "business_improvement_pass":
+        result = await handleBusinessImprovementPass(payload);
         break;
       default:
         throw new Error(`Unknown job type: ${job.jobType}`);

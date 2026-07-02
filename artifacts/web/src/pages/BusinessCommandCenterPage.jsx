@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Building2, Globe, Wrench, Download, Link2, RefreshCw,
   FileText, TrendingUp, BarChart3, Server, Plug, Sparkles, Bell,
-  ListChecks, LineChart as LineChartIcon, Rocket, ExternalLink, AlertTriangle,
+  ListChecks, LineChart as LineChartIcon, Rocket, ExternalLink,
   ShieldCheck, ScrollText,
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
@@ -14,6 +14,7 @@ import HealthScoreCard from '@/components/HealthScoreCard.jsx';
 import HealthDashboardCard from '@/components/HealthDashboardCard.jsx';
 import ApprovalsQueue from '@/components/ApprovalsQueue.jsx';
 import OperationsModePanel from '@/components/OperationsModePanel.jsx';
+import GrowthRecommendationsPanel from '@/components/GrowthRecommendationsPanel.jsx';
 import { getAuthHeaders } from '@/lib/apiHeaders.js';
 import { useBusiness } from '@/contexts/BusinessContext.jsx';
 
@@ -405,38 +406,7 @@ export default function BusinessCommandCenterPage() {
 
           {/* Growth Recommendations */}
           <SectionCard icon={TrendingUp} title="Growth Recommendations" className="lg:col-span-3">
-            {latestHealth?.recommendations?.length || latestHealth?.revenueOpportunities?.length ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {latestHealth.revenueOpportunities?.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-1.5 text-xs font-semibold mb-1.5 text-emerald-400">
-                      <TrendingUp className="w-3.5 h-3.5" /> Revenue opportunities
-                    </div>
-                    <ul className="space-y-1">
-                      {latestHealth.revenueOpportunities.map((item, i) => (
-                        <li key={i} className="text-sm text-foreground/80 pl-1">• {item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {latestHealth.recommendations?.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-1.5 text-xs font-semibold mb-1.5 text-amber-400">
-                      <Sparkles className="w-3.5 h-3.5" /> ASH recommends
-                    </div>
-                    <ul className="space-y-1">
-                      {latestHealth.recommendations.map((item, i) => (
-                        <li key={i} className="text-sm text-foreground/80 pl-1">• {item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground/60 inline-flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5" /> No recommendations yet — run a health analysis above to get growth suggestions from ASH.
-              </p>
-            )}
+            <GrowthRecommendationsPanel businessId={business.id} />
           </SectionCard>
         </div>
 

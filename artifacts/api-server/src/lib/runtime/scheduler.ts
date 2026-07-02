@@ -12,6 +12,8 @@ import { sendEmailViaCredentials, getBaseUrl as getSocialBaseUrl } from "../send
 import { recomputeAllActiveSystemsHealth, recomputeAllActiveBusinessesHealth } from "../health-monitor";
 import { attemptSelfHeal } from "../self-healing";
 import { loadCredentials as loadSystemCredentials } from "./worker";
+import { businessesTable } from "@workspace/db";
+import { enqueue } from "./jobs";
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
@@ -766,6 +768,39 @@ async function processHealthMonitoring(): Promise<void> {
   }
 }
 
+// ─── AI Improvement Engine tick (Task #248) ──────────────────────────────────
+// Runs once per day: enqueues a business_improvement_pass job for every
+// active business. Each pass analyzes the business, checks the Marketplace
+// catalog first, and writes fresh business_recommendations rows consumed by
+// the Growth Recommendations panel.
+
+const IMPROVEMENT_PASS_INTERVAL_MS = 24 * 60 * 60 * 1000;
+let lastImprovementPassRun = 0;
+
+async function processImprovementPasses(): Promise<void> {
+  const now = Date.now();
+  if (now - lastImprovementPassRun < IMPROVEMENT_PASS_INTERVAL_MS) return;
+  lastImprovementPassRun = now;
+
+  try {
+    const activeBusinesses = await db
+      .select({ id: businessesTable.id })
+      .from(businessesTable)
+      .where(eq(businessesTable.status, "active"));
+
+    for (const { id } of activeBusinesses) {
+      try {
+        await enqueue("business_improvement_pass", { businessId: id }, { priority: 8 });
+      } catch (err) {
+        logger.warn({ err, businessId: id }, "Failed to enqueue improvement pass");
+      }
+    }
+    logger.info({ count: activeBusinesses.length }, "Improvement pass tick: enqueued jobs for active businesses");
+  } catch (err) {
+    logger.warn({ err }, "Improvement pass tick failed");
+  }
+}
+
 // ─── Main scheduler loop ──────────────────────────────────────────────────────
 
 export function startScheduler(): void {
@@ -780,6 +815,7 @@ export function startScheduler(): void {
       await processEmailSequences();
       await processDuePosts();
       await processHealthMonitoring();
+      await processImprovementPasses();
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {

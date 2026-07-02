@@ -13,7 +13,8 @@ export type JobType =
   | "send_email"
   | "media_gen_video"
   | "media_gen_audio"
-  | "business_health_analysis";
+  | "business_health_analysis"
+  | "business_improvement_pass";
 
 export type JobStatus = "queued" | "active" | "completed" | "failed" | "retrying" | "cancelled";
 

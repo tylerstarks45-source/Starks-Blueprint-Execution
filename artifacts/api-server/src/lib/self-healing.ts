@@ -18,6 +18,7 @@ import { logger } from "./logger";
 import { logMonitoringEvent } from "./health-monitor";
 import { createPendingApproval } from "./approvals";
 import { hasOperationsModeAccess } from "./operations-gate";
+import { runRootCauseResearch } from "./research-loop";
 import { restartSystem, DeploymentError } from "./runtime/deployment";
 
 const STUCK_JOB_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes "active" with no progress
@@ -313,14 +314,21 @@ export async function attemptSelfHeal(
             message: `Connector ${connector.connector} already has a pending approval — skipping duplicate escalation`,
           });
         } else {
+          const research = await runRootCauseResearch({
+            systemInstanceId,
+            businessId,
+            component: `connector:${connector.connector}`,
+            errorMessage: result.detail,
+            context: "A whitelisted auto-reconnect attempt already failed for this connector.",
+          });
           await createPendingApproval({
             businessId,
             userId: ownerId,
             category: "autoFixHighRisk",
             riskLevel: "high",
             title: `Reconnect ${connector.connector} manually`,
-            description: `Auto-reconnect failed for ${connector.connector}: ${result.detail}. This likely needs updated credentials.`,
-            payload: { systemInstanceId, connectorId: connector.connector },
+            description: `${research.explanationForUser}\n\nDiagnosis: ${research.diagnosis}\nProposed fix: ${research.proposedFix}`,
+            payload: { systemInstanceId, connectorId: connector.connector, research },
           });
           await logMonitoringEvent({
             systemInstanceId,
@@ -328,7 +336,7 @@ export async function attemptSelfHeal(
             eventType: "escalated",
             action: "reconnect",
             status: "escalated",
-            message: `Escalated unfixable connector ${connector.connector} to Pending Approval`,
+            message: `Escalated unfixable connector ${connector.connector} to Pending Approval (research confidence ${research.confidence}%)`,
           });
         }
       }
@@ -381,14 +389,21 @@ export async function attemptSelfHeal(
           .limit(1);
 
         if (existingApproval.length === 0) {
+          const research = await runRootCauseResearch({
+            systemInstanceId,
+            businessId,
+            component: `runtime_job:${job.jobType}`,
+            errorMessage: job.error ?? "(no error message recorded)",
+            context: `Job ${job.jobId} was already retried once by self-heal and failed again.`,
+          });
           await createPendingApproval({
             businessId,
             userId: ownerId,
             category: "autoFixHighRisk",
             riskLevel: "high",
             title: `Investigate repeatedly failing job (${job.jobType})`,
-            description: `Job ${job.jobId} (${job.jobType}) failed again after an automatic retry and needs manual investigation.`,
-            payload: { systemInstanceId, jobId: job.jobId, jobType: job.jobType },
+            description: `${research.explanationForUser}\n\nDiagnosis: ${research.diagnosis}\nProposed fix: ${research.proposedFix}`,
+            payload: { systemInstanceId, jobId: job.jobId, jobType: job.jobType, research },
           });
           await logMonitoringEvent({
             systemInstanceId,
@@ -396,7 +411,7 @@ export async function attemptSelfHeal(
             eventType: "escalated",
             action: "retry_job",
             status: "escalated",
-            message: `Escalated repeatedly failing job ${job.jobId} to Pending Approval`,
+            message: `Escalated repeatedly failing job ${job.jobId} to Pending Approval (research confidence ${research.confidence}%)`,
           });
         }
       }
@@ -511,14 +526,21 @@ export async function attemptSelfHeal(
             .limit(1);
 
           if (existingApproval.length === 0) {
+            const research = await runRootCauseResearch({
+              systemInstanceId,
+              businessId,
+              component: "worker",
+              errorMessage: `System ${systemInstanceId}'s worker keeps crashing (buildStatus stuck at 'failed')`,
+              context: "An automatic restart already ran recently and the worker crashed again.",
+            });
             await createPendingApproval({
               businessId,
               userId: ownerId,
               category: "autoFixHighRisk",
               riskLevel: "high",
               title: `Investigate crashed worker (system ${systemInstanceId})`,
-              description: `System ${systemInstanceId}'s worker crashed again shortly after an automatic restart and needs manual investigation.`,
-              payload: { systemInstanceId, action: "restart_worker" },
+              description: `${research.explanationForUser}\n\nDiagnosis: ${research.diagnosis}\nProposed fix: ${research.proposedFix}`,
+              payload: { systemInstanceId, action: "restart_worker", research },
             });
             await logMonitoringEvent({
               systemInstanceId,
@@ -526,7 +548,7 @@ export async function attemptSelfHeal(
               eventType: "escalated",
               action: "restart_worker",
               status: "escalated",
-              message: `Escalated repeatedly crashing worker for system ${systemInstanceId} to Pending Approval`,
+              message: `Escalated repeatedly crashing worker for system ${systemInstanceId} to Pending Approval (research confidence ${research.confidence}%)`,
             });
           }
         }

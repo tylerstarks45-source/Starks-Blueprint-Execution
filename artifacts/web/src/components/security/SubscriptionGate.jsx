@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Loader2, Lock, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-const ADMIN_EMAILS = ['tylerstarks45@gmail.com', 'tylerstarks77@gmail.com'];
+const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'ADMIN', 'admin', 'FOUNDER_ADMIN']);
 
 // Free-tier tiers that are considered "unpaid"
 const FREE_TIERS = new Set(['free', '', null, undefined]);
@@ -31,7 +31,7 @@ const SubscriptionGate = ({ children }) => {
   if (!isAuthenticated || !currentUser) return null;
 
   // Admin accounts bypass all subscription checks
-  if (ADMIN_EMAILS.includes(currentUser.email)) return <>{children}</>;
+  if (ADMIN_ROLES.has(currentUser.role)) return <>{children}</>;
 
   const tier = (currentUser.membershipTier || 'free').toLowerCase();
   const isPaid = !FREE_TIERS.has(tier);

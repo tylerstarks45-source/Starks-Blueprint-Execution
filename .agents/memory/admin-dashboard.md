@@ -50,7 +50,8 @@ remain in the live route-gating path. `ProtectedAdminRoute` was the actual enfor
 `/admin` and `/admin-dashboard` routes; it still had an `ADMIN_EMAILS` check even after
 `DashboardRouter`'s allow-list was removed, so any admin not in that list bounced to `/dashboard`.
 **Why:** two components independently gated the same admin surface; fixing one without the other left
-the bug half-fixed. `SubscriptionGate.jsx` still has a leftover `ADMIN_EMAILS` array but is dead code
-(not imported/used by any route) — leave it alone unless it gets wired up, in which case fix it too.
-**How to apply:** when touching admin access control, grep for `ADMIN_EMAILS` across the whole `web`
-package, not just the file you're already editing — the same bug pattern tends to be duplicated.
+the bug half-fixed. `SubscriptionGate.jsx`'s leftover `ADMIN_EMAILS` array (dead code, not imported by
+any route) has since been converted to the same role-based check for consistency, even though unused.
+**How to apply:** when touching admin access control, grep for `ADMIN_EMAIL` across the whole repo
+(web + api-server), not just the file you're already editing — the same bug pattern tends to be
+duplicated even into dead code.

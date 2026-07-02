@@ -1311,6 +1311,18 @@ export default function UserSettingsPage({ defaultTab = 'profile' }) {
           <p className="text-white/40 text-sm mt-1">Manage your profile, security, and preferences.</p>
         </div>
 
+        <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl border border-white/8 bg-white/3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500/50 to-violet-700/50 border border-violet-500/30 flex items-center justify-center shrink-0">
+            <span className="text-xs font-bold font-mono text-violet-200">
+              {(currentUser?.name || currentUser?.email || 'U').charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-mono text-white/35 uppercase tracking-widest leading-none mb-1">Signed in as</p>
+            <p className="text-sm font-semibold text-white truncate">{currentUser?.email || 'Unknown user'}</p>
+          </div>
+        </div>
+
         <div className="flex flex-col md:flex-row gap-6">
           {/* Sidebar tabs */}
           <aside className="md:w-52 shrink-0">

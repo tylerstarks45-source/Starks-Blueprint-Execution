@@ -302,18 +302,18 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
         {/* User row */}
         <div
           className={`flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-white/5 transition-colors cursor-default ${collapsed ? 'justify-center' : ''}`}
-          title={collapsed ? (currentUser?.name || currentUser?.email || 'User') : undefined}
+          title={collapsed ? `Signed in as ${currentUser?.email || currentUser?.name || 'Unknown user'}` : undefined}
         >
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/50 to-violet-700/50 border border-violet-500/30 flex items-center justify-center shrink-0">
             <span className="text-[11px] font-bold font-mono text-violet-200">{initials}</span>
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-white/80 truncate leading-none">
-                {currentUser?.name || 'User'}
+              <p className="text-[9px] font-mono text-white/25 uppercase tracking-widest truncate leading-none">
+                Signed in as
               </p>
-              <p className="text-[10px] text-white/35 font-mono truncate mt-0.5">
-                {currentUser?.email || ''}
+              <p className="text-[10px] text-white/60 font-mono truncate mt-1" title={currentUser?.email || ''}>
+                {currentUser?.email || currentUser?.name || 'Unknown user'}
               </p>
             </div>
           )}

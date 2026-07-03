@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import AuthLayout from '@/components/AuthLayout.jsx';
 import {
-  Globe, Plus, Eye, Edit2, Trash2, ExternalLink, Copy, Check, ChevronRight,
+  Globe, Plus, Eye, Trash2, ExternalLink, Copy, Check, ChevronRight,
   LayoutTemplate, Sparkles, Share2, TrendingUp, MoreHorizontal, AlertCircle,
   RefreshCw, FileCode, Zap, Lock, Unlock, BarChart3, PenTool,
 } from 'lucide-react';
@@ -83,7 +83,7 @@ function PageCard({ page, onEdit, onDelete, onPublishToggle, onPreview, copied, 
                   {[
                     { icon: PenTool, label: 'Canvas Editor', onClick: () => { onCanvas(page); setMenuOpen(false); }, className: 'text-violet-400' },
                     { icon: Eye, label: 'Preview', onClick: () => { onPreview(page); setMenuOpen(false); } },
-                    { icon: Edit2, label: 'Edit HTML', onClick: () => { onEdit(page); setMenuOpen(false); } },
+                    { icon: Sparkles, label: page.htmlContent ? 'Regenerate with ASH' : 'Generate with ASH', onClick: () => { onEdit(page); setMenuOpen(false); } },
                     { icon: page.isPublished ? Lock : Unlock, label: page.isPublished ? 'Unpublish' : 'Publish', onClick: () => { onPublishToggle(page); setMenuOpen(false); } },
                     { icon: Trash2, label: 'Delete', onClick: () => { onDelete(page); setMenuOpen(false); }, className: 'text-red-400/70' },
                   ].map(item => (

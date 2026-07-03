@@ -164,6 +164,29 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // Re-fetch the authoritative user record (id/role/tier/credits) from the
+  // server and update both the pb authStore and React state. Used after events
+  // that change the server-side record out-of-band — e.g. a Stripe webhook
+  // upgrading the membership tier after checkout — so the app reflects the new
+  // tier without requiring a full reload.
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem('sbep_auth_token');
+    if (!token) return null;
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const { user: freshUser } = await res.json();
+      if (pb.authStore.token !== token) return null;
+      pb.authStore.save(token, freshUser);
+      updateReactState(freshUser);
+      return freshUser;
+    } catch {
+      return null;
+    }
+  }, [updateReactState]);
+
   const refreshCredits = useCallback(async () => {
     const token = localStorage.getItem('sbep_auth_token');
     if (!token) return;
@@ -215,9 +238,10 @@ export const AuthProvider = ({ children }) => {
     logout,
     resetPassword,
     refreshCredits,
+    refreshUser,
     completeOnboarding,
     resetOnboarding,
-  }), [currentUser, currentUserRole, isAuthenticated, isLoading, login, signup, logout, resetPassword, refreshCredits, completeOnboarding, resetOnboarding]);
+  }), [currentUser, currentUserRole, isAuthenticated, isLoading, login, signup, logout, resetPassword, refreshCredits, refreshUser, completeOnboarding, resetOnboarding]);
 
   return (
     <AuthContext.Provider value={value}>

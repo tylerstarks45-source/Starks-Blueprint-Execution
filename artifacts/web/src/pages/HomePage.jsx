@@ -138,7 +138,7 @@ const PRICING = [
     highlight: false,
     cta: 'Start Free',
     ctaTo: '/signup',
-    features: ['1 active system', '100 AI credits/mo', 'Marketplace access', 'Basic blueprints', 'Community support'],
+    features: ['1 active system', '250 AI credits/mo', 'Marketplace access', 'Basic blueprints', 'Community support'],
   },
   {
     name: 'Builder',
@@ -147,7 +147,7 @@ const PRICING = [
     highlight: false,
     cta: 'Start Building',
     ctaTo: '/signup?plan=builder',
-    features: ['5 active systems', '1,000 AI credits/mo', 'Full marketplace', 'All blueprints', 'Priority support', 'ASH AI Agent'],
+    features: ['5 active systems', '2,500 AI credits/mo', 'Full marketplace', 'All blueprints', 'Priority support', 'ASH AI Agent'],
   },
   {
     name: 'Operator',
@@ -157,7 +157,7 @@ const PRICING = [
     badge: 'Most Popular',
     cta: 'Go Operator',
     ctaTo: '/signup?plan=operator',
-    features: ['10 active systems', '5,000 AI credits/mo', 'Full marketplace', 'All blueprints', 'Priority support', 'ASH AI Agent', 'Advanced analytics'],
+    features: ['20 active systems', '10,000 AI credits/mo', 'Full marketplace', 'All blueprints', 'Priority support', 'ASH AI Agent', 'Advanced analytics'],
   },
   {
     name: 'Empire',
@@ -167,7 +167,7 @@ const PRICING = [
     badge: 'Max Power',
     cta: 'Go Empire',
     ctaTo: '/signup?plan=empire',
-    features: ['Unlimited active systems', '25,000 AI credits/mo', 'Full marketplace', 'All blueprints', 'Dedicated support', 'ASH AI Agent', 'Custom workflows'],
+    features: ['Unlimited active systems', '50,000 AI credits/mo', 'Full marketplace', 'All blueprints', 'Dedicated support', 'ASH AI Agent', 'Custom workflows'],
   },
 ];
 

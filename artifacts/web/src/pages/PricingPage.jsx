@@ -338,7 +338,7 @@ const PricingPage = () => {
         "name": "Is there a free trial for paid plans?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "The Free plan gives you a genuine taste of the platform with 50 AI credits and 1 system. You can upgrade to Pro or Empire whenever you're ready."
+          "text": "The Free plan gives you a genuine taste of the platform with 250 AI credits and 1 system. You can upgrade to Builder, Operator, or Empire whenever you're ready."
         }
       }
     ]
@@ -681,7 +681,7 @@ const PricingPage = () => {
                 { q: 'Do unused monthly credits roll over?', a: 'Monthly plan credits reset at renewal. Credits purchased as pay-as-you-go top-ups never expire and stack on top of your monthly allotment.' },
                 { q: 'Can I change plans anytime?', a: 'Yes. Upgrade or downgrade at any time through your billing dashboard. Upgrades take effect immediately; downgrades apply at the next billing cycle.' },
                 { q: 'What does system hosting mean?', a: 'When you build a system with STARK, we host and run it for you — no server setup required. Your system runs 24/7 and you can monitor it from your dashboard.' },
-                { q: 'Is there a free trial for paid plans?', a: 'The Free plan gives you a genuine taste of the platform with 50 AI credits and 1 system. You can upgrade to Pro or Empire whenever you\'re ready.' },
+                { q: 'Is there a free trial for paid plans?', a: 'The Free plan gives you a genuine taste of the platform with 250 AI credits and 1 system. You can upgrade to Builder, Operator, or Empire whenever you\'re ready.' },
               ].map((faq, i) => (
                 <div key={i} className="rounded-xl border border-white/8 bg-black/30 p-5">
                   <div className="font-semibold text-sm mb-2">{faq.q}</div>

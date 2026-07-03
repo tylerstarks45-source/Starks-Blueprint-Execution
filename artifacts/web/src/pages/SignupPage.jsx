@@ -20,7 +20,7 @@ const SIGNUP_PLANS = [
     border: 'border-emerald-500/30',
     activeBorder: 'border-emerald-400',
     activeBg: 'bg-emerald-500/10',
-    highlights: ['100 AI credits/mo', '1 active system', 'Blueprint library', 'No credit card'],
+    highlights: ['250 AI credits/mo', '1 active system', 'Blueprint library', 'No credit card'],
   },
   {
     key: 'builder',
@@ -34,7 +34,7 @@ const SIGNUP_PLANS = [
     activeBg: 'bg-blue-500/10',
     badge: 'Most Popular',
     badgeCls: 'bg-blue-500/20 text-blue-400',
-    highlights: ['1,000 AI credits/mo', 'Build up to 5 systems', 'Full ASH AI Agent', 'Revenue tracking'],
+    highlights: ['2,500 AI credits/mo', 'Build up to 5 systems', 'Full ASH AI Agent', 'Revenue tracking'],
   },
   {
     key: 'operator',
@@ -46,7 +46,7 @@ const SIGNUP_PLANS = [
     border: 'border-violet-500/30',
     activeBorder: 'border-violet-400',
     activeBg: 'bg-violet-500/10',
-    highlights: ['5,000 AI credits/mo', 'Build up to 10 systems', 'Priority build queue', 'Team features'],
+    highlights: ['10,000 AI credits/mo', 'Build up to 20 systems', 'Priority build queue', 'Team features'],
   },
   {
     key: 'empire',
@@ -58,7 +58,7 @@ const SIGNUP_PLANS = [
     border: 'border-amber-500/30',
     activeBorder: 'border-amber-400',
     activeBg: 'bg-amber-500/10',
-    highlights: ['25,000 AI credits/mo', 'Up to 10 systems', 'Priority AI processing', 'API access'],
+    highlights: ['50,000 AI credits/mo', 'Unlimited active systems', 'Priority AI processing', 'API access'],
   },
 ];
 
@@ -80,7 +80,7 @@ const SignupPage = () => {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  // Pre-select plan from query string (e.g. /signup?plan=pro from pricing page)
+  // Pre-select plan from query string (e.g. /signup?plan=builder from pricing page)
   useEffect(() => {
     const planParam = searchParams.get('plan');
     if (planParam && SIGNUP_PLANS.find(p => p.key === planParam)) {

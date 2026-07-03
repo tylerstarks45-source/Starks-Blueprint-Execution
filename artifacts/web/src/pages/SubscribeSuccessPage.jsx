@@ -32,26 +32,69 @@ const NEXT_STEPS = {
 
 export default function SubscribeSuccessPage() {
   const [searchParams] = useSearchParams();
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUser } = useAuth();
   const tierParam = searchParams.get('tier') ?? 'builder';
   const tier = TIER_LABELS[tierParam] ? tierParam : 'builder';
 
   const [confirmedTier, setConfirmedTier] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // After Stripe checkout, the subscription is activated asynchronously by the
+  // webhook — it may not be reflected the instant we land here. Poll a few
+  // times until the server reports the tier that was actually purchased, then
+  // refresh the app-wide user record so gated pages (Builder, Dashboard)
+  // immediately see the new tier instead of the stale cached one.
   useEffect(() => {
     const token = localStorage.getItem('sbep_auth_token');
     if (!token) { setLoading(false); return; }
-    fetch('/api/subscriptions/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.subscription?.tier) setConfirmedTier(data.subscription.tier);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+
+    let cancelled = false;
+    let timeoutId = null;
+    const MAX_ATTEMPTS = 6;
+    const INTERVAL_MS = 1500;
+
+    // Canonicalize legacy tier aliases so an upgrade to the exact purchased
+    // tier is required to settle — a stale *different* paid tier (e.g. an
+    // in-flight Builder→Empire upgrade still reporting "builder") must NOT
+    // end polling early.
+    const canonical = (t) => (t === 'starter' || t === 'pro') ? 'builder' : t;
+    const expected = canonical(tier);
+
+    const poll = async (attempt) => {
+      try {
+        const res = await fetch('/api/subscriptions/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = res.ok ? await res.json() : null;
+        const t = data?.subscription?.tier;
+        if (cancelled) return;
+        if (t && canonical(t) === expected) {
+          setConfirmedTier(t);
+          setLoading(false);
+          // Propagate the upgraded tier into AuthContext for the whole app.
+          refreshUser?.();
+          return;
+        }
+      } catch { /* transient — keep polling */ }
+
+      if (cancelled) return;
+      if (attempt < MAX_ATTEMPTS) {
+        timeoutId = setTimeout(() => poll(attempt + 1), INTERVAL_MS);
+      } else {
+        // Webhook still settling — stop the spinner and fall back to the
+        // tier from the checkout URL so the page never hangs. Still refresh
+        // so the app picks up the new tier once it lands.
+        setLoading(false);
+        refreshUser?.();
+      }
+    };
+
+    poll(1);
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [refreshUser, tier]);
 
   // Use confirmed tier from API as authoritative; fall back to URL param while loading
   const displayTier = (confirmedTier && TIER_LABELS[confirmedTier]) ? confirmedTier : tier;
@@ -77,10 +120,16 @@ export default function SubscribeSuccessPage() {
           </div>
 
           <h1 className="text-4xl font-bold font-mono mb-3">
-            You're on <span className={displayConfig.color}>{displayConfig.name}!</span>
+            {loading ? (
+              <>Activating <span className={displayConfig.color}>{displayConfig.name}</span>…</>
+            ) : (
+              <>You're on <span className={displayConfig.color}>{displayConfig.name}!</span></>
+            )}
           </h1>
           <p className="text-white/50 text-lg mb-10">
-            {currentUser?.name
+            {loading
+              ? 'Confirming your payment and activating your plan — this only takes a moment.'
+              : currentUser?.name
               ? `Welcome, ${currentUser.name.split(' ')[0]}. Your subscription is active.`
               : 'Your subscription is active and ready to go.'}
           </p>

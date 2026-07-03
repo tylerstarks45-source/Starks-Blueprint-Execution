@@ -159,6 +159,26 @@ const AI_MODES = [
     requiredTier: 'builder',
   },
   {
+    id: 'guide',
+    label: 'Guide',
+    subtitle: 'Beginner mode',
+    creditHint: '~3 cr/msg',
+    creditsPerBuild: '10–18 credits',
+    description: 'ASH explains everything in plain English, walks you through every step, and tells you exactly where to find each piece of info. Perfect if this is your first time.',
+    creditWarning: 'Same credit cost as Deep mode. ASH just takes extra time to explain and guide you through each step.',
+    model: 'anthropic/claude-3-5-sonnet',
+    modelLabel: 'Claude 3.5 Sonnet',
+    speed: '~10 sec / msg',
+    useCases: ['First build ever', 'Learning as you go', 'Step-by-step walkthroughs', 'No tech background'],
+    icon: BookOpen,
+    color: 'text-emerald-400',
+    barColor: 'bg-emerald-500',
+    barWidth: 'w-2/4',
+    activeBg: 'bg-emerald-500/15 border-emerald-500/40',
+    inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
+    requiredTier: null,
+  },
+  {
     id: 'empire',
     label: 'Empire',
     subtitle: 'Widest scope',
@@ -342,6 +362,49 @@ const BlueprintCard = ({ bp, selected, onSelect }) => {
   );
 };
 
+// ─── Tool platform URL map (beginner browser-fetch) ──────────────────────────
+const TOOL_PLATFORM_URLS = {
+  openai: 'https://platform.openai.com/api-keys',
+  anthropic: 'https://console.anthropic.com/settings/keys',
+  stripe: 'https://dashboard.stripe.com/apikeys',
+  twilio: 'https://console.twilio.com/',
+  sendgrid: 'https://app.sendgrid.com/settings/api_keys',
+  mailchimp: 'https://login.mailchimp.com/',
+  klaviyo: 'https://www.klaviyo.com/account#api-keys-tab',
+  shopify: 'https://accounts.shopify.com/store-login',
+  airtable: 'https://airtable.com/create/tokens',
+  notion: 'https://www.notion.so/my-integrations',
+  zapier: 'https://zapier.com/app/settings/profile',
+  make: 'https://www.make.com/en/login',
+  hubspot: 'https://app.hubspot.com/login',
+  activecampaign: 'https://www.activecampaign.com/login/',
+  convertkit: 'https://app.convertkit.com/account_settings/advanced_settings',
+  beehiiv: 'https://app.beehiiv.com/settings/workspace',
+  resend: 'https://resend.com/api-keys',
+  elevenlabs: 'https://elevenlabs.io/app/settings/api-keys',
+  replicate: 'https://replicate.com/account/api-tokens',
+  stability: 'https://platform.stability.ai/account/keys',
+  openrouter: 'https://openrouter.ai/settings/keys',
+  cloudflare: 'https://dash.cloudflare.com/profile/api-tokens',
+  vercel: 'https://vercel.com/account/settings/tokens',
+  github: 'https://github.com/settings/tokens',
+  google: 'https://console.cloud.google.com/apis/credentials',
+  youtube: 'https://console.developers.google.com/',
+  twitter: 'https://developer.twitter.com/en/portal/dashboard',
+  tiktok: 'https://developers.tiktok.com/',
+  clickbank: 'https://accounts.clickbank.com/login.htm',
+  gohighlevel: 'https://app.gohighlevel.com/',
+  manychat: 'https://manychat.com/login',
+};
+
+const getPlatformUrl = (toolName = '') => {
+  const key = toolName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  for (const [k, url] of Object.entries(TOOL_PLATFORM_URLS)) {
+    if (key.includes(k) || k.includes(key)) return url;
+  }
+  return '';
+};
+
 // ─── Credential Form ──────────────────────────────────────────────────────────
 const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, onValuesChange }) => {
   // values keyed by slot key (original cred.key) for stable tracking
@@ -362,6 +425,11 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, o
   const [expandingCustom, setExpandingCustom] = useState(null);
   // customInputs: {[slotKey]: {toolName, label}} — live values while user types
   const [customInputs, setCustomInputs] = useState({});
+  // Beginner: help panel expand, browser-fetch states, fetch password reveal
+  const [helpExpanded, setHelpExpanded] = useState({});
+  const [fetchRevealPass, setFetchRevealPass] = useState({});
+  // fetchStates: {[slotKey]: {phase:'idle'|'form'|'fetching'|'done'|'error', email, password, platformUrl, steps, error}}
+  const [fetchStates, setFetchStates] = useState({});
 
   // Returns the active credential definition for a slot (ASH's rec or chosen alternative)
   const getActiveCred = (cred) => selectedAlts[cred.key] ?? cred;
@@ -437,6 +505,71 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, o
     setValues(v => ({ ...v, [slotKey]: '' }));
     setExpandedAlt(null);
     setExpandingCustom(null);
+  };
+
+  // ── Browser-fetch a credential for the user ────────────────────────────────
+  const startCredentialFetch = async (cred) => {
+    const active = getActiveCred(cred);
+    const fs = fetchStates[cred.key] || {};
+    if (!fs.email?.trim() || !fs.password?.trim() || !fs.platformUrl?.trim()) return;
+
+    setFetchStates(prev => ({ ...prev, [cred.key]: { ...prev[cred.key], phase: 'fetching', steps: [], error: null } }));
+
+    try {
+      const token = localStorage.getItem('sbep_auth_token');
+      const resp = await fetch('/api/browser-agent/credential-fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          toolName: active.toolName || cred.toolName || 'the platform',
+          credentialLabel: active.label || cred.label || 'API Key',
+          platformUrl: fs.platformUrl,
+          loginEmail: fs.email,
+          loginPassword: fs.password,
+        }),
+      });
+
+      if (!resp.ok) {
+        setFetchStates(prev => ({ ...prev, [cred.key]: { ...prev[cred.key], phase: 'error', error: 'Failed to start browser session. Check your credentials and try again.' } }));
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const ev = JSON.parse(line.slice(6));
+            if (ev.type === 'credential_extracted') {
+              setValues(v => ({ ...v, [cred.key]: ev.value }));
+              setFetchStates(prev => ({ ...prev, [cred.key]: { ...prev[cred.key], phase: 'done' } }));
+            } else if (ev.type === 'credential_not_found') {
+              setFetchStates(prev => ({ ...prev, [cred.key]: { ...prev[cred.key], phase: 'error', error: ev.message } }));
+            } else if (ev.type === 'error') {
+              setFetchStates(prev => ({ ...prev, [cred.key]: { ...prev[cred.key], phase: 'error', error: ev.message || 'Browser session failed.' } }));
+            } else if (['thinking', 'navigate', 'action', 'content'].includes(ev.type) && ev.description) {
+              setFetchStates(prev => ({
+                ...prev,
+                [cred.key]: {
+                  ...prev[cred.key],
+                  steps: [...(prev[cred.key]?.steps ?? []).slice(-5), ev.description],
+                },
+              }));
+            }
+          } catch { /* ignore parse errors */ }
+        }
+      }
+    } catch (err) {
+      setFetchStates(prev => ({ ...prev, [cred.key]: { ...prev[cred.key], phase: 'error', error: err?.message || 'Network error. Please try again.' } }));
+    }
   };
 
   return (
@@ -650,6 +783,179 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, o
                 )}
                 {active.description && !showError && (
                   <p className="text-[11px] text-muted-foreground/50 mt-1">{active.description}</p>
+                )}
+
+                {/* ── Beginner help row ──────────────────────────────── */}
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setHelpExpanded(h => ({ ...h, [cred.key]: !h[cred.key] }))}
+                    className="flex items-center gap-1 text-[10px] font-mono text-white/30 hover:text-blue-400 transition-colors"
+                  >
+                    <Info className="w-2.5 h-2.5" />
+                    {helpExpanded[cred.key] ? 'Hide guide' : 'Where do I find this?'}
+                  </button>
+                  <span className="text-white/12 text-[10px] select-none">·</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const toolUrl = getPlatformUrl(active.toolName || cred.toolName);
+                      const curPhase = fetchStates[cred.key]?.phase;
+                      if (curPhase === 'form') {
+                        setFetchStates(fs => ({ ...fs, [cred.key]: { ...fs[cred.key], phase: 'idle' } }));
+                      } else {
+                        setFetchStates(fs => ({
+                          ...fs,
+                          [cred.key]: {
+                            phase: 'form',
+                            email: fs[cred.key]?.email || '',
+                            password: fs[cred.key]?.password || '',
+                            platformUrl: fs[cred.key]?.platformUrl || toolUrl,
+                            steps: [],
+                            error: null,
+                          },
+                        }));
+                        setHelpExpanded(h => ({ ...h, [cred.key]: false }));
+                      }
+                    }}
+                    className="flex items-center gap-1 text-[10px] font-mono text-white/30 hover:text-violet-400 transition-colors"
+                  >
+                    <Globe className="w-2.5 h-2.5" />
+                    {fetchStates[cred.key]?.phase === 'form' ? 'Cancel fetch' : 'ASH can fetch this for me'}
+                  </button>
+                </div>
+
+                {/* ── How do I find this? expandable ─────────────────── */}
+                {helpExpanded[cred.key] && (
+                  <div className="mt-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 space-y-2">
+                    <p className="text-[10px] font-mono text-blue-400/70 uppercase tracking-wider">How to find this</p>
+                    <p className="text-xs text-white/55 leading-relaxed">
+                      {active.description
+                        ? active.description
+                        : `Log in to ${active.toolName || cred.toolName}, then go to Settings → API Keys (or Developer Settings). Look for a button that says "Create Key", "Generate", or "Show Key". Copy the full value — it usually starts with a short prefix like "sk-" or "pk_".`}
+                    </p>
+                    <p className="text-[10px] text-blue-400/50 flex items-center gap-1">
+                      <Globe className="w-2.5 h-2.5 shrink-0" />
+                      Can't find it? Click "ASH can fetch this for me" — just give ASH your login and she'll grab it automatically.
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Browser-fetch form ─────────────────────────────── */}
+                {fetchStates[cred.key]?.phase === 'form' && (() => {
+                  const fs = fetchStates[cred.key];
+                  return (
+                    <div className="mt-2 rounded-xl border border-violet-500/25 bg-[#0d0a18] p-4 space-y-3">
+                      {/* Credit warning */}
+                      <div className="flex items-start gap-2 rounded-lg bg-amber-500/8 border border-amber-500/20 p-2.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[11px] font-semibold text-amber-300">Credit Warning — Browser Route</p>
+                          <p className="text-[10px] text-amber-400/70 mt-0.5 leading-relaxed">
+                            ASH will open a real browser, log into <strong>{active.toolName || cred.toolName}</strong> as you, find the API key, and fill it in automatically. This costs <strong>10–25 extra credits</strong> and takes 1–3 minutes.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-mono text-violet-400/70 uppercase tracking-wider">
+                          Your {active.toolName || cred.toolName} login
+                        </p>
+                        <input
+                          type="text"
+                          placeholder="Email or username"
+                          value={fs.email || ''}
+                          onChange={e => setFetchStates(prev => ({ ...prev, [cred.key]: { ...prev[cred.key], email: e.target.value } }))}
+                          className="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-violet-500/40 font-mono"
+                          autoComplete="off"
+                        />
+                        <div className="relative">
+                          <input
+                            type={fetchRevealPass[cred.key] ? 'text' : 'password'}
+                            placeholder="Password"
+                            value={fs.password || ''}
+                            onChange={e => setFetchStates(prev => ({ ...prev, [cred.key]: { ...prev[cred.key], password: e.target.value } }))}
+                            className="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 pr-9 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-violet-500/40 font-mono"
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFetchRevealPass(r => ({ ...r, [cred.key]: !r[cred.key] }))}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                          >
+                            {fetchRevealPass[cred.key] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          </button>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-white/25 mb-1 font-mono">Platform URL</p>
+                          <input
+                            type="url"
+                            placeholder="https://platform.openai.com/api-keys"
+                            value={fs.platformUrl || ''}
+                            onChange={e => setFetchStates(prev => ({ ...prev, [cred.key]: { ...prev[cred.key], platformUrl: e.target.value } }))}
+                            className="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/25 focus:outline-none focus:border-violet-500/40 font-mono"
+                            autoComplete="off"
+                          />
+                        </div>
+                      </div>
+
+                      <p className="text-[10px] text-white/20 flex items-center gap-1.5">
+                        <Lock className="w-2.5 h-2.5 shrink-0" />
+                        Never stored — used once only for this fetch, then discarded
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => startCredentialFetch(cred)}
+                        disabled={!fs.email?.trim() || !fs.password?.trim() || !fs.platformUrl?.trim()}
+                        className="w-full h-9 flex items-center justify-center gap-2 rounded-lg bg-violet-600/25 hover:bg-violet-600/40 border border-violet-500/30 text-violet-300 text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                        ASH Login &amp; Extract Key
+                      </button>
+                    </div>
+                  );
+                })()}
+
+                {/* ── Browser-fetch in progress ──────────────────────── */}
+                {fetchStates[cred.key]?.phase === 'fetching' && (
+                  <div className="mt-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 text-violet-400 animate-spin shrink-0" />
+                      <span className="text-xs font-mono text-violet-300">ASH is browsing and fetching your key…</span>
+                    </div>
+                    <div className="space-y-1 pl-5 border-l border-violet-500/15 ml-1.5">
+                      {(fetchStates[cred.key]?.steps ?? []).map((step, i) => (
+                        <p key={i} className="text-[10px] text-white/35 font-mono leading-relaxed">{step}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Browser-fetch success ──────────────────────────── */}
+                {fetchStates[cred.key]?.phase === 'done' && (
+                  <div className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/8 p-2.5 flex items-center gap-2">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <p className="text-[11px] text-emerald-300 font-semibold">Key extracted and filled in automatically!</p>
+                  </div>
+                )}
+
+                {/* ── Browser-fetch error ────────────────────────────── */}
+                {fetchStates[cred.key]?.phase === 'error' && (
+                  <div className="mt-2 rounded-lg border border-rose-500/25 bg-rose-500/5 p-3">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                      <p className="text-[11px] text-rose-300 font-semibold">ASH couldn't extract this key</p>
+                    </div>
+                    <p className="text-[10px] text-rose-400/65 pl-5 leading-relaxed">{fetchStates[cred.key].error || 'Unknown error. Please copy it manually.'}</p>
+                    <button
+                      type="button"
+                      onClick={() => setFetchStates(fs => ({ ...fs, [cred.key]: { ...fs[cred.key], phase: 'form' } }))}
+                      className="mt-2 pl-5 text-[10px] text-rose-400/60 hover:text-rose-300 font-mono transition-colors"
+                    >
+                      ↩ Try again
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

@@ -78,7 +78,8 @@ function formatPageForAI(page: {
         (inp.label ? ` label="${inp.label}"` : "") +
         (inp.placeholder ? ` placeholder="${inp.placeholder}"` : "") +
         (inp.id ? ` id="${inp.id}"` : "") +
-        (inp.name ? ` name="${inp.name}"` : "")
+        (inp.name ? ` name="${inp.name}"` : "") +
+        ((inp as typeof inp & { value?: string }).value ? ` CURRENT_VALUE="${(inp as typeof inp & { value?: string }).value}"` : "")
       ).join("\n")
     : "  (none detected — page may still be loading)";
 
@@ -94,7 +95,7 @@ ${linksText || "  (none found)"}
 --- FORMS ON PAGE ---
 ${formsText || "  (none found)"}
 
---- ALL VISIBLE INPUTS (including outside <form> tags — use these selectors to type) ---
+--- ALL VISIBLE INPUTS (including outside <form> tags — values shown for revealed/text fields) ---
 ${inputsText}`;
 }
 
@@ -137,10 +138,15 @@ Scroll the page:
 Wait for something to load:
 {"action":"wait","ms":2000,"reason":"<why>"}
 
+Read the current VALUE of an element (use for API key inputs that are already revealed/visible):
+{"action":"get_value","selector":"<CSS selector>","reason":"<why>"}
+
 Task is FULLY complete (only use when goal is 100% achieved — NOT just navigated):
 {"action":"done","result":"<detailed summary of what was accomplished>"}
 
 CRITICAL RULES:
+- For API key / credential extraction: ALWAYS use get_value on any visible input/textarea that likely contains the key BEFORE calling "done". This reads the actual value. Include the value in your done result.
+- If you see a "Copy", "Show key", "Reveal" button near a masked field, click it first, then use get_value.
 - NEVER use "done" just because you navigated to a page — only use "done" when the FULL task goal is achieved (e.g., actually logged in, form submitted, data found)
 - For Google/Gmail login: email field selector is input[type="email"] or #identifierId; after typing email press Enter or click "Next"; then password field is input[type="password"] or #password; press Enter or click "Sign in"
 - If "ALL VISIBLE INPUTS" shows 0 inputs but the page title suggests a form exists, use wait_for_selector to wait for the input before typing
@@ -266,6 +272,23 @@ async function executeAction(
       case "wait": {
         await sleep(decision.ms ?? 2000);
         return { ok: true, description: `Waited ${decision.ms ?? 2000}ms`, page };
+      }
+
+      case "get_value": {
+        const sel = decision.selector!;
+        try {
+          await page.waitForSelector(sel, { timeout: 6000, state: "visible" });
+          // Use inputValue() which is a Playwright method that doesn't require DOM types
+          const value = await page.inputValue(sel).catch(() => null);
+          return {
+            ok: true,
+            description: `Read value of ${sel}: "${value ?? "(empty)"}"`,
+            error: (value !== null && value !== "") ? undefined : "Element found but value was empty",
+            page,
+          };
+        } catch (err) {
+          return { ok: false, description: `Could not read value of ${sel}`, error: err instanceof Error ? err.message : String(err), page };
+        }
       }
 
       default:

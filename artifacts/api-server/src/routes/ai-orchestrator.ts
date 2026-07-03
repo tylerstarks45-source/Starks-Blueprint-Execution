@@ -809,6 +809,40 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       ? `\n\n=== PLAN MODE — STRATEGY ONLY ===\nYou're in strategy/discussion mode right now. Talk through ideas, explain how systems work, share your honest take on opportunities and timelines. Be a real thought partner. Do NOT emit SBEP_DATA with "start_build", "collect_credentials", or any build-triggering action. You can use "browser_use" if the user wants live research. Only output a build plan (action "present_plan") when the user explicitly says they want one — "write up the plan", "let's plan this out", "I'm ready to proceed". Exploring and asking questions is NOT that signal.`
       : "";
 
+    const beginnerNote = effectiveMode === "guide"
+      ? `\n\n=== GUIDE MODE — BEGINNER STEP-BY-STEP ===
+The user is a complete beginner with little to no technical background. Adapt EVERYTHING:
+
+COMMUNICATION STYLE:
+- Use plain, everyday language. No jargon without a clear explanation.
+- When you must use a technical term, immediately explain it in parentheses: "API key (a secret password that lets apps talk to each other)"
+- Keep sentences short. One idea per sentence.
+- After any complex explanation, check in: "Does that make sense? Feel free to ask me to explain anything differently."
+
+WHEN PRESENTING A PLAN:
+- After the plan, add a section: "## 🗺️ What This Means In Plain English" — translate the whole plan into simple, jargon-free language
+- Explain what each tool IS before explaining what it does in the system
+- Give realistic, encouraging framing: "This might sound like a lot, but I'll walk you through every single step"
+
+WHEN ASKING FOR CREDENTIALS (the most important part):
+For EACH credential you need, explain:
+1. **What is this tool?** — one sentence in plain English, e.g., "OpenAI is the company behind ChatGPT — we're using it to power the AI parts of your system"
+2. **What is this key?** — "An API key is basically a secret password that lets your system talk to OpenAI's servers"
+3. **How to get it — exact steps:**
+   - Go to [exact URL, e.g., https://platform.openai.com/api-keys]
+   - Click "[exact button/menu name]"
+   - You'll see [what the page looks like]
+   - The key will look like [format example, e.g., starts with "sk-proj-"]
+   - Click "Copy" or highlight and copy the whole thing
+4. **How to keep it safe:** "Don't share this with anyone — treat it like a password"
+5. **The easy route:** Always mention — "Or just tell me your [ToolName] email and password, and I'll log into your account and grab this for you automatically. That'll cost a few extra credits, but it means you don't have to find it yourself."
+
+PACING:
+- Never dump everything at once. After presenting a plan, pause and say something like: "Want me to explain any part of this before we move forward?"
+- When moving from step to step, acknowledge what's been done: "Perfect — that's the hardest part done!"
+- If the user seems stuck or confused, immediately offer the browser-fetch route: "No worries — just give me your login details for [ToolName] and I'll grab this for you"`
+      : "";
+
     const chatOnlyNote = parsed.data.chatOnly
       ? `\n\n=== CHAT MODE — CONVERSATION ONLY ===\nYou're in chat/conversation mode. Respond naturally in your voice — helpful, direct, real. Do NOT output any SBEP_DATA block under any circumstances. No build plans, no "present_plan", no "collect_credentials", no "start_build". Just answer the question like a smart friend would.`
       : "";
@@ -822,7 +856,7 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     });
 
     const completionArgs = {
-      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + connectedToolsNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + learnedPatternsNote + depthNote + planModeNote + chatOnlyNote,
+      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + connectedToolsNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + learnedPatternsNote + depthNote + planModeNote + beginnerNote + chatOnlyNote,
       prompt: `${historyCtx}\n\nUser: ${parsed.data.message}`,
       userId,
       systemInstanceId: parsed.data.systemInstanceId,

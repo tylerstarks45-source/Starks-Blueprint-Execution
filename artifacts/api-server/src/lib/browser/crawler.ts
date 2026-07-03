@@ -13,6 +13,7 @@ export interface InputField {
   placeholder: string;
   label: string;
   selector: string;
+  value?: string;
 }
 
 export interface PageData {
@@ -197,7 +198,8 @@ export async function getPageData(page: Page, originalUrl: string): Promise<Page
             id: el.id || "",
             placeholder: el.placeholder || el.getAttribute("placeholder") || "",
             label: labelText,
-            selector: selector
+            selector: selector,
+            value: el.type !== "password" ? (el.value || "") : "",
           });
         });
 

@@ -44,7 +44,7 @@ async function getUserCredentialValue(userId: number, key: string): Promise<stri
 // credit balance hit zero, with a one-click link to top up.
 // Sends both an in-app notification AND a platform email so users on mobile or
 // away from the app learn about the pause immediately.
-async function notifyOutOfCredits(userId: number, whatPaused: string): Promise<void> {
+export async function notifyOutOfCredits(userId: number, whatPaused: string): Promise<void> {
   await notifyUser({
     userId,
     notificationType: "warn",

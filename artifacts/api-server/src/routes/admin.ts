@@ -886,6 +886,17 @@ router.post("/admin/openrouter/test", async (req, res): Promise<void> => {
 // Returns Resend API reachability + domain verification status for the platform
 // sending domain (starksglobalgroup.net). No user credentials needed — uses
 // the platform RESEND_API_KEY environment variable.
+
+// In-memory store for the most recent test-send outcome so the GET status
+// endpoint can surface it without a DB round-trip.
+let lastEmailTestResult: {
+  ok: boolean;
+  to: string;
+  latencyMs: number | null;
+  error: string | null;
+  testedAt: string;
+} | null = null;
+
 router.get("/admin/email-status", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
 
@@ -898,6 +909,7 @@ router.get("/admin/email-status", async (req, res): Promise<void> => {
       domainStatus: "not_configured",
       latencyMs: 0,
       error: "RESEND_API_KEY not configured",
+      lastTestResult: lastEmailTestResult,
     });
     return;
   }
@@ -920,6 +932,7 @@ router.get("/admin/email-status", async (req, res): Promise<void> => {
         domainStatus: "api_error",
         latencyMs,
         error: `Resend API returned ${domainsRes.status}`,
+        lastTestResult: lastEmailTestResult,
       });
       return;
     }
@@ -935,6 +948,7 @@ router.get("/admin/email-status", async (req, res): Promise<void> => {
       domainStatus: match?.status ?? "not_found",
       latencyMs,
       error: null,
+      lastTestResult: lastEmailTestResult,
     });
   } catch (err: unknown) {
     res.json({
@@ -944,6 +958,7 @@ router.get("/admin/email-status", async (req, res): Promise<void> => {
       domainStatus: "unreachable",
       latencyMs: Date.now() - start,
       error: err instanceof Error ? err.message : String(err),
+      lastTestResult: lastEmailTestResult,
     });
   }
 });
@@ -977,12 +992,17 @@ router.post("/admin/email-status/test", async (req, res): Promise<void> => {
       text: `This is a test email from the SBEP admin email health check.\n\nIf you're reading this, email delivery is working correctly.\n\nSent: ${new Date().toISOString()}\nLatency: ${Date.now() - start}ms`,
     });
     if (error) {
+      lastEmailTestResult = { ok: false, to: toEmail, latencyMs: null, error: error.message, testedAt: new Date().toISOString() };
       res.json({ ok: false, to: toEmail, error: error.message });
       return;
     }
-    res.json({ ok: true, to: toEmail, latencyMs: Date.now() - start, error: null });
+    const latencyMs = Date.now() - start;
+    lastEmailTestResult = { ok: true, to: toEmail, latencyMs, error: null, testedAt: new Date().toISOString() };
+    res.json({ ok: true, to: toEmail, latencyMs, error: null });
   } catch (err: unknown) {
-    res.json({ ok: false, to: toEmail, error: err instanceof Error ? err.message : String(err) });
+    const errMsg = err instanceof Error ? err.message : String(err);
+    lastEmailTestResult = { ok: false, to: toEmail, latencyMs: null, error: errMsg, testedAt: new Date().toISOString() };
+    res.json({ ok: false, to: toEmail, error: errMsg });
   }
 });
 

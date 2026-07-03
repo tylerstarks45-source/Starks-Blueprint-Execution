@@ -11,7 +11,7 @@ import { publish, PUBLISHING_CHANNELS } from "../publishing";
 import { sendEmailViaCredentials, getBaseUrl as getSocialBaseUrl } from "../sendgrid";
 import { recomputeAllActiveSystemsHealth, recomputeAllActiveBusinessesHealth } from "../health-monitor";
 import { attemptSelfHeal } from "../self-healing";
-import { loadCredentials as loadSystemCredentials } from "./worker";
+import { loadCredentials as loadSystemCredentials, notifyOutOfCredits } from "./worker";
 import { businessesTable } from "@workspace/db";
 import { enqueue, reclaimHungJobs } from "./jobs";
 import { notifyUser } from "../notify";
@@ -415,14 +415,7 @@ async function processWeeklyDigest(): Promise<void> {
       sent++;
     } catch (err: unknown) {
       if (err instanceof OutOfCreditsError) {
-        await notifyUser({
-          userId: user.id,
-          notificationType: "warn",
-          title: "Weekly digest paused — out of AI credits",
-          message: "We couldn't generate your weekly digest because your AI credit balance reached zero. Top up to resume.",
-          linkUrl: "/wallet",
-          dedupeKey: "credits_paused",
-        });
+        await notifyOutOfCredits(user.id, "Your weekly digest");
       }
       logger.warn({ userId: user.id, err }, "Weekly digest failed for user");
     }

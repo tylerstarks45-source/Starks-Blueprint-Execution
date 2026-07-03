@@ -14,6 +14,7 @@ import {
   sendEmailVerification,
   sendWelcomeEmail,
 } from "../lib/email";
+import { notifyUser } from "../lib/notify";
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -173,6 +174,14 @@ router.post("/auth/register", authLimiter, async (req, res) => {
   });
   sendWelcomeEmail(newUser.email, name || "", wlBrandName).catch((err: unknown) => {
     req.log.warn({ err, userId: newUser.id }, "Welcome email send failed");
+    notifyUser({
+      userId: newUser.id,
+      notificationType: "warn",
+      title: "Welcome email not delivered",
+      message: "We couldn't send your welcome email. Your account is fully active — this is just a delivery notice.",
+      linkUrl: "/dashboard",
+      dedupeKey: `welcome_email_failed_${newUser.id}`,
+    }).catch(() => {});
   });
 
   const token = signToken(newUser.id, newUser.email, newUser.role ?? "USER");

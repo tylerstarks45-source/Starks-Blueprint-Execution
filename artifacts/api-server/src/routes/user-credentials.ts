@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { encrypt, decrypt, isEncrypted } from "../lib/crypto";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, isNull } from "drizzle-orm";
 import {
   db,
   userCredentialsTable,
@@ -79,7 +79,9 @@ router.get("/user-credentials/summary", async (req, res): Promise<void> => {
       updatedAt: userCredentialsTable.updatedAt,
     })
     .from(userCredentialsTable)
-    .where(eq(userCredentialsTable.userId, userId))
+    // Connections Hub manages shared, user-level credentials only. Instance-scoped
+    // build credentials (systemInstanceId set) belong to a specific system, not the Hub.
+    .where(and(eq(userCredentialsTable.userId, userId), isNull(userCredentialsTable.systemInstanceId)))
     .orderBy(userCredentialsTable.credentialKey);
 
   // Compute per-credential usage count + which systems use each credential
@@ -154,9 +156,11 @@ router.get("/user-credentials", async (req, res): Promise<void> => {
 
   // Scope to a specific client workspace when the header is present and valid.
   const workspaceId = await validateClientWorkspaceId(req, callerId);
+  // Connections Hub lists shared, user-level credentials only (systemInstanceId IS NULL);
+  // instance-scoped build credentials are managed via their owning system, not here.
   const credWhere = workspaceId !== null
-    ? and(eq(userCredentialsTable.userId, targetUserId), eq(userCredentialsTable.clientWorkspaceId, workspaceId))
-    : eq(userCredentialsTable.userId, targetUserId);
+    ? and(eq(userCredentialsTable.userId, targetUserId), eq(userCredentialsTable.clientWorkspaceId, workspaceId), isNull(userCredentialsTable.systemInstanceId))
+    : and(eq(userCredentialsTable.userId, targetUserId), isNull(userCredentialsTable.systemInstanceId));
 
   const rows = await db
     .select({
@@ -229,11 +233,12 @@ router.post("/user-credentials", async (req, res): Promise<void> => {
   const upsertConditions = [
     eq(userCredentialsTable.userId, userId),
     eq(userCredentialsTable.credentialKey, safeData.credentialKey),
+    // Only ever touch shared, user-level rows — never an instance-scoped build copy.
+    isNull(userCredentialsTable.systemInstanceId),
   ];
   if (clientWorkspaceId !== null) {
     upsertConditions.push(eq(userCredentialsTable.clientWorkspaceId, clientWorkspaceId));
   } else {
-    const { isNull } = await import("drizzle-orm");
     upsertConditions.push(isNull(userCredentialsTable.clientWorkspaceId));
   }
 
@@ -356,10 +361,13 @@ router.post("/user-credentials/:id/test", async (req, res): Promise<void> => {
       // Multi-key connectors (gmail/youtube) need sibling credentials too —
       // gather every stored credential for this user and build the creds
       // record the connector constructor expects.
+      // Connection tests reflect shared, Hub-level connection state — read only
+      // NULL-scoped rows so a test never evaluates against an unrelated system's
+      // instance-scoped build credentials.
       const allRows = await db
         .select()
         .from(userCredentialsTable)
-        .where(eq(userCredentialsTable.userId, userId));
+        .where(and(eq(userCredentialsTable.userId, userId), isNull(userCredentialsTable.systemInstanceId)));
 
       const creds: Record<string, string> = {};
       for (const row of allRows) {

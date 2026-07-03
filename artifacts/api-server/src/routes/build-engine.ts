@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, or, isNull } from "drizzle-orm";
 import {
   db,
   systemInstancesTable,
@@ -301,16 +301,26 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   let availableConnectorIds: string[] = [];
   if (parsed.data.liveMode) {
     // Scope credentials to the user's current workspace (clientWorkspaceId) to prevent
-    // cross-workspace credential leakage in multi-tenant / agency contexts.
+    // cross-workspace credential leakage in multi-tenant / agency contexts, AND to
+    // this system instance: a running system uses its own instance-scoped tokens
+    // (systemInstanceId = this instance) plus any shared user-level rows
+    // (systemInstanceId IS NULL), with the instance-scoped copy winning on collision.
     const workspaceId = await validateClientWorkspaceId(req, userId);
+    const instanceScope = or(
+      eq(userCredentialsTable.systemInstanceId, parsed.data.systemInstanceId),
+      isNull(userCredentialsTable.systemInstanceId),
+    );
     const credCondition = workspaceId !== null
-      ? and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.clientWorkspaceId, workspaceId))
-      : eq(userCredentialsTable.userId, userId);
+      ? and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.clientWorkspaceId, workspaceId), instanceScope)
+      : and(eq(userCredentialsTable.userId, userId), instanceScope);
 
     const credRows = await db
-      .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue })
+      .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue, systemInstanceId: userCredentialsTable.systemInstanceId })
       .from(userCredentialsTable)
       .where(credCondition);
+
+    // Apply NULL-scoped rows first, then instance-scoped so the instance copy wins.
+    credRows.sort((a, b) => (a.systemInstanceId === null ? 0 : 1) - (b.systemInstanceId === null ? 0 : 1));
 
     for (const row of credRows) {
       if (row.encryptedValue) {

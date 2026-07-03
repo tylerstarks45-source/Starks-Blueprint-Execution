@@ -1,7 +1,7 @@
 import { randomBytes, createHash } from "crypto";
 import jwt from "jsonwebtoken";
 import { db, userCredentialsTable, type SocialPlatform } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { encrypt, decrypt } from "./crypto";
 
 if (!process.env["SESSION_SECRET"]) {
@@ -297,10 +297,16 @@ export async function upsertCredential(
   plaintext: string,
   expiresAt?: Date | null,
 ): Promise<void> {
+  // OAuth tokens are shared, user-level credentials — only touch NULL-scoped rows,
+  // never an instance-scoped build copy of the same key.
   const [existing] = await db
     .select({ id: userCredentialsTable.id })
     .from(userCredentialsTable)
-    .where(and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.credentialKey, credentialKey)));
+    .where(and(
+      eq(userCredentialsTable.userId, userId),
+      eq(userCredentialsTable.credentialKey, credentialKey),
+      isNull(userCredentialsTable.systemInstanceId),
+    ));
 
   const encryptedValue = encrypt(plaintext);
   if (existing) {
@@ -320,10 +326,17 @@ export async function upsertCredential(
 }
 
 export async function getDecryptedCredential(userId: number, credentialKey: string): Promise<string | null> {
+  // OAuth tokens are shared, user-level credentials — read only NULL-scoped rows so
+  // an instance-scoped build copy of the same key can never be picked up and then
+  // written back into the shared OAuth row by upsertCredential.
   const [row] = await db
     .select({ encryptedValue: userCredentialsTable.encryptedValue })
     .from(userCredentialsTable)
-    .where(and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.credentialKey, credentialKey)));
+    .where(and(
+      eq(userCredentialsTable.userId, userId),
+      eq(userCredentialsTable.credentialKey, credentialKey),
+      isNull(userCredentialsTable.systemInstanceId),
+    ));
   if (!row?.encryptedValue) return null;
   try {
     return decrypt(row.encryptedValue);

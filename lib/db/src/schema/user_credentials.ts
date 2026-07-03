@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { toolsTable } from "./tools";
 import { clientWorkspacesTable } from "./client_workspaces";
+import { systemInstancesTable } from "./system_instances";
 
 export const CONNECTION_STATUSES = [
   "connected",
@@ -30,12 +31,18 @@ export const userCredentialsTable = pgTable("user_credentials", {
   // Optional JSON metadata (displayName, notes, customCategory, etc.)
   metadata: text("metadata"),
   clientWorkspaceId: integer("client_workspace_id").references(() => clientWorkspacesTable.id, { onDelete: "set null" }),
+  // Optional per-system-instance scoping. NULL rows are shared, user-level
+  // credentials (Connections Hub / OAuth). Rows scoped to a system instance are
+  // that build's own copy of a connector's tokens, so building two systems of
+  // the same type no longer overwrites each other's credentials.
+  systemInstanceId: integer("system_instance_id").references(() => systemInstancesTable.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
   index("user_credentials_user_id_idx").on(t.userId),
   index("user_credentials_user_id_key_idx").on(t.userId, t.credentialKey),
   index("user_credentials_client_workspace_id_idx").on(t.clientWorkspaceId),
+  index("user_credentials_system_instance_id_idx").on(t.systemInstanceId),
 ]);
 
 export const insertUserCredentialSchema = createInsertSchema(userCredentialsTable).omit({ id: true, createdAt: true, updatedAt: true });

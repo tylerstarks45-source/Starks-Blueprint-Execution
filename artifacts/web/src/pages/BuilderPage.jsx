@@ -15,7 +15,7 @@ import {
   CloudUpload, Package, Hash, Database, Star, Info,
   RefreshCw, Pencil, Trash2, Film, Music, Share2, Mic2,
   LayoutTemplate, Unlock, Mic, MicOff, Volume2, VolumeX, PhoneCall, PhoneOff,
-  Monitor, Briefcase, Mail,
+  Monitor, Briefcase, Mail, WifiOff,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import BrowserView from '@/components/builder/BrowserView.jsx';
@@ -156,7 +156,7 @@ const AI_MODES = [
     barWidth: 'w-3/4',
     activeBg: 'bg-violet-500/15 border-violet-500/40',
     inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
-    requiredTier: null,
+    requiredTier: 'builder',
   },
   {
     id: 'empire',
@@ -176,9 +176,16 @@ const AI_MODES = [
     barWidth: 'w-full',
     activeBg: 'bg-amber-500/15 border-amber-500/40',
     inactiveBg: 'bg-white/3 border-white/8 hover:border-white/20',
-    requiredTier: 'empire',
+    requiredTier: 'operator',
   },
 ];
+
+// Kept in lockstep with the server-side gate in api-server/src/lib/models.ts
+// (TIER_RANK / MODE_MIN_RANK). This is UX-only — the server is the real gate.
+const TIER_RANK = { free: 0, starter: 1, pro: 1, builder: 1, operator: 2, enterprise: 3, empire: 3 };
+const tierRankOf = (tier) => TIER_RANK[(tier || 'free').toLowerCase()] ?? 0;
+// Minimum rank required to select a mode, derived from its requiredTier label.
+const modeRequiredRank = (mode) => (mode?.requiredTier ? tierRankOf(mode.requiredTier) : 0);
 
 // ── Business Types ─────────────────────────────────────────────────────────────
 const BUSINESS_TYPES = [
@@ -1027,6 +1034,34 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
       </div>
     </div>
   );
+  // Connection lost during a build step — the build server was unreachable.
+  // Terminal, non-looping state: the build is safely paused and can be resumed
+  // once the connection is restored (no auto-retry loop that fails forever).
+  if (msg.type === 'connection_lost') return (
+    <div className="flex items-start gap-2.5">
+      <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-amber-500/20 border border-amber-500/30">
+        <WifiOff className="w-3.5 h-3.5 text-amber-400" />
+      </div>
+      <div className="flex-1 bg-amber-500/8 border border-amber-500/18 rounded-xl p-3 max-w-lg">
+        <p className="text-[11px] font-mono font-semibold text-amber-300 mb-1.5 flex items-center gap-1.5">
+          <WifiOff className="w-3 h-3" /> Connection lost — build paused
+        </p>
+        <p className="text-[11px] text-white/60 font-mono mb-2 leading-relaxed">
+          Couldn't reach the build server{msg.data?.stepNumber ? ` at step ${msg.data.stepNumber}` : ''}. Your progress is safe — nothing was lost.
+        </p>
+        <p className="text-[11px] text-white/55 mb-3 leading-relaxed">
+          Reconnect to the internet and pick up right where you left off. This step will resume from where it paused.
+        </p>
+        {msg.data?.message && (
+          <p className="text-[10px] text-amber-300/50 font-mono mb-3 truncate">{msg.data.message}</p>
+        )}
+        <button onClick={msg.reconnectFn}
+          className="text-[10px] font-mono font-semibold px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-200 hover:bg-amber-500/30 transition-colors flex items-center gap-1.5">
+          <RotateCcw className="w-2.5 h-2.5" /> Reconnect & resume
+        </button>
+      </div>
+    </div>
+  );
   // Connector action result (success or failure with retry)
   if (msg.type === 'connector_action') return (
     <ConnectorActionCard
@@ -1799,7 +1834,6 @@ const BuilderPage = () => {
   }, [chatMode, currentUser?.id]);
 
   const userTier = (currentUser?.membershipTier || 'free').toLowerCase();
-  const isEmpireTier = userTier === 'empire' || userTier === 'operator';
   const isFounderAdmin = currentUser?.role === 'FOUNDER_ADMIN';
 
   // Business context
@@ -2587,11 +2621,37 @@ const BuilderPage = () => {
         }
         setCurrentStepIdx(i => i + 1);
       } catch (fetchErr) {
-        // Network-level error (fetch itself threw) — show recovery card instead of
-        // silently advancing. The DB step stays in_progress; retry will re-run it.
+        // Distinguish a true network/unreachable failure (fetch threw a TypeError,
+        // or the browser reports offline) from a server-side error that came back
+        // as a non-2xx response. Server errors are transient and worth Retry/Skip;
+        // a lost connection is not — retrying blindly just fails forever, so we
+        // show a calm, non-looping "resume later" state instead.
         const recoveryId = Date.now() + Math.random();
         setStepPaused(true);
         const errMsg = fetchErr instanceof Error ? fetchErr.message : 'Network error — could not reach build server';
+        const isOffline = fetchErr instanceof TypeError
+          || (typeof navigator !== 'undefined' && navigator.onLine === false);
+
+        if (isOffline) {
+          // Terminal, user-driven recovery: the build stays safely paused (DB step
+          // remains in_progress) and only resumes when the user reconnects. The
+          // reconnect action guards on connectivity so it can't spin in a loop.
+          const reconnectFn = () => {
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+              toast.error('Still offline — reconnect to the internet, then try again.');
+              return;
+            }
+            setMessages(prev => prev.filter(m => m.id !== recoveryId));
+            setStepPaused(false);
+          };
+          setMessages(prev => [...prev, {
+            id: recoveryId, role: 'assistant', type: 'connection_lost', ts: Date.now(),
+            data: { message: errMsg, stepNumber: step.stepNumber, stepDescription: step.notes },
+            reconnectFn,
+          }]);
+          return;
+        }
+
         const retryFn = () => {
           setMessages(prev => prev.filter(m => m.id !== recoveryId));
           setStepPaused(false);
@@ -4382,7 +4442,7 @@ const BuilderPage = () => {
                                 {AI_MODES.map(m => {
                                   const MIcon = m.icon;
                                   const isActive = aiMode === m.id;
-                                  const isLocked = m.requiredTier && !isEmpireTier;
+                                  const isLocked = !isFounderAdmin && tierRankOf(userTier) < modeRequiredRank(m);
                                   return (
                                     <button
                                       key={m.id}

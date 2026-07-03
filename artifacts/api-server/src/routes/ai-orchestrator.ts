@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, count, sql, and } from "drizzle-orm";
+import { eq, count, sql, and, or, isNull } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import {
   db,
@@ -36,10 +36,10 @@ import {
 import { publish, PUBLISHING_CHANNELS } from "../lib/publishing";
 import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
 import { complete, streamCompletion } from "../lib/openrouter";
-import { MODELS, chainFor, chainForAgentMode, depthNoteForAgentMode } from "../lib/models";
+import { MODELS, chainFor, chainForAgentMode, depthNoteForAgentMode, resolveAgentMode } from "../lib/models";
 import { buildLearnedPatternsNote, getBrainOverview, distillAshBrain } from "../lib/ash-brain";
 import { hasCredits } from "../lib/credits";
-import { requireAuthActive, requireAdmin } from "../lib/auth";
+import { requireAuthActive, requireAdmin, isFounderAdmin } from "../lib/auth";
 import { encrypt, decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector } from "../lib/connectors/registry";
 import { z } from "zod";
@@ -708,13 +708,24 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
   }
 
   try {
-    const [{ blueprintKB, toolKB }, storedCreds, activatedSkills] = await Promise.all([
+    const [{ blueprintKB, toolKB }, storedCreds, activatedSkills, callerRows] = await Promise.all([
       buildPlatformKnowledge(),
       db.select({ credentialKey: userCredentialsTable.credentialKey, status: userCredentialsTable.status })
         .from(userCredentialsTable)
         .where(eq(userCredentialsTable.userId, userId)),
       detectAndActivateSkills(parsed.data.message, userId, parsed.data.systemInstanceId),
+      db.select({ role: usersTable.role, membershipTier: usersTable.membershipTier })
+        .from(usersTable).where(eq(usersTable.id, userId)).limit(1),
     ]);
+
+    // Server-side agent-mode tier gate: higher modes route to the most expensive
+    // flagship model, so a free/low-tier caller requesting expert/empire is safely
+    // downgraded to the richest mode their tier can afford (FOUNDER_ADMIN bypasses).
+    const { mode: effectiveMode } = resolveAgentMode(
+      parsed.data.agentMode,
+      callerRows[0]?.membershipTier,
+      isFounderAdmin(callerRows[0]?.role),
+    );
 
     const storedKeys = storedCreds.map((c) => c.credentialKey);
     const connectedKeys = storedCreds.filter((c) => c.status === "connected").map((c) => c.credentialKey);
@@ -759,8 +770,8 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     // Best-model policy (Task #282): every user-facing response uses a frontier
     // model. Agent modes select DEPTH/SCOPE, never a budget model. The chain
     // gives automatic best-first fallback if a model is temporarily unavailable.
-    const modelChain = chainForAgentMode(parsed.data.agentMode);
-    const depthNote = depthNoteForAgentMode(parsed.data.agentMode);
+    const modelChain = chainForAgentMode(effectiveMode);
+    const depthNote = depthNoteForAgentMode(effectiveMode);
 
     const contextNote = [
       parsed.data.businessType ? `User's business focus: ${parsed.data.businessType}` : "",
@@ -1070,13 +1081,22 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
           .from(landingPagesTable).where(eq(landingPagesTable.userId, userId)).limit(20),
         db.select({ id: emailSequencesTable.id, status: emailSequencesTable.status })
           .from(emailSequencesTable).where(eq(emailSequencesTable.userId, userId)).limit(10),
-        db.select({ creditsBalance: usersTable.creditsBalance })
+        db.select({ creditsBalance: usersTable.creditsBalance, role: usersTable.role, membershipTier: usersTable.membershipTier })
           .from(usersTable).where(eq(usersTable.id, userId)).limit(1),
       ]),
     ]);
 
     const [platformSystems, platformBusinesses, platformDomains, platformPages, platformSeqs, platformCreditRows] = platformRows;
     const userCreditBalance = platformCreditRows[0]?.creditsBalance ?? 0;
+
+    // Server-side agent-mode tier gate (see /ai-orchestrator/chat): downgrade a
+    // higher mode than the caller's tier allows so flagship credits can't be
+    // burned via a crafted request. FOUNDER_ADMIN bypasses.
+    const { mode: effectiveMode } = resolveAgentMode(
+      parsed.data.agentMode,
+      platformCreditRows[0]?.membershipTier,
+      isFounderAdmin(platformCreditRows[0]?.role),
+    );
 
     // Derive connected social accounts from storedCreds
     const SOCIAL_CRED_KEYS: Record<string, string> = {
@@ -1150,8 +1170,8 @@ Do NOT invent IDs — only use exact integer IDs shown above.`;
 
     // Best-model policy (Task #282): stream every user-facing response through a
     // frontier model chain. Agent modes select DEPTH/SCOPE, never a budget model.
-    const modelChain = chainForAgentMode(parsed.data.agentMode);
-    const depthNote = depthNoteForAgentMode(parsed.data.agentMode);
+    const modelChain = chainForAgentMode(effectiveMode);
+    const depthNote = depthNoteForAgentMode(effectiveMode);
 
     const contextNote = [
       parsed.data.businessType ? `User's business focus: ${parsed.data.businessType}` : "",
@@ -2158,21 +2178,27 @@ router.post("/ai-orchestrator/execute", async (req, res): Promise<void> => {
     buildStatus: "building",
   }).returning();
 
-  // 3. Persist credentials + merge with stored vault credentials
-  // Fetch already-stored credentials for this user
-  const storedVaultCreds = await db
-    .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue, id: userCredentialsTable.id })
+  // 3. Persist build-provided credentials as THIS instance's own copy.
+  // Credentials supplied during a build are scoped to the new system instance so
+  // building a second system of the same type never overwrites the first one's
+  // tokens. Existing NULL-scoped (Connections Hub / OAuth) rows are never touched
+  // here — we only ever update/insert rows belonging to this instance.
+  const instanceScopedCreds = await db
+    .select({ credentialKey: userCredentialsTable.credentialKey, id: userCredentialsTable.id })
     .from(userCredentialsTable)
-    .where(eq(userCredentialsTable.userId, userId));
+    .where(and(
+      eq(userCredentialsTable.userId, userId),
+      eq(userCredentialsTable.systemInstanceId, instance.id),
+    ));
 
-  const storedKeyMap = Object.fromEntries(storedVaultCreds.map((c) => [c.credentialKey, c]));
+  const instanceKeyMap = Object.fromEntries(instanceScopedCreds.map((c) => [c.credentialKey, c]));
 
-  // Upsert each credential from the request
+  // Upsert each credential from the request against this instance's scope only.
   if (parsed.data.credentials.length > 0) {
     await Promise.all(
       parsed.data.credentials.map(async (cred) => {
         const encryptedValue = encrypt(cred.value);
-        const existing = storedKeyMap[cred.key];
+        const existing = instanceKeyMap[cred.key];
         if (existing) {
           await db.update(userCredentialsTable)
             .set({ encryptedValue, updatedAt: new Date() })
@@ -2182,18 +2208,34 @@ router.post("/ai-orchestrator/execute", async (req, res): Promise<void> => {
             userId,
             credentialKey: cred.key,
             encryptedValue,
+            systemInstanceId: instance.id,
           });
         }
       })
     );
   }
 
-  // 3b. Decrypt all stored credentials for this user (including pre-stored vault keys) so the
-  //     AI build context can reference the decrypted values when orchestrating live integrations.
+  // 3b. Decrypt the credentials visible to THIS build — shared user-level rows
+  //     (systemInstanceId IS NULL) plus this instance's own scoped rows, with the
+  //     instance-scoped value winning on key collision — so the AI build context
+  //     references the right tokens when orchestrating live integrations.
   const allStoredCreds = await db
-    .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue })
+    .select({
+      credentialKey: userCredentialsTable.credentialKey,
+      encryptedValue: userCredentialsTable.encryptedValue,
+      systemInstanceId: userCredentialsTable.systemInstanceId,
+    })
     .from(userCredentialsTable)
-    .where(eq(userCredentialsTable.userId, userId));
+    .where(and(
+      eq(userCredentialsTable.userId, userId),
+      or(
+        isNull(userCredentialsTable.systemInstanceId),
+        eq(userCredentialsTable.systemInstanceId, instance.id),
+      ),
+    ));
+
+  // Apply NULL-scoped rows first, then instance-scoped so the instance copy wins.
+  allStoredCreds.sort((a, b) => (a.systemInstanceId === null ? 0 : 1) - (b.systemInstanceId === null ? 0 : 1));
 
   const decryptedCredMap: Record<string, string> = {};
   for (const c of allStoredCreds) {

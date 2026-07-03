@@ -64,6 +64,64 @@ export function chainForAgentMode(mode: string | undefined | null): ModelChain {
   }
 }
 
+// ─── Tier-based agent-mode gating ────────────────────────────────────────────
+// The best-model policy above means EVERY mode is backed by a frontier model, so
+// the only thing an agent mode changes is depth/scope — and therefore how many
+// credits a response burns. Higher modes (expert/empire) route to the most
+// expensive flagship model, so they must be gated to the caller's paid tier;
+// otherwise a free user could burn flagship credits via a crafted API call.
+//
+// Membership tiers ranked low→high (legacy aliases map to their canonical rank).
+export const TIER_RANK: Record<string, number> = {
+  free: 0,
+  starter: 1,
+  pro: 1,
+  builder: 1,
+  operator: 2,
+  enterprise: 3,
+  empire: 3,
+};
+
+// Minimum tier rank required to use each agent mode. Modes not listed here are
+// unknown and fall through to the default chain WITHOUT gating.
+export const MODE_MIN_RANK: Record<string, number> = {
+  fast: 0,
+  business: 0,
+  expert: 1,   // Builder+
+  empire: 2,   // Operator+
+};
+
+// Best→cheapest preference used to pick the richest mode a tier can afford when
+// the requested mode is above the caller's tier.
+const MODE_PREFERENCE = ["empire", "expert", "business", "fast"] as const;
+
+export function tierRank(tier: string | undefined | null): number {
+  return TIER_RANK[(tier ?? "free").toLowerCase()] ?? 0;
+}
+
+// Resolves the effective agent mode for a caller. Returns the requested mode when
+// the tier permits it, otherwise safely downgrades to the richest mode the tier
+// can afford. FOUNDER_ADMIN bypasses the gate (usage is still tracked elsewhere).
+// `tier`/`isFounder` MUST come from the server-verified role/tier, never a
+// client-supplied flag.
+export function resolveAgentMode(
+  requestedMode: string | undefined | null,
+  tier: string | undefined | null,
+  isFounder = false,
+): { mode: string; downgraded: boolean; requested: string } {
+  const requested = requestedMode ?? "business";
+  const minRank = MODE_MIN_RANK[requested];
+  if (isFounder || minRank === undefined) {
+    return { mode: requested, downgraded: false, requested };
+  }
+  const rank = tierRank(tier);
+  if (rank >= minRank) {
+    return { mode: requested, downgraded: false, requested };
+  }
+  const fallback = MODE_PREFERENCE.find((m) => rank >= MODE_MIN_RANK[m]) ?? "fast";
+  return { mode: fallback, downgraded: true, requested };
+}
+
 // Human-readable depth guidance injected into the system prompt so the model
 // calibrates thoroughness (not intelligence) to the selected mode.
 export function depthNoteForAgentMode(mode: string | undefined | null): string {

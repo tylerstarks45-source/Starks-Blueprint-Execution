@@ -411,14 +411,14 @@ const SystemCommandCenterPage = () => {
       .catch(() => {});
   }, [data]);
 
-  // Revenue ticker — light 3-second poll to keep the live total fresh
+  // Revenue ticker — 60-second poll to keep the live total reasonably fresh
   useEffect(() => {
     const id = setInterval(() => {
       fetch('/api/dashboard/revenue-summary', { headers: authHeaders() })
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (d) { setRevenue(d); setRevenueTick(t => t + 1); } })
         .catch(() => {});
-    }, 3000);
+    }, 60000);
     return () => clearInterval(id);
   }, []);
 
@@ -846,7 +846,7 @@ const SystemCommandCenterPage = () => {
           </div>
           <div className="px-4 pt-4 pb-3">
             <div className="h-[172px]" style={{ filter: 'drop-shadow(0 4px 14px rgba(16,185,129,0.18))' }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" debounce={50}>
                 <ComposedChart
                   data={perfData?.trendData ?? buildDailyData(revenue?.daily).map(d => ({...d, activity: 0}))}
                   margin={{ top: 4, right: 10, bottom: 0, left: -18 }}

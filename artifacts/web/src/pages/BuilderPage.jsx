@@ -885,6 +885,56 @@ const PlatformActionCard = ({ data }) => {
   );
 };
 
+// ─── Platform Read Card ────────────────────────────────────────────────────────
+const READ_TOOL_META = {
+  list_my_systems:         { label: 'Your Systems',         icon: Cog },
+  list_my_businesses:      { label: 'Your Businesses',      icon: Briefcase },
+  list_my_domains:         { label: 'Your Domains',         icon: Globe },
+  list_my_landing_pages:   { label: 'Your Landing Pages',   icon: LayoutTemplate },
+  list_my_email_sequences: { label: 'Your Email Sequences', icon: Mail },
+  list_my_social_accounts: { label: 'Your Social Accounts', icon: Share2 },
+};
+const PlatformReadCard = ({ data }) => {
+  const { tool, items = [], count = 0 } = data || {};
+  const meta = READ_TOOL_META[tool] || { label: 'Platform Data', icon: Monitor };
+  const Icon = meta.icon;
+  return (
+    <div className="flex items-start gap-2.5 my-0.5">
+      <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0 mt-0.5">
+        <Icon className="w-3.5 h-3.5 text-cyan-400" />
+      </div>
+      <div className="flex flex-col gap-0.5 items-start max-w-[85%]">
+        <span className="text-[10px] text-cyan-400/55 font-mono font-semibold px-1">ASH · Platform Read</span>
+        <div className="bg-cyan-500/6 border border-cyan-500/15 rounded-2xl rounded-tl-sm px-4 py-3 w-full">
+          <div className="flex items-center gap-2 mb-2">
+            <Icon className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span className="text-[11px] font-semibold text-white/75">{meta.label}</span>
+            <span className="ml-auto text-[9px] font-mono text-white/30">{count} total</span>
+          </div>
+          {items.length === 0 ? (
+            <p className="text-[10px] text-white/30 font-mono">None found.</p>
+          ) : (
+            <div className="space-y-1">
+              {items.slice(0, 8).map((item, i) => (
+                <div key={i} className="flex items-center gap-2 text-[10px] font-mono">
+                  <span className="text-white/50 flex-1 truncate">{item.name || item.title || item.domain || item.platform || `Item ${i + 1}`}</span>
+                  {(item.status || item.buildStatus) && (
+                    <span className={`text-[8px] shrink-0 ${(item.status || item.buildStatus) === 'active' ? 'text-emerald-400/70' : 'text-white/25'}`}>{item.status || item.buildStatus}</span>
+                  )}
+                  {item.connected !== undefined && (
+                    <span className={`text-[8px] shrink-0 ${item.connected ? 'text-emerald-400/70' : 'text-white/25'}`}>{item.connected ? 'connected' : 'not connected'}</span>
+                  )}
+                </div>
+              ))}
+              {items.length > 8 && <p className="text-[9px] text-white/25 font-mono">+{items.length - 8} more…</p>}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Message Bubble ───────────────────────────────────────────────────────────
 const MessageBubble = ({ msg, onConfirmPlan }) => {
   const isUser = msg.role === 'user';
@@ -970,6 +1020,7 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
   );
   // Platform action result (update_system_status, trigger_system_rebuild, create_business_note)
   if (msg.type === 'platform_action') return <PlatformActionCard data={msg.data} />;
+  if (msg.type === 'platform_read') return <PlatformReadCard data={msg.data} />;
   // Landing page created by ASH — includes inline mini-preview iframe
   if (msg.type === 'page_created') {
     return (
@@ -1833,6 +1884,8 @@ const BuilderPage = () => {
   const [platformContext, setPlatformContext] = useState(null);
   const [platformContextOpen, setPlatformContextOpen] = useState(false);
   const [platformContextRefreshKey, setPlatformContextRefreshKey] = useState(0);
+  const [platformSections, setPlatformSections] = useState({ systems: true, businesses: true, domains: true });
+  const togglePlatformSection = (key) => setPlatformSections(prev => ({ ...prev, [key]: !prev[key] }));
 
   // Pages panel state
   const [builderPages, setBuilderPages] = useState([]);
@@ -2863,7 +2916,35 @@ const BuilderPage = () => {
         setActiveBrowser({ task: sd.task ?? 'Browse the web', startUrl: sd.startUrl, msgId: Date.now() });
       } else if (action === 'tool_calls' && Array.isArray(sd?.calls)) {
         for (const call of sd.calls) {
-          if (call.type === 'search') {
+          if (['list_my_systems','list_my_businesses','list_my_domains','list_my_landing_pages','list_my_email_sequences','list_my_social_accounts'].includes(call.type)) {
+            // Read-only platform tool — fetch fresh context and display a card
+            const toolMsgId = Date.now() + Math.random();
+            setMessages(prev => [...prev, { id: toolMsgId, role: 'assistant', type: 'tool_call', tool: 'platform', label: `Reading: ${call.type.replace(/_/g,' ')}…`, ts: Date.now() }]);
+            try {
+              const res = await fetch('/api/ash/platform-context', { headers: authHeaders() });
+              if (res.ok) {
+                const ctx = await res.json();
+                const itemMap = {
+                  list_my_systems:         ctx.systems,
+                  list_my_businesses:      ctx.businesses,
+                  list_my_domains:         ctx.domains,
+                  list_my_landing_pages:   ctx.landingPages,
+                  list_my_email_sequences: ctx.emailSequences,
+                  list_my_social_accounts: ctx.socialAccounts,
+                };
+                const items = itemMap[call.type] || [];
+                setMessages(prev => prev.map(m => m.id === toolMsgId ? {
+                  ...m, type: 'platform_read', data: { tool: call.type, items, count: items.length },
+                  tool: undefined, label: undefined,
+                } : m));
+                setPlatformContextRefreshKey(k => k + 1);
+              } else {
+                setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+              }
+            } catch {
+              setMessages(prev => prev.filter(m => m.id !== toolMsgId));
+            }
+          } else if (call.type === 'search') {
             const toolMsgId = Date.now() + Math.random();
             setMessages(prev => [...prev, { id: toolMsgId, role: 'assistant', type: 'tool_call', tool: 'search', label: `Searching: ${call.query}`, ts: Date.now() }]);
             try {
@@ -5022,58 +5103,81 @@ const BuilderPage = () => {
                   <div className="flex justify-center py-8"><Loader2 className="w-4 h-4 animate-spin text-white/25" /></div>
                 ) : (<>
 
-                  {/* Systems */}
-                  <div className="rounded-xl border border-white/8 bg-black/20 p-3">
-                    <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold mb-2 flex items-center gap-1.5">
-                      <Cog className="w-3 h-3" /> Systems ({platformContext.systems?.length || 0})
-                    </p>
-                    {(!platformContext.systems?.length) ? (
-                      <p className="text-[10px] text-white/18 font-mono">None yet</p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {platformContext.systems.map(s => (
-                          <div key={s.id} className="flex items-center gap-2 group">
-                            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.buildStatus === 'active' || s.buildStatus === 'complete' ? 'bg-emerald-400 animate-pulse' : s.buildStatus === 'building' ? 'bg-amber-400 animate-pulse' : 'bg-white/18'}`} />
-                            <span className="text-[10px] font-mono text-white/45 flex-1 truncate">{s.name}</span>
-                            <span className="text-[8px] font-mono text-white/20">{s.buildStatus}</span>
-                            <button onClick={() => navigate(`/systems/${s.id}`)} className="text-[8px] font-mono text-cyan-400/40 hover:text-cyan-400 transition-colors opacity-0 group-hover:opacity-100">→</button>
+                  {/* Systems — collapsible */}
+                  <div className="rounded-xl border border-white/8 bg-black/20 overflow-hidden">
+                    <button
+                      onClick={() => togglePlatformSection('systems')}
+                      className="w-full flex items-center gap-1.5 p-3 hover:bg-white/3 transition-colors"
+                    >
+                      <Cog className="w-3 h-3 text-white/22" />
+                      <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold flex-1 text-left">Systems ({platformContext.systems?.length || 0})</p>
+                      {platformSections.systems ? <ChevronDown className="w-3 h-3 text-white/20" /> : <ChevronRight className="w-3 h-3 text-white/20" />}
+                    </button>
+                    {platformSections.systems && (
+                      <div className="px-3 pb-3">
+                        {(!platformContext.systems?.length) ? (
+                          <p className="text-[10px] text-white/18 font-mono">None yet</p>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {platformContext.systems.map(s => (
+                              <div key={s.id} className="flex items-center gap-2 group">
+                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.buildStatus === 'active' || s.buildStatus === 'complete' ? 'bg-emerald-400 animate-pulse' : s.buildStatus === 'building' ? 'bg-amber-400 animate-pulse' : 'bg-white/18'}`} />
+                                <span className="text-[10px] font-mono text-white/45 flex-1 truncate">{s.name}</span>
+                                <span className="text-[8px] font-mono text-white/20">{s.buildStatus}</span>
+                                <button onClick={() => navigate(`/systems/${s.id}`)} className="text-[8px] font-mono text-cyan-400/40 hover:text-cyan-400 transition-colors opacity-0 group-hover:opacity-100">→</button>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
                     )}
                   </div>
 
-                  {/* Businesses */}
+                  {/* Businesses — collapsible */}
                   {(platformContext.businesses?.length > 0) && (
-                    <div className="rounded-xl border border-white/8 bg-black/20 p-3">
-                      <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold mb-2 flex items-center gap-1.5">
-                        <Briefcase className="w-3 h-3" /> Businesses ({platformContext.businesses.length})
-                      </p>
-                      <div className="space-y-1">
-                        {platformContext.businesses.map(b => (
-                          <div key={b.id} className="flex items-center gap-2 group">
-                            <span className="text-[10px] font-mono text-white/45 flex-1 truncate">{b.name}</span>
-                            <button onClick={() => navigate(`/business/${b.id}`)} className="text-[8px] font-mono text-cyan-400/40 hover:text-cyan-400 transition-colors opacity-0 group-hover:opacity-100">→</button>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="rounded-xl border border-white/8 bg-black/20 overflow-hidden">
+                      <button
+                        onClick={() => togglePlatformSection('businesses')}
+                        className="w-full flex items-center gap-1.5 p-3 hover:bg-white/3 transition-colors"
+                      >
+                        <Briefcase className="w-3 h-3 text-white/22" />
+                        <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold flex-1 text-left">Businesses ({platformContext.businesses.length})</p>
+                        {platformSections.businesses ? <ChevronDown className="w-3 h-3 text-white/20" /> : <ChevronRight className="w-3 h-3 text-white/20" />}
+                      </button>
+                      {platformSections.businesses && (
+                        <div className="px-3 pb-3 space-y-1">
+                          {platformContext.businesses.map(b => (
+                            <div key={b.id} className="flex items-center gap-2 group">
+                              <span className="text-[10px] font-mono text-white/45 flex-1 truncate">{b.name}</span>
+                              <button onClick={() => navigate(`/business/${b.id}`)} className="text-[8px] font-mono text-cyan-400/40 hover:text-cyan-400 transition-colors opacity-0 group-hover:opacity-100">→</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* Domains */}
+                  {/* Domains — collapsible */}
                   {(platformContext.domains?.length > 0) && (
-                    <div className="rounded-xl border border-white/8 bg-black/20 p-3">
-                      <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold mb-2 flex items-center gap-1.5">
-                        <Globe className="w-3 h-3" /> Domains ({platformContext.domains.length})
-                      </p>
-                      <div className="space-y-1">
-                        {platformContext.domains.map((d, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <span className="text-[10px] font-mono text-white/45 flex-1 truncate">{d.domain}</span>
-                            <span className={`text-[8px] font-mono ${d.status === 'active' ? 'text-emerald-400/60' : 'text-white/20'}`}>{d.status}</span>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="rounded-xl border border-white/8 bg-black/20 overflow-hidden">
+                      <button
+                        onClick={() => togglePlatformSection('domains')}
+                        className="w-full flex items-center gap-1.5 p-3 hover:bg-white/3 transition-colors"
+                      >
+                        <Globe className="w-3 h-3 text-white/22" />
+                        <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold flex-1 text-left">Domains ({platformContext.domains.length})</p>
+                        {platformSections.domains ? <ChevronDown className="w-3 h-3 text-white/20" /> : <ChevronRight className="w-3 h-3 text-white/20" />}
+                      </button>
+                      {platformSections.domains && (
+                        <div className="px-3 pb-3 space-y-1">
+                          {platformContext.domains.map((d, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono text-white/45 flex-1 truncate">{d.domain}</span>
+                              <span className={`text-[8px] font-mono ${d.status === 'active' ? 'text-emerald-400/60' : 'text-white/20'}`}>{d.status}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 

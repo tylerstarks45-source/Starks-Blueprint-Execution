@@ -31,6 +31,7 @@ import {
   businessesTable,
   userDomainsTable,
   landingPagesTable,
+  usersTable,
 } from "@workspace/db";
 import { publish, PUBLISHING_CHANNELS } from "../lib/publishing";
 import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
@@ -1060,10 +1061,13 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
           .from(landingPagesTable).where(eq(landingPagesTable.userId, userId)).limit(20),
         db.select({ id: emailSequencesTable.id, status: emailSequencesTable.status })
           .from(emailSequencesTable).where(eq(emailSequencesTable.userId, userId)).limit(10),
+        db.select({ creditsBalance: usersTable.creditsBalance })
+          .from(usersTable).where(eq(usersTable.id, userId)).limit(1),
       ]),
     ]);
 
-    const [platformSystems, platformBusinesses, platformDomains, platformPages, platformSeqs] = platformRows;
+    const [platformSystems, platformBusinesses, platformDomains, platformPages, platformSeqs, platformCreditRows] = platformRows;
+    const userCreditBalance = platformCreditRows[0]?.creditsBalance ?? 0;
 
     const storedKeys = storedCreds.map((c) => c.credentialKey);
     const connectedKeys = storedCreds.filter((c) => c.status === "connected").map((c) => c.credentialKey);
@@ -1088,18 +1092,28 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
 
     // Full platform awareness note — gives ASH a live snapshot of what the user has built
     const publishedPageCount = platformPages.filter((p) => p.isPublished).length;
-    const activeSystemCount  = platformSystems.filter((s) => s.buildStatus === "active" || s.buildStatus === "complete").length;
     const platformStateNote = `\n\n=== USER'S LIVE PLATFORM OVERVIEW (as of this session) ===
-Systems: ${platformSystems.length}${platformSystems.length > 0 ? ` — ${platformSystems.map((s) => `${s.name} [${s.buildStatus}]`).join(", ")}` : " — none yet"}
-Businesses: ${platformBusinesses.length}${platformBusinesses.length > 0 ? ` — ${platformBusinesses.map((b) => b.name).join(", ")}` : " — none yet"}
-Domains: ${platformDomains.length}${platformDomains.length > 0 ? ` — ${platformDomains.map((d) => d.domain).join(", ")}` : " — none yet"}
+Systems (${platformSystems.length}): ${platformSystems.length > 0
+  ? platformSystems.map((s) => `"${s.name}" [id:${s.id}, status:${s.buildStatus}]`).join(" | ")
+  : "none"}
+Businesses (${platformBusinesses.length}): ${platformBusinesses.length > 0
+  ? platformBusinesses.map((b) => `"${b.name}" [id:${b.id}]`).join(" | ")
+  : "none"}
+Domains (${platformDomains.length}): ${platformDomains.length > 0
+  ? platformDomains.map((d) => `${d.domain} [status:${d.status}]`).join(", ")
+  : "none"}
 Landing Pages: ${platformPages.length} total, ${publishedPageCount} published
 Email Sequences: ${platformSeqs.length}${platformSeqs.length > 0 ? ` (${platformSeqs.filter((s) => s.status === "active").length} active)` : ""}
-Use this context to give proactive, personalised advice. Reference the user's actual assets when relevant — e.g. "I can see you already have the [System Name] running" or "you've built ${platformPages.length} pages so far".
-For mutating actions (pause/activate a system, trigger rebuild, add a business note), emit an SBEP_DATA block with:
-  action: "tool_calls"
-  calls: [{ type: "platform_action", tool: "<update_system_status|trigger_system_rebuild|create_business_note>", params: { id?: <systemId>, businessId?: <businessId>, status?: "active"|"paused", note?: "<text>" }, summary: "<one-sentence human description of what you did>" }]
-Do NOT invent IDs — only use exact integer IDs from the Platform Overview above.`;
+Credits remaining: ${userCreditBalance}
+Use this context to give proactive, personalised advice. Reference the user's actual assets when relevant.
+Available platform tools (emit as SBEP_DATA action "tool_calls"):
+  READ  — type: "list_my_systems" | "list_my_businesses" | "list_my_domains" | "list_my_landing_pages" | "list_my_email_sequences" | "list_my_social_accounts"
+  WRITE — type: "platform_action", tool: "update_system_status" | "trigger_system_rebuild" | "create_business_note"
+          params for update_system_status:   { id: <integer>, status: "active" | "paused" }
+          params for trigger_system_rebuild: { id: <integer> }
+          params for create_business_note:   { businessId: <integer>, note: "<text>" }
+          + summary: "<one-sentence description>"
+Do NOT invent IDs — only use exact integer IDs shown above.`;
 
     const historyCtx = parsed.data.history.length > 0
       ? "\n\nConversation so far:\n" +

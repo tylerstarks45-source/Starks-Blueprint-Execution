@@ -398,6 +398,7 @@ router.get("/ai-orchestrator/platform-context", async (req, res): Promise<void> 
       id:          systemInstancesTable.id,
       name:        systemInstancesTable.name,
       buildStatus: systemInstancesTable.buildStatus,
+      status:      systemInstancesTable.buildStatus,
       blueprintId: systemInstancesTable.blueprintId,
     })
       .from(systemInstancesTable)
@@ -421,6 +422,7 @@ router.get("/ai-orchestrator/platform-context", async (req, res): Promise<void> 
       id:          landingPagesTable.id,
       title:       landingPagesTable.title,
       isPublished: landingPagesTable.isPublished,
+      published:   landingPagesTable.isPublished,
       slug:        landingPagesTable.slug,
     })
       .from(landingPagesTable)
@@ -453,18 +455,19 @@ router.get("/ai-orchestrator/platform-context", async (req, res): Promise<void> 
     }))
     .filter((a) => a.connected);
 
+  const creditBalance = userRows[0]?.creditsBalance ?? 0;
   res.json(serialize({
     systems,
-    businesses,
+    businesses: businesses.map((b) => ({ ...b, healthScore: null })),
     domains,
     landingPages:       pages,
     landingPageCount:   pages.length,
     emailSequences:     sequences,
     emailSequenceCount: sequences.length,
     socialAccounts,
-    creditBalance:      userRows[0]?.creditsBalance ?? 0,
-    creditsBalance:     userRows[0]?.creditsBalance ?? 0,
-    fetchedAt:          new Date(),
+    creditBalance,
+    creditsBalance: creditBalance,
+    fetchedAt:      new Date(),
   }));
 });
 
@@ -547,11 +550,11 @@ router.post("/ai-orchestrator/platform-action", async (req, res): Promise<void> 
     if (!owned) { res.status(404).json({ error: "Business not found" }); return; }
 
     const [conn] = await db.insert(businessConnectionsTable).values({
-      businessId:  p.data.businessId,
-      type:        "note",
-      name:        "ASH Note",
-      description: p.data.note,
-      status:      "active",
+      businessId:     p.data.businessId,
+      connectionType: "other",
+      platformName:   "ASH Note",
+      metadata:       p.data.note,
+      status:         "active",
     }).returning({ id: businessConnectionsTable.id });
 
     res.json({

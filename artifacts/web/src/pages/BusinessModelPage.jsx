@@ -27,11 +27,12 @@ const BusinessModelPage = () => {
                 <Building2 className="w-3.5 h-3.5" />
                 <span>Platform Operations</span>
               </div>
-              <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight tracking-tight mb-6 text-shadow-lg">
-                Our Business Model
+              <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-[1.05] tracking-tight mb-6 text-shadow-lg">
+                How We Make
+                <span className="block text-gradient-blue mt-1">Money. Honestly.</span>
               </h1>
-              <p className="text-lg md:text-xl text-zinc-100 font-medium leading-relaxed mb-6 max-w-3xl mx-auto text-shadow-md">
-                A transparent approach to building, testing, and recommending AI-powered automation systems.
+              <p className="text-xl md:text-2xl text-zinc-100 font-medium leading-relaxed mb-6 max-w-3xl mx-auto text-shadow-md">
+                We earn affiliate commissions when you buy tools through our links — and we test every single one in a real automated income system before we list it. No pay-to-play. No hidden sponsors.
               </p>
             </motion.div>
           </div>
@@ -91,12 +92,20 @@ const BusinessModelPage = () => {
 
         <section className="py-32 bg-background/60 backdrop-blur-lg relative overflow-hidden">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center max-w-3xl">
-            <h2 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-8 text-shadow-lg">
+            <h2 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-6 text-shadow-lg">
               Built on Transparency.<br/>Designed for Performance.
             </h2>
-            <p className="text-zinc-200 text-lg leading-relaxed font-medium text-shadow-sm">
-              Integrated systems are the future of digital operations. Starks Global Group maps that infrastructure, rigorously validates the tools required, and delivers clear architectures to build your business. No hidden motives, just structured execution.
+            <p className="text-zinc-200 text-lg leading-relaxed font-medium mb-10 text-shadow-sm">
+              Integrated systems are the future of digital income. Starks Global Group maps that infrastructure, rigorously validates the tools required, and delivers clear architectures to build your business. No hidden motives — just automated execution.
             </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link to="/marketplace" className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl border border-white/20 bg-card/50 backdrop-blur-md text-white font-semibold hover:bg-card/80 transition-all">
+                Browse Verified Tools
+              </Link>
+              <Link to="/signup" className="saas-button gap-2">
+                <Unlock className="w-4 h-4" /> Start Free — No Card Needed
+              </Link>
+            </div>
           </div>
         </section>
 

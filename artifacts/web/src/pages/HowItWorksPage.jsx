@@ -66,7 +66,7 @@ const STEPS = [
     border: 'border-orange-500/30',
     title: 'ASH Builds & Runs Everything',
     desc: 'Once your tools are connected and your blueprint is set, ASH executes. It builds your system, generates content, monitors performance, and keeps everything running autonomously — 24/7, without you having to manage it.',
-    bullets: ['Fully autonomous operation', 'Run 25–45 systems simultaneously', 'ASH monitors and self-corrects'],
+    bullets: ['Fully autonomous operation', 'Systems run 24/7 without you', 'ASH monitors and self-corrects'],
   },
 ];
 
@@ -78,7 +78,7 @@ const ASH_CAN = [
   { icon: Workflow, label: 'Build Automations', desc: 'Connect apps, trigger workflows, route leads, and automate any repeatable task.' },
   { icon: Globe, label: 'Browse the Web', desc: 'ASH can research competitors, scrape data, monitor trends, and act on what it finds.' },
   { icon: BarChart3, label: 'Analyze & Report', desc: 'Performance dashboards, revenue breakdowns, and smart suggestions based on real data.' },
-  { icon: Cpu, label: 'Run Your Systems', desc: 'Operate 25–45 automated income systems in parallel — affiliate, email, content, ecommerce, and more.' },
+  { icon: Cpu, label: 'Run Your Systems', desc: 'Operate multiple automated income systems in parallel — affiliate, email, content, ecommerce, and more — 24/7 on autopilot.' },
 ];
 
 const BLUEPRINTS = [
@@ -322,7 +322,7 @@ const HowItWorksPage = () => {
                 <div className="text-3xl font-extrabold text-white mb-6 mt-1">From $29 <span className="text-base font-medium text-zinc-400">/ month</span></div>
                 <ul className="space-y-3">
                   {[
-                    'Run 25–45 systems simultaneously',
+                    'Run multiple income systems simultaneously',
                     'Priority ASH processing speed',
                     'Unlimited blueprint deployments',
                     'Advanced AI: image, video & browser',

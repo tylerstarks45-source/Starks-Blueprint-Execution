@@ -23,11 +23,11 @@ const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 // ─── Data ──────────────────────────────────────────────────────────────────────
 
 const STATS = [
-  { value: '2,400+', label: 'Systems Built' },
+  { value: '2,400+', label: 'Systems Deployed' },
   { value: '1.2M+',  label: 'AI Requests Processed' },
-  { value: '45',     label: 'Income System Types' },
+  { value: '40+',    label: 'Platform Integrations' },
   { value: '17+',    label: 'Marketplace Tools' },
-  { value: '800+',   label: 'Entrepreneurs Served' },
+  { value: '8',      label: 'AI System Blueprints' },
 ];
 
 const ASH_CAPABILITIES = [
@@ -36,7 +36,7 @@ const ASH_CAPABILITIES = [
   { icon: Film,          text: 'Produce AI-generated videos' },
   { icon: MessageCircle, text: 'Build & deploy custom AI chatbots' },
   { icon: Globe,         text: 'Browse the web autonomously' },
-  { icon: Activity,      text: 'Run 25–45 income systems simultaneously' },
+  { icon: Activity,      text: 'Run multiple income systems simultaneously' },
   { icon: Workflow,      text: 'Create automations end-to-end' },
   { icon: Settings2,     text: 'Connect tools & platforms' },
   { icon: BarChart3,     text: 'Monitor live system performance' },
@@ -88,7 +88,7 @@ const ASH_POWERS = [
     bg: 'bg-amber-500/8',
     border: 'border-amber-500/20',
     items: [
-      { icon: Rocket,     title: '45 Income System Types',     desc: 'From a single stream to a full empire — all managed by ASH' },
+      { icon: Rocket,     title: 'Full Income Empire Stack',   desc: 'From a single revenue stream to a full multi-income empire — all managed by ASH' },
       { icon: Target,     title: 'Revenue Goal Tracking',      desc: 'Set your monthly targets and ASH optimizes toward them daily' },
       { icon: BarChart3,  title: 'Live Performance Dashboard', desc: 'Real-time data across every active system you operate' },
       { icon: TrendingUp, title: 'Multi-Market Expansion',     desc: 'Scale into new verticals without starting from scratch' },
@@ -238,7 +238,7 @@ const HomePage = () => {
 
               {/* Subheadline */}
               <motion.p variants={fadeUp} className="text-xl md:text-2xl text-zinc-100 max-w-3xl mx-auto mb-10 leading-relaxed font-medium text-balance text-shadow-lg">
-                One AI that does it all. Chat with it, build with it, create with it, automate with it — ASH replaces every other tool. Everything you need, all in one place.
+                Your AI builds automated income systems — then runs them 24/7 while you sleep. One platform. One agent. Unlimited earning potential.
               </motion.p>
 
               {/* CTAs */}
@@ -559,7 +559,7 @@ const HomePage = () => {
                 <ul className="space-y-2.5 mb-8 flex-1">
                   {[
                     'ASH AI Agent builds everything',
-                    'Run 25–45 income systems at once',
+                    'Run multiple income systems simultaneously',
                     'Images, videos & chatbots included',
                     'Host & monitor live systems',
                     'Command center dashboard',
@@ -583,8 +583,8 @@ const HomePage = () => {
         <section className="section-padding border-b border-white/5 bg-background/40 backdrop-blur-sm">
           <div className="section-container">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
-              <h2 className="section-title">45 Income System Types</h2>
-              <p className="section-subtitle">Tell ASH your goal. ASH architects the system. You own the business.</p>
+              <h2 className="section-title">What Can ASH Build For You?</h2>
+              <p className="section-subtitle">Tell ASH your goal. ASH architects the system, builds it, and runs it — you own the business and the income.</p>
             </motion.div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -877,7 +877,7 @@ const HomePage = () => {
                     <div className="text-sm font-semibold text-zinc-400 mb-5">Developer &amp; Founder — Starks Global Group</div>
                     <div className="space-y-4 text-zinc-300 leading-relaxed">
                       <p>
-                        Tyler Starks designed and built ASH from scratch — a fully autonomous AI agent engineered to do everything from running chatbots and generating images and videos, to operating 25–45 automated income systems simultaneously.
+                        Tyler Starks designed and built ASH from scratch — a fully autonomous AI agent engineered to do everything from running chatbots and generating images and videos, to operating multiple automated income systems simultaneously, 24/7.
                       </p>
                       <p>
                         "I saw entrepreneurs wasting thousands of hours testing random AI tools with no structure, no proven systems, and no AI to execute for them. I built Starks Global Group to change that — and then I built ASH to make sure you never had to figure it out alone.

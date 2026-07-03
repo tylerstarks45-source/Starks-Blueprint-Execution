@@ -807,6 +807,18 @@ const ConnectorActionCard = ({ data, onRetry }) => {
   );
 };
 
+// ─── Relative time formatter (for "fetched X ago" labels) ─────────────────────
+
+const formatRelativeTime = (ms) => {
+  const sec = Math.max(0, Math.round(ms / 1000));
+  if (sec < 5) return 'just now';
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  return `${hr}h ago`;
+};
+
 // ─── Platform Action Card ─────────────────────────────────────────────────────
 
 const PLATFORM_ACTION_META = {
@@ -1888,6 +1900,8 @@ const BuilderPage = () => {
   const [platformContext, setPlatformContext] = useState(null);
   const [platformContextOpen, setPlatformContextOpen] = useState(false);
   const [platformContextRefreshKey, setPlatformContextRefreshKey] = useState(0);
+  const [platformContextFetchedAt, setPlatformContextFetchedAt] = useState(null);
+  const [platformContextNow, setPlatformContextNow] = useState(() => Date.now());
   const [platformSections, setPlatformSections] = useState({ systems: true, businesses: true, domains: true, pages: false, sequences: false, social: false });
   const togglePlatformSection = (key) => setPlatformSections(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -2086,10 +2100,25 @@ const BuilderPage = () => {
     if (!token) return;
     fetch('/api/ash/platform-context', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setPlatformContext(data); })
+      .then(data => { if (data) { setPlatformContext(data); setPlatformContextFetchedAt(Date.now()); setPlatformContextNow(Date.now()); } })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id, platformContextRefreshKey]);
+
+  // ── Auto-refresh platform context while the panel is open ─────────────────
+  useEffect(() => {
+    if (rightPanel !== 'platform' || !currentUser?.id) return;
+    const id = setInterval(() => setPlatformContextRefreshKey(k => k + 1), 75000);
+    return () => clearInterval(id);
+  }, [rightPanel, currentUser?.id]);
+
+  // ── Tick "fetched X ago" label every 15s while the panel is open ──────────
+  useEffect(() => {
+    if (rightPanel !== 'platform') return;
+    setPlatformContextNow(Date.now());
+    const id = setInterval(() => setPlatformContextNow(Date.now()), 15000);
+    return () => clearInterval(id);
+  }, [rightPanel]);
 
   // ── Restore session from localStorage once currentUser is known ───────────
   useEffect(() => {
@@ -5293,6 +5322,13 @@ const BuilderPage = () => {
                       ASH sees this snapshot every session. Ask it to pause a system, trigger a rebuild, list your pages, or add a business note — it acts instantly.
                     </p>
                   </div>
+
+                  {/* Freshness footer */}
+                  {platformContextFetchedAt && (
+                    <p className="text-[8px] font-mono text-white/20 text-center pt-0.5">
+                      Auto-refreshes every 75s · fetched {formatRelativeTime(platformContextNow - platformContextFetchedAt)}
+                    </p>
+                  )}
                 </>)}
               </div>
             )}

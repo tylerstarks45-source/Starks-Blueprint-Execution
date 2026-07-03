@@ -28,6 +28,9 @@ import {
   emailSequenceStepsTable,
   scheduledPostsTable,
   SOCIAL_PLATFORMS,
+  businessesTable,
+  userDomainsTable,
+  landingPagesTable,
 } from "@workspace/db";
 import { publish, PUBLISHING_CHANNELS } from "../lib/publishing";
 import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
@@ -1029,7 +1032,7 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
   const keepAlive = setInterval(() => res.write(": keepalive\n\n"), 20000);
 
   try {
-    const [{ blueprintKB, toolKB }, storedCreds, activatedSkills, userMemoryRows] = await Promise.all([
+    const [{ blueprintKB, toolKB }, storedCreds, activatedSkills, userMemoryRows, platformRows] = await Promise.all([
       buildPlatformKnowledge(),
       db.select({ credentialKey: userCredentialsTable.credentialKey, status: userCredentialsTable.status })
         .from(userCredentialsTable)
@@ -1045,7 +1048,22 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
               )
             : eq(userMemoryTable.userId, userId),
         ),
+      // Lightweight parallel platform snapshot for ASH context injection
+      Promise.all([
+        db.select({ id: systemInstancesTable.id, name: systemInstancesTable.name, buildStatus: systemInstancesTable.buildStatus })
+          .from(systemInstancesTable).where(eq(systemInstancesTable.userId, userId)).limit(10),
+        db.select({ id: businessesTable.id, name: businessesTable.name })
+          .from(businessesTable).where(eq(businessesTable.ownerId, userId)).limit(10),
+        db.select({ domain: userDomainsTable.domain, status: userDomainsTable.status })
+          .from(userDomainsTable).where(eq(userDomainsTable.userId, userId)).limit(10),
+        db.select({ id: landingPagesTable.id, isPublished: landingPagesTable.isPublished })
+          .from(landingPagesTable).where(eq(landingPagesTable.userId, userId)).limit(20),
+        db.select({ id: emailSequencesTable.id, status: emailSequencesTable.status })
+          .from(emailSequencesTable).where(eq(emailSequencesTable.userId, userId)).limit(10),
+      ]),
     ]);
+
+    const [platformSystems, platformBusinesses, platformDomains, platformPages, platformSeqs] = platformRows;
 
     const storedKeys = storedCreds.map((c) => c.credentialKey);
     const connectedKeys = storedCreds.filter((c) => c.status === "connected").map((c) => c.credentialKey);
@@ -1068,6 +1086,17 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
       ? `\n\n=== USER SYSTEM MEMORY (learned from previous sessions) ===\n${userMemoryRows.map((m) => `${m.memoryKey}: ${m.memoryValue}`).join("\n")}\nUse this context to personalise your response and avoid re-asking things you already know.`
       : "";
 
+    // Full platform awareness note — gives ASH a live snapshot of what the user has built
+    const publishedPageCount = platformPages.filter((p) => p.isPublished).length;
+    const activeSystemCount  = platformSystems.filter((s) => s.buildStatus === "active" || s.buildStatus === "complete").length;
+    const platformStateNote = `\n\n=== USER'S LIVE PLATFORM OVERVIEW (as of this session) ===
+Systems: ${platformSystems.length}${platformSystems.length > 0 ? ` — ${platformSystems.map((s) => `${s.name} [${s.buildStatus}]`).join(", ")}` : " — none yet"}
+Businesses: ${platformBusinesses.length}${platformBusinesses.length > 0 ? ` — ${platformBusinesses.map((b) => b.name).join(", ")}` : " — none yet"}
+Domains: ${platformDomains.length}${platformDomains.length > 0 ? ` — ${platformDomains.map((d) => d.domain).join(", ")}` : " — none yet"}
+Landing Pages: ${platformPages.length} total, ${publishedPageCount} published
+Email Sequences: ${platformSeqs.length}${platformSeqs.length > 0 ? ` (${platformSeqs.filter((s) => s.status === "active").length} active)` : ""}
+Use this context to give proactive, personalised advice. Reference the user's actual assets when relevant — e.g. "I can see you already have the [System Name] running" or "you've built ${platformPages.length} pages so far". For mutating actions (pause/activate a system, trigger rebuild, add a note), you MUST emit an SBEP_DATA block with action "platform_action" and include: tool (update_system_status|trigger_system_rebuild|create_business_note), params (id/businessId/note/status), and a plain-language summary.`;
+
     const historyCtx = parsed.data.history.length > 0
       ? "\n\nConversation so far:\n" +
         parsed.data.history.map((h) => `${h.role === "user" ? "User" : "STARK"}: ${h.content}`).join("\n")
@@ -1088,7 +1117,7 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
       : "";
 
     const systemPrompt = buildSystemPrompt(blueprintKB, toolKB) +
-      storedCredNote + connectedToolsNote + skillAdditions + memoryNote +
+      storedCredNote + connectedToolsNote + skillAdditions + memoryNote + platformStateNote +
       (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + depthNote + planModeNote;
     const prompt = `${historyCtx}\n\nUser: ${parsed.data.message}`;
 

@@ -15,6 +15,7 @@ import {
   CloudUpload, Package, Hash, Database, Star, Info,
   RefreshCw, Pencil, Trash2, Film, Music, Share2, Mic2,
   LayoutTemplate, Unlock, Mic, MicOff, Volume2, VolumeX, PhoneCall, PhoneOff,
+  Monitor, Briefcase, Mail,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import BrowserView from '@/components/builder/BrowserView.jsx';
@@ -806,6 +807,84 @@ const ConnectorActionCard = ({ data, onRetry }) => {
   );
 };
 
+// ─── Platform Action Card ─────────────────────────────────────────────────────
+
+const PLATFORM_ACTION_META = {
+  update_system_status:    { label: 'System Status Updated', icon: Cog,        color: 'blue' },
+  trigger_system_rebuild:  { label: 'System Rebuild Triggered', icon: RefreshCw, color: 'violet' },
+  create_business_note:    { label: 'Business Note Added', icon: FileText,     color: 'emerald' },
+};
+const PLATFORM_COLOR_MAP = {
+  blue:    { bg: 'bg-blue-500/10',    border: 'border-blue-500/20',    text: 'text-blue-400' },
+  violet:  { bg: 'bg-violet-500/10',  border: 'border-violet-500/20',  text: 'text-violet-400' },
+  emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-400' },
+};
+
+const PlatformActionCard = ({ data }) => {
+  const [expanded, setExpanded] = React.useState(false);
+  const { ok, tool, result, error, summary } = data || {};
+  const meta = PLATFORM_ACTION_META[tool] || { label: 'Platform Action', icon: Cog, color: 'blue' };
+  const colors = PLATFORM_COLOR_MAP[meta.color] || PLATFORM_COLOR_MAP.blue;
+  const Icon = meta.icon;
+
+  if (!ok) {
+    return (
+      <div className="flex items-start gap-2.5 my-0.5">
+        <div className="w-7 h-7 rounded-full bg-rose-500/15 border border-rose-500/25 flex items-center justify-center shrink-0 mt-0.5">
+          <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+        </div>
+        <div className="flex flex-col gap-0.5 items-start max-w-[85%]">
+          <span className="text-[10px] text-rose-400/55 font-mono font-semibold px-1">ASH · Platform Action Failed</span>
+          <div className="bg-[#130208] border border-rose-500/18 rounded-2xl rounded-tl-sm px-4 py-3 w-full">
+            <div className="flex items-center gap-2 mb-1">
+              <Icon className="w-3.5 h-3.5 text-rose-400" />
+              <span className="text-[11px] font-semibold text-white/75">{meta.label}</span>
+            </div>
+            <p className="text-xs text-rose-300/80">{error || 'Action failed'}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-2.5 my-0.5">
+      <div className={`w-7 h-7 rounded-full ${colors.bg} border ${colors.border} flex items-center justify-center shrink-0 mt-0.5`}>
+        <Icon className={`w-3.5 h-3.5 ${colors.text}`} />
+      </div>
+      <div className="flex flex-col gap-0.5 items-start max-w-[85%]">
+        <span className={`text-[10px] ${colors.text} opacity-55 font-mono font-semibold px-1`}>ASH · Platform</span>
+        <div className={`${colors.bg} border ${colors.border} rounded-2xl rounded-tl-sm px-4 py-3 w-full`}>
+          <div className="flex items-center gap-2 mb-1.5">
+            <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="text-[11px] font-semibold text-white/75">{meta.label}</span>
+          </div>
+          {summary && <p className="text-xs text-white/55 leading-relaxed mb-1">{summary}</p>}
+          {result && (
+            <button
+              onClick={() => setExpanded(e => !e)}
+              className="text-[9px] font-mono text-white/28 hover:text-white/50 flex items-center gap-1 transition-colors mt-1"
+            >
+              {expanded ? <ChevronDown className="w-2.5 h-2.5" /> : <ChevronRight className="w-2.5 h-2.5" />}
+              {expanded ? 'Hide details' : 'Details'}
+            </button>
+          )}
+          {expanded && result && (
+            <div className="mt-2 pt-2 border-t border-white/6 space-y-1">
+              {Object.entries(result).slice(0, 6).map(([k, v]) => (
+                <div key={k} className="flex gap-2 text-[9px] font-mono">
+                  <span className="text-white/30 shrink-0">{k}:</span>
+                  <span className="text-white/55">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Message Bubble ───────────────────────────────────────────────────────────
 const MessageBubble = ({ msg, onConfirmPlan }) => {
   const isUser = msg.role === 'user';
@@ -889,6 +968,8 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
       onRetry={msg.retryFn ? msg.retryFn : undefined}
     />
   );
+  // Platform action result (update_system_status, trigger_system_rebuild, create_business_note)
+  if (msg.type === 'platform_action') return <PlatformActionCard data={msg.data} />;
   // Landing page created by ASH — includes inline mini-preview iframe
   if (msg.type === 'page_created') {
     return (
@@ -1748,6 +1829,11 @@ const BuilderPage = () => {
   // Connected tools (fetched from /api/user-credentials/summary, filtered to connected)
   const [connectedTools, setConnectedTools] = useState([]);
 
+  // Platform context snapshot — fetched from /api/ash/platform-context
+  const [platformContext, setPlatformContext] = useState(null);
+  const [platformContextOpen, setPlatformContextOpen] = useState(false);
+  const [platformContextRefreshKey, setPlatformContextRefreshKey] = useState(0);
+
   // Pages panel state
   const [builderPages, setBuilderPages] = useState([]);
   const [builderPagesLoading, setBuilderPagesLoading] = useState(false);
@@ -1935,6 +2021,18 @@ const BuilderPage = () => {
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
+
+  // ── Platform context snapshot ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const token = localStorage.getItem('sbep_auth_token');
+    if (!token) return;
+    fetch('/api/ash/platform-context', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setPlatformContext(data); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id, platformContextRefreshKey]);
 
   // ── Restore session from localStorage once currentUser is known ───────────
   useEffect(() => {
@@ -2665,6 +2763,8 @@ const BuilderPage = () => {
                 }
               } : undefined;
               newMsg = { id: toolMsgId, role: 'assistant', type: 'connector_action', data: connData, retryFn, ts: Date.now() };
+            } else if (event.tool === 'platform_action') {
+              newMsg = { id: toolMsgId, role: 'assistant', type: 'platform_action', data: event.data || {}, ts: Date.now() };
             }
             if (newMsg) {
               setMessages(prev => {
@@ -2865,6 +2965,38 @@ const BuilderPage = () => {
             };
 
             await executeConnectorAction();
+          } else if (call.type === 'platform_action') {
+            const toolMsgId = Date.now() + Math.random();
+            const toolLabel = call.tool || 'platform_action';
+            setMessages(prev => [...prev, {
+              id: toolMsgId, role: 'assistant', type: 'tool_call',
+              tool: 'platform', label: `Executing: ${toolLabel.replace(/_/g, ' ')}…`, ts: Date.now(),
+            }]);
+            try {
+              const res = await fetch('/api/ash/platform-action', {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({ tool: call.tool, params: call.params || {} }),
+              });
+              const data = await res.json();
+              setMessages(prev => prev.map(m => m.id === toolMsgId ? {
+                ...m,
+                type: 'platform_action',
+                data: { ...data, summary: call.summary },
+                tool: undefined,
+                label: undefined,
+              } : m));
+              // Refresh platform context after a mutating action
+              setPlatformContextRefreshKey(k => k + 1);
+            } catch (err) {
+              setMessages(prev => prev.map(m => m.id === toolMsgId ? {
+                ...m,
+                type: 'platform_action',
+                data: { ok: false, tool: call.tool, error: err?.message || 'Network error' },
+                tool: undefined,
+                label: undefined,
+              } : m));
+            }
           }
         }
       }
@@ -4371,15 +4503,16 @@ const BuilderPage = () => {
           </div>
 
           {/* Resource tabs */}
-          <div className="grid grid-cols-3 border-b border-cyan-500/8 shrink-0 p-1 gap-0.5">
+          <div className="grid grid-cols-4 border-b border-cyan-500/8 shrink-0 p-1 gap-0.5">
             {[
-              { id: 'blueprints', label: 'BPs',    icon: Grid3x3 },
-              { id: 'tools',      label: 'Tools',  icon: Layers },
-              { id: 'files',      label: 'Apps',   icon: FolderOpen },
-              { id: 'pages',      label: 'Pages',  icon: LayoutTemplate },
-              { id: 'social',     label: 'Social', icon: Share2 },
-              { id: 'media',      label: 'Media',  icon: Film },
-              { id: 'deploy',     label: 'Deploy', icon: CloudUpload },
+              { id: 'blueprints', label: 'BPs',      icon: Grid3x3 },
+              { id: 'tools',      label: 'Tools',    icon: Layers },
+              { id: 'files',      label: 'Apps',     icon: FolderOpen },
+              { id: 'pages',      label: 'Pages',    icon: LayoutTemplate },
+              { id: 'social',     label: 'Social',   icon: Share2 },
+              { id: 'media',      label: 'Media',    icon: Film },
+              { id: 'deploy',     label: 'Deploy',   icon: CloudUpload },
+              { id: 'platform',   label: 'Platform', icon: Monitor },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -4840,6 +4973,105 @@ const BuilderPage = () => {
                   </p>
                   <p className="text-[10px] text-white/28 font-mono leading-relaxed">Tell ASH "activate my system" in the chat to trigger automated activation with live tracking enabled.</p>
                 </div>
+              </div>
+            )}
+
+            {/* ── PLATFORM CONTEXT ── */}
+            {rightPanel === 'platform' && (
+              <div className="p-3 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] uppercase tracking-widest text-white/30 font-mono font-bold flex items-center gap-1.5">
+                    <Monitor className="w-3 h-3 text-cyan-400/60" /> Your Platform
+                  </p>
+                  <button
+                    onClick={() => setPlatformContextRefreshKey(k => k + 1)}
+                    className="text-[8px] font-mono text-white/25 hover:text-cyan-400 transition-colors flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-2.5 h-2.5" /> Refresh
+                  </button>
+                </div>
+
+                {!platformContext ? (
+                  <div className="flex justify-center py-8"><Loader2 className="w-4 h-4 animate-spin text-white/25" /></div>
+                ) : (<>
+
+                  {/* Systems */}
+                  <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+                    <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold mb-2 flex items-center gap-1.5">
+                      <Cog className="w-3 h-3" /> Systems ({platformContext.systems?.length || 0})
+                    </p>
+                    {(!platformContext.systems?.length) ? (
+                      <p className="text-[10px] text-white/18 font-mono">None yet</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {platformContext.systems.map(s => (
+                          <div key={s.id} className="flex items-center gap-2 group">
+                            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.buildStatus === 'active' || s.buildStatus === 'complete' ? 'bg-emerald-400 animate-pulse' : s.buildStatus === 'building' ? 'bg-amber-400 animate-pulse' : 'bg-white/18'}`} />
+                            <span className="text-[10px] font-mono text-white/45 flex-1 truncate">{s.name}</span>
+                            <span className="text-[8px] font-mono text-white/20">{s.buildStatus}</span>
+                            <button onClick={() => navigate(`/systems/${s.id}`)} className="text-[8px] font-mono text-cyan-400/40 hover:text-cyan-400 transition-colors opacity-0 group-hover:opacity-100">→</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Businesses */}
+                  {(platformContext.businesses?.length > 0) && (
+                    <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+                      <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold mb-2 flex items-center gap-1.5">
+                        <Briefcase className="w-3 h-3" /> Businesses ({platformContext.businesses.length})
+                      </p>
+                      <div className="space-y-1">
+                        {platformContext.businesses.map(b => (
+                          <div key={b.id} className="flex items-center gap-2 group">
+                            <span className="text-[10px] font-mono text-white/45 flex-1 truncate">{b.name}</span>
+                            <button onClick={() => navigate(`/business/${b.id}`)} className="text-[8px] font-mono text-cyan-400/40 hover:text-cyan-400 transition-colors opacity-0 group-hover:opacity-100">→</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Domains */}
+                  {(platformContext.domains?.length > 0) && (
+                    <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+                      <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold mb-2 flex items-center gap-1.5">
+                        <Globe className="w-3 h-3" /> Domains ({platformContext.domains.length})
+                      </p>
+                      <div className="space-y-1">
+                        {platformContext.domains.map((d, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono text-white/45 flex-1 truncate">{d.domain}</span>
+                            <span className={`text-[8px] font-mono ${d.status === 'active' ? 'text-emerald-400/60' : 'text-white/20'}`}>{d.status}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Stats strip */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Pages', value: platformContext.landingPageCount ?? 0, icon: LayoutTemplate },
+                      { label: 'Sequences', value: platformContext.emailSequenceCount ?? 0, icon: Mail },
+                      { label: 'Credits', value: platformContext.creditBalance ?? 0, icon: Zap },
+                    ].map(({ label, value, icon: Icon }) => (
+                      <div key={label} className="rounded-lg border border-white/8 bg-black/20 p-2 flex flex-col items-center gap-1">
+                        <Icon className="w-3 h-3 text-white/22" />
+                        <span className="text-[11px] font-bold font-mono text-white/55">{value}</span>
+                        <span className="text-[8px] font-mono text-white/22">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Hint */}
+                  <div className="rounded-xl border border-cyan-500/12 bg-cyan-500/4 p-2.5">
+                    <p className="text-[9px] font-mono text-cyan-400/55 leading-relaxed">
+                      ASH sees this snapshot in every message. Ask it to pause a system, trigger a rebuild, or add a business note — it'll act instantly.
+                    </p>
+                  </div>
+                </>)}
               </div>
             )}
 

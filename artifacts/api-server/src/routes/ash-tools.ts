@@ -1,7 +1,19 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, desc, and } from "drizzle-orm";
-import { db, generatedFilesTable, userCredentialsTable, systemActivityEventsTable, systemInstancesTable } from "@workspace/db";
+import {
+  db,
+  generatedFilesTable,
+  userCredentialsTable,
+  systemActivityEventsTable,
+  systemInstancesTable,
+  businessesTable,
+  businessConnectionsTable,
+  userDomainsTable,
+  landingPagesTable,
+  emailSequencesTable,
+  usersTable,
+} from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
 import { MODELS } from "../lib/models";
@@ -9,11 +21,24 @@ import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector, listConnectors } from "../lib/connectors/registry";
 import { z } from "zod";
 
+const SOCIAL_PLATFORM_KEYS = [
+  { key: "TIKTOK_ACCESS_TOKEN",    name: "TikTok" },
+  { key: "INSTAGRAM_ACCESS_TOKEN", name: "Instagram" },
+  { key: "FACEBOOK_PAGE_TOKEN",    name: "Facebook" },
+  { key: "META_ACCESS_TOKEN",      name: "Facebook/Meta" },
+  { key: "TWITTER_BEARER_TOKEN",   name: "X (Twitter)" },
+  { key: "LINKEDIN_API_KEY",       name: "LinkedIn" },
+  { key: "SNAPCHAT_ACCESS_TOKEN",  name: "Snapchat" },
+  { key: "YOUTUBE_API_KEY",        name: "YouTube" },
+  { key: "THREADS_ACCESS_TOKEN",   name: "Threads" },
+  { key: "PINTEREST_API_KEY",      name: "Pinterest" },
+];
+
 const router: IRouter = Router();
 
 // ─── POST /api/ash/search — web search via Perplexity (OpenRouter) ─────────────
 
-router.post("/ash/search", async (req, res): Promise<void> => {
+router.post("/ai-orchestrator/search", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
@@ -72,7 +97,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
 
 // ─── POST /api/ash/image — image generation via Pollinations.ai ───────────────
 
-router.post("/ash/image", async (req, res): Promise<void> => {
+router.post("/ai-orchestrator/image", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
@@ -106,7 +131,7 @@ router.post("/ash/image", async (req, res): Promise<void> => {
 
 // ─── GET /api/ash/files — list user's generated files ─────────────────────────
 
-router.get("/ash/files", async (req, res): Promise<void> => {
+router.get("/ai-orchestrator/files", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
@@ -122,7 +147,7 @@ router.get("/ash/files", async (req, res): Promise<void> => {
 
 // ─── POST /api/ash/files — create a generated file ────────────────────────────
 
-router.post("/ash/files", async (req, res): Promise<void> => {
+router.post("/ai-orchestrator/files", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
@@ -158,7 +183,7 @@ router.post("/ash/files", async (req, res): Promise<void> => {
 
 // ─── PUT /api/ash/files/:id — update a generated file ────────────────────────
 
-router.put("/ash/files/:id", async (req, res): Promise<void> => {
+router.put("/ai-orchestrator/files/:id", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
@@ -205,7 +230,7 @@ router.put("/ash/files/:id", async (req, res): Promise<void> => {
 
 // ─── DELETE /api/ash/files/:id — delete a generated file ─────────────────────
 
-router.delete("/ash/files/:id", async (req, res): Promise<void> => {
+router.delete("/ai-orchestrator/files/:id", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
@@ -226,7 +251,7 @@ router.delete("/ash/files/:id", async (req, res): Promise<void> => {
 // Fetches the user's stored credentials, decrypts them, calls the connector's
 // execute() method, logs the result to the activity feed, and returns the result.
 
-router.post("/ash/connector-action", async (req, res): Promise<void> => {
+router.post("/ai-orchestrator/connector-action", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
@@ -334,7 +359,7 @@ router.post("/ash/connector-action", async (req, res): Promise<void> => {
 
 // ─── GET /api/ash/connectors — list connected connectors for the current user ──
 
-router.get("/ash/connectors", async (req, res): Promise<void> => {
+router.get("/ai-orchestrator/connectors", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
 
@@ -358,6 +383,184 @@ router.get("/ash/connectors", async (req, res): Promise<void> => {
     }));
 
   res.json({ connectors: connected });
+});
+
+// ─── GET /api/ash/platform-context — full platform snapshot for ASH awareness ──
+// Returns systems, businesses, domains, landing pages, email sequences, social
+// accounts, and credit balance in a single parallel-fetched response.
+
+router.get("/ai-orchestrator/platform-context", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const [systems, businesses, domains, pages, sequences, credRows, userRows] = await Promise.all([
+    db.select({
+      id:          systemInstancesTable.id,
+      name:        systemInstancesTable.name,
+      buildStatus: systemInstancesTable.buildStatus,
+      blueprintId: systemInstancesTable.blueprintId,
+    })
+      .from(systemInstancesTable)
+      .where(eq(systemInstancesTable.userId, userId))
+      .orderBy(desc(systemInstancesTable.updatedAt))
+      .limit(20),
+
+    db.select({ id: businessesTable.id, name: businessesTable.name })
+      .from(businessesTable)
+      .where(eq(businessesTable.ownerId, userId))
+      .orderBy(desc(businessesTable.updatedAt))
+      .limit(20),
+
+    db.select({ id: userDomainsTable.id, domain: userDomainsTable.domain, status: userDomainsTable.status })
+      .from(userDomainsTable)
+      .where(eq(userDomainsTable.userId, userId))
+      .orderBy(desc(userDomainsTable.createdAt))
+      .limit(20),
+
+    db.select({
+      id:          landingPagesTable.id,
+      title:       landingPagesTable.title,
+      isPublished: landingPagesTable.isPublished,
+      slug:        landingPagesTable.slug,
+    })
+      .from(landingPagesTable)
+      .where(eq(landingPagesTable.userId, userId))
+      .orderBy(desc(landingPagesTable.updatedAt))
+      .limit(20),
+
+    db.select({ id: emailSequencesTable.id, name: emailSequencesTable.name, status: emailSequencesTable.status })
+      .from(emailSequencesTable)
+      .where(eq(emailSequencesTable.userId, userId))
+      .orderBy(desc(emailSequencesTable.createdAt))
+      .limit(20),
+
+    db.select({ credentialKey: userCredentialsTable.credentialKey })
+      .from(userCredentialsTable)
+      .where(eq(userCredentialsTable.userId, userId)),
+
+    db.select({ creditsBalance: usersTable.creditsBalance })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1),
+  ]);
+
+  const storedKeySet = new Set(credRows.map((r) => r.credentialKey));
+  const socialAccounts = SOCIAL_PLATFORM_KEYS
+    .filter((p) => storedKeySet.has(p.key))
+    .map((p) => ({ name: p.name, key: p.key }));
+
+  res.json(serialize({
+    systems,
+    businesses,
+    domains,
+    landingPages: pages,
+    emailSequences: sequences,
+    socialAccounts,
+    creditsBalance: userRows[0]?.creditsBalance ?? 0,
+    fetchedAt: new Date(),
+  }));
+});
+
+// ─── POST /api/ash/platform-action — ASH mutating platform tool calls ──────────
+// Supported tools: update_system_status, trigger_system_rebuild, create_business_note
+
+router.post("/ai-orchestrator/platform-action", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const schema = z.object({
+    tool:   z.enum(["update_system_status", "trigger_system_rebuild", "create_business_note"]),
+    params: z.record(z.unknown()),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { tool, params } = parsed.data;
+
+  if (tool === "update_system_status") {
+    const p = z.object({
+      id:     z.number().int(),
+      status: z.enum(["active", "paused", "building", "error"]),
+    }).safeParse(params);
+    if (!p.success) { res.status(400).json({ error: p.error.message }); return; }
+
+    const [owned] = await db.select({ id: systemInstancesTable.id })
+      .from(systemInstancesTable)
+      .where(and(eq(systemInstancesTable.id, p.data.id), eq(systemInstancesTable.userId, userId)));
+    if (!owned) { res.status(404).json({ error: "System not found" }); return; }
+
+    const [updated] = await db.update(systemInstancesTable)
+      .set({ buildStatus: p.data.status, updatedAt: new Date() })
+      .where(eq(systemInstancesTable.id, p.data.id))
+      .returning({ id: systemInstancesTable.id, name: systemInstancesTable.name, buildStatus: systemInstancesTable.buildStatus });
+
+    res.json({ ok: true, tool, result: serialize(updated) });
+    return;
+  }
+
+  if (tool === "trigger_system_rebuild") {
+    const p = z.object({ id: z.number().int() }).safeParse(params);
+    if (!p.success) { res.status(400).json({ error: p.error.message }); return; }
+
+    const [owned] = await db.select({ id: systemInstancesTable.id, name: systemInstancesTable.name })
+      .from(systemInstancesTable)
+      .where(and(eq(systemInstancesTable.id, p.data.id), eq(systemInstancesTable.userId, userId)));
+    if (!owned) { res.status(404).json({ error: "System not found" }); return; }
+
+    const [updated] = await db.update(systemInstancesTable)
+      .set({ buildStatus: "building", updatedAt: new Date() })
+      .where(eq(systemInstancesTable.id, p.data.id))
+      .returning({ id: systemInstancesTable.id, name: systemInstancesTable.name, buildStatus: systemInstancesTable.buildStatus });
+
+    db.insert(systemActivityEventsTable).values({
+      systemInstanceId: p.data.id,
+      eventType:        "action",
+      description:      "ASH triggered a system rebuild via platform tools",
+      metadata:         JSON.stringify({ tool: "trigger_system_rebuild", triggeredAt: new Date().toISOString() }),
+    }).catch(() => { /* non-critical */ });
+
+    res.json({ ok: true, tool, result: serialize(updated) });
+    return;
+  }
+
+  if (tool === "create_business_note") {
+    const p = z.object({
+      businessId: z.number().int(),
+      note:       z.string().min(1).max(2000),
+    }).safeParse(params);
+    if (!p.success) { res.status(400).json({ error: p.error.message }); return; }
+
+    const [owned] = await db.select({ id: businessesTable.id, name: businessesTable.name })
+      .from(businessesTable)
+      .where(and(eq(businessesTable.id, p.data.businessId), eq(businessesTable.ownerId, userId)));
+    if (!owned) { res.status(404).json({ error: "Business not found" }); return; }
+
+    const [conn] = await db.insert(businessConnectionsTable).values({
+      businessId:  p.data.businessId,
+      type:        "note",
+      name:        "ASH Note",
+      description: p.data.note,
+      status:      "active",
+    }).returning({ id: businessConnectionsTable.id });
+
+    res.json({
+      ok:   true,
+      tool,
+      result: {
+        businessId:   p.data.businessId,
+        businessName: owned.name,
+        note:         p.data.note,
+        connectionId: conn.id,
+      },
+    });
+    return;
+  }
+
+  res.status(400).json({ error: "Unknown tool" });
 });
 
 export default router;

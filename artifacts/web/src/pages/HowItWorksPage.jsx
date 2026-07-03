@@ -317,9 +317,9 @@ const HowItWorksPage = () => {
                   <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center">
                     <BrainCircuit className="w-5 h-5 text-primary" />
                   </div>
-                  <h3 className="text-xl font-extrabold text-white">Pro & Empire</h3>
+                  <h3 className="text-xl font-extrabold text-white">Builder & Empire</h3>
                 </div>
-                <div className="text-3xl font-extrabold text-white mb-6 mt-1">From $49 <span className="text-base font-medium text-zinc-400">/ month</span></div>
+                <div className="text-3xl font-extrabold text-white mb-6 mt-1">From $29 <span className="text-base font-medium text-zinc-400">/ month</span></div>
                 <ul className="space-y-3">
                   {[
                     'Run 25–45 systems simultaneously',

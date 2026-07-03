@@ -3404,7 +3404,7 @@ const BuilderPage = () => {
 
   return (
     <AuthLayout>
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden pb-[56px] md:pb-0">
 
       {/* ── TOP BAR ─────────────────────────────────────────────────────── */}
       <div className="h-12 flex items-center justify-between px-4 border-b border-cyan-500/10 bg-[#02020c]/97 backdrop-blur-2xl shrink-0 gap-3 relative">

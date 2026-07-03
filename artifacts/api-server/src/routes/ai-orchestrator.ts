@@ -623,6 +623,17 @@ Use tools when:
 - User wants to post/send/trigger something on a connected service → connector_action (ONLY if user has connected that service)
 - General questions → just answer with action "general" (no tools needed)
 
+**CRITICAL — Direct image generation commands:**
+When the user explicitly asks you to generate, create, draw, or design an image/picture/photo/logo/graphic/banner/thumbnail — even outside of a build context — ALWAYS emit the tool_call immediately. Never just respond verbally when the user wants an actual image produced.
+Examples: "generate an image of a sunset", "create a logo for my brand", "make me a thumbnail for my video", "design a banner", "draw me a picture of X" → always emit:
+SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "image", "prompt": "detailed description of exactly what to generate"}]}
+Write a rich, detailed prompt (colors, style, mood, composition) — the quality of the generated image depends entirely on your prompt detail.
+
+**CRITICAL — Direct video generation commands:**
+When the user explicitly asks to generate or create a video clip, emit:
+SBEP_DATA: {"action": "tool_calls", "calls": [{"type": "generate_video", "prompt": "detailed scene description", "aspectRatio": "9:16", "durationSeconds": 6}]}
+Note: video generation requires HeyGen or Runway credentials in the Connections Hub. If not connected, tell the user exactly that and link them to /connections.
+
 DO NOT call tools for every response — only when genuinely useful for the user's goal.
 DO NOT call connector_action unless the user's connected credentials for that connector are available.
 

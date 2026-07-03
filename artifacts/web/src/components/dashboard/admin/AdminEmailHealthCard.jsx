@@ -112,11 +112,17 @@ const AdminEmailHealthCard = () => {
           </div>
         </div>
 
-        {testResult && (
-          <div className={`p-2 rounded-lg text-xs font-mono mb-3 ${testResult.ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-destructive/10 text-destructive'}`}>
-            {testResult.ok ? `Test sent to ${testResult.to}` : `Error: ${testResult.error}`}
-          </div>
-        )}
+        {/* Show live test result if available, otherwise show persisted last result from server */}
+        {(testResult ?? result?.lastTestResult) && (() => {
+          const t = testResult ?? result?.lastTestResult;
+          return (
+            <div className={`p-2 rounded-lg text-xs font-mono mb-3 ${t.ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-destructive/10 text-destructive'}`}>
+              {t.ok
+                ? `Last test sent to ${t.to}${t.testedAt ? ` at ${new Date(t.testedAt).toLocaleTimeString()}` : ''}`
+                : `Last test error: ${t.error}`}
+            </div>
+          );
+        })()}
 
         <div className="mt-auto flex flex-col gap-2">
           <Button variant="outline" className="w-full" onClick={checkStatus} disabled={loading}>

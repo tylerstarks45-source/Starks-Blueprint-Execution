@@ -62,9 +62,17 @@ export async function notifyOutOfCredits(userId: number, whatPaused: string): Pr
       .where(eq(usersTable.id, userId))
       .limit(1);
     if (user) {
-      sendAutomationPausedEmail(user.email, user.name ?? "", whatPaused).catch((err: unknown) => {
-        logger.warn({ err, userId }, "Automation paused email failed");
-      });
+      // sendAutomationPausedEmail resolves false (not reject) on send failure,
+      // so check the boolean result AND handle unexpected rejections.
+      sendAutomationPausedEmail(user.email, user.name ?? "", whatPaused)
+        .then((sent) => {
+          if (!sent) {
+            logger.warn({ userId }, "Automation paused email returned false — delivery likely failed");
+          }
+        })
+        .catch((err: unknown) => {
+          logger.warn({ err, userId }, "Automation paused email threw unexpectedly");
+        });
     }
   } catch (err: unknown) {
     logger.warn({ err, userId }, "Failed to look up user for automation paused email");

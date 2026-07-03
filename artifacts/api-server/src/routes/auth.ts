@@ -168,12 +168,20 @@ router.post("/auth/register", authLimiter, async (req, res) => {
     // Non-blocking — fall back to platform brand
   }
 
-  // Send emails fire-and-forget (never block the response)
-  sendEmailVerification(newUser.email, verifyRaw, wlBrandName).catch((err: unknown) => {
-    req.log.warn({ err, userId: newUser.id }, "Email verification send failed");
-  });
-  sendWelcomeEmail(newUser.email, name || "", wlBrandName).catch((err: unknown) => {
-    req.log.warn({ err, userId: newUser.id }, "Welcome email send failed");
+  // Send emails fire-and-forget (never block the response).
+  // Note: sendEmailVerification / sendWelcomeEmail resolve `false` (not reject)
+  // on send failure, so we check the boolean AND handle unexpected rejections.
+  sendEmailVerification(newUser.email, verifyRaw, wlBrandName)
+    .then((sent) => {
+      if (!sent) {
+        req.log.warn({ userId: newUser.id }, "Email verification send returned false — delivery likely failed");
+      }
+    })
+    .catch((err: unknown) => {
+      req.log.warn({ err, userId: newUser.id }, "Email verification send threw unexpectedly");
+    });
+
+  const notifyEmailFailed = (): void => {
     notifyUser({
       userId: newUser.id,
       notificationType: "warn",
@@ -182,7 +190,18 @@ router.post("/auth/register", authLimiter, async (req, res) => {
       linkUrl: "/dashboard",
       dedupeKey: `welcome_email_failed_${newUser.id}`,
     }).catch(() => {});
-  });
+  };
+  sendWelcomeEmail(newUser.email, name || "", wlBrandName)
+    .then((sent) => {
+      if (!sent) {
+        req.log.warn({ userId: newUser.id }, "Welcome email send returned false — delivery likely failed");
+        notifyEmailFailed();
+      }
+    })
+    .catch((err: unknown) => {
+      req.log.warn({ err, userId: newUser.id }, "Welcome email send threw unexpectedly");
+      notifyEmailFailed();
+    });
 
   const token = signToken(newUser.id, newUser.email, newUser.role ?? "USER");
 

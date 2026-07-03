@@ -220,11 +220,18 @@ const PricingPage = () => {
   const [loadingPack, setLoadingPack] = useState(null);
   const [showComparison, setShowComparison] = useState(false);
 
-  const isCurrentPlan = (key) => {
-    if (key === userTier) return true;
-    // normalise legacy tiers
-    if (key === 'builder' && (userTier === 'starter' || userTier === 'pro')) return true;
-    return false;
+  // Tier rank for upgrade-only gating: higher = better tier
+  const TIER_RANK = { free: 0, starter: 1, pro: 1, builder: 1, operator: 2, empire: 3 };
+
+  const canonicalTier = (t) => (t === 'starter' || t === 'pro') ? 'builder' : (t || 'free');
+  const userCanonical = canonicalTier(userTier);
+
+  const isCurrentPlan = (key) => canonicalTier(key) === userCanonical;
+
+  // Downgrade = plan rank is strictly lower than user's current rank
+  const isDowngrade = (key) => {
+    if (!currentUser) return false;
+    return (TIER_RANK[canonicalTier(key)] ?? 0) < (TIER_RANK[userCanonical] ?? 0);
   };
 
   const handlePlanSelect = async (plan) => {
@@ -440,25 +447,36 @@ const PricingPage = () => {
                       ))}
                     </ul>
 
-                    <button
-                      onClick={() => handlePlanSelect(plan)}
-                      disabled={active || !!loadingTier}
-                      className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
-                        active
-                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 cursor-default'
-                          : plan.highlight
-                          ? 'bg-blue-500 text-white hover:bg-blue-400 shadow-lg shadow-blue-500/25'
-                          : plan.key === 'empire'
-                          ? 'bg-amber-500/90 text-black hover:bg-amber-400'
-                          : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
-                      }`}
-                    >
-                      {loadingTier === plan.key
-                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting…</>
-                        : active
-                        ? '✓ Current Plan'
-                        : <>{plan.cta} <ArrowRight className="w-4 h-4" /></>}
-                    </button>
+                    {(() => {
+                      const downgrade = isDowngrade(plan.key);
+                      const disabled = active || downgrade || !!loadingTier;
+                      return (
+                        <button
+                          onClick={() => !downgrade && handlePlanSelect(plan)}
+                          disabled={disabled}
+                          title={downgrade ? 'Downgrades are not available — contact support if needed' : undefined}
+                          className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                            active
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 cursor-default'
+                              : downgrade
+                              ? 'bg-white/4 text-white/25 border border-white/10 cursor-not-allowed'
+                              : plan.highlight
+                              ? 'bg-blue-500 text-white hover:bg-blue-400 shadow-lg shadow-blue-500/25'
+                              : plan.key === 'empire'
+                              ? 'bg-amber-500/90 text-black hover:bg-amber-400'
+                              : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
+                          }`}
+                        >
+                          {loadingTier === plan.key
+                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting…</>
+                            : active
+                            ? '✓ Current Plan'
+                            : downgrade
+                            ? 'Not available'
+                            : <>{plan.cta} <ArrowRight className="w-4 h-4" /></>}
+                        </button>
+                      );
+                    })()}
                   </motion.div>
                 );
               })}

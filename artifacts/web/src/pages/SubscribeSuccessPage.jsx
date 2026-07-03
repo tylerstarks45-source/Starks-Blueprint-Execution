@@ -35,8 +35,6 @@ export default function SubscribeSuccessPage() {
   const { currentUser } = useAuth();
   const tierParam = searchParams.get('tier') ?? 'builder';
   const tier = TIER_LABELS[tierParam] ? tierParam : 'builder';
-  const config = TIER_LABELS[tier];
-  const steps = NEXT_STEPS[tier] ?? NEXT_STEPS.builder;
 
   const [confirmedTier, setConfirmedTier] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -55,8 +53,10 @@ export default function SubscribeSuccessPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const displayTier = confirmedTier ?? tierParam;
-  const displayConfig = TIER_LABELS[displayTier] ?? config;
+  // Use confirmed tier from API as authoritative; fall back to URL param while loading
+  const displayTier = (confirmedTier && TIER_LABELS[confirmedTier]) ? confirmedTier : tier;
+  const displayConfig = TIER_LABELS[displayTier];
+  const steps = NEXT_STEPS[displayTier] ?? NEXT_STEPS.builder;
 
   return (
     <VideoBackground>

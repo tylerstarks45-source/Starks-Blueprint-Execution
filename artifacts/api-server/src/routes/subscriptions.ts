@@ -248,7 +248,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
       // If we still have no userId after all resolution attempts and this was a real
       // (non-$0) charge, proactively alert all SUPER_ADMIN users so they can manually
       // provision the customer before a chargeback or support ticket arrives.
-      if (!userId && amountTotal > 0) {
+      if (!userId && amountTotal > 0 && session.payment_status === "paid") {
         const emailPart = resolvedStripeEmail ? ` (${resolvedStripeEmail})` : "";
         req.log.warn(
           { customerId, email: resolvedStripeEmail, amountTotal, sessionId: session.id },

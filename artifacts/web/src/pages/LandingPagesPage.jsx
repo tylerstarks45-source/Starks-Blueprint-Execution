@@ -5,7 +5,7 @@ import AuthLayout from '@/components/AuthLayout.jsx';
 import {
   Globe, Plus, Eye, Trash2, ExternalLink, Copy, Check, ChevronRight,
   LayoutTemplate, Sparkles, Share2, TrendingUp, MoreHorizontal, AlertCircle,
-  RefreshCw, FileCode, Zap, Lock, Unlock, BarChart3, PenTool,
+  RefreshCw, FileCode, Zap, Lock, Unlock, BarChart3, PenTool, Code2,
 } from 'lucide-react';
 
 const API = '/api';
@@ -23,7 +23,7 @@ function useApi() {
   return { get, post, patch, del };
 }
 
-function PageCard({ page, onEdit, onDelete, onPublishToggle, onPreview, copied, onCopy, onCanvas }) {
+function PageCard({ page, onEdit, onDelete, onPublishToggle, onPreview, copied, onCopy, onCanvas, onEditHtml }) {
   const publicUrl = `${window.location.origin}/api/pages/${page.slug}`;
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -82,13 +82,15 @@ function PageCard({ page, onEdit, onDelete, onPublishToggle, onPreview, copied, 
                 <div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-white/12 bg-[#111] shadow-2xl py-1" onMouseLeave={() => setMenuOpen(false)}>
                   {[
                     { icon: PenTool, label: 'Canvas Editor', onClick: () => { onCanvas(page); setMenuOpen(false); }, className: 'text-violet-400' },
+                    { icon: FileCode, label: 'Edit HTML', onClick: () => { onEditHtml(page); setMenuOpen(false); }, className: page.htmlContent ? 'text-amber-400/80' : 'text-white/40', disabled: !page.htmlContent },
                     { icon: Eye, label: 'Preview', onClick: () => { onPreview(page); setMenuOpen(false); } },
                     { icon: Sparkles, label: page.htmlContent ? 'Regenerate with ASH' : 'Generate with ASH', onClick: () => { onEdit(page); setMenuOpen(false); } },
                     { icon: page.isPublished ? Lock : Unlock, label: page.isPublished ? 'Unpublish' : 'Publish', onClick: () => { onPublishToggle(page); setMenuOpen(false); } },
                     { icon: Trash2, label: 'Delete', onClick: () => { onDelete(page); setMenuOpen(false); }, className: 'text-red-400/70' },
                   ].map(item => (
-                    <button key={item.label} onClick={item.onClick}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-[11px] text-white/55 hover:text-white hover:bg-white/5 transition-colors ${item.className ?? ''}`}>
+                    <button key={item.label} onClick={item.disabled ? undefined : item.onClick}
+                      disabled={item.disabled}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-[11px] text-white/55 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-white/55 ${item.className ?? ''}`}>
                       <item.icon className="w-3.5 h-3.5" />{item.label}
                     </button>
                   ))}
@@ -279,6 +281,93 @@ function GenerateModal({ page, onClose, onGenerated }) {
   );
 }
 
+function EditHtmlModal({ page, onClose, onSaved }) {
+  const [html, setHtml] = useState(page.htmlContent || '');
+  const [preview, setPreview] = useState(page.htmlContent || '');
+  const [activeTab, setActiveTab] = useState('editor');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const api = useApi();
+  const previewTimer = useRef(null);
+
+  function handleChange(e) {
+    const val = e.target.value;
+    setHtml(val);
+    clearTimeout(previewTimer.current);
+    previewTimer.current = setTimeout(() => setPreview(val), 600);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setError('');
+    try {
+      const result = await api.patch(`/landing-pages/${page.id}`, { htmlContent: html });
+      if (result.error) { setError(result.error); return; }
+      onSaved(result);
+    } catch {
+      setError('Failed to save. Please try again.');
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0a]">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-[#111] border-b border-white/8 shrink-0">
+        <div className="flex items-center gap-3">
+          <Code2 className="w-4 h-4 text-violet-400" />
+          <span className="text-sm font-bold text-white">Edit HTML — {page.title}</span>
+          <div className="flex items-center gap-1 ml-2">
+            {['editor', 'preview', 'split'].map(t => (
+              <button key={t} onClick={() => setActiveTab(t)}
+                className={`h-6 px-2.5 rounded text-[10px] font-mono transition-colors capitalize ${activeTab === t ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30' : 'text-white/35 hover:text-white/60'}`}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {error && <span className="text-[11px] text-red-400 font-mono">{error}</span>}
+          <button onClick={onClose} className="h-7 px-3 text-[11px] font-mono text-white/40 hover:text-white bg-white/5 rounded-lg transition-colors">Cancel</button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-1.5 h-7 px-3 text-[11px] font-mono text-white bg-violet-600 hover:bg-violet-500 rounded-lg transition-colors disabled:opacity-50">
+            {saving ? <><RefreshCw className="w-3 h-3 animate-spin" /> Saving...</> : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-hidden flex">
+        {(activeTab === 'editor' || activeTab === 'split') && (
+          <div className={`flex flex-col ${activeTab === 'split' ? 'w-1/2 border-r border-white/8' : 'w-full'}`}>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0d0d0d] border-b border-white/6 shrink-0">
+              <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest">HTML Editor</span>
+              <span className="text-[9px] font-mono text-white/20">{html.length.toLocaleString()} chars</span>
+            </div>
+            <textarea
+              value={html}
+              onChange={handleChange}
+              spellCheck={false}
+              className="flex-1 w-full p-4 bg-[#0a0a0a] text-[12px] text-green-300/80 font-mono resize-none focus:outline-none leading-relaxed"
+              placeholder="<!-- Paste or type your HTML here -->"
+            />
+          </div>
+        )}
+        {(activeTab === 'preview' || activeTab === 'split') && (
+          <div className={`flex flex-col ${activeTab === 'split' ? 'w-1/2' : 'w-full'}`}>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0d0d0d] border-b border-white/6 shrink-0">
+              <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest">Live Preview</span>
+              {activeTab === 'editor' && <span className="text-[9px] font-mono text-violet-400/50">updates 600ms after typing</span>}
+            </div>
+            {preview
+              ? <iframe srcDoc={preview} className="flex-1 w-full border-0 bg-white" title="HTML Preview" sandbox="allow-scripts allow-same-origin" />
+              : <div className="flex-1 flex items-center justify-center text-white/20 font-mono text-xs">No content to preview</div>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PreviewModal({ page, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm">
@@ -316,6 +405,7 @@ export default function LandingPagesPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [generatePage, setGeneratePage] = useState(null);
+  const [editHtmlPage, setEditHtmlPage] = useState(null);
   const [previewPage, setPreviewPage] = useState(null);
   const [copied, setCopied] = useState(null);
 
@@ -411,6 +501,7 @@ export default function LandingPagesPage() {
                 copied={copied}
                 onCopy={handleCopy}
                 onCanvas={(p) => navigate(`/landing-pages/${p.id}/canvas`)}
+                onEditHtml={(p) => setEditHtmlPage(p)}
               />
             ))}
             {/* Add new card */}
@@ -445,6 +536,7 @@ export default function LandingPagesPage() {
 
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreate={p => { setPages(ps => [p, ...ps]); setShowCreate(false); setGeneratePage(p); }} />}
       {generatePage && <GenerateModal page={generatePage} onClose={() => setGeneratePage(null)} onGenerated={p => { setPages(ps => ps.map(x => x.id === p.id ? p : x)); setGeneratePage(null); }} />}
+      {editHtmlPage && <EditHtmlModal page={editHtmlPage} onClose={() => setEditHtmlPage(null)} onSaved={p => { setPages(ps => ps.map(x => x.id === p.id ? p : x)); setEditHtmlPage(null); }} />}
       {previewPage && <PreviewModal page={previewPage} onClose={() => setPreviewPage(null)} />}
     </AuthLayout>
   );

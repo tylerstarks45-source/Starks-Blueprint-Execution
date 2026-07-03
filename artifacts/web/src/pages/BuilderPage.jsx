@@ -7,7 +7,7 @@ import {
   Cpu, Play, ExternalLink, ArrowLeft, Grid3x3,
   MessageSquare, Sparkles, Clock, DollarSign, RotateCcw,
   Brain, Gauge, Target, Building2, TrendingUp, X,
-  PlusCircle, Rocket, ShoppingCart, Users, Layers,
+  Plus, PlusCircle, Rocket, ShoppingCart, Users, Layers,
   Megaphone, Cog, Wand2, FlaskConical, Globe,
   Folder, FolderOpen, FileText, FileJson2, Circle, Server,
   AlertTriangle, CheckCircle, PlayCircle, PauseCircle, BookOpen, Save,
@@ -358,6 +358,10 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, o
   const [selectedAlts, setSelectedAlts] = useState({});
   // expandedAlt: slotKey currently showing the picker, or null
   const [expandedAlt, setExpandedAlt] = useState(null);
+  // expandingCustom: slotKey currently showing the custom-tool entry form, or null
+  const [expandingCustom, setExpandingCustom] = useState(null);
+  // customInputs: {[slotKey]: {toolName, label}} — live values while user types
+  const [customInputs, setCustomInputs] = useState({});
 
   // Returns the active credential definition for a slot (ASH's rec or chosen alternative)
   const getActiveCred = (cred) => selectedAlts[cred.key] ?? cred;
@@ -404,9 +408,25 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, o
 
   const selectAlternative = (slotKey, alt) => {
     setSelectedAlts(s => ({ ...s, [slotKey]: alt }));
-    // Clear the value for the slot so the user enters the new tool's key
     setValues(v => ({ ...v, [slotKey]: '' }));
     setExpandedAlt(null);
+    setExpandingCustom(null);
+  };
+
+  const confirmCustomTool = (slotKey) => {
+    const ci = customInputs[slotKey] || {};
+    if (!ci.toolName?.trim()) return;
+    const customAlt = {
+      key: slotKey,
+      label: (ci.label || 'API Key').trim(),
+      toolName: ci.toolName.trim(),
+      description: ci.description?.trim() || '',
+      isCustom: true,
+    };
+    setSelectedAlts(s => ({ ...s, [slotKey]: customAlt }));
+    setValues(v => ({ ...v, [slotKey]: '' }));
+    setExpandedAlt(null);
+    setExpandingCustom(null);
   };
 
   return (
@@ -506,11 +526,78 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, o
                     );
                   })}
 
-                  {/* If no alternatives from ASH, show an informational note */}
-                  {alternatives.length === 0 && (
-                    <p className="text-[10px] text-white/25 font-mono px-1 py-1">
-                      No pre-configured alternatives for this tool. Ask ASH to update the plan with a different tool if you prefer one.
-                    </p>
+                  {/* Divider */}
+                  {alternatives.length > 0 && (
+                    <div className="border-t border-white/6 my-1" />
+                  )}
+
+                  {/* ── Custom tool entry ──────────────────────────── */}
+                  {expandingCustom !== cred.key ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExpandingCustom(cred.key);
+                        setCustomInputs(ci => ({ ...ci, [cred.key]: ci[cred.key] || { toolName: '', label: '', description: '' } }));
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-all flex items-center gap-2 ${
+                        selectedAlts[cred.key]?.isCustom
+                          ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                          : 'border-dashed border-white/12 bg-white/2 text-white/40 hover:bg-white/5 hover:text-white/65 hover:border-white/20'
+                      }`}
+                    >
+                      <Plus className="w-3 h-3 shrink-0" />
+                      {selectedAlts[cred.key]?.isCustom
+                        ? <><span className="font-semibold">{selectedAlts[cred.key].toolName}</span><span className="opacity-55 ml-1">custom tool</span><CheckCircle2 className="w-2.5 h-2.5 ml-auto text-amber-400" /></>
+                        : <span>Use a custom tool…</span>
+                      }
+                    </button>
+                  ) : (
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
+                      <p className="text-[10px] text-amber-400/70 font-mono uppercase tracking-wider mb-1">
+                        Enter your custom tool
+                      </p>
+                      <input
+                        type="text"
+                        placeholder="Tool name  (e.g. My AI Platform)"
+                        value={customInputs[cred.key]?.toolName || ''}
+                        onChange={e => setCustomInputs(ci => ({ ...ci, [cred.key]: { ...(ci[cred.key] || {}), toolName: e.target.value } }))}
+                        className="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-amber-500/40 font-mono"
+                        autoComplete="off"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Credential label  (e.g. API Key)"
+                        value={customInputs[cred.key]?.label || ''}
+                        onChange={e => setCustomInputs(ci => ({ ...ci, [cred.key]: { ...(ci[cred.key] || {}), label: e.target.value } }))}
+                        className="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-amber-500/40 font-mono"
+                        autoComplete="off"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Where to get it  (optional)"
+                        value={customInputs[cred.key]?.description || ''}
+                        onChange={e => setCustomInputs(ci => ({ ...ci, [cred.key]: { ...(ci[cred.key] || {}), description: e.target.value } }))}
+                        className="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-amber-500/40 font-mono"
+                        autoComplete="off"
+                      />
+                      <div className="flex gap-2 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => confirmCustomTool(cred.key)}
+                          disabled={!(customInputs[cred.key]?.toolName || '').trim()}
+                          className="flex-1 h-7 flex items-center justify-center gap-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 text-[11px] font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <CheckCircle2 className="w-3 h-3" /> Use this tool
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExpandingCustom(null)}
+                          className="px-3 h-7 rounded-lg bg-white/4 hover:bg-white/8 border border-white/8 text-white/40 text-[11px] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

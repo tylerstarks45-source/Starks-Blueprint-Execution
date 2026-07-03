@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Coins, Zap, Crown, Building2, Gift, Check, ArrowLeft,
   TrendingUp, Star, Flame, Shield, Clock,
-  ChevronRight, Loader2, BarChart2, Wallet, Sparkles, DollarSign,
+  ChevronRight, Loader2, BarChart2, Wallet, Sparkles, DollarSign, Settings,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AuthLayout from '@/components/AuthLayout.jsx';
@@ -215,6 +215,7 @@ const CreditsPage = () => {
   const [loadingKey, setLoadingKey] = useState(null);
   const [customDollars, setCustomDollars] = useState('');
   const [customLoading, setCustomLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -306,6 +307,23 @@ const CreditsPage = () => {
       toast.error('Could not connect to payment provider. Please try again.');
     } finally {
       setLoadingKey(null);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setPortalLoading(true);
+    try {
+      const resp = await fetch('/api/subscriptions/portal', {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { toast.error(data.error || 'Failed to open billing portal'); return; }
+      if (data.url) window.location.href = data.url;
+    } catch {
+      toast.error('Could not connect to billing portal. Please try again.');
+    } finally {
+      setPortalLoading(false);
     }
   };
 
@@ -571,12 +589,27 @@ const CreditsPage = () => {
 
         {/* ── Subscription Plans ──────────────────────────────────────────────── */}
         <div className={`${PANEL} p-5 mb-6`}>
-          <div className="mb-5">
-            <h2 className="text-base font-bold text-white uppercase tracking-widest font-mono"
-              style={{ textShadow: '0 0 10px rgba(0,0,0,0.9)' }}>
-              Subscription Plans
-            </h2>
-            <p className="text-xs text-white/40 font-mono mt-0.5">Monthly credits that reset every billing cycle · cancel anytime</p>
+          <div className="flex items-start justify-between gap-4 mb-5 flex-wrap">
+            <div>
+              <h2 className="text-base font-bold text-white uppercase tracking-widest font-mono"
+                style={{ textShadow: '0 0 10px rgba(0,0,0,0.9)' }}>
+                Subscription Plans
+              </h2>
+              <p className="text-xs text-white/40 font-mono mt-0.5">Monthly credits that reset every billing cycle · cancel anytime</p>
+            </div>
+            {tier !== 'free' && (
+              <button
+                onClick={handleManageBilling}
+                disabled={portalLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-sm font-mono text-white/70 hover:text-white transition-all disabled:opacity-50 shrink-0"
+              >
+                {portalLoading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Opening…</>
+                ) : (
+                  <><Settings className="w-4 h-4" /> Manage Billing</>
+                )}
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

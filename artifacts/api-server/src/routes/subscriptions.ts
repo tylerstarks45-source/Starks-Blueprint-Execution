@@ -514,6 +514,42 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
   }
 });
 
+// POST /api/subscriptions/portal — create a Stripe Customer Portal session
+router.post("/subscriptions/portal", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const [sub] = await db
+    .select()
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.userId, userId));
+
+  if (!sub?.stripeCustomerId) {
+    res.status(404).json({ error: "No active subscription found. Upgrade to a paid plan first." });
+    return;
+  }
+
+  try {
+    const stripe = await getUncachableStripeClient();
+
+    const domain = process.env.REPLIT_DOMAINS?.split(",")[0];
+    const returnUrl = domain ? `https://${domain}/credits` : "http://localhost:80/credits";
+
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: sub.stripeCustomerId,
+      return_url: returnUrl,
+    });
+
+    res.json({ url: portalSession.url });
+  } catch (err: any) {
+    req.log.error({ err }, "Stripe billing portal error");
+    const msg = err?.code === "resource_missing"
+      ? "Billing portal is not configured in your Stripe dashboard. Enable it at dashboard.stripe.com/settings/billing/portal."
+      : "Failed to open billing portal. Please try again.";
+    res.status(500).json({ error: msg });
+  }
+});
+
 // GET /api/subscriptions/publishable-key — for client-side Stripe.js
 router.get("/subscriptions/publishable-key", async (_req, res): Promise<void> => {
   try {

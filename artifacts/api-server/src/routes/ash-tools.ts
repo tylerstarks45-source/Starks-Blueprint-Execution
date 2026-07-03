@@ -446,18 +446,25 @@ router.get("/ai-orchestrator/platform-context", async (req, res): Promise<void> 
 
   const storedKeySet = new Set(credRows.map((r) => r.credentialKey));
   const socialAccounts = SOCIAL_PLATFORM_KEYS
-    .filter((p) => storedKeySet.has(p.key))
-    .map((p) => ({ name: p.name, key: p.key }));
+    .map((p) => ({
+      platform:  p.name,
+      username:  null,         // key-based auth, no username available
+      connected: storedKeySet.has(p.key),
+    }))
+    .filter((a) => a.connected);
 
   res.json(serialize({
     systems,
     businesses,
     domains,
-    landingPages: pages,
-    emailSequences: sequences,
+    landingPages:       pages,
+    landingPageCount:   pages.length,
+    emailSequences:     sequences,
+    emailSequenceCount: sequences.length,
     socialAccounts,
-    creditsBalance: userRows[0]?.creditsBalance ?? 0,
-    fetchedAt: new Date(),
+    creditBalance:      userRows[0]?.creditsBalance ?? 0,
+    creditsBalance:     userRows[0]?.creditsBalance ?? 0,
+    fetchedAt:          new Date(),
   }));
 });
 

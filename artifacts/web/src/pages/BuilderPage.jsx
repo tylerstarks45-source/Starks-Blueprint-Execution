@@ -2832,6 +2832,33 @@ const BuilderPage = () => {
       } else if (action === 'start_build' && sd?.blueprint && !isPlanMode) {
         setPendingPlanData(null);
         await executeBuild({}, sd.blueprint, sd.systemName ?? '');
+      } else if (action === 'platform_action' && sd?.tool) {
+        // Top-level platform_action SBEP_DATA (fallback — prompt instructs tool_calls format, but handle both)
+        const toolMsgId = Date.now() + Math.random();
+        setMessages(prev => [...prev, {
+          id: toolMsgId, role: 'assistant', type: 'tool_call',
+          tool: 'platform', label: `Executing: ${(sd.tool || '').replace(/_/g, ' ')}…`, ts: Date.now(),
+        }]);
+        try {
+          const res = await fetch('/api/ash/platform-action', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ tool: sd.tool, params: sd.params || {} }),
+          });
+          const data = await res.json();
+          setMessages(prev => prev.map(m => m.id === toolMsgId ? {
+            ...m, type: 'platform_action',
+            data: { ...data, summary: sd.summary },
+            tool: undefined, label: undefined,
+          } : m));
+          setPlatformContextRefreshKey(k => k + 1);
+        } catch (err) {
+          setMessages(prev => prev.map(m => m.id === toolMsgId ? {
+            ...m, type: 'platform_action',
+            data: { ok: false, tool: sd.tool, error: err?.message || 'Network error' },
+            tool: undefined, label: undefined,
+          } : m));
+        }
       } else if (action === 'browser_use' && sd?.startUrl) {
         setActiveBrowser({ task: sd.task ?? 'Browse the web', startUrl: sd.startUrl, msgId: Date.now() });
       } else if (action === 'tool_calls' && Array.isArray(sd?.calls)) {
@@ -5053,9 +5080,9 @@ const BuilderPage = () => {
                   {/* Stats strip */}
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { label: 'Pages', value: platformContext.landingPageCount ?? 0, icon: LayoutTemplate },
-                      { label: 'Sequences', value: platformContext.emailSequenceCount ?? 0, icon: Mail },
-                      { label: 'Credits', value: platformContext.creditBalance ?? 0, icon: Zap },
+                      { label: 'Pages', value: platformContext.landingPageCount ?? platformContext.landingPages?.length ?? 0, icon: LayoutTemplate },
+                      { label: 'Sequences', value: platformContext.emailSequenceCount ?? platformContext.emailSequences?.length ?? 0, icon: Mail },
+                      { label: 'Credits', value: platformContext.creditBalance ?? platformContext.creditsBalance ?? 0, icon: Zap },
                     ].map(({ label, value, icon: Icon }) => (
                       <div key={label} className="rounded-lg border border-white/8 bg-black/20 p-2 flex flex-col items-center gap-1">
                         <Icon className="w-3 h-3 text-white/22" />

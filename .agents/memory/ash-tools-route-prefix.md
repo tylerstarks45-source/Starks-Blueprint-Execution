@@ -21,4 +21,4 @@ This rewrites all `/api/ash/*` requests to `/api/ai-orchestrator/*` before the E
 **How to apply:**
 - When adding a route to `ash-tools.ts`, register it as `router.post("/ai-orchestrator/my-route", ...)` not `router.post("/ash/my-route", ...)`.
 - Frontend can call it as either `/api/ash/my-route` (gets rewritten) or `/api/ai-orchestrator/my-route` (direct).
-- The existing routes in `ash-tools.ts` all use `/ai-orchestrator/` since the bug fix applied in Task #300.
+- All routes in `ash-tools.ts` use `/ai-orchestrator/` prefix.

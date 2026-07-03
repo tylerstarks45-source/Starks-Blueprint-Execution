@@ -1095,7 +1095,11 @@ Businesses: ${platformBusinesses.length}${platformBusinesses.length > 0 ? ` — 
 Domains: ${platformDomains.length}${platformDomains.length > 0 ? ` — ${platformDomains.map((d) => d.domain).join(", ")}` : " — none yet"}
 Landing Pages: ${platformPages.length} total, ${publishedPageCount} published
 Email Sequences: ${platformSeqs.length}${platformSeqs.length > 0 ? ` (${platformSeqs.filter((s) => s.status === "active").length} active)` : ""}
-Use this context to give proactive, personalised advice. Reference the user's actual assets when relevant — e.g. "I can see you already have the [System Name] running" or "you've built ${platformPages.length} pages so far". For mutating actions (pause/activate a system, trigger rebuild, add a note), you MUST emit an SBEP_DATA block with action "platform_action" and include: tool (update_system_status|trigger_system_rebuild|create_business_note), params (id/businessId/note/status), and a plain-language summary.`;
+Use this context to give proactive, personalised advice. Reference the user's actual assets when relevant — e.g. "I can see you already have the [System Name] running" or "you've built ${platformPages.length} pages so far".
+For mutating actions (pause/activate a system, trigger rebuild, add a business note), emit an SBEP_DATA block with:
+  action: "tool_calls"
+  calls: [{ type: "platform_action", tool: "<update_system_status|trigger_system_rebuild|create_business_note>", params: { id?: <systemId>, businessId?: <businessId>, status?: "active"|"paused", note?: "<text>" }, summary: "<one-sentence human description of what you did>" }]
+Do NOT invent IDs — only use exact integer IDs from the Platform Overview above.`;
 
     const historyCtx = parsed.data.history.length > 0
       ? "\n\nConversation so far:\n" +

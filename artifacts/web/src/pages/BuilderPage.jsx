@@ -344,6 +344,7 @@ const BlueprintCard = ({ bp, selected, onSelect }) => {
 
 // ─── Credential Form ──────────────────────────────────────────────────────────
 const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, onValuesChange }) => {
+  // values keyed by slot key (original cred.key) for stable tracking
   const [values, setValues] = useState(() => {
     const init = {};
     credentials.forEach(c => {
@@ -353,6 +354,24 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, o
   });
   const [revealed, setRevealed] = useState({});
   const [attempted, setAttempted] = useState(false);
+  // selectedAlts: {[slotKey]: altCredObject | null}  — null = use ASH's pick
+  const [selectedAlts, setSelectedAlts] = useState({});
+  // expandedAlt: slotKey currently showing the picker, or null
+  const [expandedAlt, setExpandedAlt] = useState(null);
+
+  // Returns the active credential definition for a slot (ASH's rec or chosen alternative)
+  const getActiveCred = (cred) => selectedAlts[cred.key] ?? cred;
+
+  // Build the resolved values object to submit — keyed by the ACTIVE credential's key
+  const buildSubmitValues = (vals, alts) => {
+    const out = {};
+    credentials.forEach(cred => {
+      const active = (alts ?? selectedAlts)[cred.key] ?? cred;
+      const val = vals[cred.key];
+      if (val) out[active.key] = val;
+    });
+    return out;
+  };
 
   // Re-init when prefill arrives
   useEffect(() => {
@@ -366,12 +385,28 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, o
     });
   }, [prefill]);
 
-  const allFilled = credentials.every(c => (values[c.key] || '').trim().length > 0);
+  // Notify parent of current (slot-keyed) values so the status bar can check readiness
+  useEffect(() => {
+    onValuesChange?.(values);
+  }, [values]);
+
+  const allFilled = credentials.every(c => {
+    const active = getActiveCred(c);
+    const isRequired = active.required !== false;
+    return !isRequired || (values[c.key] || '').trim().length > 0;
+  });
 
   const handleSubmit = () => {
     setAttempted(true);
     if (!allFilled) return;
-    onExecute(values);
+    onExecute(buildSubmitValues(values, selectedAlts));
+  };
+
+  const selectAlternative = (slotKey, alt) => {
+    setSelectedAlts(s => ({ ...s, [slotKey]: alt }));
+    // Clear the value for the slot so the user enters the new tool's key
+    setValues(v => ({ ...v, [slotKey]: '' }));
+    setExpandedAlt(null);
   };
 
   return (
@@ -385,59 +420,146 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, o
           {credentials.length} {credentials.length === 1 ? 'credential' : 'credentials'}
         </Badge>
       </div>
-      <div className="p-4 space-y-3">
+
+      <div className="p-4 space-y-5">
         {credentials.map(cred => {
+          const active = getActiveCred(cred);
+          const isCustomized = !!selectedAlts[cred.key];
+          const showAltPicker = expandedAlt === cred.key;
+          const alternatives = Array.isArray(cred.alternatives) ? cred.alternatives : [];
           const isEmpty = !(values[cred.key] || '').trim();
-          const isRequired = cred.required !== false;
+          const isRequired = active.required !== false;
           const showError = attempted && isRequired && isEmpty;
+
           return (
-            <div key={cred.key}>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-foreground">
-                  {cred.label}
-                  {isRequired && <span className="text-rose-400 ml-1">*</span>}
-                </label>
-                <span className="text-[10px] text-muted-foreground/60 font-mono">{cred.toolName}</span>
-              </div>
-              <div className="relative">
-                <input
-                  type={revealed[cred.key] ? 'text' : 'password'}
-                  value={values[cred.key] || ''}
-                  onChange={e => setValues(v => {
-                    const next = { ...v, [cred.key]: e.target.value };
-                    onValuesChange?.(next);
-                    return next;
-                  })}
-                  placeholder={`Enter ${cred.label}`}
-                  className={`w-full text-sm bg-white/5 border rounded-lg px-3 py-2 pr-9 text-foreground placeholder:text-muted-foreground/30 focus:outline-none transition-all font-mono ${
-                    showError
-                      ? 'border-rose-500/60 bg-rose-500/5 focus:border-rose-500'
-                      : 'border-white/10 focus:border-primary/50 focus:bg-white/8'
-                  }`}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                />
+            <div key={cred.key} className="space-y-2">
+
+              {/* ── Tool header row ─────────────────────────────────── */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 min-w-0">
+                  {isCustomized ? (
+                    <span className="flex items-center gap-1 text-[10px] font-mono bg-cyan-500/12 border border-cyan-500/25 text-cyan-400 px-2 py-0.5 rounded-full whitespace-nowrap">
+                      <CheckCircle2 className="w-2.5 h-2.5 shrink-0" />
+                      Using: {active.toolName}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[10px] font-mono bg-primary/10 border border-primary/22 text-primary/80 px-2 py-0.5 rounded-full whitespace-nowrap">
+                      <Wand2 className="w-2.5 h-2.5 shrink-0" />
+                      ASH recommends: {cred.toolName}
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
-                  onClick={() => setRevealed(r => ({ ...r, [cred.key]: !r[cred.key] }))}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                  onClick={() => setExpandedAlt(showAltPicker ? null : cred.key)}
+                  className="flex items-center gap-1 text-[10px] font-mono text-white/35 hover:text-cyan-400 transition-colors shrink-0"
                 >
-                  {revealed[cred.key] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  {showAltPicker
+                    ? <><X className="w-2.5 h-2.5" /> Cancel</>
+                    : <><RefreshCw className="w-2.5 h-2.5" /> Use a different tool</>
+                  }
                 </button>
               </div>
-              {showError && (
-                <p className="text-[10px] text-rose-400 mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-2.5 h-2.5" /> This field is required
-                </p>
+
+              {/* ── Alternative tool picker ─────────────────────────── */}
+              {showAltPicker && (
+                <div className="rounded-lg border border-white/8 bg-white/3 p-3 space-y-1.5">
+                  <p className="text-[10px] text-white/35 font-mono mb-2 uppercase tracking-wider">
+                    Choose a tool for this function:
+                  </p>
+
+                  {/* ASH's recommendation */}
+                  <button
+                    type="button"
+                    onClick={() => selectAlternative(cred.key, null)}
+                    className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-all ${
+                      !isCustomized
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-white/8 bg-white/3 text-white/55 hover:bg-white/6 hover:text-white/80'
+                    }`}
+                  >
+                    <span className="font-semibold">{cred.toolName}</span>
+                    <span className="text-[10px] ml-2 opacity-55">ASH's recommendation</span>
+                    {!isCustomized && <CheckCircle2 className="w-2.5 h-2.5 inline ml-2 text-primary" />}
+                  </button>
+
+                  {/* Available alternatives */}
+                  {alternatives.map(alt => {
+                    const isSelected = selectedAlts[cred.key]?.key === alt.key;
+                    return (
+                      <button
+                        key={alt.key}
+                        type="button"
+                        onClick={() => selectAlternative(cred.key, alt)}
+                        className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-all ${
+                          isSelected
+                            ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300'
+                            : 'border-white/8 bg-white/3 text-white/55 hover:bg-white/6 hover:text-white/80'
+                        }`}
+                      >
+                        <span className="font-semibold">{alt.toolName}</span>
+                        {alt.description && (
+                          <span className="text-[10px] ml-2 opacity-50">{alt.description}</span>
+                        )}
+                        {isSelected && <CheckCircle2 className="w-2.5 h-2.5 inline ml-2 text-cyan-400" />}
+                      </button>
+                    );
+                  })}
+
+                  {/* If no alternatives from ASH, show an informational note */}
+                  {alternatives.length === 0 && (
+                    <p className="text-[10px] text-white/25 font-mono px-1 py-1">
+                      No pre-configured alternatives for this tool. Ask ASH to update the plan with a different tool if you prefer one.
+                    </p>
+                  )}
+                </div>
               )}
-              {cred.description && !showError && (
-                <p className="text-[11px] text-muted-foreground/50 mt-1">{cred.description}</p>
-              )}
+
+              {/* ── Credential input ────────────────────────────────── */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-foreground">
+                    {active.label}
+                    {isRequired && <span className="text-rose-400 ml-1">*</span>}
+                  </label>
+                </div>
+                <div className="relative">
+                  <input
+                    type={revealed[cred.key] ? 'text' : 'password'}
+                    value={values[cred.key] || ''}
+                    onChange={e => setValues(v => ({ ...v, [cred.key]: e.target.value }))}
+                    placeholder={`Enter ${active.label}`}
+                    className={`w-full text-sm bg-white/5 border rounded-lg px-3 py-2 pr-9 text-foreground placeholder:text-muted-foreground/30 focus:outline-none transition-all font-mono ${
+                      showError
+                        ? 'border-rose-500/60 bg-rose-500/5 focus:border-rose-500'
+                        : 'border-white/10 focus:border-primary/50 focus:bg-white/8'
+                    }`}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setRevealed(r => ({ ...r, [cred.key]: !r[cred.key] }))}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                  >
+                    {revealed[cred.key] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                {showError && (
+                  <p className="text-[10px] text-rose-400 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-2.5 h-2.5" /> This field is required
+                  </p>
+                )}
+                {active.description && !showError && (
+                  <p className="text-[11px] text-muted-foreground/50 mt-1">{active.description}</p>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
       <div className="px-4 pb-4">
         <Button
           className="w-full h-10 gap-2 font-semibold text-sm"

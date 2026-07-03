@@ -439,7 +439,10 @@ For presenting a build plan (PHASE 1 — first response to a build goal):
       "label": "Tool API Key",
       "description": "Get this from Tool Dashboard → Settings → API Keys → Create New",
       "credentialType": "api_key",
-      "toolName": "Tool Name"
+      "toolName": "Tool Name",
+      "alternatives": [
+        { "key": "ALT_TOOL_API_KEY", "label": "Alt Tool API Key", "toolName": "Alt Tool Name", "description": "Brief note on how this alternative differs or where to get the key" }
+      ]
     }
   ]
 }
@@ -457,11 +460,24 @@ For collecting credentials (PHASE 2 — after user confirms plan):
       "label": "Tool API Key",
       "description": "Get this from Tool Dashboard → Settings → API Keys",
       "credentialType": "api_key",
-      "toolName": "Tool Name"
+      "toolName": "Tool Name",
+      "alternatives": [
+        { "key": "ALT_TOOL_API_KEY", "label": "Alt Tool API Key", "toolName": "Alt Tool Name", "description": "Brief note on this alternative" }
+      ]
     }
   ]
 }
 </SBEP_DATA>
+
+IMPORTANT — alternatives field:
+Include "alternatives" on each credential whenever the user could reasonably substitute a different tool for the same function. Examples:
+- AI text/chat → recommend OpenAI, alternatives: Claude (anthropic_api_key), Gemini (gemini_api_key)
+- Email marketing → recommend Mailchimp, alternatives: ConvertKit (convertkit_api_key), ActiveCampaign (activecampaign_api_key)
+- Image generation → recommend Stability AI, alternatives: Midjourney (midjourney_api_key), DALL-E (already covered by openai_api_key)
+- Video → recommend HeyGen, alternatives: Runway (runway_api_key)
+- SMS/messaging → recommend Twilio, alternatives: Vonage (vonage_api_key)
+- Payment → recommend Stripe, alternatives: PayPal (paypal_client_id)
+Omit alternatives only for tools with no real substitute for that exact function (e.g., a specific social platform's API key).
 
 For starting build (PHASE 3 — after credentials submitted):
 <SBEP_DATA>

@@ -10,11 +10,13 @@
     "rotate-credentials": "tsx ./src/rotate-credentials.ts",
     "seed-skills": "tsx ./src/seed-skills.ts",
     "verify-hung-job-recovery": "tsx ./src/verify-hung-job-recovery.ts",
+    "test-stripe-webhook": "tsx ./src/test-stripe-webhook.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
-    "drizzle-orm": "catalog:"
+    "drizzle-orm": "catalog:",
+    "stripe": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

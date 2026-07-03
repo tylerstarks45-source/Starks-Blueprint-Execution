@@ -173,10 +173,28 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
       req.log.warn("STRIPE_WEBHOOK_SECRET not set, skipping signature verification (dev only)");
     }
 
+    // STRIPE_TEST_WEBHOOK_SECRET: secondary secret for a registered test-mode webhook endpoint.
+    // Only active in non-production environments. In production, only STRIPE_WEBHOOK_SECRET is
+    // accepted — preventing any test-mode event from being processed on live infrastructure.
+    const testWebhookSecret = !isProduction ? process.env.STRIPE_TEST_WEBHOOK_SECRET : undefined;
+
     let event: any;
     if (webhookSecret) {
       const sig = req.headers["stripe-signature"] as string;
-      event = stripe.webhooks.constructEvent((req as any).rawBody || req.body, sig, webhookSecret);
+      const rawBody = (req as any).rawBody || req.body;
+      try {
+        event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+      } catch (primaryErr) {
+        // Non-production only: try the test-mode endpoint secret if the primary fails.
+        // This allows real Stripe-originated test-mode webhooks (from a registered test
+        // endpoint) to be verified without replacing the live-mode STRIPE_WEBHOOK_SECRET.
+        if (testWebhookSecret) {
+          event = stripe.webhooks.constructEvent(rawBody, sig, testWebhookSecret);
+          req.log.info("Stripe webhook verified with STRIPE_TEST_WEBHOOK_SECRET (test-mode endpoint)");
+        } else {
+          throw primaryErr;
+        }
+      }
     } else {
       event = req.body;
     }

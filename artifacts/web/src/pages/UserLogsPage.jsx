@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import AuthLayout from '@/components/AuthLayout.jsx';
-import { ScrollText, Search, X, RefreshCw, ChevronDown, ExternalLink } from 'lucide-react';
+import { ScrollText, Search, X, RefreshCw, ChevronDown, Building2, Layers } from 'lucide-react';
 import { getAuthHeaders } from '@/lib/apiHeaders';
 
 const LOG_CATEGORIES = [
   'all', 'build', 'deploy', 'automation', 'browser', 'connection',
   'hosting', 'api', 'error', 'recovery', 'maintenance', 'optimization', 'scaling',
 ];
-
 const LOG_SEVERITIES = ['all', 'info', 'warning', 'error', 'critical'];
 
 const SEVERITY_META = {
@@ -36,8 +35,7 @@ const CATEGORY_COLOR = {
 function formatTs(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
-  const now = Date.now();
-  const diff = now - d.getTime();
+  const diff = Date.now() - d.getTime();
   if (diff < 60_000) return 'just now';
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
@@ -47,7 +45,7 @@ function formatTs(iso) {
 function SeverityBadge({ severity }) {
   const meta = SEVERITY_META[severity] ?? SEVERITY_META.info;
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider ${meta.bg} ${meta.text}`}>
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider shrink-0 ${meta.bg} ${meta.text}`}>
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dot}`} />
       {meta.label}
     </span>
@@ -57,47 +55,82 @@ function SeverityBadge({ severity }) {
 function CategoryBadge({ category }) {
   const cls = CATEGORY_COLOR[category] ?? 'text-gray-300 bg-gray-400/10';
   return (
-    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider ${cls}`}>
+    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider shrink-0 ${cls}`}>
       {category}
     </span>
   );
 }
 
-function LogRow({ item, expanded, onToggle }) {
+function OriginLabel({ item }) {
+  if (item.systemName || item.systemInstanceId) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-mono text-violet-400/70 shrink-0">
+        <Layers className="w-2.5 h-2.5" />
+        {item.systemName ?? `System #${item.systemInstanceId}`}
+      </span>
+    );
+  }
+  if (item.businessName || item.businessId) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400/70 shrink-0">
+        <Building2 className="w-2.5 h-2.5" />
+        {item.businessName ?? `Business #${item.businessId}`}
+      </span>
+    );
+  }
+  return null;
+}
+
+function LogRow({ item, expanded, onToggle, onNavigate }) {
   const isExpanded = expanded === item.id;
   const hasDetail = item.component || item.action || (item.metadata && Object.keys(item.metadata).length > 0);
+  const navTarget = item.systemInstanceId
+    ? `/systems/${item.systemInstanceId}`
+    : item.businessId
+    ? `/business/${item.businessId}`
+    : null;
 
   return (
-    <div
-      className={`border-b border-white/5 transition-colors ${hasDetail ? 'cursor-pointer hover:bg-white/[0.02]' : ''}`}
-      onClick={hasDetail ? onToggle : undefined}
-    >
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3">
-        {/* Left: severity dot */}
-        <div className="flex items-center gap-2 shrink-0">
+    <div className="border-b border-white/5">
+      {/* Primary row — click navigates to system/business */}
+      <div
+        className={`flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3 px-4 py-3 transition-colors ${navTarget ? 'cursor-pointer hover:bg-white/[0.02]' : ''}`}
+        onClick={navTarget ? () => onNavigate(navTarget) : undefined}
+      >
+        {/* Badges */}
+        <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
           <SeverityBadge severity={item.severity} />
           <CategoryBadge category={item.category} />
         </div>
 
-        {/* Message */}
-        <p className="flex-1 text-sm text-white/80 font-mono leading-snug min-w-0 break-words">
-          {item.message}
-        </p>
+        {/* Message + origin */}
+        <div className="flex-1 min-w-0 space-y-0.5">
+          <p className="text-sm text-white/80 font-mono leading-snug break-words">
+            {item.message}
+          </p>
+          <OriginLabel item={item} />
+        </div>
 
-        {/* Right: timestamp + expand hint */}
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
-          <span className="text-xs font-mono text-white/30" title={item.createdAt}>
+        {/* Right: timestamp + expand button */}
+        <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0 self-start">
+          <span className="text-xs font-mono text-white/30 whitespace-nowrap" title={item.createdAt}>
             {formatTs(item.createdAt)}
           </span>
           {hasDetail && (
-            <ChevronDown
-              className={`w-3.5 h-3.5 text-white/30 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-            />
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggle(); }}
+              className="p-0.5 rounded hover:bg-white/10 transition-colors"
+              aria-label="Show details"
+            >
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-white/30 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+              />
+            </button>
           )}
         </div>
       </div>
 
-      {/* Expanded detail */}
+      {/* Expanded detail — click doesn't navigate */}
       {isExpanded && (
         <div className="px-4 pb-3 space-y-2 border-t border-white/5 bg-black/20">
           <div className="flex flex-wrap gap-x-6 gap-y-1 pt-2 text-xs font-mono text-white/40">
@@ -106,24 +139,6 @@ function LogRow({ item, expanded, onToggle }) {
             )}
             {item.action && (
               <span>action: <span className="text-white/60">{item.action}</span></span>
-            )}
-            {item.systemInstanceId && (
-              <Link
-                to={`/systems/${item.systemInstanceId}`}
-                className="text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                View system <ExternalLink className="w-2.5 h-2.5" />
-              </Link>
-            )}
-            {item.businessId && (
-              <Link
-                to={`/business/${item.businessId}`}
-                className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                View business <ExternalLink className="w-2.5 h-2.5" />
-              </Link>
             )}
           </div>
           {item.metadata && Object.keys(item.metadata).length > 0 && (
@@ -138,18 +153,19 @@ function LogRow({ item, expanded, onToggle }) {
 }
 
 export default function UserLogsPage() {
-  const [category, setCategory]   = useState('all');
-  const [severity, setSeverity]   = useState('all');
-  const [search, setSearch]       = useState('');
+  const navigate = useNavigate();
+  const [category, setCategory]       = useState('all');
+  const [severity, setSeverity]       = useState('all');
+  const [search, setSearch]           = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
-  const [items, setItems]         = useState([]);
-  const [nextCursor, setNextCursor] = useState(null);
-  const [hasMore, setHasMore]     = useState(false);
-  const [loading, setLoading]     = useState(false);
+  const [items, setItems]             = useState([]);
+  const [nextCursor, setNextCursor]   = useState(null);
+  const [hasMore, setHasMore]         = useState(false);
+  const [loading, setLoading]         = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError]         = useState(null);
-  const [expanded, setExpanded]   = useState(null);
-  const searchRef                 = useRef(null);
+  const [error, setError]             = useState(null);
+  const [expanded, setExpanded]       = useState(null);
+  const searchRef                     = useRef(null);
 
   const fetchLogs = useCallback(async ({ cursor = null, replace = true } = {}) => {
     replace ? setLoading(true) : setLoadingMore(true);
@@ -159,7 +175,7 @@ export default function UserLogsPage() {
       if (category && category !== 'all') qs.set('category', category);
       if (severity  && severity  !== 'all') qs.set('severity', severity);
       if (appliedSearch) qs.set('q', appliedSearch);
-      if (cursor)    qs.set('cursor', String(cursor));
+      if (cursor) qs.set('cursor', String(cursor));
       const res = await fetch(`/api/logs/me?${qs.toString()}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error(`Failed to load logs (${res.status})`);
       const json = await res.json();
@@ -182,21 +198,11 @@ export default function UserLogsPage() {
     fetchLogs({ replace: true });
   }, [fetchLogs]);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setAppliedSearch(search);
-  };
-
-  const clearSearch = () => {
-    setSearch('');
-    setAppliedSearch('');
-  };
-
-  const loadMore = () => {
-    if (nextCursor && !loadingMore) fetchLogs({ cursor: nextCursor, replace: false });
-  };
-
+  const handleSearch = (e) => { e.preventDefault(); setAppliedSearch(search); };
+  const clearSearch  = () => { setSearch(''); setAppliedSearch(''); };
+  const loadMore     = () => { if (nextCursor && !loadingMore) fetchLogs({ cursor: nextCursor, replace: false }); };
   const toggleExpanded = (id) => setExpanded((prev) => (prev === id ? null : id));
+  const hasActiveFilters = category !== 'all' || severity !== 'all' || appliedSearch;
 
   return (
     <AuthLayout>
@@ -257,13 +263,13 @@ export default function UserLogsPage() {
             </form>
 
             {/* Category chips */}
-            <div className="flex flex-wrap gap-1.5">
-              <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest self-center mr-1">Category</span>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest mr-1">Category</span>
               {LOG_CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setCategory(cat)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold transition-all ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold transition-all capitalize ${
                     category === cat
                       ? 'bg-violet-600/30 border border-violet-500/50 text-violet-300'
                       : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'
@@ -275,8 +281,8 @@ export default function UserLogsPage() {
             </div>
 
             {/* Severity chips */}
-            <div className="flex flex-wrap gap-1.5">
-              <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest self-center mr-1">Severity</span>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest mr-1">Severity</span>
               {LOG_SEVERITIES.map((sev) => {
                 const meta = SEVERITY_META[sev];
                 const isActive = severity === sev;
@@ -288,7 +294,7 @@ export default function UserLogsPage() {
                       isActive
                         ? sev === 'all'
                           ? 'bg-violet-600/30 border border-violet-500/50 text-violet-300'
-                          : `${meta.bg} border ${meta.text} border-current/30`
+                          : `${meta.bg} border border-current/30 ${meta.text}`
                         : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'
                     }`}
                   >
@@ -304,9 +310,9 @@ export default function UserLogsPage() {
             {/* Feed header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-black/20">
               <span className="text-xs font-mono text-white/40">
-                {loading ? 'Loading…' : `${items.length} ${items.length === 1 ? 'entry' : 'entries'}${hasMore ? '+' : ''}`}
+                {loading ? 'Loading…' : `${items.length}${hasMore ? '+' : ''} ${items.length === 1 ? 'entry' : 'entries'}`}
               </span>
-              {(category !== 'all' || severity !== 'all' || appliedSearch) && (
+              {hasActiveFilters && (
                 <button
                   onClick={() => { setCategory('all'); setSeverity('all'); setSearch(''); setAppliedSearch(''); }}
                   className="text-[11px] font-mono text-white/30 hover:text-white/60 transition-colors flex items-center gap-1"
@@ -316,14 +322,14 @@ export default function UserLogsPage() {
               )}
             </div>
 
-            {/* Loading state */}
+            {/* Loading */}
             {loading && (
               <div className="flex items-center justify-center py-16">
                 <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
               </div>
             )}
 
-            {/* Error state */}
+            {/* Error */}
             {!loading && error && (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
                 <p className="text-sm font-mono text-red-400">{error}</p>
@@ -336,7 +342,7 @@ export default function UserLogsPage() {
               </div>
             )}
 
-            {/* Empty state */}
+            {/* Empty */}
             {!loading && !error && items.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
@@ -345,12 +351,12 @@ export default function UserLogsPage() {
                 <div className="text-center space-y-1">
                   <p className="text-sm font-mono text-white/40 font-semibold">No activity yet</p>
                   <p className="text-xs font-mono text-white/20">
-                    {(category !== 'all' || severity !== 'all' || appliedSearch)
+                    {hasActiveFilters
                       ? 'No entries match these filters'
                       : 'Events will appear here as your systems and businesses run'}
                   </p>
                 </div>
-                {(category !== 'all' || severity !== 'all' || appliedSearch) && (
+                {hasActiveFilters && (
                   <button
                     onClick={() => { setCategory('all'); setSeverity('all'); setSearch(''); setAppliedSearch(''); }}
                     className="text-xs font-mono text-violet-400 hover:text-violet-300 transition-colors"
@@ -361,7 +367,7 @@ export default function UserLogsPage() {
               </div>
             )}
 
-            {/* Log rows */}
+            {/* Rows */}
             {!loading && !error && items.length > 0 && (
               <div>
                 {items.map((item) => (
@@ -370,6 +376,7 @@ export default function UserLogsPage() {
                     item={item}
                     expanded={expanded}
                     onToggle={() => toggleExpanded(item.id)}
+                    onNavigate={navigate}
                   />
                 ))}
 
@@ -381,17 +388,23 @@ export default function UserLogsPage() {
                       disabled={loadingMore}
                       className="flex items-center gap-2 px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-white/50 hover:text-white hover:border-white/20 transition-all disabled:opacity-40"
                     >
-                      {loadingMore ? (
-                        <><div className="w-3 h-3 border border-white/30 border-t-transparent rounded-full animate-spin" /> Loading…</>
-                      ) : (
-                        <>Load more entries</>
-                      )}
+                      {loadingMore
+                        ? <><div className="w-3 h-3 border border-white/30 border-t-transparent rounded-full animate-spin" /> Loading…</>
+                        : <>Load more entries</>
+                      }
                     </button>
                   </div>
                 )}
               </div>
             )}
           </div>
+
+          {/* Hint */}
+          {!loading && !error && items.length > 0 && (
+            <p className="text-xs font-mono text-white/20 text-center">
+              Click a row to open the system or business it belongs to
+            </p>
+          )}
         </div>
       </div>
     </AuthLayout>

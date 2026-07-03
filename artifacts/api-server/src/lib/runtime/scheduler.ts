@@ -1,5 +1,5 @@
 import { pool, db, usersTable, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable, abTestsTable, abVariantsTable, emailSequencesTable, emailSequenceStepsTable, emailSubscribersTable, emailDeliveriesTable, scheduledPostsTable } from "@workspace/db";
-import { eq, and, lte, sql } from "drizzle-orm";
+import { eq, and, lte, sql, gt } from "drizzle-orm";
 import { logger } from "../logger";
 import { getConnector } from "../connectors/registry";
 import { decrypt } from "../crypto";
@@ -843,44 +843,53 @@ async function processHealthMonitoring(): Promise<void> {
 
     for (const { id } of activeInstances) {
       try {
-        await attemptSelfHeal(id, loadSystemCredentials);
+        const healResults = await attemptSelfHeal(id, loadSystemCredentials);
+        // Notify the system owner when self-heal explicitly tried and failed to fix an issue.
+        // Dedupe is enforced against ALL notifications with the same key in the past 24h
+        // (regardless of read status) so a user who dismisses the alert won't be re-notified
+        // within the same day.
+        const unfixedCount = healResults.filter((r) => r.attempted && !r.fixed).length;
+        if (unfixedCount > 0) {
+          const [sys] = await db
+            .select({ name: systemInstancesTable.name, userId: systemInstancesTable.userId })
+            .from(systemInstancesTable)
+            .where(eq(systemInstancesTable.id, id))
+            .limit(1);
+          if (sys?.userId) {
+            const dedupeKey = `system_unhealthy_${id}`;
+            const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            // Read-status-independent dedupe: check without filtering on read=false
+            const [recent] = await db
+              .select({ id: notificationsTable.id })
+              .from(notificationsTable)
+              .where(
+                and(
+                  eq(notificationsTable.userId, sys.userId),
+                  eq(notificationsTable.dedupeKey, dedupeKey),
+                  gt(notificationsTable.createdAt, windowStart),
+                ),
+              )
+              .limit(1);
+            if (!recent) {
+              await db.insert(notificationsTable).values({
+                userId: sys.userId,
+                title: `System needs attention: ${sys.name ?? "Your system"}`,
+                message: `ASH attempted to repair "${sys.name}" automatically but could not fix ${unfixedCount === 1 ? "an issue" : `${unfixedCount} issues`}. Open the system detail page to review.`,
+                notificationType: "error",
+                linkUrl: `/systems/${id}`,
+                dedupeKey,
+              }).catch((err: unknown) => {
+                logger.warn({ err, systemInstanceId: id }, "Failed to insert system-unhealthy notification");
+              });
+            }
+          }
+        }
       } catch (err) {
         logger.warn({ err, systemInstanceId: id }, "Self-healing pass failed for system instance");
       }
     }
   } catch (err) {
     logger.warn({ err }, "Self-healing tick failed");
-  }
-
-  // Notify owners of systems whose health is degraded or critical (deduped to once per 24h per system)
-  try {
-    const unhealthySystems = await db
-      .select({
-        id: systemInstancesTable.id,
-        name: systemInstancesTable.name,
-        userId: systemInstancesTable.userId,
-        healthStatus: systemInstancesTable.healthStatus,
-      })
-      .from(systemInstancesTable)
-      .where(
-        sql`${systemInstancesTable.healthStatus} IN ('critical', 'degraded')
-          AND ${systemInstancesTable.buildStatus} IN ('running', 'building', 'active')`,
-      );
-
-    for (const sys of unhealthySystems) {
-      if (!sys.userId) continue;
-      await notifyUser({
-        userId: sys.userId,
-        notificationType: "error",
-        title: `System health issue: ${sys.name ?? "Your system"}`,
-        message: `Your automated system "${sys.name}" is currently ${sys.healthStatus}. ASH is attempting to diagnose and repair it automatically.`,
-        linkUrl: `/systems/${sys.id}`,
-        dedupeKey: `system_unhealthy_${sys.id}`,
-        dedupeWindowMs: 24 * 60 * 60 * 1000,
-      });
-    }
-  } catch (err) {
-    logger.warn({ err }, "System-down notification pass failed");
   }
 }
 

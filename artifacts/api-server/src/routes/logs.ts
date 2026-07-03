@@ -207,8 +207,24 @@ router.get("/logs/me", async (req, res): Promise<void> => {
   const where = filterConditions.length ? and(scope, ...filterConditions) : scope;
 
   const rows = await db
-    .select()
+    .select({
+      id: systemLogsTable.id,
+      systemInstanceId: systemLogsTable.systemInstanceId,
+      businessId: systemLogsTable.businessId,
+      userId: systemLogsTable.userId,
+      category: systemLogsTable.category,
+      severity: systemLogsTable.severity,
+      component: systemLogsTable.component,
+      action: systemLogsTable.action,
+      message: systemLogsTable.message,
+      metadata: systemLogsTable.metadata,
+      createdAt: systemLogsTable.createdAt,
+      systemName: systemInstancesTable.name,
+      businessName: businessesTable.name,
+    })
     .from(systemLogsTable)
+    .leftJoin(systemInstancesTable, eq(systemLogsTable.systemInstanceId, systemInstancesTable.id))
+    .leftJoin(businessesTable, eq(systemLogsTable.businessId, businessesTable.id))
     .where(where)
     .orderBy(desc(systemLogsTable.createdAt), desc(systemLogsTable.id))
     .limit(LIMIT + 1);

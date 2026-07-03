@@ -13,7 +13,10 @@ import {
   landingPagesTable,
   emailSequencesTable,
   usersTable,
+  scheduledPostsTable,
+  SOCIAL_PLATFORMS,
 } from "@workspace/db";
+import { broadcastSequenceStep } from "./email-marketing";
 import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
 import { MODELS } from "../lib/models";
@@ -478,7 +481,7 @@ router.post("/ai-orchestrator/platform-action", async (req, res): Promise<void> 
   if (userId === null) return;
 
   const schema = z.object({
-    tool:   z.enum(["update_system_status", "trigger_system_rebuild", "create_business_note"]),
+    tool:   z.enum(["update_system_status", "trigger_system_rebuild", "create_business_note", "schedule_social_post", "send_email_blast"]),
     params: z.record(z.unknown()),
   });
 
@@ -564,6 +567,95 @@ router.post("/ai-orchestrator/platform-action", async (req, res): Promise<void> 
         businessName: owned.name,
         note:         p.data.note,
         connectionId: conn.id,
+      },
+    });
+    return;
+  }
+
+  if (tool === "schedule_social_post") {
+    const p = z.object({
+      platform:         z.enum(SOCIAL_PLATFORMS),
+      content:          z.string().min(1).max(10000),
+      scheduledAt:      z.string().min(1),
+      linkUrl:          z.string().url().max(2000).nullable().optional(),
+      mediaUrls:        z.array(z.string()).max(10).optional(),
+      systemInstanceId: z.number().int().positive().nullable().optional(),
+    }).safeParse(params);
+    if (!p.success) { res.status(400).json({ error: p.error.message }); return; }
+
+    const scheduledAt = new Date(p.data.scheduledAt);
+    if (isNaN(scheduledAt.getTime())) {
+      res.status(400).json({ error: `Invalid scheduledAt: ${p.data.scheduledAt}` });
+      return;
+    }
+
+    // If tied to a system, verify the caller owns it before attaching.
+    let verifiedInstanceId: number | null = null;
+    if (p.data.systemInstanceId != null) {
+      const [owned] = await db.select({ id: systemInstancesTable.id })
+        .from(systemInstancesTable)
+        .where(and(eq(systemInstancesTable.id, p.data.systemInstanceId), eq(systemInstancesTable.userId, userId)));
+      if (!owned) { res.status(404).json({ error: "System not found" }); return; }
+      verifiedInstanceId = p.data.systemInstanceId;
+    }
+
+    const [row] = await db.insert(scheduledPostsTable).values({
+      userId,
+      systemInstanceId: verifiedInstanceId,
+      platform:         p.data.platform,
+      content:          p.data.content,
+      mediaUrls:        p.data.mediaUrls ?? [],
+      linkUrl:          p.data.linkUrl ?? null,
+      scheduledAt,
+      status:           "scheduled",
+    }).returning({ id: scheduledPostsTable.id });
+
+    if (verifiedInstanceId != null) {
+      db.insert(systemActivityEventsTable).values({
+        systemInstanceId: verifiedInstanceId,
+        eventType:        "action",
+        description:      `ASH scheduled a ${p.data.platform} post for ${scheduledAt.toLocaleString()}`,
+        metadata:         JSON.stringify({ tool: "schedule_social_post", scheduledPostId: row.id, platform: p.data.platform }),
+      }).catch(() => { /* non-critical */ });
+    }
+
+    res.json({
+      ok:   true,
+      tool,
+      result: {
+        postId:      row.id,
+        platform:    p.data.platform,
+        scheduledAt: scheduledAt.toISOString(),
+        content:     p.data.content,
+      },
+    });
+    return;
+  }
+
+  if (tool === "send_email_blast") {
+    const p = z.object({
+      sequenceId: z.number().int(),
+      stepNumber: z.number().int().min(1).optional(),
+    }).safeParse(params);
+    if (!p.success) { res.status(400).json({ error: p.error.message }); return; }
+
+    const result = await broadcastSequenceStep({
+      userId,
+      seqId:      p.data.sequenceId,
+      stepNumber: p.data.stepNumber ?? 1,
+      log:        req.log,
+    });
+
+    if (!result.ok) { res.status(result.status).json({ error: result.error }); return; }
+
+    res.json({
+      ok:   true,
+      tool,
+      result: {
+        sequenceId: p.data.sequenceId,
+        stepNumber: p.data.stepNumber ?? 1,
+        ...(result.queued !== undefined ? { queued: result.queued } : { sent: result.sent, failed: result.failed }),
+        message:    result.message,
       },
     });
     return;

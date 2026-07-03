@@ -1125,10 +1125,12 @@ Credits remaining: ${userCreditBalance}
 Use this context to give proactive, personalised advice. Reference the user's actual assets when relevant.
 Available platform tools (emit as SBEP_DATA action "tool_calls"):
   READ  — type: "list_my_systems" | "list_my_businesses" | "list_my_domains" | "list_my_landing_pages" | "list_my_email_sequences" | "list_my_social_accounts"
-  WRITE — type: "platform_action", tool: "update_system_status" | "trigger_system_rebuild" | "create_business_note"
+  WRITE — type: "platform_action", tool: "update_system_status" | "trigger_system_rebuild" | "create_business_note" | "schedule_social_post" | "send_email_blast"
           params for update_system_status:   { id: <integer>, status: "active" | "paused" }
           params for trigger_system_rebuild: { id: <integer> }
           params for create_business_note:   { businessId: <integer>, note: "<text>" }
+          params for schedule_social_post:    { platform: "twitter" | "linkedin" | "instagram" | "tiktok" | "facebook", content: "<post text>", scheduledAt: "<ISO 8601 datetime>", linkUrl?: "<url>", mediaUrls?: ["<url>"], systemInstanceId?: <integer> }
+          params for send_email_blast:        { sequenceId: <integer>, stepNumber?: <integer, default 1> }
           + summary: "<one-sentence description>"
 Do NOT invent IDs — only use exact integer IDs shown above.`;
 

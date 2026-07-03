@@ -813,11 +813,15 @@ const PLATFORM_ACTION_META = {
   update_system_status:    { label: 'System Status Updated', icon: Cog,        color: 'blue' },
   trigger_system_rebuild:  { label: 'System Rebuild Triggered', icon: RefreshCw, color: 'violet' },
   create_business_note:    { label: 'Business Note Added', icon: FileText,     color: 'emerald' },
+  schedule_social_post:    { label: 'Social Post Scheduled', icon: Share2,     color: 'cyan' },
+  send_email_blast:        { label: 'Email Blast Sent',      icon: Mail,       color: 'amber' },
 };
 const PLATFORM_COLOR_MAP = {
   blue:    { bg: 'bg-blue-500/10',    border: 'border-blue-500/20',    text: 'text-blue-400' },
   violet:  { bg: 'bg-violet-500/10',  border: 'border-violet-500/20',  text: 'text-violet-400' },
   emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-400' },
+  cyan:    { bg: 'bg-cyan-500/10',    border: 'border-cyan-500/20',    text: 'text-cyan-400' },
+  amber:   { bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   text: 'text-amber-400' },
 };
 
 const PlatformActionCard = ({ data }) => {

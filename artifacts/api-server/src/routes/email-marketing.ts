@@ -510,28 +510,25 @@ const BroadcastBody = z.object({
   stepNumber: z.number().int().min(1).default(1),
 });
 
-router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> => {
-  const userId = await requireAuthActive(req, res);
-  if (userId === null) return;
+export type BroadcastResult =
+  | { ok: false; status: number; error: string }
+  | { ok: true; queued?: number; sent?: number; failed?: number; message: string };
 
-  const seqId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
-  if (!Number.isFinite(seqId)) {
-    res.status(400).json({ error: "Invalid sequence id" });
-    return;
-  }
-
-  const parsed = BroadcastBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const { stepNumber } = parsed.data;
+// Core broadcast logic shared by the HTTP route and the ASH send_email_blast tool.
+// Validates ownership, resolves the step + linked list, then fires delivery in the
+// background (returning immediately with the queued count).
+export async function broadcastSequenceStep(opts: {
+  userId: number;
+  seqId: number;
+  stepNumber: number;
+  log?: { info?: (obj: unknown, msg?: string) => void };
+}): Promise<BroadcastResult> {
+  const { userId, seqId, stepNumber, log } = opts;
 
   const [seq] = await db.select().from(emailSequencesTable)
     .where(and(eq(emailSequencesTable.id, seqId), eq(emailSequencesTable.userId, userId)));
   if (!seq) {
-    res.status(404).json({ error: "Sequence not found" });
-    return;
+    return { ok: false, status: 404, error: "Sequence not found" };
   }
 
   const [step] = await db.select().from(emailSequenceStepsTable)
@@ -540,18 +537,16 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
       eq(emailSequenceStepsTable.stepNumber, stepNumber),
     ));
   if (!step) {
-    res.status(404).json({ error: `Step ${stepNumber} not found in sequence` });
-    return;
+    return { ok: false, status: 404, error: `Step ${stepNumber} not found in sequence` };
   }
 
   if (!seq.listId) {
-    res.status(400).json({ error: "Sequence has no linked list. Attach a list before broadcasting." });
-    return;
+    return { ok: false, status: 400, error: "Sequence has no linked list. Attach a list before broadcasting." };
   }
 
   // Defense-in-depth: re-verify list ownership even though seq is already user-scoped.
   const listOwned = await verifyListOwnership(seq.listId, userId);
-  if (!listOwned) { res.status(403).json({ error: "List not found or access denied" }); return; }
+  if (!listOwned) { return { ok: false, status: 403, error: "List not found or access denied" }; }
 
   const subscribers = await db.select({
     id: emailSubscribersTable.id,
@@ -565,8 +560,7 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
     ));
 
   if (subscribers.length === 0) {
-    res.json({ sent: 0, failed: 0, message: "No active subscribers in list" });
-    return;
+    return { ok: true, sent: 0, failed: 0, message: "No active subscribers in list" };
   }
 
   // ── A/B subject split ────────────────────────────────────────────────────────
@@ -606,9 +600,6 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
       subjectFor = (sub) => assignMap.get(sub.id) ?? step.subject;
     }
   }
-
-  // Respond immediately with 202 — sending happens in background.
-  res.status(202).json({ queued: subscribers.length, message: "Broadcast started in background" });
 
   // Fire-and-forget delivery
   setImmediate(async () => {
@@ -657,8 +648,48 @@ router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> =>
         }
       }));
     }
-    req.log?.info({ seqId, stepNumber, sentCount, failedCount }, "Broadcast complete");
+    log?.info?.({ seqId, stepNumber, sentCount, failedCount }, "Broadcast complete");
   });
+
+  // Respond immediately — sending happens in the background.
+  return { ok: true, queued: subscribers.length, message: "Broadcast started in background" };
+}
+
+router.post("/email/sequences/:id/broadcast", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const seqId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  if (!Number.isFinite(seqId)) {
+    res.status(400).json({ error: "Invalid sequence id" });
+    return;
+  }
+
+  const parsed = BroadcastBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const result = await broadcastSequenceStep({
+    userId,
+    seqId,
+    stepNumber: parsed.data.stepNumber,
+    log: req.log,
+  });
+
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+
+  // Preserve original semantics: 202 when queued for background send,
+  // 200 when there was nothing to send.
+  if (result.queued !== undefined) {
+    res.status(202).json({ queued: result.queued, message: result.message });
+  } else {
+    res.json({ sent: result.sent, failed: result.failed, message: result.message });
+  }
 });
 
 // ── CAMPAIGNS ────────────────────────────────────────────────────────────────

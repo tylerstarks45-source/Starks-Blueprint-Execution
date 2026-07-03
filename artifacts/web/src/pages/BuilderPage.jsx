@@ -5169,12 +5169,16 @@ const BuilderPage = () => {
                         {platformSections.domains ? <ChevronDown className="w-3 h-3 text-white/20" /> : <ChevronRight className="w-3 h-3 text-white/20" />}
                       </button>
                       {platformSections.domains && (
-                        <div className="px-3 pb-3 space-y-1">
+                        <div className="px-3 pb-3 flex flex-wrap gap-1.5">
                           {platformContext.domains.map((d, i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <span className="text-[10px] font-mono text-white/45 flex-1 truncate">{d.domain}</span>
-                              <span className={`text-[8px] font-mono ${d.status === 'active' ? 'text-emerald-400/60' : 'text-white/20'}`}>{d.status}</span>
-                            </div>
+                            <button
+                              key={i}
+                              onClick={() => navigate('/domains')}
+                              className={`text-[9px] font-mono px-2 py-0.5 rounded-full border transition-colors flex items-center gap-1 ${d.status === 'active' ? 'border-emerald-500/30 text-emerald-400/70 bg-emerald-500/8 hover:bg-emerald-500/15' : 'border-white/10 text-white/35 hover:text-white/55'}`}
+                            >
+                              {d.domain}
+                              <span className="opacity-60">{d.status === 'active' ? '✓' : '○'}</span>
+                            </button>
                           ))}
                         </div>
                       )}
@@ -5200,7 +5204,7 @@ const BuilderPage = () => {
                             {platformContext.landingPages.map(p => (
                               <button
                                 key={p.id}
-                                onClick={() => navigate(`/pages/${p.id}`)}
+                                onClick={() => navigate(`/landing-pages/${p.id}/canvas`)}
                                 className={`text-[9px] font-mono px-2 py-0.5 rounded-full border transition-colors ${(p.published ?? p.isPublished) ? 'border-emerald-500/30 text-emerald-400/70 bg-emerald-500/8 hover:bg-emerald-500/15' : 'border-white/10 text-white/35 hover:text-white/55'}`}
                               >
                                 {p.title || `Page ${p.id}`}
@@ -5231,7 +5235,7 @@ const BuilderPage = () => {
                             {platformContext.emailSequences.map(s => (
                               <button
                                 key={s.id}
-                                onClick={() => navigate('/email')}
+                                onClick={() => navigate('/email-marketing')}
                                 className={`text-[9px] font-mono px-2 py-0.5 rounded-full border transition-colors ${s.status === 'active' ? 'border-violet-500/30 text-violet-400/70 bg-violet-500/8 hover:bg-violet-500/15' : 'border-white/10 text-white/35 hover:text-white/55'}`}
                               >
                                 {s.name || `Sequence ${s.id}`}
@@ -5260,7 +5264,11 @@ const BuilderPage = () => {
                         ) : (
                           <div className="flex flex-wrap gap-1.5">
                             {platformContext.socialAccounts.map((a, i) => (
-                              <span key={i} className="text-[9px] font-mono px-2 py-0.5 rounded-full border border-sky-500/25 text-sky-400/65 bg-sky-500/6">{a.platform}</span>
+                              <button
+                                key={i}
+                                onClick={() => navigate('/social-accounts')}
+                                className="text-[9px] font-mono px-2 py-0.5 rounded-full border border-sky-500/25 text-sky-400/65 bg-sky-500/6 hover:bg-sky-500/14 transition-colors"
+                              >{a.platform}</button>
                             ))}
                           </div>
                         )}

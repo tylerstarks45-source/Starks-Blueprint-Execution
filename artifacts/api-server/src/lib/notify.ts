@@ -18,6 +18,8 @@ export interface NotifyInput {
    */
   dedupeKey?: string | null;
   dedupeWindowMs?: number;
+  /** Arbitrary structured data attached to this notification (e.g. Stripe session info). */
+  metadata?: Record<string, unknown> | null;
 }
 
 const DEFAULT_DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h
@@ -57,6 +59,7 @@ export async function notifyUser(input: NotifyInput): Promise<boolean> {
       notificationType,
       linkUrl: input.linkUrl ?? null,
       dedupeKey,
+      metadata: input.metadata ?? null,
     });
     return true;
   } catch (err) {

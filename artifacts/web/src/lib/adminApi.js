@@ -74,6 +74,7 @@ export const adminApi = {
     request(`/admin/platform-users/${id}/send-reset`, { method: 'POST' }),
   getStripeOverview: () => request('/admin/stripe/overview'),
   getStripeStatus: () => request('/admin/stripe/status'),
+  getUnprovisionedSessions: () => request('/admin/stripe/unprovisioned-sessions'),
   provisionUser: (body) =>
     request('/admin/stripe/provision-user', { method: 'POST', body: JSON.stringify(body) }),
   rotateKey: (newKeyHex) =>

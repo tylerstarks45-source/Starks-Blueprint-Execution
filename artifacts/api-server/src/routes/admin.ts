@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import { serialize } from "../lib/serialize";
 import { sendPasswordResetEmail } from "../lib/email";
 import { sendPushNotification } from "../lib/push";
-import { desc, sql, eq, and, or, ilike, gte, inArray } from "drizzle-orm";
+import { desc, sql, eq, and, or, ilike, gte, inArray, like } from "drizzle-orm";
 import {
   db,
   pool,
@@ -34,6 +34,7 @@ import {
   pendingApprovalsTable,
   monitoringLogEventsTable,
   businessRecommendationsTable,
+  notificationsTable,
 } from "@workspace/db";
 import { z } from "zod/v4";
 import { requireAdmin } from "../lib/auth";
@@ -1323,6 +1324,24 @@ router.get("/admin/stripe/status", async (req, res): Promise<void> => {
   }
 });
 
+// ── GET /admin/stripe/unprovisioned-sessions — unread unprovisioned payment notifications ──
+router.get("/admin/stripe/unprovisioned-sessions", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const rows = await db
+    .select()
+    .from(notificationsTable)
+    .where(
+      and(
+        eq(notificationsTable.read, false),
+        like(notificationsTable.dedupeKey, "unprovisioned_payment_%"),
+      ),
+    )
+    .orderBy(desc(notificationsTable.createdAt));
+
+  res.json(serialize({ sessions: rows }));
+});
+
 // ── POST /admin/stripe/provision-user — create/link local user from Stripe ───
 router.post("/admin/stripe/provision-user", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
@@ -1333,13 +1352,15 @@ router.post("/admin/stripe/provision-user", async (req, res): Promise<void> => {
     name: z.string().optional(),
     tier: z.enum(["builder", "operator", "empire"]),
     stripeSubscriptionId: z.string().optional(),
+    /** If set, the notification with this id is marked read after successful provisioning. */
+    notificationId: z.number().int().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid body", issues: parsed.error.issues });
     return;
   }
-  const { stripeCustomerId, email, name, tier, stripeSubscriptionId } = parsed.data;
+  const { stripeCustomerId, email, name, tier, stripeSubscriptionId, notificationId } = parsed.data;
 
   // Find or create the local user
   const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.email, email));
@@ -1387,6 +1408,15 @@ router.post("/admin/stripe/provision-user", async (req, res): Promise<void> => {
   // Grant credits only for newly created users
   if (action === "created") {
     await adjustCredits(userId, tierAllotment(tier), "tier_grant", { reason: `Manual provision: ${tier} plan` });
+  }
+
+  // Mark the source notification resolved so the admin alert clears
+  if (notificationId) {
+    await db
+      .update(notificationsTable)
+      .set({ read: true })
+      .where(eq(notificationsTable.id, notificationId))
+      .catch(() => { /* non-fatal */ });
   }
 
   const [finalUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));

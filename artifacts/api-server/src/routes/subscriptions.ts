@@ -259,6 +259,18 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
             .select({ id: usersTable.id })
             .from(usersTable)
             .where(eq(usersTable.role, "SUPER_ADMIN"));
+
+          // Derive the tier from the subscription items if available, otherwise fall
+          // back to session metadata (may be undefined for external payments).
+          let sessionTier: string | null = tier ?? null;
+          if (!sessionTier && subscriptionId) {
+            try {
+              const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+              const priceId = stripeSub.items.data[0]?.price?.id;
+              sessionTier = priceId ? getTierFromPriceId(priceId) : null;
+            } catch { /* non-fatal */ }
+          }
+
           for (const admin of superAdmins) {
             await notifyUser({
               userId: admin.id,
@@ -267,6 +279,14 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
               notificationType: "error",
               linkUrl: "/admin/stripe",
               dedupeKey: `unprovisioned_payment_${customerId ?? session.id}`,
+              metadata: {
+                sessionId: session.id,
+                customerId: customerId ?? null,
+                stripeEmail: resolvedStripeEmail,
+                tier: sessionTier,
+                amountTotal,
+                subscriptionId: subscriptionId ?? null,
+              },
             });
           }
         } catch (notifyErr) {

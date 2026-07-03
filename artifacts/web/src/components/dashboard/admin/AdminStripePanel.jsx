@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import {
   CreditCard, Users, TrendingUp, DollarSign, RefreshCw, CheckCircle2,
-  AlertTriangle, UserPlus, ExternalLink, Loader2, Zap,
+  AlertTriangle, UserPlus, ExternalLink, Loader2, Zap, ShieldAlert,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import adminApi from '@/lib/adminApi.js';
@@ -25,6 +25,13 @@ const usd = (cents) => {
 const fmtDate = (unix) => {
   if (!unix) return '—';
   return new Date(unix * 1000).toLocaleString([], {
+    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+};
+
+const fmtIso = (iso) => {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString([], {
     month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 };
@@ -43,7 +50,7 @@ const STATUS_COLORS = {
   pending:   'bg-blue-500/10 text-blue-400',
 };
 
-const TABS = ['overview', 'customers', 'charges', 'subscriptions'];
+const TABS = ['overview', 'customers', 'charges', 'subscriptions', 'unresolved'];
 
 const AdminStripePanel = () => {
   const [data, setData]         = useState(null);
@@ -52,10 +59,16 @@ const AdminStripePanel = () => {
   const [tab, setTab]           = useState('overview');
   const [stripeStatus, setStripeStatus] = useState(null);
 
+  // Unresolved sessions
+  const [sessions, setSessions]         = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+
   // Provision dialog
   const [provisionOpen, setProvisionOpen]   = useState(false);
   const [provisionCustomer, setProvisionCustomer] = useState(null);
   const [provisionTier, setProvisionTier]   = useState('builder');
+  const [provisionEmail, setProvisionEmail] = useState('');
+  const [provisionNotificationId, setProvisionNotificationId] = useState(null);
   const [provisionSaving, setProvisionSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -75,7 +88,19 @@ const AdminStripePanel = () => {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    try {
+      const result = await adminApi.getUnprovisionedSessions();
+      setSessions(result?.sessions ?? []);
+    } catch {
+      setSessions([]);
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); loadSessions(); }, [load, loadSessions]);
 
   const summary    = data?.summary ?? {};
   const charges    = data?.recentCharges ?? [];
@@ -86,7 +111,22 @@ const AdminStripePanel = () => {
 
   const openProvision = (customer) => {
     setProvisionCustomer(customer);
+    setProvisionEmail(customer.email ?? '');
     setProvisionTier('builder');
+    setProvisionNotificationId(null);
+    setProvisionOpen(true);
+  };
+
+  const openProvisionFromSession = (session) => {
+    const meta = session.metadata ?? {};
+    setProvisionCustomer({
+      stripeCustomerId: meta.customerId ?? '',
+      email: meta.stripeEmail ?? '',
+      name: null,
+    });
+    setProvisionEmail(meta.stripeEmail ?? '');
+    setProvisionTier(meta.tier ?? 'builder');
+    setProvisionNotificationId(session.id);
     setProvisionOpen(true);
   };
 
@@ -96,19 +136,23 @@ const AdminStripePanel = () => {
     try {
       const result = await adminApi.provisionUser({
         stripeCustomerId: provisionCustomer.stripeCustomerId,
-        email: provisionCustomer.email,
+        email: provisionEmail,
         name: provisionCustomer.name || undefined,
         tier: provisionTier,
+        notificationId: provisionNotificationId ?? undefined,
       });
-      toast.success(`User ${result.action === 'created' ? 'provisioned' : 'updated'} — ${provisionCustomer.email}`);
+      toast.success(`User ${result.action === 'created' ? 'provisioned' : 'updated'} — ${provisionEmail}`);
       setProvisionOpen(false);
       load();
+      loadSessions();
     } catch (e) {
       toast.error(e.message || 'Provision failed');
     } finally {
       setProvisionSaving(false);
     }
   };
+
+  const totalUnresolved = sessions.length + unprovisioned.length;
 
   return (
     <div className="space-y-4">
@@ -146,7 +190,7 @@ const AdminStripePanel = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={load}
+          onClick={() => { load(); loadSessions(); }}
           disabled={loading}
           className="border-white/15 text-white/60 hover:text-white"
         >
@@ -156,17 +200,28 @@ const AdminStripePanel = () => {
       </div>
 
       {/* Unprovisioned alert */}
-      {!loading && unprovisioned.length > 0 && (
+      {!loading && totalUnresolved > 0 && (
         <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/25 rounded-xl px-4 py-3">
           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm font-semibold text-amber-400">
-              {unprovisioned.length} Stripe customer{unprovisioned.length > 1 ? 's' : ''} paid but have no platform account
+              {totalUnresolved} payment{totalUnresolved > 1 ? 's' : ''} need attention
             </p>
             <p className="text-xs text-amber-400/70 mt-0.5">
-              {unprovisioned.map(c => c.email).join(', ')} — use "Provision User" to create their account.
+              {unprovisioned.length > 0 && `${unprovisioned.length} Stripe customer${unprovisioned.length > 1 ? 's' : ''} with no platform account`}
+              {unprovisioned.length > 0 && sessions.length > 0 && ' · '}
+              {sessions.length > 0 && `${sessions.length} webhook payment${sessions.length > 1 ? 's' : ''} with unresolved user`}
+              {' — use "Provision" to apply the correct tier.'}
             </p>
           </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setTab('unresolved')}
+            className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 text-[10px] font-mono shrink-0"
+          >
+            View all
+          </Button>
         </div>
       )}
 
@@ -202,19 +257,26 @@ const AdminStripePanel = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-white/8 pb-0">
+      <div className="flex gap-1 border-b border-white/8 pb-0 overflow-x-auto">
         {TABS.map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-xs font-mono font-semibold border-b-2 capitalize transition-colors ${
+            className={`px-4 py-2 text-xs font-mono font-semibold border-b-2 capitalize transition-colors whitespace-nowrap ${
               tab === t ? 'text-primary border-primary' : 'text-white/35 border-transparent hover:text-white/60'
             }`}
           >
-            {t === 'subscriptions' ? 'Subscriptions' : t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === 'subscriptions' ? 'Subscriptions' :
+             t === 'unresolved' ? 'Unresolved' :
+             t.charAt(0).toUpperCase() + t.slice(1)}
             {t === 'customers' && unprovisioned.length > 0 && (
               <span className="ml-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                 {unprovisioned.length}
+              </span>
+            )}
+            {t === 'unresolved' && totalUnresolved > 0 && (
+              <span className="ml-1.5 bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                {totalUnresolved}
               </span>
             )}
           </button>
@@ -439,6 +501,123 @@ const AdminStripePanel = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Unresolved Payments */}
+        {tab === 'unresolved' && (
+          <div className="space-y-4">
+            {/* Unresolved webhook sessions */}
+            {(sessionsLoading || sessions.length > 0) && (
+              <Card className="bg-white/3 border-white/8">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-rose-400" />
+                    <CardTitle className="text-sm font-mono text-white/60">Webhook Payments — User Not Found</CardTitle>
+                  </div>
+                  <p className="text-[11px] text-white/35 mt-1">
+                    These payments arrived via Stripe webhook but could not be matched to a platform account.
+                    Enter the user's platform email below to apply their tier.
+                  </p>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {sessionsLoading ? (
+                    <div className="p-4 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
+                  ) : (
+                    <div className="divide-y divide-white/6">
+                      {sessions.map(s => {
+                        const meta = s.metadata ?? {};
+                        return (
+                          <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+                            <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
+                              <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm text-white/80 font-mono truncate">
+                                  {meta.stripeEmail ?? meta.customerId ?? '—'}
+                                </p>
+                                {meta.tier && (
+                                  <Badge className={`text-[9px] border capitalize ${TIER_COLORS[meta.tier] ?? 'bg-white/8 text-white/35 border-white/15'}`}>
+                                    {meta.tier}
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-white/30 font-mono">
+                                {meta.customerId ?? '—'} · {meta.amountTotal ? usd(meta.amountTotal) : '—'} · {fmtIso(s.createdAt)}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="h-7 text-[10px] font-mono bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 shrink-0"
+                              onClick={() => openProvisionFromSession(s)}
+                            >
+                              <UserPlus className="w-3 h-3 mr-1" /> Provision
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Unprovisioned Stripe customers (no local account) */}
+            {(loading || unprovisioned.length > 0) && (
+              <Card className="bg-white/3 border-white/8">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4 text-amber-400" />
+                    <CardTitle className="text-sm font-mono text-white/60">Stripe Customers — No Platform Account</CardTitle>
+                  </div>
+                  <p className="text-[11px] text-white/35 mt-1">
+                    These Stripe customers have no matching account on the platform.
+                  </p>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {loading ? (
+                    <div className="p-4 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
+                  ) : (
+                    <div className="divide-y divide-white/6">
+                      {unprovisioned.map(c => (
+                        <div key={c.stripeCustomerId} className="flex items-center gap-3 px-4 py-3">
+                          <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[11px] font-mono text-white/40 shrink-0">
+                            {c.email ? c.email.slice(0, 2).toUpperCase() : '??'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-white/80 font-mono truncate">{c.email ?? '—'}</p>
+                            <p className="text-[10px] text-white/30 font-mono">{c.stripeCustomerId} · {fmtDate(c.created)}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="h-7 text-[10px] font-mono bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 shrink-0"
+                            onClick={() => openProvision(c)}
+                          >
+                            <UserPlus className="w-3 h-3 mr-1" /> Provision User
+                          </Button>
+                          <a
+                            href={`https://dashboard.stripe.com/customers/${c.stripeCustomerId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-white/20 hover:text-white/50 transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {!loading && !sessionsLoading && totalUnresolved === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <CheckCircle2 className="w-10 h-10 text-emerald-400/40" />
+                <p className="text-white/30 text-sm font-mono">All payments are resolved — nothing needs attention.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Provision User Dialog */}
@@ -447,14 +626,27 @@ const AdminStripePanel = () => {
           <DialogHeader>
             <DialogTitle className="text-white font-mono">Provision Platform Account</DialogTitle>
             <DialogDescription className="text-white/40">
-              Create a platform account for this Stripe customer and grant them the correct tier access.
+              Apply the correct tier to a platform account. If the Stripe email doesn't match the
+              user's platform email, update the email field below to find the right account.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <p className="text-xs font-mono text-white/40 mb-1">Stripe Customer</p>
-              <p className="text-sm font-mono text-white/80">{provisionCustomer?.email}</p>
+              <p className="text-sm font-mono text-white/80">{provisionCustomer?.email ?? '—'}</p>
               <p className="text-[10px] font-mono text-white/30">{provisionCustomer?.stripeCustomerId}</p>
+            </div>
+            <div>
+              <p className="text-xs font-mono text-white/40 mb-1.5">
+                Platform Email
+                <span className="text-white/25 ml-1">(search by this email to find or create account)</span>
+              </p>
+              <Input
+                value={provisionEmail}
+                onChange={e => setProvisionEmail(e.target.value)}
+                placeholder="user@example.com"
+                className="bg-white/5 border-white/15 text-white font-mono text-sm"
+              />
             </div>
             <div>
               <p className="text-xs font-mono text-white/40 mb-1.5">Plan Tier</p>
@@ -463,20 +655,28 @@ const AdminStripePanel = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="builder">Builder — $29/mo · 1,000 credits</SelectItem>
-                  <SelectItem value="operator">Operator — $99/mo · 5,000 credits</SelectItem>
-                  <SelectItem value="empire">Empire — $499/mo · 25,000 credits</SelectItem>
+                  <SelectItem value="builder">Builder — $29/mo · 2,500 credits</SelectItem>
+                  <SelectItem value="operator">Operator — $99/mo · 10,000 credits</SelectItem>
+                  <SelectItem value="empire">Empire — $499/mo · 50,000 credits</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {provisionNotificationId && (
+              <p className="text-[11px] text-white/30 font-mono">
+                The admin notification will be marked resolved after provisioning.
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setProvisionOpen(false)} disabled={provisionSaving}
               className="border-white/15 text-white/60">
               Cancel
             </Button>
-            <Button onClick={submitProvision} disabled={provisionSaving}
-              className="bg-primary text-black font-semibold">
+            <Button
+              onClick={submitProvision}
+              disabled={provisionSaving || !provisionEmail.trim()}
+              className="bg-primary text-black font-semibold"
+            >
               {provisionSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Provisioning…</> : 'Provision User'}
             </Button>
           </DialogFooter>

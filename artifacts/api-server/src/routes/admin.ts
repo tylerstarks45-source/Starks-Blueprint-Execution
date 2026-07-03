@@ -882,6 +882,110 @@ router.post("/admin/openrouter/test", async (req, res): Promise<void> => {
   res.json(TestAdminOpenRouterResponse.parse(result));
 });
 
+// ── Email delivery health check ───────────────────────────────────────────────
+// Returns Resend API reachability + domain verification status for the platform
+// sending domain (starksglobalgroup.net). No user credentials needed — uses
+// the platform RESEND_API_KEY environment variable.
+router.get("/admin/email-status", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const apiKey = process.env["RESEND_API_KEY"];
+  if (!apiKey) {
+    res.json({
+      configured: false,
+      fromAddress: null,
+      domainVerified: false,
+      domainStatus: "not_configured",
+      latencyMs: 0,
+      error: "RESEND_API_KEY not configured",
+    });
+    return;
+  }
+
+  const FROM_DOMAIN = "starksglobalgroup.net";
+  const FROM_ADDRESS = `noreply@${FROM_DOMAIN}`;
+  const start = Date.now();
+
+  try {
+    const domainsRes = await fetch("https://api.resend.com/domains", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    const latencyMs = Date.now() - start;
+
+    if (!domainsRes.ok) {
+      res.json({
+        configured: true,
+        fromAddress: FROM_ADDRESS,
+        domainVerified: false,
+        domainStatus: "api_error",
+        latencyMs,
+        error: `Resend API returned ${domainsRes.status}`,
+      });
+      return;
+    }
+
+    const data = (await domainsRes.json()) as { data?: Array<{ name: string; status: string }> };
+    const domains = data.data ?? [];
+    const match = domains.find((d) => d.name === FROM_DOMAIN);
+
+    res.json({
+      configured: true,
+      fromAddress: FROM_ADDRESS,
+      domainVerified: match?.status === "verified",
+      domainStatus: match?.status ?? "not_found",
+      latencyMs,
+      error: null,
+    });
+  } catch (err: unknown) {
+    res.json({
+      configured: true,
+      fromAddress: FROM_ADDRESS,
+      domainVerified: false,
+      domainStatus: "unreachable",
+      latencyMs: Date.now() - start,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
+
+// ── Email delivery test (sends a real email to the requesting admin) ──────────
+router.post("/admin/email-status/test", async (req, res): Promise<void> => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+
+  const apiKey = process.env["RESEND_API_KEY"];
+  if (!apiKey) {
+    res.status(400).json({ ok: false, error: "RESEND_API_KEY not configured" });
+    return;
+  }
+
+  const [adminUser] = await db
+    .select({ email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.id, admin.id))
+    .limit(1);
+  const toEmail = adminUser?.email ?? "tylerstarks77@gmail.com";
+  const start = Date.now();
+
+  try {
+    const { Resend } = await import("resend");
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: "Starks Global Group <noreply@starksglobalgroup.net>",
+      to: [toEmail],
+      subject: "SBEP Email Health Check",
+      text: `This is a test email from the SBEP admin email health check.\n\nIf you're reading this, email delivery is working correctly.\n\nSent: ${new Date().toISOString()}\nLatency: ${Date.now() - start}ms`,
+    });
+    if (error) {
+      res.json({ ok: false, to: toEmail, error: error.message });
+      return;
+    }
+    res.json({ ok: true, to: toEmail, latencyMs: Date.now() - start, error: null });
+  } catch (err: unknown) {
+    res.json({ ok: false, to: toEmail, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 // ── Credential key rotation ───────────────────────────────────────────────────
 router.post("/admin/credentials/rotate-key", async (req, res): Promise<void> => {
   const admin = await requireAdmin(req, res);

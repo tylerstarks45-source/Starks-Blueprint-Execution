@@ -64,6 +64,7 @@ import AdminSocialProofPanel from './AdminSocialProofPanel.jsx';
 import AdminCohortsPanel from './AdminCohortsPanel.jsx';
 import AdminLogsPanel from './AdminLogsPanel.jsx';
 import AdminBusinessOpsCard from './AdminBusinessOpsCard.jsx';
+import AdminEmailHealthCard from './AdminEmailHealthCard.jsx';
 
 import CreditBalanceCard from '@/components/admin/CreditBalanceCard.jsx';
 import UsageOverviewCard from '@/components/admin/UsageOverviewCard.jsx';
@@ -246,6 +247,9 @@ const AdminDashboardLayout = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <AdminPlatformHealthCard />
               <AdminOpenRouterHealthCard />
+              <AdminEmailHealthCard />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <AdminAPIMonitoringCard />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

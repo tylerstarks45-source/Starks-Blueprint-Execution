@@ -62,6 +62,8 @@ export const adminApi = {
   getBusinessOpsAnalytics: (params = {}) => request(`/admin/business-ops-analytics${toQuery(params)}`),
   getAiAnalytics: (params = {}) => request(`/admin/ai-analytics${toQuery(params)}`),
   testOpenRouter: () => request('/admin/openrouter/test', { method: 'POST' }),
+  getEmailStatus: () => request('/admin/email-status'),
+  testEmailDelivery: () => request('/admin/email-status/test', { method: 'POST' }),
   listUsers: (params = {}) => request(`/admin/platform-users${toQuery(params)}`),
   getUserDetail: (id) => request(`/admin/platform-users/${id}`),
   updateUser: (id, body) =>

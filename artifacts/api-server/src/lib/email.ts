@@ -143,9 +143,46 @@ export async function sendContactNotification(data: {
 }
 
 /**
- * Send a weekly digest email to a user.
- * Returns true if sent successfully; false if Resend is not configured or send failed.
+ * Notify a user via email that one of their automations paused because their
+ * AI credit balance hit zero. Uses the platform RESEND_API_KEY — no user
+ * credentials needed.
  */
+export async function sendAutomationPausedEmail(
+  to: string,
+  name: string,
+  whatPaused: string,
+): Promise<boolean> {
+  const resend = getResend();
+  if (!resend) return false;
+  const baseUrl = getBaseUrl();
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: [to],
+      subject: "Your SBEP automation paused — AI credits at zero",
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0a0a;color:#fff;border-radius:12px;">
+          <div style="margin-bottom:24px;">
+            <span style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#f59e0b;">Action Required</span>
+            <h1 style="font-size:22px;font-weight:700;margin:8px 0 0;">Automation Paused ⚠️</h1>
+          </div>
+          <p style="color:#a1a1aa;margin-bottom:16px;">Hey${name ? ` ${name.split(" ")[0]}` : ""}, your AI credit balance hit zero and ${whatPaused} has been paused.</p>
+          <div style="padding:16px;background:#18181b;border-radius:8px;border-left:3px solid #f59e0b;margin-bottom:24px;">
+            <p style="color:#fbbf24;font-weight:600;margin:0 0 4px;">Paused automation</p>
+            <p style="color:#d4d4d8;margin:0;">${whatPaused}</p>
+          </div>
+          <p style="color:#a1a1aa;margin-bottom:24px;">Top up your AI credits to resume automatic optimization. Your automation will restart automatically once credits are available.</p>
+          <a href="${baseUrl}/wallet" style="display:inline-block;background:#f59e0b;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;margin-bottom:16px;">Top Up Credits →</a>
+          <p style="color:#3f3f46;font-size:11px;margin-top:24px;">You're receiving this because you have active automation systems on Starks Global Group.</p>
+        </div>
+      `,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function sendWeeklyDigestEmail(
   to: string,
   name: string,

@@ -16,6 +16,7 @@ import { getRevenueSummaryForInstance, revenueContextLine } from "../revenue-sum
 import { retrieveRelevantLessons, formatLessonsForPrompt } from "../ash-brain";
 import { notifyUser } from "../notify";
 import { sendPushNotification } from "../push";
+import { sendAutomationPausedEmail } from "../email";
 import { fetchPage } from "../browser/crawler";
 import { isBlockedUrl } from "../connectors/ssrf-guard";
 import { computeSystemHealth } from "../health-monitor";
@@ -41,6 +42,8 @@ async function getUserCredentialValue(userId: number, key: string): Promise<stri
 
 // Notify the owner (deduped) that an AI-powered automation paused because their
 // credit balance hit zero, with a one-click link to top up.
+// Sends both an in-app notification AND a platform email so users on mobile or
+// away from the app learn about the pause immediately.
 async function notifyOutOfCredits(userId: number, whatPaused: string): Promise<void> {
   await notifyUser({
     userId,
@@ -50,6 +53,22 @@ async function notifyOutOfCredits(userId: number, whatPaused: string): Promise<v
     linkUrl: "/wallet",
     dedupeKey: "credits_paused",
   });
+
+  // Platform email — fire-and-forget, don't block the calling handler
+  try {
+    const [user] = await db
+      .select({ email: usersTable.email, name: usersTable.name })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+    if (user) {
+      sendAutomationPausedEmail(user.email, user.name ?? "", whatPaused).catch((err: unknown) => {
+        logger.warn({ err, userId }, "Automation paused email failed");
+      });
+    }
+  } catch (err: unknown) {
+    logger.warn({ err, userId }, "Failed to look up user for automation paused email");
+  }
 }
 
 const POLL_INTERVAL_MS = 5_000;

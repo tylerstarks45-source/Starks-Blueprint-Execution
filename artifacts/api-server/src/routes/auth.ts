@@ -168,8 +168,12 @@ router.post("/auth/register", authLimiter, async (req, res) => {
   }
 
   // Send emails fire-and-forget (never block the response)
-  sendEmailVerification(newUser.email, verifyRaw, wlBrandName).catch(() => {});
-  sendWelcomeEmail(newUser.email, name || "", wlBrandName).catch(() => {});
+  sendEmailVerification(newUser.email, verifyRaw, wlBrandName).catch((err: unknown) => {
+    req.log.warn({ err, userId: newUser.id }, "Email verification send failed");
+  });
+  sendWelcomeEmail(newUser.email, name || "", wlBrandName).catch((err: unknown) => {
+    req.log.warn({ err, userId: newUser.id }, "Welcome email send failed");
+  });
 
   const token = signToken(newUser.id, newUser.email, newUser.role ?? "USER");
 

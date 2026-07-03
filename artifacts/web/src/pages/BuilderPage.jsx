@@ -400,10 +400,20 @@ const CredentialForm = ({ credentials, blueprint, onExecute, loading, prefill, o
     return !isRequired || (values[c.key] || '').trim().length > 0;
   });
 
+  // Collect slots where the user picked a custom tool
+  const getCustomTools = () => credentials
+    .filter(c => selectedAlts[c.key]?.isCustom)
+    .map(c => ({
+      slotKey: c.key,
+      toolName: selectedAlts[c.key].toolName,
+      label: selectedAlts[c.key].label || 'API Key',
+      originalToolName: c.toolName,
+    }));
+
   const handleSubmit = () => {
     setAttempted(true);
     if (!allFilled) return;
-    onExecute(buildSubmitValues(values, selectedAlts));
+    onExecute(buildSubmitValues(values, selectedAlts), getCustomTools());
   };
 
   const selectAlternative = (slotKey, alt) => {
@@ -2989,6 +2999,8 @@ const BuilderPage = () => {
   // Refs to hold latest blueprint/systemName for the credential form submit
   const pendingBlueprintRef = useRef(null);
   const pendingSystemNameRef = useRef('');
+  // Stores creds submitted with custom tools so they're available when ASH fires start_build
+  const pendingCustomBuildCredsRef = useRef(null);
 
   // ── Streaming send message to ASH ─────────────────────────────────────────
   const sendMessage = useCallback(async (text) => {
@@ -3186,7 +3198,14 @@ const BuilderPage = () => {
         setPhase('collecting');
       } else if (action === 'start_build' && sd?.blueprint && !isPlanMode) {
         setPendingPlanData(null);
-        await executeBuild({}, sd.blueprint, sd.systemName ?? '');
+        // If we stored creds from a custom-tool handoff, use those; otherwise start with empty creds
+        const storedCustomBuild = pendingCustomBuildCredsRef.current;
+        pendingCustomBuildCredsRef.current = null;
+        await executeBuild(
+          storedCustomBuild?.credValues ?? {},
+          storedCustomBuild?.bp ?? sd.blueprint,
+          storedCustomBuild?.sysName ?? sd.systemName ?? ''
+        );
       } else if (action === 'platform_action' && sd?.tool) {
         // Top-level platform_action SBEP_DATA (fallback — prompt instructs tool_calls format, but handle both)
         const toolMsgId = Date.now() + Math.random();
@@ -3485,11 +3504,28 @@ const BuilderPage = () => {
   }, [selectedBp, sendMessage]);
 
   // ── Credential form submit (uses refs to avoid stale state) ───────────────
-  const handleCredentialSubmit = useCallback((credValues) => {
+  const handleCredentialSubmit = useCallback((credValues, customTools) => {
     const bp = pendingBlueprintRef.current;
     const sysName = pendingSystemNameRef.current;
-    executeBuild(credValues, bp, sysName);
-  }, [executeBuild]);
+
+    if (customTools?.length > 0) {
+      // Store credentials so start_build can use them after ASH's Q&A
+      pendingCustomBuildCredsRef.current = { credValues, bp, sysName };
+      // Go back to chat so ASH can ask integration questions
+      setPhase('idle');
+      setPendingCreds([]);
+
+      const toolLines = customTools
+        .map(ct => `• **${ct.toolName}** (${ct.label}) — replacing ASH's recommendation of ${ct.originalToolName}`)
+        .join('\n');
+
+      sendMessage(
+        `I've saved my credentials and I'm ready to build, but I'm using custom tools in place of some of ASH's recommendations:\n\n${toolLines}\n\nBefore you start the build, please ask me for any information you need to properly integrate ${customTools.length === 1 ? `"${customTools[0].toolName}"` : 'these tools'} into the ${sysName} system — things like API endpoints, authentication method, available models, rate limits, or anything else you need. Once you have everything, start the build.`
+      );
+    } else {
+      executeBuild(credValues, bp, sysName);
+    }
+  }, [executeBuild, sendMessage]);
 
   const stopGeneration = useCallback(() => {
     abortControllerRef.current?.abort();

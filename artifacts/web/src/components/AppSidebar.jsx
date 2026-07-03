@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Layers, Bot, Mail, Globe, Link2, Plug, Share2,
   ShoppingBag, BookOpen, CreditCard, ShieldCheck, ChevronLeft, ChevronRight,
   LogOut, X, Settings, Globe2, Zap, Users, Calendar, Building2, ScrollText,
+  Brain,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useClient } from '@/contexts/ClientContext.jsx';
@@ -18,6 +19,7 @@ const NAV_GROUPS = [
       { label: 'Dashboard',     path: '/dashboard',    icon: LayoutDashboard },
       { label: 'My Systems',    path: '/systems',      icon: Layers },
       { label: 'My Businesses', path: '/business-portfolio', icon: Building2 },
+      { label: 'ASH Intelligence', path: '/ash-intelligence', icon: Brain },
       { label: 'Logs',          path: '/logs',         icon: ScrollText },
     ],
   },

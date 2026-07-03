@@ -37,8 +37,9 @@ import { publish, PUBLISHING_CHANNELS } from "../lib/publishing";
 import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
 import { complete, streamCompletion } from "../lib/openrouter";
 import { MODELS, chainFor, chainForAgentMode, depthNoteForAgentMode } from "../lib/models";
+import { buildLearnedPatternsNote, getBrainOverview, distillAshBrain } from "../lib/ash-brain";
 import { hasCredits } from "../lib/credits";
-import { requireAuthActive } from "../lib/auth";
+import { requireAuthActive, requireAdmin } from "../lib/auth";
 import { encrypt, decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector } from "../lib/connectors/registry";
 import { z } from "zod";
@@ -774,8 +775,16 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       ? `\n\n=== CHAT MODE — CONVERSATION ONLY ===\nYou're in chat/conversation mode. Respond naturally in your voice — helpful, direct, real. Do NOT output any SBEP_DATA block under any circumstances. No build plans, no "present_plan", no "collect_credentials", no "start_build". Just answer the question like a smart friend would.`
       : "";
 
+    // Self-improving brain (Task #312): ground the reply in proven patterns
+    // relevant to this goal (honest fallback when data is thin). Prompt-only —
+    // model chain above stays best-model.
+    const learnedPatternsNote = await buildLearnedPatternsNote({
+      businessType: parsed.data.businessType,
+      goalText: `${parsed.data.message} ${parsed.data.revenueGoal ?? ""}`,
+    });
+
     const completionArgs = {
-      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + connectedToolsNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + depthNote + planModeNote + chatOnlyNote,
+      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + connectedToolsNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + learnedPatternsNote + depthNote + planModeNote + chatOnlyNote,
       prompt: `${historyCtx}\n\nUser: ${parsed.data.message}`,
       userId,
       systemInstanceId: parsed.data.systemInstanceId,
@@ -1153,9 +1162,18 @@ Do NOT invent IDs — only use exact integer IDs shown above.`;
       ? `\n\n=== PLAN MODE — STRATEGY ONLY ===\nYou're in strategy/discussion mode right now. Talk through ideas, explain how systems work, share your honest take on opportunities and timelines. Be a real thought partner. Do NOT emit SBEP_DATA with "start_build", "collect_credentials", or any build-triggering action. You can use "browser_use" if the user wants live research. Only output a build plan (action "present_plan") when the user explicitly says they want one — "write up the plan", "let's plan this out", "I'm ready to proceed". Exploring and asking questions is NOT that signal.`
       : "";
 
+    // Self-improving brain (Task #312): retrieve proven patterns relevant to
+    // this goal and ground the plan/build in what has actually earned money.
+    // Deterministic, honest fallback when data is thin. Augments the prompt
+    // only — model selection above (chainForAgentMode) stays best-model.
+    const learnedPatternsNote = await buildLearnedPatternsNote({
+      businessType: parsed.data.businessType,
+      goalText: `${parsed.data.message} ${parsed.data.revenueGoal ?? ""}`,
+    });
+
     const systemPrompt = buildSystemPrompt(blueprintKB, toolKB) +
       storedCredNote + connectedToolsNote + skillAdditions + memoryNote + platformStateNote +
-      (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + depthNote + planModeNote;
+      (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + learnedPatternsNote + depthNote + planModeNote;
     const prompt = `${historyCtx}\n\nUser: ${parsed.data.message}`;
 
     // ── Auto-tool detection (runs in parallel with AI + thinking) ─────────
@@ -2461,6 +2479,36 @@ router.post("/ai-orchestrator/step-recovery", async (req, res): Promise<void> =>
   send({ type: "error_recovery", explanation });
   send({ type: "done" });
   res.end();
+});
+
+// ── GET /api/ai-orchestrator/brain ───────────────────────────────────────────
+// The visible "what ASH has learned" surface (Task #312): returns distilled
+// lessons + aggregate learning stats. Honest empty state when the brain is new.
+router.get("/ai-orchestrator/brain", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  try {
+    const overview = await getBrainOverview();
+    res.json(overview);
+  } catch (err) {
+    req.log.error({ err }, "Failed to load ASH brain overview");
+    res.status(500).json({ error: "Failed to load ASH brain" });
+  }
+});
+
+// ── POST /api/ai-orchestrator/brain/distill ──────────────────────────────────
+// Admin-only manual trigger of a brain distillation pass (the scheduler runs it
+// daily automatically). Useful for verification and after seeding outcomes.
+router.post("/ai-orchestrator/brain/distill", async (req, res): Promise<void> => {
+  const admin = await requireAdmin(req, res);
+  if (admin === null) return;
+  try {
+    const result = await distillAshBrain();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    req.log.error({ err }, "Manual ASH brain distillation failed");
+    res.status(500).json({ error: "Distillation failed" });
+  }
 });
 
 export default router;

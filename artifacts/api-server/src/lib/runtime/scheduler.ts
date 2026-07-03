@@ -19,6 +19,7 @@ import { credentialDisplayName } from "../connectors/catalog-map";
 import { OutOfCreditsError } from "../credits";
 import { createPendingApproval } from "../approvals";
 import { hasOperationsModeAccess } from "../operations-gate";
+import { distillAshBrain } from "../ash-brain";
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
@@ -953,6 +954,27 @@ async function processImprovementPasses(): Promise<void> {
   }
 }
 
+// ─── ASH brain distillation tick (Task #312) ─────────────────────────────────
+// Runs once per day: distills real outcomes (revenue, health, tools, niches)
+// into durable "lessons" ASH retrieves at plan/build/recommend time. Purely
+// deterministic SQL aggregation — no AI cost, no fabricated claims.
+
+const BRAIN_DISTILL_INTERVAL_MS = 24 * 60 * 60 * 1000;
+let lastBrainDistillRun = 0;
+
+async function processBrainDistillation(): Promise<void> {
+  const now = Date.now();
+  if (now - lastBrainDistillRun < BRAIN_DISTILL_INTERVAL_MS) return;
+  lastBrainDistillRun = now;
+
+  try {
+    const result = await distillAshBrain();
+    logger.info(result, "ASH brain distillation tick complete");
+  } catch (err) {
+    logger.warn({ err }, "ASH brain distillation tick failed");
+  }
+}
+
 // ─── Credential-expiry warnings ───────────────────────────────────────────────
 // Proactively warn users before a connected credential expires so their
 // automations don't silently break. Skips keys that auto-refresh on their own
@@ -1032,6 +1054,7 @@ export function startScheduler(): void {
       await processHealthMonitoring();
       await processHungJobWatchdog();
       await processImprovementPasses();
+      await processBrainDistillation();
       await processExpiringCredentialWarnings();
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");

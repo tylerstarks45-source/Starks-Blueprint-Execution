@@ -13,6 +13,7 @@ import { complete } from "../openrouter";
 import { OutOfCreditsError } from "../credits";
 import { chainFor } from "../models";
 import { getRevenueSummaryForInstance, revenueContextLine } from "../revenue-summary";
+import { retrieveRelevantLessons, formatLessonsForPrompt } from "../ash-brain";
 import { notifyUser } from "../notify";
 import { sendPushNotification } from "../push";
 import { fetchPage } from "../browser/crawler";
@@ -527,6 +528,15 @@ async function handleBusinessImprovementPass(payload: Record<string, unknown>): 
   // prioritizes what will move the number rather than guessing.
   const revenue = await getRevenueSummaryForInstance(business.systemInstanceId);
 
+  // Self-improving brain (Task #312): weight recommendations by learned
+  // outcomes — proven patterns for this niche should rank above unproven ones.
+  // Honest fallback when the brain has little data; Marketplace-first preserved.
+  const learnedLessons = await retrieveRelevantLessons({
+    businessType: business.businessType,
+    goalText: `${business.name} ${business.revenueModel ?? ""} ${business.notes ?? ""}`,
+  });
+  const learnedPatternsNote = formatLessonsForPrompt(learnedLessons);
+
   const prompt = `You are running a scheduled AI Improvement Engine pass for a business on the SBEP platform.
 
 Business name: ${business.name}
@@ -541,6 +551,9 @@ ${siteContext}
 
 Our Marketplace already sells/curates these tools — ALWAYS check this list first and prefer recommending one of these by exact name over any external tool:
 ${marketplaceContext}
+${learnedPatternsNote}
+
+Ranking rule: weight your recommendations by what has ACTUALLY worked. Recommendations that align with higher-confidence PROVEN learned patterns above should rank first and carry higher confidence; treat PROMISING/EMERGING patterns as softer signals; be cautious about STRUGGLING patterns. Still respect the Marketplace-first rule when suggesting tools.
 
 Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY a JSON array (no markdown, no prose), each item shaped exactly like:
 {

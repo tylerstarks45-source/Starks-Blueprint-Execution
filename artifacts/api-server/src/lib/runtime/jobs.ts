@@ -158,32 +158,21 @@ export async function getJobsBySystem(systemInstanceId: number, limit = 50) {
 // Reset orphaned "active" jobs left by a previous crashed process.
 // Safe to call at startup — the old process is already gone.
 export async function resetOrphanedJobs(): Promise<number> {
-  // Standard worker jobs: reset active → queued so the worker picks them up again.
-  // Exclude all media_gen_* types — they are not claimed by the job worker.
+  // Standard worker jobs (now including media_gen_audio, which runs as a real
+  // queued worker job — Task #283): reset active → queued so the worker picks
+  // them up again after a crash/restart. Only media_gen_video is excluded.
   const workerResult = await pool.query(`
     UPDATE runtime_jobs
     SET status = 'queued', started_at = NULL
     WHERE status = 'active'
-      AND job_type NOT IN ('media_gen_video', 'media_gen_audio')
-  `);
-
-  // ElevenLabs audio jobs run as in-process fire-and-forget closures.
-  // If the server restarted while one was in flight, the background task is gone
-  // and the job will never settle. Mark it failed so the UI doesn't hang.
-  const audioResult = await pool.query(`
-    UPDATE runtime_jobs
-    SET status = 'failed',
-        error = 'Server restarted mid-generation — please retry',
-        completed_at = NOW()
-    WHERE status = 'active'
-      AND job_type = 'media_gen_audio'
+      AND job_type != 'media_gen_video'
   `);
 
   // HeyGen / Runway video jobs have external provider-side job IDs stored in
   // their payload. They remain 'active' so the next client poll can resume
   // status from the provider without losing the providerJobId.
 
-  return (workerResult.rowCount ?? 0) + (audioResult.rowCount ?? 0);
+  return workerResult.rowCount ?? 0;
 }
 
 // ─── Hung-job watchdog ────────────────────────────────────────────────────────
@@ -220,6 +209,8 @@ export async function reclaimHungJobs(): Promise<ReclaimResult> {
           AND started_at < NOW() - INTERVAL '5 minutes')
         OR (job_type IN ('scheduled_task', 'business_health_analysis', 'business_improvement_pass')
           AND started_at < NOW() - INTERVAL '10 minutes')
+        OR (job_type = 'media_gen_audio'
+          AND started_at < NOW() - INTERVAL '5 minutes')
       )
     RETURNING job_id, status
   `);

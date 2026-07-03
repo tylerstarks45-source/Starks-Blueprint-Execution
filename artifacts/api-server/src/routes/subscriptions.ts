@@ -6,6 +6,8 @@ import { z } from "zod";
 import { getUncachableStripeClient } from "../lib/stripe";
 import { adjustCredits, adjustWalletCredits, tierAllotment } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
+import { notifyUser } from "../lib/notify";
+import { hasOperationsModeAccess } from "../lib/operations-gate";
 
 const router: IRouter = Router();
 
@@ -448,11 +450,16 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
           membershipStatus: dbStatus === "active" ? "active" : "inactive",
         };
 
+        let lostOperationsAccess = false;
         if (newTier && newTier !== existingSub.tier) {
           subPatch.tier        = newTier;
           subPatch.stripePriceId = newPriceId ?? null;
           userPatch.membershipTier = newTier;
-          req.log.info({ userId, from: existingSub.tier, to: newTier, stripeStatus },
+          // Detect a downgrade that removes ASH Operations Mode so we can warn
+          // the user their autonomous automations will stop.
+          lostOperationsAccess =
+            hasOperationsModeAccess(existingSub.tier) && !hasOperationsModeAccess(newTier);
+          req.log.info({ userId, from: existingSub.tier, to: newTier, stripeStatus, lostOperationsAccess },
             "Subscription tier changed");
         }
 
@@ -462,6 +469,19 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
         await db.update(usersTable)
           .set(userPatch)
           .where(eq(usersTable.id, userId));
+
+        // Tier-change grace notification: tell the user what their plan change
+        // means for their running automations, with a one-click path to restore.
+        if (lostOperationsAccess) {
+          await notifyUser({
+            userId,
+            notificationType: "warn",
+            title: "ASH Operations Mode paused after plan change",
+            message: `Your plan changed to ${newTier}, which doesn't include ASH Operations Mode. Your businesses stay saved, but continuous monitoring, content, and scheduling automation are paused. Upgrade to Operator or Empire to resume.`,
+            linkUrl: "/pricing",
+            dedupeKey: "operations_access_lost",
+          });
+        }
 
         req.log.info({ userId, stripeStatus, dbStatus, newTier }, "Subscription updated");
       } else {

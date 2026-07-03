@@ -3112,6 +3112,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /approvals/{id}/revert:
+    post:
+      operationId: revertPendingApproval
+      tags: [approvals]
+      summary: Reverse a previously-approved, executed action
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reverted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingApproval"
+        "400":
+          description: Not reversible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -4672,6 +4703,8 @@ components:
           type: string
         notificationType:
           type: string
+        linkUrl:
+          type: ["string", "null"]
         read:
           type: boolean
         createdAt:
@@ -5427,6 +5460,13 @@ components:
           enum: [pending, approved, rejected]
         resolvedAt:
           type: ["string", "null"]
+        executedAt:
+          type: ["string", "null"]
+        revertedAt:
+          type: ["string", "null"]
+        undoPayload:
+          type: ["object", "null"]
+          additionalProperties: true
         createdAt:
           type: string
         updatedAt:

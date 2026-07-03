@@ -165,8 +165,11 @@ router.get("/runtime/jobs/:jobId", async (req, res): Promise<void> => {
       return;
     }
 
-    // For in-flight jobs, proxy to media-gen polling so provider status is live
-    if (job.status === "active" || job.status === "queued") {
+    // For in-flight video jobs, proxy to media-gen polling so the external
+    // provider (HeyGen / Runway) status is live. Audio jobs are now processed
+    // by the worker and settle directly in the DB, so they fall through to the
+    // stored result below (status is queued/active while generating).
+    if (job.jobType === "media_gen_video" && (job.status === "active" || job.status === "queued")) {
       try {
         const pollRes = await fetch(
           `http://localhost:${process.env.PORT ?? 8080}/api/media-gen/jobs/${job.jobId}`,

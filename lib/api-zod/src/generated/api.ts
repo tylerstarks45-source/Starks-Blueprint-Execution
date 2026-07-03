@@ -2265,6 +2265,7 @@ export const ListNotificationsResponseItem = zod.object({
   "title": zod.string(),
   "message": zod.string(),
   "notificationType": zod.string(),
+  "linkUrl": zod.string().nullish(),
   "read": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -2300,6 +2301,7 @@ export const MarkNotificationReadResponse = zod.object({
   "title": zod.string(),
   "message": zod.string(),
   "notificationType": zod.string(),
+  "linkUrl": zod.string().nullish(),
   "read": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -2901,6 +2903,9 @@ export const ListApprovalsResponseItem = zod.object({
   "payload": zod.record(zod.string(), zod.unknown()).optional(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "resolvedAt": zod.string().nullish(),
+  "executedAt": zod.string().nullish(),
+  "revertedAt": zod.string().nullish(),
+  "undoPayload": zod.record(zod.string(), zod.unknown()).nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -2925,6 +2930,9 @@ export const ApprovePendingApprovalResponse = zod.object({
   "payload": zod.record(zod.string(), zod.unknown()).optional(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "resolvedAt": zod.string().nullish(),
+  "executedAt": zod.string().nullish(),
+  "revertedAt": zod.string().nullish(),
+  "undoPayload": zod.record(zod.string(), zod.unknown()).nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -2948,6 +2956,35 @@ export const RejectPendingApprovalResponse = zod.object({
   "payload": zod.record(zod.string(), zod.unknown()).optional(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "resolvedAt": zod.string().nullish(),
+  "executedAt": zod.string().nullish(),
+  "revertedAt": zod.string().nullish(),
+  "undoPayload": zod.record(zod.string(), zod.unknown()).nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Reverse a previously-approved, executed action
+ */
+export const RevertPendingApprovalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RevertPendingApprovalResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "userId": zod.number(),
+  "category": zod.string(),
+  "riskLevel": zod.enum(['low', 'high']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "payload": zod.record(zod.string(), zod.unknown()).optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "resolvedAt": zod.string().nullish(),
+  "executedAt": zod.string().nullish(),
+  "revertedAt": zod.string().nullish(),
+  "undoPayload": zod.record(zod.string(), zod.unknown()).nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })

@@ -118,6 +118,12 @@ const NotificationBell = ({ sidebarMode = false, collapsed = false }) => {
       return;
     }
     markRead(item.id);
+    // One-click fix: notifications carry an optional deep link (e.g. /wallet to
+    // top up credits, /systems/:id to re-enable a disabled task).
+    if (item.linkUrl) {
+      setIsOpen(false);
+      navigate(item.linkUrl);
+    }
   };
 
   if (!isAuthenticated) return null;

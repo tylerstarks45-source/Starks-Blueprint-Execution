@@ -154,6 +154,7 @@ export * from './pendingApproval';
 export * from './pendingApprovalPayload';
 export * from './pendingApprovalRiskLevel';
 export * from './pendingApprovalStatus';
+export * from './pendingApprovalUndoPayload';
 export * from './recomputeHealthResponse';
 export * from './rotateKeyBody';
 export * from './rotateKeyResult';

@@ -10080,3 +10080,73 @@ export const useRejectPendingApproval = <TError = ErrorType<ErrorResponse>,
       return useMutation(getRejectPendingApprovalMutationOptions(options));
     }
 
+export const getRevertPendingApprovalUrl = (id: number,) => {
+
+
+
+
+  return `/api/approvals/${id}/revert`
+}
+
+/**
+ * @summary Reverse a previously-approved, executed action
+ */
+export const revertPendingApproval = async (id: number, options?: RequestInit): Promise<PendingApproval> => {
+
+  return customFetch<PendingApproval>(getRevertPendingApprovalUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRevertPendingApprovalMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertPendingApproval>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revertPendingApproval>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['revertPendingApproval'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revertPendingApproval>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  revertPendingApproval(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevertPendingApprovalMutationResult = NonNullable<Awaited<ReturnType<typeof revertPendingApproval>>>
+
+    export type RevertPendingApprovalMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Reverse a previously-approved, executed action
+ */
+export const useRevertPendingApproval = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertPendingApproval>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revertPendingApproval>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRevertPendingApprovalMutationOptions(options));
+    }
+

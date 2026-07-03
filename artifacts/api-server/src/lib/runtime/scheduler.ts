@@ -14,6 +14,10 @@ import { attemptSelfHeal } from "../self-healing";
 import { loadCredentials as loadSystemCredentials } from "./worker";
 import { businessesTable } from "@workspace/db";
 import { enqueue, reclaimHungJobs } from "./jobs";
+import { notifyUser } from "../notify";
+import { OutOfCreditsError } from "../credits";
+import { createPendingApproval } from "../approvals";
+import { hasOperationsModeAccess } from "../operations-gate";
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
@@ -244,6 +248,26 @@ async function processDueTasks(): Promise<void> {
   }
 }
 
+// Real exponential backoff for scheduled tasks (Task #283) — replaces the old
+// 2-strike disable. A transient failure no longer permanently kills automation:
+// the task is retried up to MAX_TASK_ATTEMPTS times with 5min × 2^(n-1) backoff
+// (capped), and only disabled after all retries are exhausted.
+const MAX_TASK_ATTEMPTS = 5;
+const BASE_BACKOFF_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_BACKOFF_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+function backoffDelayMs(attempt: number): number {
+  // attempt is 1-based (1 = first failure). 5m, 10m, 20m, 40m, …
+  return Math.min(BASE_BACKOFF_MS * 2 ** (attempt - 1), MAX_BACKOFF_MS);
+}
+
+function formatDelay(ms: number): string {
+  const mins = Math.round(ms / 60_000);
+  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"}`;
+  const hours = Math.round(mins / 60);
+  return `${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
 async function handleTaskFailure(
   taskId: number,
   systemInstanceId: number,
@@ -254,9 +278,12 @@ async function handleTaskFailure(
 ): Promise<void> {
   const newFailureCount = previousFailureCount + 1;
 
-  if (newFailureCount === 1) {
-    // First failure — schedule a retry in 5 minutes
-    const retryAt = new Date(Date.now() + 5 * 60 * 1000);
+  if (newFailureCount < MAX_TASK_ATTEMPTS) {
+    // Retry with exponential backoff.
+    const delayMs = backoffDelayMs(newFailureCount);
+    const retryAt = new Date(Date.now() + delayMs);
+    const delayLabel = formatDelay(delayMs);
+
     await pool.query(
       `UPDATE scheduled_tasks SET last_run_status = 'retrying', last_run_error = $1, failure_count = $2, next_run_at = $3 WHERE id = $4`,
       [errorMsg.slice(0, 500), newFailureCount, retryAt, taskId],
@@ -265,13 +292,13 @@ async function handleTaskFailure(
     await db.insert(systemActivityEventsTable).values({
       systemInstanceId,
       eventType: "error",
-      description: `Scheduled: ${taskName} failed — retrying in 5 minutes. Error: ${errorMsg.slice(0, 150)}`,
-      metadata: JSON.stringify({ scheduledTaskId: taskId, status: "retrying", error: errorMsg }),
+      description: `Scheduled: ${taskName} failed (attempt ${newFailureCount}/${MAX_TASK_ATTEMPTS}) — retrying in ${delayLabel}. Error: ${errorMsg.slice(0, 150)}`,
+      metadata: JSON.stringify({ scheduledTaskId: taskId, status: "retrying", attempt: newFailureCount, error: errorMsg }),
     });
 
-    logger.warn({ taskId, taskName, errorMsg }, "Scheduled task failed — retry in 5 min");
+    logger.warn({ taskId, taskName, attempt: newFailureCount, delayMs, errorMsg }, "Scheduled task failed — backing off");
   } else {
-    // Second failure — mark as failed and send user notification
+    // Retries exhausted — disable and notify the user with a one-click link.
     await pool.query(
       `UPDATE scheduled_tasks SET last_run_status = 'failed', last_run_error = $1, failure_count = $2, enabled = false WHERE id = $3`,
       [errorMsg.slice(0, 500), newFailureCount, taskId],
@@ -280,20 +307,20 @@ async function handleTaskFailure(
     await db.insert(systemActivityEventsTable).values({
       systemInstanceId,
       eventType: "error",
-      description: `Scheduled: ${taskName} failed twice and was disabled. Error: ${errorMsg.slice(0, 150)}`,
-      metadata: JSON.stringify({ scheduledTaskId: taskId, status: "failed", error: errorMsg }),
+      description: `Scheduled: ${taskName} failed ${newFailureCount} times and was disabled. Error: ${errorMsg.slice(0, 150)}`,
+      metadata: JSON.stringify({ scheduledTaskId: taskId, status: "failed", attempt: newFailureCount, error: errorMsg }),
     });
 
-    // Create user notification
-    await db.insert(notificationsTable).values({
+    await notifyUser({
       userId,
-      title: `Scheduled Task Failed: ${taskName}`,
-      message: `Your scheduled task "${taskName}" failed twice and has been disabled. Last error: ${errorMsg.slice(0, 200)}. Re-enable it from the system detail page once you've fixed the issue.`,
       notificationType: "error",
-      read: false,
+      title: `Scheduled Task Disabled: ${taskName}`,
+      message: `Your scheduled task "${taskName}" failed ${newFailureCount} times (with automatic retries) and has been disabled. Last error: ${errorMsg.slice(0, 200)}. Fix the issue and re-enable it from the system page.`,
+      linkUrl: systemInstanceId ? `/systems/${systemInstanceId}` : "/dashboard",
+      dedupeKey: `task_disabled_${taskId}`,
     });
 
-    logger.error({ taskId, taskName, errorMsg }, "Scheduled task failed twice — disabled + user notified");
+    logger.error({ taskId, taskName, attempts: newFailureCount, errorMsg }, "Scheduled task disabled after exhausting retries — user notified");
   }
 }
 
@@ -385,6 +412,16 @@ async function processWeeklyDigest(): Promise<void> {
 
       sent++;
     } catch (err: unknown) {
+      if (err instanceof OutOfCreditsError) {
+        await notifyUser({
+          userId: user.id,
+          notificationType: "warn",
+          title: "Weekly digest paused — out of AI credits",
+          message: "We couldn't generate your weekly digest because your AI credit balance reached zero. Top up to resume.",
+          linkUrl: "/wallet",
+          dedupeKey: "credits_paused",
+        });
+      }
       logger.warn({ userId: user.id, err }, "Weekly digest failed for user");
     }
   }
@@ -479,16 +516,57 @@ async function processABTests(): Promise<void> {
       logger.warn({ err, testId: row.id }, "Failed to archive losing variants");
     });
 
-    // For landing_page tests: promote winning variant's HTML to the landing page
+    // For landing_page tests: promote the winning variant's HTML to the landing
+    // page. This is an autonomous, user-facing change. For businesses running
+    // under ASH Operations Mode we don't apply it silently — we queue a pending
+    // approval (logged + reversible via lib/approval-executor.ts) so the owner
+    // signs off first. Otherwise (no linked business / not on Operations Mode)
+    // we keep the original auto-promote behavior.
+    let promotionGated = false;
     if (row.type === "landing_page") {
       const landingPageId = (row.config as Record<string, unknown>)?.landingPageId as number | undefined;
       if (landingPageId && winnerVariant.content_ref.length > 200) {
-        await pool.query(
-          `UPDATE landing_pages SET html_content = $1 WHERE id = $2`,
-          [winnerVariant.content_ref, landingPageId],
-        ).catch((err: unknown) => {
-          logger.error({ err, testId: row.id, landingPageId }, "Failed to promote winning variant to landing page");
-        });
+        const [biz] = await db
+          .select({ id: businessesTable.id, ownerId: businessesTable.ownerId })
+          .from(businessesTable)
+          .where(eq(businessesTable.systemInstanceId, row.system_instance_id))
+          .limit(1);
+
+        if (biz) {
+          const [owner] = await db
+            .select({ membershipTier: usersTable.membershipTier, role: usersTable.role })
+            .from(usersTable)
+            .where(eq(usersTable.id, biz.ownerId));
+
+          if (hasOperationsModeAccess(owner?.membershipTier, owner?.role)) {
+            promotionGated = true;
+            const convRate = ((winnerVariant.conversions / Math.max(winnerVariant.visits, 1)) * 100).toFixed(1);
+            await createPendingApproval({
+              businessId: biz.id,
+              userId: biz.ownerId,
+              category: "schedulePosts",
+              riskLevel: "high",
+              title: `Promote A/B winner "${winnerVariant.name}" to your landing page`,
+              description: `ASH selected "${winnerVariant.name}" as the winning variant for "${row.name}" (${convRate}% conversion rate). Approve to publish it live — you can undo this afterwards.`,
+              payload: {
+                action: "promote_ab_variant",
+                landingPageId,
+                winnerHtml: winnerVariant.content_ref,
+                systemInstanceId: row.system_instance_id,
+                winnerName: winnerVariant.name,
+              },
+            });
+          }
+        }
+
+        if (!promotionGated) {
+          await pool.query(
+            `UPDATE landing_pages SET html_content = $1 WHERE id = $2`,
+            [winnerVariant.content_ref, landingPageId],
+          ).catch((err: unknown) => {
+            logger.error({ err, testId: row.id, landingPageId }, "Failed to promote winning variant to landing page");
+          });
+        }
       }
     }
 
@@ -506,10 +584,16 @@ async function processABTests(): Promise<void> {
       }),
     });
 
+    const landingSuffix =
+      row.type !== "landing_page"
+        ? ""
+        : promotionGated
+          ? " ASH needs your approval before publishing the winner — review it in your approvals queue."
+          : " Your landing page has been updated to show the winning variant.";
     await db.insert(notificationsTable).values({
       userId: row.user_id,
       title: `A/B Test Complete: ${row.name}`,
-      message: `Your ${row.type === "email_subject" ? "email subject" : "landing page"} A/B test "${row.name}" has concluded. Winner: "${winnerVariant.name}" (${((winnerVariant.conversions / Math.max(winnerVariant.visits, 1)) * 100).toFixed(1)}% conversion rate).${row.type === "landing_page" ? " Your landing page has been updated to show the winning variant." : ""}`,
+      message: `Your ${row.type === "email_subject" ? "email subject" : "landing page"} A/B test "${row.name}" has concluded. Winner: "${winnerVariant.name}" (${((winnerVariant.conversions / Math.max(winnerVariant.visits, 1)) * 100).toFixed(1)}% conversion rate).${landingSuffix}`,
       notificationType: "info",
       read: false,
     });

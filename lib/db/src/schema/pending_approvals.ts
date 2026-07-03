@@ -37,6 +37,14 @@ export const pendingApprovalsTable = pgTable("pending_approvals", {
   payload: jsonb("payload").notNull().default({}),
   status: text("status").notNull().default("pending"),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  // Set when an approved action was actually carried out by the executor
+  // (lib/approval-executor.ts). Distinct from resolvedAt (decision time).
+  executedAt: timestamp("executed_at", { withTimezone: true }),
+  // Set when a previously-executed action was rolled back by the user.
+  revertedAt: timestamp("reverted_at", { withTimezone: true }),
+  // Snapshot of the prior state captured at execution time so the action can
+  // be reversed (e.g. the landing-page HTML before a variant was promoted).
+  undoPayload: jsonb("undo_payload"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

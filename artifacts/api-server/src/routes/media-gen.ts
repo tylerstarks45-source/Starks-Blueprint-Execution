@@ -36,21 +36,27 @@ async function getUserCredential(userId: number, key: string): Promise<string | 
   }
 }
 
-// Insert a media gen job as "active" (already running externally; worker should not pick it up)
+// Insert a media gen job.
+// - media_gen_video: status "active" — a HeyGen/Runway generation is already
+//   running externally and is resumed via provider polling, not the worker.
+// - media_gen_audio: status "queued" — a real worker job (see handleMediaGenAudio
+//   in runtime/worker.ts) so ElevenLabs generation survives a restart. It is
+//   given maxAttempts=2 for a single automatic retry on transient failure.
 async function insertMediaJob(
   jobType: "media_gen_video" | "media_gen_audio",
   payload: Record<string, unknown>,
 ): Promise<string> {
   const jobId = randomUUID();
+  const isWorkerJob = jobType === "media_gen_audio";
   await db.insert(runtimeJobsTable).values({
     jobId,
     systemInstanceId: null,
     jobType,
-    status: "active",
+    status: isWorkerJob ? "queued" : "active",
     priority: 5,
     payload,
-    attempt: 1,
-    maxAttempts: 1,
+    attempt: isWorkerJob ? 0 : 1,
+    maxAttempts: isWorkerJob ? 2 : 1,
     runAfter: new Date(),
   });
   return jobId;
@@ -600,14 +606,21 @@ router.post("/media-gen/music", async (req, res): Promise<void> => {
     return;
   }
 
-  // Insert job FIRST — respond immediately, ElevenLabs runs as background task
+  const fullPrompt = [prompt, style ? `${style} style` : "", mood ? `${mood} mood` : ""]
+    .filter(Boolean).join(", ");
+  const cappedDuration = Math.min(durationSeconds, 300);
+
+  // Enqueue as a recoverable worker job (survives a server restart). The worker
+  // (handleMediaGenAudio in runtime/worker.ts) fetches the user's ElevenLabs
+  // key, calls the sound-generation API, and saves the result to generated_files.
   let audioJobId: string;
   try {
     audioJobId = await insertMediaJob("media_gen_audio", {
       provider: "elevenlabs",
       userId,
       prompt,
-      durationSeconds,
+      fullPrompt,
+      durationSeconds: cappedDuration,
       style: style ?? null,
       mood: mood ?? null,
     });
@@ -616,10 +629,6 @@ router.post("/media-gen/music", async (req, res): Promise<void> => {
     res.status(500).json({ error: "Failed to start music generation" });
     return;
   }
-
-  const fullPrompt = [prompt, style ? `${style} style` : "", mood ? `${mood} mood` : ""]
-    .filter(Boolean).join(", ");
-  const cappedDuration = Math.min(durationSeconds, 300);
 
   // Respond immediately — client polls /api/runtime/jobs/:jobId for completion
   res.json({
@@ -631,60 +640,6 @@ router.post("/media-gen/music", async (req, res): Promise<void> => {
     durationSeconds: cappedDuration,
     message: "ElevenLabs is composing your audio. Poll the job for completion.",
   });
-
-  // Background: call ElevenLabs and persist result once complete
-  void (async () => {
-    try {
-      const soundRes = await fetch("https://api.elevenlabs.io/v1/sound-generation", {
-        method: "POST",
-        headers: {
-          "xi-api-key": elevenLabsKey,
-          "Content-Type": "application/json",
-          "Accept": "audio/mpeg",
-        },
-        body: JSON.stringify({
-          text: fullPrompt,
-          duration_seconds: cappedDuration,
-          prompt_influence: 0.3,
-        }),
-      });
-
-      if (!soundRes.ok) {
-        const errText = await soundRes.text();
-        req.log.warn({ status: soundRes.status, err: errText }, "ElevenLabs background task failed");
-        await pool.query(
-          `UPDATE runtime_jobs SET status = 'failed', error = $1, completed_at = NOW() WHERE job_id = $2`,
-          [errText.slice(0, 500), audioJobId],
-        );
-        return;
-      }
-
-      const audioBuffer = await soundRes.arrayBuffer();
-      const base64Audio = Buffer.from(audioBuffer).toString("base64");
-      const dataUri = `data:audio/mpeg;base64,${base64Audio}`;
-
-      const fileId = await saveMediaFile(
-        userId,
-        `music-${Date.now()}.mp3`,
-        "audio",
-        dataUri,
-        `AI music: ${fullPrompt.slice(0, 100)}`,
-      );
-
-      await pool.query(
-        `UPDATE runtime_jobs SET status = 'completed', result = $1, completed_at = NOW() WHERE job_id = $2`,
-        [JSON.stringify({ fileId, audioBase64: base64Audio, mimeType: "audio/mpeg" }), audioJobId],
-      );
-    } catch (bgErr) {
-      req.log.error({ bgErr }, "ElevenLabs background generation failed");
-      try {
-        await pool.query(
-          `UPDATE runtime_jobs SET status = 'failed', error = $1, completed_at = NOW() WHERE job_id = $2`,
-          ["Internal error during background generation", audioJobId],
-        );
-      } catch { /* ignore */ }
-    }
-  })();
 });
 
 // ─── POST /api/media-gen/tts ──────────────────────────────────────────────────

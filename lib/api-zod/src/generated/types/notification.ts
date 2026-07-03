@@ -13,6 +13,8 @@ export interface Notification {
   title: string;
   message: string;
   notificationType: string;
+  /** @nullable */
+  linkUrl?: string | null;
   read: boolean;
   createdAt: string;
 }

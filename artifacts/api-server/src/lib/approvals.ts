@@ -1,11 +1,12 @@
-import { db, pendingApprovalsTable, notificationsTable, type ApprovalCategory, type ApprovalRiskLevel } from "@workspace/db";
+import { db, pendingApprovalsTable, type ApprovalCategory, type ApprovalRiskLevel } from "@workspace/db";
+import { notifyUser } from "./notify";
 
-// Shared entry point for queuing an ASH Operations Mode approval. Any future
-// runtime worker that proposes a higher-risk action for a business under
-// Operations Mode should call this instead of inserting into
-// `pendingApprovalsTable` directly, so the owner is always notified in the
-// same transaction the approval row is created in. Actually executing the
-// approved/rejected action is out of scope for this task.
+// Shared entry point for queuing an ASH Operations Mode approval. Any runtime
+// producer that proposes a higher-risk action for a business under Operations
+// Mode should call this instead of inserting into `pendingApprovalsTable`
+// directly, so the owner is always notified with a one-click link to the
+// business's approvals queue. Approved actions are carried out by
+// executeApprovedAction() in lib/approval-executor.ts.
 export async function createPendingApproval(input: {
   businessId: number;
   userId: number;
@@ -28,11 +29,12 @@ export async function createPendingApproval(input: {
     })
     .returning();
 
-  await db.insert(notificationsTable).values({
+  await notifyUser({
     userId: input.userId,
     title: "ASH needs your approval",
     message: input.title,
     notificationType: "approval_pending",
+    linkUrl: `/business/${input.businessId}`,
   });
 
   return approval;

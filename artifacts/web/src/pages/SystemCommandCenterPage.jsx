@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import ReferAndEarnBanner from '@/components/dashboard/user/ReferAndEarnBanner.jsx';
 import OnboardingChecklist from '@/components/dashboard/user/OnboardingChecklist.jsx';
 import UserMyBlueprintsPanel from '@/components/dashboard/user/UserMyBlueprintsPanel.jsx';
+import UserActivityFeedPanel from '@/components/dashboard/user/UserActivityFeedPanel.jsx';
 import CommunityWinsCard from '@/components/dashboard/user/CommunityWinsCard.jsx';
 import MilestoneCelebrationModal from '@/components/MilestoneCelebrationModal.jsx';
 import {
@@ -1454,6 +1455,11 @@ const SystemCommandCenterPage = () => {
               )}
             </div>
           </div>
+        </HudPanel>
+
+        {/* ══ LIVE ASH ACTIVITY FEED (cross-system events) ═════════════════════ */}
+        <HudPanel className="col-span-full" accent="rgba(56,189,248,0.5)" scan>
+          <UserActivityFeedPanel />
         </HudPanel>
 
         {/* ══ MY SUBMITTED BLUEPRINTS ══════════════════════════════════════════ */}

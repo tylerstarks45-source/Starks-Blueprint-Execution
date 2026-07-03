@@ -8,6 +8,7 @@
 import type { PendingApprovalPayload } from './pendingApprovalPayload';
 import type { PendingApprovalRiskLevel } from './pendingApprovalRiskLevel';
 import type { PendingApprovalStatus } from './pendingApprovalStatus';
+import type { PendingApprovalUndoPayload } from './pendingApprovalUndoPayload';
 
 export interface PendingApproval {
   id: number;
@@ -22,6 +23,12 @@ export interface PendingApproval {
   status: PendingApprovalStatus;
   /** @nullable */
   resolvedAt?: string | null;
+  /** @nullable */
+  executedAt?: string | null;
+  /** @nullable */
+  revertedAt?: string | null;
+  /** @nullable */
+  undoPayload?: PendingApprovalUndoPayload;
   createdAt: string;
   updatedAt: string;
 }

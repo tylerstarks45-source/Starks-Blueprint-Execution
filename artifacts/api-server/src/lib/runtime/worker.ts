@@ -3,12 +3,17 @@ import { getConnector } from "../connectors/registry";
 import {
   db, pool, systemInstancesTable, userCredentialsTable, systemActivityEventsTable, usersTable,
   businessesTable, businessHealthScoresTable, businessRecommendationsTable, toolsTable, toolCategoriesTable,
+  generatedFilesTable,
   type RecommendationCategory,
 } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { decrypt } from "../crypto";
 import { logger } from "../logger";
 import { complete } from "../openrouter";
+import { OutOfCreditsError } from "../credits";
+import { chainFor } from "../models";
+import { getRevenueSummaryForInstance, revenueContextLine } from "../revenue-summary";
+import { notifyUser } from "../notify";
 import { sendPushNotification } from "../push";
 import { fetchPage } from "../browser/crawler";
 import { isBlockedUrl } from "../connectors/ssrf-guard";
@@ -16,6 +21,35 @@ import { computeSystemHealth } from "../health-monitor";
 import { attemptSelfHeal } from "../self-healing";
 import { logEvent } from "../log-event";
 import { refreshExpiringCredentials } from "../social-oauth";
+
+// Fetch and decrypt a single user-level credential (mirrors the private helper
+// in routes/media-gen.ts) so worker handlers can reach provider API keys.
+async function getUserCredentialValue(userId: number, key: string): Promise<string | null> {
+  const rows = await db
+    .select({ encryptedValue: userCredentialsTable.encryptedValue })
+    .from(userCredentialsTable)
+    .where(and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.credentialKey, key)))
+    .limit(1);
+  if (!rows[0]?.encryptedValue) return null;
+  try {
+    return await decrypt(rows[0].encryptedValue);
+  } catch {
+    return null;
+  }
+}
+
+// Notify the owner (deduped) that an AI-powered automation paused because their
+// credit balance hit zero, with a one-click link to top up.
+async function notifyOutOfCredits(userId: number, whatPaused: string): Promise<void> {
+  await notifyUser({
+    userId,
+    notificationType: "warn",
+    title: "Automation paused — out of AI credits",
+    message: `${whatPaused} paused because your AI credit balance reached zero. Top up to resume automatic optimization.`,
+    linkUrl: "/wallet",
+    dedupeKey: "credits_paused",
+  });
+}
 
 const POLL_INTERVAL_MS = 5_000;
 let running = false;
@@ -37,6 +71,7 @@ const JOB_EXEC_TIMEOUT_MS: Record<string, number> = {
   scheduled_task:             9 * 60_000, // 9 min   (watchdog fires at 10 min)
   business_health_analysis:   9 * 60_000,
   business_improvement_pass:  9 * 60_000,
+  media_gen_audio:            4 * 60_000, // ElevenLabs generation (watchdog fires at 5 min)
 };
 
 const DEFAULT_EXEC_TIMEOUT_MS = 5 * 60_000;
@@ -65,6 +100,7 @@ function invokeHandler(jobType: string, payload: Record<string, unknown>): Promi
     case "send_email":              return handleSendEmail(payload);
     case "business_health_analysis":return handleBusinessHealthAnalysis(payload);
     case "business_improvement_pass":return handleBusinessImprovementPass(payload);
+    case "media_gen_audio":         return handleMediaGenAudio(payload);
     default: return Promise.reject(new Error(`Unknown job type: ${jobType}`));
   }
 }
@@ -369,15 +405,23 @@ Respond with ONLY a single JSON object (no markdown, no prose) with this exact s
   "estimatedGrowthPotential": "<short phrase, e.g. 'High — untapped SEO traffic'>"
 }`;
 
-  const result = await complete({
-    prompt,
-    systemPrompt:
-      "You are ASH, an AI business analyst for the SBEP platform. You objectively score businesses on automation, " +
-      "growth, marketing, SEO, and content, then surface concrete, actionable opportunities and risks. Be honest — " +
-      "score low when evidence is thin or the site is unreachable. Always respond with strictly valid JSON matching the requested shape.",
-    model: "openai/gpt-4o-mini",
-    userId,
-  });
+  let result;
+  try {
+    result = await complete({
+      prompt,
+      systemPrompt:
+        "You are ASH, an AI business analyst for the SBEP platform. You objectively score businesses on automation, " +
+        "growth, marketing, SEO, and content, then surface concrete, actionable opportunities and risks. Be honest — " +
+        "score low when evidence is thin or the site is unreachable. Always respond with strictly valid JSON matching the requested shape.",
+      models: chainFor("reasoning"),
+      userId,
+    });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      await notifyOutOfCredits(userId, `The business health analysis for "${business.name}"`);
+    }
+    throw err;
+  }
 
   let parsed: Partial<HealthAnalysisJson>;
   try {
@@ -479,6 +523,10 @@ async function handleBusinessImprovementPass(payload: Record<string, unknown>): 
     ? marketplaceTools.map((t) => `- "${t.name}" (${t.category ?? "uncategorized"}): ${t.description ?? "no description"}`).join("\n")
     : "(Marketplace catalog is currently empty.)";
 
+  // Revenue-aware: ground the pass in the business's actual money so ASH
+  // prioritizes what will move the number rather than guessing.
+  const revenue = await getRevenueSummaryForInstance(business.systemInstanceId);
+
   const prompt = `You are running a scheduled AI Improvement Engine pass for a business on the SBEP platform.
 
 Business name: ${business.name}
@@ -486,6 +534,8 @@ Business type: ${business.businessType}
 Revenue model: ${business.revenueModel ?? "unknown"}
 Status: ${business.status}
 Notes: ${business.notes ?? "(none)"}
+
+${revenueContextLine(revenue)}
 
 ${siteContext}
 
@@ -501,16 +551,24 @@ Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY
   "suggestedToolSlug": "<exact Marketplace tool name from the list above if one directly helps, else null>"
 }`;
 
-  const result = await complete({
-    prompt,
-    systemPrompt:
-      "You are ASH, an AI growth analyst for the SBEP platform. You produce specific, actionable recommendations " +
-      "grounded in the evidence given — never generic filler. You always check the Marketplace tool list first and " +
-      "only suggest an external tool (by leaving suggestedToolSlug null and naming it in the description) when nothing " +
-      "in the Marketplace fits. Always respond with strictly valid JSON matching the requested shape.",
-    model: "openai/gpt-4o-mini",
-    userId: business.ownerId,
-  });
+  let result;
+  try {
+    result = await complete({
+      prompt,
+      systemPrompt:
+        "You are ASH, an AI growth analyst for the SBEP platform. You produce specific, actionable recommendations " +
+        "grounded in the evidence given — never generic filler. You always check the Marketplace tool list first and " +
+        "only suggest an external tool (by leaving suggestedToolSlug null and naming it in the description) when nothing " +
+        "in the Marketplace fits. Always respond with strictly valid JSON matching the requested shape.",
+      models: chainFor("reasoning"),
+      userId: business.ownerId,
+    });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      await notifyOutOfCredits(business.ownerId, `The daily growth improvement pass for "${business.name}"`);
+    }
+    throw err;
+  }
 
   let parsed: unknown;
   try {
@@ -576,6 +634,68 @@ Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY
 
   logger.info({ businessId, inserted, marketplaceMatches }, "Business improvement pass completed");
   return { ok: true, businessId, inserted, marketplaceMatches };
+}
+
+// ─── media_gen_audio handler (Task #283) ──────────────────────────────────────
+// ElevenLabs music/sound generation, run as a proper queued worker job so it
+// survives a server restart: if the process dies mid-generation the job is
+// reset to 'queued' by resetOrphanedJobs() and re-run here, instead of being
+// abandoned. The result stores the saved generated_files id for the client poll.
+
+interface MediaGenAudioPayload {
+  userId: number;
+  prompt: string;
+  fullPrompt?: string;
+  durationSeconds?: number;
+  style?: string | null;
+  mood?: string | null;
+}
+
+async function handleMediaGenAudio(payload: Record<string, unknown>): Promise<unknown> {
+  const p = payload as unknown as MediaGenAudioPayload;
+  const userId = Number(p.userId);
+  if (!Number.isInteger(userId)) throw new Error("media_gen_audio job missing userId");
+
+  const elevenLabsKey = await getUserCredentialValue(userId, "ELEVENLABS_API_KEY");
+  if (!elevenLabsKey) throw new Error("ElevenLabs API key is not connected");
+
+  const text =
+    p.fullPrompt ??
+    [p.prompt, p.style ? `${p.style} style` : "", p.mood ? `${p.mood} mood` : ""].filter(Boolean).join(", ");
+  const cappedDuration = Math.min(Number(p.durationSeconds) || 30, 300);
+
+  const soundRes = await fetch("https://api.elevenlabs.io/v1/sound-generation", {
+    method: "POST",
+    headers: {
+      "xi-api-key": elevenLabsKey,
+      "Content-Type": "application/json",
+      Accept: "audio/mpeg",
+    },
+    body: JSON.stringify({ text, duration_seconds: cappedDuration, prompt_influence: 0.3 }),
+  });
+
+  if (!soundRes.ok) {
+    const errText = await soundRes.text();
+    throw new Error(`ElevenLabs sound-generation failed (${soundRes.status}): ${errText.slice(0, 300)}`);
+  }
+
+  const audioBuffer = await soundRes.arrayBuffer();
+  const base64Audio = Buffer.from(audioBuffer).toString("base64");
+  const dataUri = `data:audio/mpeg;base64,${base64Audio}`;
+
+  const [file] = await db
+    .insert(generatedFilesTable)
+    .values({
+      userId,
+      name: `music-${Date.now()}.mp3`,
+      fileType: "audio",
+      content: dataUri,
+      description: `AI music: ${text.slice(0, 100)}`,
+    })
+    .returning({ id: generatedFilesTable.id });
+
+  logger.info({ userId, fileId: file!.id }, "media_gen_audio job completed");
+  return { fileId: file!.id, mimeType: "audio/mpeg" };
 }
 
 // ─── Main Worker Loop ─────────────────────────────────────────────────────────

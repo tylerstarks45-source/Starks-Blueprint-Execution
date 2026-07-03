@@ -972,6 +972,8 @@ export interface Notification {
   title: string;
   message: string;
   notificationType: string;
+  /** @nullable */
+  linkUrl?: string | null;
   read: boolean;
   createdAt: string;
 }
@@ -1559,6 +1561,11 @@ export const PendingApprovalStatus = {
   rejected: 'rejected',
 } as const;
 
+/**
+ * @nullable
+ */
+export type PendingApprovalUndoPayload = { [key: string]: unknown } | null;
+
 export interface PendingApproval {
   id: number;
   businessId: number;
@@ -1572,6 +1579,12 @@ export interface PendingApproval {
   status: PendingApprovalStatus;
   /** @nullable */
   resolvedAt?: string | null;
+  /** @nullable */
+  executedAt?: string | null;
+  /** @nullable */
+  revertedAt?: string | null;
+  /** @nullable */
+  undoPayload?: PendingApprovalUndoPayload;
   createdAt: string;
   updatedAt: string;
 }

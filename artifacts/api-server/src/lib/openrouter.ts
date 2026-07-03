@@ -9,6 +9,11 @@ const DEFAULT_MODEL = "openai/gpt-4o-mini";
 
 interface CompletionRequest {
   model?: string;
+  // Ordered best-first fallback chain. When provided, OpenRouter's native model
+  // routing tries each in order and skips unavailable ones, so a deprecated or
+  // rate-limited primary silently drops to the next-best model instead of failing.
+  // Prefer this over `model` for user-facing calls (see lib/models.ts).
+  models?: string[];
   prompt: string;
   systemPrompt?: string;
   userId?: number;
@@ -31,7 +36,8 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY environment variable is not set");
 
-  const model = request.model ?? DEFAULT_MODEL;
+  const chain = request.models && request.models.length > 0 ? request.models : undefined;
+  const model = chain?.[0] ?? request.model ?? DEFAULT_MODEL;
   const messages: Array<{ role: string; content: string }> = [];
   if (request.systemPrompt) messages.push({ role: "system", content: request.systemPrompt });
   messages.push({ role: "user", content: request.prompt });
@@ -62,7 +68,7 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
       "HTTP-Referer": process.env.APP_URL ?? "https://sbep.replit.app",
       "X-Title": "SBEP - Starks Blueprint Execution Platform",
     },
-    body: JSON.stringify({ model, messages, stream: true, stream_options: { include_usage: true } }),
+    body: JSON.stringify({ model, ...(chain ? { models: chain } : {}), messages, stream: true, stream_options: { include_usage: true } }),
   });
 
   if (!response.ok) {
@@ -156,7 +162,8 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
     throw new Error("OPENROUTER_API_KEY environment variable is not set");
   }
 
-  const model = request.model ?? DEFAULT_MODEL;
+  const chain = request.models && request.models.length > 0 ? request.models : undefined;
+  const model = chain?.[0] ?? request.model ?? DEFAULT_MODEL;
   const messages = [];
 
   if (request.systemPrompt) {
@@ -207,7 +214,7 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
         "HTTP-Referer": process.env.APP_URL ?? "https://sbep.replit.app",
         "X-Title": "SBEP - Starks Blueprint Execution Platform",
       },
-      body: JSON.stringify({ model, messages }),
+      body: JSON.stringify({ model, ...(chain ? { models: chain } : {}), messages }),
     });
 
     if (!response.ok) {

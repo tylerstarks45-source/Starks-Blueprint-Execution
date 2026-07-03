@@ -32,6 +32,7 @@ import {
 import { publish, PUBLISHING_CHANNELS } from "../lib/publishing";
 import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
 import { complete, streamCompletion } from "../lib/openrouter";
+import { MODELS, chainFor, chainForAgentMode, depthNoteForAgentMode } from "../lib/models";
 import { hasCredits } from "../lib/credits";
 import { requireAuthActive } from "../lib/auth";
 import { encrypt, decrypt } from "../lib/crypto";
@@ -68,7 +69,8 @@ async function recoverSbepData(planText: string, userId: number): Promise<Record
         "You are a JSON extractor. Output ONLY the raw JSON object — no prose, no markdown fences, no SBEP_DATA wrapper tags.",
       prompt:
         `You previously described a build plan but forgot to include the SBEP_DATA block.\n\nHere is what you wrote:\n\n${planText.slice(0, 3000)}\n\nNow output ONLY the JSON object for that plan. It must have "action": "present_plan" and include blueprint (with slug/name/description/category), systemName, buildSteps (array of strings), and requiredCredentials (array of {key, label, description}).`,
-      model: "openai/gpt-4o-mini",
+      // Trivial internal JSON extraction — lightweight model is appropriate here.
+      model: MODELS.utility,
       userId,
     });
     const raw = followUp.content.trim();
@@ -341,6 +343,16 @@ When the user asks to change anything:
 4. The user can keep editing until they're happy, then confirm.
 
 The build does NOT start until the user explicitly confirms (clicks "Confirm Plan" or says they're ready).
+
+**BACKING OUT OF A PLAN — read this carefully:**
+A plan on screen is NOT a commitment. After you've presented a plan, the user is completely free to change their mind, keep chatting, ask an unrelated question, or explore a totally different idea — and you follow them there without friction.
+- A casual, hesitant, or vague reply is NOT a confirmation. "hmm", "interesting", "maybe", "not sure", "let me think", "actually…", "wait", "what about…", a new question, or silence on the build itself all mean they are still deciding or have moved on. Do NOT treat any of these as "start_build".
+- Only treat it as confirmation when the intent is unmistakable: they click Confirm, or say something clearly affirmative like "yes, build it", "let's do it", "go ahead", "I'm ready", "confirm".
+- If the user pivots to a different topic or a new idea after a plan, just drop the plan and go with them — answer the question, explore the new idea, return action "general". Don't keep dragging the old plan forward or nagging them to confirm it. You can always re-present a plan later when they're ready.
+- If they express doubt about the plan itself, engage with the doubt honestly as a thought partner — don't defend the plan or push them toward confirming.
+
+**IN-THREAD CONTINUITY:**
+You have the conversation so far. Use it. Remember what they told you — their goal, niche, budget, experience level, what you already suggested, what they liked or rejected — and build on it instead of re-asking. When they say "the one we talked about" or "that second idea", you know exactly what they mean. Don't reset the conversation on every message; you're one continuous thought partner across the whole thread.
 
 ## PHASE 2: COLLECT CREDENTIALS (after user confirms the plan)
 
@@ -705,13 +717,11 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
         parsed.data.history.map((h) => `${h.role === "user" ? "User" : "STARK"}: ${h.content}`).join("\n")
       : "";
 
-    const modelMap: Record<string, string> = {
-      fast:     "openai/gpt-4o-mini",
-      business: "openai/gpt-4o",
-      expert:   "anthropic/claude-3-5-sonnet",
-      empire:   "anthropic/claude-opus-4",
-    };
-    const model = modelMap[parsed.data.agentMode ?? "fast"] ?? "openai/gpt-4o-mini";
+    // Best-model policy (Task #282): every user-facing response uses a frontier
+    // model. Agent modes select DEPTH/SCOPE, never a budget model. The chain
+    // gives automatic best-first fallback if a model is temporarily unavailable.
+    const modelChain = chainForAgentMode(parsed.data.agentMode);
+    const depthNote = depthNoteForAgentMode(parsed.data.agentMode);
 
     const contextNote = [
       parsed.data.businessType ? `User's business focus: ${parsed.data.businessType}` : "",
@@ -727,7 +737,7 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       : "";
 
     const completionArgs = {
-      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + planModeNote + chatOnlyNote,
+      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + depthNote + planModeNote + chatOnlyNote,
       prompt: `${historyCtx}\n\nUser: ${parsed.data.message}`,
       userId,
       systemInstanceId: parsed.data.systemInstanceId,
@@ -735,12 +745,14 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
 
     let result;
     try {
-      result = await complete({ ...completionArgs, model });
+      result = await complete({ ...completionArgs, models: modelChain });
     } catch (primaryErr: unknown) {
       const msg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+      // Last-resort safety net: the whole frontier chain is unavailable — respond
+      // with the lightweight model rather than failing the request entirely.
       if (msg.includes("404") || msg.includes("No endpoints found")) {
-        req.log.warn({ model, fallback: "openai/gpt-4o-mini" }, "Primary model unavailable, falling back");
-        result = await complete({ ...completionArgs, model: "openai/gpt-4o-mini" });
+        req.log.warn({ modelChain, fallback: MODELS.utility }, "Frontier model chain unavailable, falling back to utility model");
+        result = await complete({ ...completionArgs, model: MODELS.utility });
       } else {
         throw primaryErr;
       }
@@ -767,7 +779,7 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
     // Recovery: if the response looks like a build plan but is missing the
     // SBEP_DATA block, make one short follow-up call to extract it.
     if (isPlanWithoutData(displayContent, structuredData)) {
-      req.log.warn({ model }, "Build plan response missing SBEP_DATA — attempting recovery");
+      req.log.warn({ modelChain }, "Build plan response missing SBEP_DATA — attempting recovery");
       const recovered = await recoverSbepData(displayContent, userId);
       if (recovered) {
         structuredData = recovered;
@@ -913,7 +925,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
   "marketOpportunity": "1 sentence on the business opportunity or relevance"
 }`,
     prompt: `Research this for a business automation context: ${query}`,
-    model: "perplexity/llama-3.1-sonar-large-128k-online",
+    model: MODELS.research,
     userId,
   });
 
@@ -1020,13 +1032,10 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
         parsed.data.history.map((h) => `${h.role === "user" ? "User" : "STARK"}: ${h.content}`).join("\n")
       : "";
 
-    const modelMap: Record<string, string> = {
-      fast:     "openai/gpt-4o-mini",
-      business: "openai/gpt-4o",
-      expert:   "anthropic/claude-3-5-sonnet",
-      empire:   "anthropic/claude-opus-4",
-    };
-    const model = modelMap[parsed.data.agentMode ?? "fast"] ?? "openai/gpt-4o-mini";
+    // Best-model policy (Task #282): stream every user-facing response through a
+    // frontier model chain. Agent modes select DEPTH/SCOPE, never a budget model.
+    const modelChain = chainForAgentMode(parsed.data.agentMode);
+    const depthNote = depthNoteForAgentMode(parsed.data.agentMode);
 
     const contextNote = [
       parsed.data.businessType ? `User's business focus: ${parsed.data.businessType}` : "",
@@ -1039,7 +1048,7 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
 
     const systemPrompt = buildSystemPrompt(blueprintKB, toolKB) +
       storedCredNote + skillAdditions + memoryNote +
-      (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + planModeNote;
+      (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + depthNote + planModeNote;
     const prompt = `${historyCtx}\n\nUser: ${parsed.data.message}`;
 
     // ── Auto-tool detection (runs in parallel with AI + thinking) ─────────
@@ -1069,13 +1078,14 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
 
     const aiTask = (async () => {
       try {
-        for await (const token of streamCompletion({ systemPrompt, prompt, model, userId })) {
+        for await (const token of streamCompletion({ systemPrompt, prompt, models: modelChain, userId })) {
           tokenBuffer.push(token);
         }
       } catch (err) {
-        // Fallback: non-streaming complete
+        // Last-resort safety net: the whole frontier chain failed to stream —
+        // fall back to a non-streaming utility completion rather than erroring out.
         try {
-          const fallback = await complete({ systemPrompt, prompt, model: "openai/gpt-4o-mini", userId });
+          const fallback = await complete({ systemPrompt, prompt, model: MODELS.utility, userId });
           for (const char of fallback.content) tokenBuffer.push(char);
         } catch (fallbackErr) {
           aiError = fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr));
@@ -1150,7 +1160,7 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
     // Recovery: if the response looks like a build plan but is missing the
     // SBEP_DATA block, make one short follow-up call to extract it.
     if (isPlanWithoutData(displayContent, structuredData)) {
-      req.log.warn({ model }, "Stream: build plan response missing SBEP_DATA — attempting recovery");
+      req.log.warn({ modelChain }, "Stream: build plan response missing SBEP_DATA — attempting recovery");
       send({ type: "thinking", steps: [{ label: "Extracting plan data…", reasoning: "The plan was generated but the structured data block was missing. Recovering it now." }], index: 0 });
       const recovered = await recoverSbepData(displayContent, userId);
       if (recovered) {
@@ -1617,7 +1627,8 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
           const genResult = await complete({
             systemPrompt: "You are an expert conversion-rate optimiser. Return ONLY raw JSON — no markdown, no code blocks.",
             prompt: variantPrompt,
-            model: "openai/gpt-4o-mini",
+            // User-facing marketing copy — use a frontier model for quality.
+            models: chainFor("reasoning"),
             userId,
           });
 
@@ -1718,7 +1729,8 @@ Return ONLY valid JSON: {"emails":[{"stepNumber":1,"delayDays":0,"subject":"subj
           const genResult = await complete({
             systemPrompt: "You are an expert email marketer. Return ONLY raw JSON — no markdown, no code blocks.",
             prompt: stepPrompt,
-            model: "openai/gpt-4o-mini",
+            // User-facing email copy — use a frontier model for quality.
+            models: chainFor("reasoning"),
             userId,
           });
 
@@ -2092,7 +2104,8 @@ Step naming rules — step descriptions must use explicit revenue-signal languag
 
 Return: {"categoryIds":[1,3],"buildPlan":["Step 1: ...","Step 2: ...","Step 3: ...","Step 4: ...","Step 5: ..."]}`,
         prompt: `Blueprint: ${blueprint.name}\nDescription: ${blueprint.description ?? ""}\nDifficulty: ${blueprint.difficulty}\nGenerate a specific 5-step autonomous build plan. At least 2 steps must be revenue-producing actions (affiliate, funnel, campaign, or content) that produce real income.`,
-        model: "openai/gpt-4o-mini",
+        // Drives the user-facing build plan — use a frontier model for quality.
+        models: chainFor("reasoning"),
         userId,
         systemInstanceId: instance.id,
       });
@@ -2328,7 +2341,8 @@ router.post("/ai-orchestrator/step-recovery", async (req, res): Promise<void> =>
   try {
     const result = await complete({
       prompt: `A build automation step failed during an AI income-system deployment.\nStep ${parsed.data.stepNumber ?? "?"}: "${parsed.data.stepDescription}"\nError: ${parsed.data.errorMessage ?? "AI model unavailable"}\n\nIn 2-3 sentences, explain what likely went wrong and give the most actionable advice for whether to retry or skip this step.`,
-      model: "openai/gpt-4o-mini",
+      // User-facing diagnostic explanation — use a strong general model.
+      model: MODELS.swift,
       userId,
       systemInstanceId: parsed.data.systemInstanceId,
     });

@@ -17,6 +17,7 @@ import {
   referralEventsTable,
 } from "@workspace/db";
 import { complete } from "../lib/openrouter";
+import { MODELS, chainFor } from "../lib/models";
 import { hasCredits, adjustCredits, adjustWalletCredits } from "../lib/credits";
 import { requireAuthActive, validateClientWorkspaceId } from "../lib/auth";
 import { sendPushNotification } from "../lib/push";
@@ -150,7 +151,8 @@ ${categoryList}
 Return ONLY this JSON format, nothing else:
 {"categoryIds":[1,3],"buildPlan":["Step 1: ...","Step 2: ...","Step 3: ...","Step 4: ...","Step 5: ..."]}`,
       prompt: `Blueprint: ${blueprint.name}\nDescription: ${blueprint.description || ""}\nDifficulty: ${blueprint.difficulty}`,
-      model: "openai/gpt-4o-mini",
+      // Drives the actual build plan the system executes — use a frontier model.
+      models: chainFor("reasoning"),
       userId: instance.userId ?? undefined,
       systemInstanceId: instance.id,
     });
@@ -286,8 +288,13 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   let output = "";
   let stepFailed = false;
   let recoveryMessage = "";
+  // Best-model policy (Task #282): build-step execution is the highest-stakes AI
+  // work, so default to the flagship chain. Respect an explicit model only if the
+  // caller deliberately sent one (agent-mode selection from the frontend).
+  const explicitModel = parsed.data.model;
+  const stepModelChain = chainFor("flagship");
   // Will be overwritten with the actual model string confirmed by OpenRouter
-  let actualModel: string = parsed.data.model ?? "openai/gpt-4o";
+  let actualModel: string = explicitModel ?? stepModelChain[0] ?? MODELS.flagship;
 
   // ── Live mode: fetch + decrypt user credentials ──────────────────────────────
   let userCreds: Record<string, string> = {};
@@ -340,7 +347,6 @@ Use ONLY connectors from the available list. For pure config/planning/setup step
   const connectorResults: Array<{ connectorId: string; connectorName: string; action: string; ok: boolean; summary: string; latencyMs: number; confirmation?: unknown }> = [];
 
   try {
-    const resolvedModel = actualModel;
     const result = await complete({
       systemPrompt: `You are ASH — SBEP's elite AI Build Agent executing automated income systems autonomously.
 ${liveExecHint}
@@ -353,7 +359,7 @@ Do NOT claim or imply that this step generated real revenue or a specific dollar
 Step ${parsed.data.stepNumber}/${parsed.data.totalSteps}: ${parsed.data.stepDescription}
 
 Execute this step now. Write detailed output describing exactly what was configured, deployed, and activated.${liveExecHint ? " If real API calls are needed, emit <SBEP_ACTIONS> first." : ""}`,
-      model: resolvedModel,
+      ...(explicitModel ? { model: explicitModel } : { models: stepModelChain }),
       userId: instance.userId ?? undefined,
       systemInstanceId: instance.id,
     });

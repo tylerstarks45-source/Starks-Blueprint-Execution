@@ -1,0 +1,82 @@
+// ─── Centralized model selection — single source of truth ────────────────────
+//
+// Task #282: ASH must ALWAYS use the best available OpenRouter model for anything
+// the user actually sees — conversation, planning, build reasoning, generated
+// content. Cost is not a consideration for user-facing quality. Lightweight
+// models are reserved ONLY for trivial internal classification / JSON extraction
+// where the output is never shown to the user and quality is imperceptible.
+//
+// Every user-facing call site should route through this module instead of
+// hardcoding a model string, so the "best model" policy lives in exactly one
+// place and can be tuned globally.
+
+export type ModelChain = string[];
+
+// Canonical model IDs used across the platform. Keep these as the ONLY place
+// raw OpenRouter model strings live.
+export const MODELS = {
+  // Absolute best reasoning / build / deep-analysis model.
+  flagship: "anthropic/claude-opus-4",
+  // Best balance of frontier quality + responsiveness for conversation & planning.
+  reasoning: "anthropic/claude-3-5-sonnet",
+  // Fast frontier model for snappy iteration — still top-tier, never "budget".
+  swift: "openai/gpt-4o",
+  // Lightweight — ONLY for trivial internal classification / JSON extraction.
+  utility: "openai/gpt-4o-mini",
+  // Online-capable research model for live web search.
+  research: "perplexity/llama-3.1-sonar-large-128k-online",
+} as const;
+
+// Ordered best-first fallback chains. OpenRouter's native `models` routing tries
+// each in order and skips any that are unavailable, so a single deprecated /
+// rate-limited model never takes ASH down — it silently drops to the next-best.
+export const CHAINS = {
+  flagship: [MODELS.flagship, MODELS.reasoning, MODELS.swift],
+  reasoning: [MODELS.reasoning, MODELS.swift, MODELS.flagship],
+  swift: [MODELS.swift, MODELS.reasoning],
+  utility: [MODELS.utility, MODELS.swift],
+  research: [MODELS.research],
+} as const satisfies Record<string, ModelChain>;
+
+export type Situation = keyof typeof CHAINS;
+
+// Returns a fresh copy of a situation's fallback chain (safe to mutate).
+export function chainFor(situation: Situation): ModelChain {
+  return [...CHAINS[situation]];
+}
+
+// Agent modes are DEPTH / SCOPE presets — every mode is backed by a frontier
+// model. "fast" trades a little depth for speed but is still a strong frontier
+// model (never a budget one). Higher tiers unlock the deepest reasoning model
+// and more thorough, multi-pass planning. When the mode is unknown/unset we
+// default to high quality (reasoning), NOT a budget model.
+export function chainForAgentMode(mode: string | undefined | null): ModelChain {
+  switch (mode) {
+    case "fast":
+      return chainFor("swift");
+    case "business":
+      return chainFor("reasoning");
+    case "expert":
+    case "empire":
+      return chainFor("flagship");
+    default:
+      return chainFor("reasoning");
+  }
+}
+
+// Human-readable depth guidance injected into the system prompt so the model
+// calibrates thoroughness (not intelligence) to the selected mode.
+export function depthNoteForAgentMode(mode: string | undefined | null): string {
+  switch (mode) {
+    case "fast":
+      return `\n\n=== RESPONSE DEPTH: SWIFT ===\nThe user wants fast, high-signal answers. Be sharp and concise — get to the point quickly without sacrificing correctness. Skip exhaustive breakdowns unless asked.`;
+    case "business":
+      return `\n\n=== RESPONSE DEPTH: BALANCED ===\nGive thorough, well-reasoned answers with concrete detail and clear next steps, but stay readable. This is the default depth for real production work.`;
+    case "expert":
+      return `\n\n=== RESPONSE DEPTH: DEEP ===\nGo deep. Reason carefully through edge cases, tradeoffs, and second-order effects. Produce rigorous, detailed plans and analysis. Thoroughness matters more than brevity here.`;
+    case "empire":
+      return `\n\n=== RESPONSE DEPTH: MAXIMUM (MULTI-AGENT) ===\nOperate at maximum depth. Think like a team of specialists — research, architecture, execution, and validation — reasoning through the whole system end to end. Leave nothing important unaddressed.`;
+    default:
+      return "";
+  }
+}

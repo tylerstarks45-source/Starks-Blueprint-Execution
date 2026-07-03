@@ -7,6 +7,9 @@ export class ConvertKitConnector extends BaseConnector {
   readonly authType = "api_key" as const;
   readonly requiredCredentials = ["CONVERTKIT_API_KEY"];
   readonly actions = ["addSubscriber", "getForms", "tagSubscriber", "createSequence", "getSequences", "addSubscriberToSequence"];
+  // ConvertKit API v3 does not expose a sequence-creation endpoint for API-key
+  // auth; ASH can only guide the user to create the sequence manually in the UI.
+  readonly actionSupport = { createSequence: "manual_required" } as const;
 
   async testConnection(): Promise<TestResult> {
     const apiKey = this.creds["CONVERTKIT_API_KEY"];

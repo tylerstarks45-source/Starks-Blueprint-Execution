@@ -14,6 +14,9 @@ export class MetaConnector extends BaseConnector {
   readonly authType = "oauth2" as const;
   readonly requiredCredentials = ["META_ACCESS_TOKEN", "META_PAGE_ID"];
   readonly actions = ["publishPost", "publishInstagramPost", "getPageInsights", "getPageAnalytics", "createAd", "getAdAccounts"];
+  // createAd returns ad-account setup guidance rather than placing a real ad;
+  // it cannot be fully automated by ASH without manual campaign setup first.
+  readonly actionSupport = { createAd: "manual_required" } as const;
 
   private token() { return this.creds["META_ACCESS_TOKEN"]; }
   private pageId() { return this.creds["META_PAGE_ID"]; }

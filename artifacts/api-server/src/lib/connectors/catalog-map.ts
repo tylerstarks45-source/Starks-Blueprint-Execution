@@ -61,15 +61,6 @@ export const PLATFORM_FUNCTIONAL_KEYS: Record<string, { actions: string[] }> = {
   ELEVENLABS_API_KEY: { actions: ["textToSpeech"] },
 };
 
-// Actions a connector advertises but which are NOT genuinely automated by ASH —
-// they return manual-required guidance or an error path instead of performing
-// the action. These are excluded from the honest "ASH can" capability list so
-// the catalog never over-claims what ASH will actually do on the user's behalf.
-const NON_AUTOMATED_ACTIONS: Record<string, string[]> = {
-  meta: ["createAd"], // returns ad-account setup guidance, not a real ad
-  convertkit: ["createSequence"], // API-key auth can't create sequences
-};
-
 export interface CatalogKeyStatus {
   functional: boolean;
   connectorId?: string;
@@ -79,6 +70,10 @@ export interface CatalogKeyStatus {
 }
 
 // Builds the honest per-credential-key status map served to the frontend.
+// The set of genuinely automated actions is derived from each connector's own
+// `actionMeta` (declared via the `actionSupport` property on the connector
+// class), so the catalog stays honest as connectors evolve — no separate
+// exclusion list to keep in sync.
 export function buildCatalogStatus(): Record<string, CatalogKeyStatus> {
   const out: Record<string, CatalogKeyStatus> = {};
 
@@ -86,8 +81,9 @@ export function buildCatalogStatus(): Record<string, CatalogKeyStatus> {
     const connector = getConnector(connectorId, {});
     if (!connector) continue;
     const meta = connector.describe();
-    const excluded = new Set(NON_AUTOMATED_ACTIONS[connectorId] ?? []);
-    const automatedActions = meta.actions.filter((a) => !excluded.has(a));
+    const automatedActions = meta.actions.filter(
+      (a) => (meta.actionMeta[a] ?? "automated") === "automated",
+    );
     out[key] = {
       functional: automatedActions.length > 0,
       connectorId,

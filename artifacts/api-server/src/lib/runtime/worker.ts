@@ -726,7 +726,7 @@ async function processJob(): Promise<void> {
     await failJob(job.jobId, error, job.attempt, job.maxAttempts);
     logger.warn({ jobId: job.jobId, error, attempt: job.attempt }, "Job failed");
 
-    // Push notification when all retries are exhausted and job has a system owner
+    // Push + in-app notification when all retries are exhausted and job has a system owner
     const finalFailure = job.attempt >= job.maxAttempts;
     if (finalFailure && job.systemInstanceId) {
       (async () => {
@@ -737,6 +737,17 @@ async function processJob(): Promise<void> {
             .where(eq(systemInstancesTable.id, job.systemInstanceId!))
             .limit(1);
           if (!instance) return;
+
+          // In-app notification — deduped to exactly once per job failure
+          await notifyUser({
+            userId: instance.userId,
+            notificationType: "error",
+            title: `System error: ${instance.name ?? "Your system"}`,
+            message: `A background job (${job.jobType}) failed permanently after ${job.maxAttempts} attempt${job.maxAttempts === 1 ? "" : "s"}. Error: ${error.slice(0, 200)}`,
+            linkUrl: `/systems/${job.systemInstanceId}`,
+            dedupeKey: `job_perm_fail_${job.jobId}`,
+          });
+
           const [user] = await db
             .select({ expoPushToken: usersTable.expoPushToken, notifyBuild: usersTable.notifyBuild })
             .from(usersTable)

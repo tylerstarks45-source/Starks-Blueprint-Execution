@@ -851,6 +851,37 @@ async function processHealthMonitoring(): Promise<void> {
   } catch (err) {
     logger.warn({ err }, "Self-healing tick failed");
   }
+
+  // Notify owners of systems whose health is degraded or critical (deduped to once per 24h per system)
+  try {
+    const unhealthySystems = await db
+      .select({
+        id: systemInstancesTable.id,
+        name: systemInstancesTable.name,
+        userId: systemInstancesTable.userId,
+        healthStatus: systemInstancesTable.healthStatus,
+      })
+      .from(systemInstancesTable)
+      .where(
+        sql`${systemInstancesTable.healthStatus} IN ('critical', 'degraded')
+          AND ${systemInstancesTable.buildStatus} IN ('running', 'building', 'active')`,
+      );
+
+    for (const sys of unhealthySystems) {
+      if (!sys.userId) continue;
+      await notifyUser({
+        userId: sys.userId,
+        notificationType: "error",
+        title: `System health issue: ${sys.name ?? "Your system"}`,
+        message: `Your automated system "${sys.name}" is currently ${sys.healthStatus}. ASH is attempting to diagnose and repair it automatically.`,
+        linkUrl: `/systems/${sys.id}`,
+        dedupeKey: `system_unhealthy_${sys.id}`,
+        dedupeWindowMs: 24 * 60 * 60 * 1000,
+      });
+    }
+  } catch (err) {
+    logger.warn({ err }, "System-down notification pass failed");
+  }
 }
 
 // ─── Hung-job watchdog tick ───────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, desc, gte, lte, ilike, count } from "drizzle-orm";
+import { and, eq, desc, gte, lte, ilike, count, lt, or, inArray } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { serialize } from "../lib/serialize";
 import {
@@ -159,6 +159,65 @@ router.get("/businesses/:id/logs", async (req, res): Promise<void> => {
   );
 
   res.json(serialize(result));
+});
+
+// ─── GET /api/logs/me (caller's own logs across all systems & businesses) ─────
+// Returns a cursor-paginated list of system_logs rows scoped to the
+// authenticated caller's systems and businesses. Supports optional filters:
+// category, severity, and q (message search). Cursor = last seen row id.
+
+router.get("/logs/me", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+
+  const LIMIT = 50;
+
+  const rawCursor = req.query.cursor !== undefined ? Number(req.query.cursor) : null;
+  const cursor = rawCursor != null && Number.isFinite(rawCursor) && rawCursor > 0 ? rawCursor : null;
+  const category = typeof req.query.category === "string" && req.query.category ? req.query.category : null;
+  const severity  = typeof req.query.severity  === "string" && req.query.severity  ? req.query.severity  : null;
+  const q         = typeof req.query.q         === "string" && req.query.q         ? req.query.q         : null;
+
+  // Collect system instance ids owned by this caller
+  const ownedInstances = await db
+    .select({ id: systemInstancesTable.id })
+    .from(systemInstancesTable)
+    .where(eq(systemInstancesTable.userId, caller.id));
+  const instanceIds = ownedInstances.map((r) => r.id);
+
+  // Collect business ids owned by this caller
+  const ownedBusinesses = await db
+    .select({ id: businessesTable.id })
+    .from(businessesTable)
+    .where(eq(businessesTable.ownerId, caller.id));
+  const businessIds = ownedBusinesses.map((r) => r.id);
+
+  // Scope: any log that belongs to the user directly, or to one of their systems/businesses
+  const scopeConditions: SQL[] = [eq(systemLogsTable.userId, caller.id)];
+  if (instanceIds.length > 0) scopeConditions.push(inArray(systemLogsTable.systemInstanceId, instanceIds));
+  if (businessIds.length > 0) scopeConditions.push(inArray(systemLogsTable.businessId, businessIds));
+  const scope = or(...scopeConditions)!;
+
+  const filterConditions: SQL[] = [];
+  if (category) filterConditions.push(eq(systemLogsTable.category, category));
+  if (severity)  filterConditions.push(eq(systemLogsTable.severity, severity));
+  if (q)         filterConditions.push(ilike(systemLogsTable.message, `%${q}%`));
+  if (cursor)    filterConditions.push(lt(systemLogsTable.id, cursor));
+
+  const where = filterConditions.length ? and(scope, ...filterConditions) : scope;
+
+  const rows = await db
+    .select()
+    .from(systemLogsTable)
+    .where(where)
+    .orderBy(desc(systemLogsTable.createdAt), desc(systemLogsTable.id))
+    .limit(LIMIT + 1);
+
+  const hasMore = rows.length > LIMIT;
+  const items = hasMore ? rows.slice(0, LIMIT) : rows;
+  const nextCursor = hasMore ? items[items.length - 1]!.id : null;
+
+  res.json(serialize({ items, nextCursor, hasMore }));
 });
 
 // ─── GET /api/admin/logs (platform-wide, admin only) ─────────────────────────

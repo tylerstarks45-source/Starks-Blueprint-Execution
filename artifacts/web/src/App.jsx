@@ -89,6 +89,9 @@ const MediaGenPage          = lazy(() => import('@/pages/MediaGenPage.jsx'));
 // Settings page
 const UserSettingsPage      = lazy(() => import('@/pages/UserSettingsPage.jsx'));
 
+// Activity log page
+const UserLogsPage          = lazy(() => import('@/pages/UserLogsPage.jsx'));
+
 // Admin pages — never needed outside admin session
 const AdminDashboard        = lazy(() => import('@/pages/AdminDashboard.jsx'));
 
@@ -307,6 +310,9 @@ const App = () => {
               } />
               <Route path="/analytics" element={
                 <ProtectedRoute><AnalyticsPage /></ProtectedRoute>
+              } />
+              <Route path="/logs" element={
+                <ProtectedRoute><UserLogsPage /></ProtectedRoute>
               } />
               {/* Public landing pages — no auth, no chrome */}
               <Route path="/p/:username/:slug" element={<PublicLandingPage />} />

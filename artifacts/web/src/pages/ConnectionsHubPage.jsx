@@ -649,7 +649,7 @@ function ConnectionCard({ integration, credData, catalogInfo, onConnect, onTest,
         >
           {isConnected ? 'Update' : 'Connect'}
         </button>
-        {isConnected && functional && (
+        {isConnected && automated && (
           <button
             onClick={() => onTest(credData)}
             disabled={testing === credData?.id}

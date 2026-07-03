@@ -20,6 +20,55 @@ import { refreshExpiringCredentials } from "../social-oauth";
 const POLL_INTERVAL_MS = 5_000;
 let running = false;
 
+// ─── Per-job execution timeout ────────────────────────────────────────────────
+// Each handler runs inside Promise.race with a deadline. The timeout fires
+// before the DB-level watchdog (reclaimHungJobs) so the worker can fail the
+// job cleanly through the normal failJob path and then immediately claim the
+// next one — the loop is never blocked indefinitely by a hung handler.
+//
+// Timeout < watchdog threshold ensures the worker handles the timeout first;
+// the watchdog is a safety net for the rare case where Node.js itself stalls.
+const JOB_EXEC_TIMEOUT_MS: Record<string, number> = {
+  connector_test:              90_000,  // 1.5 min  (watchdog fires at 2 min)
+  system_startup:              90_000,
+  send_email:                  90_000,
+  health_check:               4 * 60_000, // 4 min   (watchdog fires at 5 min)
+  ash_task:                   4 * 60_000,
+  scheduled_task:             9 * 60_000, // 9 min   (watchdog fires at 10 min)
+  business_health_analysis:   9 * 60_000,
+  business_improvement_pass:  9 * 60_000,
+};
+
+const DEFAULT_EXEC_TIMEOUT_MS = 5 * 60_000;
+
+function withJobTimeout<T>(promise: Promise<T>, jobType: string, jobId: string): Promise<T> {
+  const ms = JOB_EXEC_TIMEOUT_MS[jobType] ?? DEFAULT_EXEC_TIMEOUT_MS;
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`Job execution timed out after ${ms / 1000}s (type: ${jobType})`)),
+      ms,
+    );
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err: unknown) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
+// Dispatch to the correct handler without awaiting — used by withJobTimeout.
+function invokeHandler(jobType: string, payload: Record<string, unknown>): Promise<unknown> {
+  switch (jobType) {
+    case "connector_test":          return handleConnectorTest(payload);
+    case "system_startup":          return handleSystemStartup(payload);
+    case "health_check":            return handleHealthCheck(payload);
+    case "ash_task":                return handleAshTask(payload);
+    case "send_email":              return handleSendEmail(payload);
+    case "business_health_analysis":return handleBusinessHealthAnalysis(payload);
+    case "business_improvement_pass":return handleBusinessImprovementPass(payload);
+    default: return Promise.reject(new Error(`Unknown job type: ${jobType}`));
+  }
+}
+
 // Decrypt credentials for a system instance's tools.
 // `user_credentials.user_id` references the owning platform user (usersTable.id),
 // NOT the system instance id, so we must resolve the instance's owner first.
@@ -539,33 +588,16 @@ async function processJob(): Promise<void> {
 
   try {
     const payload = (job.payload ?? {}) as Record<string, unknown>;
-    let result: unknown;
 
-    switch (job.jobType) {
-      case "connector_test":
-        result = await handleConnectorTest(payload);
-        break;
-      case "system_startup":
-        result = await handleSystemStartup(payload);
-        break;
-      case "health_check":
-        result = await handleHealthCheck(payload);
-        break;
-      case "ash_task":
-        result = await handleAshTask(payload);
-        break;
-      case "send_email":
-        result = await handleSendEmail(payload);
-        break;
-      case "business_health_analysis":
-        result = await handleBusinessHealthAnalysis(payload);
-        break;
-      case "business_improvement_pass":
-        result = await handleBusinessImprovementPass(payload);
-        break;
-      default:
-        throw new Error(`Unknown job type: ${job.jobType}`);
-    }
+    // Run the handler inside a timeout so a hung external call (e.g. a
+    // never-resolving API request or DB deadlock) cannot block the worker
+    // loop indefinitely. The timeout fires before the DB-level watchdog so
+    // the error is handled here via failJob, and the loop moves on immediately.
+    const result = await withJobTimeout(
+      invokeHandler(job.jobType, payload),
+      job.jobType,
+      job.jobId,
+    );
 
     await completeJob(job.jobId, result);
     logger.info({ jobId: job.jobId, jobType: job.jobType }, "Job completed");

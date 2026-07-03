@@ -186,6 +186,50 @@ export async function resetOrphanedJobs(): Promise<number> {
   return (workerResult.rowCount ?? 0) + (audioResult.rowCount ?? 0);
 }
 
+// ─── Hung-job watchdog ────────────────────────────────────────────────────────
+// Finds jobs that have been in 'active' status longer than their per-type
+// timeout (indicating the handler hung indefinitely) and reclaims them:
+//   • attempt < max_attempts → status = 'retrying' with exponential backoff
+//   • attempt >= max_attempts → status = 'failed'
+// media_gen_* jobs are intentionally excluded — they run outside the worker
+// loop and have their own polling/status-recovery paths.
+
+export interface ReclaimResult {
+  reclaimed: number;
+  finalFailed: number;
+}
+
+export async function reclaimHungJobs(): Promise<ReclaimResult> {
+  const result = await pool.query<{ job_id: string; status: string }>(`
+    UPDATE runtime_jobs
+    SET
+      status       = CASE WHEN attempt >= max_attempts THEN 'failed'   ELSE 'retrying' END,
+      error        = 'Watchdog: job exceeded its per-type timeout and was automatically reclaimed',
+      completed_at = CASE WHEN attempt >= max_attempts THEN NOW()      ELSE NULL END,
+      started_at   = NULL,
+      run_after    = CASE
+                       WHEN attempt >= max_attempts THEN run_after
+                       ELSE NOW() + make_interval(secs => 30.0 * POWER(2.0, GREATEST(attempt - 1, 0)))
+                     END
+    WHERE status = 'active'
+      AND started_at IS NOT NULL
+      AND (
+        (job_type IN ('connector_test', 'system_startup', 'send_email')
+          AND started_at < NOW() - INTERVAL '2 minutes')
+        OR (job_type IN ('health_check', 'ash_task')
+          AND started_at < NOW() - INTERVAL '5 minutes')
+        OR (job_type IN ('scheduled_task', 'business_health_analysis', 'business_improvement_pass')
+          AND started_at < NOW() - INTERVAL '10 minutes')
+      )
+    RETURNING job_id, status
+  `);
+
+  const rows = result.rows;
+  const finalFailed = rows.filter((r) => r.status === "failed").length;
+  const reclaimed = rows.length - finalFailed;
+  return { reclaimed, finalFailed };
+}
+
 export async function getJobById(jobId: string) {
   const [job] = await db
     .select()

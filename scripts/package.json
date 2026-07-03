@@ -9,6 +9,7 @@
     "migrate-credentials": "tsx ./src/migrate-credentials.ts",
     "rotate-credentials": "tsx ./src/rotate-credentials.ts",
     "seed-skills": "tsx ./src/seed-skills.ts",
+    "verify-hung-job-recovery": "tsx ./src/verify-hung-job-recovery.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

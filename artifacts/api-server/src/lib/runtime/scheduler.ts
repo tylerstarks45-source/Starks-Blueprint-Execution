@@ -13,7 +13,7 @@ import { recomputeAllActiveSystemsHealth, recomputeAllActiveBusinessesHealth } f
 import { attemptSelfHeal } from "../self-healing";
 import { loadCredentials as loadSystemCredentials } from "./worker";
 import { businessesTable } from "@workspace/db";
-import { enqueue } from "./jobs";
+import { enqueue, reclaimHungJobs } from "./jobs";
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
@@ -768,6 +768,33 @@ async function processHealthMonitoring(): Promise<void> {
   }
 }
 
+// ─── Hung-job watchdog tick ───────────────────────────────────────────────────
+// Runs every 5 minutes. Finds jobs that have been stuck in 'active' status
+// longer than their per-type timeout (e.g. a handler awaiting a call that
+// never resolves) and resets them to 'retrying' with exponential backoff, or
+// permanently fails them if all attempts are exhausted. This closes the gap
+// where startup-only orphan recovery misses jobs that hang mid-run.
+
+const HUNG_JOB_WATCHDOG_INTERVAL_MS = 5 * 60 * 1000;
+let lastHungJobWatchdog = 0;
+
+async function processHungJobWatchdog(): Promise<void> {
+  const now = Date.now();
+  if (now - lastHungJobWatchdog < HUNG_JOB_WATCHDOG_INTERVAL_MS) return;
+  lastHungJobWatchdog = now;
+
+  try {
+    const { reclaimed, finalFailed } = await reclaimHungJobs();
+    if (reclaimed > 0 || finalFailed > 0) {
+      logger.warn({ reclaimed, finalFailed }, "Hung job watchdog: reclaimed stuck active jobs");
+    } else {
+      logger.debug("Hung job watchdog: no stuck jobs found");
+    }
+  } catch (err) {
+    logger.warn({ err }, "Hung job watchdog failed");
+  }
+}
+
 // ─── AI Improvement Engine tick (Task #248) ──────────────────────────────────
 // Runs once per day: enqueues a business_improvement_pass job for every
 // active business. Each pass analyzes the business, checks the Marketplace
@@ -815,6 +842,7 @@ export function startScheduler(): void {
       await processEmailSequences();
       await processDuePosts();
       await processHealthMonitoring();
+      await processHungJobWatchdog();
       await processImprovementPasses();
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");

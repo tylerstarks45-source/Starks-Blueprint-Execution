@@ -457,17 +457,16 @@ router.get("/ai-orchestrator/platform-context", async (req, res): Promise<void> 
 
   const creditBalance = userRows[0]?.creditsBalance ?? 0;
   res.json(serialize({
-    systems,
-    businesses: businesses.map((b) => ({ ...b, healthScore: null })),
+    systems:            systems.map((s) => ({ ...s, status: s.buildStatus })),
+    businesses:         businesses.map((b) => ({ ...b, healthScore: null })),
     domains,
-    landingPages:       pages,
+    landingPages:       pages.map((p) => ({ ...p, published: p.isPublished })),
     landingPageCount:   pages.length,
     emailSequences:     sequences,
     emailSequenceCount: sequences.length,
     socialAccounts,
     creditBalance,
-    creditsBalance: creditBalance,
-    fetchedAt:      new Date(),
+    fetchedAt:          new Date(),
   }));
 });
 

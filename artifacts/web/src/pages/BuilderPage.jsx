@@ -1884,7 +1884,7 @@ const BuilderPage = () => {
   const [platformContext, setPlatformContext] = useState(null);
   const [platformContextOpen, setPlatformContextOpen] = useState(false);
   const [platformContextRefreshKey, setPlatformContextRefreshKey] = useState(0);
-  const [platformSections, setPlatformSections] = useState({ systems: true, businesses: true, domains: true });
+  const [platformSections, setPlatformSections] = useState({ systems: true, businesses: true, domains: true, pages: false, sequences: false, social: false });
   const togglePlatformSection = (key) => setPlatformSections(prev => ({ ...prev, [key]: !prev[key] }));
 
   // Pages panel state
@@ -5181,25 +5181,104 @@ const BuilderPage = () => {
                     </div>
                   )}
 
-                  {/* Stats strip */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { label: 'Pages', value: platformContext.landingPageCount ?? platformContext.landingPages?.length ?? 0, icon: LayoutTemplate },
-                      { label: 'Sequences', value: platformContext.emailSequenceCount ?? platformContext.emailSequences?.length ?? 0, icon: Mail },
-                      { label: 'Credits', value: platformContext.creditBalance ?? platformContext.creditsBalance ?? 0, icon: Zap },
-                    ].map(({ label, value, icon: Icon }) => (
-                      <div key={label} className="rounded-lg border border-white/8 bg-black/20 p-2 flex flex-col items-center gap-1">
-                        <Icon className="w-3 h-3 text-white/22" />
-                        <span className="text-[11px] font-bold font-mono text-white/55">{value}</span>
-                        <span className="text-[8px] font-mono text-white/22">{label}</span>
+                  {/* Landing Pages — collapsible */}
+                  <div className="rounded-xl border border-white/8 bg-black/20 overflow-hidden">
+                    <button
+                      onClick={() => togglePlatformSection('pages')}
+                      className="w-full flex items-center gap-1.5 p-3 hover:bg-white/3 transition-colors"
+                    >
+                      <LayoutTemplate className="w-3 h-3 text-white/22" />
+                      <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold flex-1 text-left">Pages ({platformContext.landingPageCount ?? platformContext.landingPages?.length ?? 0})</p>
+                      {platformSections.pages ? <ChevronDown className="w-3 h-3 text-white/20" /> : <ChevronRight className="w-3 h-3 text-white/20" />}
+                    </button>
+                    {platformSections.pages && (
+                      <div className="px-3 pb-3">
+                        {(!platformContext.landingPages?.length) ? (
+                          <p className="text-[10px] text-white/18 font-mono">None yet</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {platformContext.landingPages.map(p => (
+                              <button
+                                key={p.id}
+                                onClick={() => navigate(`/pages/${p.id}`)}
+                                className={`text-[9px] font-mono px-2 py-0.5 rounded-full border transition-colors ${(p.published ?? p.isPublished) ? 'border-emerald-500/30 text-emerald-400/70 bg-emerald-500/8 hover:bg-emerald-500/15' : 'border-white/10 text-white/35 hover:text-white/55'}`}
+                              >
+                                {p.title || `Page ${p.id}`}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    )}
+                  </div>
+
+                  {/* Email Sequences — collapsible */}
+                  <div className="rounded-xl border border-white/8 bg-black/20 overflow-hidden">
+                    <button
+                      onClick={() => togglePlatformSection('sequences')}
+                      className="w-full flex items-center gap-1.5 p-3 hover:bg-white/3 transition-colors"
+                    >
+                      <Mail className="w-3 h-3 text-white/22" />
+                      <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold flex-1 text-left">Sequences ({platformContext.emailSequenceCount ?? platformContext.emailSequences?.length ?? 0})</p>
+                      {platformSections.sequences ? <ChevronDown className="w-3 h-3 text-white/20" /> : <ChevronRight className="w-3 h-3 text-white/20" />}
+                    </button>
+                    {platformSections.sequences && (
+                      <div className="px-3 pb-3">
+                        {(!platformContext.emailSequences?.length) ? (
+                          <p className="text-[10px] text-white/18 font-mono">None yet</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {platformContext.emailSequences.map(s => (
+                              <button
+                                key={s.id}
+                                onClick={() => navigate('/email')}
+                                className={`text-[9px] font-mono px-2 py-0.5 rounded-full border transition-colors ${s.status === 'active' ? 'border-violet-500/30 text-violet-400/70 bg-violet-500/8 hover:bg-violet-500/15' : 'border-white/10 text-white/35 hover:text-white/55'}`}
+                              >
+                                {s.name || `Sequence ${s.id}`}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Social Accounts — collapsible */}
+                  <div className="rounded-xl border border-white/8 bg-black/20 overflow-hidden">
+                    <button
+                      onClick={() => togglePlatformSection('social')}
+                      className="w-full flex items-center gap-1.5 p-3 hover:bg-white/3 transition-colors"
+                    >
+                      <Share2 className="w-3 h-3 text-white/22" />
+                      <p className="text-[9px] uppercase tracking-widest text-white/22 font-mono font-bold flex-1 text-left">Social ({platformContext.socialAccounts?.length ?? 0} connected)</p>
+                      {platformSections.social ? <ChevronDown className="w-3 h-3 text-white/20" /> : <ChevronRight className="w-3 h-3 text-white/20" />}
+                    </button>
+                    {platformSections.social && (
+                      <div className="px-3 pb-3">
+                        {(!platformContext.socialAccounts?.length) ? (
+                          <button onClick={() => navigate('/connections')} className="text-[10px] font-mono text-cyan-400/45 hover:text-cyan-400 transition-colors">Connect accounts →</button>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {platformContext.socialAccounts.map((a, i) => (
+                              <span key={i} className="text-[9px] font-mono px-2 py-0.5 rounded-full border border-sky-500/25 text-sky-400/65 bg-sky-500/6">{a.platform}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Credits strip */}
+                  <div className="rounded-xl border border-white/8 bg-black/20 p-2.5 flex items-center gap-2">
+                    <Zap className="w-3 h-3 text-amber-400/60 shrink-0" />
+                    <span className="text-[10px] font-mono text-white/40 flex-1">Credits remaining</span>
+                    <span className="text-[11px] font-bold font-mono text-white/60">{platformContext.creditBalance ?? 0}</span>
                   </div>
 
                   {/* Hint */}
                   <div className="rounded-xl border border-cyan-500/12 bg-cyan-500/4 p-2.5">
                     <p className="text-[9px] font-mono text-cyan-400/55 leading-relaxed">
-                      ASH sees this snapshot in every message. Ask it to pause a system, trigger a rebuild, or add a business note — it'll act instantly.
+                      ASH sees this snapshot every session. Ask it to pause a system, trigger a rebuild, list your pages, or add a business note — it acts instantly.
                     </p>
                   </div>
                 </>)}

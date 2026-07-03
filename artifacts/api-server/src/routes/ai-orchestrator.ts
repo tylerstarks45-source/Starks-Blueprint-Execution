@@ -1069,6 +1069,22 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
     const [platformSystems, platformBusinesses, platformDomains, platformPages, platformSeqs, platformCreditRows] = platformRows;
     const userCreditBalance = platformCreditRows[0]?.creditsBalance ?? 0;
 
+    // Derive connected social accounts from storedCreds
+    const SOCIAL_CRED_KEYS: Record<string, string> = {
+      TIKTOK_ACCESS_TOKEN: "TikTok", INSTAGRAM_ACCESS_TOKEN: "Instagram",
+      FACEBOOK_PAGE_TOKEN: "Facebook", META_ACCESS_TOKEN: "Meta/Facebook",
+      TWITTER_BEARER_TOKEN: "X (Twitter)", LINKEDIN_API_KEY: "LinkedIn",
+      YOUTUBE_REFRESH_TOKEN: "YouTube", YOUTUBE_API_KEY: "YouTube",
+      THREADS_ACCESS_TOKEN: "Threads", PINTEREST_API_KEY: "Pinterest",
+      SNAPCHAT_ACCESS_TOKEN: "Snapchat",
+    };
+    const storedKeySet = new Set(storedCreds.map((c) => c.credentialKey));
+    const connectedSocialNames = [...new Set(
+      Object.entries(SOCIAL_CRED_KEYS)
+        .filter(([k]) => storedKeySet.has(k))
+        .map(([, name]) => name),
+    )];
+
     const storedKeys = storedCreds.map((c) => c.credentialKey);
     const connectedKeys = storedCreds.filter((c) => c.status === "connected").map((c) => c.credentialKey);
     const storedCredNote = storedKeys.length > 0
@@ -1104,6 +1120,7 @@ Domains (${platformDomains.length}): ${platformDomains.length > 0
   : "none"}
 Landing Pages: ${platformPages.length} total, ${publishedPageCount} published
 Email Sequences: ${platformSeqs.length}${platformSeqs.length > 0 ? ` (${platformSeqs.filter((s) => s.status === "active").length} active)` : ""}
+Social Accounts: ${connectedSocialNames.length > 0 ? connectedSocialNames.join(", ") : "none connected"}
 Credits remaining: ${userCreditBalance}
 Use this context to give proactive, personalised advice. Reference the user's actual assets when relevant.
 Available platform tools (emit as SBEP_DATA action "tool_calls"):

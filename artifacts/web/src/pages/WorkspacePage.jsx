@@ -10,6 +10,7 @@ import {
   Volume2, Film, RefreshCw, Share2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import PushToSocialModal from '@/components/PushToSocialModal.jsx';
 
 const authHeaders = () => {
   const token = localStorage.getItem('sbep_auth_token');
@@ -73,6 +74,7 @@ export default function WorkspacePage() {
   const [mediaFiles, setMediaFiles] = useState([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [playingAudioId, setPlayingAudioId] = useState(null);
+  const [pushToSocial, setPushToSocial] = useState(null);
   const audioRefs = useRef({});
 
   const loadFiles = useCallback(async () => {
@@ -344,9 +346,9 @@ export default function WorkspacePage() {
                           </a>
                         )}
                         <button
-                          disabled
-                          title="Push to Social — coming soon"
-                          className="p-1 rounded bg-white/5 text-white/15 cursor-not-allowed"
+                          onClick={() => setPushToSocial({ mediaUrl: mf.content, defaultContent: mf.description || '' })}
+                          title="Push to Social"
+                          className="p-1 rounded bg-white/5 hover:bg-white/12 text-white/30 hover:text-violet-400 transition-colors"
                         >
                           <Share2 className="w-2.5 h-2.5" />
                         </button>
@@ -603,6 +605,13 @@ export default function WorkspacePage() {
         </div>
         )}
       </div>
+      {pushToSocial && (
+        <PushToSocialModal
+          mediaUrl={pushToSocial.mediaUrl}
+          defaultContent={pushToSocial.defaultContent}
+          onClose={() => setPushToSocial(null)}
+        />
+      )}
     </AuthLayout>
   );
 }

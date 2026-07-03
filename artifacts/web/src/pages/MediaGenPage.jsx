@@ -9,6 +9,7 @@ import {
   Check, Loader2, ExternalLink, Play, Pause, RefreshCw,
   Wand2, Film, ArrowLeft, X, Volume2, Clock, Share2
 } from 'lucide-react';
+import PushToSocialModal from '@/components/PushToSocialModal.jsx';
 
 const authHeaders = () => {
   const token = localStorage.getItem('sbep_auth_token');
@@ -239,7 +240,7 @@ function AudioJobTracker({ jobId, prompt, onComplete }) {
 
 // ─── Gallery tile ─────────────────────────────────────────────────────────────
 
-function MediaTile({ item, onDelete }) {
+function MediaTile({ item, onDelete, onPushToSocial }) {
   const [copied, setCopied] = useState(false);
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
@@ -320,9 +321,9 @@ function MediaTile({ item, onDelete }) {
               </a>
             )}
             <button
-              disabled
-              title="Push to Social — coming soon"
-              className="p-1 rounded text-white/15 cursor-not-allowed"
+              onClick={() => onPushToSocial?.(item)}
+              title="Push to Social"
+              className="p-1 rounded text-white/30 hover:text-violet-400 transition-colors"
             >
               <Share2 className="w-3 h-3" />
             </button>
@@ -343,6 +344,7 @@ export default function MediaGenPage() {
   const [galleryLoading, setGalleryLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [activeJobs, setActiveJobs] = useState([]);
+  const [pushToSocial, setPushToSocial] = useState(null);
 
   // Per-tab form state
   const [imagePrompt, setImagePrompt] = useState('');
@@ -818,7 +820,7 @@ export default function MediaGenPage() {
               ) : (
                 <div className="space-y-3">
                   {galleryForTab.slice(0, 10).map(item => (
-                    <MediaTile key={item.id} item={item} />
+                    <MediaTile key={item.id} item={item} onPushToSocial={setPushToSocial} />
                   ))}
                 </div>
               )}
@@ -826,6 +828,13 @@ export default function MediaGenPage() {
           </div>
         </div>
       </div>
+      {pushToSocial && (
+        <PushToSocialModal
+          mediaUrl={pushToSocial.content}
+          defaultContent={pushToSocial.description || ''}
+          onClose={() => setPushToSocial(null)}
+        />
+      )}
     </AuthLayout>
   );
 }

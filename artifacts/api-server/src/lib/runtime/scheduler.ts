@@ -15,6 +15,7 @@ import { loadCredentials as loadSystemCredentials } from "./worker";
 import { businessesTable } from "@workspace/db";
 import { enqueue, reclaimHungJobs } from "./jobs";
 import { notifyUser } from "../notify";
+import { credentialDisplayName } from "../connectors/catalog-map";
 import { OutOfCreditsError } from "../credits";
 import { createPendingApproval } from "../approvals";
 import { hasOperationsModeAccess } from "../operations-gate";
@@ -912,6 +913,69 @@ async function processImprovementPasses(): Promise<void> {
   }
 }
 
+// ─── Credential-expiry warnings ───────────────────────────────────────────────
+// Proactively warn users before a connected credential expires so their
+// automations don't silently break. Skips keys that auto-refresh on their own
+// (handled by social-oauth's refreshExpiringCredentials); the prime target is
+// LinkedIn, whose ~60-day token cannot be refreshed and must be reconnected.
+
+const EXPIRY_WARNING_INTERVAL_MS = 6 * 60 * 60 * 1000; // check ~4×/day (7-day window applied in SQL)
+const EXPIRY_WARNING_DEDUPE_MS = 3 * 24 * 60 * 60 * 1000; // at most once / 3 days
+let lastExpiryWarningRun = 0;
+
+// Credentials whose tokens are refreshed automatically elsewhere — no warning.
+const AUTO_REFRESHABLE_KEYS = new Set([
+  "TWITTER_BEARER_TOKEN",
+  "TIKTOK_ACCESS_TOKEN",
+  "META_ACCESS_TOKEN",
+]);
+
+async function processExpiringCredentialWarnings(): Promise<void> {
+  const now = Date.now();
+  if (now - lastExpiryWarningRun < EXPIRY_WARNING_INTERVAL_MS) return;
+  lastExpiryWarningRun = now;
+
+  try {
+    const result = await pool.query(
+      `SELECT id, user_id, credential_key, expires_at
+         FROM user_credentials
+        WHERE status = 'connected'
+          AND expires_at IS NOT NULL
+          AND expires_at > NOW()
+          AND expires_at <= NOW() + INTERVAL '7 days'`,
+    );
+    const rows = result.rows as {
+      id: number;
+      user_id: number;
+      credential_key: string;
+      expires_at: Date;
+    }[];
+
+    let warned = 0;
+    for (const row of rows) {
+      if (AUTO_REFRESHABLE_KEYS.has(row.credential_key)) continue;
+      const expiresMs = new Date(row.expires_at).getTime();
+      const days = Math.max(1, Math.ceil((expiresMs - now) / (24 * 60 * 60 * 1000)));
+      const name = credentialDisplayName(row.credential_key);
+      const inserted = await notifyUser({
+        userId: row.user_id,
+        title: `${name} connection expires soon`,
+        message: `Your ${name} credential expires in ${days} day${days === 1 ? "" : "s"}. Reconnect it in the Connections Hub to keep your automations running.`,
+        notificationType: "warn",
+        linkUrl: "/connections",
+        dedupeKey: `cred_expiry_${row.id}`,
+        dedupeWindowMs: EXPIRY_WARNING_DEDUPE_MS,
+      });
+      if (inserted) warned++;
+    }
+    if (warned > 0) {
+      logger.info({ warned, scanned: rows.length }, "Credential-expiry warnings sent");
+    }
+  } catch (err) {
+    logger.warn({ err }, "Credential-expiry warning tick failed");
+  }
+}
+
 // ─── Main scheduler loop ──────────────────────────────────────────────────────
 
 export function startScheduler(): void {
@@ -928,6 +992,7 @@ export function startScheduler(): void {
       await processHealthMonitoring();
       await processHungJobWatchdog();
       await processImprovementPasses();
+      await processExpiringCredentialWarnings();
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {

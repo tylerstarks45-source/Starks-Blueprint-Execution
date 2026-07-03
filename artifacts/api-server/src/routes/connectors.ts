@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { requireAuthActive } from "../lib/auth";
 import { listConnectors, getConnector, isKnownConnector } from "../lib/connectors/registry";
+import { buildCatalogStatus } from "../lib/connectors/catalog-map";
 import { enqueue } from "../lib/runtime/jobs";
 import { logEvent } from "../lib/log-event";
 
@@ -10,6 +11,14 @@ const router: IRouter = Router();
 // GET /api/connectors — list all connectors with metadata
 router.get("/connectors", async (_req, res): Promise<void> => {
   res.json(listConnectors());
+});
+
+// GET /api/connectors/catalog-status — honest per-credential-key functional
+// status for the Connections Hub. Keyed by the catalog credential key the user
+// pastes; tells the frontend which entries ASH can genuinely operate (and with
+// what actions) vs. affiliate/manual-only listings.
+router.get("/connectors/catalog-status", async (_req, res): Promise<void> => {
+  res.json(buildCatalogStatus());
 });
 
 // POST /api/connectors/:id/test — live test a connector (with optional credentials)

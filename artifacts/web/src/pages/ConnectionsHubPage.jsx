@@ -11,6 +11,29 @@ const authHeaders = () => {
     : { 'Content-Type': 'application/json' };
 };
 
+// ─── HONEST INTEGRATION TIERS ─────────────────────────────────────────────────
+// Every catalog entry falls into exactly one tier so the UI never implies ASH can
+// operate an integration it can't:
+//   automated → backed by a real connector (from /api/connectors/catalog-status)
+//   affiliate → no automation, but we link out to sign up (affiliate)
+//   manual    → no automation and no affiliate link; user wires it up themselves
+const TIER_BADGE = {
+  automated: { label: '⚡ ASH Automated', cls: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' },
+  affiliate: { label: '↗ Affiliate · Manual', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/25' },
+  manual:    { label: 'Manual Setup', cls: 'bg-white/5 text-gray-400 border-white/10' },
+};
+
+// Turn a connector action id (camelCase) into a human label, e.g.
+// "createDraft" → "Create Draft".
+function humanizeAction(action) {
+  return String(action)
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^./, c => c.toUpperCase());
+}
+
 // ─── PUBLISHING CHANNELS ──────────────────────────────────────────────────────
 // Map credential keys → publishing channel ID so we can show "Publishing Ready" badge.
 const PUBLISHING_CRED_MAP = {
@@ -83,15 +106,32 @@ const CATALOG = [
   { key: 'RESEND_API_KEY',       name: 'Resend',       category: 'marketing',      icon: '📧',  accent: 'orange',  label: 'API Key',       placeholder: 're_…',          description: 'Transactional email for lead-nurture and drip campaign blueprints.',    docsUrl: 'https://resend.com/api-keys',                   affiliateUrl: 'https://resend.com/?sid=starks', testable: false },
   { key: 'MAILCHIMP_API_KEY',    name: 'Mailchimp',    category: 'marketing',      icon: '🐒',  accent: 'amber',   label: 'API Key',       placeholder: 'mc-…',          description: 'Email list management and campaign automation at scale.',               docsUrl: 'https://mailchimp.com/developer/marketing/guides/quick-start/', affiliateUrl: 'https://mailchimp.com/?sid=starks', testable: false },
   { key: 'CONVERTKIT_API_KEY',   name: 'ConvertKit',   category: 'marketing',      icon: '✉',   accent: 'orange',  label: 'API Key',       placeholder: 'ck-…',          description: 'Creator-focused email marketing for content-based income systems.',     docsUrl: 'https://developers.convertkit.com/',            affiliateUrl: 'https://convertkit.com/?sid=starks', testable: false },
-  { key: 'BEEHIIV_API_KEY',      name: 'Beehiiv',      category: 'marketing',      icon: '🐝',  accent: 'amber',   label: 'API Key',       placeholder: 'bh_…',          description: 'Newsletter growth platform — build paid subscription email businesses.',  docsUrl: 'https://developers.beehiiv.com/',               affiliateUrl: 'https://beehiiv.com/?sid=starks', testable: false },
+  { key: 'BEEHIIV_API_KEY',      name: 'Beehiiv',      category: 'marketing',      icon: '🐝',  accent: 'amber',   label: 'API Key',       placeholder: 'bh_…',          description: 'Newsletter growth platform — build paid subscription email businesses.',  docsUrl: 'https://developers.beehiiv.com/',               affiliateUrl: 'https://beehiiv.com/?sid=starks', testable: true,
+    extraFields: [
+      { key: 'BEEHIIV_PUBLICATION_ID', label: 'Publication ID', placeholder: 'pub_…' },
+    ] },
   { key: 'INSTANTLY_API_KEY',    name: 'Instantly',    category: 'marketing',      icon: '⚡',  accent: 'violet',  label: 'API Key',       placeholder: 'instantly_…',   description: 'Cold email outreach at scale — AI personalization, inbox rotation.',      docsUrl: 'https://app.instantly.ai/app/settings/integrations', affiliateUrl: 'https://instantly.ai/?sid=starks', testable: false },
   { key: 'SMARTLEAD_API_KEY',    name: 'Smartlead',    category: 'marketing',      icon: '🎯',  accent: 'emerald', label: 'API Key',       placeholder: 'sl_…',          description: 'Multi-channel cold outreach with advanced deliverability and warm-up.',   docsUrl: 'https://smartlead.ai/api-docs/',                affiliateUrl: 'https://smartlead.ai/?sid=starks', testable: false },
   { key: 'ACTIVECAMPAIGN_KEY',   name: 'ActiveCampaign',category: 'marketing',     icon: '📨',  accent: 'blue',    label: 'API Key',       placeholder: 'ac-…',          description: 'Advanced marketing automation with CRM and email sequences.',           docsUrl: 'https://www.activecampaign.com/api/overview.php', affiliateUrl: 'https://activecampaign.com/?sid=starks', testable: false },
   { key: 'KLAVIYO_API_KEY',      name: 'Klaviyo',      category: 'marketing',      icon: '📊',  accent: 'emerald', label: 'API Key',       placeholder: 'pk_…',          description: 'E-commerce email and SMS automation for Shopify/WooCommerce blueprints.', docsUrl: 'https://www.klaviyo.com/account#api-keys-tab', affiliateUrl: 'https://klaviyo.com/?sid=starks', testable: false },
   { key: 'GOHIGHLEVEL_API_KEY',  name: 'GoHighLevel',  category: 'marketing',      icon: '🚀',  accent: 'violet',  label: 'API Key',       placeholder: 'ghl-…',         description: 'All-in-one marketing platform for agency and SaaS income blueprints.', docsUrl: 'https://highlevel.stoplight.io/',               affiliateUrl: 'https://www.gohighlevel.com/?sid=starks', testable: false },
+  { key: 'SENDGRID_API_KEY',     name: 'SendGrid',     category: 'marketing',      icon: '📧',  accent: 'blue',    label: 'API Key',       placeholder: 'SG.…',          description: 'Transactional & marketing email at scale — ASH sends and tracks campaigns.', docsUrl: 'https://www.twilio.com/docs/sendgrid/api-reference', affiliateUrl: 'https://sendgrid.com/?sid=starks', testable: true },
+  { key: 'CLICKFUNNELS_API_SECRET', name: 'ClickFunnels', category: 'marketing',  icon: '🔻',  accent: 'orange',  label: 'API Secret',    placeholder: 'cf_…',          description: 'Sales funnel builder — ASH manages funnels, contacts, and order automation.', docsUrl: 'https://developers.myclickfunnels.com/', affiliateUrl: 'https://www.clickfunnels.com/?sid=starks', testable: true,
+    extraFields: [
+      { key: 'CLICKFUNNELS_WORKSPACE_ID', label: 'Workspace ID', placeholder: '12345' },
+    ] },
+  { key: 'WORDPRESS_APP_PASSWORD', name: 'WordPress',  category: 'marketing',      icon: '📰',  accent: 'blue',    label: 'Application Password', placeholder: 'xxxx xxxx xxxx xxxx', description: 'Publish and manage posts, pages, and media on any WordPress site via REST.', docsUrl: 'https://developer.wordpress.org/rest-api/', affiliateUrl: null, testable: true,
+    extraFields: [
+      { key: 'WORDPRESS_SITE_URL', label: 'Site URL',  placeholder: 'https://yourblog.com' },
+      { key: 'WORDPRESS_USERNAME', label: 'Username',  placeholder: 'admin' },
+    ] },
   // ── Ecommerce ──────────────────────────────────────────────────────────────
   { key: 'STRIPE_SECRET_KEY',    name: 'Stripe',       category: 'ecommerce',      icon: '💳',  accent: 'violet',  label: 'Secret Key',    placeholder: 'sk_live_…',     description: 'Payment processing for e-commerce and subscription blueprints.',        docsUrl: 'https://dashboard.stripe.com/apikeys',          affiliateUrl: null, testable: true },
-  { key: 'SHOPIFY_API_KEY',      name: 'Shopify',      category: 'ecommerce',      icon: '🛍',  accent: 'emerald', label: 'API Key',       placeholder: 'shpat_…',       description: 'Store management and dropshipping blueprint automation.',               docsUrl: 'https://admin.shopify.com/store/apps/private',  affiliateUrl: 'https://shopify.com/?sid=starks', testable: false },
+  { key: 'SHOPIFY_ACCESS_TOKEN', name: 'Shopify',      category: 'ecommerce',      icon: '🛍',  accent: 'emerald', label: 'Admin API Access Token', placeholder: 'shpat_…',   description: 'Store management, product/order sync, and dropshipping blueprint automation.', docsUrl: 'https://admin.shopify.com/store/apps/private',  affiliateUrl: 'https://shopify.com/?sid=starks', testable: true,
+    extraFields: [
+      { key: 'SHOPIFY_SHOP_DOMAIN', label: 'Shop Domain', placeholder: 'yourstore.myshopify.com' },
+    ] },
+  { key: 'TEACHABLE_API_KEY',    name: 'Teachable',    category: 'ecommerce',      icon: '🎓',  accent: 'blue',    label: 'API Key',       placeholder: 'teach_…',       description: 'Online course platform — automate students, enrollments, and course sales.', docsUrl: 'https://docs.teachable.com/reference/', affiliateUrl: 'https://teachable.com/?sid=starks', testable: true },
   { key: 'PAYPAL_CLIENT_ID',     name: 'PayPal',       category: 'ecommerce',      icon: '🅿',   accent: 'blue',    label: 'Client ID',     placeholder: 'Acd…',          description: 'PayPal payments and subscriptions for global e-commerce blueprints.',  docsUrl: 'https://developer.paypal.com/api/rest/',        affiliateUrl: null, testable: false },
   { key: 'DIGISTORE24_API_KEY',  name: 'Digistore24',  category: 'ecommerce',      icon: '🏪',  accent: 'red',     label: 'API Key',       placeholder: 'ds24-…',        description: 'Digital product sales and affiliate management platform.',             docsUrl: 'https://www.digistore24.com/vendor/api/doc/',   affiliateUrl: 'https://www.digistore24.com/?sid=starks', testable: false },
   { key: 'WOOCOMMERCE_API_KEY',  name: 'WooCommerce',  category: 'ecommerce',      icon: '🛍',  accent: 'violet',  label: 'Consumer Key',  placeholder: 'ck_…',          description: 'WooCommerce REST API for WordPress store automation and order management.', docsUrl: 'https://woocommerce.com/document/woocommerce-rest-api/', affiliateUrl: 'https://woocommerce.com/?sid=starks', testable: false },
@@ -100,16 +140,19 @@ const CATALOG = [
   { key: 'SQUARE_ACCESS_TOKEN',  name: 'Square',       category: 'ecommerce',      icon: '⬛',  accent: 'blue',    label: 'Access Token',  placeholder: 'EAAAl…',        description: 'Square payments and POS for in-person and online payment blueprints.',   docsUrl: 'https://developer.squareup.com/docs',           affiliateUrl: null, testable: false },
   // ── Automation ─────────────────────────────────────────────────────────────
   { key: 'N8N_API_KEY',          name: 'n8n',          category: 'automation',     icon: '⚙',   accent: 'red',     label: 'API Key',       placeholder: 'n8n_api_…',     description: 'Self-hosted workflow automation for complex multi-step blueprints.',    docsUrl: 'https://docs.n8n.io/api/',                      affiliateUrl: 'https://n8n.io/?sid=starks', testable: false },
-  { key: 'ZAPIER_API_KEY',       name: 'Zapier',       category: 'automation',     icon: '⚡',  accent: 'orange',  label: 'API Key',       placeholder: 'zap-…',         description: '5,000+ app integrations for rapid automation prototyping.',             docsUrl: 'https://zapier.com/l/api/',                     affiliateUrl: 'https://zapier.com/?sid=starks', testable: false },
+  { key: 'ZAPIER_WEBHOOK_URL',   name: 'Zapier',       category: 'automation',     icon: '⚡',  accent: 'orange',  label: 'Webhook URL',   placeholder: 'https://hooks.zapier.com/hooks/catch/…', description: 'Trigger any of 5,000+ apps — ASH fires Zapier Catch Hooks with your payload.', docsUrl: 'https://zapier.com/apps/webhook/help', affiliateUrl: 'https://zapier.com/?sid=starks', testable: true },
   { key: 'MAKE_API_KEY',         name: 'Make',         category: 'automation',     icon: '🔄',  accent: 'violet',  label: 'API Key',       placeholder: 'make-…',        description: 'Visual automation builder with advanced data transformation.',          docsUrl: 'https://www.make.com/en/api-documentation',     affiliateUrl: 'https://make.com/?sid=starks', testable: false },
   // ── Communication ──────────────────────────────────────────────────────────
-  { key: 'SLACK_BOT_TOKEN',      name: 'Slack',        category: 'communication',  icon: '💬',  accent: 'emerald', label: 'Bot Token',     placeholder: 'xoxb-…',        description: 'Slack API for team notifications, alerts, and workflow automation.',      docsUrl: 'https://api.slack.com/authentication/token-types', affiliateUrl: 'https://slack.com/?sid=starks', testable: false },
+  { key: 'SLACK_WEBHOOK_URL',    name: 'Slack',        category: 'communication',  icon: '💬',  accent: 'emerald', label: 'Incoming Webhook URL', placeholder: 'https://hooks.slack.com/services/…', description: 'Post notifications, alerts, and rich messages to a Slack channel.',      docsUrl: 'https://api.slack.com/messaging/webhooks', affiliateUrl: 'https://slack.com/?sid=starks', testable: true },
   { key: 'DISCORD_BOT_TOKEN',    name: 'Discord',      category: 'communication',  icon: '🎮',  accent: 'violet',  label: 'Bot Token',     placeholder: 'MT…',            description: 'Discord Bot API for community management and automated notifications.',   docsUrl: 'https://discord.com/developers/applications',   affiliateUrl: null, testable: false },
   { key: 'TWILIO_AUTH_TOKEN',    name: 'Twilio',       category: 'communication',  icon: '📞',  accent: 'red',     label: 'Auth Token',    placeholder: 'AC…',            description: 'SMS, WhatsApp, and voice automation for outreach and alert blueprints.', docsUrl: 'https://console.twilio.com/',                   affiliateUrl: 'https://twilio.com/?sid=starks', testable: false },
   { key: 'BLAND_AI_API_KEY',     name: 'Bland AI',     category: 'communication',  icon: '🤙',  accent: 'violet',  label: 'API Key',       placeholder: 'bland_…',       description: 'AI phone call agent — automate outbound & inbound calls at scale.',       docsUrl: 'https://docs.bland.ai/',                        affiliateUrl: 'https://bland.ai/?sid=starks', testable: false },
   { key: 'OUTLOOK_CLIENT_SECRET',name: 'Outlook',      category: 'communication',  icon: '📮',  accent: 'blue',    label: 'Client Secret', placeholder: 'outlook_…',     description: 'Microsoft Outlook & Office 365 email for business automation blueprints.', docsUrl: 'https://learn.microsoft.com/en-us/graph/auth-register-app-v2', affiliateUrl: null, testable: false },
   // ── Infrastructure ─────────────────────────────────────────────────────────
-  { key: 'CLOUDFLARE_API_KEY',   name: 'Cloudflare',   category: 'infrastructure', icon: '☁',   accent: 'amber',   label: 'API Key',       placeholder: 'Global API Key…', description: 'DNS, Workers, and CDN for deployment and hosting blueprints.',       docsUrl: 'https://dash.cloudflare.com/profile/api-tokens', affiliateUrl: null, testable: false },
+  { key: 'CLOUDFLARE_API_TOKEN', name: 'Cloudflare',   category: 'infrastructure', icon: '☁',   accent: 'amber',   label: 'API Token',     placeholder: 'cf_token_…',    description: 'DNS, Workers, and CDN for deployment and hosting blueprints.',       docsUrl: 'https://dash.cloudflare.com/profile/api-tokens', affiliateUrl: null, testable: true,
+    extraFields: [
+      { key: 'CLOUDFLARE_ACCOUNT_ID', label: 'Account ID', placeholder: '023e105f4ecef8ad9ca31a8372d0c353' },
+    ] },
   { key: 'SUPABASE_SERVICE_KEY', name: 'Supabase',     category: 'infrastructure', icon: '🗄',   accent: 'emerald', label: 'Service Key',   placeholder: 'eyJ…',           description: 'Managed Postgres + Auth + Storage for database-driven blueprints.',   docsUrl: 'https://supabase.com/dashboard/project/_/settings/api', affiliateUrl: 'https://supabase.com/?sid=starks', testable: false },
   { key: 'GMAIL_REFRESH_TOKEN',  name: 'Gmail',        category: 'infrastructure', icon: '✉',   accent: 'red',     label: 'Refresh Token', placeholder: '1//…',           description: 'Gmail API for email outreach, inbox reading, and cold-email automation.', docsUrl: 'https://developers.google.com/oauthplayground', affiliateUrl: null, testable: true,
     extraFields: [
@@ -126,9 +169,12 @@ const CATALOG = [
   // ── Databases ──────────────────────────────────────────────────────────────
   { key: 'MONGODB_URI',          name: 'MongoDB',      category: 'database',       icon: '🍃',  accent: 'emerald', label: 'Connection URI', placeholder: 'mongodb+srv://…', description: 'MongoDB Atlas for document storage in NoSQL-powered blueprint systems.', docsUrl: 'https://www.mongodb.com/docs/drivers/',         affiliateUrl: 'https://www.mongodb.com/cloud/atlas?sid=starks', testable: false },
   { key: 'MYSQL_CONNECTION_STR', name: 'MySQL',        category: 'database',       icon: '🐬',  accent: 'blue',    label: 'Connection String', placeholder: 'mysql://…',   description: 'MySQL database connection for relational data-driven blueprints.',       docsUrl: 'https://dev.mysql.com/doc/',                    affiliateUrl: null, testable: false },
-  { key: 'AIRTABLE_API_KEY',     name: 'Airtable',     category: 'database',       icon: '📋',  accent: 'amber',   label: 'Personal Token', placeholder: 'pat…',          description: 'Airtable API for spreadsheet-database hybrid workflows and CRM pipelines.', docsUrl: 'https://airtable.com/developers/web/api/introduction', affiliateUrl: 'https://airtable.com/?sid=starks', testable: false },
-  { key: 'NOTION_API_KEY',       name: 'Notion',       category: 'database',       icon: '📝',  accent: 'blue',    label: 'Integration Token', placeholder: 'secret_…',    description: 'Notion API — use as your business knowledge base and CRM/project tracker.', docsUrl: 'https://developers.notion.com/docs/getting-started', affiliateUrl: 'https://notion.so/?sid=starks', testable: false },
-  { key: 'GOOGLE_SHEETS_KEY',    name: 'Google Sheets',category: 'database',       icon: '📊',  accent: 'emerald', label: 'Service Account Key', placeholder: '{"type":"service…', description: 'Google Sheets API for data logging, reporting, and spreadsheet automation.', docsUrl: 'https://developers.google.com/sheets/api/quickstart', affiliateUrl: null, testable: false },
+  { key: 'AIRTABLE_API_KEY',     name: 'Airtable',     category: 'database',       icon: '📋',  accent: 'amber',   label: 'Personal Token', placeholder: 'pat…',          description: 'Airtable API for spreadsheet-database hybrid workflows and CRM pipelines.', docsUrl: 'https://airtable.com/developers/web/api/introduction', affiliateUrl: 'https://airtable.com/?sid=starks', testable: true,
+    extraFields: [
+      { key: 'AIRTABLE_BASE_ID', label: 'Base ID', placeholder: 'app…' },
+    ] },
+  { key: 'NOTION_API_KEY',       name: 'Notion',       category: 'database',       icon: '📝',  accent: 'blue',    label: 'Integration Token', placeholder: 'secret_…',    description: 'Notion API — use as your business knowledge base and CRM/project tracker.', docsUrl: 'https://developers.notion.com/docs/getting-started', affiliateUrl: 'https://notion.so/?sid=starks', testable: true },
+  { key: 'GOOGLE_SHEETS_SERVICE_ACCOUNT', name: 'Google Sheets', category: 'database', icon: '📊', accent: 'emerald', label: 'Service Account JSON', placeholder: '{"type":"service_account"…}', description: 'Google Sheets API for data logging, reporting, and spreadsheet automation.', docsUrl: 'https://developers.google.com/sheets/api/quickstart', affiliateUrl: null, testable: true },
   // ── Analytics ──────────────────────────────────────────────────────────────
   { key: 'GA4_MEASUREMENT_ID',   name: 'Google Analytics', category: 'analytics', icon: '📈',  accent: 'blue',    label: 'Measurement ID', placeholder: 'G-…',           description: 'Website and funnel analytics for performance tracking blueprints.',   docsUrl: 'https://analytics.google.com/',                 affiliateUrl: null, testable: false },
   { key: 'MIXPANEL_TOKEN',       name: 'Mixpanel',     category: 'analytics',      icon: '📊',  accent: 'violet',  label: 'Project Token', placeholder: 'mp-…',           description: 'Product analytics and user behavior tracking for SaaS blueprints.',   docsUrl: 'https://mixpanel.com/settings/project/',        affiliateUrl: 'https://mixpanel.com/?sid=starks', testable: false },
@@ -484,12 +530,21 @@ function CustomIntegrationModal({ userId, onClose, onSaved }) {
 
 // ─── CONNECTION CARD ──────────────────────────────────────────────────────────
 
-function ConnectionCard({ integration, credData, onConnect, onTest, testing }) {
+function ConnectionCard({ integration, credData, catalogInfo, onConnect, onTest, testing }) {
   const isConnected = !!credData;
   const status = credData?.status ?? 'disconnected';
   const sc = STATUS_CONFIG[status] ?? STATUS_CONFIG.disconnected;
   const ac = ACCENT[integration.accent] ?? ACCENT.blue;
   const usedBy = credData?.usedBySystems ?? [];
+
+  // Honest tier + capabilities from the backend source of truth. "Automated"
+  // requires a real, available connector with at least one automated action —
+  // stub-only or unavailable connectors are downgraded so we never over-claim.
+  const automated = !!catalogInfo?.functional && !catalogInfo?.stubOnly &&
+    catalogInfo?.available !== false && (catalogInfo?.actions?.length ?? 0) > 0;
+  const tier = automated ? 'automated' : (integration.affiliateUrl ? 'affiliate' : 'manual');
+  const tb = TIER_BADGE[tier];
+  const capabilities = automated ? (catalogInfo.actions ?? []) : [];
 
   return (
     <div className={`relative rounded-2xl border ${isConnected ? ac.border : 'border-white/10'} bg-black/80 backdrop-blur-sm p-5 flex flex-col gap-4 transition-all hover:bg-black/90`}>
@@ -506,6 +561,9 @@ function ConnectionCard({ integration, credData, onConnect, onTest, testing }) {
               <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
               {sc.label}
             </span>
+            <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border ${tb.cls}`}>
+              {tb.label}
+            </span>
             {isConnected && PUBLISHING_CRED_MAP[integration.key] && (
               <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/25">
                 ✦ Publishing Ready
@@ -515,6 +573,25 @@ function ConnectionCard({ integration, credData, onConnect, onTest, testing }) {
           <p className="text-xs text-gray-300 mt-0.5 line-clamp-2">{integration.description}</p>
         </div>
       </div>
+
+      {/* ASH capabilities — only shown for genuinely automated integrations */}
+      {capabilities.length > 0 && (
+        <div>
+          <p className="text-[10px] font-mono uppercase tracking-widest text-emerald-500/70 mb-1.5">ASH can</p>
+          <div className="flex flex-wrap gap-1">
+            {capabilities.slice(0, 6).map(a => (
+              <span key={a} className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/5 text-emerald-300/80 border border-emerald-500/10">
+                {humanizeAction(a)}
+              </span>
+            ))}
+            {capabilities.length > 6 && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-gray-500">
+                +{capabilities.length - 6} more
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Metadata (only when connected) */}
       {isConnected && (
@@ -572,7 +649,7 @@ function ConnectionCard({ integration, credData, onConnect, onTest, testing }) {
         >
           {isConnected ? 'Update' : 'Connect'}
         </button>
-        {isConnected && integration.testable && (
+        {isConnected && functional && (
           <button
             onClick={() => onTest(credData)}
             disabled={testing === credData?.id}
@@ -651,6 +728,7 @@ export default function ConnectionsHubPage() {
   const [searchParams] = useSearchParams();
 
   const [credentials, setCredentials] = useState([]);   // from /api/user-credentials/summary
+  const [catalogStatus, setCatalogStatus] = useState({}); // from /api/connectors/catalog-status
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('all');
   const [search, setSearch] = useState('');
@@ -682,6 +760,14 @@ export default function ConnectionsHubPage() {
   }, [currentUser]);
 
   useEffect(() => { loadCredentials(); }, [loadCredentials]);
+
+  // Honest per-integration functional status (which entries ASH can operate).
+  useEffect(() => {
+    fetch('/api/connectors/catalog-status', { headers: authHeaders() })
+      .then(r => (r.ok ? r.json() : {}))
+      .then(setCatalogStatus)
+      .catch(() => {});
+  }, []);
 
   // Feedback after an OAuth redirect back from /api/social/oauth/:platform/callback
   useEffect(() => {
@@ -913,6 +999,7 @@ export default function ConnectionsHubPage() {
                           key={integration.key}
                           integration={integration}
                           credData={credMap[integration.key]}
+                          catalogInfo={catalogStatus[integration.key]}
                           onConnect={setSlideOver}
                           onTest={handleQuickTest}
                           testing={testing}
@@ -929,6 +1016,7 @@ export default function ConnectionsHubPage() {
                     key={integration.key}
                     integration={integration}
                     credData={credMap[integration.key]}
+                    catalogInfo={catalogStatus[integration.key]}
                     onConnect={setSlideOver}
                     onTest={handleQuickTest}
                     testing={testing}

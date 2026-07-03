@@ -21,27 +21,13 @@ import { attemptSelfHeal } from "../lib/self-healing";
 import { loadCredentials } from "../lib/runtime/worker";
 import { logger } from "../lib/logger";
 import { getConnector } from "../lib/connectors/registry";
+import { CATALOG_CONNECTOR_MAP } from "../lib/connectors/catalog-map";
 
-// Maps a catalog credentialKey to the connector registry id + the exact
-// credential key names the connector's constructor expects (which may differ
-// from the catalog key, e.g. LinkedIn stores under LINKEDIN_API_KEY in the
-// Connections Hub but the connector reads LINKEDIN_ACCESS_TOKEN). Used to
-// route "Test" clicks in the Connections Hub through the real connector
-// implementations instead of the generic non-empty-string check below.
-const KEY_TO_CONNECTOR: Record<string, { connectorId: string; keyMap?: Record<string, string> }> = {
-  GMAIL_REFRESH_TOKEN: { connectorId: "gmail" },
-  YOUTUBE_REFRESH_TOKEN: { connectorId: "youtube" },
-  TWITTER_BEARER_TOKEN: { connectorId: "twitter" },
-  META_ACCESS_TOKEN: { connectorId: "meta" },
-  TIKTOK_ACCESS_TOKEN: { connectorId: "tiktok" },
-  LINKEDIN_API_KEY: { connectorId: "linkedin", keyMap: { LINKEDIN_API_KEY: "LINKEDIN_ACCESS_TOKEN" } },
-  // OAuth-connected LinkedIn accounts (via Connections Hub "Connect with
-  // LinkedIn") save straight under LINKEDIN_ACCESS_TOKEN — the same key the
-  // connector expects natively, so no keyMap is needed. Without this entry,
-  // OAuth-connected LinkedIn credentials would silently skip real connector
-  // testing and fall back to the generic non-empty-string check.
-  LINKEDIN_ACCESS_TOKEN: { connectorId: "linkedin" },
-};
+// Authoritative catalog credentialKey → connector map lives in
+// lib/connectors/catalog-map.ts so the "Test" routing here and the honest
+// catalog-status endpoint share one source of truth. Aliased locally to keep
+// the existing call sites below unchanged.
+const KEY_TO_CONNECTOR = CATALOG_CONNECTOR_MAP;
 
 const router: IRouter = Router();
 

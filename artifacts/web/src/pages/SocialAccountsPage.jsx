@@ -277,10 +277,34 @@ function ConnectModal({ platform, existingData, onClose, onSaved }) {
   );
 }
 
+// Shared status vocabulary — kept aligned with the Connections Hub so the same
+// credential shows an identical status in both UIs.
+const STATUS_UI = {
+  connected:      { label: 'Connected',      badge: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400', dot: 'bg-emerald-400' },
+  expiring_soon:  { label: 'Expiring Soon',  badge: 'bg-amber-500/10 border-amber-500/25 text-amber-400',       dot: 'bg-amber-400'   },
+  needs_reconnect:{ label: 'Needs Reconnect',badge: 'bg-amber-500/10 border-amber-500/25 text-amber-400',       dot: 'bg-amber-400'   },
+  rate_limited:   { label: 'Rate Limited',   badge: 'bg-amber-500/10 border-amber-500/25 text-amber-400',       dot: 'bg-amber-400'   },
+  expired:        { label: 'Expired',        badge: 'bg-red-500/10 border-red-500/25 text-red-400',             dot: 'bg-red-400'     },
+  invalid:        { label: 'Invalid',        badge: 'bg-red-500/10 border-red-500/25 text-red-400',             dot: 'bg-red-400'     },
+  disconnected:   { label: 'Not Connected',  badge: 'bg-white/4 border-white/10 text-white/30',                 dot: 'bg-white/20'    },
+};
+
 function PlatformCard({ platform, credential, onConnect, onDisconnect, onTest, testState }) {
   const isConnected = !!credential;
   const [expanded, setExpanded] = useState(false);
-  const needsReconnect = testState?.checked && testState?.ok === false;
+
+  // Derive a unified status from the real credential status + expiry, with the
+  // live test result able to downgrade a "connected" credential to reconnect.
+  const rawStatus = credential?.status ?? (isConnected ? 'connected' : 'disconnected');
+  const expiresAt = credential?.expiresAt ? new Date(credential.expiresAt) : null;
+  const testFailed = testState?.checked && testState?.ok === false;
+  const expiringSoon = rawStatus === 'connected' && expiresAt &&
+    expiresAt.getTime() > Date.now() &&
+    (expiresAt.getTime() - Date.now()) < 7 * 24 * 60 * 60 * 1000;
+  let derivedStatus = rawStatus;
+  if (testFailed && rawStatus === 'connected') derivedStatus = 'needs_reconnect';
+  else if (expiringSoon) derivedStatus = 'expiring_soon';
+  const su = STATUS_UI[derivedStatus] ?? STATUS_UI.disconnected;
 
   return (
     <div className={`relative rounded-2xl border ${platform.border} bg-gradient-to-br ${platform.gradient} backdrop-blur-sm overflow-hidden transition-all duration-300 hover:shadow-lg hover:${platform.glow}`}>
@@ -295,13 +319,9 @@ function PlatformCard({ platform, credential, onConnect, onDisconnect, onTest, t
               <p className="text-xs text-white/35 font-mono">{platform.handle}</p>
             </div>
           </div>
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${
-            needsReconnect ? 'bg-amber-500/10 border-amber-500/25 text-amber-400'
-            : isConnected ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
-            : 'bg-white/4 border-white/10 text-white/30'
-          }`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${needsReconnect ? 'bg-amber-400' : isConnected ? 'bg-emerald-400' : 'bg-white/20'}`} />
-            {needsReconnect ? 'Needs Reconnect' : isConnected ? 'Connected' : 'Not Connected'}
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${su.badge}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${su.dot}`} />
+            {su.label}
           </div>
         </div>
 
@@ -409,7 +429,9 @@ export default function SocialAccountsPage() {
   const fetchCredentials = async () => {
     if (!currentUser?.id) return;
     try {
-      const res = await fetch('/api/user-credentials', { headers: authHeaders() });
+      // Use /summary so we get real per-credential status + expiresAt (matching
+      // the Connections Hub), rather than mere presence.
+      const res = await fetch('/api/user-credentials/summary', { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       const map = {};
@@ -448,7 +470,12 @@ export default function SocialAccountsPage() {
     }
   };
 
-  const connectedCount = SOCIAL_PLATFORMS.filter(p => credentials[p.key]).length;
+  const connectedCount = SOCIAL_PLATFORMS.filter(p => {
+    const c = credentials[p.key];
+    if (!c) return false;
+    // Count only genuinely-working connections, matching per-card status.
+    return (c.status ?? 'connected') === 'connected';
+  }).length;
 
   return (
     <AuthLayout>

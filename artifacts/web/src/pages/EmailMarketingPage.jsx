@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { Skeleton } from '@/components/ui/skeleton.jsx';
@@ -6,7 +7,7 @@ import {
   Mail, Users, Plus, Trash2, ChevronRight, ChevronDown,
   Upload, Sparkles, RefreshCw, Search, Send, List,
   BarChart3, Check, X, Eye, Megaphone, Play, AlertCircle,
-  TrendingUp, MousePointer, Ban, CheckCheck, UserMinus
+  TrendingUp, MousePointer, Ban, CheckCheck, UserMinus, Zap, ArrowRight
 } from 'lucide-react';
 
 const API = '/api';
@@ -478,6 +479,7 @@ function CampaignCard({ camp, lists, api, onDelete }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function EmailMarketingPage() {
   const api = useApi();
+  const navigate = useNavigate();
 
   const [tab, setTab] = useState('lists');
   const [lists, setLists] = useState([]);
@@ -609,6 +611,27 @@ export default function EmailMarketingPage() {
           <p className="text-white/50 text-base max-w-2xl mx-auto leading-relaxed">
             Build subscriber lists, launch drip sequences, and blast campaigns — powered by your SendGrid account.
           </p>
+        </div>
+
+        {/* ASH builder callout */}
+        <div className="mb-6 rounded-2xl border border-violet-500/25 bg-violet-500/8 p-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4 text-violet-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-violet-300 mb-0.5">Let ASH set up your email system automatically</p>
+              <p className="text-[11px] text-violet-400/60 leading-relaxed">
+                Tell ASH what kind of business you're building and it will create subscriber lists, write full email sequences, schedule broadcasts, and connect email automation to any system — all in one step.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/builder')}
+            className="flex items-center gap-2 h-9 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-colors shrink-0"
+          >
+            Build with ASH <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         {/* SendGrid setup banner */}

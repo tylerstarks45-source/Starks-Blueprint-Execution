@@ -523,7 +523,7 @@ For creating an A/B test and auto-generating variants on a landing page or email
 testType must be "landing_page" or "email_subject". For landing_page include landingPageId (0 if unknown). For email_subject include sequenceId (0 if unknown). numberOfVariants is the number of treatment variants to generate (1-4); the original is always the control.
 Use generate_ab_variants when the user wants to split-test copy, headlines, or email subject lines to optimise conversion rates.
 
-For creating an email list + automated sequence (when the user's build plan includes email marketing — newsletters, welcome flows, lead nurture, or sales funnels):
+For creating an email list + automated sequence — use this for ANY system that involves customer communication, subscriber engagement, follow-ups, or automated outreach (not just email-specific systems — affiliate marketing systems, e-commerce stores, content agencies, coaching businesses, SaaS tools, and lead gen funnels ALL benefit from email automation):
 <SBEP_DATA>
 {
   "action": "create_email_sequence",
@@ -534,7 +534,7 @@ For creating an email list + automated sequence (when the user's build plan incl
 }
 </SBEP_DATA>
 numberOfEmails should be 3-14 depending on the funnel goal. The system will AI-generate all email subjects and bodies automatically.
-Use create_email_sequence when the user's system includes email marketing — building a newsletter, welcome series, lead nurture, or sales funnel. Creates the list, generates the sequence steps with AI, and activates automation.
+Use create_email_sequence proactively as part of ANY build plan where the user would benefit from email automation — welcome series for new leads, nurture sequences for affiliate products, customer follow-ups for e-commerce, onboarding emails for SaaS, or weekly newsletters for content businesses. Creates the list, generates the sequence steps with AI, and activates automation. Users can then manage all email lists and sequences from the Email Marketing page (/email-marketing) in their dashboard.
 
 For general questions (not a build goal):
 <SBEP_DATA>
@@ -547,7 +547,7 @@ CRITICAL: When user explicitly provides credentials or asks to start building �
 CRITICAL: When user asks to visit a website, search the web, check a URL, find pricing/info online, or interact with a web page → return "browser_use".
 CRITICAL: When user's system needs to run a task on a recurring schedule (post daily, check hourly, send weekly) → use "create_schedule".
 CRITICAL: When user wants to A/B test a landing page or email subject line → use "generate_ab_variants".
-CRITICAL: When user's system includes email marketing, a newsletter, welcome emails, or lead nurture → use "create_email_sequence" to create the list and automation in one step.
+CRITICAL: When user's system involves ANY customer communication, lead follow-up, affiliate promotion, welcome flows, or content distribution → use "create_email_sequence" to set up email automation as part of the build. Email multiplies the revenue potential of virtually every system.
 
 === ASH AUTONOMOUS TOOL CAPABILITIES ===
 

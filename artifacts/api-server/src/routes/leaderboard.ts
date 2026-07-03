@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { sql, eq } from "drizzle-orm";
+import { z } from "zod/v4";
 import { milestoneEventsTable, platformSettingsTable } from "@workspace/db";
 import { getTokenPayload, requireAdmin } from "../lib/auth";
 
@@ -335,11 +336,12 @@ router.patch("/leaderboard/events/:id/feature", async (req, res): Promise<void> 
     return;
   }
 
-  const { featured } = req.body as { featured?: boolean };
-  if (typeof featured !== "boolean") {
+  const parsed = z.object({ featured: z.boolean() }).safeParse(req.body);
+  if (!parsed.success) {
     res.status(400).json({ error: "featured (boolean) required" });
     return;
   }
+  const { featured } = parsed.data;
 
   try {
     const [updated] = await db
@@ -382,11 +384,12 @@ const VALID_ANON_LEVELS: AnonLevel[] = ["full_anon", "first_name", "full_name"];
 router.patch("/admin/social-proof-settings", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
 
-  const { anonLevel } = req.body as { anonLevel?: string };
-  if (!anonLevel || !VALID_ANON_LEVELS.includes(anonLevel as AnonLevel)) {
+  const parsed = z.object({ anonLevel: z.enum(VALID_ANON_LEVELS) }).safeParse(req.body);
+  if (!parsed.success) {
     res.status(400).json({ error: `anonLevel must be one of: ${VALID_ANON_LEVELS.join(", ")}` });
     return;
   }
+  const { anonLevel } = parsed.data;
 
   try {
     await db.execute(sql`

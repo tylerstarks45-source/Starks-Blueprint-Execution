@@ -471,7 +471,12 @@ router.post("/email/sequences/:id/preview", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   const seqId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
-  const { stepNumber = 1 } = req.body as { stepNumber?: number };
+  const parsedBody = z.object({ stepNumber: z.number().int().positive().optional() }).safeParse(req.body ?? {});
+  if (!parsedBody.success) {
+    res.status(400).json({ error: parsedBody.error.message });
+    return;
+  }
+  const stepNumber = parsedBody.data.stepNumber ?? 1;
 
   const [seq] = await db.select().from(emailSequencesTable)
     .where(and(eq(emailSequencesTable.id, seqId), eq(emailSequencesTable.userId, userId)));
@@ -1098,11 +1103,12 @@ router.post("/email/webhooks/sendgrid", handleSendGridWebhook);
 router.post("/email/campaigns/send", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
-  const { campaignId } = req.body as { campaignId?: number };
-  if (!campaignId || !Number.isFinite(campaignId)) {
-    res.status(400).json({ error: "campaignId is required" });
+  const parsedBody = z.object({ campaignId: z.number().int().positive() }).safeParse(req.body);
+  if (!parsedBody.success) {
+    res.status(400).json({ error: parsedBody.error.message });
     return;
   }
+  const { campaignId } = parsedBody.data;
 
   const [camp] = await db.select().from(emailCampaignsTable)
     .where(and(eq(emailCampaignsTable.id, campaignId), eq(emailCampaignsTable.userId, userId)));

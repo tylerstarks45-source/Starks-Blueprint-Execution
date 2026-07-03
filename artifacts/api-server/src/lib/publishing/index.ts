@@ -191,14 +191,17 @@ async function publishInstagram(creds: Record<string, string>, params: PublishPa
       caption,
       access_token: token,
     };
-    if (params.imageUrl) {
-      containerBody["image_url"] = params.imageUrl;
-      containerBody["media_type"] = "IMAGE";
-    } else {
-      // Text-only via carousel
-      containerBody["media_type"] = "IMAGE";
-      containerBody["image_url"] = "https://via.placeholder.com/1080x1080.png?text=Post";
+    if (!params.imageUrl) {
+      // Instagram's Graph API cannot publish text-only feed posts — an image
+      // is mandatory. Fail explicitly instead of silently substituting a
+      // third-party placeholder image.
+      return {
+        ok: false,
+        error: "Instagram requires an image to publish — text-only posts aren't supported. Attach an image and try again.",
+      };
     }
+    containerBody["image_url"] = params.imageUrl;
+    containerBody["media_type"] = "IMAGE";
 
     const createRes = await fetch(
       `https://graph.facebook.com/v19.0/${igUserId}/media`,

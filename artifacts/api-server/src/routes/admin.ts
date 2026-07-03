@@ -1375,7 +1375,7 @@ router.post("/admin/stripe/provision-user", async (req, res): Promise<void> => {
       .where(eq(usersTable.id, userId));
   } else {
     const bcrypt = (await import("bcryptjs")).default;
-    const tempPass = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    const tempPass = crypto.randomBytes(24).toString("base64url");
     const passwordHash = await bcrypt.hash(tempPass, 10);
     const [newUser] = await db.insert(usersTable).values({
       email,

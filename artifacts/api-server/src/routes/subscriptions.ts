@@ -219,26 +219,58 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
       const tier = session.metadata?.tier as string;
       const customerId = session.customer as string;
       const subscriptionId = session.subscription as string;
+      const amountTotal: number = session.amount_total ?? 0;
 
       // Fallback: if no userId in metadata, look up user by Stripe customer email.
       // This handles payments made outside the normal logged-in checkout flow.
+      let resolvedStripeEmail: string | null = null;
       if (!userId && customerId) {
         try {
           const stripeCust = await stripe.customers.retrieve(customerId);
           if (stripeCust && !("deleted" in stripeCust) && stripeCust.email) {
+            resolvedStripeEmail = stripeCust.email;
             const [found] = await db
               .select({ id: usersTable.id })
               .from(usersTable)
               .where(eq(usersTable.email, stripeCust.email));
             if (found) {
               userId = found.id;
-              req.log.info({ userId, email: stripeCust.email, customerId }, "Resolved userId from Stripe customer email (no metadata userId)");
+              req.log.info({ userId, email: resolvedStripeEmail, customerId }, "Resolved userId from Stripe customer email (no metadata userId)");
             } else {
-              req.log.warn({ email: stripeCust.email, customerId }, "checkout.session.completed: Stripe customer email not found in users table — manual provisioning required");
+              req.log.warn({ email: resolvedStripeEmail, customerId }, "checkout.session.completed: Stripe customer email not found in users table — manual provisioning required");
             }
           }
         } catch (lookupErr) {
           req.log.warn({ lookupErr, customerId }, "Could not resolve userId from Stripe customer");
+        }
+      }
+
+      // If we still have no userId after all resolution attempts and this was a real
+      // (non-$0) charge, proactively alert all SUPER_ADMIN users so they can manually
+      // provision the customer before a chargeback or support ticket arrives.
+      if (!userId && amountTotal > 0) {
+        const emailPart = resolvedStripeEmail ? ` (${resolvedStripeEmail})` : "";
+        req.log.warn(
+          { customerId, email: resolvedStripeEmail, amountTotal, sessionId: session.id },
+          "checkout.session.completed: real payment received but userId unresolvable — notifying admins",
+        );
+        try {
+          const superAdmins = await db
+            .select({ id: usersTable.id })
+            .from(usersTable)
+            .where(eq(usersTable.role, "SUPER_ADMIN"));
+          for (const admin of superAdmins) {
+            await notifyUser({
+              userId: admin.id,
+              title: "⚠️ Unprovisioned Stripe Payment",
+              message: `A payment of $${(amountTotal / 100).toFixed(2)} was received but the user could not be identified. Stripe customer: ${customerId ?? "unknown"}${emailPart}. Manual provisioning required.`,
+              notificationType: "error",
+              linkUrl: "/admin/stripe",
+              dedupeKey: `unprovisioned_payment_${customerId ?? session.id}`,
+            });
+          }
+        } catch (notifyErr) {
+          req.log.warn({ notifyErr }, "Failed to notify admins of unprovisioned Stripe payment");
         }
       }
 

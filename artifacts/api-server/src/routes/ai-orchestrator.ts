@@ -41,6 +41,33 @@ import { z } from "zod";
 
 const router: IRouter = Router();
 
+// ─── Integration name map (credential key → human-readable name) ──────────────
+// Used to build human-friendly connected-tools notes in ASH system prompts.
+const INTEGRATION_NAMES: Record<string, string> = {
+  OPENROUTER_API_KEY: "OpenRouter", OPENAI_API_KEY: "OpenAI", ANTHROPIC_API_KEY: "Claude (Anthropic)",
+  GEMINI_API_KEY: "Gemini", GROQ_API_KEY: "Groq", PERPLEXITY_API_KEY: "Perplexity",
+  ELEVENLABS_API_KEY: "ElevenLabs", HEYGEN_API_KEY: "HeyGen",
+  STRIPE_SECRET_KEY: "Stripe", PAYPAL_CLIENT_ID: "PayPal",
+  SHOPIFY_ACCESS_TOKEN: "Shopify", SHOPIFY_SHOP_URL: "Shopify",
+  MAILCHIMP_API_KEY: "Mailchimp", SENDGRID_API_KEY: "SendGrid",
+  RESEND_API_KEY: "Resend", CONVERTKIT_API_KEY: "ConvertKit",
+  BEEHIIV_API_KEY: "Beehiiv", KLAVIYO_API_KEY: "Klaviyo",
+  ACTIVECAMPAIGN_KEY: "ActiveCampaign", GOHIGHLEVEL_API_KEY: "GoHighLevel",
+  WORDPRESS_APP_PASSWORD: "WordPress", CLICKFUNNELS_API_SECRET: "ClickFunnels",
+  TEACHABLE_API_KEY: "Teachable",
+  SLACK_WEBHOOK_URL: "Slack", DISCORD_BOT_TOKEN: "Discord", TWILIO_AUTH_TOKEN: "Twilio",
+  TIKTOK_ACCESS_TOKEN: "TikTok", INSTAGRAM_ACCESS_TOKEN: "Instagram",
+  FACEBOOK_PAGE_TOKEN: "Facebook", META_ACCESS_TOKEN: "Meta/Facebook",
+  TWITTER_BEARER_TOKEN: "X (Twitter)", LINKEDIN_API_KEY: "LinkedIn",
+  YOUTUBE_REFRESH_TOKEN: "YouTube", YOUTUBE_API_KEY: "YouTube",
+  THREADS_ACCESS_TOKEN: "Threads", PINTEREST_API_KEY: "Pinterest",
+  SNAPCHAT_ACCESS_TOKEN: "Snapchat",
+  ZAPIER_WEBHOOK_URL: "Zapier", N8N_API_KEY: "n8n", MAKE_API_KEY: "Make",
+  CLOUDFLARE_API_TOKEN: "Cloudflare", GITHUB_TOKEN: "GitHub",
+  NOTION_API_KEY: "Notion", AIRTABLE_API_KEY: "Airtable",
+  GOOGLE_SHEETS_SERVICE_ACCOUNT: "Google Sheets",
+};
+
 // ─── Plan-recovery helpers ────────────────────────────────────────────────────
 
 /**
@@ -678,16 +705,23 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
   try {
     const [{ blueprintKB, toolKB }, storedCreds, activatedSkills] = await Promise.all([
       buildPlatformKnowledge(),
-      db.select({ credentialKey: userCredentialsTable.credentialKey })
+      db.select({ credentialKey: userCredentialsTable.credentialKey, status: userCredentialsTable.status })
         .from(userCredentialsTable)
         .where(eq(userCredentialsTable.userId, userId)),
       detectAndActivateSkills(parsed.data.message, userId, parsed.data.systemInstanceId),
     ]);
 
     const storedKeys = storedCreds.map((c) => c.credentialKey);
+    const connectedKeys = storedCreds.filter((c) => c.status === "connected").map((c) => c.credentialKey);
     const storedCredNote = storedKeys.length > 0
       ? `\n\n=== USER'S STORED CREDENTIALS (ALREADY ON FILE — DO NOT REQUEST THESE) ===\n${storedKeys.join(", ")}\nIf the blueprint you select requires any of these keys, skip them from requiredCredentials. The system will use the stored values automatically.`
       : "";
+
+    // Human-readable connected integrations note for ASH planning
+    const connectedNames = [...new Set(connectedKeys.map((k) => INTEGRATION_NAMES[k]).filter(Boolean))];
+    const connectedToolsNote = connectedNames.length > 0
+      ? `\n\n=== USER'S ACTIVE CONNECTED INTEGRATIONS ===\nThese tools are fully connected and ready to use — DO NOT ask for credentials for any of them:\n${connectedNames.join(", ")}\n\nWhen building a plan that uses any of these, present them as already connected. If a plan requires a tool NOT listed here, include a clear note: "⚠️ This system requires [Tool Name] — head to the Connections Hub (/connections) to connect it before proceeding."`
+      : `\n\n=== CONNECTED INTEGRATIONS ===\nThe user has no integrations connected yet. If a blueprint requires external tools (Stripe, Shopify, social platforms, email providers, etc.), include a clear note in your plan: "⚠️ You'll need to connect [Tool Name] at /connections before this system can go live."`;
 
     const SOCIAL_PLATFORM_KEYS = [
       { key: "TIKTOK_ACCESS_TOKEN", name: "TikTok" },
@@ -737,7 +771,7 @@ router.post("/ai-orchestrator/chat", async (req, res): Promise<void> => {
       : "";
 
     const completionArgs = {
-      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + depthNote + planModeNote + chatOnlyNote,
+      systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + connectedToolsNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + depthNote + planModeNote + chatOnlyNote,
       prompt: `${historyCtx}\n\nUser: ${parsed.data.message}`,
       userId,
       systemInstanceId: parsed.data.systemInstanceId,
@@ -997,7 +1031,7 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
   try {
     const [{ blueprintKB, toolKB }, storedCreds, activatedSkills, userMemoryRows] = await Promise.all([
       buildPlatformKnowledge(),
-      db.select({ credentialKey: userCredentialsTable.credentialKey })
+      db.select({ credentialKey: userCredentialsTable.credentialKey, status: userCredentialsTable.status })
         .from(userCredentialsTable)
         .where(eq(userCredentialsTable.userId, userId)),
       detectAndActivateSkills(parsed.data.message, userId, parsed.data.systemInstanceId),
@@ -1014,9 +1048,16 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
     ]);
 
     const storedKeys = storedCreds.map((c) => c.credentialKey);
+    const connectedKeys = storedCreds.filter((c) => c.status === "connected").map((c) => c.credentialKey);
     const storedCredNote = storedKeys.length > 0
       ? `\n\n=== USER'S STORED CREDENTIALS (ALREADY ON FILE — DO NOT REQUEST THESE) ===\n${storedKeys.join(", ")}\nIf the blueprint you select requires any of these keys, skip them from requiredCredentials.`
       : "";
+
+    // Human-readable connected integrations note for ASH planning
+    const connectedNames = [...new Set(connectedKeys.map((k) => INTEGRATION_NAMES[k]).filter(Boolean))];
+    const connectedToolsNote = connectedNames.length > 0
+      ? `\n\n=== USER'S ACTIVE CONNECTED INTEGRATIONS ===\nThese tools are fully connected and ready to use — DO NOT ask for credentials for any of them:\n${connectedNames.join(", ")}\n\nWhen building a plan that uses any of these, present them as already connected. If a plan requires a tool NOT listed here, include a clear note: "⚠️ This system requires [Tool Name] — head to the Connections Hub (/connections) to connect it before proceeding."`
+      : `\n\n=== CONNECTED INTEGRATIONS ===\nThe user has no integrations connected yet. If a blueprint requires external tools (Stripe, Shopify, social platforms, email providers, etc.), include a clear note in your plan: "⚠️ You'll need to connect [Tool Name] at /connections before this system can go live."`;
 
     const skillAdditions = activatedSkills
       .filter((s) => s.systemPromptAddition)
@@ -1047,7 +1088,7 @@ router.post("/ai-orchestrator/stream", async (req, res): Promise<void> => {
       : "";
 
     const systemPrompt = buildSystemPrompt(blueprintKB, toolKB) +
-      storedCredNote + skillAdditions + memoryNote +
+      storedCredNote + connectedToolsNote + skillAdditions + memoryNote +
       (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + depthNote + planModeNote;
     const prompt = `${historyCtx}\n\nUser: ${parsed.data.message}`;
 

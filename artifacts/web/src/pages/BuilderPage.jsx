@@ -1745,6 +1745,9 @@ const BuilderPage = () => {
   // Library (right) panel open/closed
   const [libraryOpen, setLibraryOpen] = useState(true);
 
+  // Connected tools (fetched from /api/user-credentials/summary, filtered to connected)
+  const [connectedTools, setConnectedTools] = useState([]);
+
   // Pages panel state
   const [builderPages, setBuilderPages] = useState([]);
   const [builderPagesLoading, setBuilderPagesLoading] = useState(false);
@@ -1889,6 +1892,49 @@ const BuilderPage = () => {
 
   // Track whether we've loaded (or decided not to load) a saved session
   const sessionLoadedRef = useRef(false);
+
+  // ── Fetch connected integrations for the chip panel ───────────────────────
+  const BUILDER_INTEGRATION_NAMES = {
+    OPENROUTER_API_KEY: 'OpenRouter', OPENAI_API_KEY: 'OpenAI', ANTHROPIC_API_KEY: 'Claude',
+    GEMINI_API_KEY: 'Gemini', GROQ_API_KEY: 'Groq', PERPLEXITY_API_KEY: 'Perplexity',
+    ELEVENLABS_API_KEY: 'ElevenLabs', HEYGEN_API_KEY: 'HeyGen',
+    STRIPE_SECRET_KEY: 'Stripe', PAYPAL_CLIENT_ID: 'PayPal',
+    SHOPIFY_ACCESS_TOKEN: 'Shopify', SHOPIFY_SHOP_URL: 'Shopify',
+    MAILCHIMP_API_KEY: 'Mailchimp', SENDGRID_API_KEY: 'SendGrid', RESEND_API_KEY: 'Resend',
+    CONVERTKIT_API_KEY: 'ConvertKit', BEEHIIV_API_KEY: 'Beehiiv', KLAVIYO_API_KEY: 'Klaviyo',
+    ACTIVECAMPAIGN_KEY: 'ActiveCampaign', GOHIGHLEVEL_API_KEY: 'GoHighLevel',
+    WORDPRESS_APP_PASSWORD: 'WordPress', CLICKFUNNELS_API_SECRET: 'ClickFunnels', TEACHABLE_API_KEY: 'Teachable',
+    SLACK_WEBHOOK_URL: 'Slack', DISCORD_BOT_TOKEN: 'Discord', TWILIO_AUTH_TOKEN: 'Twilio',
+    TIKTOK_ACCESS_TOKEN: 'TikTok', INSTAGRAM_ACCESS_TOKEN: 'Instagram',
+    FACEBOOK_PAGE_TOKEN: 'Facebook', META_ACCESS_TOKEN: 'Meta',
+    TWITTER_BEARER_TOKEN: 'X (Twitter)', LINKEDIN_API_KEY: 'LinkedIn',
+    YOUTUBE_REFRESH_TOKEN: 'YouTube', YOUTUBE_API_KEY: 'YouTube',
+    THREADS_ACCESS_TOKEN: 'Threads', PINTEREST_API_KEY: 'Pinterest', SNAPCHAT_ACCESS_TOKEN: 'Snapchat',
+    ZAPIER_WEBHOOK_URL: 'Zapier', N8N_API_KEY: 'n8n', MAKE_API_KEY: 'Make',
+    CLOUDFLARE_API_TOKEN: 'Cloudflare', GITHUB_TOKEN: 'GitHub',
+    NOTION_API_KEY: 'Notion', AIRTABLE_API_KEY: 'Airtable',
+    GOOGLE_SHEETS_SERVICE_ACCOUNT: 'Google Sheets',
+  };
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const token = localStorage.getItem('sbep_auth_token');
+    if (!token) return;
+    fetch('/api/user-credentials/summary', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!Array.isArray(data)) return;
+        const names = [...new Set(
+          data
+            .filter(c => c.status === 'connected')
+            .map(c => BUILDER_INTEGRATION_NAMES[c.credentialKey])
+            .filter(Boolean)
+        )];
+        setConnectedTools(names);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
   // ── Restore session from localStorage once currentUser is known ───────────
   useEffect(() => {
@@ -3603,6 +3649,27 @@ const BuilderPage = () => {
               </div>
             </div>
           </div>
+
+          {/* ── Connected tools chip row ── */}
+          {connectedTools.length > 0 && (
+            <div className="shrink-0 border-b border-white/6 px-4 py-1.5 bg-black/40 flex items-center gap-2 flex-wrap">
+              <span className="text-[8px] uppercase tracking-widest text-white/22 font-mono shrink-0">Connected</span>
+              {connectedTools.map(name => (
+                <span key={name} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-emerald-500/25 bg-emerald-500/8 text-emerald-400 text-[9px] font-mono">
+                  <span className="w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
+                  {name}
+                </span>
+              ))}
+              <a href="/connections" className="ml-auto text-[8px] text-white/18 hover:text-white/40 font-mono transition-colors shrink-0">Manage →</a>
+            </div>
+          )}
+          {connectedTools.length === 0 && currentUser?.id && (
+            <div className="shrink-0 border-b border-white/6 px-4 py-1.5 bg-black/40 flex items-center gap-2">
+              <span className="text-[8px] uppercase tracking-widest text-white/22 font-mono shrink-0">Connected</span>
+              <span className="text-[9px] text-white/18 font-mono">No integrations connected yet</span>
+              <a href="/connections" className="ml-auto text-[8px] text-amber-400/60 hover:text-amber-400 font-mono transition-colors shrink-0">Connect tools →</a>
+            </div>
+          )}
 
           {/* Agent team status (when building/collecting/planning/complete) */}
           {(phase === 'building' || phase === 'collecting' || phase === 'complete' || phase === 'planning') && (

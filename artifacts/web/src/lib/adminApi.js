@@ -73,6 +73,7 @@ export const adminApi = {
   sendResetEmail: (id) =>
     request(`/admin/platform-users/${id}/send-reset`, { method: 'POST' }),
   getStripeOverview: () => request('/admin/stripe/overview'),
+  getStripeStatus: () => request('/admin/stripe/status'),
   provisionUser: (body) =>
     request('/admin/stripe/provision-user', { method: 'POST', body: JSON.stringify(body) }),
   rotateKey: (newKeyHex) =>

@@ -139,8 +139,8 @@ router.post("/subscriptions/checkout", async (req, res): Promise<void> => {
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${baseUrl}/pricing?success=1&tier=${plan.tier}`,
-      cancel_url: `${baseUrl}/pricing?canceled=1`,
+      success_url: `${baseUrl}/subscribe/success?session_id={CHECKOUT_SESSION_ID}&tier=${plan.tier}`,
+      cancel_url: `${baseUrl}/subscribe/cancel`,
       metadata: { userId: String(userId), tier: plan.tier },
       subscription_data: { metadata: { userId: String(userId), tier: plan.tier } },
     });
@@ -296,7 +296,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
           .set({ membershipTier: tier, membershipStatus: "active" })
           .where(eq(usersTable.id, userId));
         await adjustCredits(userId, tierAllotment(tier), "tier_grant", { reason: `${tier} plan credits` });
-        req.log.info({ userId, tier }, "Subscription activated via checkout");
+        req.log.info({ userId, tier }, "Stripe webhook: subscription activated");
 
         // Referral reward — award referrer on first-ever subscription activation
         // 500 bonus credits + 20% of first month as wallet credits (fire-and-forget)

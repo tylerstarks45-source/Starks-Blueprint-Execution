@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Layers, Bot, Mail, Globe, Link2, Plug, Share2,
   ShoppingBag, BookOpen, CreditCard, ShieldCheck, ChevronLeft, ChevronRight,
   LogOut, X, Settings, Globe2, Zap, Users, Calendar, Building2, ScrollText,
-  Brain,
+  Brain, TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useClient } from '@/contexts/ClientContext.jsx';
@@ -237,6 +237,34 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
               )}
             </Link>
           </>
+        )}
+
+        {/* Upgrade prompt — free-tier non-admin users only */}
+        {!isSuperAdmin && (currentUser?.membershipTier === 'free' || !currentUser?.membershipTier) && (
+          <div className={`pt-3 ${collapsed ? 'px-1' : 'px-1'}`}>
+            {!collapsed ? (
+              <Link
+                to="/pricing"
+                onClick={handleNavClick}
+                className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl border border-violet-500/25 bg-violet-500/8 hover:bg-violet-500/15 hover:border-violet-500/40 transition-all group"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-mono font-semibold text-violet-400 uppercase tracking-wider leading-none">Upgrade Plan</p>
+                  <p className="text-[9px] text-white/30 mt-0.5 truncate">Unlock more AI credits</p>
+                </div>
+              </Link>
+            ) : (
+              <Link
+                to="/pricing"
+                onClick={handleNavClick}
+                title="Upgrade Plan"
+                className="flex items-center justify-center w-full py-2.5 rounded-xl border border-violet-500/25 bg-violet-500/8 hover:bg-violet-500/15 transition-all"
+              >
+                <TrendingUp className="w-4 h-4 text-violet-400" />
+              </Link>
+            )}
+          </div>
         )}
 
         {/* Admin link */}

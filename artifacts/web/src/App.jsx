@@ -81,6 +81,10 @@ const ClientPortalPage      = lazy(() => import('@/pages/ClientPortalPage.jsx'))
 const RefPage               = lazy(() => import('@/pages/RefPage.jsx'));
 const AnalyticsPage         = lazy(() => import('@/pages/AnalyticsPage.jsx'));
 
+// Subscribe success/cancel pages
+const SubscribeSuccessPage  = lazy(() => import('@/pages/SubscribeSuccessPage.jsx'));
+const SubscribeCancelPage   = lazy(() => import('@/pages/SubscribeCancelPage.jsx'));
+
 // Leaderboard page (public)
 const LeaderboardPage       = lazy(() => import('@/pages/LeaderboardPage.jsx'));
 
@@ -219,6 +223,8 @@ const App = () => {
               <Route path="/affiliate-disclosure" element={<AffiliateDisclosure />} />
               <Route path="/earnings-disclaimer" element={<EarningsDisclaimer />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
+              <Route path="/subscribe/success" element={<SubscribeSuccessPage />} />
+              <Route path="/subscribe/cancel" element={<SubscribeCancelPage />} />
 
               {/* Protected user routes — requires login; all lazy */}
               <Route path="/dashboard/*" element={

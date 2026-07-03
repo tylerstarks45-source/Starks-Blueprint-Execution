@@ -1252,6 +1252,48 @@ router.get("/admin/stripe/overview", async (req, res): Promise<void> => {
   }
 });
 
+// ── GET /admin/stripe/status — Stripe mode + price reachability indicator ────
+router.get("/admin/stripe/status", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const priceId = process.env.STRIPE_PRICE_BUILDER
+    ?? process.env.STRIPE_PRICE_PRO
+    ?? process.env.STRIPE_PRICE_STARTER
+    ?? null;
+
+  if (!priceId) {
+    res.json({
+      configured: false,
+      mode: null,
+      pricesReachable: false,
+      message: "No Stripe price IDs configured (STRIPE_PRICE_BUILDER not set)",
+    });
+    return;
+  }
+
+  try {
+    const stripe = await getUncachableStripeClient();
+    const price = await stripe.prices.retrieve(priceId);
+    const livemode: boolean = (price as unknown as { livemode: boolean }).livemode ?? false;
+    res.json({
+      configured: true,
+      mode: livemode ? "live" : "test",
+      pricesReachable: true,
+      message: livemode
+        ? "Stripe is in LIVE mode — real payments will be charged"
+        : "Stripe is in TEST mode — no real payments",
+    });
+  } catch (err: unknown) {
+    req.log.warn({ err }, "Stripe status check failed");
+    res.json({
+      configured: true,
+      mode: null,
+      pricesReachable: false,
+      message: err instanceof Error ? err.message : "Could not reach Stripe",
+    });
+  }
+});
+
 // ── POST /admin/stripe/provision-user — create/link local user from Stripe ───
 router.post("/admin/stripe/provision-user", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;

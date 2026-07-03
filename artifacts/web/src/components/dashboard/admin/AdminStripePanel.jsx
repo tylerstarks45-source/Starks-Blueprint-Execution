@@ -50,6 +50,7 @@ const AdminStripePanel = () => {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState(null);
   const [tab, setTab]           = useState('overview');
+  const [stripeStatus, setStripeStatus] = useState(null);
 
   // Provision dialog
   const [provisionOpen, setProvisionOpen]   = useState(false);
@@ -61,7 +62,12 @@ const AdminStripePanel = () => {
     setLoading(true);
     setError(null);
     try {
-      setData(await adminApi.getStripeOverview());
+      const [overview, status] = await Promise.all([
+        adminApi.getStripeOverview(),
+        adminApi.getStripeStatus().catch(() => null),
+      ]);
+      setData(overview);
+      setStripeStatus(status);
     } catch (e) {
       setError(e.message || 'Failed to load Stripe data');
     } finally {
@@ -109,8 +115,33 @@ const AdminStripePanel = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-white font-mono">Stripe Revenue</h2>
-          <p className="text-sm text-white/40">Live data pulled directly from your Stripe account</p>
+          <div className="flex items-center gap-3 mb-0.5">
+            <h2 className="text-xl font-bold text-white font-mono">Stripe Revenue</h2>
+            {stripeStatus && (
+              stripeStatus.mode === 'live' ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-widest bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  LIVE
+                </span>
+              ) : stripeStatus.mode === 'test' ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  TEST
+                </span>
+              ) : stripeStatus.configured ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-widest bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                  UNREACHABLE
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-widest bg-white/8 text-white/30 border border-white/10">
+                  NOT CONFIGURED
+                </span>
+              )
+            )}
+          </div>
+          <p className="text-sm text-white/40">
+            {stripeStatus?.message ?? 'Live data pulled directly from your Stripe account'}
+          </p>
         </div>
         <Button
           variant="outline"

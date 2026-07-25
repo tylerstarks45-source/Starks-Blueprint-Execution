@@ -33,3 +33,19 @@ ADMIN_BOOTSTRAP_TOKEN = "604f1ce385febf36652e9655cc070c59b18c3d8b92a5c9b719523d9
 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium"
 
 [userenv.development]
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 18115
+externalPort = 80
+
+[[ports]]
+localPort = 22333
+externalPort = 3000

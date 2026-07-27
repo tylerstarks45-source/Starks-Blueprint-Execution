@@ -16,7 +16,7 @@ export type ModelChain = string[];
 // raw OpenRouter model strings live.
 export const MODELS = {
   // Absolute best reasoning / build / deep-analysis model.
-  flagship: "anthropic/claude-opus-4",
+  flagship: "anthropic/claude-opus-4-5",
   // Best balance of frontier quality + responsiveness for conversation & planning.
   reasoning: "anthropic/claude-3-5-sonnet",
   // Fast frontier model for snappy iteration — still top-tier, never "budget".

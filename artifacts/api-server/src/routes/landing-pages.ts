@@ -4,6 +4,7 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { db, landingPagesTable, systemInstancesTable, usersTable, emailListsTable, emailSubscribersTable, landingPagePreviewSessionsTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { complete } from "../lib/openrouter";
+import { MODELS } from "../lib/models";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import { logger } from "../lib/logger";
@@ -325,11 +326,11 @@ REQUIREMENTS: Single HTML file, ALL CSS in <style> tag, dark modern design, mobi
 Primary color: ${primary} | Secondary color: ${secondary}`;
 
   const [optinHtml, tyHtml, upsellHtml] = await Promise.all([
-    complete({ systemPrompt: basePrompt, model: "openai/gpt-4o", userId: authorId,
+    complete({ systemPrompt: basePrompt, model: MODELS.swift, userId: authorId,
       prompt: `Niche: ${niche} | Goal: ${goal}\nThis is the OPT-IN page.\nInclude a lead capture form with action="/api/landing-pages/${optin.id}/submit" method="POST" and fields: email (required), firstName (optional). The server handles the redirect after submit. Style the form to match dark theme. Include hero, benefits, social proof, and email capture form.` }),
-    complete({ systemPrompt: basePrompt, model: "openai/gpt-4o", userId: authorId,
+    complete({ systemPrompt: basePrompt, model: MODELS.swift, userId: authorId,
       prompt: `Niche: ${niche} | Goal: ${goal}\nThis is the THANK-YOU page after opt-in. Thank them warmly. Say to check their email. Introduce a soft upgrade offer. Link to upsell at /api/pages/${upsell.slug}.` }),
-    complete({ systemPrompt: basePrompt, model: "openai/gpt-4o", userId: authorId,
+    complete({ systemPrompt: basePrompt, model: MODELS.swift, userId: authorId,
       prompt: `Niche: ${niche} | Goal: ${goal}\nThis is the UPSELL page. Present a premium offer. Clear price, bold benefits, strong CTA button. This is the final step of the funnel.` }),
   ]);
 

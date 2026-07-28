@@ -1,0 +1,494 @@
+2026-07-28 04:35:49.92
+c0d3f21c
+System
+healthcheck failed error=healthcheck /api returned status 500
+
+2026-07-28 04:35:55.60
+c0d3f21c
+User
+{"level":30,"time":1785224155602,"pid":22,"hostname":"localhost","req":{"id":2,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+
+2026-07-28 04:35:55.60
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:35:57.10
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:35:57.10
+c0d3f21c
+User
+{"level":30,"time":1785224157100,"pid":22,"hostname":"localhost","req":{"id":3,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+
+2026-07-28 04:35:58.72
+c0d3f21c
+User
+{"level":30,"time":1785224158720,"pid":22,"hostname":"localhost","req":{"id":4,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:35:58.72
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:00.21
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:00.22
+c0d3f21c
+User
+{"level":30,"time":1785224160220,"pid":22,"hostname":"localhost","req":{"id":5,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+
+2026-07-28 04:36:01.61
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:01.61
+c0d3f21c
+User
+{"level":30,"time":1785224161612,"pid":22,"hostname":"localhost","req":{"id":6,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+
+2026-07-28 04:36:02.72
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:02.72
+c0d3f21c
+User
+{"level":30,"time":1785224162720,"pid":22,"hostname":"localhost","req":{"id":7,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:03.52
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:03.52
+c0d3f21c
+User
+{"level":30,"time":1785224163522,"pid":22,"hostname":"localhost","req":{"id":8,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:03.56
+c0d3f21c
+User
+{"level":30,"time":1785224163560,"pid":22,"hostname":"localhost","req":{"id":9,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+
+2026-07-28 04:36:03.56
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:04.44
+c0d3f21c
+User
+{"level":30,"time":1785224164445,"pid":22,"hostname":"localhost","req":{"id":10,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+
+2026-07-28 04:36:04.44
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:05.59
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:05.59
+c0d3f21c
+User
+{"level":30,"time":1785224165592,"pid":22,"hostname":"localhost","req":{"id":11,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:07.40
+c0d3f21c
+User
+{"level":30,"time":1785224167406,"pid":22,"hostname":"localhost","req":{"id":12,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+
+2026-07-28 04:36:07.40
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:08.81
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:08.81
+c0d3f21c
+User
+{"level":30,"time":1785224168815,"pid":22,"hostname":"localhost","req":{"id":13,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:09.79
+c0d3f21c
+User
+{"level":30,"time":1785224169797,"pid":22,"hostname":"localhost","req":{"id":14,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:09.79
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:11.74
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:11.74
+c0d3f21c
+User
+{"level":30,"time":1785224171745,"pid":22,"hostname":"localhost","req":{"id":15,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:12.95
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:12.95
+c0d3f21c
+User
+{"level":30,"time":1785224172955,"pid":22,"hostname":"localhost","req":{"id":16,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:13.90
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:13.90
+c0d3f21c
+User
+{"level":30,"time":1785224173902,"pid":22,"hostname":"localhost","req":{"id":17,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:14.70
+c0d3f21c
+User
+{"level":30,"time":1785224174707,"pid":22,"hostname":"localhost","req":{"id":18,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:14.70
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:16.42
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:16.42
+c0d3f21c
+User
+{"level":30,"time":1785224176428,"pid":22,"hostname":"localhost","req":{"id":19,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:17.94
+c0d3f21c
+User
+{"level":30,"time":1785224177949,"pid":22,"hostname":"localhost","req":{"id":20,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:17.94
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:19.10
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:19.11
+c0d3f21c
+User
+{"level":30,"time":1785224179109,"pid":22,"hostname":"localhost","req":{"id":21,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+
+2026-07-28 04:36:20.36
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:20.36
+c0d3f21c
+User
+{"level":30,"time":1785224180367,"pid":22,"hostname":"localhost","req":{"id":22,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:20.58
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:20.58
+c0d3f21c
+User
+{"level":30,"time":1785224180589,"pid":22,"hostname":"localhost","req":{"id":23,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+
+2026-07-28 04:36:21.01
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:21.01
+c0d3f21c
+User
+{"level":30,"time":1785224181017,"pid":22,"hostname":"localhost","req":{"id":24,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:21.36
+c0d3f21c
+User
+{"level":30,"time":1785224181360,"pid":22,"hostname":"localhost","req":{"id":25,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:21.36
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:22.34
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:22.34
+c0d3f21c
+User
+{"level":30,"time":1785224182342,"pid":22,"hostname":"localhost","req":{"id":26,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:23.63
+c0d3f21c
+User
+{"level":30,"time":1785224183632,"pid":22,"hostname":"localhost","req":{"id":27,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:23.63
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:25.34
+c0d3f21c
+User
+{"level":30,"time":1785224185345,"pid":22,"hostname":"localhost","req":{"id":28,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:25.34
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:26.44
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:26.44
+c0d3f21c
+User
+{"level":30,"time":1785224186448,"pid":22,"hostname":"localhost","req":{"id":29,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:28.22
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:28.22
+c0d3f21c
+User
+{"level":30,"time":1785224188220,"pid":22,"hostname":"localhost","req":{"id":30,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+
+2026-07-28 04:36:28.62
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:28.62
+c0d3f21c
+User
+{"level":30,"time":1785224188623,"pid":22,"hostname":"localhost","req":{"id":31,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+
+2026-07-28 04:36:28.69
+c0d3f21c
+User
+{"level":30,"time":1785224188690,"pid":22,"hostname":"localhost","req":{"id":32,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:28.69
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:28.83
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:28.83
+c0d3f21c
+User
+{"level":30,"time":1785224188835,"pid":22,"hostname":"localhost","req":{"id":33,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:30.58
+c0d3f21c
+User
+{"level":30,"time":1785224190581,"pid":22,"hostname":"localhost","req":{"id":34,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:30.58
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:31.75
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:31.75
+c0d3f21c
+User
+{"level":30,"time":1785224191755,"pid":22,"hostname":"localhost","req":{"id":35,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:32.29
+c0d3f21c
+User
+{"level":30,"time":1785224192293,"pid":22,"hostname":"localhost","req":{"id":36,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:32.29
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:33.93
+c0d3f21c
+User
+{"level":30,"time":1785224193937,"pid":22,"hostname":"localhost","req":{"id":37,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+
+2026-07-28 04:36:33.93
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:34.70
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:34.71
+c0d3f21c
+User
+{"level":30,"time":1785224194709,"pid":22,"hostname":"localhost","req":{"id":38,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:36.14
+c0d3f21c
+User
+{"level":30,"time":1785224196149,"pid":22,"hostname":"localhost","req":{"id":39,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:36.14
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:36.78
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:36.78
+c0d3f21c
+User
+{"level":30,"time":1785224196782,"pid":22,"hostname":"localhost","req":{"id":40,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:38.50
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:38.50
+c0d3f21c
+User
+{"level":30,"time":1785224198504,"pid":22,"hostname":"localhost","req":{"id":41,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:38.69
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:38.69
+c0d3f21c
+User
+{"level":30,"time":1785224198695,"pid":22,"hostname":"localhost","req":{"id":42,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:40.22
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:40.22
+c0d3f21c
+User
+{"level":30,"time":1785224200225,"pid":22,"hostname":"localhost","req":{"id":43,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:40.35
+c0d3f21c
+User
+{"level":30,"time":1785224200351,"pid":22,"hostname":"localhost","req":{"id":44,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:40.35
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:40.35
+c0d3f21c
+User
+{"level":30,"time":1785224200354,"pid":22,"hostname":"localhost","req":{"id":45,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:40.35
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:42.07
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:42.07
+c0d3f21c
+User
+{"level":30,"time":1785224202079,"pid":22,"hostname":"localhost","req":{"id":46,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+
+2026-07-28 04:36:42.81
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:42.81
+c0d3f21c
+User
+{"level":30,"time":1785224202817,"pid":22,"hostname":"localhost","req":{"id":47,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:44.68
+c0d3f21c
+User
+{"level":30,"time":1785224204683,"pid":22,"hostname":"localhost","req":{"id":48,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+
+2026-07-28 04:36:44.68
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:46.21
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500
+
+2026-07-28 04:36:46.21
+c0d3f21c
+User
+{"level":30,"time":1785224206212,"pid":22,"hostname":"localhost","req":{"id":49,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:47.74
+c0d3f21c
+User
+{"level":30,"time":1785224207742,"pid":22,"hostname":"localhost","req":{"id":50,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+
+2026-07-28 04:36:47.74
+c0d3f21c
+System
+healthcheck failed error=healthcheck /mobile/ returned status 500

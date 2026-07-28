@@ -1,0 +1,307 @@
+AI Audit Request
+
+You are now acting as the Lead Software Architect, DevOps Engineer, QA Engineer, Security Engineer, Database Administrator, and Production Readiness Auditor for this entire project.
+
+Your first objective is NOT to modify, rebuild, or refactor anything.
+
+Your objective is to perform a complete production readiness audit of the entire codebase and deployment environment before making any changes.
+
+This project has recently been migrated to a new Replit account from GitHub. All project files have been transferred and the required Secrets have already been entered into the new Replit environment. However, we need to verify that every system is fully operational and identify everything still required before this platform can safely launch.
+
+Phase 1 — Project Inspection
+
+Perform a complete inspection of the entire project.
+
+Review:
+
+every directory
+every source file
+every configuration file
+package.json
+lock files
+workspace configuration
+build configuration
+deployment configuration
+environment configuration
+all APIs
+all services
+all routes
+all middleware
+frontend
+backend
+shared libraries
+AI services
+automation services
+marketplace
+builder
+dashboard
+analytics
+authentication
+billing
+storage
+uploads
+scheduled jobs
+background workers
+
+Determine whether every major system is complete and operational.
+
+Do not skip any folders.
+
+Phase 2 — Database Audit
+
+Inspect the database configuration.
+
+Determine:
+
+Is a database connected?
+Is the connection valid?
+Does the schema already exist?
+Have all migrations already been applied?
+Are any migrations missing?
+Are there missing tables?
+Are indexes missing?
+Are foreign keys missing?
+Are stored procedures or triggers missing?
+Are seed records required?
+Is existing data accessible?
+
+Do NOT rebuild or recreate the database unless absolutely necessary.
+
+If migrations simply need to be applied, report that.
+
+If the schema is already correct, report that.
+
+Phase 3 — Environment Audit
+
+Verify every environment variable.
+
+Confirm every required Secret exists.
+
+Examples include (but are not limited to):
+
+OpenRouter
+OpenAI (if referenced)
+Stripe
+Postmark
+Database URL
+Redis
+Uploadcare
+AWS
+Cloudflare
+Xano
+Email configuration
+Authentication secrets
+Session secrets
+
+Report any missing values.
+
+Phase 4 — AI System Audit
+
+Inspect every AI-related feature.
+
+Verify:
+
+OpenRouter integration
+model routing
+AI chat
+blueprint generation
+automation generation
+builder
+Think Tank
+research
+planning
+code generation
+orchestration
+prompt handling
+memory
+tool calling
+
+Determine whether every AI feature is functional.
+
+Phase 5 — Authentication Audit
+
+Verify:
+
+signup
+login
+logout
+password reset
+email verification
+session handling
+authorization
+protected routes
+user roles
+admin access
+
+Report every issue.
+
+Phase 6 — Billing Audit
+
+Inspect:
+
+Stripe
+subscriptions
+checkout
+billing portal
+webhook processing
+subscription enforcement
+credits
+usage tracking
+
+Verify everything required for production.
+
+Phase 7 — Storage Audit
+
+Inspect:
+
+uploads
+image storage
+generated media
+file storage
+cloud storage integrations
+
+Verify everything works correctly.
+
+Phase 8 — Background Services
+
+Verify:
+
+queues
+workers
+Redis
+scheduled jobs
+cron jobs
+automation workers
+AI workers
+email workers
+
+Report every missing dependency.
+
+Phase 9 — API Audit
+
+Inspect every API endpoint.
+
+Verify:
+
+request validation
+authentication
+authorization
+error handling
+rate limiting
+logging
+response formatting
+
+Report broken endpoints.
+
+Phase 10 — Frontend Audit
+
+Inspect every page.
+
+Verify:
+
+navigation
+responsiveness
+routing
+loading states
+error handling
+missing components
+broken buttons
+missing pages
+missing assets
+accessibility issues
+Phase 11 — Performance Audit
+
+Check:
+
+unnecessary API calls
+duplicate queries
+memory leaks
+slow rendering
+bundle size
+caching
+lazy loading
+database performance
+Phase 12 — Security Audit
+
+Inspect:
+
+authentication security
+API security
+SQL injection protection
+XSS protection
+CSRF protection
+secret exposure
+environment variable handling
+permissions
+access control
+
+Report every vulnerability.
+
+Phase 13 — Deployment Audit
+
+Verify:
+
+production build
+deployment configuration
+startup scripts
+runtime compatibility
+package installation
+environment configuration
+production readiness
+
+Determine whether the project will successfully deploy.
+
+Phase 14 — Launch Readiness
+
+Determine if this platform is truly ready for production.
+
+Create a checklist containing:
+
+Critical Issues
+
+Anything that will prevent launch.
+
+High Priority Issues
+
+Problems that should be fixed before launch.
+
+Medium Priority Issues
+
+Problems that should be fixed soon.
+
+Low Priority Issues
+
+Polish items.
+
+Missing Features
+
+Anything still unfinished.
+
+Recommended Improvements
+
+Anything that would significantly improve stability, performance, scalability, or user experience.
+
+IMPORTANT
+
+Do NOT begin rebuilding, refactoring, rewriting, or deleting anything yet.
+
+Your only task right now is to perform the most thorough audit possible.
+
+When the audit is complete, respond with a detailed report that includes:
+
+A summary of the current state of the project.
+Everything that is fully functional.
+Everything that is partially complete.
+Everything that is missing.
+Every bug discovered.
+Every configuration issue.
+Every deployment issue.
+Every security issue.
+Every database issue.
+Every environment issue.
+Every dependency issue.
+Every recommended fix.
+A prioritized action plan in the exact order the remaining work should be completed.
+A final readiness score from 0–100%, along with an explanation of what is preventing the platform from reaching 100% production readiness.
+
+Do not make any code changes until this complete audit has been delivered for review.

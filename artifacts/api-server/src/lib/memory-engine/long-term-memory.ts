@@ -1,7 +1,8 @@
 import { db, userMemoryTable } from "@workspace/db";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, ne, or } from "drizzle-orm";
 import type { UserMemory } from "@workspace/db";
 import { topByRelevance } from "./relevance";
+import { resolveRelevantKnowledgeScopes } from "../business-intelligence";
 
 // ─── Long-Term Memory (Layer 2) ────────────────────────────────────────────
 // Wraps the EXISTING `user_memory` table/rows. The manual CRUD routes
@@ -9,13 +10,25 @@ import { topByRelevance } from "./relevance";
 // pairs exactly as before. This module adds the Phase 1.2 read/write paths
 // used by the Memory Engine (auto-capture + relevance-ranked retrieval) on
 // top of the same table.
+//
+// Business Context Isolation: only `scope = "business"` rows are ever
+// restricted by active business — `global_user` rows (the default, and the
+// only scope this module's own auto-capture writer uses today; see
+// upsertLongTermMemory) are genuine user-level preferences meant to follow
+// the user across every business, per the spec's own scope taxonomy.
 
 export async function getRelevantLongTermMemory(params: {
   userId: number;
   message: string;
+  businessId?: number | null;
+  crossBusinessMode?: boolean;
   limit?: number;
 }): Promise<UserMemory[]> {
-  const rows = await db.select().from(userMemoryTable).where(eq(userMemoryTable.userId, params.userId));
+  const scopeFilter = resolveRelevantKnowledgeScopes({ businessId: params.businessId, crossBusinessMode: params.crossBusinessMode });
+  const rows = await db.select().from(userMemoryTable).where(and(
+    eq(userMemoryTable.userId, params.userId),
+    scopeFilter.restrictToBusiness ? or(ne(userMemoryTable.scope, "business"), eq(userMemoryTable.businessId, scopeFilter.allowedBusinessId)) : undefined,
+  ));
   const top = topByRelevance(rows, params.message, (r) => ({
     content: `${r.memoryKey}: ${r.memoryValue}`,
     tags: r.tags,
@@ -50,8 +63,16 @@ export async function upsertLongTermMemory(params: {
   tags: string[];
   importanceScore: number;
   confidenceScore: number;
+  // Defaults to "global_user" — a user-level preference/fact that should
+  // follow the user across every business. Pass "business" + businessId
+  // explicitly for facts that only make sense while operating within one
+  // specific business.
+  scope?: "global_user" | "business";
+  businessId?: number | null;
 }): Promise<void> {
   const memoryKey = `auto:${params.category}:${params.title.toLowerCase().slice(0, 60).replace(/\s+/g, "_")}`;
+  const scope = params.scope ?? "global_user";
+  const businessId = scope === "business" ? params.businessId ?? null : null;
 
   const conditions = [eq(userMemoryTable.userId, params.userId), eq(userMemoryTable.memoryKey, memoryKey)];
   if (params.systemInstanceId != null) {
@@ -68,6 +89,8 @@ export async function upsertLongTermMemory(params: {
       tags: params.tags,
       importanceScore: Math.max(existing.importanceScore, params.importanceScore),
       confidenceScore: params.confidenceScore,
+      scope,
+      businessId,
       lastAccessedAt: new Date(),
     }).where(eq(userMemoryTable.id, existing.id));
     return;
@@ -82,6 +105,8 @@ export async function upsertLongTermMemory(params: {
     tags: params.tags,
     importanceScore: params.importanceScore,
     confidenceScore: params.confidenceScore,
+    scope,
+    businessId,
     lastAccessedAt: new Date(),
   });
 }

@@ -57,6 +57,7 @@ import approvalsRouter from "./approvals";
 import monitoringRouter from "./monitoring";
 import logsRouter from "./logs";
 import executiveBrainRouter from "./executive-brain";
+import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
 
@@ -111,6 +112,11 @@ router.use(developerRouter);
 router.use(analyticsRouter);
 router.use(socialRouter);
 router.use(socialOAuthRouter);
+// businessIntelligenceRouter must be mounted before businessesRouter: it
+// defines GET /businesses/cross-business-summary, which would otherwise be
+// shadowed by businesses.ts's GET /businesses/:id (Express would match
+// "cross-business-summary" as :id and never reach the BI handler).
+router.use(businessIntelligenceRouter);
 router.use(businessesRouter);
 router.use(businessHealthRouter);
 router.use(businessRecommendationsRouter);

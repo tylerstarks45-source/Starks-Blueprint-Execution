@@ -2,6 +2,7 @@ import { eq, isNull, and } from "drizzle-orm";
 import { db, businessesTable, systemInstancesTable, type SystemInstance } from "@workspace/db";
 import { logger } from "./logger";
 import { enqueue } from "./runtime/jobs";
+import { initializeBusinessDna, publishBusinessEvent } from "./business-intelligence";
 
 // Best-effort: kick off an ASH health analysis pass for a freshly created
 // business. Never blocks or fails the caller — this is fire-and-forget.
@@ -74,7 +75,17 @@ export async function ensureBuiltBusiness(
     if (existing) return;
 
     const [created] = await db.insert(businessesTable).values(businessValuesForSystem(si)).returning({ id: businessesTable.id });
-    if (created) await triggerHealthAnalysis(created.id, si.userId);
+    if (created) {
+      await triggerHealthAnalysis(created.id, si.userId);
+      await initializeBusinessDna(created.id);
+      await publishBusinessEvent({
+        businessId: created.id,
+        eventType: "business.created",
+        source: "built_businesses",
+        payload: { description: `ASH-built business wrapper was created for system instance ${si.id}.`, relatedObjects: { systemInstanceId: si.id } },
+        dedupeKey: `built_business.created:${created.id}`,
+      });
+    }
   } catch (err) {
     logger.warn({ err, systemInstanceId: si.id }, "ensureBuiltBusiness failed (non-fatal)");
   }

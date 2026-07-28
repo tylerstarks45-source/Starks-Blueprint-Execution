@@ -1427,6 +1427,414 @@ export interface BusinessOverviewResponse {
   healthStatus: BusinessOverviewResponseHealthStatus;
 }
 
+export type BusinessDnaTrustLevel = typeof BusinessDnaTrustLevel[keyof typeof BusinessDnaTrustLevel];
+
+
+export const BusinessDnaTrustLevel = {
+  user_confirmed: 'user_confirmed',
+  verified_system_data: 'verified_system_data',
+  high_confidence_inference: 'high_confidence_inference',
+  low_confidence_inference: 'low_confidence_inference',
+} as const;
+
+export interface BusinessDnaClaim {
+  id: number;
+  businessId: number;
+  fieldKey: string;
+  currentValue: unknown;
+  confidenceScore: number;
+  trustLevel: BusinessDnaTrustLevel;
+  source: string;
+  /** @nullable */
+  reasoning: string | null;
+  version: number;
+  lastUpdatedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BusinessDnaClaimsResponse {
+  claims: BusinessDnaClaim[];
+}
+
+export interface BusinessDnaClaimSummary {
+  fieldKey: string;
+  currentValue: unknown;
+  confidenceScore: number;
+  trustLevel: BusinessDnaTrustLevel;
+  source: string;
+  lastUpdatedAt: string;
+}
+
+export interface BusinessDnaEvidenceInput {
+  value: unknown;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  confidenceScore?: number;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  source?: string;
+  /** @maxLength 1000 */
+  reasoning?: string;
+}
+
+export type BusinessDnaResolutionAction = typeof BusinessDnaResolutionAction[keyof typeof BusinessDnaResolutionAction];
+
+
+export const BusinessDnaResolutionAction = {
+  created: 'created',
+  promoted: 'promoted',
+  reinforced: 'reinforced',
+  preserved: 'preserved',
+  conflict: 'conflict',
+} as const;
+
+export interface BusinessDnaResolution {
+  action: BusinessDnaResolutionAction;
+  claim: BusinessDnaClaim;
+  /** @nullable */
+  conflictId: number | null;
+}
+
+export type BusinessHealthOperationalSource = typeof BusinessHealthOperationalSource[keyof typeof BusinessHealthOperationalSource];
+
+
+export const BusinessHealthOperationalSource = {
+  business_health_metrics: 'business_health_metrics',
+} as const;
+
+export interface BusinessHealthOperational {
+  /** @nullable */
+  overallScore: number | null;
+  /** @nullable */
+  status: string | null;
+  /** @nullable */
+  freshness: string | null;
+  source: BusinessHealthOperationalSource;
+}
+
+export type BusinessHealthNarrativeSource = typeof BusinessHealthNarrativeSource[keyof typeof BusinessHealthNarrativeSource];
+
+
+export const BusinessHealthNarrativeSource = {
+  business_health_scores: 'business_health_scores',
+} as const;
+
+export interface BusinessHealthNarrative {
+  /** @nullable */
+  overallScore: number | null;
+  /** @nullable */
+  status: string | null;
+  /** @nullable */
+  freshness: string | null;
+  /** @nullable */
+  summary: string | null;
+  source: BusinessHealthNarrativeSource;
+}
+
+export interface BusinessStateHealth {
+  /** @nullable */
+  overallScore: number | null;
+  /** @nullable */
+  status: string | null;
+  /** @nullable */
+  freshness: string | null;
+  operational: BusinessHealthOperational | null;
+  narrative: BusinessHealthNarrative | null;
+}
+
+export interface BusinessRevenueContext {
+  /** @nullable */
+  last30DaysCents: number | null;
+  /** @nullable */
+  currency: string | null;
+  connectedProviders: number;
+  /** @nullable */
+  freshness: string | null;
+}
+
+export type BusinessIntelligenceStateLifecycleStage = typeof BusinessIntelligenceStateLifecycleStage[keyof typeof BusinessIntelligenceStateLifecycleStage];
+
+
+export const BusinessIntelligenceStateLifecycleStage = {
+  idea: 'idea',
+  validation: 'validation',
+  planning: 'planning',
+  building: 'building',
+  branding: 'branding',
+  website_development: 'website_development',
+  landing_pages: 'landing_pages',
+  marketing: 'marketing',
+  launch: 'launch',
+  optimization: 'optimization',
+  growth: 'growth',
+  scaling: 'scaling',
+  automation: 'automation',
+  maintenance: 'maintenance',
+  expansion: 'expansion',
+  maturity: 'maturity',
+  exit: 'exit',
+} as const;
+
+export type BusinessIntelligenceStateWebsiteStatus = typeof BusinessIntelligenceStateWebsiteStatus[keyof typeof BusinessIntelligenceStateWebsiteStatus];
+
+
+export const BusinessIntelligenceStateWebsiteStatus = {
+  present: 'present',
+  missing: 'missing',
+  unknown: 'unknown',
+} as const;
+
+export interface BusinessIntelligenceState {
+  lifecycleStage: BusinessIntelligenceStateLifecycleStage;
+  /** @nullable */
+  currentObjective: string | null;
+  /** @nullable */
+  currentMilestone: string | null;
+  /** @nullable */
+  currentSprint: string | null;
+  launchStatus: string;
+  activeProjects: number;
+  activeGoals: number;
+  openTasks: number;
+  completedTasks: number;
+  failedTasks: number;
+  connectedServices: number;
+  websiteStatus: BusinessIntelligenceStateWebsiteStatus;
+  health: BusinessStateHealth;
+  revenueContext: BusinessRevenueContext | null;
+  activeCampaigns: number;
+  activeAutomations: number;
+  risks: string[];
+  opportunities: string[];
+  priorities: string[];
+}
+
+export type BusinessCapabilityRelatedObjects = { [key: string]: unknown };
+
+export interface BusinessCapability {
+  key: string;
+  label: string;
+  available: boolean;
+  trustLevel: BusinessDnaTrustLevel;
+  confidenceScore: number;
+  evidence: string[];
+  relatedObjects: BusinessCapabilityRelatedObjects;
+  /** @nullable */
+  gap: string | null;
+}
+
+export interface BusinessCapabilitiesResponse {
+  capabilities: BusinessCapability[];
+}
+
+export type BusinessTimelineEventRelatedObjects = { [key: string]: unknown };
+
+export interface BusinessTimelineEvent {
+  id: number;
+  businessId: number;
+  /** @nullable */
+  projectId: number | null;
+  eventType: string;
+  source: string;
+  description: string;
+  trigger: string;
+  relatedObjects: BusinessTimelineEventRelatedObjects;
+  occurredAt: string;
+  createdAt: string;
+}
+
+export interface BusinessTimelineResponse {
+  events: BusinessTimelineEvent[];
+}
+
+export type BusinessReviewQueueItemPayload = { [key: string]: unknown };
+
+export type BusinessReviewQueueItemStatus = typeof BusinessReviewQueueItemStatus[keyof typeof BusinessReviewQueueItemStatus];
+
+
+export const BusinessReviewQueueItemStatus = {
+  open: 'open',
+  dismissed: 'dismissed',
+  resolved: 'resolved',
+} as const;
+
+export interface BusinessReviewQueueItem {
+  id: number;
+  businessId: number;
+  /** @nullable */
+  conflictId: number | null;
+  kind: string;
+  priority: number;
+  title: string;
+  description: string;
+  payload: BusinessReviewQueueItemPayload;
+  status: BusinessReviewQueueItemStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BusinessReviewQueueResponse {
+  items: BusinessReviewQueueItem[];
+}
+
+export type BusinessReviewResolutionInputStatus = typeof BusinessReviewResolutionInputStatus[keyof typeof BusinessReviewResolutionInputStatus];
+
+
+export const BusinessReviewResolutionInputStatus = {
+  resolved: 'resolved',
+  dismissed: 'dismissed',
+} as const;
+
+export interface BusinessReviewResolutionInput {
+  status: BusinessReviewResolutionInputStatus;
+}
+
+export type RecommendedConflictDecisionAction = typeof RecommendedConflictDecisionAction[keyof typeof RecommendedConflictDecisionAction];
+
+
+export const RecommendedConflictDecisionAction = {
+  keep_current: 'keep_current',
+  accept_new: 'accept_new',
+  edit_value: 'edit_value',
+  defer: 'defer',
+} as const;
+
+export interface RecommendedConflictDecision {
+  action: RecommendedConflictDecisionAction;
+  reason: string;
+}
+
+export type BusinessDnaConflictStatus = typeof BusinessDnaConflictStatus[keyof typeof BusinessDnaConflictStatus];
+
+
+export const BusinessDnaConflictStatus = {
+  open: 'open',
+  resolved: 'resolved',
+  deferred: 'deferred',
+} as const;
+
+export interface BusinessDnaConflict {
+  id: number;
+  businessId: number;
+  claimId: number;
+  fieldKey: string;
+  currentValue: unknown;
+  incomingValue: unknown;
+  currentTrustLevel: BusinessDnaTrustLevel;
+  incomingTrustLevel: BusinessDnaTrustLevel;
+  incomingConfidenceScore: number;
+  incomingSource: string;
+  /** @nullable */
+  incomingReasoning: string | null;
+  impactScore: number;
+  impactReason: string;
+  status: BusinessDnaConflictStatus;
+  /** @nullable */
+  resolvedByUserId: number | null;
+  /** @nullable */
+  resolution: string | null;
+  /** @nullable */
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+export type BusinessDnaConflictWithRecommendation = BusinessDnaConflict & {
+  recommendedAction: RecommendedConflictDecision;
+};
+
+export interface BusinessDnaConflictsResponse {
+  conflicts: BusinessDnaConflictWithRecommendation[];
+}
+
+export type BusinessDnaConflictDecisionInputAction = typeof BusinessDnaConflictDecisionInputAction[keyof typeof BusinessDnaConflictDecisionInputAction];
+
+
+export const BusinessDnaConflictDecisionInputAction = {
+  keep_current: 'keep_current',
+  accept_new: 'accept_new',
+  edit_value: 'edit_value',
+  defer: 'defer',
+} as const;
+
+export interface BusinessDnaConflictDecisionInput {
+  action: BusinessDnaConflictDecisionInputAction;
+  value?: unknown;
+}
+
+export interface BusinessContextRecommendation {
+  id: number;
+  title: string;
+  category: string;
+  confidence: number;
+  status: string;
+}
+
+export interface BusinessUnresolvedConflictSummary {
+  id: number;
+  fieldKey: string;
+  impactScore: number;
+  impactReason: string;
+}
+
+export interface BusinessIntelligenceContext {
+  businessId: number;
+  businessName: string;
+  generatedAt: string;
+  dna: BusinessDnaClaimSummary[];
+  state: BusinessIntelligenceState;
+  capabilities: BusinessCapability[];
+  unresolvedConflicts: BusinessUnresolvedConflictSummary[];
+  reviewCount: number;
+  recommendations: BusinessContextRecommendation[];
+  contextNote: string;
+}
+
+export type CrossBusinessSummaryEntryLifecycleStage = typeof CrossBusinessSummaryEntryLifecycleStage[keyof typeof CrossBusinessSummaryEntryLifecycleStage];
+
+
+export const CrossBusinessSummaryEntryLifecycleStage = {
+  idea: 'idea',
+  validation: 'validation',
+  planning: 'planning',
+  building: 'building',
+  branding: 'branding',
+  website_development: 'website_development',
+  landing_pages: 'landing_pages',
+  marketing: 'marketing',
+  launch: 'launch',
+  optimization: 'optimization',
+  growth: 'growth',
+  scaling: 'scaling',
+  automation: 'automation',
+  maintenance: 'maintenance',
+  expansion: 'expansion',
+  maturity: 'maturity',
+  exit: 'exit',
+} as const;
+
+export interface CrossBusinessSummaryEntry {
+  businessId: number;
+  businessName: string;
+  lifecycleStage: CrossBusinessSummaryEntryLifecycleStage;
+  /** @nullable */
+  healthScore: number | null;
+  openTasks: number;
+  activeGoals: number;
+}
+
+export interface CrossBusinessSummary {
+  userId: number;
+  generatedAt: string;
+  businessCount: number;
+  businesses: CrossBusinessSummaryEntry[];
+  contextNote: string;
+}
+
 export interface BusinessHealthScore {
   id: number;
   businessId: number;
@@ -1759,6 +2167,10 @@ export interface LogsResponse {
   page: number;
   pageSize: number;
 }
+
+export type NotFoundResponse = {
+  error: string;
+};
 
 export type ListBlueprintsParams = {
 status?: string;

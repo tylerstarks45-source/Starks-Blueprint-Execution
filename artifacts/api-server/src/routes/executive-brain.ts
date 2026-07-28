@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod/v4";
 import { eq, and } from "drizzle-orm";
-import { db, ashProjectsTable, ashTasksTable } from "@workspace/db";
+import { db, ashProjectsTable, ashTasksTable, businessesTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { logger } from "../lib/logger";
 import { runExecutiveBrain } from "../lib/executive-brain";
@@ -11,6 +11,13 @@ import { listTasks } from "../lib/executive-brain/task-planner";
 import { retrieveRelevantMemory, captureAutoMemory, recordProjectCompletionLessons } from "../lib/memory-engine";
 import { runPlanningEngine, MilestonePlanner, DependencyManager, handleTaskFailure, handleTaskCompletion } from "../lib/planning-engine";
 import { runResearchEngine, detectResearchIntent } from "../lib/research-engine";
+import {
+  assembleBusinessContextPackage,
+  assembleCrossBusinessSummary,
+  publishBusinessEvent,
+  detectCrossBusinessIntent,
+  buildBusinessIntelligenceUnavailableNote,
+} from "../lib/business-intelligence";
 
 const router: IRouter = Router();
 
@@ -41,6 +48,12 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
     businessType: z.string().nullish(),
     revenueGoal: z.string().nullish(),
     planMode: z.boolean().optional().default(false),
+    // Business Context Isolation: explicit, opt-in-only Cross-Business
+    // Analysis. Defaults to false — cross-business aggregation NEVER
+    // happens unless this flag is set OR the user's own message clearly
+    // asks to compare/aggregate across businesses (detectCrossBusinessIntent
+    // below); both are "the user explicitly asked", never ambient/automatic.
+    crossBusinessMode: z.boolean().optional().default(false),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -78,6 +91,65 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
     });
 
     memoryProject = brainResult.project;
+
+    // ─── Business Intelligence Engine (Phase 1.5A): centralized, business-
+    // scoped identity/state/capability/health context. Runs before Planning
+    // and Memory so downstream engines and the existing orchestrator can make
+    // decisions without each reconstructing business state. It only resolves
+    // a business through the project's pinned system instance, keeping
+    // multi-business isolation explicit and fail-open.
+    //
+    // Business Context Isolation: resolvedBusinessId is the ONLY business
+    // this turn's memory/knowledge retrieval is scoped to (see the Memory
+    // Engine call below) unless crossBusinessMode is explicitly on — either
+    // because the caller set it, or because the user's own message clearly
+    // asked to compare/aggregate across businesses. Both are explicit user
+    // intent; this never triggers from ambient context alone.
+    let businessIntelligenceContextNote = "";
+    let resolvedBusinessId: number | null = null;
+    const crossBusinessMode = parsed.data.crossBusinessMode || detectCrossBusinessIntent(parsed.data.message);
+    try {
+      if (brainResult.project.systemInstanceId != null) {
+        const [business] = await db
+          .select({ id: businessesTable.id })
+          .from(businessesTable)
+          .where(and(eq(businessesTable.ownerId, userId), eq(businessesTable.systemInstanceId, brainResult.project.systemInstanceId)))
+          .limit(1);
+        if (business) {
+          resolvedBusinessId = business.id;
+          const intelligence = await assembleBusinessContextPackage({ businessId: business.id, userId });
+          if (intelligence) {
+            businessIntelligenceContextNote = intelligence.contextNote;
+            send({
+              type: "business_intelligence_state",
+              businessId: intelligence.businessId,
+              lifecycleStage: intelligence.state.lifecycleStage,
+              healthScore: intelligence.state.health.overallScore,
+              reviewCount: intelligence.reviewCount,
+              highImpactConflictCount: intelligence.unresolvedConflicts.filter((conflict) => conflict.impactScore >= 70).length,
+            });
+          } else {
+            // Fail open, but never silently: the orchestrator and the user
+            // both deserve to know BI context is missing this turn rather
+            // than assuming an absence of context means "nothing to know".
+            businessIntelligenceContextNote = buildBusinessIntelligenceUnavailableNote("no business context package could be assembled");
+          }
+        }
+      }
+
+      // Cross-Business Analysis — deliberately its own branch, additive to
+      // (never a replacement for) the single-business note above, so a user
+      // mid-conversation in one business can still ask "how does this
+      // compare to my other businesses" without losing that business's context.
+      if (crossBusinessMode) {
+        const summary = await assembleCrossBusinessSummary(userId);
+        businessIntelligenceContextNote += summary.contextNote;
+        send({ type: "cross_business_state", businessCount: summary.businessCount, businesses: summary.businesses });
+      }
+    } catch (err) {
+      logger.warn({ err, userId, projectId: brainResult.project.id }, "Business Intelligence: context assembly failed — forwarding without BI context");
+      businessIntelligenceContextNote = buildBusinessIntelligenceUnavailableNote("an internal error occurred while assembling business context");
+    }
 
     // ─── Planning & Decision Engine (Phase 1.3): organizes this turn's tasks
     // under milestones, scores/orders the project's backlog, validates the
@@ -146,6 +218,8 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
         goal: brainResult.goal,
         tasks: brainResult.tasks,
         history: parsed.data.history,
+        businessId: resolvedBusinessId,
+        crossBusinessMode,
       });
       memoryContextNote = memory.contextNote;
     } catch (err) {
@@ -154,7 +228,7 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
 
     // Give the existing orchestrator situational awareness of the plan
     // without changing its code or its zod schema.
-    forwardMessage = `${parsed.data.message}${brainResult.brainContextNote}${planningContextNote}${researchContextNote}${memoryContextNote}`;
+    forwardMessage = `${parsed.data.message}${brainResult.brainContextNote}${businessIntelligenceContextNote}${planningContextNote}${researchContextNote}${memoryContextNote}`;
   } catch (err) {
     logger.error({ err, userId }, "Executive Brain phase failed — forwarding request to orchestrator unchanged");
   }
@@ -342,6 +416,23 @@ router.patch("/executive-brain/tasks/:id", async (req, res): Promise<void> => {
         await db.update(ashTasksTable).set({ result: parsed.data.result }).where(eq(ashTasksTable.id, taskId));
       }
       const updated = await handleTaskCompletion({ taskId });
+      if (project.systemInstanceId != null) {
+        const [business] = await db
+          .select({ id: businessesTable.id })
+          .from(businessesTable)
+          .where(and(eq(businessesTable.ownerId, userId), eq(businessesTable.systemInstanceId, project.systemInstanceId)))
+          .limit(1);
+        if (business) {
+          void publishBusinessEvent({
+            businessId: business.id,
+            projectId: project.id,
+            eventType: "task.completed",
+            source: "executive_brain",
+            payload: { description: `Project task completed: ${task.description}`, relatedObjects: { taskId, projectId: project.id } },
+            dedupeKey: `task.completed:${taskId}`,
+          });
+        }
+      }
       res.json({ task: updated, action: "completed" });
     } else {
       const { action, task: updated } = await handleTaskFailure({
@@ -394,6 +485,23 @@ router.patch("/executive-brain/projects/:id", async (req, res): Promise<void> =>
     recordProjectCompletionLessons({ userId, project: updated, goals, tasks }).catch((err) =>
       logger.warn({ err, userId, projectId }, "Memory Engine: completion learning failed"),
     );
+  }
+  if (updated && updated.systemInstanceId != null) {
+    const [business] = await db
+      .select({ id: businessesTable.id })
+      .from(businessesTable)
+      .where(and(eq(businessesTable.ownerId, userId), eq(businessesTable.systemInstanceId, updated.systemInstanceId)))
+      .limit(1);
+    if (business) {
+      void publishBusinessEvent({
+        businessId: business.id,
+        projectId: updated.id,
+        eventType: parsed.data.status === "completed" ? "project.completed" : "project.updated",
+        source: "executive_brain",
+        payload: { description: `Project "${updated.name}" is now ${updated.status}.`, relatedObjects: { projectId: updated.id } },
+        dedupeKey: `project.status:${updated.id}:${updated.status}:${updated.updatedAt.getTime()}`,
+      });
+    }
   }
 });
 

@@ -14,6 +14,16 @@ export async function getBusinessMemoryForSystemInstance(systemInstanceId: numbe
   return getOrCreateBusinessMemory(business.id);
 }
 
+// Read-only lookup (no business_memory row side effect) used by write paths
+// that need to TAG a memory/knowledge item with its business — e.g. auto
+// memory capture and completion learning — without forcing a business_memory
+// row into existence just because a memory item was written.
+export async function resolveBusinessIdForSystemInstance(systemInstanceId: number | null): Promise<number | null> {
+  if (systemInstanceId == null) return null;
+  const [business] = await db.select({ id: businessesTable.id }).from(businessesTable).where(eq(businessesTable.systemInstanceId, systemInstanceId));
+  return business?.id ?? null;
+}
+
 export async function getOrCreateBusinessMemory(businessId: number): Promise<BusinessMemory> {
   const [existing] = await db.select().from(businessMemoryTable).where(eq(businessMemoryTable.businessId, businessId));
   if (existing) {

@@ -4,7 +4,7 @@ import { logger } from "../logger";
 import type { ExtractedMemoryItem, MemoryLayer } from "./types";
 import { upsertLongTermMemory } from "./long-term-memory";
 import { addProjectMemory } from "./project-memory";
-import { getBusinessMemoryForSystemInstance, mergeBusinessMemory } from "./business-memory";
+import { getBusinessMemoryForSystemInstance, mergeBusinessMemory, resolveBusinessIdForSystemInstance } from "./business-memory";
 import { addKnowledgeEntry } from "./knowledge-memory";
 import type { AshProject } from "@workspace/db";
 
@@ -148,7 +148,12 @@ async function routeMemoryItem(params: { userId: number; project: AshProject; it
     return;
   }
 
-  // knowledge
+  // knowledge — Business Context Isolation: a lesson captured while
+  // operating within a business defaults to that business's scope, not
+  // global, so it doesn't leak into the user's other businesses. Only
+  // genuinely business-agnostic conversations (no linked business) produce
+  // global knowledge.
+  const knowledgeBusinessId = await resolveBusinessIdForSystemInstance(project.systemInstanceId);
   await addKnowledgeEntry({
     userId,
     sourceProjectId: project.id,
@@ -160,5 +165,7 @@ async function routeMemoryItem(params: { userId: number; project: AshProject; it
     tags: item.tags,
     importanceScore: item.importanceScore,
     confidenceScore: item.confidenceScore,
+    scope: knowledgeBusinessId != null ? "business" : "global",
+    businessId: knowledgeBusinessId,
   });
 }

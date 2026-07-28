@@ -18,6 +18,7 @@ import { notifyUser } from "../notify";
 import { sendPushNotification } from "../push";
 import { sendAutomationPausedEmail } from "../email";
 import { fetchPage } from "../browser/crawler";
+import { publishBusinessEvent } from "../business-intelligence";
 import { isBlockedUrl } from "../connectors/ssrf-guard";
 import { computeSystemHealth } from "../health-monitor";
 import { attemptSelfHeal } from "../self-healing";
@@ -480,6 +481,13 @@ Respond with ONLY a single JSON object (no markdown, no prose) with this exact s
     .returning();
 
   logger.info({ businessId, overallHealth: row.overallHealth }, "Business health analysis completed");
+  await publishBusinessEvent({
+    businessId,
+    eventType: "health.analysis_completed",
+    source: "business_health_analysis",
+    payload: { description: `ASH completed a business health analysis (${row.overallHealth}/100).`, relatedObjects: { healthScoreId: row.id } },
+    dedupeKey: `health.analysis_completed:${row.id}`,
+  });
   return { ok: true, businessId, healthScoreId: row.id, overallHealth: row.overallHealth };
 }
 
@@ -673,6 +681,13 @@ Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY
   });
 
   logger.info({ businessId, inserted, marketplaceMatches }, "Business improvement pass completed");
+  await publishBusinessEvent({
+    businessId,
+    eventType: "recommendations.generated",
+    source: "business_improvement_pass",
+    payload: { description: `ASH generated ${inserted} business recommendation(s).`, relatedObjects: { recommendationCount: inserted } },
+    dedupeKey: `recommendations.generated:${businessId}:${Date.now()}`,
+  });
   return { ok: true, businessId, inserted, marketplaceMatches };
 }
 

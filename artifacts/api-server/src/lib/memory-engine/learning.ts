@@ -4,6 +4,7 @@ import { logger } from "../logger";
 import type { AshProject, AshGoal, AshTask } from "@workspace/db";
 import { addKnowledgeEntry } from "./knowledge-memory";
 import { listProjectMemory } from "./project-memory";
+import { resolveBusinessIdForSystemInstance } from "./business-memory";
 
 // ─── Learning on project completion (Phase 1.2) ────────────────────────────
 // "When a project completes... save lessons learned, successful strategies,
@@ -47,6 +48,10 @@ export async function recordProjectCompletionLessons(params: {
         ].join("\n")
       : summary.content.slice(0, 1000);
 
+    // Business Context Isolation: a retrospective is about one specific
+    // project/business's run — scope it there by default rather than
+    // leaking it into the user's other businesses' knowledge retrieval.
+    const businessId = await resolveBusinessIdForSystemInstance(project.systemInstanceId);
     await addKnowledgeEntry({
       userId,
       sourceProjectId: project.id,
@@ -56,6 +61,8 @@ export async function recordProjectCompletionLessons(params: {
       tags: ["retrospective", "project_completed"],
       importanceScore: 70,
       confidenceScore: 85,
+      scope: businessId != null ? "business" : "global",
+      businessId,
     });
 
     logger.info({ userId, projectId: project.id }, "Memory Engine: recorded project completion lessons");

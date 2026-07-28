@@ -36,16 +36,23 @@ export async function retrieveRelevantMemory(params: {
   goal: AshGoal | null;
   tasks: AshTask[];
   history: Array<{ role: "user" | "assistant"; content: string }>;
+  // Business Context Isolation: the caller (routes/executive-brain.ts)
+  // resolves the active business once and passes it through here so
+  // business-scoped Long-Term/Knowledge memory retrieval stays confined to
+  // it. crossBusinessMode is the ONLY way that restriction is lifted, and
+  // it is always an explicit, caller-provided flag — never inferred here.
+  businessId?: number | null;
+  crossBusinessMode?: boolean;
 }): Promise<RelevantMemoryBundle> {
-  const { userId, message, project, goal, tasks, history } = params;
+  const { userId, message, project, goal, tasks, history, businessId, crossBusinessMode } = params;
 
   const working = buildWorkingMemory({ project, goal, tasks, history });
 
   const [longTerm, projectMem, business, knowledge] = await Promise.all([
-    getRelevantLongTermMemory({ userId, message }).catch((err) => (logCatch(err, "long-term"), [])),
+    getRelevantLongTermMemory({ userId, message, businessId, crossBusinessMode }).catch((err) => (logCatch(err, "long-term"), [])),
     getRelevantProjectMemory({ projectId: project.id, message }).catch((err) => (logCatch(err, "project"), [])),
     getBusinessMemoryForSystemInstance(project.systemInstanceId).catch((err) => (logCatch(err, "business"), null)),
-    getRelevantKnowledge({ userId, message }).catch((err) => (logCatch(err, "knowledge"), [])),
+    getRelevantKnowledge({ userId, message, businessId, crossBusinessMode }).catch((err) => (logCatch(err, "knowledge"), [])),
   ]);
 
   const contextNote = renderContextNote({ working, longTerm, project: projectMem, business, knowledge });

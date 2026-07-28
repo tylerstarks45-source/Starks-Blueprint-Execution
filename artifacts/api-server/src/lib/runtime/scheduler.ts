@@ -21,6 +21,7 @@ import { createPendingApproval } from "../approvals";
 import { hasOperationsModeAccess } from "../operations-gate";
 import { distillAshBrain } from "../ash-brain";
 import { runMemoryMaintenance } from "../memory-engine";
+import { initializeBusinessDna, publishBusinessEvent } from "../business-intelligence";
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
@@ -825,6 +826,14 @@ async function processHealthMonitoring(): Promise<void> {
   try {
     const systemCount = await recomputeAllActiveSystemsHealth();
     const businessCount = await recomputeAllActiveBusinessesHealth();
+    const businesses = await db.select({ id: businessesTable.id }).from(businessesTable);
+    await Promise.allSettled(businesses.map((business) => publishBusinessEvent({
+      businessId: business.id,
+      eventType: "health.monitoring_recomputed",
+      source: "health_monitor",
+      payload: { description: "Business monitoring health was recomputed." },
+      dedupeKey: `health.monitoring_recomputed:${business.id}:${Math.floor(now / HEALTH_MONITOR_INTERVAL_MS)}`,
+    })));
     logger.info({ systemCount, businessCount }, "Health monitoring recompute complete");
   } catch (err) {
     logger.warn({ err }, "Health monitoring recompute failed");
@@ -885,6 +894,23 @@ async function processHealthMonitoring(): Promise<void> {
     }
   } catch (err) {
     logger.warn({ err }, "Self-healing tick failed");
+  }
+}
+
+const BI_RECONCILIATION_INTERVAL_MS = 60 * 60 * 1000;
+let lastBusinessIntelligenceReconciliation = 0;
+
+async function processBusinessIntelligenceReconciliation(): Promise<void> {
+  const now = Date.now();
+  if (now - lastBusinessIntelligenceReconciliation < BI_RECONCILIATION_INTERVAL_MS) return;
+  lastBusinessIntelligenceReconciliation = now;
+  try {
+    const businesses = await db.select({ id: businessesTable.id }).from(businessesTable);
+    const results = await Promise.allSettled(businesses.map((business) => initializeBusinessDna(business.id)));
+    const failures = results.filter((result) => result.status === "rejected").length;
+    logger.info({ businessCount: businesses.length, failures }, "Business Intelligence reconciliation complete");
+  } catch (err) {
+    logger.warn({ err }, "Business Intelligence reconciliation failed");
   }
 }
 
@@ -1069,6 +1095,7 @@ export function startScheduler(): void {
       await processBrainDistillation();
       await processExpiringCredentialWarnings();
       await processMemoryMaintenance();
+      await processBusinessIntelligenceReconciliation();
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {

@@ -2725,6 +2725,223 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ── Business Intelligence Engine ─────────────────────────────────────────
+  /businesses/{id}/intelligence:
+    get:
+      operationId: getBusinessIntelligence
+      tags: [businesses]
+      summary: Get the concise, business-scoped ASH intelligence context
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+      responses:
+        "200":
+          description: Business intelligence context package
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessIntelligenceContext"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{id}/dna:
+    get:
+      operationId: getBusinessDna
+      tags: [businesses]
+      summary: List the current evidence-backed Business DNA claims
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+      responses:
+        "200":
+          description: Business DNA claims
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessDnaClaimsResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{id}/dna/{fieldKey}:
+    put:
+      operationId: confirmBusinessDnaValue
+      tags: [businesses]
+      summary: Confirm or edit a Business DNA value as the business owner
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+        - name: fieldKey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessDnaEvidenceInput"
+      responses:
+        "200":
+          description: Updated current DNA claim
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessDnaResolution"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{id}/state:
+    get:
+      operationId: getBusinessIntelligenceState
+      tags: [businesses]
+      summary: Get the current derived state for a business
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+      responses:
+        "200":
+          description: Current derived business state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessIntelligenceState"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{id}/capabilities:
+    get:
+      operationId: getBusinessCapabilities
+      tags: [businesses]
+      summary: List currently verified business capabilities and gaps
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+      responses:
+        "200":
+          description: Derived capabilities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessCapabilitiesResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{id}/timeline:
+    get:
+      operationId: getBusinessTimeline
+      tags: [businesses]
+      summary: List the append-only business timeline
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+      responses:
+        "200":
+          description: Timeline events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessTimelineResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{id}/review-queue:
+    get:
+      operationId: getBusinessReviewQueue
+      tags: [businesses]
+      summary: List non-urgent Business Intelligence reviews
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+      responses:
+        "200":
+          description: Open review items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessReviewQueueResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{id}/review-queue/{reviewId}/resolve:
+    post:
+      operationId: resolveBusinessReviewQueueItem
+      tags: [businesses]
+      summary: Resolve or dismiss a Business Intelligence review item
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessReviewResolutionInput"
+      responses:
+        "200":
+          description: Updated review item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessReviewQueueItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{id}/conflicts:
+    get:
+      operationId: getBusinessDnaConflicts
+      tags: [businesses]
+      summary: List unresolved Business DNA conflicts
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+      responses:
+        "200":
+          description: Unresolved DNA conflicts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessDnaConflictsResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{id}/conflicts/{conflictId}/decision:
+    post:
+      operationId: decideBusinessDnaConflict
+      tags: [businesses]
+      summary: Record an owner decision for a Business DNA conflict
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+        - name: conflictId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessDnaConflictDecisionInput"
+      responses:
+        "200":
+          description: Resolved conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessDnaConflict"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/cross-business-summary:
+    get:
+      operationId: getCrossBusinessSummary
+      tags: [businesses]
+      summary: Explicit, opt-in Cross-Business Analysis summary across every business the caller owns
+      responses:
+        "200":
+          description: Cross-business summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrossBusinessSummary"
+
   /businesses/{id}/connections:
     post:
       operationId: addBusinessConnection
@@ -3144,6 +3361,27 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
 components:
+  parameters:
+    BusinessId:
+      name: id
+      in: path
+      required: true
+      description: Business id
+      schema:
+        type: integer
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+            required: [error]
+
   schemas:
     HealthStatus:
       type: object
@@ -5241,6 +5479,408 @@ components:
           type: ["string", "null"]
           enum: [healthy, needs_attention, at_risk, null]
       required: [connectionsCount, revenueCents, lastActivityAt, healthStatus]
+
+    # ── Business Intelligence Engine (Phase 1.5A) ────────────────────────────
+    BusinessDnaTrustLevel:
+      type: string
+      enum: [user_confirmed, verified_system_data, high_confidence_inference, low_confidence_inference]
+
+    BusinessDnaClaim:
+      type: object
+      properties:
+        id: { type: integer }
+        businessId: { type: integer }
+        fieldKey: { type: string }
+        currentValue: {}
+        confidenceScore: { type: integer }
+        trustLevel: { $ref: "#/components/schemas/BusinessDnaTrustLevel" }
+        source: { type: string }
+        reasoning: { type: ["string", "null"] }
+        version: { type: integer }
+        lastUpdatedAt: { type: string }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, businessId, fieldKey, currentValue, confidenceScore, trustLevel, source, reasoning, version, lastUpdatedAt, createdAt, updatedAt]
+
+    BusinessDnaClaimsResponse:
+      type: object
+      properties:
+        claims:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessDnaClaim" }
+      required: [claims]
+
+    BusinessDnaClaimSummary:
+      type: object
+      properties:
+        fieldKey: { type: string }
+        currentValue: {}
+        confidenceScore: { type: integer }
+        trustLevel: { $ref: "#/components/schemas/BusinessDnaTrustLevel" }
+        source: { type: string }
+        lastUpdatedAt: { type: string }
+      required: [fieldKey, currentValue, confidenceScore, trustLevel, source, lastUpdatedAt]
+
+    BusinessDnaEvidenceInput:
+      type: object
+      properties:
+        value: {}
+        confidenceScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        source:
+          type: string
+          minLength: 1
+          maxLength: 100
+        reasoning:
+          type: string
+          maxLength: 1000
+      required: [value]
+
+    BusinessDnaResolution:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [created, promoted, reinforced, preserved, conflict]
+        claim: { $ref: "#/components/schemas/BusinessDnaClaim" }
+        conflictId: { type: ["integer", "null"] }
+      required: [action, claim, conflictId]
+
+    BusinessHealthOperational:
+      type: object
+      properties:
+        overallScore: { type: ["integer", "null"] }
+        status: { type: ["string", "null"] }
+        freshness: { type: ["string", "null"] }
+        source:
+          type: string
+          enum: [business_health_metrics]
+      required: [overallScore, status, freshness, source]
+
+    BusinessHealthNarrative:
+      type: object
+      properties:
+        overallScore: { type: ["integer", "null"] }
+        status: { type: ["string", "null"] }
+        freshness: { type: ["string", "null"] }
+        summary: { type: ["string", "null"] }
+        source:
+          type: string
+          enum: [business_health_scores]
+      required: [overallScore, status, freshness, summary, source]
+
+    BusinessStateHealth:
+      type: object
+      properties:
+        overallScore: { type: ["integer", "null"] }
+        status: { type: ["string", "null"] }
+        freshness: { type: ["string", "null"] }
+        operational:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessHealthOperational"
+            - type: "null"
+        narrative:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessHealthNarrative"
+            - type: "null"
+      required: [overallScore, status, freshness, operational, narrative]
+
+    BusinessRevenueContext:
+      type: object
+      properties:
+        last30DaysCents: { type: ["integer", "null"] }
+        currency: { type: ["string", "null"] }
+        connectedProviders: { type: integer }
+        freshness: { type: ["string", "null"] }
+      required: [last30DaysCents, currency, connectedProviders, freshness]
+
+    BusinessIntelligenceState:
+      type: object
+      properties:
+        lifecycleStage:
+          type: string
+          enum: [idea, validation, planning, building, branding, website_development, landing_pages, marketing, launch, optimization, growth, scaling, automation, maintenance, expansion, maturity, exit]
+        currentObjective: { type: ["string", "null"] }
+        currentMilestone: { type: ["string", "null"] }
+        currentSprint: { type: ["string", "null"] }
+        launchStatus: { type: string }
+        activeProjects: { type: integer }
+        activeGoals: { type: integer }
+        openTasks: { type: integer }
+        completedTasks: { type: integer }
+        failedTasks: { type: integer }
+        connectedServices: { type: integer }
+        websiteStatus:
+          type: string
+          enum: [present, missing, unknown]
+        health: { $ref: "#/components/schemas/BusinessStateHealth" }
+        revenueContext:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessRevenueContext"
+            - type: "null"
+        activeCampaigns: { type: integer }
+        activeAutomations: { type: integer }
+        risks:
+          type: array
+          items: { type: string }
+        opportunities:
+          type: array
+          items: { type: string }
+        priorities:
+          type: array
+          items: { type: string }
+      required:
+        - lifecycleStage
+        - currentObjective
+        - currentMilestone
+        - currentSprint
+        - launchStatus
+        - activeProjects
+        - activeGoals
+        - openTasks
+        - completedTasks
+        - failedTasks
+        - connectedServices
+        - websiteStatus
+        - health
+        - revenueContext
+        - activeCampaigns
+        - activeAutomations
+        - risks
+        - opportunities
+        - priorities
+
+    BusinessCapability:
+      type: object
+      properties:
+        key: { type: string }
+        label: { type: string }
+        available: { type: boolean }
+        trustLevel: { $ref: "#/components/schemas/BusinessDnaTrustLevel" }
+        confidenceScore: { type: integer }
+        evidence:
+          type: array
+          items: { type: string }
+        relatedObjects:
+          type: object
+          additionalProperties: true
+        gap: { type: ["string", "null"] }
+      required: [key, label, available, trustLevel, confidenceScore, evidence, relatedObjects, gap]
+
+    BusinessCapabilitiesResponse:
+      type: object
+      properties:
+        capabilities:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessCapability" }
+      required: [capabilities]
+
+    BusinessTimelineEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        businessId: { type: integer }
+        projectId: { type: ["integer", "null"] }
+        eventType: { type: string }
+        source: { type: string }
+        description: { type: string }
+        trigger: { type: string }
+        relatedObjects:
+          type: object
+          additionalProperties: true
+        occurredAt: { type: string }
+        createdAt: { type: string }
+      required: [id, businessId, projectId, eventType, source, description, trigger, relatedObjects, occurredAt, createdAt]
+
+    BusinessTimelineResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessTimelineEvent" }
+      required: [events]
+
+    BusinessReviewQueueItem:
+      type: object
+      properties:
+        id: { type: integer }
+        businessId: { type: integer }
+        conflictId: { type: ["integer", "null"] }
+        kind: { type: string }
+        priority: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        payload:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [open, dismissed, resolved]
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, businessId, conflictId, kind, priority, title, description, payload, status, createdAt, updatedAt]
+
+    BusinessReviewQueueResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessReviewQueueItem" }
+      required: [items]
+
+    BusinessReviewResolutionInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [resolved, dismissed]
+      required: [status]
+
+    RecommendedConflictDecision:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [keep_current, accept_new, edit_value, defer]
+        reason: { type: string }
+      required: [action, reason]
+
+    BusinessDnaConflict:
+      type: object
+      properties:
+        id: { type: integer }
+        businessId: { type: integer }
+        claimId: { type: integer }
+        fieldKey: { type: string }
+        currentValue: {}
+        incomingValue: {}
+        currentTrustLevel: { $ref: "#/components/schemas/BusinessDnaTrustLevel" }
+        incomingTrustLevel: { $ref: "#/components/schemas/BusinessDnaTrustLevel" }
+        incomingConfidenceScore: { type: integer }
+        incomingSource: { type: string }
+        incomingReasoning: { type: ["string", "null"] }
+        impactScore: { type: integer }
+        impactReason: { type: string }
+        status:
+          type: string
+          enum: [open, resolved, deferred]
+        resolvedByUserId: { type: ["integer", "null"] }
+        resolution: { type: ["string", "null"] }
+        resolvedAt: { type: ["string", "null"] }
+        createdAt: { type: string }
+      required:
+        - id
+        - businessId
+        - claimId
+        - fieldKey
+        - currentValue
+        - incomingValue
+        - currentTrustLevel
+        - incomingTrustLevel
+        - incomingConfidenceScore
+        - incomingSource
+        - incomingReasoning
+        - impactScore
+        - impactReason
+        - status
+        - resolvedByUserId
+        - resolution
+        - resolvedAt
+        - createdAt
+
+    BusinessDnaConflictWithRecommendation:
+      allOf:
+        - $ref: "#/components/schemas/BusinessDnaConflict"
+        - type: object
+          properties:
+            recommendedAction: { $ref: "#/components/schemas/RecommendedConflictDecision" }
+          required: [recommendedAction]
+
+    BusinessDnaConflictsResponse:
+      type: object
+      properties:
+        conflicts:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessDnaConflictWithRecommendation" }
+      required: [conflicts]
+
+    BusinessDnaConflictDecisionInput:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [keep_current, accept_new, edit_value, defer]
+        value: {}
+      required: [action]
+
+    BusinessContextRecommendation:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        category: { type: string }
+        confidence: { type: integer }
+        status: { type: string }
+      required: [id, title, category, confidence, status]
+
+    BusinessUnresolvedConflictSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        fieldKey: { type: string }
+        impactScore: { type: integer }
+        impactReason: { type: string }
+      required: [id, fieldKey, impactScore, impactReason]
+
+    BusinessIntelligenceContext:
+      type: object
+      properties:
+        businessId: { type: integer }
+        businessName: { type: string }
+        generatedAt: { type: string }
+        dna:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessDnaClaimSummary" }
+        state: { $ref: "#/components/schemas/BusinessIntelligenceState" }
+        capabilities:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessCapability" }
+        unresolvedConflicts:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessUnresolvedConflictSummary" }
+        reviewCount: { type: integer }
+        recommendations:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessContextRecommendation" }
+        contextNote: { type: string }
+      required: [businessId, businessName, generatedAt, dna, state, capabilities, unresolvedConflicts, reviewCount, recommendations, contextNote]
+
+    CrossBusinessSummaryEntry:
+      type: object
+      properties:
+        businessId: { type: integer }
+        businessName: { type: string }
+        lifecycleStage:
+          type: string
+          enum: [idea, validation, planning, building, branding, website_development, landing_pages, marketing, launch, optimization, growth, scaling, automation, maintenance, expansion, maturity, exit]
+        healthScore: { type: ["integer", "null"] }
+        openTasks: { type: integer }
+        activeGoals: { type: integer }
+      required: [businessId, businessName, lifecycleStage, healthScore, openTasks, activeGoals]
+
+    CrossBusinessSummary:
+      type: object
+      properties:
+        userId: { type: integer }
+        generatedAt: { type: string }
+        businessCount: { type: integer }
+        businesses:
+          type: array
+          items: { $ref: "#/components/schemas/CrossBusinessSummaryEntry" }
+        contextNote: { type: string }
+      required: [userId, generatedAt, businessCount, businesses, contextNote]
 
     BusinessHealthScore:
       type: object

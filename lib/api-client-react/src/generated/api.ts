@@ -62,21 +62,35 @@ import type {
   BuildSessionInput,
   BuildSessionUpdate,
   Business,
+  BusinessCapabilitiesResponse,
   BusinessConnection,
   BusinessConnectionInput,
+  BusinessDnaClaimsResponse,
+  BusinessDnaConflict,
+  BusinessDnaConflictDecisionInput,
+  BusinessDnaConflictsResponse,
+  BusinessDnaEvidenceInput,
+  BusinessDnaResolution,
   BusinessHealthResponse,
   BusinessInput,
+  BusinessIntelligenceContext,
+  BusinessIntelligenceState,
   BusinessMonitoringResponse,
   BusinessOperationsSettings,
   BusinessOperationsSettingsInput,
   BusinessOverviewResponse,
   BusinessRecommendation,
+  BusinessReviewQueueItem,
+  BusinessReviewQueueResponse,
+  BusinessReviewResolutionInput,
+  BusinessTimelineResponse,
   BusinessUpdate,
   BusinessWithConnections,
   CreditBalance,
   CreditCheckoutSession,
   CreditConfig,
   CreditTransaction,
+  CrossBusinessSummary,
   CrossSystemActivityEvent,
   DomainDnsSetupResponse,
   DomainDnsVerifyResponse,
@@ -114,6 +128,7 @@ import type {
   ListUserCredentialsParams,
   ListUserMemoryParams,
   LogsResponse,
+  NotFoundResponse,
   Notification,
   NotificationInput,
   OpenrouterRequest,
@@ -9026,6 +9041,844 @@ export function useGetBusinessOverview<TData = Awaited<ReturnType<typeof getBusi
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetBusinessOverviewQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBusinessIntelligenceUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/intelligence`
+}
+
+/**
+ * @summary Get the concise, business-scoped ASH intelligence context
+ */
+export const getBusinessIntelligence = async (id: number, options?: RequestInit): Promise<BusinessIntelligenceContext> => {
+
+  return customFetch<BusinessIntelligenceContext>(getGetBusinessIntelligenceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessIntelligenceQueryKey = (id: number,) => {
+    return [
+    `/api/businesses/${id}/intelligence`
+    ] as const;
+    }
+
+
+export const getGetBusinessIntelligenceQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessIntelligence>>, TError = ErrorType<NotFoundResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessIntelligence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessIntelligenceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessIntelligence>>> = ({ signal }) => getBusinessIntelligence(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessIntelligence>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessIntelligenceQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessIntelligence>>>
+export type GetBusinessIntelligenceQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get the concise, business-scoped ASH intelligence context
+ */
+
+export function useGetBusinessIntelligence<TData = Awaited<ReturnType<typeof getBusinessIntelligence>>, TError = ErrorType<NotFoundResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessIntelligence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessIntelligenceQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBusinessDnaUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/dna`
+}
+
+/**
+ * @summary List the current evidence-backed Business DNA claims
+ */
+export const getBusinessDna = async (id: number, options?: RequestInit): Promise<BusinessDnaClaimsResponse> => {
+
+  return customFetch<BusinessDnaClaimsResponse>(getGetBusinessDnaUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessDnaQueryKey = (id: number,) => {
+    return [
+    `/api/businesses/${id}/dna`
+    ] as const;
+    }
+
+
+export const getGetBusinessDnaQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessDna>>, TError = ErrorType<NotFoundResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessDna>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessDnaQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessDna>>> = ({ signal }) => getBusinessDna(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessDna>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessDnaQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessDna>>>
+export type GetBusinessDnaQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary List the current evidence-backed Business DNA claims
+ */
+
+export function useGetBusinessDna<TData = Awaited<ReturnType<typeof getBusinessDna>>, TError = ErrorType<NotFoundResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessDna>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessDnaQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getConfirmBusinessDnaValueUrl = (id: number,
+    fieldKey: string,) => {
+
+
+
+
+  return `/api/businesses/${id}/dna/${fieldKey}`
+}
+
+/**
+ * @summary Confirm or edit a Business DNA value as the business owner
+ */
+export const confirmBusinessDnaValue = async (id: number,
+    fieldKey: string,
+    businessDnaEvidenceInput: BusinessDnaEvidenceInput, options?: RequestInit): Promise<BusinessDnaResolution> => {
+
+  return customFetch<BusinessDnaResolution>(getConfirmBusinessDnaValueUrl(id,fieldKey),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      businessDnaEvidenceInput,)
+  }
+);}
+
+
+
+
+export const getConfirmBusinessDnaValueMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmBusinessDnaValue>>, TError,{id: number;fieldKey: string;data: BodyType<BusinessDnaEvidenceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmBusinessDnaValue>>, TError,{id: number;fieldKey: string;data: BodyType<BusinessDnaEvidenceInput>}, TContext> => {
+
+const mutationKey = ['confirmBusinessDnaValue'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmBusinessDnaValue>>, {id: number;fieldKey: string;data: BodyType<BusinessDnaEvidenceInput>}> = (props) => {
+          const {id,fieldKey,data} = props ?? {};
+
+          return  confirmBusinessDnaValue(id,fieldKey,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmBusinessDnaValueMutationResult = NonNullable<Awaited<ReturnType<typeof confirmBusinessDnaValue>>>
+    export type ConfirmBusinessDnaValueMutationBody = BodyType<BusinessDnaEvidenceInput>
+    export type ConfirmBusinessDnaValueMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Confirm or edit a Business DNA value as the business owner
+ */
+export const useConfirmBusinessDnaValue = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmBusinessDnaValue>>, TError,{id: number;fieldKey: string;data: BodyType<BusinessDnaEvidenceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmBusinessDnaValue>>,
+        TError,
+        {id: number;fieldKey: string;data: BodyType<BusinessDnaEvidenceInput>},
+        TContext
+      > => {
+      return useMutation(getConfirmBusinessDnaValueMutationOptions(options));
+    }
+
+export const getGetBusinessIntelligenceStateUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/state`
+}
+
+/**
+ * @summary Get the current derived state for a business
+ */
+export const getBusinessIntelligenceState = async (id: number, options?: RequestInit): Promise<BusinessIntelligenceState> => {
+
+  return customFetch<BusinessIntelligenceState>(getGetBusinessIntelligenceStateUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessIntelligenceStateQueryKey = (id: number,) => {
+    return [
+    `/api/businesses/${id}/state`
+    ] as const;
+    }
+
+
+export const getGetBusinessIntelligenceStateQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessIntelligenceState>>, TError = ErrorType<NotFoundResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessIntelligenceState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessIntelligenceStateQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessIntelligenceState>>> = ({ signal }) => getBusinessIntelligenceState(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessIntelligenceState>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessIntelligenceStateQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessIntelligenceState>>>
+export type GetBusinessIntelligenceStateQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get the current derived state for a business
+ */
+
+export function useGetBusinessIntelligenceState<TData = Awaited<ReturnType<typeof getBusinessIntelligenceState>>, TError = ErrorType<NotFoundResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessIntelligenceState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessIntelligenceStateQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBusinessCapabilitiesUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/capabilities`
+}
+
+/**
+ * @summary List currently verified business capabilities and gaps
+ */
+export const getBusinessCapabilities = async (id: number, options?: RequestInit): Promise<BusinessCapabilitiesResponse> => {
+
+  return customFetch<BusinessCapabilitiesResponse>(getGetBusinessCapabilitiesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessCapabilitiesQueryKey = (id: number,) => {
+    return [
+    `/api/businesses/${id}/capabilities`
+    ] as const;
+    }
+
+
+export const getGetBusinessCapabilitiesQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessCapabilities>>, TError = ErrorType<NotFoundResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessCapabilities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessCapabilitiesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessCapabilities>>> = ({ signal }) => getBusinessCapabilities(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessCapabilities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessCapabilitiesQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessCapabilities>>>
+export type GetBusinessCapabilitiesQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary List currently verified business capabilities and gaps
+ */
+
+export function useGetBusinessCapabilities<TData = Awaited<ReturnType<typeof getBusinessCapabilities>>, TError = ErrorType<NotFoundResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessCapabilities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessCapabilitiesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBusinessTimelineUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/timeline`
+}
+
+/**
+ * @summary List the append-only business timeline
+ */
+export const getBusinessTimeline = async (id: number, options?: RequestInit): Promise<BusinessTimelineResponse> => {
+
+  return customFetch<BusinessTimelineResponse>(getGetBusinessTimelineUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessTimelineQueryKey = (id: number,) => {
+    return [
+    `/api/businesses/${id}/timeline`
+    ] as const;
+    }
+
+
+export const getGetBusinessTimelineQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessTimeline>>, TError = ErrorType<NotFoundResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessTimeline>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessTimelineQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessTimeline>>> = ({ signal }) => getBusinessTimeline(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessTimeline>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessTimelineQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessTimeline>>>
+export type GetBusinessTimelineQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary List the append-only business timeline
+ */
+
+export function useGetBusinessTimeline<TData = Awaited<ReturnType<typeof getBusinessTimeline>>, TError = ErrorType<NotFoundResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessTimeline>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessTimelineQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBusinessReviewQueueUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/review-queue`
+}
+
+/**
+ * @summary List non-urgent Business Intelligence reviews
+ */
+export const getBusinessReviewQueue = async (id: number, options?: RequestInit): Promise<BusinessReviewQueueResponse> => {
+
+  return customFetch<BusinessReviewQueueResponse>(getGetBusinessReviewQueueUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessReviewQueueQueryKey = (id: number,) => {
+    return [
+    `/api/businesses/${id}/review-queue`
+    ] as const;
+    }
+
+
+export const getGetBusinessReviewQueueQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessReviewQueue>>, TError = ErrorType<NotFoundResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessReviewQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessReviewQueueQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessReviewQueue>>> = ({ signal }) => getBusinessReviewQueue(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessReviewQueue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessReviewQueueQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessReviewQueue>>>
+export type GetBusinessReviewQueueQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary List non-urgent Business Intelligence reviews
+ */
+
+export function useGetBusinessReviewQueue<TData = Awaited<ReturnType<typeof getBusinessReviewQueue>>, TError = ErrorType<NotFoundResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessReviewQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessReviewQueueQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getResolveBusinessReviewQueueItemUrl = (id: number,
+    reviewId: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/review-queue/${reviewId}/resolve`
+}
+
+/**
+ * @summary Resolve or dismiss a Business Intelligence review item
+ */
+export const resolveBusinessReviewQueueItem = async (id: number,
+    reviewId: number,
+    businessReviewResolutionInput: BusinessReviewResolutionInput, options?: RequestInit): Promise<BusinessReviewQueueItem> => {
+
+  return customFetch<BusinessReviewQueueItem>(getResolveBusinessReviewQueueItemUrl(id,reviewId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      businessReviewResolutionInput,)
+  }
+);}
+
+
+
+
+export const getResolveBusinessReviewQueueItemMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveBusinessReviewQueueItem>>, TError,{id: number;reviewId: number;data: BodyType<BusinessReviewResolutionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveBusinessReviewQueueItem>>, TError,{id: number;reviewId: number;data: BodyType<BusinessReviewResolutionInput>}, TContext> => {
+
+const mutationKey = ['resolveBusinessReviewQueueItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveBusinessReviewQueueItem>>, {id: number;reviewId: number;data: BodyType<BusinessReviewResolutionInput>}> = (props) => {
+          const {id,reviewId,data} = props ?? {};
+
+          return  resolveBusinessReviewQueueItem(id,reviewId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveBusinessReviewQueueItemMutationResult = NonNullable<Awaited<ReturnType<typeof resolveBusinessReviewQueueItem>>>
+    export type ResolveBusinessReviewQueueItemMutationBody = BodyType<BusinessReviewResolutionInput>
+    export type ResolveBusinessReviewQueueItemMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Resolve or dismiss a Business Intelligence review item
+ */
+export const useResolveBusinessReviewQueueItem = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveBusinessReviewQueueItem>>, TError,{id: number;reviewId: number;data: BodyType<BusinessReviewResolutionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveBusinessReviewQueueItem>>,
+        TError,
+        {id: number;reviewId: number;data: BodyType<BusinessReviewResolutionInput>},
+        TContext
+      > => {
+      return useMutation(getResolveBusinessReviewQueueItemMutationOptions(options));
+    }
+
+export const getGetBusinessDnaConflictsUrl = (id: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/conflicts`
+}
+
+/**
+ * @summary List unresolved Business DNA conflicts
+ */
+export const getBusinessDnaConflicts = async (id: number, options?: RequestInit): Promise<BusinessDnaConflictsResponse> => {
+
+  return customFetch<BusinessDnaConflictsResponse>(getGetBusinessDnaConflictsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessDnaConflictsQueryKey = (id: number,) => {
+    return [
+    `/api/businesses/${id}/conflicts`
+    ] as const;
+    }
+
+
+export const getGetBusinessDnaConflictsQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessDnaConflicts>>, TError = ErrorType<NotFoundResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessDnaConflicts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessDnaConflictsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessDnaConflicts>>> = ({ signal }) => getBusinessDnaConflicts(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessDnaConflicts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessDnaConflictsQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessDnaConflicts>>>
+export type GetBusinessDnaConflictsQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary List unresolved Business DNA conflicts
+ */
+
+export function useGetBusinessDnaConflicts<TData = Awaited<ReturnType<typeof getBusinessDnaConflicts>>, TError = ErrorType<NotFoundResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessDnaConflicts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessDnaConflictsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDecideBusinessDnaConflictUrl = (id: number,
+    conflictId: number,) => {
+
+
+
+
+  return `/api/businesses/${id}/conflicts/${conflictId}/decision`
+}
+
+/**
+ * @summary Record an owner decision for a Business DNA conflict
+ */
+export const decideBusinessDnaConflict = async (id: number,
+    conflictId: number,
+    businessDnaConflictDecisionInput: BusinessDnaConflictDecisionInput, options?: RequestInit): Promise<BusinessDnaConflict> => {
+
+  return customFetch<BusinessDnaConflict>(getDecideBusinessDnaConflictUrl(id,conflictId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      businessDnaConflictDecisionInput,)
+  }
+);}
+
+
+
+
+export const getDecideBusinessDnaConflictMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideBusinessDnaConflict>>, TError,{id: number;conflictId: number;data: BodyType<BusinessDnaConflictDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideBusinessDnaConflict>>, TError,{id: number;conflictId: number;data: BodyType<BusinessDnaConflictDecisionInput>}, TContext> => {
+
+const mutationKey = ['decideBusinessDnaConflict'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideBusinessDnaConflict>>, {id: number;conflictId: number;data: BodyType<BusinessDnaConflictDecisionInput>}> = (props) => {
+          const {id,conflictId,data} = props ?? {};
+
+          return  decideBusinessDnaConflict(id,conflictId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideBusinessDnaConflictMutationResult = NonNullable<Awaited<ReturnType<typeof decideBusinessDnaConflict>>>
+    export type DecideBusinessDnaConflictMutationBody = BodyType<BusinessDnaConflictDecisionInput>
+    export type DecideBusinessDnaConflictMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Record an owner decision for a Business DNA conflict
+ */
+export const useDecideBusinessDnaConflict = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideBusinessDnaConflict>>, TError,{id: number;conflictId: number;data: BodyType<BusinessDnaConflictDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideBusinessDnaConflict>>,
+        TError,
+        {id: number;conflictId: number;data: BodyType<BusinessDnaConflictDecisionInput>},
+        TContext
+      > => {
+      return useMutation(getDecideBusinessDnaConflictMutationOptions(options));
+    }
+
+export const getGetCrossBusinessSummaryUrl = () => {
+
+
+
+
+  return `/api/businesses/cross-business-summary`
+}
+
+/**
+ * @summary Explicit, opt-in Cross-Business Analysis summary across every business the caller owns
+ */
+export const getCrossBusinessSummary = async ( options?: RequestInit): Promise<CrossBusinessSummary> => {
+
+  return customFetch<CrossBusinessSummary>(getGetCrossBusinessSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCrossBusinessSummaryQueryKey = () => {
+    return [
+    `/api/businesses/cross-business-summary`
+    ] as const;
+    }
+
+
+export const getGetCrossBusinessSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getCrossBusinessSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCrossBusinessSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCrossBusinessSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCrossBusinessSummary>>> = ({ signal }) => getCrossBusinessSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCrossBusinessSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCrossBusinessSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getCrossBusinessSummary>>>
+export type GetCrossBusinessSummaryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Explicit, opt-in Cross-Business Analysis summary across every business the caller owns
+ */
+
+export function useGetCrossBusinessSummary<TData = Awaited<ReturnType<typeof getCrossBusinessSummary>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCrossBusinessSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCrossBusinessSummaryQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

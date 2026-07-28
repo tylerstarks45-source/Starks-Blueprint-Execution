@@ -1,0 +1,89 @@
+Excellent find.
+
+This is exactly why we are performing compliance audits before moving to the next phase.
+
+Treat Business Isolation as a first-class architectural rule.
+
+==================================================
+
+NEW ARCHITECTURAL RULE
+
+Business Context Isolation
+
+Whenever the Executive Brain is operating within a specific business, every subsystem must remain business-aware.
+
+Unless explicitly requested by the user, the Executive Brain must NOT retrieve global information that belongs to other businesses.
+
+This applies to:
+
+- Knowledge Memory
+- Long-Term Memory
+- Project Memory
+- Business Memory
+- Planning
+- Recommendations
+- Analytics
+- Timeline
+- Business Context Packages
+
+==================================================
+
+MEMORY SCOPING
+
+Every memory record should support scope metadata.
+
+Supported scopes include:
+
+- Global User
+- Business
+- Project
+- Session
+- Conversation
+
+The Executive Brain should request memory using the appropriate scope instead of retrieving everything.
+
+==================================================
+
+KNOWLEDGE SCOPING
+
+Knowledge should support multiple scopes.
+
+Examples:
+
+Global Knowledge
+
+Business Knowledge
+
+Project Knowledge
+
+Industry Knowledge
+
+Reusable Knowledge
+
+The Business Intelligence Engine should determine which scopes are relevant before retrieval.
+
+==================================================
+
+EXECUTIVE BRAIN
+
+When building a Business Context Package:
+
+Only retrieve information relevant to the active business unless the user explicitly requests cross-business reasoning.
+
+==================================================
+
+CROSS-BUSINESS MODE
+
+Support an explicit Cross-Business Analysis mode.
+
+Only when this mode is enabled may ASH compare or aggregate multiple businesses.
+
+This should never occur automatically.
+
+==================================================
+
+Continue resolving every remaining compliance finding.
+
+Do not stop until the Phase 1.5A Compliance Report reaches 100%.
+
+Only after that should we begin Phase 1.5B.

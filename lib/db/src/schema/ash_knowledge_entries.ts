@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { ashProjectsTable } from "./executive_brain";
+import { businessesTable } from "./businesses";
 
 // ─── ASH Brain v2.0 — Knowledge Memory (Phase 1.2) ─────────────────────────
 // Per-user, continuously-learned knowledge: successful/failed patterns, tool
@@ -33,12 +34,26 @@ export const ASH_KNOWLEDGE_CATEGORIES = [
 ] as const;
 export type AshKnowledgeCategory = (typeof ASH_KNOWLEDGE_CATEGORIES)[number];
 
+// ─── Business Context Isolation (Phase 1.5A) ───────────────────────────────
+// `global`/`industry`/`reusable` are deliberately NOT business-isolated —
+// they are the spec's own "meant to be shared" scopes (a marketing
+// playbook that worked for one business is exactly the kind of knowledge
+// that should resurface for another). Only `business` (and, via
+// sourceProjectId, `project`) scoped entries are filtered by ownership so a
+// fact learned "about Business B" never leaks into Business A's context.
+export const KNOWLEDGE_SCOPES = ["global", "business", "project", "industry", "reusable"] as const;
+export type KnowledgeScope = (typeof KNOWLEDGE_SCOPES)[number];
+
 export const ashKnowledgeEntriesTable = pgTable(
   "ash_knowledge_entries",
   {
     id: serial("id").primaryKey(),
     userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
     sourceProjectId: integer("source_project_id").references(() => ashProjectsTable.id, { onDelete: "set null" }),
+    // Phase 1.5A addition — additive/defaulted; existing rows read back as
+    // scope='global' (unchanged retrieval behavior: visible everywhere for the user).
+    scope: text("scope").notNull().default("global"),
+    businessId: integer("business_id").references(() => businessesTable.id, { onDelete: "cascade" }),
     category: text("category").notNull().default("playbook"),
     title: text("title").notNull(),
     content: text("content").notNull(),
@@ -64,6 +79,7 @@ export const ashKnowledgeEntriesTable = pgTable(
     index("ash_knowledge_entries_user_id_idx").on(t.userId),
     index("ash_knowledge_entries_user_id_category_idx").on(t.userId, t.category),
     index("ash_knowledge_entries_source_project_id_idx").on(t.sourceProjectId),
+    index("ash_knowledge_entries_business_id_idx").on(t.businessId),
   ],
 );
 

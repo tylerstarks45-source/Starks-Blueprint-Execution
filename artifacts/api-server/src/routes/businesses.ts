@@ -15,6 +15,7 @@ import { getActiveCallerPayload, validateClientWorkspaceId } from "../lib/auth";
 import { requireOperationsTier } from "../lib/operations-gate";
 import { enqueue } from "../lib/runtime/jobs";
 import { logger } from "../lib/logger";
+import { initializeBusinessDna, publishBusinessEvent } from "../lib/business-intelligence";
 import {
   ListBusinessesResponse,
   CreateBusinessBody,
@@ -106,6 +107,16 @@ router.post("/businesses", async (req, res): Promise<void> => {
   enqueue("business_health_analysis", { businessId: row.id, userId: caller.id }, { priority: 5 }).catch((err) => {
     logger.warn({ err, businessId: row.id }, "Failed to enqueue initial business health analysis (non-fatal)");
   });
+  // The BI initialization imports current records first; it is deliberately
+  // non-blocking so business creation retains its established behavior.
+  initializeBusinessDna(row.id).catch((err) => logger.warn({ err, businessId: row.id }, "Business Intelligence: DNA initialization failed (non-fatal)"));
+  publishBusinessEvent({
+    businessId: row.id,
+    eventType: "business.created",
+    source: "businesses_route",
+    payload: { description: `Business "${row.name}" was created.`, relatedObjects: { businessId: row.id } },
+    dedupeKey: `business.created:${row.id}`,
+  }).catch((err) => logger.warn({ err, businessId: row.id }, "Business Intelligence: timeline event failed (non-fatal)"));
 
   res.status(201).json(UpdateBusinessResponse.parse(serialize(row)));
 });
@@ -178,6 +189,13 @@ router.patch("/businesses/:id", async (req, res): Promise<void> => {
     .set({ ...safeUpdate, updatedAt: new Date() })
     .where(eq(businessesTable.id, params.data.id))
     .returning();
+  publishBusinessEvent({
+    businessId: row.id,
+    eventType: "business.updated",
+    source: "businesses_route",
+    payload: { description: `Business "${row.name}" was updated.`, relatedObjects: { businessId: row.id } },
+    dedupeKey: `business.updated:${row.id}:${row.updatedAt.getTime()}`,
+  }).catch((err) => logger.warn({ err, businessId: row.id }, "Business Intelligence: business update event failed (non-fatal)"));
 
   res.json(UpdateBusinessResponse.parse(serialize(row)));
 });
@@ -342,6 +360,13 @@ router.post("/businesses/:id/connections", async (req, res): Promise<void> => {
       status: body.data.status ?? "pending",
     })
     .returning();
+  publishBusinessEvent({
+    businessId: params.data.id,
+    eventType: "integration.connected",
+    source: "businesses_route",
+    payload: { description: `Integration "${row.platformName}" was added to the business.`, relatedObjects: { connectionId: row.id, platformName: row.platformName } },
+    dedupeKey: `integration.connected:${row.id}`,
+  }).catch((err) => logger.warn({ err, businessId: params.data.id, connectionId: row.id }, "Business Intelligence: integration event failed (non-fatal)"));
 
   res.status(201).json(serialize(row));
 });

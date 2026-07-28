@@ -2581,6 +2581,402 @@ export const GetBusinessOverviewResponse = zod.object({
 
 
 /**
+ * @summary Get the concise, business-scoped ASH intelligence context
+ */
+export const GetBusinessIntelligenceParams = zod.object({
+  "id": zod.coerce.number().describe('Business id')
+})
+
+export const GetBusinessIntelligenceResponse = zod.object({
+  "businessId": zod.number(),
+  "businessName": zod.string(),
+  "generatedAt": zod.string(),
+  "dna": zod.array(zod.object({
+  "fieldKey": zod.string(),
+  "currentValue": zod.unknown(),
+  "confidenceScore": zod.number(),
+  "trustLevel": zod.enum(['user_confirmed', 'verified_system_data', 'high_confidence_inference', 'low_confidence_inference']),
+  "source": zod.string(),
+  "lastUpdatedAt": zod.string()
+})),
+  "state": zod.object({
+  "lifecycleStage": zod.enum(['idea', 'validation', 'planning', 'building', 'branding', 'website_development', 'landing_pages', 'marketing', 'launch', 'optimization', 'growth', 'scaling', 'automation', 'maintenance', 'expansion', 'maturity', 'exit']),
+  "currentObjective": zod.string().nullable(),
+  "currentMilestone": zod.string().nullable(),
+  "currentSprint": zod.string().nullable(),
+  "launchStatus": zod.string(),
+  "activeProjects": zod.number(),
+  "activeGoals": zod.number(),
+  "openTasks": zod.number(),
+  "completedTasks": zod.number(),
+  "failedTasks": zod.number(),
+  "connectedServices": zod.number(),
+  "websiteStatus": zod.enum(['present', 'missing', 'unknown']),
+  "health": zod.object({
+  "overallScore": zod.number().nullable(),
+  "status": zod.string().nullable(),
+  "freshness": zod.string().nullable(),
+  "operational": zod.union([zod.object({
+  "overallScore": zod.number().nullable(),
+  "status": zod.string().nullable(),
+  "freshness": zod.string().nullable(),
+  "source": zod.enum(['business_health_metrics'])
+}),zod.null()]),
+  "narrative": zod.union([zod.object({
+  "overallScore": zod.number().nullable(),
+  "status": zod.string().nullable(),
+  "freshness": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "source": zod.enum(['business_health_scores'])
+}),zod.null()])
+}),
+  "revenueContext": zod.union([zod.object({
+  "last30DaysCents": zod.number().nullable(),
+  "currency": zod.string().nullable(),
+  "connectedProviders": zod.number(),
+  "freshness": zod.string().nullable()
+}),zod.null()]),
+  "activeCampaigns": zod.number(),
+  "activeAutomations": zod.number(),
+  "risks": zod.array(zod.string()),
+  "opportunities": zod.array(zod.string()),
+  "priorities": zod.array(zod.string())
+}),
+  "capabilities": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "available": zod.boolean(),
+  "trustLevel": zod.enum(['user_confirmed', 'verified_system_data', 'high_confidence_inference', 'low_confidence_inference']),
+  "confidenceScore": zod.number(),
+  "evidence": zod.array(zod.string()),
+  "relatedObjects": zod.record(zod.string(), zod.unknown()),
+  "gap": zod.string().nullable()
+})),
+  "unresolvedConflicts": zod.array(zod.object({
+  "id": zod.number(),
+  "fieldKey": zod.string(),
+  "impactScore": zod.number(),
+  "impactReason": zod.string()
+})),
+  "reviewCount": zod.number(),
+  "recommendations": zod.array(zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "confidence": zod.number(),
+  "status": zod.string()
+})),
+  "contextNote": zod.string()
+})
+
+
+/**
+ * @summary List the current evidence-backed Business DNA claims
+ */
+export const GetBusinessDnaParams = zod.object({
+  "id": zod.coerce.number().describe('Business id')
+})
+
+export const GetBusinessDnaResponse = zod.object({
+  "claims": zod.array(zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "fieldKey": zod.string(),
+  "currentValue": zod.unknown(),
+  "confidenceScore": zod.number(),
+  "trustLevel": zod.enum(['user_confirmed', 'verified_system_data', 'high_confidence_inference', 'low_confidence_inference']),
+  "source": zod.string(),
+  "reasoning": zod.string().nullable(),
+  "version": zod.number(),
+  "lastUpdatedAt": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Confirm or edit a Business DNA value as the business owner
+ */
+export const ConfirmBusinessDnaValueParams = zod.object({
+  "id": zod.coerce.number().describe('Business id'),
+  "fieldKey": zod.coerce.string()
+})
+
+export const confirmBusinessDnaValueBodyConfidenceScoreMin = 0;
+export const confirmBusinessDnaValueBodyConfidenceScoreMax = 100;
+
+export const confirmBusinessDnaValueBodySourceMax = 100;
+
+export const confirmBusinessDnaValueBodyReasoningMax = 1000;
+
+
+
+export const ConfirmBusinessDnaValueBody = zod.object({
+  "value": zod.unknown(),
+  "confidenceScore": zod.number().min(confirmBusinessDnaValueBodyConfidenceScoreMin).max(confirmBusinessDnaValueBodyConfidenceScoreMax).optional(),
+  "source": zod.string().min(1).max(confirmBusinessDnaValueBodySourceMax).optional(),
+  "reasoning": zod.string().max(confirmBusinessDnaValueBodyReasoningMax).optional()
+})
+
+export const ConfirmBusinessDnaValueResponse = zod.object({
+  "action": zod.enum(['created', 'promoted', 'reinforced', 'preserved', 'conflict']),
+  "claim": zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "fieldKey": zod.string(),
+  "currentValue": zod.unknown(),
+  "confidenceScore": zod.number(),
+  "trustLevel": zod.enum(['user_confirmed', 'verified_system_data', 'high_confidence_inference', 'low_confidence_inference']),
+  "source": zod.string(),
+  "reasoning": zod.string().nullable(),
+  "version": zod.number(),
+  "lastUpdatedAt": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "conflictId": zod.number().nullable()
+})
+
+
+/**
+ * @summary Get the current derived state for a business
+ */
+export const GetBusinessIntelligenceStateParams = zod.object({
+  "id": zod.coerce.number().describe('Business id')
+})
+
+export const GetBusinessIntelligenceStateResponse = zod.object({
+  "lifecycleStage": zod.enum(['idea', 'validation', 'planning', 'building', 'branding', 'website_development', 'landing_pages', 'marketing', 'launch', 'optimization', 'growth', 'scaling', 'automation', 'maintenance', 'expansion', 'maturity', 'exit']),
+  "currentObjective": zod.string().nullable(),
+  "currentMilestone": zod.string().nullable(),
+  "currentSprint": zod.string().nullable(),
+  "launchStatus": zod.string(),
+  "activeProjects": zod.number(),
+  "activeGoals": zod.number(),
+  "openTasks": zod.number(),
+  "completedTasks": zod.number(),
+  "failedTasks": zod.number(),
+  "connectedServices": zod.number(),
+  "websiteStatus": zod.enum(['present', 'missing', 'unknown']),
+  "health": zod.object({
+  "overallScore": zod.number().nullable(),
+  "status": zod.string().nullable(),
+  "freshness": zod.string().nullable(),
+  "operational": zod.union([zod.object({
+  "overallScore": zod.number().nullable(),
+  "status": zod.string().nullable(),
+  "freshness": zod.string().nullable(),
+  "source": zod.enum(['business_health_metrics'])
+}),zod.null()]),
+  "narrative": zod.union([zod.object({
+  "overallScore": zod.number().nullable(),
+  "status": zod.string().nullable(),
+  "freshness": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "source": zod.enum(['business_health_scores'])
+}),zod.null()])
+}),
+  "revenueContext": zod.union([zod.object({
+  "last30DaysCents": zod.number().nullable(),
+  "currency": zod.string().nullable(),
+  "connectedProviders": zod.number(),
+  "freshness": zod.string().nullable()
+}),zod.null()]),
+  "activeCampaigns": zod.number(),
+  "activeAutomations": zod.number(),
+  "risks": zod.array(zod.string()),
+  "opportunities": zod.array(zod.string()),
+  "priorities": zod.array(zod.string())
+})
+
+
+/**
+ * @summary List currently verified business capabilities and gaps
+ */
+export const GetBusinessCapabilitiesParams = zod.object({
+  "id": zod.coerce.number().describe('Business id')
+})
+
+export const GetBusinessCapabilitiesResponse = zod.object({
+  "capabilities": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "available": zod.boolean(),
+  "trustLevel": zod.enum(['user_confirmed', 'verified_system_data', 'high_confidence_inference', 'low_confidence_inference']),
+  "confidenceScore": zod.number(),
+  "evidence": zod.array(zod.string()),
+  "relatedObjects": zod.record(zod.string(), zod.unknown()),
+  "gap": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary List the append-only business timeline
+ */
+export const GetBusinessTimelineParams = zod.object({
+  "id": zod.coerce.number().describe('Business id')
+})
+
+export const GetBusinessTimelineResponse = zod.object({
+  "events": zod.array(zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "projectId": zod.number().nullable(),
+  "eventType": zod.string(),
+  "source": zod.string(),
+  "description": zod.string(),
+  "trigger": zod.string(),
+  "relatedObjects": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary List non-urgent Business Intelligence reviews
+ */
+export const GetBusinessReviewQueueParams = zod.object({
+  "id": zod.coerce.number().describe('Business id')
+})
+
+export const GetBusinessReviewQueueResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "conflictId": zod.number().nullable(),
+  "kind": zod.string(),
+  "priority": zod.number(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "payload": zod.record(zod.string(), zod.unknown()),
+  "status": zod.enum(['open', 'dismissed', 'resolved']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Resolve or dismiss a Business Intelligence review item
+ */
+export const ResolveBusinessReviewQueueItemParams = zod.object({
+  "id": zod.coerce.number().describe('Business id'),
+  "reviewId": zod.coerce.number()
+})
+
+export const ResolveBusinessReviewQueueItemBody = zod.object({
+  "status": zod.enum(['resolved', 'dismissed'])
+})
+
+export const ResolveBusinessReviewQueueItemResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "conflictId": zod.number().nullable(),
+  "kind": zod.string(),
+  "priority": zod.number(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "payload": zod.record(zod.string(), zod.unknown()),
+  "status": zod.enum(['open', 'dismissed', 'resolved']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary List unresolved Business DNA conflicts
+ */
+export const GetBusinessDnaConflictsParams = zod.object({
+  "id": zod.coerce.number().describe('Business id')
+})
+
+export const GetBusinessDnaConflictsResponse = zod.object({
+  "conflicts": zod.array(zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "claimId": zod.number(),
+  "fieldKey": zod.string(),
+  "currentValue": zod.unknown(),
+  "incomingValue": zod.unknown(),
+  "currentTrustLevel": zod.enum(['user_confirmed', 'verified_system_data', 'high_confidence_inference', 'low_confidence_inference']),
+  "incomingTrustLevel": zod.enum(['user_confirmed', 'verified_system_data', 'high_confidence_inference', 'low_confidence_inference']),
+  "incomingConfidenceScore": zod.number(),
+  "incomingSource": zod.string(),
+  "incomingReasoning": zod.string().nullable(),
+  "impactScore": zod.number(),
+  "impactReason": zod.string(),
+  "status": zod.enum(['open', 'resolved', 'deferred']),
+  "resolvedByUserId": zod.number().nullable(),
+  "resolution": zod.string().nullable(),
+  "resolvedAt": zod.string().nullable(),
+  "createdAt": zod.string()
+}).and(zod.object({
+  "recommendedAction": zod.object({
+  "action": zod.enum(['keep_current', 'accept_new', 'edit_value', 'defer']),
+  "reason": zod.string()
+})
+})))
+})
+
+
+/**
+ * @summary Record an owner decision for a Business DNA conflict
+ */
+export const DecideBusinessDnaConflictParams = zod.object({
+  "id": zod.coerce.number().describe('Business id'),
+  "conflictId": zod.coerce.number()
+})
+
+export const DecideBusinessDnaConflictBody = zod.object({
+  "action": zod.enum(['keep_current', 'accept_new', 'edit_value', 'defer']),
+  "value": zod.unknown().optional()
+})
+
+export const DecideBusinessDnaConflictResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "claimId": zod.number(),
+  "fieldKey": zod.string(),
+  "currentValue": zod.unknown(),
+  "incomingValue": zod.unknown(),
+  "currentTrustLevel": zod.enum(['user_confirmed', 'verified_system_data', 'high_confidence_inference', 'low_confidence_inference']),
+  "incomingTrustLevel": zod.enum(['user_confirmed', 'verified_system_data', 'high_confidence_inference', 'low_confidence_inference']),
+  "incomingConfidenceScore": zod.number(),
+  "incomingSource": zod.string(),
+  "incomingReasoning": zod.string().nullable(),
+  "impactScore": zod.number(),
+  "impactReason": zod.string(),
+  "status": zod.enum(['open', 'resolved', 'deferred']),
+  "resolvedByUserId": zod.number().nullable(),
+  "resolution": zod.string().nullable(),
+  "resolvedAt": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Explicit, opt-in Cross-Business Analysis summary across every business the caller owns
+ */
+export const GetCrossBusinessSummaryResponse = zod.object({
+  "userId": zod.number(),
+  "generatedAt": zod.string(),
+  "businessCount": zod.number(),
+  "businesses": zod.array(zod.object({
+  "businessId": zod.number(),
+  "businessName": zod.string(),
+  "lifecycleStage": zod.enum(['idea', 'validation', 'planning', 'building', 'branding', 'website_development', 'landing_pages', 'marketing', 'launch', 'optimization', 'growth', 'scaling', 'automation', 'maintenance', 'expansion', 'maturity', 'exit']),
+  "healthScore": zod.number().nullable(),
+  "openTasks": zod.number(),
+  "activeGoals": zod.number()
+})),
+  "contextNote": zod.string()
+})
+
+
+/**
  * @summary Attach a platform/tool connection to a business
  */
 export const AddBusinessConnectionParams = zod.object({

@@ -6,13 +6,15 @@ import {
   ArrowLeft, Building2, Globe, Wrench, Download, Link2, RefreshCw,
   FileText, TrendingUp, BarChart3, Server, Plug, Sparkles, Bell,
   ListChecks, LineChart as LineChartIcon, Rocket, ExternalLink,
-  ShieldCheck, ScrollText,
+  ShieldCheck, ScrollText, AlertTriangle,
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import HealthScoreCard from '@/components/HealthScoreCard.jsx';
 import HealthDashboardCard from '@/components/HealthDashboardCard.jsx';
 import ApprovalsQueue from '@/components/ApprovalsQueue.jsx';
+import BusinessIntelligenceConflicts from '@/components/BusinessIntelligenceConflicts.jsx';
+import BusinessIntelligenceReviewQueue from '@/components/BusinessIntelligenceReviewQueue.jsx';
 import OperationsModePanel from '@/components/OperationsModePanel.jsx';
 import GrowthRecommendationsPanel from '@/components/GrowthRecommendationsPanel.jsx';
 import { getAuthHeaders } from '@/lib/apiHeaders.js';
@@ -397,6 +399,12 @@ export default function BusinessCommandCenterPage() {
           {/* Tasks / Approval Queue */}
           <SectionCard icon={ListChecks} title="Approval Queue">
             <ApprovalsQueue businessId={business.id} />
+          </SectionCard>
+          <SectionCard icon={AlertTriangle} title="Business DNA Conflicts" className="lg:col-span-3">
+            <BusinessIntelligenceConflicts businessId={business.id} />
+          </SectionCard>
+          <SectionCard icon={Sparkles} title="Business Intelligence Review">
+            <BusinessIntelligenceReviewQueue businessId={business.id} />
           </SectionCard>
 
           {/* ASH Operations Mode */}

@@ -1,5 +1,5 @@
 packages:
-  - artifacts/*
+  - 'artifacts/!(mobile)'
   - lib/*
   - lib/integrations/*
   - scripts

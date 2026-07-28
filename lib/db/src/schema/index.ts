@@ -64,5 +64,8 @@ export * from "./monitoring_log_events";
 export * from "./landing_page_preview_sessions";
 export * from "./ash_lessons";
 export * from "./executive_brain";
+export * from "./ash_project_memory";
+export * from "./business_memory";
+export * from "./ash_knowledge_entries";
 
 export * from "./system_logs";

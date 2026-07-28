@@ -1,0 +1,164 @@
+PROJECT: ASH Brain v2.0
+PHASE: 1.2 - Memory Engine Upgrade
+
+IMPORTANT
+
+Do NOT replace the existing memory system.
+
+Upgrade and extend it.
+
+Reuse all current memory functionality.
+
+----------------------------------------
+
+GOALS
+
+Transform the current memory into a complete multi-layer memory system.
+
+----------------------------------------
+
+Create the following memory layers:
+
+1. Working Memory
+- Current conversation
+- Current objectives
+- Current tasks
+- Active project
+
+2. Long-Term Memory
+- User preferences
+- Business knowledge
+- Learned facts
+- AI preferences
+
+3. Project Memory
+Each project should have its own memory.
+
+Store:
+
+- Conversations
+- Decisions
+- Files
+- Websites
+- Landing Pages
+- Connected Platforms
+- AI Tools
+- Business Notes
+- Goals
+- Tasks
+- Build Progress
+- Lessons Learned
+
+4. Business Memory
+
+Every business stores:
+
+- Business Model
+- Products
+- Services
+- Customers
+- Competitors
+- Revenue Goals
+- Marketing Strategy
+- SEO Strategy
+- Automation Strategy
+
+5. Knowledge Memory
+
+Store:
+
+- Successful patterns
+- Failed patterns
+- Tool recommendations
+- Frameworks
+- Business playbooks
+
+----------------------------------------
+
+AUTO MEMORY
+
+ASH should automatically determine what information is important.
+
+Store important information automatically.
+
+Ignore temporary conversation.
+
+Do not require the frontend to manually save memory.
+
+----------------------------------------
+
+MEMORY RETRIEVAL
+
+Before every AI request:
+
+Retrieve:
+
+- User Memory
+- Project Memory
+- Business Memory
+- Relevant Knowledge
+- Current Goals
+- Current Tasks
+
+Inject only relevant memory into context.
+
+----------------------------------------
+
+MEMORY MANAGEMENT
+
+Add:
+
+Memory Importance Score
+
+Memory Categories
+
+Memory Tags
+
+Last Accessed
+
+Confidence Score
+
+Automatic Cleanup
+
+Duplicate Detection
+
+Memory Compression
+
+----------------------------------------
+
+LEARNING
+
+When projects complete:
+
+Save:
+
+Lessons Learned
+
+Successful Strategies
+
+Failures
+
+Recommendations
+
+Future Improvements
+
+----------------------------------------
+
+IMPORTANT
+
+Reuse the existing memory architecture.
+
+Extend it.
+
+Do not break compatibility.
+
+----------------------------------------
+
+After implementation provide:
+
+- Files Created
+- Files Modified
+- Database Changes
+- Memory Flow Diagram
+- Integration Points
+- Recommendations before Phase 1.3

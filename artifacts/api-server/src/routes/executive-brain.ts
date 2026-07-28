@@ -8,6 +8,7 @@ import { runExecutiveBrain } from "../lib/executive-brain";
 import { listProjects, getProject } from "../lib/executive-brain/project-manager";
 import { listGoals } from "../lib/executive-brain/goal-manager";
 import { listTasks } from "../lib/executive-brain/task-planner";
+import { retrieveRelevantMemory, captureAutoMemory, recordProjectCompletionLessons } from "../lib/memory-engine";
 
 const router: IRouter = Router();
 
@@ -54,6 +55,7 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
   const send = (event: object) => res.write(`data: ${JSON.stringify(event)}\n\n`);
 
   let forwardMessage = parsed.data.message;
+  let memoryProject: Awaited<ReturnType<typeof runExecutiveBrain>>["project"] | null = null;
 
   try {
     const brainResult = await runExecutiveBrain({
@@ -73,9 +75,30 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
       isNewProject: brainResult.isNewProject,
     });
 
+    memoryProject = brainResult.project;
+
+    // ─── Memory Engine (Phase 1.2): retrieve relevant memory across all
+    // layers and fold it into the same internal context block, so the
+    // (untouched) orchestrator sees one combined note — no change to its
+    // prompt-assembly code. Failures here must never block the plan note.
+    let memoryContextNote = "";
+    try {
+      const memory = await retrieveRelevantMemory({
+        userId,
+        message: parsed.data.message,
+        project: brainResult.project,
+        goal: brainResult.goal,
+        tasks: brainResult.tasks,
+        history: parsed.data.history,
+      });
+      memoryContextNote = memory.contextNote;
+    } catch (err) {
+      logger.warn({ err, userId }, "Memory Engine: retrieval failed — forwarding without memory context");
+    }
+
     // Give the existing orchestrator situational awareness of the plan
     // without changing its code or its zod schema.
-    forwardMessage = `${parsed.data.message}${brainResult.brainContextNote}`;
+    forwardMessage = `${parsed.data.message}${brainResult.brainContextNote}${memoryContextNote}`;
   } catch (err) {
     logger.error({ err, userId }, "Executive Brain phase failed — forwarding request to orchestrator unchanged");
   }
@@ -101,12 +124,43 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
 
     const reader = upstream.body.getReader();
     const decoder = new TextDecoder();
+    let sseBuffer = "";
+    let assistantReply = "";
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      res.write(decoder.decode(value, { stream: true }));
+      const chunk = decoder.decode(value, { stream: true });
+      res.write(chunk);
+
+      // Peek at the piped SSE stream (read-only side channel — never alters
+      // what's written to the client) to capture the final assistant reply
+      // for Auto Memory, without re-implementing the orchestrator's parsing.
+      sseBuffer += chunk;
+      const lines = sseBuffer.split("\n");
+      sseBuffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const evt = JSON.parse(line.slice(6));
+          if (evt?.type === "done" && typeof evt.content === "string") assistantReply = evt.content;
+        } catch {
+          // Not JSON or a partial line — ignore, this is best-effort.
+        }
+      }
     }
     res.end();
+
+    // ─── Auto Memory (Phase 1.2): fire-and-forget, after the response has
+    // already been sent — adds zero latency to the user and never blocks or
+    // fails the request. No frontend involvement required.
+    if (memoryProject && assistantReply) {
+      captureAutoMemory({
+        userId,
+        project: memoryProject,
+        userMessage: parsed.data.message,
+        assistantReply,
+      }).catch((err) => logger.warn({ err, userId }, "Memory Engine: auto-memory capture failed"));
+    }
   } catch (err) {
     logger.error({ err, userId }, "Executive Brain: failed forwarding to orchestrator");
     send({ type: "error", message: "Failed to reach the orchestration pipeline" });
@@ -193,6 +247,15 @@ router.patch("/executive-brain/projects/:id", async (req, res): Promise<void> =>
     .where(and(eq(ashProjectsTable.id, projectId), eq(ashProjectsTable.userId, userId)))
     .returning();
   res.json({ project: updated });
+
+  // ─── Learning on completion (Phase 1.2): fire-and-forget, after the
+  // response is already sent — never blocks or fails the status update.
+  if (updated && parsed.data.status === "completed" && project.status !== "completed") {
+    const [goals, tasks] = await Promise.all([listGoals(projectId), listTasks(projectId)]);
+    recordProjectCompletionLessons({ userId, project: updated, goals, tasks }).catch((err) =>
+      logger.warn({ err, userId, projectId }, "Memory Engine: completion learning failed"),
+    );
+  }
 });
 
 export default router;

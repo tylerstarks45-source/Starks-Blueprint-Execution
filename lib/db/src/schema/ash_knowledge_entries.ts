@@ -1,0 +1,56 @@
+import { pgTable, serial, integer, text, jsonb, timestamp, index } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+import { usersTable } from "./users";
+import { ashProjectsTable } from "./executive_brain";
+
+// ─── ASH Brain v2.0 — Knowledge Memory (Phase 1.2) ─────────────────────────
+// Per-user, continuously-learned knowledge: successful/failed patterns, tool
+// recommendations, frameworks, playbooks, and project retrospectives written
+// when a project completes. This is deliberately separate from the existing
+// `ash_lessons` table (see lib/ash-brain.ts) — ash_lessons is a batch-run,
+// CROSS-USER aggregate distillation keyed by niche/blueprint/tool, driven by
+// an admin/system job. ash_knowledge_entries is real-time, PER-USER, written
+// automatically by the Memory Engine as that user's own conversations and
+// projects unfold. Both feed the orchestrator; neither replaces the other.
+
+export const ASH_KNOWLEDGE_CATEGORIES = [
+  "successful_pattern",
+  "failed_pattern",
+  "tool_recommendation",
+  "framework",
+  "playbook",
+  "project_retrospective",
+] as const;
+export type AshKnowledgeCategory = (typeof ASH_KNOWLEDGE_CATEGORIES)[number];
+
+export const ashKnowledgeEntriesTable = pgTable(
+  "ash_knowledge_entries",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    sourceProjectId: integer("source_project_id").references(() => ashProjectsTable.id, { onDelete: "set null" }),
+    category: text("category").notNull().default("playbook"),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    tags: jsonb("tags").notNull().default([]),
+    importanceScore: integer("importance_score").notNull().default(50),
+    confidenceScore: integer("confidence_score").notNull().default(100),
+    lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index("ash_knowledge_entries_user_id_idx").on(t.userId),
+    index("ash_knowledge_entries_user_id_category_idx").on(t.userId, t.category),
+    index("ash_knowledge_entries_source_project_id_idx").on(t.sourceProjectId),
+  ],
+);
+
+export const insertAshKnowledgeEntrySchema = createInsertSchema(ashKnowledgeEntriesTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAshKnowledgeEntry = z.infer<typeof insertAshKnowledgeEntrySchema>;
+export type AshKnowledgeEntry = typeof ashKnowledgeEntriesTable.$inferSelect;

@@ -20,6 +20,7 @@ import { OutOfCreditsError } from "../credits";
 import { createPendingApproval } from "../approvals";
 import { hasOperationsModeAccess } from "../operations-gate";
 import { distillAshBrain } from "../ash-brain";
+import { runMemoryMaintenance } from "../memory-engine";
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
@@ -1031,6 +1032,24 @@ async function processExpiringCredentialWarnings(): Promise<void> {
   }
 }
 
+// ─── Memory Engine maintenance (ASH Brain v2.0 — Phase 1.2) ────────────────
+// Cleanup/dedup/compression sweep. Runs a few times a day — this is
+// housekeeping, not latency-sensitive, and each run is idempotent.
+const MEMORY_MAINTENANCE_INTERVAL_MS = 4 * 60 * 60 * 1000;
+let lastMemoryMaintenanceRun = 0;
+
+async function processMemoryMaintenance(): Promise<void> {
+  const now = Date.now();
+  if (now - lastMemoryMaintenanceRun < MEMORY_MAINTENANCE_INTERVAL_MS) return;
+  lastMemoryMaintenanceRun = now;
+
+  try {
+    await runMemoryMaintenance();
+  } catch (err) {
+    logger.warn({ err }, "Memory Engine maintenance tick failed");
+  }
+}
+
 // ─── Main scheduler loop ──────────────────────────────────────────────────────
 
 export function startScheduler(): void {
@@ -1049,6 +1068,7 @@ export function startScheduler(): void {
       await processImprovementPasses();
       await processBrainDistillation();
       await processExpiringCredentialWarnings();
+      await processMemoryMaintenance();
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {

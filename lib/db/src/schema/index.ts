@@ -63,5 +63,6 @@ export * from "./business_health_metrics";
 export * from "./monitoring_log_events";
 export * from "./landing_page_preview_sessions";
 export * from "./ash_lessons";
+export * from "./executive_brain";
 
 export * from "./system_logs";

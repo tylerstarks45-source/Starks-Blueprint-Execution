@@ -1,0 +1,153 @@
+PROJECT: ASH Brain v2.0
+PHASE: 1.1 - Executive Brain Foundation
+
+IMPORTANT
+
+Do NOT rebuild ASH.
+
+Do NOT replace the existing AI Orchestrator.
+
+Do NOT replace OpenRouter integration.
+
+Do NOT replace the existing runtime.
+
+Upgrade the existing architecture by adding a new Executive Brain layer that sits above the current orchestration pipeline.
+
+----------------------------------------
+
+GOALS
+
+Create a new Executive Brain responsible for:
+
+- Goal Management
+- Decision Making
+- Planning
+- Task Prioritization
+- Project Management
+- Business State Tracking
+- Execution Coordination
+
+The Executive Brain should become the central controller for ASH while reusing the existing AI infrastructure.
+
+----------------------------------------
+
+RESPONSIBILITIES
+
+The Executive Brain should:
+
+1. Receive every user request before it reaches the orchestrator.
+
+2. Determine the user's intent.
+
+3. Determine if this belongs to an existing project or requires creating a new one.
+
+4. Create or update objectives.
+
+5. Break large requests into structured tasks.
+
+6. Prioritize those tasks.
+
+7. Decide which systems are required.
+
+8. Pass execution to the existing AI pipeline.
+
+----------------------------------------
+
+PROJECT MANAGEMENT
+
+Create a persistent Project object containing:
+
+- Project ID
+- Name
+- Status
+- Objective
+- Current Phase
+- Current Task
+- Pending Tasks
+- Completed Tasks
+- Business Type
+- Revenue Goal
+- Connected Services
+- AI Tool Stack
+- Progress
+- Created Date
+- Updated Date
+
+----------------------------------------
+
+GOAL MANAGEMENT
+
+Create Goal objects.
+
+Each Goal should contain:
+
+- Goal
+- Priority
+- Status
+- Dependencies
+- Estimated Completion
+- Completion Criteria
+
+----------------------------------------
+
+TASK MANAGEMENT
+
+Create Task objects.
+
+Each task should contain:
+
+- Description
+- Status
+- Priority
+- Assigned Engine
+- Dependencies
+- Result
+- Timestamp
+
+----------------------------------------
+
+EXECUTION FLOW
+
+User
+
+↓
+
+Executive Brain
+
+↓
+
+Goal Manager
+
+↓
+
+Task Planner
+
+↓
+
+Existing AI Orchestrator
+
+↓
+
+OpenRouter
+
+↓
+
+Existing Tool Execution
+
+----------------------------------------
+
+IMPORTANT
+
+Reuse all existing systems whenever possible.
+
+Do not break current functionality.
+
+Only extend the architecture.
+
+After implementation, provide:
+
+- Architecture diagram
+- New files created
+- Existing files modified
+- Integration points
+- Any concerns before moving to Phase 1.2

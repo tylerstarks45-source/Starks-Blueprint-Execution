@@ -56,6 +56,7 @@ import businessRecommendationsRouter from "./business-recommendations";
 import approvalsRouter from "./approvals";
 import monitoringRouter from "./monitoring";
 import logsRouter from "./logs";
+import executiveBrainRouter from "./executive-brain";
 
 const router: IRouter = Router();
 
@@ -116,5 +117,6 @@ router.use(businessRecommendationsRouter);
 router.use(approvalsRouter);
 router.use(monitoringRouter);
 router.use(logsRouter);
+router.use(executiveBrainRouter);
 
 export default router;

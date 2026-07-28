@@ -1,0 +1,140 @@
+PROJECT: ASH Brain v2.0
+PHASE: 1.3 - Planning & Decision Engine
+
+IMPORTANT
+
+Do NOT replace the existing execution pipeline.
+
+Add a Planning & Decision Engine that sits between the Executive Brain and the existing AI Orchestrator.
+
+----------------------------------------
+
+GOALS
+
+Create an engine that can:
+
+- Break large objectives into executable plans
+- Prioritize work
+- Track dependencies
+- Re-plan when conditions change
+- Validate plans before execution
+
+----------------------------------------
+
+PLANNING
+
+When given an objective, automatically:
+
+- Define the objective
+- Identify milestones
+- Generate phases
+- Generate tasks
+- Identify dependencies
+- Estimate complexity
+- Estimate completion order
+
+----------------------------------------
+
+DECISION ENGINE
+
+Before executing any major task:
+
+Evaluate:
+
+- Goal alignment
+- Required resources
+- Available tools
+- Existing project state
+- Risks
+- Confidence
+
+Select the best execution path.
+
+----------------------------------------
+
+TASK PRIORITIZATION
+
+Every task should receive:
+
+- Priority Score
+- Complexity Score
+- Dependency Score
+- Estimated Duration
+- Execution Order
+
+Automatically reprioritize when tasks are completed or blocked.
+
+----------------------------------------
+
+DEPENDENCY MANAGEMENT
+
+Track:
+
+- Blocked tasks
+- Waiting tasks
+- Ready tasks
+- Completed tasks
+- Failed tasks
+
+Automatically unlock dependent tasks when prerequisites finish.
+
+----------------------------------------
+
+PLAN VALIDATION
+
+Before execution:
+
+Verify:
+
+- Required APIs
+- Required credentials
+- Required files
+- Required user approvals
+- Required integrations
+
+If something is missing:
+
+- Mark task as blocked
+- Explain why
+- Continue with any tasks that are not blocked
+
+----------------------------------------
+
+PLAN ADAPTATION
+
+If execution fails:
+
+- Analyze failure
+- Adjust plan
+- Retry when appropriate
+- Escalate to user only when necessary
+
+----------------------------------------
+
+INTEGRATION
+
+Planning Engine
+
+↓
+
+Executive Brain
+
+↓
+
+Existing AI Orchestrator
+
+↓
+
+Existing Tool System
+
+Do not modify the existing execution flow beyond inserting this planning layer.
+
+----------------------------------------
+
+After implementation provide:
+
+- New files
+- Modified files
+- Planning flow diagram
+- Integration summary
+- Recommendations before Phase 1.4

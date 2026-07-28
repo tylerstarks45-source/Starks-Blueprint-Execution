@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod/v4";
 import { eq, and } from "drizzle-orm";
-import { db, ashProjectsTable } from "@workspace/db";
+import { db, ashProjectsTable, ashTasksTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { logger } from "../lib/logger";
 import { runExecutiveBrain } from "../lib/executive-brain";
@@ -9,6 +9,7 @@ import { listProjects, getProject } from "../lib/executive-brain/project-manager
 import { listGoals } from "../lib/executive-brain/goal-manager";
 import { listTasks } from "../lib/executive-brain/task-planner";
 import { retrieveRelevantMemory, captureAutoMemory, recordProjectCompletionLessons } from "../lib/memory-engine";
+import { runPlanningEngine, MilestonePlanner, DependencyManager, handleTaskFailure, handleTaskCompletion } from "../lib/planning-engine";
 
 const router: IRouter = Router();
 
@@ -77,6 +78,32 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
 
     memoryProject = brainResult.project;
 
+    // ─── Planning & Decision Engine (Phase 1.3): organizes this turn's tasks
+    // under milestones, scores/orders the project's backlog, validates the
+    // new tasks can actually run (credentials/files/approvals), and decides
+    // whether the next ready task should proceed/hold/escalate. Runs before
+    // Memory retrieval so a newly-blocked task can also inform this turn's
+    // memory note. Failures here must never block the request.
+    let planningContextNote = "";
+    try {
+      const planningResult = await runPlanningEngine({
+        userId,
+        project: brainResult.project,
+        goal: brainResult.goal,
+        tasks: brainResult.tasks,
+        isNewProject: brainResult.isNewProject,
+      });
+      planningContextNote = planningResult.contextNote;
+      send({
+        type: "planning_state",
+        milestones: planningResult.milestones,
+        nextTask: planningResult.nextTask,
+        decision: planningResult.decision,
+      });
+    } catch (err) {
+      logger.warn({ err, userId }, "Planning Engine: run failed — forwarding without planning context");
+    }
+
     // ─── Memory Engine (Phase 1.2): retrieve relevant memory across all
     // layers and fold it into the same internal context block, so the
     // (untouched) orchestrator sees one combined note — no change to its
@@ -98,7 +125,7 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
 
     // Give the existing orchestrator situational awareness of the plan
     // without changing its code or its zod schema.
-    forwardMessage = `${parsed.data.message}${brainResult.brainContextNote}${memoryContextNote}`;
+    forwardMessage = `${parsed.data.message}${brainResult.brainContextNote}${planningContextNote}${memoryContextNote}`;
   } catch (err) {
     logger.error({ err, userId }, "Executive Brain phase failed — forwarding request to orchestrator unchanged");
   }
@@ -216,6 +243,89 @@ router.get("/executive-brain/projects/:id/tasks", async (req, res): Promise<void
     return;
   }
   res.json({ tasks: await listTasks(projectId) });
+});
+
+router.get("/executive-brain/projects/:id/milestones", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const projectId = Number(req.params.id);
+  const project = await getProject(userId, projectId);
+  if (!project) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+  res.json({ milestones: await MilestonePlanner.listMilestones(projectId) });
+});
+
+router.get("/executive-brain/projects/:id/readiness", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const projectId = Number(req.params.id);
+  const project = await getProject(userId, projectId);
+  if (!project) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+  res.json({ tasks: await DependencyManager.classifyProjectTasks(projectId) });
+});
+
+// ─── Task outcome reporting (Phase 1.3) ────────────────────────────────────
+// The natural hook for Plan Adaptation / Dependency unlocking / auto
+// reprioritization: whatever calls the assigned engine for a task (build
+// engine, browser agent, media gen, etc.) reports back here when it finishes
+// or fails, so the Planning Engine can react. `task-planner.ts`'s
+// `updateTaskStatus()` existed but was never wired to a route before this.
+const taskOutcomeSchema = z.object({
+  status: z.enum(["completed", "failed"]),
+  result: z.unknown().optional(),
+  errorMessage: z.string().optional(),
+});
+
+router.patch("/executive-brain/tasks/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const taskId = Number(req.params.id);
+  if (!Number.isFinite(taskId)) {
+    res.status(400).json({ error: "Invalid task id" });
+    return;
+  }
+
+  const [task] = await db.select().from(ashTasksTable).where(eq(ashTasksTable.id, taskId));
+  if (!task) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+  const project = await getProject(userId, task.projectId);
+  if (!project) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+
+  const parsed = taskOutcomeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  try {
+    if (parsed.data.status === "completed") {
+      if (parsed.data.result !== undefined) {
+        await db.update(ashTasksTable).set({ result: parsed.data.result }).where(eq(ashTasksTable.id, taskId));
+      }
+      const updated = await handleTaskCompletion({ taskId });
+      res.json({ task: updated, action: "completed" });
+    } else {
+      const { action, task: updated } = await handleTaskFailure({
+        taskId,
+        userId,
+        errorMessage: parsed.data.errorMessage ?? "Task failed with no error message provided.",
+      });
+      res.json({ task: updated, action });
+    }
+  } catch (err) {
+    logger.error({ err, userId, taskId }, "Planning Engine: failed to record task outcome");
+    res.status(500).json({ error: "Failed to record task outcome" });
+  }
 });
 
 const patchProjectSchema = z.object({

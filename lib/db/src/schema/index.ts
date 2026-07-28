@@ -67,5 +67,7 @@ export * from "./executive_brain";
 export * from "./ash_project_memory";
 export * from "./business_memory";
 export * from "./ash_knowledge_entries";
+export * from "./ash_milestones";
+export * from "./ash_plan_decisions";
 
 export * from "./system_logs";

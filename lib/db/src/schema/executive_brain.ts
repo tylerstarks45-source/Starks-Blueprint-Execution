@@ -116,6 +116,10 @@ export const ashTasksTable = pgTable(
     id: serial("id").primaryKey(),
     projectId: integer("project_id").notNull().references(() => ashProjectsTable.id, { onDelete: "cascade" }),
     goalId: integer("goal_id").references(() => ashGoalsTable.id, { onDelete: "set null" }),
+    // Nullable FK added in Phase 1.3 (Planning & Decision Engine) — a task
+    // may belong to a generated milestone/phase, or exist standalone
+    // (short/simple requests still get a task with no milestone, as before).
+    milestoneId: integer("milestone_id"),
     description: text("description").notNull(),
     status: text("status").notNull().default("pending"),
     priority: text("priority").notNull().default("medium"),
@@ -123,6 +127,19 @@ export const ashTasksTable = pgTable(
     // Array of other ash_tasks.id this task depends on.
     dependencies: jsonb("dependencies").notNull().default([]),
     result: jsonb("result"),
+    // ── Phase 1.3 — Planning & Decision Engine scoring/tracking fields ──
+    // All nullable/defaulted so every existing row and every Phase 1.1/1.2
+    // write path (which never sets these) keeps working unchanged.
+    priorityScore: integer("priority_score").notNull().default(50), // 0-100, numeric complement to `priority`
+    complexityScore: integer("complexity_score").notNull().default(50), // 0-100
+    dependencyScore: integer("dependency_score").notNull().default(0), // 0-100, higher = more tasks depend on this one
+    estimatedDurationMinutes: integer("estimated_duration_minutes"),
+    executionOrder: integer("execution_order"),
+    // Why a task is currently "blocked" (validation failure) — distinct from
+    // simply waiting on an incomplete dependency, which is derived, not stored.
+    blockedReason: text("blocked_reason"),
+    attempts: integer("attempts").notNull().default(0),
+    lastFailureReason: text("last_failure_reason"),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
@@ -131,6 +148,7 @@ export const ashTasksTable = pgTable(
     index("ash_tasks_project_id_idx").on(t.projectId),
     index("ash_tasks_project_id_status_idx").on(t.projectId, t.status),
     index("ash_tasks_goal_id_idx").on(t.goalId),
+    index("ash_tasks_milestone_id_idx").on(t.milestoneId),
   ],
 );
 

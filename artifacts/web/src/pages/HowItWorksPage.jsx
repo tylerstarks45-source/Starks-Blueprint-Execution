@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
-import VideoBackground from '@/components/VideoBackground.jsx';
 
 const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } };
 const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } };
@@ -92,9 +91,37 @@ const BLUEPRINTS = [
   { name: 'Analytics & Optimization', category: 'Analytics', icon: BarChart3 },
 ];
 
+const HOW_IT_WORKS_VIDEO_ID = 'nGnX6GkrOgk';
+
 const HowItWorksPage = () => {
   return (
-    <VideoBackground>
+    <div className="relative min-h-screen w-full flex flex-col">
+      {/* Video background — How It Works page only */}
+      <div className="fixed inset-0 w-full h-screen z-[-2] overflow-hidden pointer-events-none">
+        <iframe
+          src={`https://www.youtube.com/embed/${HOW_IT_WORKS_VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${HOW_IT_WORKS_VIDEO_ID}&controls=0&modestbranding=1&playsinline=1&rel=0&vq=hd1080&hd=1&quality=hd1080`}
+          allow="autoplay; encrypted-media; fullscreen"
+          frameBorder="0"
+          title="How It Works Background Video"
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            width: '110vw',
+            height: 'calc(110vw * 9 / 16)',
+            minHeight: '110vh',
+            minWidth: 'calc(110vh * 16 / 9)',
+            transform: 'translate3d(-50%, -50%, 0)',
+            transformOrigin: 'center center',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            border: 'none',
+            outline: 'none',
+          }}
+        />
+      </div>
+      {/* No tint overlay — video is intentionally fully visible */}
+      <div className="relative z-10 flex-grow flex flex-col w-full h-full">
       <PageMeta
         title="How It Works | Starks Global Group"
         description="Learn how ASH AI builds and runs your automated income systems from start to finish."
@@ -370,7 +397,8 @@ const HowItWorksPage = () => {
 
       </main>
       <Footer />
-    </VideoBackground>
+      </div>
+    </div>
   );
 };
 

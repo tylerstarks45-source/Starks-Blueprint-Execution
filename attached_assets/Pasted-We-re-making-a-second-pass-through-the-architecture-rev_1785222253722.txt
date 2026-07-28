@@ -1,0 +1,178 @@
+We're making a second pass through the architecture review, and the first X-Ray report was extremely helpful. However, it primarily described the architecture and structure rather than the actual implementation logic. To continue the review accurately, we need only the missing implementation details—not another full project scan.
+
+Please extract **only** the following information from the existing codebase:
+
+### 1. AI Orchestrator
+
+Locate the main orchestration file(s) responsible for handling AI requests (examples: `ai-orchestrator.ts`, `orchestrator.ts`, or similar).
+
+Include:
+
+* Complete execution flow
+* How requests are created
+* How models are selected
+* How prompts are built
+* How tools/functions are invoked
+* Error handling
+* Retry logic
+* Streaming logic
+* Any planning or routing logic
+
+---
+
+### 2. ASH Brain
+
+Locate the core ASH brain implementation (examples: `ash-brain.ts`, `brain.ts`, `ash.ts`, etc.).
+
+Extract:
+
+* Complete class/functions
+* Decision-making logic
+* Memory usage
+* Goal management
+* Task planning
+* Agent coordination
+* Reflection/self-evaluation
+* Learning mechanisms
+* Anything that makes ASH "think"
+
+---
+
+### 3. OpenRouter Integration
+
+Extract the implementation responsible for communicating with OpenRouter.
+
+Include:
+
+* Request payload construction
+* Model routing
+* Provider selection
+* System prompt assembly
+* Tool calling
+* Function calling
+* Response parsing
+* Streaming implementation
+* Fallback models
+* Error recovery
+
+---
+
+### 4. Tool Registry
+
+Locate where ASH discovers and executes tools.
+
+Include:
+
+* Tool registration
+* Tool execution pipeline
+* Permission handling
+* Dynamic tool loading
+* Tool routing
+* Connector integration
+
+---
+
+### 5. Memory System
+
+Extract the complete implementation for:
+
+* Working memory
+* Long-term memory
+* User memory
+* Conversation memory
+* Business memory
+* Context retrieval
+* Memory storage
+* Memory ranking
+* Memory injection into prompts
+
+---
+
+### 6. Builder Pipeline
+
+Extract the implementation behind the Builder.
+
+Include:
+
+* BuilderPage backend logic
+* Website generation
+* Landing page generation
+* AI builder workflow
+* Deployment pipeline
+* File generation
+* Build orchestration
+
+---
+
+### 7. Runtime / Background Jobs
+
+Extract:
+
+* Runtime scheduler
+* Worker implementation
+* Queue processing
+* Autonomous jobs
+* Scheduled tasks
+* Long-running workflows
+
+---
+
+### 8. Connector Framework
+
+Extract:
+
+* Connector registry
+* OAuth flow
+* Credential handling
+* API execution
+* Dynamic connector loading
+* Connector permissions
+
+---
+
+### 9. AI Prompt Construction
+
+Show exactly:
+
+* How system prompts are assembled
+* How user prompts are assembled
+* Where context is injected
+* Where memory is injected
+* Where business state is injected
+* Where instructions are added
+
+---
+
+### 10. Decision Pipeline
+
+Show the complete execution path from:
+
+User Request
+→ Processing
+→ Planning
+→ Memory Retrieval
+→ Model Selection
+→ Tool Calls
+→ Response Generation
+→ Learning
+→ Memory Update
+
+---
+
+### Output Requirements
+
+Please **do not regenerate the previous architecture report**.
+
+Do **not** summarize the code.
+
+Instead, extract only the implementation details requested above.
+
+For each section include:
+
+* File path
+* Relevant functions/classes
+* Important code snippets
+* Explanation of execution flow
+* Dependencies between components
+
+Focus only on the missing implementation needed to fully understand how ASH currently works internally. Ignore unrelated frontend components, styling, assets, and files that are not part of the AI execution pipeline.

@@ -24,7 +24,8 @@ export interface TaskReadiness {
 
 export interface ValidationIssue {
   reason: string; // human-readable explanation
-  kind: "missing_credential" | "missing_approval" | "missing_file" | "missing_integration" | "unknown";
+  kind: "missing_credential" | "missing_api" | "missing_tool" | "missing_approval" | "missing_file" | "missing_integration" | "unknown";
+  ruleId?: string; // which Validation Engine rule raised this (Phase 1.4)
 }
 
 export interface ValidationResult {

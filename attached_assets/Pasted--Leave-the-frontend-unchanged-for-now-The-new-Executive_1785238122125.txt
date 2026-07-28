@@ -1,0 +1,181 @@
+  Leave the frontend unchanged for now. The new Executive Brain, Planning Engine, and Memory Engine should remain backend-ready. UI integration will occur during the Builder redesign phase.
+
+2. Validation Heuristics
+
+This one is worth improving now because it's part of the brain.
+
+I'd add this to the beginning of Phase 1.4:
+
+VALIDATION ENGINE UPGRADE
+
+Replace simple keyword-based validation with a modular Validation Engine.
+
+The Validation Engine should support:
+
+- Credential validation
+- API requirement detection
+- Tool requirement detection
+- File requirement detection
+- User approval detection
+- Integration requirement detection
+- Risk detection
+
+The engine should be rule-based and easily extensible so new validation rules can be added without changing core logic.
+
+Avoid relying solely on keyword matching whenever possible.
+PROJECT: ASH Brain v2.0
+PHASE: 1.4 - Research & Knowledge Engine
+
+IMPORTANT
+
+Do NOT replace the existing web search or AI capabilities.
+
+Build a dedicated Research & Knowledge Engine that integrates with the Executive Brain and existing AI Orchestrator.
+
+----------------------------------------
+
+GOALS
+
+Create an engine capable of:
+
+- Researching topics
+- Finding competitors
+- Gathering business intelligence
+- Validating information
+- Summarizing findings
+- Building reusable knowledge
+
+----------------------------------------
+
+RESEARCH TYPES
+
+Support:
+
+- Business Research
+- Competitor Research
+- Market Research
+- SEO Research
+- Product Research
+- Technology Research
+- AI Tool Research
+- Trend Research
+
+----------------------------------------
+
+RESEARCH WORKFLOW
+
+When research is requested:
+
+1. Understand the objective.
+2. Generate a research plan.
+3. Gather information from available sources.
+4. Remove duplicate information.
+5. Score source reliability.
+6. Generate a structured summary.
+7. Save reusable findings into Knowledge Memory when appropriate.
+
+----------------------------------------
+
+KNOWLEDGE OBJECTS
+
+Store:
+
+- Title
+- Category
+- Summary
+- Key Findings
+- Supporting Sources
+- Confidence Score
+- Created Date
+- Last Updated
+- Related Projects
+- Tags
+
+----------------------------------------
+
+COMPETITOR ANALYSIS
+
+Support:
+
+- Company Overview
+- Products
+- Services
+- Pricing
+- Strengths
+- Weaknesses
+- Opportunities
+- Threats
+- Marketing Strategy
+- SEO Presence
+- Technology Stack (when available)
+
+----------------------------------------
+
+AI TOOL KNOWLEDGE
+
+Maintain knowledge about:
+
+- AI tools
+- APIs
+- SaaS platforms
+- Integrations
+- Business software
+
+Store:
+
+- Purpose
+- Features
+- Pricing
+- Strengths
+- Weaknesses
+- Recommended Use Cases
+
+----------------------------------------
+
+KNOWLEDGE RETRIEVAL
+
+Before generating recommendations:
+
+Search Knowledge Memory first.
+
+Only perform new research when necessary.
+
+----------------------------------------
+
+INTEGRATION
+
+Executive Brain
+
+↓
+
+Research & Knowledge Engine
+
+↓
+
+Existing AI Orchestrator
+
+↓
+
+Existing Search / Tool Systems
+
+----------------------------------------
+
+IMPORTANT
+
+Reuse existing search capabilities.
+
+Do not duplicate functionality.
+
+Build a centralized intelligence layer that future engines can query.
+
+----------------------------------------
+
+After implementation provide:
+
+- New files
+- Modified files
+- Database changes
+- Knowledge architecture
+- Research workflow diagram
+- Integration summary
+- Recommendations before Phase 1.5

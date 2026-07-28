@@ -21,6 +21,15 @@ export const ASH_KNOWLEDGE_CATEGORIES = [
   "framework",
   "playbook",
   "project_retrospective",
+  // ── Phase 1.4 — Research & Knowledge Engine categories ──
+  "business_research",
+  "competitor_profile",
+  "market_research",
+  "seo_research",
+  "product_research",
+  "technology_research",
+  "ai_tool_profile",
+  "trend_research",
 ] as const;
 export type AshKnowledgeCategory = (typeof ASH_KNOWLEDGE_CATEGORIES)[number];
 
@@ -34,6 +43,17 @@ export const ashKnowledgeEntriesTable = pgTable(
     title: text("title").notNull(),
     content: text("content").notNull(),
     tags: jsonb("tags").notNull().default([]),
+    // ── Phase 1.4 additions — Research & Knowledge Engine ──
+    // Structured findings/sources for research-derived entries; empty for
+    // the original Phase 1.2 pattern/playbook categories, which keep using
+    // `content` as free text the way they always have.
+    keyFindings: jsonb("key_findings").notNull().default([]), // string[]
+    sources: jsonb("sources").notNull().default([]), // { label: string; reliability: number }[]
+    // Other ash_projects.id this knowledge has also proven useful for,
+    // beyond the project it was originally researched in (sourceProjectId).
+    relatedProjectIds: jsonb("related_project_ids").notNull().default([]), // number[]
+    // Free-form extension point (e.g. { researchProfileId, researchType }).
+    metadata: jsonb("metadata").notNull().default({}),
     importanceScore: integer("importance_score").notNull().default(50),
     confidenceScore: integer("confidence_score").notNull().default(100),
     lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),

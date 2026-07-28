@@ -1,0 +1,10 @@
+---
+name: Research & Knowledge Engine architecture
+description: Phase 1.4 Research & Knowledge Engine layering, workflow steps, and testing gotcha.
+---
+
+Lives in `artifacts/api-server/src/lib/research-engine/`, wired into `routes/executive-brain.ts` between the Planning Engine and Memory Engine calls. Layering: Executive Brain → `detectResearchIntent()` (intent.ts, narrower patterns than the orchestrator's own lightweight auto-search — deliberately doesn't fire for quick one-off lookups) → Research & Knowledge Engine → same `complete()` + `MODELS.research` primitive already used by `routes/research.ts` / `lib/research-loop.ts` / the orchestrator's auto-search. No new search mechanism was introduced — reuse was a hard requirement.
+
+Workflow (`index.ts`): knowledge-lookup (skip research entirely if a fresh, high-confidence `ash_knowledge_entries` row already matches) → plan (planner.ts, AI with deterministic fallback) → gather (gatherer.ts, parallel `complete()` calls) → dedupe (deduper.ts, Jaccard shingle similarity, no AI) → score reliability (reliability.ts, regex domain-tier heuristic, honestly labeled as unverified when no citation is found) → structured summary (summarizer.ts, strict JSON, optional competitor/ai_tool profile block) → save (knowledge-writer.ts, gated on confidence ≥ 40, writes `ash_knowledge_entries` + optional `ash_research_profiles` row). Every step's failure degrades gracefully; the whole run is tracked in `ash_research_sessions` for audit/history and never throws back to the caller.
+
+**Testing gotcha:** a freshly-inserted test user has 0 OpenRouter credits, so `complete()` throws `OutOfCreditsError` on every gather-step call — this is expected platform behavior (see `openrouter.ts`'s credit gate), not a bug in the research engine. The pipeline correctly falls back to a low-confidence result and skips saving. To fully exercise the "reuse existing knowledge" path in a smoke test, either use a real user with credits or manually seed an `ash_knowledge_entries` row first.

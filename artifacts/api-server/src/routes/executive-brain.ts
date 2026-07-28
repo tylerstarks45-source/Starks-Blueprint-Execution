@@ -10,6 +10,7 @@ import { listGoals } from "../lib/executive-brain/goal-manager";
 import { listTasks } from "../lib/executive-brain/task-planner";
 import { retrieveRelevantMemory, captureAutoMemory, recordProjectCompletionLessons } from "../lib/memory-engine";
 import { runPlanningEngine, MilestonePlanner, DependencyManager, handleTaskFailure, handleTaskCompletion } from "../lib/planning-engine";
+import { runResearchEngine, detectResearchIntent } from "../lib/research-engine";
 
 const router: IRouter = Router();
 
@@ -104,6 +105,34 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
       logger.warn({ err, userId }, "Planning Engine: run failed — forwarding without planning context");
     }
 
+    // ─── Research & Knowledge Engine (Phase 1.4): only for requests worth a
+    // full plan → gather → dedupe → score → summarize → save pass (see
+    // detectResearchIntent — deliberately narrower than the orchestrator's
+    // own lightweight auto-search, which stays untouched for quick
+    // one-off lookups). Checks Knowledge Memory first and only researches
+    // when nothing reusable already exists. Failures never block the turn.
+    let researchContextNote = "";
+    try {
+      const researchType = detectResearchIntent(parsed.data.message);
+      if (researchType) {
+        const research = await runResearchEngine({
+          userId,
+          projectId: brainResult.project?.id ?? null,
+          researchType,
+          objective: parsed.data.message,
+        });
+        researchContextNote = research.contextNote;
+        send({
+          type: "research_state",
+          researchType,
+          reusedExistingKnowledge: research.reusedExistingKnowledge,
+          confidenceScore: research.confidenceScore,
+        });
+      }
+    } catch (err) {
+      logger.warn({ err, userId }, "Research Engine: run failed — forwarding without research context");
+    }
+
     // ─── Memory Engine (Phase 1.2): retrieve relevant memory across all
     // layers and fold it into the same internal context block, so the
     // (untouched) orchestrator sees one combined note — no change to its
@@ -125,7 +154,7 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
 
     // Give the existing orchestrator situational awareness of the plan
     // without changing its code or its zod schema.
-    forwardMessage = `${parsed.data.message}${brainResult.brainContextNote}${planningContextNote}${memoryContextNote}`;
+    forwardMessage = `${parsed.data.message}${brainResult.brainContextNote}${planningContextNote}${researchContextNote}${memoryContextNote}`;
   } catch (err) {
     logger.error({ err, userId }, "Executive Brain phase failed — forwarding request to orchestrator unchanged");
   }

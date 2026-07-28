@@ -42,3 +42,5 @@
 - [ash-tools route prefix rule](ash-tools-route-prefix.md) — routes in ash-tools.ts MUST use /ai-orchestrator/ prefix (not /ash/), because app.ts rewrites /api/ash/* → /api/ai-orchestrator/* before the router sees the request.
 - [Validation Engine rule registry](validation-engine-rules.md) — Phase 1.4: modular rule-based validation replacing keyword arrays; add new checks via rules/index.ts, core stays untouched.
 - [Research & Knowledge Engine architecture](research-knowledge-engine.md) — Phase 1.4: knowledge-first lookup, reuses existing search primitive, 0-credit test users can't exercise gather step.
+- [Platform Registry & Search Provider Abstraction](platform-registry-and-search-abstraction.md) — live connector-derived platform list + swappable SearchProvider (Tavily/Serper/Perplexity fallback chain); never hardcode either.
+- [Knowledge reuse vs update-in-place](knowledge-reuse-vs-update.md) — two distinct lookups (fresh+confident reuse vs. any-match topic lookup) so stale entries get UPDATEd not duplicated; relevance bar must match, not exceed, the reuse bar.

@@ -1,17 +1,17 @@
 import { db, ashResearchSessionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../logger";
-import { findReusableKnowledge } from "./knowledge-lookup";
+import { findReusableKnowledge, findExistingEntryForTopic } from "./knowledge-lookup";
 import { generateResearchPlan } from "./planner";
 import { gatherInformation } from "./gatherer";
 import { removeDuplicateFindings } from "./deduper";
 import { scoreAllSources, averageReliability } from "./reliability";
 import { generateStructuredSummary } from "./summarizer";
-import { saveToKnowledgeMemory } from "./knowledge-writer";
+import { saveOrUpdateKnowledgeMemory } from "./knowledge-writer";
 import type { ResearchRequest, ResearchEngineResult } from "./types";
 
 export * from "./types";
-export { findReusableKnowledge, categoryForResearchType } from "./knowledge-lookup";
+export { findReusableKnowledge, findExistingEntryForTopic, categoryForResearchType } from "./knowledge-lookup";
 export { detectResearchIntent } from "./intent";
 
 // ─── Research & Knowledge Engine (Phase 1.4) ───────────────────────────────
@@ -66,6 +66,7 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
         sessionId: session.id,
         reusedExistingKnowledge: true,
         knowledgeEntryId: reusable.id,
+        knowledgeAction: "reused",
         summary: reusable.content,
         keyFindings: Array.isArray(reusable.keyFindings) ? (reusable.keyFindings as string[]) : [],
         confidenceScore: reusable.confidenceScore,
@@ -94,13 +95,24 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
       findings: dedupedFindings,
     });
 
-    // Step 7: save when appropriate.
-    const knowledgeEntry = await saveToKnowledgeMemory({
+    // Step 6.5: is this a genuinely new topic, or newer information about
+    // something already in Knowledge Memory? Checked regardless of the
+    // step-0 staleness gate above — a stale-but-matching entry should be
+    // UPDATED with this fresher research, not duplicated.
+    const existingEntry = await findExistingEntryForTopic({
+      userId: request.userId,
+      researchType: request.researchType,
+      objective: request.objective,
+    });
+
+    // Step 7: save (insert) or update when appropriate.
+    const { entry: knowledgeEntry, action } = await saveOrUpdateKnowledgeMemory({
       userId: request.userId,
       sourceProjectId: request.projectId,
       researchType: request.researchType,
       summary,
       sources,
+      existingEntryId: existingEntry?.id ?? null,
     });
 
     await db.update(ashResearchSessionsTable).set({
@@ -112,14 +124,16 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
       completedAt: new Date(),
     }).where(eq(ashResearchSessionsTable.id, session.id));
 
+    const actionLabel = action === "updated" ? "updated existing knowledge with newer research" : action === "created" ? "new knowledge saved" : "not saved — low confidence";
     return {
       sessionId: session.id,
       reusedExistingKnowledge: false,
       knowledgeEntryId: knowledgeEntry?.id ?? null,
+      knowledgeAction: action,
       summary: summary.summary,
       keyFindings: summary.keyFindings,
       confidenceScore: summary.confidenceScore,
-      contextNote: `\n\n=== RESEARCH & KNOWLEDGE ENGINE (${request.researchType} research, ${sources.length} source(s), avg reliability ${avgReliability}/100) ===\n${summary.title}\n${summary.summary}\nKey findings: ${summary.keyFindings.join("; ")}`,
+      contextNote: `\n\n=== RESEARCH & KNOWLEDGE ENGINE (${request.researchType} research, ${sources.length} source(s), avg reliability ${avgReliability}/100, ${actionLabel}) ===\n${summary.title}\n${summary.summary}\nKey findings: ${summary.keyFindings.join("; ")}`,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -134,6 +148,7 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
       sessionId: session.id,
       reusedExistingKnowledge: false,
       knowledgeEntryId: null,
+      knowledgeAction: "failed",
       summary: "Research could not be completed automatically.",
       keyFindings: [],
       confidenceScore: 0,

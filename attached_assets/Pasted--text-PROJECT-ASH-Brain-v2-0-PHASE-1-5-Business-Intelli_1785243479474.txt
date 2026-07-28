@@ -1,0 +1,252 @@
+```text
+PROJECT: ASH Brain v2.0
+PHASE: 1.5 - Business Intelligence Engine
+
+IMPORTANT
+
+Do NOT replace any existing business-building functionality.
+
+Reuse the existing architecture wherever possible.
+
+Extend the current system rather than rebuilding it.
+
+The Business Intelligence Engine should integrate with the Executive Brain, Memory Engine, Planning Engine, and existing AI Orchestrator.
+
+--------------------------------------------------
+
+GOALS
+
+Create a centralized Business Intelligence Engine that understands every business managed by ASH.
+
+It should become the single source of truth for business context, health, recommendations, and decision support.
+
+--------------------------------------------------
+
+BUSINESS PROFILE
+
+Every business should maintain a persistent Business Profile containing:
+
+- Business Name
+- Business Type
+- Industry
+- Business Model
+- Products
+- Services
+- Target Audience
+- Revenue Streams
+- Revenue Goals
+- Branding
+- Current Stage
+- Launch Status
+- Current Health
+- Connected Platforms
+- Active Projects
+- Active Goals
+- Connected AI Tools
+- Connected APIs
+
+--------------------------------------------------
+
+BUSINESS HEALTH
+
+Continuously monitor:
+
+- Project Progress
+- Website Status
+- Connected Services
+- Missing Integrations
+- Missing Credentials
+- Open Tasks
+- Completed Tasks
+- Failed Tasks
+- Business Risks
+
+Generate an overall Business Health Score.
+
+Include a breakdown explaining why the score was calculated.
+
+--------------------------------------------------
+
+BUSINESS RECOMMENDATIONS
+
+Generate intelligent recommendations based on:
+
+- Business Type
+- Current Stage
+- Revenue Goals
+- Active Goals
+- Existing Tools
+- Connected Platforms
+- Business Health
+- Current Progress
+- Best Practices
+- Previous Successes
+
+Recommendations should be prioritized and actionable.
+
+--------------------------------------------------
+
+BUSINESS CONTEXT
+
+Before executing major business-related tasks retrieve:
+
+- Business Profile
+- Active Goals
+- Active Projects
+- Business Memory
+- Relevant Knowledge
+- Current Health
+- Planning State
+
+Provide this context to the Executive Brain.
+
+--------------------------------------------------
+
+MULTI-BUSINESS SUPPORT
+
+Support unlimited businesses per user.
+
+Each business must remain completely isolated.
+
+Do NOT mix:
+
+- Conversations
+- Goals
+- Tasks
+- Files
+- Memory
+- Knowledge
+- Websites
+- Landing Pages
+- Analytics
+
+Unless explicitly linked by the user.
+
+--------------------------------------------------
+
+PLATFORM REGISTRY
+
+Create a centralized Platform Registry.
+
+Do NOT hardcode platform support throughout the codebase.
+
+The registry should contain:
+
+- Supported Platforms
+- Unsupported Platforms
+- Platform Categories
+- Integration Status
+- API Availability
+- Authentication Method
+- Required Credentials
+
+The registry should be reusable by all future engines.
+
+--------------------------------------------------
+
+SEARCH PROVIDER ABSTRACTION
+
+Do NOT tie the Research Engine to a single provider.
+
+Create a Search Provider interface supporting interchangeable providers.
+
+Examples:
+
+- Existing Search
+- Tavily
+- Serper
+- Perplexity
+- Future Providers
+
+Research should call the provider interface rather than specific implementations.
+
+--------------------------------------------------
+
+KNOWLEDGE REUSE VALIDATION
+
+Improve research efficiency.
+
+Before performing research:
+
+1. Search Knowledge Memory.
+2. Reuse existing research when appropriate.
+3. Only perform new research if required.
+4. Update existing knowledge when newer information exists.
+
+Include automated tests proving:
+
+- Duplicate research is avoided.
+- Cached knowledge is reused.
+- Knowledge updates correctly when refreshed.
+
+--------------------------------------------------
+
+EXTENSIBILITY
+
+Design the Business Intelligence Engine so future capabilities can plug in without redesigning the architecture.
+
+Future capabilities will include:
+
+- Business Digital Twin
+- Opportunity Radar
+- Founder Intelligence
+- Parallel Strategy Engine
+- Business Evolution Engine
+- Autonomous Company Operating System
+
+DO NOT implement these yet.
+
+Only prepare clean integration points.
+
+--------------------------------------------------
+
+INTEGRATION
+
+Executive Brain
+
+↓
+
+Business Intelligence Engine
+
+↓
+
+Planning Engine
+
+↓
+
+Memory Engine
+
+↓
+
+Existing AI Orchestrator
+
+↓
+
+Existing Tool System
+
+--------------------------------------------------
+
+IMPORTANT
+
+Preserve all existing functionality.
+
+Reuse existing business models and database structures whenever possible.
+
+Avoid duplicate business data.
+
+Keep the architecture modular, scalable, and maintainable.
+
+--------------------------------------------------
+
+AFTER IMPLEMENTATION PROVIDE
+
+- New files created
+- Existing files modified
+- Database changes
+- Architecture diagram
+- Data flow diagram
+- Integration summary
+- Test results
+- Performance impact
+- Any recommendations before Phase 1.6
+```

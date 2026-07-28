@@ -1,11 +1,13 @@
 import type { RawFinding, ScoredSource } from "./types";
 
 // ─── Source reliability scoring (step 5 of the workflow) ────────────────────
-// Honest heuristic, not false precision: Perplexity-style grounded
-// completions often cite domains/publications in prose but rarely return a
-// structured source list. This extracts whatever domain/publication signals
-// are present and scores from a small, extensible tier table — same
-// "rule-based, extensible" shape as the Validation Engine's risk detector.
+// Honest heuristic, not false precision. When the active search provider
+// returned structured results (Tavily/Serper — see search-providers/),
+// score against their real URLs. Perplexity-style grounded completions
+// rarely return a structured source list, so for those we fall back to
+// extracting whatever domain/publication signal is present in the prose,
+// scored from a small, extensible tier table — same "rule-based,
+// extensible" shape as the Validation Engine's risk detector.
 
 interface ReliabilityTier {
   score: number;
@@ -23,13 +25,25 @@ const RELIABILITY_TIERS: ReliabilityTier[] = [
 
 const NO_CITATION_SCORE = 35; // AI's own knowledge, no live grounding signal detected.
 
-export function scoreSourceReliability(finding: RawFinding): ScoredSource {
+function scoreText(text: string): { score: number; reasoning: string } {
   for (const tier of RELIABILITY_TIERS) {
-    if (tier.patterns.some((p) => p.test(finding.content))) {
-      return { label: finding.query, reliability: tier.score, reasoning: tier.reasoning };
-    }
+    if (tier.patterns.some((p) => p.test(text))) return { score: tier.score, reasoning: tier.reasoning };
   }
-  return { label: finding.query, reliability: NO_CITATION_SCORE, reasoning: "No explicit citation detected — treat as unverified." };
+  return { score: NO_CITATION_SCORE, reasoning: "No explicit citation detected — treat as unverified." };
+}
+
+export function scoreSourceReliability(finding: RawFinding): ScoredSource {
+  if (finding.sourceResults && finding.sourceResults.length > 0) {
+    // Structured results from a real search provider: score each cited URL
+    // and take the best, since a provider-level finding is only as reliable
+    // as its strongest supporting source.
+    const scored = finding.sourceResults.map((r) => scoreText(r.url ?? r.title ?? ""));
+    const best = scored.reduce((a, b) => (b.score > a.score ? b : a), scored[0]);
+    return { label: finding.query, reliability: best.score, reasoning: `${best.reasoning} (${finding.sourceResults.length} source(s) returned by provider)` };
+  }
+
+  const { score, reasoning } = scoreText(finding.content);
+  return { label: finding.query, reliability: score, reasoning };
 }
 
 export function scoreAllSources(findings: RawFinding[]): ScoredSource[] {

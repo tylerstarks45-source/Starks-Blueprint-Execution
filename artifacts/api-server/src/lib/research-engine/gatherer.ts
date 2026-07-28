@@ -1,21 +1,21 @@
-import { complete } from "../openrouter";
-import { MODELS } from "../models";
+import { searchWeb } from "../search-providers";
 import { logger } from "../logger";
 import type { ResearchPlanStep, RawFinding } from "./types";
 
 // ─── Information gathering (step 3 of the workflow) ─────────────────────────
-// IMPORTANT: reuses the exact same web-grounded search primitive already
-// used by routes/research.ts, lib/research-loop.ts, and
-// routes/ai-orchestrator.ts's auto-search — an OpenRouter completion against
-// MODELS.research (a Perplexity `-online` model). No new search mechanism is
-// introduced; this only adds the plan/dedupe/score/summarize/save workflow
-// around that existing primitive.
+// Goes through the Search Provider Abstraction (../search-providers) instead
+// of calling any single provider directly — the Research Engine never knows
+// or cares which provider actually answered. Today that resolves to the
+// same web-grounded primitive already used by routes/research.ts,
+// lib/research-loop.ts, and ai-orchestrator.ts's auto-search, so behavior is
+// unchanged; adding Tavily/Serper credentials later upgrades this
+// automatically with no changes here.
 export async function gatherInformation(steps: ResearchPlanStep[], userId: number): Promise<RawFinding[]> {
   const results = await Promise.all(
     steps.map(async (step): Promise<RawFinding> => {
       try {
-        const result = await complete({ prompt: step.query, model: MODELS.research, userId });
-        return { query: step.query, content: result.content };
+        const result = await searchWeb(step.query, { userId });
+        return { query: step.query, content: result.content, sourceResults: result.results };
       } catch (err) {
         logger.warn({ err, query: step.query }, "Research Engine: gather step failed, continuing with other queries");
         return { query: step.query, content: "" };

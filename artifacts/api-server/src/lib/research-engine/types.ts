@@ -26,6 +26,8 @@ export interface ResearchPlan {
 export interface RawFinding {
   query: string;
   content: string;
+  /** Structured results when the active search provider supports them (Tavily/Serper); undefined for prose-only providers like Perplexity. */
+  sourceResults?: import("../search-providers").SearchResultItem[];
 }
 
 export interface ScoredSource {
@@ -44,10 +46,14 @@ export interface StructuredSummary {
   aiToolProfile?: Record<string, unknown>;
 }
 
+export type KnowledgeAction = "reused" | "created" | "updated" | "skipped" | "failed";
+
 export interface ResearchEngineResult {
   sessionId: number;
   reusedExistingKnowledge: boolean;
   knowledgeEntryId: number | null;
+  /** What happened to Knowledge Memory as a result of this run. */
+  knowledgeAction: KnowledgeAction;
   summary: string;
   keyFindings: string[];
   confidenceScore: number;

@@ -17,7 +17,7 @@ import {
   SOCIAL_PLATFORMS,
 } from "@workspace/db";
 import { broadcastSequenceStep } from "./email-marketing";
-import { requireAuthActive } from "../lib/auth";
+import { requireAuthActive, getTokenPayload, isAdminRole } from "../lib/auth";
 import { complete } from "../lib/openrouter";
 import { MODELS } from "../lib/models";
 import { decrypt } from "../lib/crypto";
@@ -240,6 +240,23 @@ router.delete("/ai-orchestrator/files/:id", async (req, res): Promise<void> => {
   const fileId = Number(req.params.id);
   if (!Number.isFinite(fileId)) {
     res.status(400).json({ error: "Invalid file id" });
+    return;
+  }
+
+  const [existing] = await db
+    .select({ id: generatedFilesTable.id, userId: generatedFilesTable.userId })
+    .from(generatedFilesTable)
+    .where(eq(generatedFilesTable.id, fileId));
+
+  if (!existing) {
+    res.status(404).json({ error: "File not found" });
+    return;
+  }
+
+  const caller = getTokenPayload(req);
+  const admin = caller && isAdminRole(caller.role);
+  if (!admin && existing.userId !== userId) {
+    res.status(403).json({ error: "Access denied" });
     return;
   }
 

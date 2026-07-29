@@ -28,6 +28,8 @@ import {
   findCapabilities,
   listExtensionPoints,
   CAPABILITY_STATUSES,
+  orchestrate,
+  getRuntimeStates,
 } from "../lib/cognitive-foundation";
 
 const router: IRouter = Router();
@@ -620,6 +622,78 @@ router.get("/executive-brain/extension-points", async (req, res): Promise<void> 
   } catch (err) {
     logger.error({ err, userId }, "Cognitive Foundation: failed to list extension points");
     res.status(500).json({ error: "Failed to list extension points" });
+  }
+});
+
+// ─── Build 002: Cognitive Orchestration endpoints ────────────────────────────
+
+// Compute a collaboration plan for a given objective. Consumes the Brain
+// Registry and Capability Registry to select relevant Brains, topologically
+// sort them by dependency, and identify required capabilities — all from
+// registry metadata with no AI call.
+// Query: ?objective=<string> (required, max 500 chars)
+// Query: ?require=<brain,brain> optional comma-separated required Brain names
+// Query: ?exclude=<brain,brain> optional comma-separated Brain names to skip
+const orchestrationPlanSchema = z.object({
+  objective: z.string().min(1).max(500),
+  require: z.string().max(500).optional(),
+  exclude: z.string().max(500).optional(),
+});
+
+router.get("/executive-brain/orchestration/plan", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const parsed = orchestrationPlanSchema.safeParse({
+    objective: typeof req.query["objective"] === "string" ? req.query["objective"] : undefined,
+    require: typeof req.query["require"] === "string" ? req.query["require"] : undefined,
+    exclude: typeof req.query["exclude"] === "string" ? req.query["exclude"] : undefined,
+  });
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  try {
+    const requireBrains = parsed.data.require
+      ? parsed.data.require.split(",").map((s) => s.trim()).filter(Boolean)
+      : undefined;
+    const excludeBrains = parsed.data.exclude
+      ? parsed.data.exclude.split(",").map((s) => s.trim()).filter(Boolean)
+      : undefined;
+
+    const result = orchestrate({
+      objective: parsed.data.objective,
+      ...(requireBrains ? { requireBrains } : {}),
+      ...(excludeBrains ? { excludeBrains } : {}),
+    });
+
+    res.json({
+      selectedBrains: result.selectedBrains,
+      confidence: result.confidence,
+      collaborationPlan: result.collaborationPlan,
+      capabilityMap: result.capabilityMap,
+      orchestratedAt: result.orchestratedAt,
+    });
+  } catch (err) {
+    logger.error({ err, userId }, "Cognitive Orchestration: failed to build plan");
+    res.status(500).json({ error: "Failed to build orchestration plan" });
+  }
+});
+
+// Runtime state for every registered Brain: operational states (idle/busy/
+// waiting/blocked/recovering/learning) driven by the orchestration layer, plus
+// health-derived states (healthy/warning/degraded/offline) from Build 001.
+router.get("/executive-brain/runtime-states", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  try {
+    const brainNames = listBrains().map((b) => b.name);
+    const states = getRuntimeStates(brainNames);
+    res.json({ runtimeStates: states, total: states.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Cognitive Orchestration: failed to get runtime states");
+    res.status(500).json({ error: "Failed to get runtime states" });
   }
 });
 

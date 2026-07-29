@@ -1,20 +1,24 @@
-// ─── Cognitive Foundation (Build 001) ───────────────────────────────────────
+// ─── Cognitive Foundation (Build 001 + Build 002) ────────────────────────────
 //
 // Public surface of the Cognitive Foundation: Brain Registry, Capability
-// Registry, Extension Points, and the boot-time initializer. See types.ts
-// for the design constraints and the Master Architecture Specification
-// (Volume 1) for the governing architecture.
+// Registry, Extension Points, Runtime State, Cognitive Orchestration Engine,
+// and the boot-time initializer. See types.ts for the design constraints and
+// the Master Architecture Specification (Volume 1) for the governing
+// architecture.
 
 export * from "./types";
 export * from "./brain-registry";
 export * from "./capability-registry";
 export * from "./extension-points";
+export * from "./runtime-state";
+export * from "./orchestration";
 export { registerCoreBrains } from "./register-core-brains";
 
 import { logger } from "../logger";
 import { countBrains, getCognitiveHealthReport } from "./brain-registry";
 import { countCapabilities } from "./capability-registry";
 import { declareFutureIntelligenceExtensionPoints, listExtensionPoints } from "./extension-points";
+import { declareOrchestrationExtensionPoints } from "./orchestration";
 import { registerCoreBrains } from "./register-core-brains";
 
 let initialized = false;
@@ -33,6 +37,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
   if (!initialized) {
     try {
       declareFutureIntelligenceExtensionPoints();
+      declareOrchestrationExtensionPoints(); // Build 002: eight orchestration seams
       registerCoreBrains();
       initialized = true;
 

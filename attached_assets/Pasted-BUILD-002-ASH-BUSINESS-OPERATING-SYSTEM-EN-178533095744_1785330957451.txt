@@ -1,0 +1,334 @@
+BUILD 002
+=========================================================
+ASH BUSINESS OPERATING SYSTEM
+ENGINEERING BUILD SPECIFICATION
+BUILD 002
+EXECUTIVE COGNITIVE ORCHESTRATION
+=========================================================
+
+PROJECT STATUS
+
+Build 001
+COMPLETE
+
+Build 002
+ACTIVE
+
+ASH continues to evolve.
+
+The permanent engineering law remains unchanged.
+
+Reuse
+
+↓
+
+Extend
+
+↓
+
+Refactor
+
+↓
+
+Replace only when absolutely necessary.
+
+=========================================================
+BUILD OBJECTIVE
+=========================================================
+
+Build 001 created the Cognitive Foundation.
+
+This build evolves the Executive Brain into the Cognitive Orchestrator.
+
+The Executive Brain should no longer simply know that Brains exist.
+
+It should understand:
+
+• what every Brain specializes in
+
+• what capabilities every Brain owns
+
+• when each Brain should participate
+
+• how Brains collaborate
+
+• which Brains are required for a given objective
+
+• how to coordinate multi-Brain reasoning
+
+This build improves Executive Intelligence.
+
+Do NOT redesign existing Brains.
+
+Do NOT replace existing architecture.
+
+Extend the existing implementation.
+
+=========================================================
+PRIMARY IMPLEMENTATION OBJECTIVES
+=========================================================
+
+---------------------------------------------------------
+1. Cognitive Orchestration Engine
+---------------------------------------------------------
+
+Implement a reusable orchestration layer used by the Executive Brain.
+
+This component should consume the Brain Registry and Capability Registry created in Build 001.
+
+Its responsibility is to reason about cognitive resources rather than execute business logic.
+
+---------------------------------------------------------
+2. Brain Selection
+---------------------------------------------------------
+
+Given an objective, determine which registered Brain(s) are responsible.
+
+Selection should use registry metadata rather than hardcoded routing wherever practical.
+
+Support:
+
+• single Brain selection
+
+• multiple Brain selection
+
+• future expansion
+
+---------------------------------------------------------
+3. Capability Resolution
+---------------------------------------------------------
+
+Implement capability lookup so the Executive Brain can discover which Brain owns a requested capability.
+
+The Executive Brain should no longer depend on manually maintained routing tables where registry data is sufficient.
+
+---------------------------------------------------------
+4. Brain Collaboration Plans
+---------------------------------------------------------
+
+Create a standard collaboration model.
+
+A collaboration plan should describe:
+
+• participating Brains
+
+• execution order
+
+• dependencies
+
+• required capabilities
+
+• expected outputs
+
+This is orchestration metadata only.
+
+Do not redesign existing execution flow.
+
+---------------------------------------------------------
+5. Dependency Awareness
+---------------------------------------------------------
+
+Use dependency information from Build 001 to determine execution order.
+
+The Executive Brain should understand Brain dependencies before orchestration begins.
+
+---------------------------------------------------------
+6. Confidence-Aware Routing
+---------------------------------------------------------
+
+Leverage Brain metadata to support confidence-aware decision making.
+
+This should create extension points for future confidence scoring.
+
+Do not invent scoring systems.
+
+Prepare the architecture.
+
+---------------------------------------------------------
+7. Brain State Awareness
+---------------------------------------------------------
+
+Expand Brain state awareness.
+
+Support a richer runtime state model.
+
+Examples include:
+
+Idle
+
+Busy
+
+Waiting
+
+Blocked
+
+Recovering
+
+Healthy
+
+Warning
+
+Degraded
+
+Offline
+
+Learning
+
+States should integrate naturally with Build 001 health monitoring.
+
+=========================================================
+EXTENSION POINTS
+=========================================================
+
+Prepare architecture for future capabilities.
+
+Do NOT fully implement them.
+
+Examples include:
+
+• parallel reasoning
+
+• voting between Brains
+
+• confidence aggregation
+
+• conflict resolution
+
+• reasoning chains
+
+• collaborative planning
+
+• adaptive routing
+
+• dynamic capability discovery
+
+=========================================================
+ENGINEERING EXPECTATIONS
+=========================================================
+
+Study the existing implementation.
+
+Reuse Build 001 infrastructure.
+
+Avoid duplicate logic.
+
+Avoid hardcoded Brain routing where registry data can be used.
+
+Improve maintainability.
+
+Improve extensibility.
+
+Improve observability.
+
+Reduce technical debt where practical.
+
+Maintain backward compatibility.
+
+=========================================================
+DO NOT IMPLEMENT
+=========================================================
+
+Do NOT redesign Planning Engine.
+
+Do NOT redesign Validation Engine.
+
+Do NOT redesign Memory Engine.
+
+Do NOT redesign Research Engine.
+
+Do NOT redesign Self-Improving Brain.
+
+Do NOT implement Business Brains.
+
+Do NOT implement Learning algorithms.
+
+Do NOT implement autonomous reasoning.
+
+Only create orchestration infrastructure.
+
+=========================================================
+ACCEPTANCE CRITERIA
+=========================================================
+
+Build 002 is complete when:
+
+✓ Executive Brain can reason about registered Brains.
+
+✓ Brain selection exists.
+
+✓ Capability resolution exists.
+
+✓ Collaboration plans exist.
+
+✓ Dependency-aware orchestration exists.
+
+✓ Brain runtime state model exists.
+
+✓ Existing architecture remains compatible.
+
+✓ No unnecessary rewrites occurred.
+
+=========================================================
+IMPLEMENTATION REPORT
+=========================================================
+
+Return ONLY:
+
+1. Executive Summary
+
+2. Files Modified
+
+3. Files Created
+
+4. Existing Systems Reused
+
+5. Existing Systems Extended
+
+6. Refactoring Performed
+
+7. Capabilities Added
+
+8. Technical Debt Discovered
+
+9. Engineering Recommendations
+
+10. Anything preventing completion
+
+When complete...
+
+STOP.
+
+Wait for the next engineering specification.
+
+=========================================================
+BEGIN IMPLEMENTATION
+=========================================================
+One improvement I'd like to make to our process
+
+I also want to start tracking the evolution of ASH in a measurable way.
+
+At the end of every future implementation report, I'd like Replit to include a new section:
+
+11. Cognitive Evolution Score
+
+Executive Intelligence
+▲ Improved / No Change
+
+Planning Intelligence
+▲ Improved / No Change
+
+Memory Intelligence
+▲ Improved / No Change
+
+Research Intelligence
+▲ Improved / No Change
+
+Learning Intelligence
+▲ Improved / No Change
+
+Overall Platform Intelligence
+▲ Summary
+
+This isn't about assigning arbitrary numbers. It's about making sure every build can clearly explain how ASH became more capable. Over time, that gives us a visible record of the platform's evolution, which aligns perfectly with our first law:
+
+ASH evolves. It is never rebuilt.

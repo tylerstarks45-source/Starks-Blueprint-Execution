@@ -142,3 +142,115 @@ export interface RegisteredCapability extends BrainCapability {
   brainName: string;
   registeredAt: string;
 }
+
+// ─── Brain Runtime State (Build 002) ─────────────────────────────────────────
+
+/** Unified runtime state model. Operational states (idle/busy/waiting/
+ *  blocked/recovering/learning) are driven by the orchestration layer.
+ *  Infrastructure health states (healthy/warning/degraded/offline) are
+ *  driven by the Build 001 health probe system and take precedence when
+ *  the orchestration layer has not explicitly set an operational state. */
+export const BRAIN_RUNTIME_STATES = [
+  "idle",       // Registered and available, not currently processing
+  "busy",       // Actively processing a request or task
+  "waiting",    // Blocked on input from another Brain or external resource
+  "blocked",    // Cannot proceed due to an unresolved dependency
+  "recovering", // Returning to health after a degraded/offline episode
+  "healthy",    // Infrastructure confirmed healthy (mirrors health probe)
+  "warning",    // Infrastructure warning (mirrors health probe)
+  "degraded",   // Infrastructure degraded (mirrors health probe)
+  "offline",    // Unreachable or failed health probe (mirrors health probe)
+  "learning",   // Actively incorporating new knowledge or lessons
+] as const;
+export type BrainRuntimeState = (typeof BRAIN_RUNTIME_STATES)[number];
+
+/** A point-in-time operational status snapshot for one Brain. */
+export interface BrainRuntimeStatus {
+  brainName: string;
+  runtimeState: BrainRuntimeState;
+  /** ISO timestamp when the current state began. */
+  since: string;
+  /** Optional free-form context note for the current state. */
+  note?: string;
+}
+
+// ─── Collaboration Plan (Build 002) ──────────────────────────────────────────
+
+/** Orchestration metadata describing how multiple Brains collaborate to
+ *  address an objective. Describes execution order, dependencies, required
+ *  capabilities, and expected outputs.
+ *  NOT an execution plan — actual execution flows through existing subsystems
+ *  unchanged. This is reasoning about cognitive resources only. */
+export interface CollaborationPlan {
+  /** The objective this plan addresses. */
+  objective: string;
+  /** Registry names of the Brains selected for this objective. */
+  participatingBrains: string[];
+  /** Topologically-sorted execution order (dependencies before dependents). */
+  executionOrder: string[];
+  /** Brain dependency graph, restricted to the participating Brains. */
+  dependencies: Record<string, string[]>;
+  /** Capability ids from participating Brains relevant to the objective. */
+  requiredCapabilities: string[];
+  /** Human-readable expected outputs from participating Brains. */
+  expectedOutputs: string[];
+  /** ISO timestamp when this plan was built. */
+  builtAt: string;
+
+  // ── Extension-point stubs (declared; NOT implemented) ────────────────────
+  // These fields reserve schema space for future orchestration capabilities.
+  // Callers MUST treat absent fields as equivalent to the noted defaults.
+
+  /** FUTURE (parallel-reasoning extension point): Groups of Brains that
+   *  can execute concurrently. Absent until the seam is implemented. */
+  parallelGroups?: string[][];
+  /** FUTURE (conflict-resolution extension point): Strategy for resolving
+   *  contradictions between Brain outputs. Absent until implemented. */
+  conflictResolution?: "last-wins" | "first-wins" | "vote";
+  /** FUTURE (confidence-aggregation extension point): Minimum aggregate
+   *  confidence threshold for routing. Absent until implemented. */
+  confidenceThreshold?: number;
+  /** FUTURE (reasoning-chains extension point): Ordered steps linking
+   *  Brain outputs into a reasoned conclusion. Absent until implemented. */
+  reasoningChain?: Array<{ step: number; brain: string; produces: string }>;
+}
+
+// ─── Orchestration Request / Result (Build 002) ───────────────────────────────
+
+export interface OrchestrationRequest {
+  /** The objective to orchestrate around (natural-language description). */
+  objective: string;
+  /** Optional capability id hints to bias selection toward specific Brains. */
+  hints?: string[];
+  /** Brain names to exclude from selection (e.g. explicitly unavailable). */
+  excludeBrains?: string[];
+  /** Brain names that must be included regardless of score. */
+  requireBrains?: string[];
+}
+
+/** Confidence in a Brain selection result.
+ *  EXTENSION POINT: confidence-aggregation replaces the heuristic in future. */
+export type OrchestrationConfidence = "high" | "medium" | "low" | "unknown";
+
+export interface OrchestrationResult {
+  request: OrchestrationRequest;
+  selectedBrains: string[];
+  collaborationPlan: CollaborationPlan;
+  /** Map of relevant capability id → owning Brain name. */
+  capabilityMap: Record<string, string>;
+  /** Heuristic confidence in the selection result.
+   *  EXTENSION POINT: future confidence-scoring layers replace this value. */
+  confidence: OrchestrationConfidence;
+  orchestratedAt: string;
+}
+
+/** Result of the Brain-selection step alone (without a full collaboration plan). */
+export interface BrainSelectionResult {
+  selectedBrains: string[];
+  /** Raw scores per Brain name (higher = more relevant). */
+  scores: Record<string, number>;
+  confidence: OrchestrationConfidence;
+  /** Which strategy produced the selection.
+   *  EXTENSION POINT: adaptive-routing adds more strategies in future. */
+  selectionBasis: "registry-metadata";
+}

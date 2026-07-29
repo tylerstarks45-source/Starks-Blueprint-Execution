@@ -1,5 +1,6 @@
 import { logger } from "../logger";
 import { getCachedHealthConcerns } from "../cognitive-foundation/brain-registry";
+import { orchestrate } from "../cognitive-foundation/orchestration";
 import { resolveActiveProject, updateProjectRollup } from "./project-manager";
 import { resolveGoalForRequest } from "./goal-manager";
 import { planTasks } from "./task-planner";
@@ -40,7 +41,17 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     currentTaskId: firstPendingTask?.id ?? null,
   });
 
-  const brainContextNote = buildContextNote({ isNew, project, goal, tasks });
+  // ── Cognitive Orchestration (Build 002) ─────────────────────────────────
+  // Reason about which Brains are relevant to this request. Zero-I/O:
+  // reads only in-process registry data. Fail-open by contract.
+  let orchestrationResult: ReturnType<typeof orchestrate> | null = null;
+  try {
+    orchestrationResult = orchestrate({ objective: message });
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: cognitive orchestration failed (ignored)");
+  }
+
+  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult });
 
   logger.info(
     { userId, projectId: project.id, isNew, goalId: goal?.id, taskCount: tasks.length },
@@ -61,8 +72,9 @@ function buildContextNote(params: {
   project: ExecutiveBrainResult["project"];
   goal: ExecutiveBrainResult["goal"];
   tasks: ExecutiveBrainResult["tasks"];
+  orchestrationResult: ReturnType<typeof orchestrate> | null;
 }): string {
-  const { isNew, project, goal, tasks } = params;
+  const { isNew, project, goal, tasks, orchestrationResult } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -72,6 +84,31 @@ function buildContextNote(params: {
     lines.push(`Planned tasks:`);
     for (const t of tasks) {
       lines.push(`  - [${t.status}] (${t.assignedEngine}) ${t.description}`);
+    }
+  }
+
+  // ── Cognitive Orchestration advisory (Build 002) ─────────────────────────
+  // Zero-I/O: the orchestration result was computed before buildContextNote
+  // was called, so this is a simple data read with no I/O risk.
+  if (orchestrationResult) {
+    try {
+      const { selectedBrains, confidence, collaborationPlan } = orchestrationResult;
+      if (selectedBrains.length > 0) {
+        const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+        const brainList = selectedBrains.join(", ");
+        const orderNote =
+          collaborationPlan.executionOrder.length > 1
+            ? ` (order: ${collaborationPlan.executionOrder.join(" → ")})`
+            : "";
+        lines.push(
+          clip(
+            `Cognitive orchestration: engaging [${brainList}]${orderNote} [confidence: ${confidence}]`,
+            400,
+          ),
+        );
+      }
+    } catch (err) {
+      logger.warn({ err }, "Executive Brain: orchestration advisory failed (ignored)");
     }
   }
 

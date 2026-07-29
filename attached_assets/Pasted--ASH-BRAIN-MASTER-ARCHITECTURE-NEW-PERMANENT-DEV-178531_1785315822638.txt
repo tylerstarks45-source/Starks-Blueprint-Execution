@@ -1,0 +1,187 @@
+==================================================
+ASH BRAIN MASTER ARCHITECTURE
+NEW PERMANENT DEVELOPMENT WORKFLOW
+==================================================
+
+This message establishes the permanent development process for the remainder of the ASH platform.
+
+This workflow replaces our previous architecture process.
+
+==================================================
+PROJECT PHILOSOPHY
+==================================================
+
+ASH is NOT being rebuilt.
+
+ASH is evolving.
+
+The current implementation is the foundation of the platform.
+
+The Master X-RAY remains the official baseline for every engineering decision.
+
+Every future enhancement must follow the Upgrade Before Replace principle.
+
+Order of preference:
+
+1. Reuse existing architecture.
+2. Extend existing architecture.
+3. Refactor existing architecture.
+4. Replace only when technically necessary.
+
+No subsystem should ever be rewritten simply because a different implementation exists.
+
+==================================================
+ROLES
+==================================================
+
+Chief AI Architect
+
+ChatGPT is responsible for:
+
+- Designing the long-term architecture.
+- Writing the architecture specifications.
+- Defining every capability.
+- Defining every subsystem.
+- Defining how ASH evolves.
+- Producing the official build specifications.
+
+Platform Owner
+
+The Platform Owner reviews and approves the architecture before implementation.
+
+Senior Software Engineer
+
+Your responsibility is NOT to invent the platform architecture.
+
+Your responsibilities are:
+
+- Review the architecture.
+- Validate it against the current implementation.
+- Identify engineering conflicts.
+- Identify reuse opportunities.
+- Identify technical risks.
+- Recommend engineering improvements.
+- Implement the approved specification.
+- Perform compliance audits.
+- Perform optimization after implementation.
+
+==================================================
+ARCHITECTURE FIRST
+==================================================
+
+From this point forward, architecture will always originate from the approved build specifications.
+
+Architecture is no longer generated during implementation.
+
+Implementation follows architecture.
+
+Engineering follows implementation.
+
+Compliance follows engineering.
+
+==================================================
+OBJECTIVE
+==================================================
+
+We are building ASH into the world's most capable AI Business Operating System.
+
+ASH should eventually help users:
+
+• Build businesses.
+• Launch businesses.
+• Operate businesses.
+• Automate businesses.
+• Grow businesses.
+• Scale businesses.
+• Optimize businesses.
+• Protect businesses.
+• Continuously improve businesses.
+
+ASH is not a chatbot.
+
+Conversation is only one interface into the operating system.
+
+The long-term objective is to build an AI executive capable of helping users create and operate highly successful online businesses while keeping the owner in control of important decisions.
+
+==================================================
+FIRST OFFICIAL BUILD SPECIFICATION
+==================================================
+
+PROJECT
+
+ASH Brain Master Architecture Specification
+
+Volume 1
+
+Core Cognitive Architecture
+
+Chapter 2
+
+Planning Engine
+
+==================================================
+OBJECTIVE
+==================================================
+
+Review the existing Planning Engine implementation and compare it against the approved architectural direction.
+
+Do NOT redesign the system.
+
+Use the existing implementation as the baseline.
+
+Identify:
+
+• Current architecture.
+• Existing capabilities.
+• Existing strengths.
+• Existing extension points.
+• Technical debt.
+• Reuse opportunities.
+• Areas where the current implementation already supports future growth.
+
+Then produce a complete architecture specification using the approved Chapter 1 template.
+
+The specification should clearly separate:
+
+IMPLEMENTED TODAY
+
+vs
+
+PLANNED EVOLUTION
+
+Every future capability must be designed as an extension of the existing implementation whenever possible.
+
+Do not introduce unnecessary replacement.
+
+Follow the Upgrade Before Replace principle throughout.
+
+==================================================
+ENGINEERING REVIEW
+==================================================
+
+As you build the specification, continuously verify that every proposed capability can reasonably evolve from the current implementation.
+
+If any capability cannot evolve from the existing architecture, clearly explain:
+
+• Why.
+• What prevents it.
+• The recommended engineering approach.
+• Whether extension, refactoring, or replacement is required.
+
+==================================================
+IMPLEMENTATION STATUS
+==================================================
+
+This remains an architecture task only.
+
+No production code changes.
+
+No implementation.
+
+No refactoring.
+
+No migrations.
+
+No feature development.
+
+Produce the completed Planning Engine architecture specification and return it for architectural approval before proceeding to Chapter 3.

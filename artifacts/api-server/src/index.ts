@@ -7,6 +7,7 @@ import { startWorker } from "./lib/runtime/worker";
 import { startScheduler } from "./lib/runtime/scheduler";
 import { startRevenueSync } from "./lib/revenue/sync";
 import { backfillBuiltBusinesses } from "./lib/built-businesses";
+import { initializeCognitiveFoundation } from "./lib/cognitive-foundation";
 
 async function start() {
   const rawPort = process.env["PORT"];
@@ -52,6 +53,11 @@ async function start() {
   } catch (err) {
     logger.warn({ err }, "Could not load key rotation timestamp from DB");
   }
+
+  // Register every core Brain (with capabilities, extension points and
+  // health probes) in the Cognitive Foundation before the port opens, so
+  // the registry endpoints have data from the first request. Never throws.
+  initializeCognitiveFoundation();
 
   app.listen(port, (err) => {
     if (err) {

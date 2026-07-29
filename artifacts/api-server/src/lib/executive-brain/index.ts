@@ -1,4 +1,5 @@
 import { logger } from "../logger";
+import { getCachedHealthConcerns } from "../cognitive-foundation/brain-registry";
 import { resolveActiveProject, updateProjectRollup } from "./project-manager";
 import { resolveGoalForRequest } from "./goal-manager";
 import { planTasks } from "./task-planner";
@@ -73,5 +74,27 @@ function buildContextNote(params: {
       lines.push(`  - [${t.status}] (${t.assignedEngine}) ${t.description}`);
     }
   }
+
+  // ── Cognitive health advisory (Build 001) ────────────────────────────────
+  // Zero-I/O read of the Cognitive Foundation's cached health snapshots —
+  // never a live probe on the request path, and fail-open by contract: an
+  // error here can never break context assembly.
+  try {
+    const concerns = getCachedHealthConcerns();
+    if (concerns.length > 0) {
+      // Probe messages can carry raw error text — clip each one and the
+      // whole line so the advisory can never bloat the plan block.
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      const summarized = concerns
+        .slice(0, 3)
+        .map((c) => `${c.brainName} is ${c.state} (${clip(c.message.replace(/\s+/g, " "), 120)})`)
+        .join("; ");
+      const suffix = concerns.length > 3 ? `; +${concerns.length - 3} more` : "";
+      lines.push(clip(`Cognitive health advisory: ${summarized}${suffix}. Degraded capabilities may fall back or be unavailable.`, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: cognitive health advisory failed (ignored)");
+  }
+
   return lines.join("\n");
 }

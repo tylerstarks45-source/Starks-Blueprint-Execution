@@ -587,6 +587,18 @@ _Not separately conducted as a distinct stage: the project owner reviewed v1 and
 ## 6. Implementation Notes
 _Summary of what was built and why, with references to source files — not a duplicate of the code itself._
 
+### Build 001 — Cognitive Foundation & Executive Brain Evolution (2026-07-29)
+
+Implemented the platform's Cognitive Foundation and upgraded the Executive Brain from a subsystem into the observer of the whole cognitive system (version 1.0.0 → 1.1.0). No existing behavior was modified; everything below is additive.
+
+- **Brain Registry** — `artifacts/api-server/src/lib/cognitive-foundation/brain-registry.ts`. In-process single source of truth for every Brain (same registry pattern as the Validation Engine's rule registry). All six Volume 1 Brains register at boot (`register-core-brains.ts`) with standardized metadata: name, purpose, responsibilities, status, version, owner, priority, confidence, inputs, outputs, dependencies, capabilities, extension points, spec reference.
+- **Capability Registry** — `capability-registry.ts`. All 79 Capability Contracts from Chapters 1.1–1.6 are registered as discoverable data (id, spec section, current/target maturity in chapter notation, implemented/partial/target/deferred status). Deterministic substring search; no AI in the lookup path.
+- **Executive Health Monitoring** — health probes per Brain (DB-table reachability, config presence, rule-registry non-emptiness, search-provider availability) with hard timeout, per-Brain snapshot cache (30s TTL), and worst-of aggregation across states `healthy | unknown | warning | degraded | offline`. Surfaced via authenticated read-only endpoints in `routes/executive-brain.ts`: `GET /executive-brain/brains`, `/brains/:name`, `/health-report`, `/capabilities`, `/extension-points`. Context Assembly (§3.4.5) now appends a zero-I/O, fail-open cognitive-health advisory line when any Brain is cached as warning/degraded/offline (`lib/executive-brain/index.ts`).
+- **Extension points** — `extension-points.ts` declares the nine future intelligence seams (decision/planning/memory/learning/business/research/strategic/execution intelligence + self-improvement) as discoverable declarations only; none are implemented, per the build specification. Future Brains register via `registerBrain(...)`/`registerExtension(...)` at boot with no changes to existing files.
+- **Bootstrap** — `initializeCognitiveFoundation()` called from `src/index.ts` before the port opens; never throws; health cache warms in the background.
+
+Capability Contracts affected: Context Assembly (§3.4.5) gained the health advisory; no other contract's runtime behavior changed. This build implements the observation substrate that Risk/Approval/Execution/Recovery Coordination (§3.4.11–3.4.14) will later build on, without implementing those capabilities.
+
 ## 7. Compliance Audit
 _Verification that the implementation matches the approved architecture._
 

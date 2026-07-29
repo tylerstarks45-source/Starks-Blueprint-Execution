@@ -1,0 +1,370 @@
+I want you to understand something.
+
+This is Build 001 of what I believe will eventually become thousands of engineering builds.
+
+That means this build must set the standard for every build that follows.
+
+This isn't just building code.
+
+This is establishing the engineering culture of ASH.
+
+HAND THIS TO REPLIT
+=========================================================
+ASH BUSINESS OPERATING SYSTEM
+ENGINEERING BUILD SPECIFICATION
+BUILD 001
+COGNITIVE FOUNDATION & EXECUTIVE BRAIN EVOLUTION
+=========================================================
+
+PROJECT STATUS
+
+Planning Phase:
+COMPLETE
+
+Architecture Phase:
+COMPLETE
+
+Implementation Phase:
+ACTIVE
+
+This is the first official engineering build.
+
+From this point forward ASH evolves through implementation.
+
+ASH is NEVER rebuilt.
+
+=========================================================
+PERMANENT ENGINEERING LAW
+=========================================================
+
+This law applies to every build from this point forward.
+
+ASH EVOLVES.
+
+ASH IS NEVER REBUILT.
+
+Every implementation MUST follow this order.
+
+1. Reuse existing implementation.
+
+2. Extend existing implementation.
+
+3. Refactor existing implementation when beneficial.
+
+4. Replace only when absolutely necessary.
+
+Never replace a subsystem simply because a different design exists.
+
+Always preserve compatibility whenever technically possible.
+
+=========================================================
+YOUR ROLE
+=========================================================
+
+You are the Senior Software Engineer for the ASH platform.
+
+Your responsibility is NOT to redesign the platform.
+
+Your responsibility is NOT to create implementation roadmaps.
+
+Your responsibility is NOT to create future build plans.
+
+Your responsibility is to engineer the build specification provided.
+
+When this build is complete:
+
+STOP.
+
+Return the implementation report.
+
+Wait for the next engineering specification.
+
+=========================================================
+BUILD OBJECTIVE
+=========================================================
+
+This build begins the evolution of the ASH Brain.
+
+The Executive Brain already exists.
+
+DO NOT rewrite it.
+
+DO NOT replace it.
+
+Upgrade it.
+
+Strengthen it.
+
+Expand it.
+
+Prepare it for future evolution.
+
+The goal of this build is to create the Cognitive Foundation that every future Brain will use.
+
+Everything implemented during this build should make future Brain development easier, cleaner, and more scalable.
+
+=========================================================
+PRIMARY IMPLEMENTATION OBJECTIVES
+=========================================================
+
+Review the existing Executive Brain implementation.
+
+Identify reusable systems.
+
+Extend the current architecture.
+
+Implement the following foundational systems where they do not already exist, or upgrade them if they already exist.
+
+---------------------------------------------------------
+
+1.
+
+Brain Registry
+
+Create or improve a centralized registry that allows every Brain within ASH to register itself.
+
+Each Brain should expose metadata including:
+
+• Brain Name
+
+• Purpose
+
+• Responsibilities
+
+• Status
+
+• Version
+
+• Health
+
+• Dependencies
+
+• Registered Capabilities
+
+• Extension Points
+
+This registry should become the single source of truth for all Brains.
+
+---------------------------------------------------------
+
+2.
+
+Capability Registry
+
+Implement or improve a registry that allows ASH to understand every capability available across the platform.
+
+Capabilities should be discoverable instead of hardcoded wherever practical.
+
+Future Brains should be able to register capabilities without modifying existing architecture.
+
+---------------------------------------------------------
+
+3.
+
+Brain Metadata
+
+Every Brain should expose standardized metadata describing:
+
+Purpose
+
+Inputs
+
+Outputs
+
+Dependencies
+
+Confidence
+
+Health
+
+Priority
+
+Owner
+
+Version
+
+Extension Points
+
+Use existing implementations wherever possible.
+
+---------------------------------------------------------
+
+4.
+
+Executive Health Monitoring
+
+Upgrade the Executive Brain so it can observe the health of every registered Brain.
+
+Health should support future expansion.
+
+Examples include:
+
+Healthy
+
+Warning
+
+Degraded
+
+Offline
+
+Unknown
+
+Implement only what naturally fits the existing architecture.
+
+=========================================================
+FOUNDATION FOR FUTURE INTELLIGENCE
+=========================================================
+
+This build should improve ASH's ability to become more intelligent over time.
+
+Whenever appropriate, create extension points for future capabilities including:
+
+Decision Intelligence
+
+Planning Intelligence
+
+Memory Intelligence
+
+Learning Intelligence
+
+Business Intelligence
+
+Research Intelligence
+
+Strategic Intelligence
+
+Execution Intelligence
+
+Self Improvement
+
+Do NOT implement those systems now.
+
+Only prepare the architecture so they plug naturally into the platform later.
+
+=========================================================
+ENGINEERING EXPECTATIONS
+=========================================================
+
+While implementing:
+
+Study the existing code.
+
+Reuse existing systems.
+
+Avoid duplicate logic.
+
+Reduce technical debt where practical.
+
+Improve maintainability.
+
+Improve scalability.
+
+Improve observability.
+
+Improve extensibility.
+
+Improve readability.
+
+Improve documentation where implementation changes require it.
+
+If existing architecture is already sufficient:
+
+Improve it.
+
+Do not replace it.
+
+=========================================================
+DO NOT IMPLEMENT
+=========================================================
+
+Do NOT redesign the Executive Brain.
+
+Do NOT redesign the Planning Engine.
+
+Do NOT redesign Memory.
+
+Do NOT redesign Validation.
+
+Do NOT redesign Research.
+
+Do NOT redesign any mature subsystem.
+
+Only evolve them.
+
+=========================================================
+ACCEPTANCE CRITERIA
+=========================================================
+
+This build is complete when:
+
+✓ Existing Executive Brain has been upgraded.
+
+✓ Brain Registry exists or has been improved.
+
+✓ Capability Registry exists or has been improved.
+
+✓ Brain metadata is standardized.
+
+✓ Executive Brain health reporting exists.
+
+✓ Extension points exist for future Brains.
+
+✓ Existing architecture has been preserved.
+
+✓ No unnecessary rewrites occurred.
+
+=========================================================
+IMPLEMENTATION REPORT
+=========================================================
+
+When complete return ONLY:
+
+1.
+
+Executive Summary
+
+2.
+
+Files Modified
+
+3.
+
+Files Created
+
+4.
+
+Existing Systems Reused
+
+5.
+
+Existing Systems Extended
+
+6.
+
+Refactoring Performed
+
+7.
+
+Capabilities Added
+
+8.
+
+Technical Debt Discovered
+
+9.
+
+Engineering Recommendations
+
+10.
+
+Anything that prevented completion.
+
+After returning the report...
+
+STOP.
+
+Wait for the next engineering specification.
+
+=========================================================
+BEGIN IMPLEMENTATION
+=========================================================

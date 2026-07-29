@@ -18,6 +18,17 @@ import {
   detectCrossBusinessIntent,
   buildBusinessIntelligenceUnavailableNote,
 } from "../lib/business-intelligence";
+import {
+  listBrains,
+  getBrain,
+  serializeBrain,
+  checkBrainHealth,
+  getCognitiveHealthReport,
+  listCapabilities,
+  findCapabilities,
+  listExtensionPoints,
+  CAPABILITY_STATUSES,
+} from "../lib/cognitive-foundation";
 
 const router: IRouter = Router();
 
@@ -502,6 +513,113 @@ router.patch("/executive-brain/projects/:id", async (req, res): Promise<void> =>
         dedupeKey: `project.status:${updated.id}:${updated.status}:${updated.updatedAt.getTime()}`,
       });
     }
+  }
+});
+
+// ─── Cognitive Foundation surfaces (Build 001) ──────────────────────────────
+// Read-only registry/health endpoints. Registry contents are platform
+// architecture metadata (no user data); auth is still required, consistent
+// with every other /executive-brain route.
+
+// List every registered Brain (cached health included; ?refresh=1 re-probes
+// stale snapshots first).
+router.get("/executive-brain/brains", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  try {
+    if (req.query["refresh"] === "1") {
+      await getCognitiveHealthReport({ maxAgeMs: 0 });
+    }
+    res.json({ brains: listBrains().map(serializeBrain) });
+  } catch (err) {
+    logger.error({ err, userId }, "Cognitive Foundation: failed to list brains");
+    res.status(500).json({ error: "Failed to list brains" });
+  }
+});
+
+// Aggregated health report across all Brains — the Executive Brain's
+// system-wide observation surface. Uses the 30s snapshot cache unless
+// ?refresh=1 forces fresh probes.
+router.get("/executive-brain/health-report", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  try {
+    const report = await getCognitiveHealthReport(req.query["refresh"] === "1" ? { maxAgeMs: 0 } : {});
+    res.json(report);
+  } catch (err) {
+    logger.error({ err, userId }, "Cognitive Foundation: failed to build health report");
+    res.status(500).json({ error: "Failed to build cognitive health report" });
+  }
+});
+
+// Detail for one Brain, with a fresh health probe for that Brain only.
+router.get("/executive-brain/brains/:name", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const name = String(req.params["name"] ?? "");
+  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(name)) {
+    res.status(400).json({ error: "Invalid brain name" });
+    return;
+  }
+  const brain = getBrain(name);
+  if (!brain) {
+    res.status(404).json({ error: `No brain registered under "${name}"` });
+    return;
+  }
+  try {
+    const health = await checkBrainHealth(name);
+    res.json({ brain: serializeBrain({ ...brain, lastHealth: health }) });
+  } catch (err) {
+    logger.error({ err, userId, brain: name }, "Cognitive Foundation: failed to load brain detail");
+    res.status(500).json({ error: "Failed to load brain detail" });
+  }
+});
+
+// Discoverable capability index. Filters: ?q= substring, ?brain= owner,
+// ?status= implemented|partial|target|deferred.
+const capabilityQuerySchema = z.object({
+  q: z.string().max(200).optional(),
+  brain: z.string().max(100).optional(),
+  status: z.enum(CAPABILITY_STATUSES).optional(),
+});
+
+router.get("/executive-brain/capabilities", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const parsed = capabilityQuerySchema.safeParse({
+    q: typeof req.query["q"] === "string" ? req.query["q"] : undefined,
+    brain: typeof req.query["brain"] === "string" ? req.query["brain"] : undefined,
+    status: typeof req.query["status"] === "string" ? req.query["status"] : undefined,
+  });
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  try {
+    const filterParams = {
+      ...(parsed.data.brain !== undefined ? { brain: parsed.data.brain } : {}),
+      ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+    };
+    const capabilities = parsed.data.q
+      ? findCapabilities(parsed.data.q, filterParams)
+      : listCapabilities(filterParams);
+    res.json({ capabilities, total: capabilities.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Cognitive Foundation: failed to list capabilities");
+    res.status(500).json({ error: "Failed to list capabilities" });
+  }
+});
+
+// Declared extension points (the nine future-intelligence seams plus any
+// Brain-declared ones) and whatever providers have registered against them.
+router.get("/executive-brain/extension-points", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  try {
+    res.json({ extensionPoints: listExtensionPoints() });
+  } catch (err) {
+    logger.error({ err, userId }, "Cognitive Foundation: failed to list extension points");
+    res.status(500).json({ error: "Failed to list extension points" });
   }
 });
 

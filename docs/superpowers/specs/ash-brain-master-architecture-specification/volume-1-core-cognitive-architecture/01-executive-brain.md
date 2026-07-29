@@ -1,16 +1,19 @@
 # 1.1 — Executive Brain
 
-**Status:** Architecture Drafted (v2 — Capability Specification) — Pending Review
+**Status:** Architecture Drafted (v3 — Capability Contracts) — Pending Review
 **Volume:** 1 — Core Cognitive Architecture
 **Last Updated:** 2026-07-29
 
-**Revision note (v2):** The first draft of this chapter was an architectural inventory — accurate, but scoped to describing today's implementation. Per review feedback, this revision evolves the chapter into a complete engineering capability specification: every capability named in the chapter now has its own full specification (Mission, Purpose, Responsibilities, Inputs, Outputs, Decision Logic, Dependencies, Events, KPIs, Failure Modes, Fallback Behavior, Security Considerations, Extension Points, Future Maturity Level), so the chapter can serve as a genuine design document for a long-term AI Business Operating System, not just a snapshot of what exists today. The current implementation (§3.1, and the "Current Level" stated in each capability spec) remains the unmodified baseline throughout — no redesign is proposed anywhere in this revision, and every forward-looking statement below is framed as an addition to, not a replacement of, existing architecture, per the Upgrade Before Replace law. This chapter remains unapproved and is returned for architectural review before any further chapter is started.
+**Revision history:**
+- **v1:** Architecture description — an accurate inventory of today's implementation.
+- **v2:** Evolved into a capability specification — every capability given a full engineering spec (Mission, Purpose, Responsibilities, Inputs, Outputs, Decision Logic, Dependencies, Events, KPIs, Failure Modes, Fallback Behavior, Security Considerations, Extension Points, Future Maturity Level).
+- **v3 (this revision):** Evolved further into binding **Capability Contracts** — each capability now defines its own Authority boundary and explicit "will never do" constraints, splits Events into Published/Consumed, and the chapter closes with a consolidated Architecture Summary (maturity assessment, technical debt, deferred decisions, risks, roadmap, and an approval checklist). The current implementation (§3.1, and the Current Maturity stated in every contract) remains the unmodified baseline throughout — no redesign is proposed anywhere in this revision, and every forward-looking statement is framed as an addition to, not a replacement of, existing architecture, per the Upgrade Before Replace law. This chapter remains unapproved and is returned for architectural review before any further chapter is started.
 
 ---
 
 ## 1. Purpose & Scope
 
-This chapter is the permanent architecture reference for the Executive Brain — the multi-phase planning layer that sits between an incoming user request and the AI Orchestrator, responsible for resolving what project, goal, and task a request belongs to before any model call happens. It documents the subsystem exactly as it exists today (per the Master X-RAY baseline), defines its long-term mission, and specifies every capability implied by that mission — both those implemented today and those the mission requires in the future — as full engineering specifications. It identifies the extension points and open questions that will govern the Executive Brain's growth toward those specifications, without proposing any implementation change today. Per the Upgrade Before Replace law, no replacement of any existing component is proposed anywhere in this chapter; every future-state capability spec below explicitly reuses or extends an existing seam in the current implementation.
+This chapter is the permanent architecture reference for the Executive Brain — the multi-phase planning layer that sits between an incoming user request and the AI Orchestrator, responsible for resolving what project, goal, and task a request belongs to before any model call happens. It documents the subsystem exactly as it exists today (per the Master X-RAY baseline), defines its long-term mission, and binds every capability implied by that mission — both those implemented today and those the mission requires in the future — to an explicit Capability Contract: what it is authorized to do, what it must never do, and how it will mature. It identifies the extension points, risks, technical debt, and open questions that govern the Executive Brain's growth toward those contracts, without proposing any implementation change today. Per the Upgrade Before Replace law, no replacement of any existing component is proposed anywhere in this chapter; every future-state contract below explicitly reuses or extends an existing seam in the current implementation.
 
 ## 2. Baseline Reference
 
@@ -46,7 +49,7 @@ Around this core sequence, `routes/executive-brain.ts` additionally invokes the 
 
 ### 3.2 Executive Brain Mission
 
-The Executive Brain's long-term mission within the AI Business Operating System is to be the **single point of continuity** between a user's ongoing work and every stateless reasoning pass the system makes on their behalf. Every other Brain subsystem (Planning, Business Intelligence, Research, Memory) answers a question in isolation; the Executive Brain is what remembers *which* project, *which* goal, and *which* task those answers belong to, so that a user's relationship with the system reads as one continuous collaboration rather than a sequence of disconnected completions. As the platform grows from single-request chat into autonomous, multi-step, multi-day project execution, the Executive Brain is the layer responsible for keeping that execution coherent, resumable, and auditable — the executive function of the system, in the same sense the term is used for human cognition. This mission is deliberately larger than today's implementation; §3.4 specifies every capability the mission implies, both those already built and those still latent, as a complete engineering roadmap for closing that gap over time.
+The Executive Brain's long-term mission within the AI Business Operating System is to be the **single point of continuity** between a user's ongoing work and every stateless reasoning pass the system makes on their behalf. Every other Brain subsystem (Planning, Business Intelligence, Research, Memory) answers a question in isolation; the Executive Brain is what remembers *which* project, *which* goal, and *which* task those answers belong to, so that a user's relationship with the system reads as one continuous collaboration rather than a sequence of disconnected completions. As the platform grows from single-request chat into autonomous, multi-step, multi-day project execution, the Executive Brain is the layer responsible for keeping that execution coherent, resumable, and auditable — the executive function of the system, in the same sense the term is used for human cognition. This mission is deliberately larger than today's implementation; §3.4 binds every capability the mission implies, both those already built and those still latent, to an explicit contract, as a complete engineering roadmap for closing that gap over time.
 
 ### 3.3 Core Responsibilities
 
@@ -58,13 +61,13 @@ The Executive Brain's long-term mission within the AI Business Operating System 
 - **Non-blocking operation** — guarantee that failures anywhere in this resolution process degrade gracefully rather than blocking the user's underlying request.
 - **User and business scoping** — ensure every project, goal, and task resolution is correctly isolated to the requesting user, and to the correct business context when a `systemInstanceId` is present.
 
-Each responsibility above decomposes into one or more of the twenty individually specified capabilities in §3.4.
+Each responsibility above decomposes into one or more of the twenty capabilities bound to contracts in §3.4.
 
-### 3.4 Core Capability Specifications
+### 3.4 Core Capability Contracts
 
-Every capability implied by the mission (§3.2) is specified below as a standalone engineering unit, whether it is fully implemented today, partially implemented, or entirely latent. Each spec uses the same fourteen-field template, and states a **Current Level** and **Target Level** against the maturity scale below, so that the distance between today's implementation and the long-term mission is explicit and reviewable rather than implied.
+Every capability implied by the mission (§3.2) is bound below to an explicit **Capability Contract** — whether the capability is fully implemented today, partially implemented, or entirely latent. A contract is stricter than a specification: alongside what a capability does, it states what it is authorized to decide (**Authority**) and what it is bound never to do (**What This Capability Will Never Do**), so that future implementation, review, and audit all have an unambiguous boundary to check against. Each contract also states its **Current Maturity** and **Target Maturity** against the scale below.
 
-**Maturity scale** (used consistently across every capability below):
+**Maturity scale** (used consistently across every contract below):
 
 | Level | Name | Meaning |
 |---|---|---|
@@ -75,368 +78,388 @@ Every capability implied by the mission (§3.2) is specified below as a standalo
 | **L4** | Adaptive | Incorporates real outcome data (e.g. from the ASH Self-Improving Brain's SQL-distilled lessons) to improve its own future decisions. |
 | **L5** | Autonomous / Cross-Scope | Reasons and self-optimizes across multiple goals, projects, or businesses without per-instance human tuning. |
 
-A capability's target level is a design intention for future review, not committed work; nothing in §3.4 authorizes implementation on its own.
+A capability's target maturity is a design intention for future review, not committed work; nothing in §3.4 authorizes implementation on its own.
 
 ---
 
-#### 3.4.1 Decision Making
-**Current Level:** L2 (embedded, narrow) · **Target Level:** L4
+#### 3.4.1 Decision Making — Capability Contract
+**Current Maturity:** L2 (embedded, narrow) · **Target Maturity:** L4
 
-- **Mission:** Serve as the seat of judgment for "what happens next" across every Executive Brain resolution step, so downstream engines execute a coherent, correctly-scoped plan rather than each independently guessing intent.
-- **Purpose:** Today this underlies the specific new-vs-continuing decisions used by Project and Goal resolution (§3.4.4, §3.4.2); it exists narrowly, embedded inside those two managers rather than as a standalone module.
+- **Purpose:** Serve as the seat of judgment for "what happens next" across every Executive Brain resolution step, so downstream engines execute a coherent, correctly-scoped plan rather than each independently guessing intent.
+- **Authority:** Authorized to make the continue-vs-new binary decision for project and goal continuity, autonomously and without human confirmation. Not authorized to make any decision affecting execution, spend, external side effects, or cross-tenant data access.
 - **Responsibilities:** Decide whether an incoming request continues existing project/goal state or starts new state; provide one point of judgment so Project/Goal/Task Coordination don't each reimplement it independently.
+- **What This Capability Will Never Do:** Never decide to execute, delegate, or approve a task; never override an explicit user instruction to start fresh or continue; never make a decision that requires business-ownership verification (that authority belongs solely to Business Coordination, §3.4.10).
 - **Inputs:** Incoming message text, `systemInstanceId`, most-recent-active project/goal rows.
 - **Outputs:** A continue/start-new boolean per project and per goal, consumed by Project and Goal Coordination.
-- **Decision Logic:** Deterministic keyword match against `NEW_PROJECT_KEYWORDS` for project continuation; goal continuation defaults to "reuse most recent active goal" unless none exists. No weighting, scoring, or model call is used for either decision today.
 - **Dependencies:** `project-manager.ts`, `goal-manager.ts`.
-- **Events:** None emitted today; a decision is an in-process return value, not a domain event.
-- **KPIs (proposed):** False-new-project rate (existing work incorrectly treated as new); false-continuation rate (new intent incorrectly folded into an old project). Both currently unmeasured.
+- **Events Published:** None.
+- **Events Consumed:** None.
+- **Decision Logic:** Deterministic keyword match against `NEW_PROJECT_KEYWORDS` for project continuation; goal continuation defaults to "reuse most recent active goal" unless none exists. No weighting, scoring, or model call is used for either decision today.
+- **Success Criteria / KPIs:** False-new-project rate (existing work incorrectly treated as new); false-continuation rate (new intent incorrectly folded into an old project). Both currently unmeasured.
 - **Failure Modes:** A keyword match can mis-fire on a message that merely mentions a keyword figuratively, forking an unwanted new project.
-- **Fallback Behavior:** None needed at this level — the decision itself is fallback-free; if the surrounding request fails, this decision is simply not reached (fail-open at a higher level).
-- **Security Considerations:** Inputs are already scoped to the requesting `userId`/`systemInstanceId`; no cross-user data is consulted.
-- **Extension Points:** Replacing the flat keyword match with a scored/AI-assisted classifier is a natural, additive step — extending, not replacing, today's deterministic path (e.g. keep the keyword match as a fast-path/fallback under a future model-assisted classifier).
-- **Future Maturity Level:** Target L4 — informed by the ASH Self-Improving Brain's outcome data, so keyword-only misfires shrink over time without discarding the deterministic fast path.
+- **Fallback Strategy:** None required at this level — the decision itself is fallback-free; if the surrounding request fails, this decision is simply not reached (fail-open at a higher level).
+- **Security Requirements:** Inputs must remain scoped to the requesting `userId`/`systemInstanceId` at all times; no cross-user data may be consulted.
+- **Extension Rules:** Replacing the flat keyword match with a scored/AI-assisted classifier is permitted as an additive extension only — the keyword match must remain available as a fast-path/fallback beneath any future model-assisted classifier, per Upgrade Before Replace.
 
-#### 3.4.2 Goal Management
-**Current Level:** L3 · **Target Level:** L4
+#### 3.4.2 Goal Management — Capability Contract
+**Current Maturity:** L3 · **Target Maturity:** L4
 
-- **Mission:** Keep every unit of planned work traceable to a single, coherent objective, so a project's task list always answers "in service of what."
-- **Purpose:** Provide the function that either reuses an existing active goal or derives a new one, giving Task Coordination something concrete to plan against.
+- **Purpose:** Keep every unit of planned work traceable to a single, coherent objective, so a project's task list always answers "in service of what."
+- **Authority:** Authorized to create and update `ash_goals` rows and to invoke `deriveGoal`. Not authorized to modify project or task state directly.
 - **Responsibilities:** Resolve the goal a request advances; derive new goals via AI extraction when none exists or a new project has started; maintain `ash_goals` as the durable record.
+- **What This Capability Will Never Do:** Never fabricate a goal that contradicts the resolved project's stated purpose; never silently discard an existing active goal without a resolution decision from Decision Making (§3.4.1); never write goal data outside the requesting user's own scope.
 - **Inputs:** Project resolution result (§3.4.4), incoming message, most-recent-active goal row.
 - **Outputs:** A resolved/created `AshGoal` row, passed into Task Coordination and into the `brainContextNote`.
-- **Decision Logic:** Reuse-most-recent-active-goal by default; call `deriveGoal` (an OpenRouter completion) only when no active goal exists for the project. No confidence threshold or multi-candidate ranking is applied today.
 - **Dependencies:** `lib/openrouter`, `ash_goals` table, Project Coordination (must run after project resolution).
-- **Events:** None emitted; goal changes are visible only via row updates and the `brainContextNote` text.
-- **KPIs (proposed):** Goal-derivation AI-call failure rate; goal churn rate (how often a project's active goal changes within a short window).
+- **Events Published:** None.
+- **Events Consumed:** None.
+- **Decision Logic:** Reuse-most-recent-active-goal by default; call `deriveGoal` (an OpenRouter completion) only when no active goal exists for the project. No confidence threshold or multi-candidate ranking is applied today.
+- **Success Criteria / KPIs:** Goal-derivation AI-call failure rate; goal churn rate (how often a project's active goal changes within a short window).
 - **Failure Modes:** `deriveGoal` can fail or return a low-quality goal statement; a stale "active" goal can be incorrectly reused for a request that has moved on to a different objective.
-- **Fallback Behavior:** On `deriveGoal` failure, the goal step degrades per the fail-open contract and the request proceeds without a newly derived goal; the exact fallback value used in that case is an open question (§3.9).
-- **Security Considerations:** Goal rows are scoped per `userId`/project; no cross-project or cross-user goal data is read.
-- **Extension Points:** `deriveGoal` is already isolated behind a single function — a ready seam for future confidence scoring or multi-candidate generation without touching surrounding control flow.
-- **Future Maturity Level:** Target L4 — goal quality assessed against downstream task success/outcome data, closing the loop the current one-shot derivation lacks.
+- **Fallback Strategy:** On `deriveGoal` failure, the goal step degrades per the fail-open contract and the request proceeds without a newly derived goal; the exact fallback value used in that case is an open question (§3.9).
+- **Security Requirements:** Goal rows must remain scoped per `userId`/project; no cross-project or cross-user goal data may be read.
+- **Extension Rules:** `deriveGoal` is already isolated behind a single function and may be extended with confidence scoring or multi-candidate generation without touching surrounding control flow; it may not be replaced with a different mechanism absent an Upgrade Before Replace justification.
 
-#### 3.4.3 Task Coordination
-**Current Level:** L2/L3 · **Target Level:** L4
+#### 3.4.3 Task Coordination — Capability Contract
+**Current Maturity:** L2/L3 · **Target Maturity:** L4
 
-- **Mission:** Translate a resolved goal into concrete, appropriately-sized, correctly-routed units of executable work.
-- **Purpose:** Decompose the current request into one or more `AshTask` rows and assign each to the correct downstream execution engine.
+- **Purpose:** Translate a resolved goal into concrete, appropriately-sized, correctly-routed units of executable work.
+- **Authority:** Authorized to create and update `ash_tasks` rows and assign an execution engine per task. Not authorized to execute tasks or invoke execution engines directly.
 - **Responsibilities:** Decide single-task vs. multi-task decomposition; assign each task to an execution engine; persist tasks to `ash_tasks` for tracking and rollup.
+- **What This Capability Will Never Do:** Never execute a task itself; never assign a task to an engine outside the four sanctioned execution engines without an approved extension; never silently drop a task from the plan without recording it.
 - **Inputs:** Resolved goal, incoming message, `DECOMPOSE_THRESHOLD_CHARS` (220) and `ENGINE_KEYWORDS` constants.
 - **Outputs:** One or more `AshTask` rows with status and assigned engine, folded into the `brainContextNote`.
-- **Decision Logic:** Messages under 220 characters become a single task; longer messages go to `decomposeIntoTasks` (AI call) producing 2–6 ordered tasks; each task's engine is chosen by `guessEngine`, a keyword classifier against `ENGINE_KEYWORDS`.
 - **Dependencies:** `lib/openrouter`, Goal Management (must run after goal resolution), the four named downstream execution engines.
-- **Events:** None emitted at creation; task status changes are tracked only via direct row updates (`updateTaskStatus`, currently unused internally — §3.1).
-- **KPIs (proposed):** Decomposition granularity accuracy vs. human judgment; engine-assignment accuracy (tasks later manually reassigned or that failed in their assigned engine).
+- **Events Published:** None today (target: a `task.created` event is a candidate once Execution Coordination, §3.4.13, defines an event contract).
+- **Events Consumed:** None.
+- **Decision Logic:** Messages under 220 characters become a single task; longer messages go to `decomposeIntoTasks` (AI call) producing 2–6 ordered tasks; each task's engine is chosen by `guessEngine`, a keyword classifier against `ENGINE_KEYWORDS`.
+- **Success Criteria / KPIs:** Decomposition granularity accuracy vs. human judgment; engine-assignment accuracy (tasks later manually reassigned or that failed in their assigned engine).
 - **Failure Modes:** The 220-character threshold can force an artificially single-task treatment of a compound request just under the cutoff, or an unnecessary split just over it; `guessEngine` can mis-route ambiguous tasks.
-- **Fallback Behavior:** `decomposeIntoTasks` failure is caught and degrades to the fail-open contract at the route level; no documented per-task retry or re-classification fallback exists today.
-- **Security Considerations:** Tasks are always created under the resolved project's `userId`; no engine-assignment path routes a task outside the requesting user's own execution context.
-- **Extension Points:** `updateTaskStatus`'s existing-but-unused export (§3.1) is the direct seam for wiring true Execution Coordination (§3.4.13) into this capability without new schema.
-- **Future Maturity Level:** Target L4 — engine assignment informed by historical success rates per engine/keyword combination from the Self-Improving Brain, rather than a static keyword table alone.
+- **Fallback Strategy:** `decomposeIntoTasks` failure is caught and degrades to the fail-open contract at the route level; no documented per-task retry or re-classification fallback exists today.
+- **Security Requirements:** Tasks must always be created under the resolved project's `userId`; no engine-assignment path may route a task outside the requesting user's own execution context.
+- **Extension Rules:** `updateTaskStatus`'s existing-but-unused export (§3.1) is the sanctioned seam for wiring Execution Coordination (§3.4.13) into this capability without new schema; any new execution engine must be added to `ENGINE_KEYWORDS` rather than via a parallel classification mechanism.
 
-#### 3.4.4 Project Coordination
-**Current Level:** L2/L3 · **Target Level:** L4
+#### 3.4.4 Project Coordination — Capability Contract
+**Current Maturity:** L2/L3 · **Target Maturity:** L4
 
-- **Mission:** Maintain one authoritative, continuously-updated container for all work a user is doing toward a given initiative, across arbitrarily many requests over time.
-- **Purpose:** Resolve which `AshProject` a request belongs to, create new ones when warranted, and keep project-level rollup state accurate.
+- **Purpose:** Maintain one authoritative, continuously-updated container for all work a user is doing toward a given initiative, across arbitrarily many requests over time.
+- **Authority:** Authorized to create and update `ash_projects` rows including rollup state. Not authorized to create or resolve a project for a `systemInstanceId` the requesting user does not own.
 - **Responsibilities:** Resolve or create the active project for a request; name new projects; keep `currentPhase`/`currentTaskId` synchronized via `updateProjectRollup`.
+- **What This Capability Will Never Do:** Never create or resolve a project across a business the requesting user does not own; never overwrite another user's project state; never bypass the `systemInstanceId`-pin authorization check.
 - **Inputs:** `systemInstanceId` (pin, if present), most-recent-active project lookup, incoming message (for keyword detection and naming).
 - **Outputs:** A resolved/created `AshProject` row; updated rollup fields after each planning pass.
-- **Decision Logic:** `systemInstanceId` pin takes priority; otherwise most-recent-active project is reused unless `NEW_PROJECT_KEYWORDS` matches, in which case a new project is created and named via `deriveProjectName` (falling back to a message slice on AI failure).
 - **Dependencies:** `lib/openrouter` (naming), `ash_projects` table, Decision Making (§3.4.1).
-- **Events:** None emitted; visible only via row state and the `brainContextNote`.
-- **KPIs (proposed):** Unwanted-new-project rate; project abandonment rate; naming quality (fallback-slice usage rate as a proxy for AI naming reliability).
+- **Events Published:** None.
+- **Events Consumed:** None.
+- **Decision Logic:** `systemInstanceId` pin takes priority; otherwise most-recent-active project is reused unless `NEW_PROJECT_KEYWORDS` matches, in which case a new project is created and named via `deriveProjectName` (falling back to a message slice on AI failure).
+- **Success Criteria / KPIs:** Unwanted-new-project rate; project abandonment rate; naming quality (fallback-slice usage rate as a proxy for AI naming reliability).
 - **Failure Modes:** `deriveProjectName` failure silently degrades to a message-slice name, which can be low-quality if it recurs often; `systemInstanceId` pinning bypasses the keyword heuristic entirely — correct by design, but means a user inside a pinned system instance has no path to genuinely start fresh today (flagged, not solved, here).
-- **Fallback Behavior:** Naming falls back to a message slice on AI failure; project resolution itself has no fallback other than proceeding without a project (fail-open at the route level).
-- **Security Considerations:** Resolution is scoped to `userId` throughout; `systemInstanceId` pinning requires prior resolution against `businessesTable.ownerId` upstream in `routes/executive-brain.ts`, preventing cross-tenant project pinning.
-- **Extension Points:** `updateProjectRollup` is already the single seam for rollup logic; a future multi-signal rollup (e.g. incorporating Business Health Scores) could extend it without touching resolution logic.
-- **Future Maturity Level:** Target L4 — continuation decisions and naming quality improved using accumulated project outcome data rather than static keywords and single-shot AI naming.
+- **Fallback Strategy:** Naming falls back to a message slice on AI failure; project resolution itself has no fallback other than proceeding without a project (fail-open at the route level).
+- **Security Requirements:** Resolution must remain scoped to `userId` throughout; `systemInstanceId` pinning requires prior resolution against `businessesTable.ownerId` upstream in `routes/executive-brain.ts`, and this check may never be skipped or weakened.
+- **Extension Rules:** `updateProjectRollup` is the sanctioned seam for rollup logic and may be extended with additional signals (e.g. Business Health Scores) without touching resolution logic; resolution logic itself may only be extended, not replaced, absent an Upgrade Before Replace justification.
 
-#### 3.4.5 Context Assembly
-**Current Level:** L2 · **Target Level:** L3/L4
+#### 3.4.5 Context Assembly — Capability Contract
+**Current Maturity:** L2 · **Target Maturity:** L3/L4
 
-- **Mission:** Give every downstream reasoning step a compact, faithful summary of "where things stand" without requiring that step to understand project/goal/task modeling itself.
-- **Purpose:** Build the `brainContextNote` from resolved project, goal, and task state.
+- **Purpose:** Give every downstream reasoning step a compact, faithful summary of "where things stand" without requiring that step to understand project/goal/task modeling itself.
+- **Authority:** Authorized to read already-resolved project/goal/task state and compose it into the `brainContextNote`. Not authorized to originate new project/goal/task decisions itself.
 - **Responsibilities:** Assemble project name/phase, current goal, and the planned task list (with status and assigned engine) into one text block; keep it small enough not to meaningfully burden the orchestrator's context window.
+- **What This Capability Will Never Do:** Never include another user's or another business's data in a note; never fabricate plan content not backed by actual resolved state; never let note construction block the request if any input is missing.
 - **Inputs:** Resolved `AshProject`, `AshGoal`, and `AshTask[]` state from §3.4.2–3.4.4.
 - **Outputs:** The `=== EXECUTIVE BRAIN PLAN ===`-delimited `brainContextNote` string, appended to the forwarded `message`.
-- **Decision Logic:** Fixed string-template assembly — no summarization judgment, truncation policy, or prioritization logic is applied today (a related limitation is already flagged in the Master X-RAY §8, Technical Debt).
 - **Dependencies:** Project/Goal/Task Coordination (must run after all three).
-- **Events:** None; the note is inlined directly into the forwarded request rather than published anywhere.
-- **KPIs (proposed):** Note length distribution over time (growth could signal upcoming context-budget pressure); correlation between note presence and orchestrator response quality — currently unmeasured.
+- **Events Published:** None.
+- **Events Consumed:** None.
+- **Decision Logic:** Fixed string-template assembly — no summarization judgment, truncation policy, or prioritization logic is applied today (a related limitation is already flagged in the Master X-RAY §8, Technical Debt).
+- **Success Criteria / KPIs:** Note length distribution over time (growth could signal upcoming context-budget pressure); correlation between note presence and orchestrator response quality — currently unmeasured.
 - **Failure Modes:** An unbounded task list could eventually produce an unexpectedly large note; because assembly is purely template-based, it silently reflects whatever state exists even if stale or contradictory (e.g. a rollup lagging actual task completion).
-- **Fallback Behavior:** No fallback branch of its own; if any upstream capability fails, that section of the template is simply omitted rather than blocking note construction, consistent with the broader fail-open contract.
-- **Security Considerations:** Because the note is built entirely from the requesting user's own resolved state, no cross-user data can leak into it under current scoping — but every future capability that appends to this note (e.g. §3.4.11, §3.4.12, §3.4.19) should be reviewed individually for cross-tenant leakage risk before merging into it.
-- **Extension Points:** Because assembly is one function operating over already-resolved state, it is a ready seam for future prioritization/summarization logic (e.g. capping task-list length, prioritizing at-risk tasks first) without changing how upstream state is resolved.
-- **Future Maturity Level:** Target L3 — an AI-assisted or rule-based summarization/prioritization pass once note size or task-list length materially grows, still assembled from the same underlying resolved state.
+- **Fallback Strategy:** No fallback branch of its own; if any upstream capability fails, that section of the template is simply omitted rather than blocking note construction, consistent with the broader fail-open contract.
+- **Security Requirements:** Because the note is built entirely from the requesting user's own resolved state, it must never absorb cross-user data; every future capability that appends to this note (e.g. §3.4.11, §3.4.12, §3.4.19) must be reviewed individually for cross-tenant leakage risk before merging into it.
+- **Extension Rules:** Assembly is one function operating over already-resolved state and may be extended with prioritization/summarization logic (e.g. capping task-list length) without changing how upstream state is resolved; it may not be extended to read state outside what Project/Goal/Task Coordination have already resolved and authorized.
 
-#### 3.4.6 Delegation
-**Current Level:** L2 (implicit, embedded in Task Coordination) · **Target Level:** L4
+#### 3.4.6 Delegation — Capability Contract
+**Current Maturity:** L2 (implicit, embedded in Task Coordination) · **Target Maturity:** L4
 
-- **Mission:** Ensure every unit of planned work reaches the execution engine best equipped to carry it out, as the roster of specialized engines grows.
-- **Purpose:** Assign each planned task to one of the four current execution engines.
+- **Purpose:** Ensure every unit of planned work reaches the execution engine best equipped to carry it out, as the roster of specialized engines grows.
+- **Authority:** Authorized to attach an engine label to a task. Not authorized to determine task content or override Task Coordination's decomposition.
 - **Responsibilities:** Classify each task's likely execution engine; (future) balance load or capability fit across engines as the roster grows beyond four.
+- **What This Capability Will Never Do:** Never route a task to an engine outside the four sanctioned execution engines without an approved extension; never assign a task to an engine outside the requesting user's own execution context.
 - **Inputs:** Task text, `ENGINE_KEYWORDS` table.
 - **Outputs:** An engine label attached to each `AshTask` row.
-- **Decision Logic:** `guessEngine`, a keyword-membership classifier against a fixed table; first/best keyword match wins, with no confidence scoring or secondary-engine option recorded.
 - **Dependencies:** `task-planner.ts` (embedded here, not standalone), the four engines it can name.
-- **Events:** None; assignment is a task field, not a dispatched message.
-- **KPIs (proposed):** Mis-assignment rate (tasks whose assigned engine failed to execute them meaningfully or required manual reassignment).
+- **Events Published:** None.
+- **Events Consumed:** None.
+- **Decision Logic:** `guessEngine`, a keyword-membership classifier against a fixed table; first/best keyword match wins, with no confidence scoring or secondary-engine option recorded.
+- **Success Criteria / KPIs:** Mis-assignment rate (tasks whose assigned engine failed to execute them meaningfully or required manual reassignment).
 - **Failure Modes:** Ambiguous or multi-engine tasks (e.g. needing both research and build-engine work) receive only a single label under the current model, with no representation for split/sequenced delegation.
-- **Fallback Behavior:** No dedicated fallback beyond whatever default `guessEngine` returns when no keyword matches; that default's downstream handling is itself an open question worth resolving before extension.
-- **Security Considerations:** Delegation only selects among engines available to the requesting user's own execution context; no assignment crosses tenant boundaries.
-- **Extension Points:** Because `guessEngine` is already isolated as a single function, splitting it out from Task Coordination into a standalone Delegation module is a low-risk, additive first step toward multi-engine/split delegation.
-- **Future Maturity Level:** Target L4 — delegation informed by per-engine historical success rates (Self-Improving Brain), and capable of representing multi-engine task decomposition, not just a single label per task.
+- **Fallback Strategy:** No dedicated fallback beyond whatever default `guessEngine` returns when no keyword matches; that default's downstream handling is itself an open question worth resolving before extension.
+- **Security Requirements:** Delegation must only select among engines available to the requesting user's own execution context; no assignment may cross tenant boundaries.
+- **Extension Rules:** `guessEngine` may be split out from Task Coordination into a standalone Delegation module — a low-risk, additive first step toward multi-engine/split delegation; the four-engine roster may only be extended by adding to `ENGINE_KEYWORDS`, not by introducing a parallel classification path.
 
-#### 3.4.7 Planning Coordination
-**Current Level:** L3 (call-out to a mature Planning Engine) · **Target Level:** L4 (tighter feedback loop)
+#### 3.4.7 Planning Coordination — Capability Contract
+**Current Maturity:** L3 (call-out to a mature Planning Engine) · **Target Maturity:** L4 (tighter feedback loop)
 
-- **Mission:** Ensure every plan the Executive Brain hands off has already been checked for milestone structure, dependency ordering, and risk before it reaches execution.
-- **Purpose:** Invoke the Planning Engine (`runPlanningEngine`) with the Executive Brain's resolved context, and fold its response into the forwarded request.
+- **Purpose:** Ensure every plan the Executive Brain hands off has already been checked for milestone structure, dependency ordering, and risk before it reaches execution.
+- **Authority:** Authorized to invoke the Planning Engine and forward its output. Not authorized to alter, suppress, or override any Planning Engine risk or validation outcome.
 - **Responsibilities:** Supply the Planning Engine with correctly-resolved context; independently catch and degrade on its failure.
+- **What This Capability Will Never Do:** Never suppress or rewrite a Planning Engine risk finding; never bypass the Planning Engine call for a request class without an approved, documented exception.
 - **Inputs:** Resolved project/goal/task state from §3.4.2–3.4.4.
 - **Outputs:** A `planningContextNote`, appended alongside the `brainContextNote`.
-- **Decision Logic:** Unconditional call today — the Planning Engine runs on every request; its own internal risk-scoring and validation logic belongs to the Planning Engine chapter (Volume 1, Chapter 2), not restated here.
 - **Dependencies:** `lib/planning-engine` (`runPlanningEngine`), Volume 1 Chapter 3 (Validation Engine) transitively.
-- **Events:** None emitted directly by this coordination call; any risk/approval events belong to the Planning/Validation Engines themselves.
-- **KPIs (proposed):** Planning-call latency contribution to time-to-first-token (Master X-RAY §9 already flags sequential phase accumulation); planning-call failure rate.
+- **Events Published:** None.
+- **Events Consumed:** None directly — receives a return value from `runPlanningEngine`, not an event; any risk/approval events belong to the Planning/Validation Engines themselves.
+- **Decision Logic:** Unconditional call today — the Planning Engine runs on every request; its own internal risk-scoring and validation logic belongs to the Planning Engine chapter (Volume 1, Chapter 2), not restated here.
+- **Success Criteria / KPIs:** Planning-call latency contribution to time-to-first-token (Master X-RAY §9 already flags sequential phase accumulation); planning-call failure rate.
 - **Failure Modes:** An unconditional call means every request pays the Planning Engine's cost even when planning judgment isn't materially needed.
-- **Fallback Behavior:** Caught independently in `routes/executive-brain.ts`; failure degrades this one note without blocking the rest of the pipeline.
-- **Security Considerations:** None additional beyond what's already enforced by the resolved project/goal/task scoping passed into the call.
-- **Extension Points:** Making this call conditional (e.g. skip for trivial/continuation requests) is a plausible low-risk optimization, named here as a future option only.
-- **Future Maturity Level:** Target L4 — selectively invoked based on request complexity/risk signals rather than unconditionally on every request, closing part of the sequential-latency gap named in the X-RAY.
+- **Fallback Strategy:** Caught independently in `routes/executive-brain.ts`; failure degrades this one note without blocking the rest of the pipeline.
+- **Security Requirements:** None additional beyond what's already enforced by the resolved project/goal/task scoping passed into the call.
+- **Extension Rules:** Making this call conditional (e.g. skip for trivial/continuation requests) is permitted as a future optimization; the Planning Engine's own risk logic may never be duplicated here.
 
-#### 3.4.8 Research Coordination
-**Current Level:** L3 · **Target Level:** L3/L4 (mature; growth is in trigger precision)
+#### 3.4.8 Research Coordination — Capability Contract
+**Current Maturity:** L3 · **Target Maturity:** L3/L4 (mature; growth is in trigger precision)
 
-- **Mission:** Ensure a request that requires factual/external grounding gets it, without paying a research pass's cost on requests that don't need it.
-- **Purpose:** Conditionally invoke the Research & Knowledge Engine when research intent is detected.
+- **Purpose:** Ensure a request that requires factual/external grounding gets it, without paying a research pass's cost on requests that don't need it.
+- **Authority:** Authorized to detect research intent and invoke the Research Engine. Not authorized to perform research itself or fabricate research results.
 - **Responsibilities:** Detect research intent; invoke `runResearchEngine`; fold its output into the forwarded request.
+- **What This Capability Will Never Do:** Never present unretrieved information as if it came from the Research Engine; never invoke research using another user's or business's identity or credentials.
 - **Inputs:** Incoming message (for intent detection), resolved business/goal context.
 - **Outputs:** A research context note, appended alongside the others.
-- **Decision Logic:** Conditional invocation based on a research-intent detection step; the Research Engine's own knowledge-first-then-live-search logic is documented in Volume 1, Chapter 5, not restated here.
 - **Dependencies:** `lib/research-engine`.
-- **Events:** None emitted by this coordination call itself.
-- **KPIs (proposed):** Research-trigger precision/recall (correctly invoked vs. incorrectly skipped or incorrectly triggered).
+- **Events Published:** None.
+- **Events Consumed:** None.
+- **Decision Logic:** Conditional invocation based on a research-intent detection step; the Research Engine's own knowledge-first-then-live-search logic is documented in Volume 1, Chapter 5, not restated here.
+- **Success Criteria / KPIs:** Research-trigger precision/recall (correctly invoked vs. incorrectly skipped or incorrectly triggered).
 - **Failure Modes:** Intent-detection false negatives silently skip research a request actually needed; false positives add unnecessary latency.
-- **Fallback Behavior:** Caught independently; failure degrades this one note without blocking the rest of the pipeline, per the shared fail-open contract.
-- **Security Considerations:** None additional; research is scoped to the same resolved business/user context as the rest of the request.
-- **Extension Points:** Intent detection is already isolated as a single decision point — a ready seam for future AI-assisted or confidence-scored detection instead of the current binary trigger.
-- **Future Maturity Level:** Target L4 — trigger decisions informed by historical research-value data per request pattern.
+- **Fallback Strategy:** Caught independently; failure degrades this one note without blocking the rest of the pipeline, per the shared fail-open contract.
+- **Security Requirements:** Research must remain scoped to the same resolved business/user context as the rest of the request.
+- **Extension Rules:** Intent detection may be extended with AI-assisted or confidence-scored detection instead of the current binary trigger; it may not bypass the shared business/user scoping to do so.
 
-#### 3.4.9 Memory Coordination
-**Current Level:** L3 · **Target Level:** L4
+#### 3.4.9 Memory Coordination — Capability Contract
+**Current Maturity:** L3 · **Target Maturity:** L4
 
-- **Mission:** Ground every plan and every model call in the user's and business's accumulated history, without re-deriving context from scratch on every request.
-- **Purpose:** Retrieve relevant memory before planning, and capture new memory after a request completes.
+- **Purpose:** Ground every plan and every model call in the user's and business's accumulated history, without re-deriving context from scratch on every request.
+- **Authority:** Authorized to read and write memory only through the Memory Engine's own sanctioned interfaces (`retrieveRelevantMemory`, `captureAutoMemory`). Not authorized to read or write memory directly against the underlying tables.
 - **Responsibilities:** Call `retrieveRelevantMemory` before planning; call `captureAutoMemory` on stream completion (detected via SSE "done"-event peeking).
+- **What This Capability Will Never Do:** Never bypass the Memory Engine's own isolation guarantees; never capture memory containing another user's data; never block the response on a memory failure.
 - **Inputs:** Resolved user/project/business identifiers; the completed SSE stream (for capture).
 - **Outputs:** Retrieved memory folded into planning/context inputs; new memory rows written post-completion.
-- **Decision Logic:** Retrieval and capture both run unconditionally around the core sequence today; the Memory Engine's own 5-layer ranking/capping logic is documented in Volume 1, Chapter 4, not restated here.
 - **Dependencies:** `lib/memory-engine` (`retrieveRelevantMemory`, `captureAutoMemory`).
-- **Events:** None emitted directly by this coordination layer.
-- **KPIs (proposed):** Retrieval relevance (Memory-Engine-owned); capture completeness (fraction of completed streams that successfully trigger a capture).
+- **Events Published:** None (memory capture is a direct write, not an event).
+- **Events Consumed:** None.
+- **Decision Logic:** Retrieval and capture both run unconditionally around the core sequence today; the Memory Engine's own 5-layer ranking/capping logic is documented in Volume 1, Chapter 4, not restated here.
+- **Success Criteria / KPIs:** Retrieval relevance (Memory-Engine-owned); capture completeness (fraction of completed streams that successfully trigger a capture).
 - **Failure Modes:** SSE "done"-event peeking is a stream-parsing dependency; a change in the orchestrator's SSE event shape could silently break capture triggering without an obvious symptom.
-- **Fallback Behavior:** Caught independently; a retrieval failure degrades gracefully to planning without that context, per the fail-open contract.
-- **Security Considerations:** Already scoped per user/business per the Memory Engine's own isolation guarantees (Master X-RAY §1.5).
-- **Extension Points:** The "done"-event peek is a narrow, single-purpose seam; a more robust completion-detection contract (e.g. an explicit completion callback from the orchestrator) is a plausible additive hardening, named here as an option only.
-- **Future Maturity Level:** Target L4 — capture quality assessed against which captured memories actually get retrieved and used in later requests, closing today's open write-without-feedback loop.
+- **Fallback Strategy:** Caught independently; a retrieval failure degrades gracefully to planning without that context, per the fail-open contract.
+- **Security Requirements:** Retrieval/capture must remain scoped per user/business per the Memory Engine's own isolation guarantees (Master X-RAY §1.5) at all times.
+- **Extension Rules:** The "done"-event peek may be hardened into a defined, versioned completion contract with the Orchestrator; this capability may never read/write memory tables directly, only through the Memory Engine's interfaces, regardless of how completion detection evolves.
 
-#### 3.4.10 Business Coordination
-**Current Level:** L3 · **Target Level:** L4
+#### 3.4.10 Business Coordination — Capability Contract
+**Current Maturity:** L3 · **Target Maturity:** L4
 
-- **Mission:** Keep every plan grounded in the specific business it concerns, so multi-business users never receive cross-contaminated context.
-- **Purpose:** Assemble business context (`assembleBusinessContextPackage`) scoped to `systemInstanceId`/`businessId`.
+- **Purpose:** Keep every plan grounded in the specific business it concerns, so multi-business users never receive cross-contaminated context.
+- **Authority:** Authorized to assemble business context only after `businessesTable.ownerId` verification succeeds. Not authorized to assemble or expose business context for a business the requesting user does not own, regardless of any other input — including a malformed or spoofed `systemInstanceId`.
 - **Responsibilities:** Resolve the correct business scope; verify ownership before assembling context; fold the resulting package into planning.
+- **What This Capability Will Never Do:** Never assemble business context before ownership verification; never treat a client-supplied `businessId`/`systemInstanceId` as authoritative without server-side ownership confirmation; never silently fall back to another business's data on lookup failure.
 - **Inputs:** `systemInstanceId`, `businessType`/`revenueGoal` (optional request fields), `businessesTable` state.
 - **Outputs:** A business context package, consumed by planning and folded into the `brainContextNote`'s implicit grounding.
-- **Decision Logic:** Ownership is checked against `businessesTable.ownerId` in `routes/executive-brain.ts` before assembly is invoked at all — an authorization gate, not a business-selection heuristic; cross-business analysis only runs when an explicit `crossBusinessMode` opt-in flag is set.
 - **Dependencies:** `lib/business-intelligence` (`assembleBusinessContextPackage`).
-- **Events:** None emitted directly here; Business Intelligence's own domain events (Master X-RAY §4.1) are triggered by writes, not by this read-only coordination.
-- **KPIs (proposed):** Ownership-check rejection rate (a spike could indicate an attack pattern or a client bug sending stale `systemInstanceId`s).
-- **Failure Modes:** An ownership-check failure must hard-stop rather than silently degrade — unlike most capabilities in this chapter, this is a security boundary, not a quality-of-response concern, so it should not follow the general fail-open contract without qualification (flagged for review, §3.9).
-- **Fallback Behavior:** On failed assembly *after* successful authorization, the request degrades to proceeding without business context per the general fail-open pattern; on failed *authorization*, the request must be rejected, not silently degraded — confirming this distinction is an explicit open review item, not assumed here.
-- **Security Considerations:** This is the chapter's clearest security-critical path — `businessesTable.ownerId` verification is the sole gate preventing cross-tenant business data from entering a plan; any future capability reading business context must go through this same gate, never bypass it.
-- **Extension Points:** The existing `crossBusinessMode` opt-in flag is the designed seam for a future explicit "compare across my businesses" capability without weakening default single-business isolation.
-- **Future Maturity Level:** Target L4 — richer business context (Business Recommendations, Health Scores) folded in as first-class planning input, still behind the same ownership gate.
+- **Events Published:** None (Business Intelligence's own domain events, e.g. `project.completed`, `integration.connected`, are published by that subsystem on writes, not by this read-only coordination).
+- **Events Consumed:** None directly.
+- **Decision Logic:** Ownership is checked against `businessesTable.ownerId` in `routes/executive-brain.ts` before assembly is invoked at all — an authorization gate, not a business-selection heuristic; cross-business analysis only runs when an explicit `crossBusinessMode` opt-in flag is set.
+- **Success Criteria / KPIs:** Ownership-check rejection rate (a spike could indicate an attack pattern or a client bug sending stale `systemInstanceId`s).
+- **Failure Modes:** An ownership-check failure must hard-stop rather than silently degrade — unlike most capabilities in this chapter, this is a security boundary, not a quality-of-response concern, so it must not follow the general fail-open contract without qualification (flagged for review, §3.9).
+- **Fallback Strategy:** On failed assembly *after* successful authorization, the request degrades to proceeding without business context per the general fail-open pattern; on failed *authorization*, the request must be rejected, not silently degraded — confirming this distinction is an explicit open review item, not assumed here.
+- **Security Requirements:** This is the chapter's clearest security-critical path — `businessesTable.ownerId` verification is the sole gate preventing cross-tenant business data from entering a plan; every future capability reading business context must go through this same gate, and may never bypass it.
+- **Extension Rules:** The existing `crossBusinessMode` opt-in flag is the sole sanctioned seam for a future explicit "compare across my businesses" capability; no extension may weaken the default single-business isolation or the ownership gate itself.
 
-#### 3.4.11 Risk Coordination
-**Current Level:** L0 at this layer (L3 exists one layer down, inside the Validation Engine) · **Target Level:** L3
+#### 3.4.11 Risk Coordination — Capability Contract (target capability)
+**Current Maturity:** L0 at this layer (L3 exists one layer down, inside the Validation Engine) · **Target Maturity:** L3
 
-- **Mission:** Ensure the Executive Brain's own plan reflects known risk before it is handed to execution, not only at the Validation Engine's separate checkpoint.
-- **Purpose:** Today, none at this layer — risk scoring is entirely owned by the Planning Engine's Validation Engine (Volume 1, Chapter 3); the Executive Brain has no visibility into that scoring.
+- **Purpose:** Ensure the Executive Brain's own plan reflects known risk before it is handed to execution, not only at the Validation Engine's separate checkpoint.
+- **Authority (target):** Authorized only to read and surface risk signals already produced by the Validation Engine. Never authorized to compute or override a risk score itself.
 - **Responsibilities (target):** Read (not compute) risk signals already produced by the Validation Engine and reflect them in the `brainContextNote`/rollup state.
+- **What This Capability Will Never Do:** Never compute an independent risk score; never suppress a Validation Engine risk finding from the note.
 - **Inputs (target):** Validation Engine risk-level output for the current plan.
 - **Outputs (target):** A risk-annotated `brainContextNote` section.
-- **Decision Logic:** None exists at this layer today; this would be a pure read-through of an existing signal, deliberately not a second risk-scoring implementation, per Upgrade Before Replace (reuse the Validation Engine's existing scoring rather than duplicating it).
 - **Dependencies (target):** `lib/planning-engine/validation-engine`.
-- **Events:** None today.
-- **KPIs (proposed):** Correlation between surfaced risk level and actual task outcome, once wired.
+- **Events Published:** None today.
+- **Events Consumed (target):** A risk-level signal from the Validation Engine — not modeled as a discrete event today; would need a defined contract if built.
+- **Decision Logic:** None exists at this layer today; this would be a pure read-through of an existing signal, deliberately not a second risk-scoring implementation, per Upgrade Before Replace.
+- **Success Criteria / KPIs (proposed):** Correlation between surfaced risk level and actual task outcome, once wired.
 - **Failure Modes:** Without this, a user-facing plan summary can look "clean" even when the Validation Engine has already flagged elevated risk internally — a visibility gap, not a scoring gap.
-- **Fallback Behavior (target):** If the Validation Engine's risk signal is unavailable, omit the annotation rather than block the note, consistent with the chapter's existing fail-open pattern.
-- **Security Considerations:** None beyond what the Validation Engine already enforces; this would only ever read an existing authorized signal.
-- **Extension Points:** This capability is itself the extension point — a read-only addition once approved.
-- **Future Maturity Level:** Target L3 (read-through of existing scoring); whether the Executive Brain should "see" risk at all, or remain deliberately unaware by design, is an open question (§3.9), not decided here.
+- **Fallback Strategy (target):** If the Validation Engine's risk signal is unavailable, omit the annotation rather than block the note, consistent with the chapter's existing fail-open pattern.
+- **Security Requirements:** None beyond what the Validation Engine already enforces; this would only ever read an existing authorized signal.
+- **Extension Rules:** This capability is itself the extension point — permitted only as a read-only addition once approved; whether the Executive Brain should "see" risk at all, or remain deliberately unaware by design, is an open question (§3.9), not decided here.
 
-#### 3.4.12 Approval Coordination
-**Current Level:** L0 · **Target Level:** L3
+#### 3.4.12 Approval Coordination — Capability Contract (target capability)
+**Current Maturity:** L0 · **Target Maturity:** L3
 
-- **Mission:** Give a user a coherent view of "what is my plan waiting on" when part of it requires human approval, rather than a plan that silently stalls.
-- **Purpose:** Today, none — `pending_approvals` rows are created and resolved entirely within the Validation Engine/approval executor (Master X-RAY §4.4), invisible to the Executive Brain.
+- **Purpose:** Give a user a coherent view of "what is my plan waiting on" when part of it requires human approval, rather than a plan that silently stalls.
+- **Authority (target):** Authorized only to read `pending_approvals` state scoped to the approval's own `userId`. Never authorized to approve, reject, or modify an approval.
 - **Responsibilities (target):** Surface pending-approval state for tasks the Executive Brain itself planned.
+- **What This Capability Will Never Do:** Never approve or reject an approval; never surface another user's approval queue.
 - **Inputs (target):** `pending_approvals` rows keyed to the current plan's tasks.
 - **Outputs (target):** A "blocked on approval" annotation in the `brainContextNote` and/or rollup `currentPhase`.
-- **Decision Logic:** Read-only surfacing of existing approval state; no new approval logic proposed.
 - **Dependencies (target):** `routes/approvals.ts`, `pending_approvals` table.
-- **Events:** None today; approvals already flow through their own workflow (Master X-RAY §4.4) independent of this chapter.
-- **KPIs (proposed):** Time-to-approval-visibility (currently the user only discovers a block indirectly).
+- **Events Published:** None today.
+- **Events Consumed (target):** `pending_approvals` state changes — not modeled as a discrete event today.
+- **Decision Logic:** Read-only surfacing of existing approval state; no new approval logic proposed.
+- **Success Criteria / KPIs (proposed):** Time-to-approval-visibility (currently the user only discovers a block indirectly).
 - **Failure Modes:** Without this, a task can sit blocked on approval indefinitely while the Executive Brain's own rollup still reports it as simply "planned" or "in progress," misrepresenting true state.
-- **Fallback Behavior (target):** If approval-state lookup fails, omit the annotation rather than block note construction.
-- **Security Considerations:** Any such lookup must remain scoped to the approval's own `userId` (see the approval-executor authorization note in Master X-RAY §4.4) — never surface another user's approval queue.
-- **Extension Points:** This capability is itself the extension point.
-- **Future Maturity Level:** Target L3; whether the Executive Brain should carry this visibility at all is an open question (§3.9).
+- **Fallback Strategy (target):** If approval-state lookup fails, omit the annotation rather than block note construction.
+- **Security Requirements:** Any such lookup must remain scoped to the approval's own `userId` (see the approval-executor authorization note in Master X-RAY §4.4) and must never surface another user's approval queue.
+- **Extension Rules:** This capability is itself the extension point; whether the Executive Brain should carry this visibility at all is an open question (§3.9).
 
-#### 3.4.13 Execution Coordination
-**Current Level:** L1 (a seam exists — `updateTaskStatus` — but is unused internally) · **Target Level:** L4
+#### 3.4.13 Execution Coordination — Capability Contract (target capability)
+**Current Maturity:** L1 (a seam exists — `updateTaskStatus` — but is unused internally) · **Target Maturity:** L4
 
-- **Mission:** Track a planned task through to a real outcome, so "planned" is never confused with "done."
-- **Purpose:** Today, task status updates are exposed to the route layer via `updateTaskStatus` but not consumed by the Executive Brain's own control flow.
+- **Purpose:** Track a planned task through to a real outcome, so "planned" is never confused with "done."
+- **Authority (target):** Authorized to read execution outcomes reported by the four execution engines and update `ash_tasks`/rollup state accordingly. Not authorized to directly control or halt execution engine behavior.
 - **Responsibilities (target):** Observe task execution outcomes from the engines tasks are delegated to (§3.4.6) and reflect them in `ash_tasks`/rollup state.
+- **What This Capability Will Never Do:** Never claim a task succeeded without a genuine outcome report; never mark a task complete based on assumption rather than an authoritative execution result.
 - **Inputs (target):** Execution results from `media_gen`, `browser_agent`, `build_engine`, `research`.
 - **Outputs (target):** Updated task status, feeding rollup (§3.4.4) and, eventually, Recovery Coordination (§3.4.14).
-- **Decision Logic:** None implemented; would need a defined contract for how each execution engine reports completion/failure back to the Executive Brain — an open architectural question (§3.9), not decided here.
 - **Dependencies (target):** The four execution engines; `runtime_jobs` if execution is asynchronous.
-- **Events (target):** A natural fit for the existing domain-event outbox pattern already used by Business Intelligence (Master X-RAY §4.1) — reuse, not a new mechanism, per Upgrade Before Replace.
-- **KPIs (proposed):** Task completion rate; time-to-completion per engine.
+- **Events Published (target):** Candidate `task.completed`/`task.failed` events, reusing the Business Intelligence outbox pattern (Master X-RAY §4.1) rather than inventing a new mechanism.
+- **Events Consumed (target):** Completion/failure signals from the four execution engines.
+- **Decision Logic:** None implemented; would need a defined contract for how each execution engine reports completion/failure back to the Executive Brain — an open architectural question (§3.9), not decided here.
+- **Success Criteria / KPIs (proposed):** Task completion rate; time-to-completion per engine.
 - **Failure Modes:** Without this, a stalled or silently-failed task has no mechanism to surface back to the user or trigger re-planning.
-- **Fallback Behavior:** Undefined until a reporting contract exists; flagged, not designed, here.
-- **Security Considerations:** Execution results must be attributable and scoped to the originating task's `userId`/project, consistent with every other capability in this chapter.
-- **Extension Points:** `updateTaskStatus`'s existing export is the concrete, already-present seam to build this on.
-- **Future Maturity Level:** Target L4 — full execution tracking feeding both Recovery Coordination and outcome data back to the Self-Improving Brain.
+- **Fallback Strategy:** Undefined until a reporting contract exists; flagged, not designed, here.
+- **Security Requirements:** Execution results must be attributable and scoped to the originating task's `userId`/project, consistent with every other capability in this chapter.
+- **Extension Rules:** `updateTaskStatus`'s existing export is the sanctioned seam to build this on; any new reporting contract must reuse the existing domain-event outbox pattern rather than introduce a second event mechanism, per Upgrade Before Replace.
 
-#### 3.4.14 Recovery Coordination
-**Current Level:** L0 · **Target Level:** L3/L4
+#### 3.4.14 Recovery Coordination — Capability Contract (target capability)
+**Current Maturity:** L0 · **Target Maturity:** L3/L4
 
-- **Mission:** Turn a stalled or failed task into a re-plan rather than a silent dead end.
-- **Purpose:** Today, none exists — there is no detection of stalled/failed tasks at this layer.
+- **Purpose:** Turn a stalled or failed task into a re-plan rather than a silent dead end.
+- **Authority (target):** Authorized to trigger a bounded retry or re-decomposition of a stalled/failed task per an approved policy. Not authorized to retry indefinitely or to re-execute using different credentials/context than the original request.
 - **Responsibilities (target):** Detect a task that has failed or stalled past a reasonable threshold; decide whether to retry, re-decompose, or surface the failure to the user.
+- **What This Capability Will Never Do:** Never retry a task using different user credentials or a different authorization context than the one that originally created it; never exceed an approved retry ceiling; never silently drop a failed task without surfacing it.
 - **Inputs (target):** Execution Coordination outcomes (§3.4.13), once that capability exists.
 - **Outputs (target):** A re-plan action, a retry, or a user-facing failure notice.
-- **Decision Logic:** Not designed; explicitly depends on Execution Coordination existing first, and its policy (auto-retry vs. always-ask-user) is an open question, not decided here.
 - **Dependencies (target):** Execution Coordination, Task Coordination (for re-decomposition), the Scheduler's existing exponential-backoff pattern for user-defined tasks (Master X-RAY §4.3) as prior art to reuse rather than reinvent.
-- **Events (target):** Could reuse the domain-event outbox pattern for a `task.stalled`/`task.failed` event, consistent with Upgrade Before Replace.
-- **KPIs (proposed):** Recovery success rate; mean time to recovery.
+- **Events Published (target):** Candidate `task.stalled`/`task.recovery_attempted` events.
+- **Events Consumed (target):** `task.failed`/`task.stalled` events from Execution Coordination.
+- **Decision Logic:** Not designed; explicitly depends on Execution Coordination existing first, and its policy (auto-retry vs. always-ask-user) is an open question, not decided here.
+- **Success Criteria / KPIs (proposed):** Recovery success rate; mean time to recovery.
 - **Failure Modes:** Without this, a user's only recourse today is to notice a stalled task themselves and re-prompt manually.
-- **Fallback Behavior:** None exists; once built, degrading to "surface the failure to the user" rather than retrying silently is the safer default — named here as a design principle for when this is built, not as committed work.
-- **Security Considerations:** Any auto-retry must not re-execute a task using credentials or context different from the original authorized request.
-- **Extension Points:** This capability is itself the extension point.
-- **Future Maturity Level:** Target L3 initially (rule-based retry/backoff, reusing the Scheduler's existing pattern), L4 longer-term (informed by which failure types historically recover on retry vs. require user input).
+- **Fallback Strategy:** None exists; once built, degrading to "surface the failure to the user" rather than retrying silently is the required default.
+- **Security Requirements:** Any auto-retry must not re-execute a task using credentials or context different from the original authorized request.
+- **Extension Rules:** This capability is itself the extension point; its retry policy must reuse the Scheduler's existing exponential-backoff pattern rather than introduce a new one, per Upgrade Before Replace.
 
-#### 3.4.15 Learning Coordination
-**Current Level:** L2 (capture exists; consultation does not) · **Target Level:** L4
+#### 3.4.15 Learning Coordination — Capability Contract
+**Current Maturity:** L2 (capture exists; consultation does not) · **Target Maturity:** L4
 
-- **Mission:** Make every future plan a little better informed by every past one.
-- **Purpose:** Trigger memory capture on stream completion (§3.4.9) as the write side of learning; the Executive Brain does not currently consult the ASH Self-Improving Brain's distilled lessons on the read side.
+- **Purpose:** Make every future plan a little better informed by every past one.
+- **Authority:** Authorized to write memory via `captureAutoMemory` and (target) to read aggregate lesson data via `AshBrain`. Not authorized to write directly to the `ash_lessons` distillation pipeline — that remains the Self-Improving Brain's own responsibility.
 - **Responsibilities:** Trigger `captureAutoMemory` on completion; (target) consult `AshBrain`'s SQL-distilled lessons during goal/task derivation.
+- **What This Capability Will Never Do:** Never capture or expose another user's raw data as a "lesson"; never let a lesson-consultation failure block goal/task derivation.
 - **Inputs:** Completed SSE stream (write side); (target) `ash_lessons` table (read side).
 - **Outputs:** New memory rows (write side); (target) lesson-informed derivation prompts (read side).
-- **Decision Logic:** Capture is unconditional on stream completion; consultation logic does not exist and is not designed here.
 - **Dependencies:** `lib/memory-engine`; (target) `lib/ash-brain.ts`.
-- **Events:** None emitted; capture is a direct write, and the Self-Improving Brain's distillation is itself a deterministic SQL pass (Master X-RAY §1.4), not event-driven.
-- **KPIs (proposed):** Fraction of goal/task derivations that would have changed had lesson data been consulted (measurable retrospectively even before this is built).
+- **Events Published:** None (memory capture is a direct write, not an event).
+- **Events Consumed (target):** None directly — would query `ash_lessons` on demand rather than subscribe to an event.
+- **Decision Logic:** Capture is unconditional on stream completion; consultation logic does not exist and is not designed here.
+- **Success Criteria / KPIs (proposed):** Fraction of goal/task derivations that would have changed had lesson data been consulted (measurable retrospectively even before this is built).
 - **Failure Modes:** Without read-side consultation, `deriveGoal`/`decomposeIntoTasks` never benefit from the platform's own hard-data outcome patterns, relying solely on the LLM's general judgment.
-- **Fallback Behavior:** Capture already degrades gracefully on failure (§3.4.9); a future consultation step should follow the same pattern — omit lesson context rather than block derivation if the lookup fails.
-- **Security Considerations:** `ash_lessons` is aggregate/deterministic SQL output, not per-user data — care must be taken that any future consultation doesn't fold cross-tenant specifics into a single user's prompt beyond aggregate pattern data.
-- **Extension Points:** `AshBrain`'s existing class-based interface (Master X-RAY §1.4) is the ready seam to consult from `deriveGoal`/`decomposeIntoTasks` without changing the Self-Improving Brain itself.
-- **Future Maturity Level:** Target L4 — full write+read learning loop, closing the one-directional gap that exists today.
+- **Fallback Strategy:** Capture already degrades gracefully on failure (§3.4.9); a future consultation step must follow the same pattern — omit lesson context rather than block derivation if the lookup fails.
+- **Security Requirements:** `ash_lessons` is aggregate/deterministic SQL output, not per-user data — any future consultation must not fold cross-tenant specifics into a single user's prompt beyond aggregate pattern data.
+- **Extension Rules:** `AshBrain`'s existing class-based interface (Master X-RAY §1.4) is the sanctioned seam to consult from `deriveGoal`/`decomposeIntoTasks`; this capability may not build a second, parallel distillation mechanism.
 
-#### 3.4.16 Model Coordination
-**Current Level:** L3 (delegated wholesale to a mature centralized policy) · **Target Level:** L3 (mature; growth is in observability, not new logic)
+#### 3.4.16 Model Coordination — Capability Contract
+**Current Maturity:** L3 (delegated wholesale to a mature centralized policy) · **Target Maturity:** L3 (mature; growth is in observability, not new logic)
 
-- **Mission:** Ensure every AI call this chapter makes uses the right model for its importance and cost profile, without this chapter needing its own model policy.
-- **Purpose:** Route the Executive Brain's own AI calls (naming, goal derivation, task decomposition) through `lib/openrouter`, which defers to `lib/models.ts`'s centralized best-model policy.
+- **Purpose:** Ensure every AI call this chapter makes uses the right model for its importance and cost profile, without this chapter needing its own model policy.
+- **Authority:** Authorized only to call the centralized OpenRouter client per its existing policy. Not authorized to select a model or provider independently of `lib/models.ts`.
 - **Responsibilities:** Call the shared OpenRouter client correctly; do not implement independent model selection.
+- **What This Capability Will Never Do:** Never implement independent model-selection logic; never bypass the centralized fallback-chain policy.
 - **Inputs:** `lib/models.ts`'s `MODELS`/`CHAINS` configuration (owned elsewhere, consumed here).
 - **Outputs:** Model completions consumed by naming/derivation/decomposition.
-- **Decision Logic:** Entirely delegated — this chapter deliberately does not decide which model runs; that policy lives in `lib/models.ts` (Master X-RAY §3) by design, and duplicating it here would violate Upgrade Before Replace by fragmenting an already-centralized policy.
 - **Dependencies:** `lib/openrouter`, `lib/models.ts`.
-- **Events:** None.
-- **KPIs (proposed, owned upstream):** Model-call latency/cost/failure rate per named use (naming, goal derivation, decomposition) — currently not broken out per call site, only in aggregate.
+- **Events Published:** None.
+- **Events Consumed:** None.
+- **Decision Logic:** Entirely delegated — this chapter deliberately does not decide which model runs; that policy lives in `lib/models.ts` (Master X-RAY §3) by design.
+- **Success Criteria / KPIs (proposed, owned upstream):** Model-call latency/cost/failure rate per named use (naming, goal derivation, decomposition) — currently not broken out per call site, only in aggregate.
 - **Failure Modes:** A model-policy change made centrally in `lib/models.ts` could shift the cost/quality profile of every Executive Brain AI call without this chapter having its own visibility, absent per-call-site metrics.
-- **Fallback Behavior:** Fallback chains (`CHAINS`) are already handled centrally; this chapter's only responsibility is to surface a clean failure into its own fail-open contract when the centralized policy exhausts its fallback chain.
-- **Security Considerations:** None additional beyond what the centralized client already enforces.
-- **Extension Points:** Per-call-site metrics tagging (naming vs. goal derivation vs. decomposition) is a low-risk observability addition that would not touch `lib/models.ts` itself.
-- **Future Maturity Level:** Remains L3 by design — this capability's maturity ceiling is intentionally the centralized policy's own maturity, not something this chapter should independently push further.
+- **Fallback Strategy:** Fallback chains (`CHAINS`) are already handled centrally; this chapter's only responsibility is to surface a clean failure into its own fail-open contract when the centralized policy exhausts its fallback chain.
+- **Security Requirements:** None additional beyond what the centralized client already enforces.
+- **Extension Rules:** Per-call-site metrics tagging (naming vs. goal derivation vs. decomposition) is a permitted, low-risk observability addition; this capability may never fragment model-selection policy out of `lib/models.ts`.
 
-#### 3.4.17 Tool Coordination
-**Current Level:** L0 at this layer (fully owned by the Orchestrator downstream) · **Target Level:** L0 by design, pending future review
+#### 3.4.17 Tool Coordination — Capability Contract (not currently authorized)
+**Current Maturity:** L0 at this layer (fully owned by the Orchestrator downstream) · **Target Maturity:** L0 by design, pending future review
 
-- **Mission:** Undetermined at this layer — whether the Executive Brain should ever have tool-coordination visibility is itself an open question (§3.9), not a capability gap assumed to need closing.
-- **Purpose:** None today; no direct import of `ash-tools` exists in `lib/executive-brain/`, and tool execution happens entirely inside the Orchestrator after handoff.
+- **Purpose:** Undetermined at this layer — whether the Executive Brain should ever have tool-coordination visibility is itself an open question (§3.9), not a capability gap assumed to need closing.
+- **Authority:** None at this layer today; holds no authority over tool selection or execution.
 - **Responsibilities:** None at this layer today.
+- **What This Capability Will Never Do:** Never invoke a tool directly from within the Executive Brain layer under the current architecture; any change to this boundary requires an approved architectural decision (§3.9), not an incidental addition.
 - **Inputs / Outputs:** None.
-- **Decision Logic:** None; deliberately out of scope today.
 - **Dependencies:** None.
-- **Events:** Tool-execution events, if any, are owned by `routes/ash-tools.ts`, not this chapter.
-- **KPIs:** Not applicable at this layer.
+- **Events Published:** None.
+- **Events Consumed:** None. Tool-execution events, if any, are owned by `routes/ash-tools.ts`, not this chapter.
+- **Decision Logic:** None; deliberately out of scope today.
+- **Success Criteria / KPIs:** Not applicable at this layer.
 - **Failure Modes:** None specific to this chapter; tool-execution failures are the Orchestrator's concern.
-- **Fallback Behavior:** Not applicable.
-- **Security Considerations:** Not applicable at this layer.
-- **Extension Points:** None proposed; this capability is listed for completeness against the mission's full coordination surface (§3.2), not because a gap has been identified.
-- **Future Maturity Level:** Held at L0 pending the open question in §3.9 on whether tool/model visibility should ever move up into the Executive Brain's own context assembly.
+- **Fallback Strategy:** Not applicable.
+- **Security Requirements:** Not applicable at this layer.
+- **Extension Rules:** None proposed; this capability is listed for completeness against the mission's full coordination surface (§3.2), not because a gap has been identified.
 
-#### 3.4.18 Communication Coordination
-**Current Level:** L2 (working but narrow SSE pipe-through) · **Target Level:** L3
+#### 3.4.18 Communication Coordination — Capability Contract
+**Current Maturity:** L2 (working but narrow SSE pipe-through) · **Target Maturity:** L3
 
-- **Mission:** Deliver the Executive Brain's plan and the Orchestrator's response to the user as one coherent, low-latency stream, not two disjointed calls.
-- **Purpose:** Pipe the Orchestrator's SSE response back to the original client while peeking for the terminal "done" event.
+- **Purpose:** Deliver the Executive Brain's plan and the Orchestrator's response to the user as one coherent, low-latency stream, not two disjointed calls.
+- **Authority:** Authorized to relay the Orchestrator's SSE stream and forward the augmented request. Not authorized to alter response content originating from the Orchestrator.
 - **Responsibilities:** Forward the augmented request; relay the SSE stream; detect stream completion to trigger memory capture (§3.4.9).
+- **What This Capability Will Never Do:** Never modify or truncate the Orchestrator's streamed content; never forward a request with a fabricated or altered `Authorization` header.
 - **Inputs:** The Orchestrator's SSE stream.
 - **Outputs:** The same SSE stream, relayed to the caller.
-- **Decision Logic:** Pass-through with a single side-effect trigger (completion detection); no transformation of the underlying content occurs at this layer.
 - **Dependencies:** `routes/ai-orchestrator.ts`'s SSE contract.
-- **Events:** None emitted as domain events; this is transport-layer relay, not business-event publishing.
-- **KPIs (proposed):** Relay latency overhead vs. a direct orchestrator call; stream-parsing error rate.
+- **Events Published:** None (transport-layer relay, not business-event publishing).
+- **Events Consumed:** None; this capability relays a stream, it does not subscribe to domain events.
+- **Decision Logic:** Pass-through with a single side-effect trigger (completion detection); no transformation of the underlying content occurs at this layer.
+- **Success Criteria / KPIs (proposed):** Relay latency overhead vs. a direct orchestrator call; stream-parsing error rate.
 - **Failure Modes:** As noted in §3.4.9, a change to the Orchestrator's SSE event shape could silently break "done"-event detection without an obvious failure signal.
-- **Fallback Behavior:** If the loopback HTTP call itself fails, `logger.error` records it and the request fails at that point — one of the few points in the chapter where full fail-open degradation is not possible, since without a successful orchestrator call there is nothing left to relay.
-- **Security Considerations:** The `Authorization` header is forwarded through unchanged on the internal loopback call; this relies on the loopback call being genuinely local/trusted (`127.0.0.1`) and not exposed externally.
-- **Extension Points:** A more robust completion contract (§3.4.9) would strengthen this capability as a side effect.
-- **Future Maturity Level:** Target L3 — a defined, versioned completion-event contract with the Orchestrator rather than implicit event-shape peeking.
+- **Fallback Strategy:** If the loopback HTTP call itself fails, `logger.error` records it and the request fails at that point — one of the few points in the chapter where full fail-open degradation is not possible, since without a successful orchestrator call there is nothing left to relay.
+- **Security Requirements:** The `Authorization` header must be forwarded through unchanged on the internal loopback call; this relies on the loopback call remaining genuinely local/trusted (`127.0.0.1`) and never exposed externally.
+- **Extension Rules:** A more robust, versioned completion contract with the Orchestrator is a permitted extension; this capability may never independently alter Orchestrator response content.
 
-#### 3.4.19 Opportunity Coordination
-**Current Level:** L0 · **Target Level:** L3
+#### 3.4.19 Opportunity Coordination — Capability Contract (target capability)
+**Current Maturity:** L0 · **Target Maturity:** L3
 
-- **Mission:** Turn insight the platform already has about a business into forward motion for that business's active project, rather than leaving Business Recommendations as a separate surface the user must notice and act on themselves.
-- **Purpose:** Today, none — no integration exists between Business Recommendations (Volume 2, Chapter 5) and Goal Management (§3.4.2).
+- **Purpose:** Turn insight the platform already has about a business into forward motion for that business's active project, rather than leaving Business Recommendations as a separate surface the user must notice and act on themselves.
+- **Authority (target):** Authorized to read `business_recommendations` (through the existing ownership gate, §3.4.10) and surface candidate goals. Not authorized to unilaterally adopt a recommendation as an active goal without the confirmation policy resolved in §3.9.
 - **Responsibilities (target):** Surface high-impact, unactioned recommendations as candidate goals during goal derivation.
+- **What This Capability Will Never Do:** Never adopt a recommendation as a binding goal without going through whatever confirmation policy is ultimately approved; never read recommendations for a business the user does not own.
 - **Inputs (target):** `business_recommendations` rows for the resolved business.
 - **Outputs (target):** Candidate goal suggestions folded into `deriveGoal`'s prompt, or presented to the user for confirmation.
-- **Decision Logic:** Not designed; whether suggested goals should be auto-adopted or require explicit user confirmation is an open question, not decided here.
 - **Dependencies (target):** `lib/business-intelligence` recommendations surface.
-- **Events:** Recommendation generation already exists as part of Business Intelligence's own event-driven pipeline (Master X-RAY §1.1); this capability would only consume that existing surface, not add a new one.
-- **KPIs (proposed):** Recommendation-to-goal adoption rate, once built.
+- **Events Published:** None.
+- **Events Consumed (target):** Could consume Business Intelligence's existing recommendation-generation event, if one exists, rather than polling — to be confirmed during the Architecture Review stage.
+- **Decision Logic:** Not designed; whether suggested goals should be auto-adopted or require explicit user confirmation is an open question, not decided here.
+- **Success Criteria / KPIs (proposed):** Recommendation-to-goal adoption rate, once built.
 - **Failure Modes:** Without this, high-value recommendations can go unseen if a user doesn't separately check the recommendations surface.
-- **Fallback Behavior (target):** Omit the suggestion if recommendation lookup fails, consistent with this chapter's fail-open contract.
-- **Security Considerations:** Recommendations must be scoped through the same business-ownership gate as Business Coordination (§3.4.10) — no new authorization path should be introduced for this.
-- **Extension Points:** This capability is itself the extension point, and it deliberately reuses Business Coordination's existing ownership gate rather than introducing a parallel one.
-- **Future Maturity Level:** Target L3 initially (surfaced suggestions, human-confirmed), L4 longer-term if adoption-outcome data supports more autonomous suggestion.
+- **Fallback Strategy (target):** Omit the suggestion if recommendation lookup fails, consistent with this chapter's fail-open contract.
+- **Security Requirements:** Recommendations must be scoped through the same business-ownership gate as Business Coordination (§3.4.10) — no new authorization path may be introduced for this.
+- **Extension Rules:** This capability is itself the extension point, and must reuse Business Coordination's existing ownership gate rather than introduce a parallel one.
 
-#### 3.4.20 Self Review Coordination
-**Current Level:** L0 · **Target Level:** L3
+#### 3.4.20 Self Review Coordination — Capability Contract (target capability)
+**Current Maturity:** L0 · **Target Maturity:** L3
 
-- **Mission:** Let the Executive Brain's own resolution quality improve over time by examining its own past decisions, not just the outcomes of the tasks it plans.
-- **Purpose:** Today, none — no mechanism exists for the Executive Brain to review its own past project/goal/task resolution decisions for quality.
+- **Purpose:** Let the Executive Brain's own resolution quality improve over time by examining its own past decisions, not just the outcomes of the tasks it plans.
+- **Authority (target):** Authorized to read historical resolution and outcome data and produce a feedback signal. Not authorized to autonomously alter live decision logic (e.g. keyword tables, thresholds) without human review of its findings.
 - **Responsibilities (target):** Periodically or retrospectively assess whether past project-continuation, goal-derivation, and task-decomposition decisions were sound, using outcome data.
+- **What This Capability Will Never Do:** Never modify Decision Making's or Delegation's live rules automatically; never treat its own retrospective findings as authoritative without human review.
 - **Inputs (target):** Historical `ash_projects`/`ash_goals`/`ash_tasks` state plus outcome data from Execution Coordination (§3.4.13), once it exists.
 - **Outputs (target):** A feedback signal consumable by Decision Making (§3.4.1) and Learning Coordination (§3.4.15) to refine future heuristics.
-- **Decision Logic:** Not designed; explicitly depends on Execution Coordination existing first, so genuine outcomes (not just plans) are available to review against.
 - **Dependencies (target):** Execution Coordination; the ASH Self-Improving Brain's existing distillation pattern (Master X-RAY §1.4) as prior art to extend into this chapter's own domain rather than building a second distillation mechanism.
-- **Events:** None today.
-- **KPIs (proposed):** Rate of self-identified resolution errors; agreement between self-review and actual downstream success.
+- **Events Published (target):** A candidate `resolution.reviewed` event/finding.
+- **Events Consumed (target):** Outcome data from Execution Coordination and Recovery Coordination.
+- **Decision Logic:** Not designed; explicitly depends on Execution Coordination existing first, so genuine outcomes (not just plans) are available to review against.
+- **Success Criteria / KPIs (proposed):** Rate of self-identified resolution errors; agreement between self-review and actual downstream success.
 - **Failure Modes:** Without this, every heuristic in this chapter (keyword tables, thresholds) can only ever be tuned by a human noticing a pattern manually.
-- **Fallback Behavior:** Not applicable until designed.
-- **Security Considerations:** Any self-review process must operate over already-authorized, already-scoped historical data — it introduces no new read paths beyond what Execution Coordination and existing tables already expose.
-- **Extension Points:** This capability is itself the extension point — explicitly the capstone capability, since it depends on Execution Coordination, Recovery Coordination, and Learning Coordination all existing first.
-- **Future Maturity Level:** Target L3 — the last capability in this chapter's maturity roadmap by design, since it depends on every other latent capability above it being built first.
+- **Fallback Strategy:** Not applicable until designed.
+- **Security Requirements:** Any self-review process must operate over already-authorized, already-scoped historical data — it may introduce no new read paths beyond what Execution Coordination and existing tables already expose.
+- **Extension Rules:** This capability is itself the extension point — explicitly the capstone capability, since it depends on Execution Coordination, Recovery Coordination, and Learning Coordination all existing first; it may never bypass human review to self-modify live logic.
 
 ---
 
@@ -477,7 +500,7 @@ A capability's target level is a design intention for future review, not committ
 
 ### 3.8 Future Growth
 
-The following are extension points that would allow the Executive Brain to grow toward the mission in §3.2 without redesigning its current five-step core sequence — consistent with the Upgrade Before Replace law, each below is framed as an addition to, not a replacement of, existing architecture. This list is now superseded in detail by each capability's own Extension Points field in §3.4; it is retained here as a single cross-cutting summary for convenience.
+The following are extension points that would allow the Executive Brain to grow toward the mission in §3.2 without redesigning its current five-step core sequence — consistent with the Upgrade Before Replace law, each below is framed as an addition to, not a replacement of, existing architecture. This list is superseded in detail by each capability contract's own Extension Rules field in §3.4; it is retained here as a single cross-cutting summary for convenience.
 
 - **Execution and Recovery Coordination** (§3.4.13, §3.4.14): `task-planner.ts`'s already-exposed but internally-unused `updateTaskStatus` is the natural seam for closing the loop between planned tasks and their actual execution outcome.
 - **Approval and Risk visibility** (§3.4.11, §3.4.12): both are read-only additions of existing signals already produced by the Planning/Validation Engines.
@@ -501,6 +524,53 @@ The following require review and a decision before any related implementation wo
 8. Business Coordination's ownership check (§3.4.10) is a security boundary, not a quality concern — should it, and any other security-critical gate in this chapter, be explicitly exempted from the general fail-open contract (i.e. fail *closed* on authorization failure, fail *open* on everything else)? The chapter currently states this as a distinction to confirm, not an implemented rule.
 9. What is the reporting contract by which execution engines (`media_gen`, `browser_agent`, `build_engine`, `research`) communicate completion/failure back to the Executive Brain — a prerequisite for both Execution Coordination (§3.4.13) and Recovery Coordination (§3.4.14)? Candidate approaches (e.g. reusing the Business Intelligence domain-event outbox, Master X-RAY §4.1) are named as prior art in §3.4.13, not selected here.
 10. Should recommendation-derived goals (Opportunity Coordination, §3.4.19) ever be auto-adopted, or must they always require explicit user confirmation? This has direct product/trust implications beyond pure architecture and is flagged for the project owner's judgment.
+
+### 3.10 Architecture Summary
+
+*This section closes out the Architecture stage of this chapter's lifecycle. It consolidates the chapter's own findings; it does not introduce new architecture beyond what §3.1–3.9 already establish.*
+
+**Current maturity assessment.** Of the twenty capabilities bound to contracts in §3.4, nine are implemented today at L2 or L3 (Decision Making, Goal Management, Task Coordination, Project Coordination, Context Assembly, Delegation, Planning Coordination, Research Coordination, Memory Coordination, Business Coordination, Learning Coordination, and Model Coordination — twelve, on recount), one is a defined-but-unused seam (Execution Coordination, L1), six are entirely latent (Risk, Approval, Recovery, Opportunity, and Self Review Coordination, plus Tool Coordination which is latent by design pending a scope decision), and none has yet reached L4 or L5. In short: the Executive Brain today is a solid, fail-open, deterministic-with-AI-assist planning pre-pass; the mission in §3.2 requires it to also become execution-aware, risk-aware, and self-improving, none of which exists yet.
+
+| Maturity band | Capabilities |
+|---|---|
+| L3 (AI-assisted, implemented) | Goal Management, Task Coordination (partial), Project Coordination (partial), Planning Coordination, Research Coordination, Memory Coordination, Business Coordination, Model Coordination |
+| L2 (deterministic, implemented) | Decision Making, Context Assembly, Delegation, Learning Coordination (write side only) |
+| L1 (seam only) | Execution Coordination |
+| L0 (absent / not authorized) | Risk Coordination, Approval Coordination, Recovery Coordination, Tool Coordination, Opportunity Coordination, Self Review Coordination |
+
+**Technical debt.** Carried forward from the Master X-RAY (§8) where it names this subsystem, plus debt surfaced during this chapter's own analysis:
+- Mixed `zod`/`zod/v4` imports observed in `executive-brain.ts` (Master X-RAY §8), suggesting an incomplete migration.
+- `updateTaskStatus` is exported but internally unused (§3.1, §3.4.13) — a half-finished seam rather than a clean absence.
+- SSE "done"-event completion detection (§3.4.9, §3.4.18) is an implicit peek at event shape rather than a defined contract, making it fragile to unrelated Orchestrator changes.
+- `brainContextNote` assembly (§3.4.5) has no truncation or prioritization policy, a latent scaling risk as task lists grow (also flagged in Master X-RAY §8 for a related component).
+- Four separate AI call sites in this chapter (`deriveProjectName`, `deriveGoal`, `decomposeIntoTasks`, and the Communication layer's implicit reliance on Orchestrator model calls) have no per-call-site cost/latency/failure metrics, only aggregate visibility (§3.4.16).
+- Two deterministic keyword tables (`NEW_PROJECT_KEYWORDS`, `ENGINE_KEYWORDS`) carry real product behavior with no test coverage or drift-detection named in this chapter's investigation.
+
+**Deferred architectural decisions.** All ten items in §3.9 are formally deferred pending the project owner's review; none has been decided in this chapter. The two with the most architectural leverage over everything else in this chapter are #2 (whether Execution/Recovery Coordination belong here or in the Runtime Job Worker/Scheduler) and #9 (the execution-engine completion-reporting contract), since five of the six latent capabilities (Execution, Recovery, Learning's read side, Self Review, and indirectly Opportunity Coordination) all depend on that contract existing first.
+
+**Risks.** 
+- **Security ambiguity in the fail-open contract** (§3.9 item 8): Business Coordination's ownership gate is a hard security boundary sitting inside a chapter whose default posture everywhere else is graceful degradation; until this distinction is explicitly ratified, there is a real risk that a future contributor extends the fail-open pattern into a security-critical path by analogy with the rest of the chapter.
+- **Silent execution blindness**: because Execution and Recovery Coordination don't exist, a stalled or failed task is invisible to both the user and the system today — this risk compounds as autonomous, multi-step project execution (the chapter's own stated mission) grows.
+- **SSE contract fragility**: Memory capture and the broader Communication Coordination both depend on informally peeking the Orchestrator's stream shape; an unrelated change to the Orchestrator could silently break memory capture with no error surfaced anywhere.
+- **Context growth**: `brainContextNote` assembly has no size governance; as projects accumulate history this is a plausible future latency/cost/quality risk with no mitigation currently in place.
+- **Unmeasured heuristics**: every keyword-table and threshold-based decision in this chapter (project continuation, engine delegation, decomposition threshold) currently has proposed but uninstrumented KPIs — meaning today there is no way to detect if these heuristics are degrading in accuracy as usage patterns shift.
+
+**Future roadmap** *(sequencing only; no phase is authorized by this chapter)*:
+- **Near-term candidate:** define the execution-engine completion-reporting contract (§3.9 item 9) and wire Execution Coordination through the existing `updateTaskStatus` seam — this unlocks Recovery, deeper Learning, and Self Review Coordination as later steps, and resolves the "silent execution blindness" risk above.
+- **Near-term candidate:** ratify the fail-open/fail-closed distinction for security-critical gates (§3.9 item 8) and audit Business Coordination against it explicitly.
+- **Mid-term candidate:** wire Risk and Approval Coordination as read-only additions once Execution Coordination exists to give them something concrete to annotate.
+- **Mid-term candidate:** harden the SSE completion contract (§3.4.9, §3.4.18) into a versioned, explicit mechanism rather than event-shape peeking.
+- **Longer-term candidate:** Learning Coordination's read side, Opportunity Coordination, and finally Self Review Coordination — in that order, since each depends on the one before it having real outcome data to work from.
+- **Ongoing, not phase-gated:** per-call-site AI metrics (naming/derivation/decomposition) and keyword-table test coverage can be added at any time without sequencing dependency on the above.
+
+**Chapter approval checklist.** For the project owner's use in deciding whether to move this chapter to the Architecture Review stage:
+- [ ] The mission statement (§3.2) is confirmed as an accurate statement of long-term intent for the Executive Brain.
+- [ ] All twenty Capability Contracts (§3.4) have been read, and their Authority/Never-Do boundaries are confirmed correct.
+- [ ] The ten Open Architecture Questions (§3.9) each have either a decision or an explicit "defer to a later chapter/cycle" disposition.
+- [ ] The fail-open vs. fail-closed distinction for security-critical gates (§3.9 item 8, §3.4.10) has been explicitly ratified.
+- [ ] The Future Roadmap sequencing (above) is confirmed as a reasonable order, or reordered by the project owner.
+- [ ] No implementation, refactor, or code change has occurred as part of this chapter — confirmed.
+- [ ] The chapter is approved to proceed to Stage 2 (Architecture Review), or returned with specific requested changes.
 
 ## 4. Architecture Review
 _Reviewer notes, open questions, and requested changes go here once a draft exists._

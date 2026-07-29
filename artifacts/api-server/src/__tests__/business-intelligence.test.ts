@@ -98,6 +98,7 @@ beforeAll(async () => {
   otherBusinessId = otherBusiness[0].id;
   await db.insert(businessMemoryTable).values({
     businessId,
+    ownerUserId: userId,
     businessModel: "Service agency",
     services: ["Brand strategy", "Website design"],
     customers: ["Growing B2B companies"],

@@ -1,6 +1,9 @@
 import { db, businessDomainEventsTable, businessTimelineEventsTable, type BusinessDomainEvent } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../logger";
+import { insertDomainEvent, insertTimelineEvent, markDomainEventProcessed } from "../governance/writes/events-writes";
+import { resolveBusinessOwnerUserId } from "../governance/ownership";
+import { actorFor, type GovernedWriteContext } from "../governance/types";
 
 export interface PublishBusinessEventInput {
   businessId: number;
@@ -58,24 +61,41 @@ class DatabaseOutboxEventBus implements BusinessEventBus {
   }
 
   async publishTx(tx: DbExecutor, input: PublishBusinessEventInput): Promise<number | null> {
-    const [event] = await tx
-      .insert(businessDomainEventsTable)
-      .values({
-        businessId: input.businessId,
-        projectId: input.projectId ?? null,
-        eventType: input.eventType,
-        source: input.source,
-        payload: input.payload ?? {},
-        dedupeKey: input.dedupeKey,
-      })
-      .onConflictDoNothing()
-      .returning({ id: businessDomainEventsTable.id });
+    // Domain events are system-generated records OF a fact, even when that
+    // fact originated from a user action upstream (the route already
+    // governs its own direct writes with the real actor) — so the event
+    // record itself is always stamped as a "system" write. Resolving
+    // ownership from input.businessId here (rather than requiring every one
+    // of publishBusinessEvent's many external callers to pass a governance
+    // context) keeps this a drop-in, signature-compatible upgrade.
+    const ctx = await eventGovernanceContext(tx, input.businessId, input.source);
+    const event = await insertDomainEvent(tx, ctx, {
+      businessId: input.businessId,
+      projectId: input.projectId ?? null,
+      eventType: input.eventType,
+      source: input.source,
+      payload: input.payload ?? {},
+      dedupeKey: input.dedupeKey,
+    });
     return event?.id ?? null;
   }
 
   subscribe(eventTypes: string[], handler: BusinessEventHandler): void {
     registerBusinessEventSubscriber(eventTypes, handler);
   }
+}
+
+// Shared by publishTx and recordTimelineForEvent — see the comment on
+// publishTx for why this resolves ownership internally instead of widening
+// the public publish/publishTx signatures.
+async function eventGovernanceContext(tx: DbExecutor, businessId: number, source: string): Promise<GovernedWriteContext> {
+  const ownerUserId = await resolveBusinessOwnerUserId(tx, businessId);
+  return {
+    ownerUserId,
+    sourceEngine: "business_intelligence.events",
+    actor: actorFor(source === "ai_inference" ? "ai" : "system"),
+    businessId,
+  };
 }
 
 export const businessEventBus: BusinessEventBus = new DatabaseOutboxEventBus();
@@ -114,15 +134,14 @@ export async function processBusinessEvent(eventId: number): Promise<void> {
   }
 
   const anyFailure = failures.length > 0 || timelineError != null;
-  await db
-    .update(businessDomainEventsTable)
-    .set({
-      status: anyFailure ? "failed" : "processed",
-      processedAt: new Date(),
-      errorMessage: failures.length > 0 ? String(failures[0]!.reason).slice(0, 500) : null,
-    })
-    .where(eq(businessDomainEventsTable.id, event.id))
-    .catch(() => {});
+  // Audit-exempt by design: this only flips the outbox's own delivery
+  // status after an already-audited event runs its subscribers — see
+  // markDomainEventProcessed's doc comment.
+  await markDomainEventProcessed(db, event.id, {
+    status: anyFailure ? "failed" : "processed",
+    processedAt: new Date(),
+    errorMessage: failures.length > 0 ? String(failures[0]!.reason).slice(0, 500) : null,
+  }).catch(() => {});
 }
 
 async function recordTimelineForEvent(event: BusinessDomainEvent): Promise<void> {
@@ -131,7 +150,8 @@ async function recordTimelineForEvent(event: BusinessDomainEvent): Promise<void>
     ? payload.description
     : `${event.eventType.replaceAll(".", " ")} recorded by ${event.source}`;
 
-  await db.insert(businessTimelineEventsTable).values({
+  const ctx = await eventGovernanceContext(db, event.businessId, event.source);
+  await insertTimelineEvent(db, ctx, {
     businessId: event.businessId,
     projectId: event.projectId,
     eventType: event.eventType,

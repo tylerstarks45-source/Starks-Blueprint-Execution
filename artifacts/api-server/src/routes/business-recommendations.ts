@@ -1,9 +1,12 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, desc } from "drizzle-orm";
-import { db, businessesTable, businessRecommendationsTable } from "@workspace/db";
+import { db, businessRecommendationsTable } from "@workspace/db";
 import { getActiveCallerPayload } from "../lib/auth";
 import { enqueue } from "../lib/runtime/jobs";
+import { findOwnedBusiness } from "../lib/governance/ownership";
+import { updateRecommendation } from "../lib/governance/writes/recommendations-writes";
+import { actorFor, type GovernedWriteContext } from "../lib/governance/types";
 import {
   GetBusinessRecommendationsParams,
   GetBusinessRecommendationsQueryParams,
@@ -13,14 +16,6 @@ import {
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
-
-async function findOwnedBusiness(businessId: number, ownerId: number) {
-  const [business] = await db
-    .select()
-    .from(businessesTable)
-    .where(and(eq(businessesTable.id, businessId), eq(businessesTable.ownerId, ownerId)));
-  return business ?? null;
-}
 
 // ─── GET /api/businesses/:id/recommendations ─────────────────────────────────
 
@@ -102,21 +97,22 @@ router.post("/businesses/:id/recommendations/:recId/dismiss", async (req, res): 
     return;
   }
 
-  const [row] = await db
-    .update(businessRecommendationsTable)
-    .set({ status: "dismissed", resolvedAt: new Date() })
+  const [before] = await db
+    .select()
+    .from(businessRecommendationsTable)
     .where(
       and(
         eq(businessRecommendationsTable.id, params.data.recId),
         eq(businessRecommendationsTable.businessId, business.id),
       ),
-    )
-    .returning();
-
-  if (!row) {
+    );
+  if (!before) {
     res.status(404).json({ error: "Not found" });
     return;
   }
+
+  const ctx: GovernedWriteContext = { ownerUserId: caller.id, sourceEngine: "business_intelligence.recommendations", actor: actorFor("user", caller.id), businessId: business.id };
+  const row = await updateRecommendation(db, ctx, before, { status: "dismissed", resolvedAt: new Date() });
 
   res.json(serialize(row));
 });
@@ -139,21 +135,22 @@ router.post("/businesses/:id/recommendations/:recId/apply", async (req, res): Pr
     return;
   }
 
-  const [row] = await db
-    .update(businessRecommendationsTable)
-    .set({ status: "applied", resolvedAt: new Date() })
+  const [before] = await db
+    .select()
+    .from(businessRecommendationsTable)
     .where(
       and(
         eq(businessRecommendationsTable.id, params.data.recId),
         eq(businessRecommendationsTable.businessId, business.id),
       ),
-    )
-    .returning();
-
-  if (!row) {
+    );
+  if (!before) {
     res.status(404).json({ error: "Not found" });
     return;
   }
+
+  const ctx: GovernedWriteContext = { ownerUserId: caller.id, sourceEngine: "business_intelligence.recommendations", actor: actorFor("user", caller.id), businessId: business.id };
+  const row = await updateRecommendation(db, ctx, before, { status: "applied", resolvedAt: new Date() });
 
   res.json(serialize(row));
 });

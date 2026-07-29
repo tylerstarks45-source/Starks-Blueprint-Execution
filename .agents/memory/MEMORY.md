@@ -2,6 +2,7 @@
 - [FOUNDER_ADMIN role](founder-admin.md) — bypass pattern: check role in hasCredits(), openrouter.ts credit gate, system-instances.ts limit; 8 frontend files need updating when adding new admin roles.
 - [Connections Hub architecture](connections-hub.md) — Credential Vault upgraded to Connections Hub; schema columns, new test/patch endpoints, 40+ integration catalog, builder integration pattern.
 - [DB schema change workflow](db-schema-workflow.md) — adding columns requires: push → typecheck:libs → api-server typecheck, in that order.
+- [drizzle-kit push hazard](drizzle-kit-push-hazard.md) — `push` offers to drop live `scheduler_state` (untracked raw-SQL table); apply schema changes by hand via executeSql instead.
 - [System instance creation body](system-instance-body.md) — POST /api/system-instances requires userId (non-optional in Zod schema); always pass currentUser.id explicitly even though server also injects it from JWT.
 - [PocketBase shim auth](pocketbase-shim-auth.md) — AuthContext correctly works through the pb shim; shim routes authWithPassword → /api/auth/login and authStore persists to localStorage. Do not rewrite AuthContext.
 - [BuilderPage 3-panel layout](builder-3panel-layout.md) — Replit-style layout: LEFT tasks+agent modes, CENTER chat+terminal, RIGHT library; file truncation fix for large edit replacements.
@@ -44,3 +45,5 @@
 - [Research & Knowledge Engine architecture](research-knowledge-engine.md) — Phase 1.4: knowledge-first lookup, reuses existing search primitive, 0-credit test users can't exercise gather step.
 - [Platform Registry & Search Provider Abstraction](platform-registry-and-search-abstraction.md) — live connector-derived platform list + swappable SearchProvider (Tavily/Serper/Perplexity fallback chain); never hardcode either.
 - [Knowledge reuse vs update-in-place](knowledge-reuse-vs-update.md) — two distinct lookups (fresh+confident reuse vs. any-match topic lookup) so stale entries get UPDATEd not duplicated; relevance bar must match, not exceed, the reuse bar.
+- [Business Intelligence ownership & audit governance (Phase A)](../../docs/superpowers/specs/2026-07-29-business-intelligence-governance-design.md) — ownership contract, Data Access Layer, audit trail; see also the same-day compliance report. Phase B (rest of platform) deferred pending separate user authorization.
+- [markTaskComplete "no active task" quirk](task-completion-active-task-quirk.md) — task state can show correctly as MAIN_IN_PROGRESS while markTaskComplete still reports no_active_task; try markTaskInProgress once, then stop retrying and report to user.

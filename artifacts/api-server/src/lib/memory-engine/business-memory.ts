@@ -1,6 +1,9 @@
 import { db, businessMemoryTable, businessesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { BusinessMemory } from "@workspace/db";
+import { insertBusinessMemory, updateBusinessMemory, touchBusinessMemoryAccess } from "../governance/writes/memory-writes";
+import { resolveBusinessOwnerUserId } from "../governance/ownership";
+import { actorFor, type GovernedWriteContext } from "../governance/types";
 
 // ─── Business Memory (Layer 4) ─────────────────────────────────────────────
 // One row per business (see business_memory.ts). Resolved via the business's
@@ -24,14 +27,21 @@ export async function resolveBusinessIdForSystemInstance(systemInstanceId: numbe
   return business?.id ?? null;
 }
 
+// Auto-provisioning path (no acting user) — every governed write below is
+// stamped "system" and owned by the business's own owner.
+async function systemMemoryContext(businessId: number): Promise<GovernedWriteContext> {
+  const ownerUserId = await resolveBusinessOwnerUserId(db, businessId);
+  return { ownerUserId, sourceEngine: "business_intelligence.memory", actor: actorFor("system"), businessId };
+}
+
 export async function getOrCreateBusinessMemory(businessId: number): Promise<BusinessMemory> {
   const [existing] = await db.select().from(businessMemoryTable).where(eq(businessMemoryTable.businessId, businessId));
   if (existing) {
-    await db.update(businessMemoryTable).set({ lastAccessedAt: new Date() }).where(eq(businessMemoryTable.id, existing.id)).catch(() => {});
+    await touchBusinessMemoryAccess(db, existing.id).catch(() => {});
     return existing;
   }
-  const [created] = await db.insert(businessMemoryTable).values({ businessId }).returning();
-  return created;
+  const ctx = await systemMemoryContext(businessId);
+  return insertBusinessMemory(db, ctx, { businessId });
 }
 
 // Merges newly-learned facts into a business's memory row. List fields
@@ -57,7 +67,11 @@ export async function mergeBusinessMemory(businessId: number, patch: {
     return [...new Set([...base, ...incoming])].slice(0, 50);
   };
 
-  await db.update(businessMemoryTable).set({
+  // Auto-captured pattern merging (see file header) — always AI-attributed,
+  // never a direct user edit.
+  const ownerUserId = await resolveBusinessOwnerUserId(db, businessId);
+  const ctx: GovernedWriteContext = { ownerUserId, sourceEngine: "business_intelligence.memory", actor: actorFor("ai"), businessId };
+  await updateBusinessMemory(db, ctx, current, {
     businessModel: patch.businessModel ?? current.businessModel,
     products: mergeList(current.products, patch.products),
     services: mergeList(current.services, patch.services),
@@ -68,5 +82,5 @@ export async function mergeBusinessMemory(businessId: number, patch: {
     seoStrategy: patch.seoStrategy ?? current.seoStrategy,
     automationStrategy: patch.automationStrategy ?? current.automationStrategy,
     lastAccessedAt: new Date(),
-  }).where(eq(businessMemoryTable.id, current.id));
+  });
 }

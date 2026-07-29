@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 import { businessesTable } from "./businesses";
 import { usersTable } from "./users";
 import { ashProjectsTable } from "./executive_brain";
+import { ownershipColumns, projectScopeColumn } from "./governance";
 
 // ─── ASH Brain v2.0 — Business Intelligence Engine (Phase 1.5A) ────────────
 // These tables are intentionally additive. `businesses` remains the root
@@ -40,12 +41,15 @@ export const businessDnaClaimsTable = pgTable(
     reasoning: text("reasoning"),
     version: integer("version").notNull().default(1),
     lastUpdatedAt: timestamp("last_updated_at", { withTimezone: true }).notNull().defaultNow(),
+    ...ownershipColumns(),
+    ...projectScopeColumn(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
   (t) => [
     uniqueIndex("business_dna_claims_business_field_idx").on(t.businessId, t.fieldKey),
     index("business_dna_claims_business_id_idx").on(t.businessId),
+    index("business_dna_claims_owner_user_id_idx").on(t.ownerUserId),
   ],
 );
 
@@ -65,11 +69,14 @@ export const businessDnaVersionsTable = pgTable(
     source: text("source").notNull(),
     reasoning: text("reasoning"),
     changeType: text("change_type").notNull(), // initialized | promoted | reinforced | conflict_observed | user_decision
+    ...ownershipColumns(),
+    ...projectScopeColumn(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("business_dna_versions_claim_id_idx").on(t.claimId),
     index("business_dna_versions_business_id_idx").on(t.businessId),
+    index("business_dna_versions_owner_user_id_idx").on(t.ownerUserId),
   ],
 );
 
@@ -93,11 +100,14 @@ export const businessDnaConflictsTable = pgTable(
     resolvedByUserId: integer("resolved_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
     resolution: text("resolution"),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    ...ownershipColumns(),
+    ...projectScopeColumn(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("business_dna_conflicts_business_status_idx").on(t.businessId, t.status),
     index("business_dna_conflicts_claim_id_idx").on(t.claimId),
+    index("business_dna_conflicts_owner_user_id_idx").on(t.ownerUserId),
   ],
 );
 
@@ -113,12 +123,15 @@ export const businessReviewQueueTable = pgTable(
     description: text("description").notNull(),
     payload: jsonb("payload").notNull().default({}),
     status: text("status").notNull().default("open"),
+    ...ownershipColumns(),
+    ...projectScopeColumn(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
   (t) => [
     index("business_review_queue_business_status_idx").on(t.businessId, t.status),
     index("business_review_queue_conflict_id_idx").on(t.conflictId),
+    index("business_review_queue_owner_user_id_idx").on(t.ownerUserId),
   ],
 );
 
@@ -133,12 +146,14 @@ export const businessTimelineEventsTable = pgTable(
     description: text("description").notNull(),
     trigger: text("trigger").notNull(),
     relatedObjects: jsonb("related_objects").notNull().default({}),
+    ...ownershipColumns(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("business_timeline_events_business_occurred_idx").on(t.businessId, t.occurredAt),
     index("business_timeline_events_project_id_idx").on(t.projectId),
+    index("business_timeline_events_owner_user_id_idx").on(t.ownerUserId),
   ],
 );
 
@@ -158,11 +173,13 @@ export const businessDomainEventsTable = pgTable(
     status: text("status").notNull().default("pending"),
     processedAt: timestamp("processed_at", { withTimezone: true }),
     errorMessage: text("error_message"),
+    ...ownershipColumns(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("business_domain_events_dedupe_key_idx").on(t.dedupeKey),
     index("business_domain_events_business_status_idx").on(t.businessId, t.status),
+    index("business_domain_events_owner_user_id_idx").on(t.ownerUserId),
   ],
 );
 

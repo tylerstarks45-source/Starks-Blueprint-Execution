@@ -2,6 +2,7 @@ import { pgTable, serial, integer, text, jsonb, timestamp, index } from "drizzle
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { businessesTable } from "./businesses";
+import { ownershipColumns, projectScopeColumn } from "./governance";
 
 export const businessHealthScoresTable = pgTable("business_health_scores", {
   id: serial("id").primaryKey(),
@@ -18,10 +19,13 @@ export const businessHealthScoresTable = pgTable("business_health_scores", {
   missingIntegrations: jsonb("missing_integrations").notNull().default([]),
   recommendations: jsonb("recommendations").notNull().default([]),
   estimatedGrowthPotential: text("estimated_growth_potential"),
+  ...ownershipColumns(),
+  ...projectScopeColumn(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("business_health_scores_business_id_idx").on(t.businessId),
   index("business_health_scores_business_id_created_at_idx").on(t.businessId, t.createdAt),
+  index("business_health_scores_owner_user_id_idx").on(t.ownerUserId),
 ]);
 
 export const insertBusinessHealthScoreSchema = createInsertSchema(businessHealthScoresTable).omit({

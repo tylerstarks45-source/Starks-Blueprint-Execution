@@ -21,6 +21,16 @@ import { chainFor } from "../models";
 import { logger } from "../logger";
 import { DNA_FIELD_CATALOG, type IncomingDnaEvidence, type TruthResolutionResult, type RecommendedConflictDecision } from "./types";
 import type { BusinessDnaConflict } from "@workspace/db";
+import {
+  insertDnaClaim,
+  updateDnaClaim,
+  insertDnaVersion,
+  insertDnaConflict,
+  insertReviewQueueItem,
+  resolveBusinessOwnerUserId,
+  actorFor,
+  type GovernedWriteContext,
+} from "../governance";
 
 const TRUST_RANK: Record<BusinessDnaTrustLevel, number> = {
   user_confirmed: 4,
@@ -61,11 +71,29 @@ async function runTransactional<T>(work: (tx: DbExecutor) => Promise<{ result: T
 }
 
 export async function reconcileDnaEvidence(businessId: number, incoming: IncomingDnaEvidence): Promise<TruthResolutionResult> {
-  return runTransactional((tx) => reconcileDnaEvidenceTx(tx, businessId, incoming));
+  return runTransactional(async (tx) => {
+    const ctx = await buildSystemDnaContext(tx, businessId, incoming.source);
+    return reconcileDnaEvidenceTx(tx, ctx, businessId, incoming);
+  });
+}
+
+// Shared context builder for the two system/AI-initiated entry points
+// (reconcileDnaEvidence, and indirectly inferMissingDnaFields/
+// initializeBusinessDna, which both call it). No human is acting here, so
+// actorUserId is always null; only the actorType varies by evidence source.
+async function buildSystemDnaContext(tx: DbExecutor, businessId: number, source: string): Promise<GovernedWriteContext> {
+  const ownerUserId = await resolveBusinessOwnerUserId(tx, businessId);
+  return {
+    ownerUserId,
+    sourceEngine: "business_intelligence.dna",
+    actor: actorFor(source === "ai_inference" ? "ai" : "system"),
+    businessId,
+  };
 }
 
 async function reconcileDnaEvidenceTx(
   tx: DbExecutor,
+  ctx: GovernedWriteContext,
   businessId: number,
   incoming: IncomingDnaEvidence,
 ): Promise<{ result: TruthResolutionResult; eventIds: number[] }> {
@@ -75,7 +103,7 @@ async function reconcileDnaEvidenceTx(
     .from(businessDnaClaimsTable)
     .where(and(eq(businessDnaClaimsTable.businessId, businessId), eq(businessDnaClaimsTable.fieldKey, evidence.fieldKey)));
 
-  if (!existing) return createClaimTx(tx, businessId, evidence);
+  if (!existing) return createClaimTx(tx, ctx, businessId, evidence);
 
   const equivalent = normalize(existing.currentValue) === normalize(evidence.value);
   const existingRank = TRUST_RANK[existing.trustLevel as BusinessDnaTrustLevel] ?? 0;
@@ -91,20 +119,20 @@ async function reconcileDnaEvidenceTx(
       // version history and fire a "reinforced" event every single run.
       return { result: { action: "preserved", claim: existing, conflictId: null }, eventIds: [] };
     }
-    const [claim] = await tx.update(businessDnaClaimsTable).set({
+    const claim = await updateDnaClaim(tx, ctx, existing, {
       confidenceScore: Math.max(existing.confidenceScore, evidence.confidenceScore),
       trustLevel: incomingRank >= existingRank ? evidence.trustLevel : existing.trustLevel,
       source: incomingRank >= existingRank ? evidence.source : existing.source,
       reasoning: incomingRank >= existingRank ? evidence.reasoning ?? existing.reasoning : existing.reasoning,
       lastUpdatedAt: new Date(),
-    }).where(eq(businessDnaClaimsTable.id, existing.id)).returning();
-    await writeVersion(tx, claim, evidence, "reinforced");
+    });
+    await writeVersion(tx, ctx, claim, evidence, "reinforced");
     return { result: { action: "reinforced", claim, conflictId: null }, eventIds: [] };
   }
 
   // User-confirmed values are permanent until a user explicitly changes them.
   if (existing.trustLevel === "user_confirmed") {
-    return preserveWithConflictTx(tx, businessId, existing, evidence);
+    return preserveWithConflictTx(tx, ctx, businessId, existing, evidence);
   }
 
   const newerVerified = existing.trustLevel === "verified_system_data"
@@ -114,7 +142,7 @@ async function reconcileDnaEvidenceTx(
     && (incomingRank > existingRank || (incomingRank === existingRank && evidence.confidenceScore > existing.confidenceScore));
 
   if (newerVerified || inferredUpgrade) {
-    const [claim] = await tx.update(businessDnaClaimsTable).set({
+    const claim = await updateDnaClaim(tx, ctx, existing, {
       currentValue: evidence.value,
       confidenceScore: evidence.confidenceScore,
       trustLevel: evidence.trustLevel,
@@ -122,8 +150,8 @@ async function reconcileDnaEvidenceTx(
       reasoning: evidence.reasoning ?? null,
       version: existing.version + 1,
       lastUpdatedAt: evidence.observedAt ?? new Date(),
-    }).where(eq(businessDnaClaimsTable.id, existing.id)).returning();
-    await writeVersion(tx, claim, evidence, "promoted");
+    });
+    await writeVersion(tx, ctx, claim, evidence, "promoted");
     const eventId = await publishBusinessEventTx(tx, {
       businessId,
       eventType: "dna.changed",
@@ -134,18 +162,31 @@ async function reconcileDnaEvidenceTx(
     return { result: { action: "promoted", claim, conflictId: null }, eventIds: eventId != null ? [eventId] : [] };
   }
 
-  return preserveWithConflictTx(tx, businessId, existing, evidence);
+  return preserveWithConflictTx(tx, ctx, businessId, existing, evidence);
 }
 
 // This is deliberately separate from generic reconciliation. It is only used
 // after the route has authenticated the owning business user, allowing an owner
 // to revise a previous confirmation without weakening the normal truth policy.
 export async function applyUserConfirmedDnaValue(businessId: number, incoming: IncomingDnaEvidence): Promise<TruthResolutionResult> {
-  return runTransactional((tx) => applyUserConfirmedDnaValueTx(tx, businessId, incoming));
+  return runTransactional(async (tx) => {
+    const ownerUserId = await resolveBusinessOwnerUserId(tx, businessId);
+    const ctx: GovernedWriteContext = {
+      ownerUserId,
+      sourceEngine: "business_intelligence.dna",
+      // Only reachable after a route has verified the caller owns this
+      // business, so the acting user and the record owner are always the
+      // same id here.
+      actor: actorFor("user", ownerUserId),
+      businessId,
+    };
+    return applyUserConfirmedDnaValueTx(tx, ctx, businessId, incoming);
+  });
 }
 
 async function applyUserConfirmedDnaValueTx(
   tx: DbExecutor,
+  ctx: GovernedWriteContext,
   businessId: number,
   incoming: IncomingDnaEvidence,
 ): Promise<{ result: TruthResolutionResult; eventIds: number[] }> {
@@ -161,7 +202,7 @@ async function applyUserConfirmedDnaValueTx(
     .where(and(eq(businessDnaClaimsTable.businessId, businessId), eq(businessDnaClaimsTable.fieldKey, evidence.fieldKey)));
 
   if (!existing) {
-    const created = await createClaimTx(tx, businessId, evidence);
+    const created = await createClaimTx(tx, ctx, businessId, evidence);
     const eventId = await publishBusinessEventTx(tx, {
       businessId,
       eventType: "dna.user_confirmed",
@@ -172,20 +213,16 @@ async function applyUserConfirmedDnaValueTx(
     return { result: created.result, eventIds: [...created.eventIds, ...(eventId != null ? [eventId] : [])] };
   }
 
-  const [claim] = await tx
-    .update(businessDnaClaimsTable)
-    .set({
-      currentValue: evidence.value,
-      confidenceScore: 100,
-      trustLevel: "user_confirmed",
-      source: evidence.source,
-      reasoning: evidence.reasoning ?? null,
-      version: existing.version + 1,
-      lastUpdatedAt: evidence.observedAt,
-    })
-    .where(eq(businessDnaClaimsTable.id, existing.id))
-    .returning();
-  await writeVersion(tx, claim, evidence, "user_decision");
+  const claim = await updateDnaClaim(tx, ctx, existing, {
+    currentValue: evidence.value,
+    confidenceScore: 100,
+    trustLevel: "user_confirmed",
+    source: evidence.source,
+    reasoning: evidence.reasoning ?? null,
+    version: existing.version + 1,
+    lastUpdatedAt: evidence.observedAt,
+  });
+  await writeVersion(tx, ctx, claim, evidence, "user_decision");
   const eventId = await publishBusinessEventTx(tx, {
     businessId,
     eventType: "dna.user_confirmed",
@@ -198,10 +235,11 @@ async function applyUserConfirmedDnaValueTx(
 
 async function createClaimTx(
   tx: DbExecutor,
+  ctx: GovernedWriteContext,
   businessId: number,
   evidence: IncomingDnaEvidence,
 ): Promise<{ result: TruthResolutionResult; eventIds: number[] }> {
-  const [claim] = await tx.insert(businessDnaClaimsTable).values({
+  const claim = await insertDnaClaim(tx, ctx, {
     businessId,
     fieldKey: evidence.fieldKey,
     currentValue: evidence.value,
@@ -210,8 +248,8 @@ async function createClaimTx(
     source: evidence.source,
     reasoning: evidence.reasoning ?? null,
     lastUpdatedAt: evidence.observedAt ?? new Date(),
-  }).returning();
-  await writeVersion(tx, claim, evidence, "initialized");
+  });
+  await writeVersion(tx, ctx, claim, evidence, "initialized");
   const eventId = await publishBusinessEventTx(tx, {
     businessId,
     eventType: "dna.initialized",
@@ -224,6 +262,7 @@ async function createClaimTx(
 
 async function preserveWithConflictTx(
   tx: DbExecutor,
+  ctx: GovernedWriteContext,
   businessId: number,
   existing: BusinessDnaClaim,
   evidence: IncomingDnaEvidence,
@@ -249,7 +288,7 @@ async function preserveWithConflictTx(
   }
 
   const impact = impactFor(existing.fieldKey);
-  const [conflict] = await tx.insert(businessDnaConflictsTable).values({
+  const conflict = await insertDnaConflict(tx, ctx, {
     businessId,
     claimId: existing.id,
     fieldKey: existing.fieldKey,
@@ -262,13 +301,13 @@ async function preserveWithConflictTx(
     incomingReasoning: evidence.reasoning ?? null,
     impactScore: impact.score,
     impactReason: impact.reason,
-  }).returning();
-  await writeVersion(tx, existing, evidence, "conflict_observed");
+  });
+  await writeVersion(tx, ctx, existing, evidence, "conflict_observed");
 
   // Lower-impact conflicts become review items; high-impact conflicts are
   // exposed in the Executive Brain context immediately and also timeline'd.
   if (impact.score < ESCALATION_THRESHOLD) {
-    await tx.insert(businessReviewQueueTable).values({
+    await insertReviewQueueItem(tx, ctx, {
       businessId,
       conflictId: conflict.id,
       kind: "conflict",
@@ -288,8 +327,8 @@ async function preserveWithConflictTx(
   return { result: { action: "conflict", claim: existing, conflictId: conflict.id }, eventIds: eventId != null ? [eventId] : [] };
 }
 
-async function writeVersion(tx: DbExecutor, claim: BusinessDnaClaim, evidence: IncomingDnaEvidence, changeType: string): Promise<void> {
-  await tx.insert(businessDnaVersionsTable).values({
+async function writeVersion(tx: DbExecutor, ctx: GovernedWriteContext, claim: BusinessDnaClaim, evidence: IncomingDnaEvidence, changeType: string): Promise<void> {
+  await insertDnaVersion(tx, ctx, {
     claimId: claim.id,
     businessId: claim.businessId,
     version: claim.version,
@@ -487,7 +526,8 @@ async function ensureSingleMaterialConfirmation(businessId: number): Promise<voi
   const top = candidates[0];
   if (!top) return;
 
-  await db.insert(businessReviewQueueTable).values({
+  const ctx = await buildSystemDnaContext(db, businessId, "existing_business_records");
+  await insertReviewQueueItem(db, ctx, {
     businessId,
     kind: "confirmation",
     priority: (importanceRank[top.field.importance] ?? 1) * 25,

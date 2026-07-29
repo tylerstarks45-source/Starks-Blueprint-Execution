@@ -24,6 +24,9 @@ import { computeSystemHealth } from "../health-monitor";
 import { attemptSelfHeal } from "../self-healing";
 import { logEvent } from "../log-event";
 import { refreshExpiringCredentials } from "../social-oauth";
+import { insertHealthScore } from "../governance/writes/health-writes";
+import { insertRecommendation, updateRecommendation } from "../governance/writes/recommendations-writes";
+import { actorFor, type GovernedWriteContext } from "../governance/types";
 
 // Fetch and decrypt a single user-level credential (mirrors the private helper
 // in routes/media-gen.ts) so worker handlers can reach provider API keys.
@@ -460,9 +463,15 @@ Respond with ONLY a single JSON object (no markdown, no prose) with this exact s
     throw new Error("ASH returned a non-JSON health analysis response");
   }
 
-  const [row] = await db
-    .insert(businessHealthScoresTable)
-    .values({
+  // AI-narrated health analysis — distinct sub-engine from the heuristic
+  // businessHealthMetricsTable insert in health-monitor.ts.
+  const healthCtx: GovernedWriteContext = {
+    ownerUserId: business.ownerId,
+    sourceEngine: "business_intelligence.health_analysis",
+    actor: actorFor("ai"),
+    businessId,
+  };
+  const row = await insertHealthScore(db, healthCtx, {
       businessId,
       overallHealth: clampScore(parsed.overallHealth),
       automationScore: clampScore(parsed.automationScore),
@@ -477,8 +486,7 @@ Respond with ONLY a single JSON object (no markdown, no prose) with this exact s
       recommendations: toStringArray(parsed.recommendations),
       estimatedGrowthPotential:
         typeof parsed.estimatedGrowthPotential === "string" ? parsed.estimatedGrowthPotential.slice(0, 200) : null,
-    })
-    .returning();
+  });
 
   logger.info({ businessId, overallHealth: row.overallHealth }, "Business health analysis completed");
   await publishBusinessEvent({
@@ -630,11 +638,20 @@ Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY
   const raw = parsed as RawRecommendation[];
   const toolByName = new Map(marketplaceTools.map((t) => [t.name.toLowerCase(), t.id]));
 
+  const passCtx: GovernedWriteContext = {
+    ownerUserId: business.ownerId,
+    sourceEngine: "business_intelligence.improvement_pass",
+    actor: actorFor("system"),
+    businessId,
+  };
+
   // Supersede the previous pass's unactioned recommendations instead of
   // letting them pile up forever — dismissed/applied history is preserved.
-  await db
-    .update(businessRecommendationsTable)
-    .set({ status: "stale", resolvedAt: new Date() })
+  // Looped rather than one bulk UPDATE so each superseded recommendation
+  // still gets its own accurate before/after audit entry.
+  const staleCandidates = await db
+    .select()
+    .from(businessRecommendationsTable)
     .where(
       and(
         eq(businessRecommendationsTable.businessId, businessId),
@@ -642,6 +659,9 @@ Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY
         eq(businessRecommendationsTable.status, "new"),
       ),
     );
+  for (const stale of staleCandidates) {
+    await updateRecommendation(db, passCtx, stale, { status: "stale", resolvedAt: new Date() });
+  }
 
   let inserted = 0;
   let marketplaceMatches = 0;
@@ -656,7 +676,7 @@ Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY
       : null;
     if (suggestedToolId) marketplaceMatches++;
 
-    await db.insert(businessRecommendationsTable).values({
+    await insertRecommendation(db, { ...passCtx, actor: actorFor("ai") }, {
       businessId,
       category,
       title: item.title.slice(0, 200),

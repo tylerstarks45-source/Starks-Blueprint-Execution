@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { ashProjectsTable } from "./executive_brain";
 import { businessesTable } from "./businesses";
+import { ownershipColumns } from "./governance";
 
 // ─── ASH Brain v2.0 — Knowledge Memory (Phase 1.2) ─────────────────────────
 // Per-user, continuously-learned knowledge: successful/failed patterns, tool
@@ -72,6 +73,10 @@ export const ashKnowledgeEntriesTable = pgTable(
     importanceScore: integer("importance_score").notNull().default(50),
     confidenceScore: integer("confidence_score").notNull().default(100),
     lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+    // Note: this table's own `sourceProjectId` (above) already covers the
+    // "project" dimension of governance — no separate projectId column is
+    // added here to avoid two competing project references on the same row.
+    ...ownershipColumns(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
@@ -80,6 +85,7 @@ export const ashKnowledgeEntriesTable = pgTable(
     index("ash_knowledge_entries_user_id_category_idx").on(t.userId, t.category),
     index("ash_knowledge_entries_source_project_id_idx").on(t.sourceProjectId),
     index("ash_knowledge_entries_business_id_idx").on(t.businessId),
+    index("ash_knowledge_entries_owner_user_id_idx").on(t.ownerUserId),
   ],
 );
 

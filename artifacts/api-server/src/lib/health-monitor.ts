@@ -20,6 +20,8 @@ import {
 } from "@workspace/db";
 import { logger } from "./logger";
 import { logEvent } from "./log-event";
+import { insertHealthMetric } from "./governance/writes/health-writes";
+import { actorFor, type GovernedWriteContext } from "./governance/types";
 
 // ─── Shared scoring helpers ────────────────────────────────────────────────
 // Heuristic, DB-signal-based scoring — intentionally lightweight (no live
@@ -307,10 +309,16 @@ export async function computeBusinessHealth(businessId: number) {
   const overallScore = overall(scores);
   const status = statusToLevel(overallScore);
 
-  const [row] = await db
-    .insert(businessHealthMetricsTable)
-    .values({ businessId, overallScore, status, issues, ...scores })
-    .returning();
+  // Heuristic monitoring recompute — no acting user, purely derived from
+  // existing DB signals (see the file-level comment). Distinct sub-engine
+  // from the AI-narrated businessHealthScoresTable insert in worker.ts.
+  const ctx: GovernedWriteContext = {
+    ownerUserId: business.ownerId,
+    sourceEngine: "business_intelligence.health_monitor",
+    actor: actorFor("system"),
+    businessId,
+  };
+  const row = await insertHealthMetric(db, ctx, { businessId, overallScore, status, issues, ...scores });
 
   await logMonitoringEvent({
     businessId,

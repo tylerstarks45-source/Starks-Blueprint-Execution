@@ -133,6 +133,7 @@ describe("Research & Knowledge Engine — knowledge-first reuse", () => {
     // test only exercises the reuse decision, not research generation.
     await db.insert(ashKnowledgeEntriesTable).values({
       userId: testUserId,
+      ownerUserId: testUserId,
       category: "ai_tool_profile",
       title: "Best AI tools for short-form video captions",
       content: "CaptionAI and SubtitleGenie are the two leading options for automated short-form video captioning.",
@@ -174,6 +175,7 @@ describe("Research & Knowledge Engine — knowledge-first reuse", () => {
       .insert(ashKnowledgeEntriesTable)
       .values({
         userId: testUserId,
+        ownerUserId: testUserId,
         category: "trend_research",
         title: "Short-form video trends",
         content: "Old data from a while ago about short-form video trends.",
@@ -223,6 +225,7 @@ describe("Research & Knowledge Engine — knowledge-first reuse", () => {
       .insert(ashKnowledgeEntriesTable)
       .values({
         userId: testUserId,
+        ownerUserId: testUserId,
         category: "market_research",
         title: "Pet supplement market size",
         content: "The pet supplement market is valued at roughly $3B and growing steadily.",

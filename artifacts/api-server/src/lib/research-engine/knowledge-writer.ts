@@ -3,6 +3,23 @@ import { eq } from "drizzle-orm";
 import { logger } from "../logger";
 import { categoryForResearchType } from "./knowledge-lookup";
 import type { ScoredSource, StructuredSummary } from "./types";
+import { insertKnowledgeEntry, updateKnowledgeEntry } from "../governance/writes/knowledge-writes";
+import { actorFor, type GovernedWriteContext } from "../governance/types";
+
+// Research & Knowledge Engine findings are always AI-synthesized (this is
+// the only writer for ashResearchType-driven entries) and owned by the
+// requesting user directly — same no-join rule as knowledge-memory.ts.
+//
+// Note: ashResearchProfilesTable (upsertResearchProfile below) is
+// deliberately NOT governed. It wasn't named in Phase A's table list and is
+// a satellite/derived projection of an already-governed knowledge entry
+// (deleted and fully rewritten on every update, never independently
+// mutated), so instrumenting it would add audit noise without protecting
+// any fact not already covered by its parent ash_knowledge_entries row. Left
+// as an explicit, documented Phase B candidate if that changes.
+function researchKnowledgeContext(userId: number, businessId?: number | null): GovernedWriteContext {
+  return { ownerUserId: userId, sourceEngine: "research_engine.knowledge_writer", actor: actorFor("ai"), businessId: businessId ?? null };
+}
 
 // ─── Save or update Knowledge Memory (step 7 of the workflow) ──────────────
 // "Save reusable findings into Knowledge Memory when appropriate... update
@@ -46,21 +63,22 @@ export async function saveOrUpdateKnowledgeMemory(params: {
 
 async function updateExistingEntry(
   existingEntryId: number,
-  params: { summary: StructuredSummary; sources: ScoredSource[] },
+  params: { userId: number; summary: StructuredSummary; sources: ScoredSource[] },
 ): Promise<AshKnowledgeEntry> {
-  const [updated] = await db
-    .update(ashKnowledgeEntriesTable)
-    .set({
-      title: params.summary.title,
-      content: params.summary.summary,
-      tags: params.summary.tags,
-      keyFindings: params.summary.keyFindings,
-      sources: params.sources,
-      confidenceScore: params.summary.confidenceScore,
-      lastAccessedAt: new Date(),
-    })
-    .where(eq(ashKnowledgeEntriesTable.id, existingEntryId))
-    .returning();
+  // Fetched fresh (the caller only holds the id from findExistingEntryForTopic)
+  // so updateKnowledgeEntry gets a real pre-update snapshot for its audit diff.
+  const [before] = await db.select().from(ashKnowledgeEntriesTable).where(eq(ashKnowledgeEntriesTable.id, existingEntryId));
+  if (!before) throw new Error(`Knowledge entry ${existingEntryId} not found`);
+
+  const updated = await updateKnowledgeEntry(db, researchKnowledgeContext(params.userId, before.businessId), before, {
+    title: params.summary.title,
+    content: params.summary.summary,
+    tags: params.summary.tags,
+    keyFindings: params.summary.keyFindings,
+    sources: params.sources,
+    confidenceScore: params.summary.confidenceScore,
+    lastAccessedAt: new Date(),
+  });
 
   logger.info({ knowledgeEntryId: updated.id }, "Research Engine: updated existing Knowledge Memory entry with newer research");
   return updated;
@@ -73,22 +91,18 @@ async function insertNewEntry(params: {
   summary: StructuredSummary;
   sources: ScoredSource[];
 }): Promise<AshKnowledgeEntry> {
-  const [entry] = await db
-    .insert(ashKnowledgeEntriesTable)
-    .values({
-      userId: params.userId,
-      sourceProjectId: params.sourceProjectId,
-      category: categoryForResearchType(params.researchType),
-      title: params.summary.title,
-      content: params.summary.summary,
-      tags: params.summary.tags,
-      keyFindings: params.summary.keyFindings,
-      sources: params.sources,
-      confidenceScore: params.summary.confidenceScore,
-      lastAccessedAt: new Date(),
-    })
-    .returning();
-  return entry;
+  return insertKnowledgeEntry(db, researchKnowledgeContext(params.userId), {
+    userId: params.userId,
+    sourceProjectId: params.sourceProjectId,
+    category: categoryForResearchType(params.researchType),
+    title: params.summary.title,
+    content: params.summary.summary,
+    tags: params.summary.tags,
+    keyFindings: params.summary.keyFindings,
+    sources: params.sources,
+    confidenceScore: params.summary.confidenceScore,
+    lastAccessedAt: new Date(),
+  });
 }
 
 // Persists the richer, type-specific structured profile alongside the

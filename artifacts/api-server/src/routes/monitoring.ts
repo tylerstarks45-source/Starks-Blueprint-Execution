@@ -24,6 +24,7 @@ import {
 } from "../lib/health-monitor";
 import { attemptSelfHeal } from "../lib/self-healing";
 import { loadCredentials } from "../lib/runtime/worker";
+import { findOwnedBusiness } from "../lib/governance/ownership";
 import {
   GetSystemMonitoringParams,
   RecomputeSystemMonitoringParams,
@@ -33,20 +34,15 @@ import {
 
 const router: IRouter = Router();
 
+// NOTE: intentionally separate from the governed findOwnedBusiness import
+// above — system instances are a distinct, ungoverned resource type (out of
+// Phase A scope). Do not merge these.
 async function findOwnedSystemInstance(id: number, ownerId: number) {
   const [instance] = await db
     .select()
     .from(systemInstancesTable)
     .where(and(eq(systemInstancesTable.id, id), eq(systemInstancesTable.userId, ownerId)));
   return instance ?? null;
-}
-
-async function findOwnedBusiness(id: number, ownerId: number) {
-  const [business] = await db
-    .select()
-    .from(businessesTable)
-    .where(and(eq(businessesTable.id, id), eq(businessesTable.ownerId, ownerId)));
-  return business ?? null;
 }
 
 // Mirrors the tier gate `attemptSelfHeal` enforces at execution time

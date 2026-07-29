@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import { and, desc, eq } from "drizzle-orm";
 import {
   db,
-  businessesTable,
   businessDnaClaimsTable,
   businessDnaConflictsTable,
   businessReviewQueueTable,
@@ -21,14 +20,12 @@ import {
   reconcileDnaEvidence,
   publishBusinessEvent,
 } from "../lib/business-intelligence";
+import { findOwnedBusiness } from "../lib/governance/ownership";
+import { updateReviewQueueItem, updateDnaConflict } from "../lib/governance/writes/dna-writes";
+import { actorFor, type GovernedWriteContext } from "../lib/governance/types";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
-
-async function findOwnedBusiness(businessId: number, userId: number) {
-  const [business] = await db.select().from(businessesTable).where(and(eq(businessesTable.id, businessId), eq(businessesTable.ownerId, userId)));
-  return business ?? null;
-}
 
 function businessIdFrom(req: { params: Record<string, string | undefined> }): number | null {
   const id = Number(req.params.id);
@@ -166,11 +163,20 @@ router.post("/businesses/:id/review-queue/:reviewId/resolve", async (req, res): 
     res.status(400).json({ error: body.error.message });
     return;
   }
-  const [item] = await db.update(businessReviewQueueTable).set({ status: body.data.status }).where(and(
-    eq(businessReviewQueueTable.id, reviewId),
-    eq(businessReviewQueueTable.businessId, businessId),
-    eq(businessReviewQueueTable.status, "open"),
-  )).returning();
+  // Transaction + row lock preserves the original single-statement UPDATE's
+  // atomicity guarantee (can't resolve an already-resolved item twice) while
+  // still going through the governed, audited update path, which needs a
+  // `before` snapshot the old WHERE-guarded UPDATE never had to materialize.
+  const item = await db.transaction(async (tx) => {
+    const [current] = await tx.select().from(businessReviewQueueTable).where(and(
+      eq(businessReviewQueueTable.id, reviewId),
+      eq(businessReviewQueueTable.businessId, businessId),
+      eq(businessReviewQueueTable.status, "open"),
+    )).for("update");
+    if (!current) return null;
+    const ctx: GovernedWriteContext = { ownerUserId: caller.id, sourceEngine: "business_intelligence.review_queue", actor: actorFor("user", caller.id), businessId };
+    return updateReviewQueueItem(tx, ctx, current, { status: body.data.status });
+  });
   if (!item) {
     res.status(404).json({ error: "Review item not found" });
     return;
@@ -241,12 +247,13 @@ router.post("/businesses/:id/conflicts/:conflictId/decision", async (req, res): 
     });
   }
   const status = body.data.action === "defer" ? "deferred" : "resolved";
-  const [updated] = await db.update(businessDnaConflictsTable).set({
+  const conflictCtx: GovernedWriteContext = { ownerUserId: caller.id, sourceEngine: "business_intelligence.dna", actor: actorFor("user", caller.id), businessId };
+  const updated = await updateDnaConflict(db, conflictCtx, conflict, {
     status,
     resolution: body.data.action,
     resolvedByUserId: caller.id,
     resolvedAt: new Date(),
-  }).where(eq(businessDnaConflictsTable.id, conflict.id)).returning();
+  });
   await publishBusinessEvent({
     businessId,
     eventType: "conflict.user_decision",

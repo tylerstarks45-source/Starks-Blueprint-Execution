@@ -1,7 +1,8 @@
-import { pgTable, serial, integer, text, jsonb, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, jsonb, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { businessesTable } from "./businesses";
+import { ownershipColumns, projectScopeColumn } from "./governance";
 
 // ─── ASH Brain v2.0 — Business Memory (Phase 1.2) ──────────────────────────
 // One row per `businesses` record — the platform's evolving understanding of
@@ -28,11 +29,14 @@ export const businessMemoryTable = pgTable(
     tags: jsonb("tags").notNull().default([]),
     confidenceScore: integer("confidence_score").notNull().default(100),
     lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+    ...ownershipColumns(),
+    ...projectScopeColumn(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
   (t) => [
     uniqueIndex("business_memory_business_id_idx").on(t.businessId),
+    index("business_memory_owner_user_id_idx").on(t.ownerUserId),
   ],
 );
 

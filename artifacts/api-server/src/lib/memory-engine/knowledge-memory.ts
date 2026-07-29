@@ -3,6 +3,8 @@ import { eq, and, ne, or } from "drizzle-orm";
 import type { AshKnowledgeEntry, AshKnowledgeCategory } from "@workspace/db";
 import { topByRelevance } from "./relevance";
 import { resolveRelevantKnowledgeScopes } from "../business-intelligence";
+import { insertKnowledgeEntry, touchKnowledgeEntryAccess } from "../governance/writes/knowledge-writes";
+import { actorFor, type GovernedWriteContext } from "../governance/types";
 
 // ─── Knowledge Memory (Layer 5) ────────────────────────────────────────────
 // Per-user patterns/playbooks/recommendations, continuously captured (see
@@ -38,7 +40,7 @@ export async function getRelevantKnowledge(params: {
   }), params.limit ?? 3);
 
   for (const row of top) {
-    await db.update(ashKnowledgeEntriesTable).set({ lastAccessedAt: new Date() }).where(eq(ashKnowledgeEntriesTable.id, row.id)).catch(() => {});
+    await touchKnowledgeEntryAccess(db, row.id).catch(() => {});
   }
   return top;
 }
@@ -59,7 +61,17 @@ export async function addKnowledgeEntry(params: {
   businessId?: number | null;
 }): Promise<AshKnowledgeEntry> {
   const scope = params.scope ?? "global";
-  const [row] = await db.insert(ashKnowledgeEntriesTable).values({
+  // ash_knowledge_entries has no business (it's per-user, optionally
+  // business-scoped) so ownerUserId is the entry's own userId directly, not
+  // resolved via a business join. Always AI-attributed — see file header
+  // (auto-memory capture / completion learning are this table's only writers).
+  const ctx: GovernedWriteContext = {
+    ownerUserId: params.userId,
+    sourceEngine: "business_intelligence.knowledge",
+    actor: actorFor("ai"),
+    businessId: scope === "business" ? params.businessId ?? null : null,
+  };
+  return insertKnowledgeEntry(db, ctx, {
     userId: params.userId,
     sourceProjectId: params.sourceProjectId ?? null,
     category: params.category,
@@ -71,8 +83,7 @@ export async function addKnowledgeEntry(params: {
     scope,
     businessId: scope === "business" ? params.businessId ?? null : null,
     lastAccessedAt: new Date(),
-  }).returning();
-  return row;
+  });
 }
 
 export async function listKnowledge(userId: number): Promise<AshKnowledgeEntry[]> {

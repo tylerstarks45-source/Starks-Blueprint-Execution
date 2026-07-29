@@ -1,6 +1,8 @@
 import { db, userMemoryTable, ashProjectMemoryTable, ashKnowledgeEntriesTable } from "@workspace/db";
 import { lt, and, isNotNull, sql } from "drizzle-orm";
 import { logger } from "../logger";
+import { updateKnowledgeEntry } from "../governance/writes/knowledge-writes";
+import { actorFor, type GovernedWriteContext } from "../governance/types";
 
 // ─── Memory Management: cleanup, duplicate detection, compression ─────────
 // Runs periodically from scheduler.ts (module-level lastRun guard, same
@@ -88,13 +90,21 @@ async function compressVerboseMemory(): Promise<number> {
     compressed++;
   }
 
-  const longKnowledge = await db.select({ id: ashKnowledgeEntriesTable.id, content: ashKnowledgeEntriesTable.content })
+  // Full rows (not a narrow column projection) so updateKnowledgeEntry has a
+  // real `before` snapshot for its audit diff.
+  const longKnowledge = await db.select()
     .from(ashKnowledgeEntriesTable)
     .where(sql`length(${ashKnowledgeEntriesTable.content}) > ${MAX_CONTENT_LENGTH}`);
   for (const row of longKnowledge) {
-    await db.update(ashKnowledgeEntriesTable)
-      .set({ content: row.content.slice(0, MAX_CONTENT_LENGTH) + "…" })
-      .where(sql`${ashKnowledgeEntriesTable.id} = ${row.id}`);
+    // Scheduled sweep, no acting user; ownerUserId is the entry's own userId
+    // (see knowledge-memory.ts's addKnowledgeEntry for why no join is needed).
+    const ctx: GovernedWriteContext = {
+      ownerUserId: row.userId,
+      sourceEngine: "business_intelligence.knowledge_maintenance",
+      actor: actorFor("scheduler"),
+      businessId: row.businessId,
+    };
+    await updateKnowledgeEntry(db, ctx, row, { content: row.content.slice(0, MAX_CONTENT_LENGTH) + "…" });
     compressed++;
   }
 

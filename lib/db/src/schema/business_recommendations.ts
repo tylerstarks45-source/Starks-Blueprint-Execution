@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { businessesTable } from "./businesses";
 import { toolsTable } from "./tools";
+import { ownershipColumns, projectScopeColumn } from "./governance";
 
 // Categories the AI Improvement Engine can classify a recommendation into
 // (task #248, step 2). Kept as a plain string column (not a DB enum) so new
@@ -48,6 +49,8 @@ export const businessRecommendationsTable = pgTable(
     suggestedToolId: integer("suggested_tool_id").references(() => toolsTable.id, { onDelete: "set null" }),
     payload: jsonb("payload").notNull().default({}),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    ...ownershipColumns(),
+    ...projectScopeColumn(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
@@ -55,6 +58,7 @@ export const businessRecommendationsTable = pgTable(
     index("business_recommendations_business_id_idx").on(t.businessId),
     index("business_recommendations_business_id_status_idx").on(t.businessId, t.status),
     index("business_recommendations_business_id_source_idx").on(t.businessId, t.sourceType),
+    index("business_recommendations_owner_user_id_idx").on(t.ownerUserId),
   ],
 );
 

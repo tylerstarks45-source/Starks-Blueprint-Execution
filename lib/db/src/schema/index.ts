@@ -71,5 +71,7 @@ export * from "./ash_milestones";
 export * from "./ash_plan_decisions";
 export * from "./ash_research";
 export * from "./business_intelligence";
+export * from "./governance";
+export * from "./audit_trail";
 
 export * from "./system_logs";

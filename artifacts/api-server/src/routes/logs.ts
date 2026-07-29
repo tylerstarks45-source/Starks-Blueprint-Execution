@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { getActiveCallerPayload } from "../lib/auth";
 import { requireAdmin } from "../lib/auth";
+import { findOwnedBusiness } from "../lib/governance/ownership";
 import {
   GetSystemLogsParams,
   GetSystemLogsQueryParams,
@@ -23,20 +24,15 @@ const router: IRouter = Router();
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 25;
 
+// NOTE: findOwnedSystemInstance below is intentionally separate from the
+// governed findOwnedBusiness import above — system instances are a distinct,
+// ungoverned resource type (out of Phase A scope). Do not merge these.
 async function findOwnedSystemInstance(id: number, ownerId: number) {
   const [instance] = await db
     .select()
     .from(systemInstancesTable)
     .where(and(eq(systemInstancesTable.id, id), eq(systemInstancesTable.userId, ownerId)));
   return instance ?? null;
-}
-
-async function findOwnedBusiness(id: number, ownerId: number) {
-  const [business] = await db
-    .select()
-    .from(businessesTable)
-    .where(and(eq(businessesTable.id, id), eq(businessesTable.ownerId, ownerId)));
-  return business ?? null;
 }
 
 interface LogFilters {

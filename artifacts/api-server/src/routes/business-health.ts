@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, desc, and } from "drizzle-orm";
-import { db, businessesTable, businessHealthScoresTable, runtimeJobsTable } from "@workspace/db";
+import { db, businessHealthScoresTable, runtimeJobsTable } from "@workspace/db";
 import { getActiveCallerPayload } from "../lib/auth";
 import { enqueue } from "../lib/runtime/jobs";
+import { findOwnedBusiness } from "../lib/governance/ownership";
 import {
   GetBusinessHealthParams,
   GetBusinessHealthResponse,
@@ -13,14 +14,6 @@ import {
 const router: IRouter = Router();
 
 const HISTORY_LIMIT = 10;
-
-async function findOwnedBusiness(businessId: number, ownerId: number) {
-  const [business] = await db
-    .select()
-    .from(businessesTable)
-    .where(and(eq(businessesTable.id, businessId), eq(businessesTable.ownerId, ownerId)));
-  return business ?? null;
-}
 
 async function isAnalyzing(businessId: number): Promise<boolean> {
   // Payload isn't indexed, so filter in JS over a small recent window of jobs.

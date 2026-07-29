@@ -1,0 +1,147 @@
+PROJECT: ASH Brain Master Architecture Specification
+
+VOLUME 1
+
+CORE COGNITIVE ARCHITECTURE
+
+CHAPTER 1
+
+EXECUTIVE BRAIN
+
+==================================================
+
+This is the first official architecture chapter of the ASH Brain Master Architecture Specification.
+
+This task is architecture only.
+
+No implementation.
+
+No code changes.
+
+No refactoring.
+
+No compliance work.
+
+==================================================
+
+OBJECTIVE
+
+Create the first complete architecture specification for the Executive Brain.
+
+The specification should document the Executive Brain exactly as it exists today, using the Master X-RAY as the baseline, and then define the approved upgrade path that evolves the current architecture without replacing it.
+
+Follow the Upgrade Before Replace law.
+
+==================================================
+
+The chapter should contain:
+
+1. Current Architecture Summary
+
+Use the Master X-RAY as the baseline.
+
+Document the current Executive Brain responsibilities, request flow, dependencies, strengths, and existing extension points.
+
+Do not redesign this section.
+
+==================================================
+
+2. Executive Brain Mission
+
+Define the long-term mission of the Executive Brain within the AI Business Operating System.
+
+==================================================
+
+3. Core Responsibilities
+
+Clearly define every responsibility owned by the Executive Brain.
+
+==================================================
+
+4. Core Capabilities
+
+Break responsibilities into individual capabilities.
+
+Examples include:
+
+Decision Making
+
+Goal Management
+
+Task Coordination
+
+Project Coordination
+
+Context Assembly
+
+Delegation
+
+Planning Coordination
+
+Research Coordination
+
+Memory Coordination
+
+Business Coordination
+
+Risk Coordination
+
+Approval Coordination
+
+Execution Coordination
+
+Recovery Coordination
+
+Learning Coordination
+
+Model Coordination
+
+Tool Coordination
+
+Communication Coordination
+
+Opportunity Coordination
+
+Self Review Coordination
+
+Additional capabilities may be proposed where appropriate.
+
+==================================================
+
+5. Inputs
+
+Document every category of information consumed by the Executive Brain.
+
+==================================================
+
+6. Outputs
+
+Document every output produced by the Executive Brain.
+
+==================================================
+
+7. Integration Map
+
+Document how the Executive Brain communicates with every existing subsystem.
+
+==================================================
+
+8. Future Growth
+
+Document extension points that allow future capabilities to be added without redesigning the Executive Brain.
+
+==================================================
+
+9. Open Architecture Questions
+
+Identify architectural decisions that require future review before implementation.
+
+==================================================
+
+This chapter is intended to become the permanent architecture reference for the Executive Brain.
+
+Do not implement anything.
+
+Do not modify existing code.
+
+Only produce the architecture specification.

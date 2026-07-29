@@ -254,3 +254,179 @@ export interface BrainSelectionResult {
    *  EXTENSION POINT: adaptive-routing adds more strategies in future. */
   selectionBasis: "registry-metadata";
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── Executive Reasoning Pipeline (Build 003) ────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** The six structured reasoning stages the Executive Brain runs before
+ *  making an orchestration decision. Each stage produces a typed output
+ *  that feeds the next stage and ultimately shapes the Decision Record. */
+export const REASONING_STAGE_IDS = [
+  "goal-understanding",
+  "context-analysis",
+  "requirement-extraction",
+  "constraint-identification",
+  "risk-identification",
+  "success-criteria",
+] as const;
+export type ReasoningStageId = (typeof REASONING_STAGE_IDS)[number];
+
+/** Output of a single reasoning stage. The `output` field is typed per stage
+ *  in reasoning.ts; typed as `unknown` here to keep types.ts free of stage
+ *  internals and avoid deep coupling. */
+export interface ReasoningStageResult {
+  stageId: ReasoningStageId;
+  /** Structured output for this stage (see reasoning.ts for the per-stage schema). */
+  output: unknown;
+  durationMs: number;
+  confidence: OrchestrationConfidence;
+}
+
+// ─── Objective Analysis (Build 003) ──────────────────────────────────────────
+
+/** Structured internal representation of an objective after the reasoning
+ *  pipeline has processed it. Stored as reasoning metadata alongside the
+ *  Decision Record for future learning layers. */
+export interface ObjectiveAnalysis {
+  primaryGoal: string;
+  secondaryGoals: string[];
+  knownConstraints: string[];
+  unknownInformation: string[];
+  requiredKnowledge: string[];
+  expectedOutcome: string;
+  priority: "critical" | "high" | "medium" | "low";
+  complexity: "high" | "medium" | "low";
+  /** Per-dimension confidence breakdown (Build 003 extended model). */
+  confidence: ExtendedConfidence;
+}
+
+// ─── Extended Confidence Framework (Build 003) ───────────────────────────────
+
+/** Four-dimensional confidence model. Separates confidence in the reasoning
+ *  process itself from confidence in capability and Brain selection outcomes.
+ *  Each dimension is computed by a transparent heuristic; none are AI scores.
+ *  EXTENSION POINT: confidence-aggregation replaces individual dimensions. */
+export interface ExtendedConfidence {
+  /** How clearly the reasoning pipeline understood the objective. */
+  reasoning: OrchestrationConfidence;
+  /** How well the matched capabilities cover the objective's requirements. */
+  capability: OrchestrationConfidence;
+  /** How relevant the selected Brains are (from Build 002 selection score). */
+  brainSelection: OrchestrationConfidence;
+  /** Worst-of the three dimensions — the overall decision confidence. */
+  overall: OrchestrationConfidence;
+}
+
+// ─── Decision Record (Build 003) ─────────────────────────────────────────────
+
+/** An immutable record of a major Executive Brain decision. Designed for
+ *  future learning: the reflection hooks use these records to evaluate
+ *  decision quality after-the-fact. Stored in an in-process ring buffer;
+ *  future builds can persist this to a database. */
+export interface DecisionRecord {
+  /** UUID-style id for deduplication and future cross-reference. */
+  id: string;
+  /** One-sentence description of the decision made. */
+  decision: string;
+  /** Why this decision was made (derived from reasoning stages, not hardcoded). */
+  reason: string;
+  /** Key context facts that supported the decision. */
+  supportingContext: string[];
+  brainsSelected: string[];
+  capabilitiesUsed: string[];
+  confidence: ExtendedConfidence;
+  timestamp: string;
+  /** The reasoning pipeline output this record was derived from. */
+  objectiveAnalysis: ObjectiveAnalysis;
+}
+
+// ─── Cognitive Reasoning Graph (Build 003) ───────────────────────────────────
+
+/** Node kinds in the reasoning graph. */
+export type ReasoningNodeKind =
+  | "objective"     // The input objective — always the root node
+  | "reasoning-stage" // One node per pipeline stage
+  | "brain"         // A selected Brain
+  | "capability"    // A resolved capability
+  | "constraint"    // An identified constraint or risk
+  | "decision";     // The final decision — always the leaf node
+
+export interface ReasoningNode {
+  id: string;
+  kind: ReasoningNodeKind;
+  label: string;
+  /** Arbitrary stage-specific data — callers treat as read-only metadata. */
+  data?: Record<string, unknown>;
+}
+
+export interface ReasoningEdge {
+  from: string;
+  to: string;
+  /** Human-readable relationship label (e.g. "informs", "selects", "resolves"). */
+  relationship: string;
+}
+
+/** The internal reasoning graph built by the Executive Brain for each request.
+ *  Designed to remain internal and be prepared for future visualization:
+ *  nodes and edges are already in a format suitable for D3/Cytoscape rendering.
+ *
+ *  EXTENSION POINT: a future visualization layer consumes this graph via the
+ *  `GET /executive-brain/reasoning/graph/:decisionId` endpoint. */
+export interface CognitiveReasoningGraph {
+  /** The input objective — also the label of the root node. */
+  objective: string;
+  nodes: ReasoningNode[];
+  edges: ReasoningEdge[];
+  /** Brain names in execution order. */
+  selectedBrains: string[];
+  /** Capability resolution map from Build 002 orchestration. */
+  capabilityResolution: Record<string, string>;
+  /** One-sentence final decision extracted from the Decision Record. */
+  finalDecision: string;
+  builtAt: string;
+}
+
+// ─── Reflection Hooks (Build 003) ────────────────────────────────────────────
+
+/** The four reflection questions the architecture prepares for future
+ *  self-reflection. Each maps to a declared extension point. */
+export const REFLECTION_QUESTION_IDS = [
+  "reflection-decision-success",
+  "reflection-better-sequence",
+  "reflection-confidence-accuracy",
+  "reflection-objective-satisfaction",
+] as const;
+export type ReflectionQuestionId = (typeof REFLECTION_QUESTION_IDS)[number];
+
+/** A reflection hook registration. Future self-reflection systems register a
+ *  handler; the Executive Brain calls all registered handlers after a request
+ *  completes and the outcome is known. NOT called synchronously on the request
+ *  path — always fire-and-forget. */
+export interface ReflectionHook {
+  questionId: ReflectionQuestionId;
+  /** Registry name of the Brain (or system) providing the reflection. */
+  providerBrain: string;
+  /** Free-text description of what this hook evaluates. */
+  description: string;
+  /** Optional async callback. Receives the Decision Record and may emit
+   *  lessons to the Self-Improving Brain's lesson store. Never awaited
+   *  on the hot path. */
+  handler?: (record: DecisionRecord) => Promise<void>;
+}
+
+// ─── Executive Reasoning Result (Build 003) ──────────────────────────────────
+
+/** The complete output of a full Executive Reasoning Pipeline pass.
+ *  Produced per-request by runReasoningPipeline() and attached to the
+ *  ExecutiveBrainResult so downstream consumers (context note, API endpoints)
+ *  have full access to the structured reasoning data. */
+export interface ExecutiveReasoningResult {
+  objectiveAnalysis: ObjectiveAnalysis;
+  decisionRecord: DecisionRecord;
+  reasoningGraph: CognitiveReasoningGraph;
+  /** Human-readable explanation derived from structured data — never hardcoded. */
+  explanation: string;
+  pipelineStages: ReasoningStageResult[];
+  reasonedAt: string;
+}

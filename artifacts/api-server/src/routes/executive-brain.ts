@@ -30,6 +30,11 @@ import {
   CAPABILITY_STATUSES,
   orchestrate,
   getRuntimeStates,
+  runReasoningPipeline,
+  getRecentDecisionRecords,
+  getDecisionRecord,
+  listReflectionHooks,
+  REFLECTION_QUESTION_IDS,
 } from "../lib/cognitive-foundation";
 
 const router: IRouter = Router();
@@ -622,6 +627,116 @@ router.get("/executive-brain/extension-points", async (req, res): Promise<void> 
   } catch (err) {
     logger.error({ err, userId }, "Cognitive Foundation: failed to list extension points");
     res.status(500).json({ error: "Failed to list extension points" });
+  }
+});
+
+// ─── Build 003: Executive Reasoning endpoints ────────────────────────────────
+
+// Run the full six-stage reasoning pipeline on demand. Returns the structured
+// objective analysis, decision record, reasoning graph, and plain-English
+// explanation — all derived from registry metadata, no AI call.
+// Query: ?objective=<string> (required, max 500 chars)
+const reasoningExplainSchema = z.object({
+  objective: z.string().min(1).max(500),
+});
+
+router.get("/executive-brain/reasoning/explain", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const parsed = reasoningExplainSchema.safeParse({
+    objective: typeof req.query["objective"] === "string" ? req.query["objective"] : undefined,
+  });
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  try {
+    const orchResult = orchestrate({ objective: parsed.data.objective });
+    const reasoningResult = runReasoningPipeline(parsed.data.objective, orchResult);
+    res.json({
+      explanation: reasoningResult.explanation,
+      objectiveAnalysis: reasoningResult.objectiveAnalysis,
+      decisionRecordId: reasoningResult.decisionRecord.id,
+      confidence: reasoningResult.objectiveAnalysis.confidence,
+      stages: reasoningResult.pipelineStages.map((s) => ({
+        stageId: s.stageId,
+        confidence: s.confidence,
+        durationMs: s.durationMs,
+      })),
+      reasonedAt: reasoningResult.reasonedAt,
+    });
+  } catch (err) {
+    logger.error({ err, userId }, "Executive Reasoning: explain endpoint failed");
+    res.status(500).json({ error: "Failed to run reasoning pipeline" });
+  }
+});
+
+// Recent Decision Records (in-process ring buffer, newest first).
+// Query: ?limit=<number> (default 20, max 100)
+const decisionRecordsSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+});
+
+router.get("/executive-brain/reasoning/records", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const parsed = decisionRecordsSchema.safeParse({
+    limit: typeof req.query["limit"] === "string" ? req.query["limit"] : undefined,
+  });
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  try {
+    const records = getRecentDecisionRecords(parsed.data.limit);
+    res.json({ records, total: records.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Executive Reasoning: records endpoint failed");
+    res.status(500).json({ error: "Failed to retrieve decision records" });
+  }
+});
+
+// Single Decision Record by id (for visualization / reflection lookup).
+router.get("/executive-brain/reasoning/records/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const id = String(req.params["id"] ?? "");
+  if (!id) {
+    res.status(400).json({ error: "Missing record id" });
+    return;
+  }
+  try {
+    const record = getDecisionRecord(id);
+    if (!record) {
+      res.status(404).json({ error: `No decision record found with id "${id}"` });
+      return;
+    }
+    res.json({ record });
+  } catch (err) {
+    logger.error({ err, userId }, "Executive Reasoning: record detail endpoint failed");
+    res.status(500).json({ error: "Failed to retrieve decision record" });
+  }
+});
+
+// Reflection hooks — what questions are declared and which have handlers.
+router.get("/executive-brain/reasoning/reflection-hooks", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  try {
+    const hooks = listReflectionHooks();
+    const questions = REFLECTION_QUESTION_IDS.map((id) => ({
+      id,
+      hooks: hooks.filter((h) => h.questionId === id),
+    }));
+    res.json({ questions, declaredCount: REFLECTION_QUESTION_IDS.length, registeredCount: hooks.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Executive Reasoning: reflection-hooks endpoint failed");
+    res.status(500).json({ error: "Failed to retrieve reflection hooks" });
   }
 });
 

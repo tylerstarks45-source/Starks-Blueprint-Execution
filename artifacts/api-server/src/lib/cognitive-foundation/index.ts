@@ -12,6 +12,7 @@ export * from "./capability-registry";
 export * from "./extension-points";
 export * from "./runtime-state";
 export * from "./orchestration";
+export * from "./reasoning";
 export { registerCoreBrains } from "./register-core-brains";
 
 import { logger } from "../logger";
@@ -19,6 +20,7 @@ import { countBrains, getCognitiveHealthReport } from "./brain-registry";
 import { countCapabilities } from "./capability-registry";
 import { declareFutureIntelligenceExtensionPoints, listExtensionPoints } from "./extension-points";
 import { declareOrchestrationExtensionPoints } from "./orchestration";
+import { declareReflectionExtensionPoints } from "./reasoning";
 import { registerCoreBrains } from "./register-core-brains";
 
 let initialized = false;
@@ -37,7 +39,8 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
   if (!initialized) {
     try {
       declareFutureIntelligenceExtensionPoints();
-      declareOrchestrationExtensionPoints(); // Build 002: eight orchestration seams
+      declareOrchestrationExtensionPoints();  // Build 002: eight orchestration seams
+      declareReflectionExtensionPoints();     // Build 003: four reflection hooks
       registerCoreBrains();
       initialized = true;
 

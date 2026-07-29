@@ -1,10 +1,12 @@
 import { logger } from "../logger";
 import { getCachedHealthConcerns } from "../cognitive-foundation/brain-registry";
 import { orchestrate } from "../cognitive-foundation/orchestration";
+import { runReasoningPipeline } from "../cognitive-foundation/reasoning";
 import { resolveActiveProject, updateProjectRollup } from "./project-manager";
 import { resolveGoalForRequest } from "./goal-manager";
 import { planTasks } from "./task-planner";
 import type { ExecutiveBrainRequest, ExecutiveBrainResult } from "./types";
+import type { ExecutiveReasoningResult } from "../cognitive-foundation/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -51,10 +53,29 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: cognitive orchestration failed (ignored)");
   }
 
-  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult });
+  // ── Executive Reasoning Pipeline (Build 003) ──────────────────────────
+  // Six-stage structured reasoning pass that runs after orchestration and
+  // before the context note is assembled. Zero-I/O: reads only in-process
+  // registry data. Fail-open: a pipeline failure is caught in the pipeline
+  // itself; we also guard the call here.
+  let reasoningResult: ExecutiveReasoningResult | undefined;
+  try {
+    reasoningResult = runReasoningPipeline(message, orchestrationResult);
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: reasoning pipeline failed (ignored)");
+  }
+
+  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult });
 
   logger.info(
-    { userId, projectId: project.id, isNew, goalId: goal?.id, taskCount: tasks.length },
+    {
+      userId,
+      projectId: project.id,
+      isNew,
+      goalId: goal?.id,
+      taskCount: tasks.length,
+      reasoningConfidence: reasoningResult?.objectiveAnalysis.confidence.overall,
+    },
     "Executive Brain resolved project/goal/tasks for request",
   );
 
@@ -64,6 +85,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     tasks,
     isNewProject: isNew,
     brainContextNote,
+    reasoningResult,
   };
 }
 
@@ -73,8 +95,9 @@ function buildContextNote(params: {
   goal: ExecutiveBrainResult["goal"];
   tasks: ExecutiveBrainResult["tasks"];
   orchestrationResult: ReturnType<typeof orchestrate> | null;
+  reasoningResult: ExecutiveReasoningResult | undefined;
 }): string {
-  const { isNew, project, goal, tasks, orchestrationResult } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -84,6 +107,33 @@ function buildContextNote(params: {
     lines.push(`Planned tasks:`);
     for (const t of tasks) {
       lines.push(`  - [${t.status}] (${t.assignedEngine}) ${t.description}`);
+    }
+  }
+
+  // ── Executive Reasoning advisory (Build 003) ─────────────────────────────
+  // Structured reasoning metadata from the six-stage pipeline, assembled into
+  // a compact advisory for the AI Orchestrator's situational awareness.
+  if (reasoningResult) {
+    try {
+      const { objectiveAnalysis, decisionRecord } = reasoningResult;
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      const conf = objectiveAnalysis.confidence;
+      lines.push(
+        clip(
+          `Executive reasoning: ${objectiveAnalysis.primaryGoal} ` +
+          `[complexity: ${objectiveAnalysis.complexity}, confidence: ${conf.overall}` +
+          `(reasoning:${conf.reasoning} capability:${conf.capability} selection:${conf.brainSelection})]`,
+          400,
+        ),
+      );
+      if (objectiveAnalysis.knownConstraints.length > 0) {
+        lines.push(clip(`Constraints: ${objectiveAnalysis.knownConstraints.slice(0, 3).join("; ")}`, 300));
+      }
+      if (decisionRecord.supportingContext.length > 0) {
+        lines.push(clip(`Decision context: ${decisionRecord.supportingContext.join("; ")}`, 300));
+      }
+    } catch (err) {
+      logger.warn({ err }, "Executive Brain: reasoning advisory failed (ignored)");
     }
   }
 

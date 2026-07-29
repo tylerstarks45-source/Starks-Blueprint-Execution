@@ -1,4 +1,5 @@
 import type { AshProject, AshGoal, AshTask, AshTaskEngine } from "@workspace/db";
+import type { ExecutiveReasoningResult } from "../cognitive-foundation/types";
 
 // Shared shapes for the Executive Brain foundation layer. Kept in one file
 // so project-manager / goal-manager / task-planner / index all agree on the
@@ -32,4 +33,7 @@ export interface ExecutiveBrainResult {
   // AI Orchestrator so it has situational awareness of the plan. Never changes
   // orchestrator logic — purely additional context.
   brainContextNote: string;
+  // Build 003: structured reasoning output from the Executive Reasoning Pipeline.
+  // Optional — absent when the pipeline was skipped or failed entirely.
+  reasoningResult?: ExecutiveReasoningResult;
 }

@@ -1,0 +1,470 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 006
+
+TITLE:
+Executive Context Engine
+
+PHASE:
+Phase II – Executive Intelligence
+
+STATUS:
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+Builds 001–005 established ASH's Cognitive Foundation.
+
+ASH can now:
+
+• Know itself
+• Coordinate Brains
+• Reason
+• Store long-term memory
+• Organize knowledge through relationships
+
+However...
+
+ASH still reasons from information instead of understanding.
+
+Human executives rarely make decisions from facts alone.
+
+They make decisions within context.
+
+Context determines:
+
+• Why something matters
+• What objective is being pursued
+• Which constraints exist
+• Which priorities override others
+• Which assumptions are currently true
+• Which information is actually relevant
+
+The purpose of Build 006 is to create the Executive Context Engine.
+
+The Context Engine becomes a permanent cognitive layer shared by every
+Brain, every reasoning cycle, every planning process, every future
+execution engine, and every future learning system.
+
+This is infrastructure.
+
+Not a feature.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Context Engine must:
+
+• Give every Brain situational awareness
+• Maintain persistent context
+• Resolve conflicting contexts
+• Track changing objectives
+• Maintain decision environments
+• Preserve historical context
+• Support future Judgment
+• Support future Planning
+• Support future Execution
+• Support future Reflection
+• Support future Learning
+
+The implementation must extend the current architecture.
+
+Do not redesign existing systems.
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+=======================================================================
+1. EXECUTIVE CONTEXT MODEL
+=======================================================================
+
+Create a reusable Context model.
+
+Every Context should support:
+
+• Context ID
+• Name
+• Type
+• Description
+• Purpose
+• Mission
+• Scope
+• Objectives
+• Constraints
+• Assumptions
+• Priorities
+• Risks
+• Dependencies
+• Stakeholders
+• Success Criteria
+• Failure Conditions
+• Status
+• Confidence
+• Metadata
+• Created Date
+• Updated Date
+• Version
+
+Design for future expansion without redesign.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+2. CONTEXT REGISTRY
+=======================================================================
+
+Create a dedicated Context Registry.
+
+Responsibilities:
+
+• Register Context
+• Retrieve Context
+• Update Context
+• Archive Context
+• Activate Context
+• Deactivate Context
+• Search Context
+• Version Context
+• Validate Context
+• Monitor Context Health
+
+The Context Registry becomes the authoritative source for contextual
+understanding.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+3. CONTEXT RESOLUTION ENGINE
+=======================================================================
+
+Before every Executive reasoning cycle:
+
+Resolve:
+
+• Active Contexts
+• Relevant Contexts
+• Conflicting Contexts
+• Priority Order
+• Parent Contexts
+• Child Contexts
+
+Produce one immutable Executive Context Snapshot.
+
+The Executive Brain should consume only the resolved snapshot.
+
+Never reason directly from raw context objects.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+4. EXECUTIVE CONTEXT SNAPSHOTS
+=======================================================================
+
+Create immutable Context Snapshots.
+
+Each snapshot should contain:
+
+• Active Objectives
+• Active Constraints
+• Active Priorities
+• Active Risks
+• Related Memory Artifacts
+• Related Knowledge Graph Nodes
+• Related Knowledge Clusters
+• Related Brains
+• Related Capabilities
+• Environmental Metadata
+• Timestamp
+
+Every future Decision Record must reference the Context Snapshot used
+during reasoning.
+
+This enables future replay, auditing, reflection, and learning.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+5. CONTEXT RELATIONSHIPS
+=======================================================================
+
+Allow Contexts to relate to:
+
+• Projects
+• Goals
+• Cognitive Artifacts
+• Knowledge Clusters
+• Brains
+• Capabilities
+• Plans
+• Strategies
+• Decisions
+• Future Executions
+
+Relationship architecture must remain fully extensible.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+6. CONTEXT TIMELINE
+=======================================================================
+
+Maintain complete historical records.
+
+Track:
+
+• Creation
+• Updates
+• Priority Changes
+• Constraint Changes
+• Objective Changes
+• Relationship Changes
+• Activation
+• Deactivation
+• Version Changes
+
+Nothing should overwrite historical context.
+
+History must remain replayable.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+7. SHARED CONTEXT SERVICES
+=======================================================================
+
+Create reusable services.
+
+Every Brain should be able to request:
+
+• Current Context
+• Relevant Context
+• Historical Context
+• Context Summary
+• Context Snapshot
+• Context Timeline
+• Context Diagnostics
+
+No Brain owns Context.
+
+Context belongs to the Cognitive Operating System.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+8. CONTEXT HEALTH MONITORING
+=======================================================================
+
+Implement diagnostics.
+
+Measure:
+
+• Completeness
+• Freshness
+• Relationship Coverage
+• Objective Coverage
+• Constraint Coverage
+• Version Integrity
+• Snapshot Integrity
+• Reference Integrity
+
+Integrate diagnostics into Executive Health Monitoring.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+9. CONTEXT API
+=======================================================================
+
+Expose reusable APIs.
+
+Examples:
+
+Create Context
+
+Update Context
+
+Delete Context
+
+Resolve Context
+
+Search Context
+
+Get Context Timeline
+
+Get Context Snapshot
+
+Get Context Diagnostics
+
+Future systems must consume these APIs.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+10. EXTENSION FRAMEWORK
+=======================================================================
+
+Create extension points only.
+
+DO NOT implement:
+
+• Automatic Context Discovery
+• Context Prediction
+• Context Recommendations
+• Context Merging
+• Context Splitting
+• Context Templates
+• Context Inheritance
+• Context Expiration
+• Cross Context Navigation
+
+Only establish reusable architecture.
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse existing architecture wherever possible.
+
+Integrate with:
+
+✓ Executive Brain
+✓ Brain Registry
+✓ Capability Registry
+✓ Cognitive Memory
+✓ Knowledge Graph
+✓ Knowledge Clusters
+✓ Cognitive Artifacts
+✓ Decision Records
+✓ Health Monitoring
+
+Do not duplicate existing logic.
+
+Do not bypass existing systems.
+
+═══════════════════════════════════════════════════════════════════════
+DO NOT IMPLEMENT
+═══════════════════════════════════════════════════════════════════════
+
+Do NOT redesign Memory.
+
+Do NOT redesign the Knowledge Graph.
+
+Do NOT redesign Executive Reasoning.
+
+Do NOT implement Judgment.
+
+Do NOT implement Planning.
+
+Do NOT implement Reflection.
+
+Do NOT implement Learning.
+
+Do NOT implement autonomous execution.
+
+Do NOT infer Context automatically.
+
+Do NOT introduce breaking architectural changes.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+Build 006 is complete when:
+
+✓ Executive Context Model exists
+
+✓ Context Registry exists
+
+✓ Context Resolution Engine exists
+
+✓ Context Snapshots exist
+
+✓ Context Timeline exists
+
+✓ Context Relationships exist
+
+✓ Shared Context Services exist
+
+✓ Context Diagnostics exist
+
+✓ Context APIs exist
+
+✓ Extension Framework exists
+
+✓ Existing architecture remains fully compatible
+
+✓ No unnecessary rewrites occurred
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+When implementation is complete, return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Existing Systems Reused
+
+5. Existing Systems Extended
+
+6. Refactoring Performed
+
+7. Database Changes
+
+8. New APIs
+
+9. New Services
+
+10. New Models
+
+11. New Extension Points
+
+12. Performance Impact
+
+13. Technical Debt
+
+14. Engineering Recommendations
+
+15. Architectural Decisions
+
+For every architectural decision include:
+
+• Decision
+• Why it was chosen
+• Alternatives considered
+• Trade-offs accepted
+• Future expansion opportunities
+
+16. Cognitive Evolution Score
+
+Rate Build 006 on:
+
+• Intelligence Gain
+• Architectural Quality
+• Reusability
+• Scalability
+• Maintainability
+• Future Readiness
+
+Provide an overall grade with justification.
+
+When the implementation is complete:
+
+STOP.
+
+Wait for Build 007.
+
+═══════════════════════════════════════════════════════════════════════
+END OF BUILD 006
+═══════════════════════════════════════════════════════════════════════

@@ -36,4 +36,9 @@ export interface ExecutiveBrainResult {
   // Build 003: structured reasoning output from the Executive Reasoning Pipeline.
   // Optional — absent when the pipeline was skipped or failed entirely.
   reasoningResult?: ExecutiveReasoningResult;
+  // Build 006: ID of the immutable Executive Context Snapshot resolved before
+  // the reasoning cycle. Stored with the Decision Record so future replay,
+  // auditing, and learning can reconstruct the full context in which the
+  // decision was made. Optional — absent when no contexts exist or on failure.
+  contextSnapshotId?: string;
 }

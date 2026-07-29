@@ -8,6 +8,9 @@ import { resolveGoalForRequest } from "./goal-manager";
 import { planTasks } from "./task-planner";
 import type { ExecutiveBrainRequest, ExecutiveBrainResult } from "./types";
 import type { ExecutiveReasoningResult } from "../cognitive-foundation/types";
+// Build 006: Executive Context Engine
+import { resolveContextSnapshot } from "../executive-context/context-resolution";
+import type { ExecutiveContextSnapshot } from "../executive-context/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -28,6 +31,20 @@ export * as TaskPlanner from "./task-planner";
 // context, so a bug in this layer can never block a user's request.
 export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<ExecutiveBrainResult> {
   const { userId, message, systemInstanceId } = req;
+
+  // ── Executive Context Engine (Build 006) ─────────────────────────────────
+  // Resolve the current situational context BEFORE any planning or reasoning.
+  // Fail-open: a context failure must never block the request path.
+  // The snapshot id is stored in the result so Decision Records can reference
+  // the exact context that was active during reasoning (for future replay/audit).
+  let contextSnapshot: ExecutiveContextSnapshot | undefined;
+  let contextSnapshotId: string | undefined;
+  try {
+    contextSnapshot = await resolveContextSnapshot(userId, message);
+    contextSnapshotId = contextSnapshot.id;
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: context resolution failed (ignored)");
+  }
 
   const { project, isNew } = await resolveActiveProject({ userId, message, systemInstanceId });
 
@@ -88,7 +105,9 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
       executiveBrainVersion: "1.1.0",
       content: record as unknown as Record<string, unknown>,
       relationships: {},
-      metadata: {},
+      // Build 006: store the context snapshot id with the Decision Record so the
+      // full reasoning context can be reconstructed for future replay and auditing.
+      metadata: contextSnapshotId ? { contextSnapshotId } : {},
       objectiveText: record.objectiveAnalysis.primaryGoal,
       userId,
       projectId: project.id,
@@ -97,7 +116,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     });
   }
 
-  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult });
+  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot });
 
   logger.info(
     {
@@ -118,6 +137,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     isNewProject: isNew,
     brainContextNote,
     reasoningResult,
+    contextSnapshotId,
   };
 }
 
@@ -128,8 +148,9 @@ function buildContextNote(params: {
   tasks: ExecutiveBrainResult["tasks"];
   orchestrationResult: ReturnType<typeof orchestrate> | null;
   reasoningResult: ExecutiveReasoningResult | undefined;
+  contextSnapshot: ExecutiveContextSnapshot | undefined;
 }): string {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -191,6 +212,40 @@ function buildContextNote(params: {
       }
     } catch (err) {
       logger.warn({ err }, "Executive Brain: orchestration advisory failed (ignored)");
+    }
+  }
+
+  // ── Executive Context advisory (Build 006) ───────────────────────────────
+  // Brief situational context from the resolved Executive Context Snapshot.
+  // Zero-I/O: the snapshot was computed before buildContextNote was called.
+  if (contextSnapshot) {
+    try {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      if (contextSnapshot.activeObjectives.length > 0 || contextSnapshot.activePriorities.length > 0) {
+        const objectives = contextSnapshot.activeObjectives.slice(0, 2).join("; ");
+        const priorities = contextSnapshot.activePriorities.slice(0, 2).join("; ");
+        const constraints = contextSnapshot.activeConstraints.slice(0, 2).join("; ");
+        const parts = [
+          objectives && `objectives: ${objectives}`,
+          priorities && `priorities: ${priorities}`,
+          constraints && `constraints: ${constraints}`,
+        ].filter(Boolean).join(" | ");
+        if (parts) {
+          lines.push(
+            clip(
+              `Executive context (${contextSnapshot.contextIds.length} active context(s)): ${parts}`,
+              500,
+            ),
+          );
+        }
+        if (contextSnapshot.conflictFlags.length > 0) {
+          lines.push(
+            clip(`Context conflicts detected: ${contextSnapshot.conflictFlags.slice(0, 2).join("; ")}`, 300),
+          );
+        }
+      }
+    } catch (err) {
+      logger.warn({ err }, "Executive Brain: context advisory failed (ignored)");
     }
   }
 

@@ -57,6 +57,7 @@ import approvalsRouter from "./approvals";
 import monitoringRouter from "./monitoring";
 import logsRouter from "./logs";
 import executiveBrainRouter from "./executive-brain";
+import executiveContextRouter from "./executive-context";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -124,5 +125,7 @@ router.use(approvalsRouter);
 router.use(monitoringRouter);
 router.use(logsRouter);
 router.use(executiveBrainRouter);
+// Build 006: Executive Context Engine — context management, snapshots, diagnostics
+router.use(executiveContextRouter);
 
 export default router;

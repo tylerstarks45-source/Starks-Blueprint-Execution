@@ -233,6 +233,9 @@ export interface ArtifactQuery {
   fromTime?: Date;
   /** Upper bound on created_at. */
   toTime?: Date;
+  /** Retrieve specific artifact ids — used by graph traversal to batch-load
+   *  artifact records for a set of known ids (neighborhood nodes). */
+  ids?: string[];
   limit?: number;
   offset?: number;
 }
@@ -265,6 +268,11 @@ export async function queryArtifacts(q: ArtifactQuery): Promise<StoredCognitiveA
   }
   if (q.toTime !== undefined) {
     conditions.push(lte(cognitiveArtifactsTable.createdAt, q.toTime));
+  }
+
+  // Direct id lookup — used by graph traversal to batch-load neighborhood nodes
+  if (q.ids && q.ids.length > 0) {
+    conditions.push(inArray(cognitiveArtifactsTable.id, q.ids));
   }
 
   // Keyword search on objective_text (future: replace with vector similarity)

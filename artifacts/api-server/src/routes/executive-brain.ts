@@ -39,6 +39,29 @@ import {
   getArtifact,
   findSimilarDecisions,
   getCognitiveMemorySummary,
+  COGNITIVE_RELATIONSHIP_TYPES,
+  createRelationship,
+  revokeRelationship,
+  getRelationship,
+  getRelationshipsFor,
+  getRelationshipsFrom,
+  getRelationshipsTo,
+  getGraphNeighborhood,
+  findPath,
+  findRelatedKnowledge,
+  findInfluencingDecisions,
+  findProducedArtifacts,
+  findSupportingArtifacts,
+  getArtifactGraphStats,
+  createCluster,
+  getCluster,
+  listClusters,
+  archiveCluster,
+  getClusterArtifacts,
+  getClusterMembers,
+  addArtifactToCluster,
+  removeArtifactFromCluster,
+  findClustersForArtifact,
 } from "../lib/cognitive-foundation";
 
 const router: IRouter = Router();
@@ -912,6 +935,400 @@ router.get("/executive-brain/runtime-states", async (req, res): Promise<void> =>
   } catch (err) {
     logger.error({ err, userId }, "Cognitive Orchestration: failed to get runtime states");
     res.status(500).json({ error: "Failed to get runtime states" });
+  }
+});
+
+// ─── Cognitive Knowledge Graph — Relationship Endpoints (Build 005) ──────────
+
+const createRelationshipSchema = z.object({
+  sourceArtifactId: z.string().min(1),
+  targetArtifactId: z.string().min(1),
+  relationshipType: z.enum(COGNITIVE_RELATIONSHIP_TYPES),
+  createdBy: z.string().min(1),
+  creationReason: z.string().min(1).max(500),
+  confidence: z.enum(["high", "medium", "low", "unknown"]).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+// Create a typed, explainable relationship between two Cognitive Artifacts.
+router.post("/executive-brain/graph/relationships", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const parsed = createRelationshipSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  try {
+    const relationship = await createRelationship({ ...parsed.data, userId });
+    res.status(201).json({ relationship });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Graph: create relationship failed");
+    res.status(500).json({ error: "Failed to create relationship" });
+  }
+});
+
+// Get all active edges (outbound + inbound) for a Cognitive Artifact.
+// Query: ?direction=outbound|inbound|both (default: both)
+// Query: ?types=derived_from,supports,... (comma-separated, optional)
+router.get("/executive-brain/graph/artifacts/:id/relationships", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const artifactId = String(req.params["id"] ?? "");
+  if (!artifactId) { res.status(400).json({ error: "Missing artifact id" }); return; }
+
+  const direction = (req.query["direction"] as string) ?? "both";
+  const typesRaw = typeof req.query["types"] === "string" ? req.query["types"] : undefined;
+  const types = typesRaw ? typesRaw.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
+
+  try {
+    if (direction === "outbound") {
+      const edges = await getRelationshipsFrom(artifactId, types);
+      res.json({ artifactId, outbound: edges, inbound: [], totalEdges: edges.length });
+    } else if (direction === "inbound") {
+      const edges = await getRelationshipsTo(artifactId, types);
+      res.json({ artifactId, outbound: [], inbound: edges, totalEdges: edges.length });
+    } else {
+      const { outbound, inbound } = await getRelationshipsFor(artifactId);
+      const filteredOut = types ? outbound.filter((e) => types.includes(e.relationshipType)) : outbound;
+      const filteredIn  = types ? inbound.filter((e) => types.includes(e.relationshipType))  : inbound;
+      res.json({ artifactId, outbound: filteredOut, inbound: filteredIn, totalEdges: filteredOut.length + filteredIn.length });
+    }
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Graph: get relationships failed");
+    res.status(500).json({ error: "Failed to retrieve relationships" });
+  }
+});
+
+// Soft-delete (revoke) a relationship edge.
+router.delete("/executive-brain/graph/relationships/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const id = String(req.params["id"] ?? "");
+  if (!id) { res.status(400).json({ error: "Missing relationship id" }); return; }
+
+  try {
+    const existing = await getRelationship(id);
+    if (!existing) { res.status(404).json({ error: `Relationship "${id}" not found` }); return; }
+    await revokeRelationship(id);
+    res.json({ revoked: true, id });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Graph: revoke relationship failed");
+    res.status(500).json({ error: "Failed to revoke relationship" });
+  }
+});
+
+// Return the N-hop subgraph neighborhood of a Cognitive Artifact.
+// Query: ?depth=1|2|3|4 (default 2, max 4)
+// Query: ?direction=outbound|inbound|both (default both)
+// Query: ?types=... (comma-separated relationship types, optional)
+const neighborhoodSchema = z.object({
+  depth: z.coerce.number().int().min(1).max(4).optional().default(2),
+  direction: z.enum(["outbound", "inbound", "both"]).optional().default("both"),
+  types: z.string().optional(),
+});
+
+router.get("/executive-brain/graph/artifacts/:id/neighborhood", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const artifactId = String(req.params["id"] ?? "");
+  if (!artifactId) { res.status(400).json({ error: "Missing artifact id" }); return; }
+
+  const parsed = neighborhoodSchema.safeParse({
+    depth: typeof req.query["depth"] === "string" ? req.query["depth"] : undefined,
+    direction: typeof req.query["direction"] === "string" ? req.query["direction"] : undefined,
+    types: typeof req.query["types"] === "string" ? req.query["types"] : undefined,
+  });
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const types = parsed.data.types ? parsed.data.types.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
+  try {
+    const neighborhood = await getGraphNeighborhood(artifactId, {
+      maxDepth: parsed.data.depth,
+      direction: parsed.data.direction,
+      ...(types ? { relationshipTypes: types } : {}),
+    });
+    res.json(neighborhood);
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Graph: neighborhood traversal failed");
+    res.status(500).json({ error: "Failed to traverse graph neighborhood" });
+  }
+});
+
+// Graph statistics for a single artifact.
+router.get("/executive-brain/graph/artifacts/:id/stats", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const artifactId = String(req.params["id"] ?? "");
+  if (!artifactId) { res.status(400).json({ error: "Missing artifact id" }); return; }
+  try {
+    const stats = await getArtifactGraphStats(artifactId);
+    res.json({ artifactId, ...stats });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Graph: artifact stats failed");
+    res.status(500).json({ error: "Failed to get artifact graph stats" });
+  }
+});
+
+// ─── Knowledge Navigation Endpoints ──────────────────────────────────────────
+
+// "What knowledge is related to this artifact?"
+router.get("/executive-brain/graph/artifacts/:id/related", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const artifactId = String(req.params["id"] ?? "");
+  if (!artifactId) { res.status(400).json({ error: "Missing artifact id" }); return; }
+  const typesRaw = typeof req.query["types"] === "string" ? req.query["types"] : undefined;
+  const types = typesRaw ? typesRaw.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
+  try {
+    const artifacts = await findRelatedKnowledge(artifactId, types);
+    res.json({ artifactId, related: artifacts, total: artifacts.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Navigation: find related failed");
+    res.status(500).json({ error: "Failed to find related knowledge" });
+  }
+});
+
+// "What decisions influenced this artifact?"
+router.get("/executive-brain/graph/artifacts/:id/influencing", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const artifactId = String(req.params["id"] ?? "");
+  if (!artifactId) { res.status(400).json({ error: "Missing artifact id" }); return; }
+  try {
+    const artifacts = await findInfluencingDecisions(artifactId);
+    res.json({ artifactId, influencing: artifacts, total: artifacts.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Navigation: find influencing failed");
+    res.status(500).json({ error: "Failed to find influencing decisions" });
+  }
+});
+
+// "What did this artifact produce?"
+router.get("/executive-brain/graph/artifacts/:id/produced", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const artifactId = String(req.params["id"] ?? "");
+  if (!artifactId) { res.status(400).json({ error: "Missing artifact id" }); return; }
+  try {
+    const artifacts = await findProducedArtifacts(artifactId);
+    res.json({ artifactId, produced: artifacts, total: artifacts.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Navigation: find produced failed");
+    res.status(500).json({ error: "Failed to find produced artifacts" });
+  }
+});
+
+// "Which artifacts support this conclusion?"
+router.get("/executive-brain/graph/artifacts/:id/supporting", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const artifactId = String(req.params["id"] ?? "");
+  if (!artifactId) { res.status(400).json({ error: "Missing artifact id" }); return; }
+  try {
+    const artifacts = await findSupportingArtifacts(artifactId);
+    res.json({ artifactId, supporting: artifacts, total: artifacts.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Navigation: find supporting failed");
+    res.status(500).json({ error: "Failed to find supporting artifacts" });
+  }
+});
+
+// Find the shortest path between two Cognitive Artifacts in the graph.
+// Query: ?to=<artifactId>&maxDepth=<1-6>
+const findPathSchema = z.object({
+  to: z.string().min(1),
+  maxDepth: z.coerce.number().int().min(1).max(6).optional().default(4),
+});
+
+router.get("/executive-brain/graph/artifacts/:id/path", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const fromId = String(req.params["id"] ?? "");
+  if (!fromId) { res.status(400).json({ error: "Missing source artifact id" }); return; }
+
+  const parsed = findPathSchema.safeParse({
+    to: typeof req.query["to"] === "string" ? req.query["to"] : undefined,
+    maxDepth: typeof req.query["maxDepth"] === "string" ? req.query["maxDepth"] : undefined,
+  });
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  try {
+    const path = await findPath(fromId, parsed.data.to, parsed.data.maxDepth);
+    res.json({
+      from: fromId,
+      to: parsed.data.to,
+      path,
+      found: path !== null,
+      hops: path ? path.length - 1 : null,
+    });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Graph: find path failed");
+    res.status(500).json({ error: "Failed to find path" });
+  }
+});
+
+// ─── Knowledge Clusters Endpoints ────────────────────────────────────────────
+
+const createClusterSchema = z.object({
+  name: z.string().min(1).max(200),
+  description: z.string().max(500).optional(),
+  clusterType: z.enum(["manual", "auto"]).optional().default("manual"),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+// Create a Knowledge Cluster.
+router.post("/executive-brain/graph/clusters", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const parsed = createClusterSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  try {
+    const cluster = await createCluster({ ...parsed.data, userId });
+    res.status(201).json({ cluster });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Clusters: create failed");
+    res.status(500).json({ error: "Failed to create cluster" });
+  }
+});
+
+// List all active clusters for the authenticated user.
+router.get("/executive-brain/graph/clusters", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  try {
+    const clusters = await listClusters(userId);
+    res.json({ clusters, total: clusters.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Clusters: list failed");
+    res.status(500).json({ error: "Failed to list clusters" });
+  }
+});
+
+// Get a single cluster with its members.
+router.get("/executive-brain/graph/clusters/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const clusterId = String(req.params["id"] ?? "");
+  if (!clusterId) { res.status(400).json({ error: "Missing cluster id" }); return; }
+  try {
+    const [cluster, members] = await Promise.all([
+      getCluster(clusterId),
+      getClusterMembers(clusterId),
+    ]);
+    if (!cluster) { res.status(404).json({ error: `Cluster "${clusterId}" not found` }); return; }
+    res.json({ cluster, members, memberCount: members.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Clusters: get failed");
+    res.status(500).json({ error: "Failed to get cluster" });
+  }
+});
+
+// Archive a cluster.
+router.delete("/executive-brain/graph/clusters/:id", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const clusterId = String(req.params["id"] ?? "");
+  if (!clusterId) { res.status(400).json({ error: "Missing cluster id" }); return; }
+  try {
+    const existing = await getCluster(clusterId);
+    if (!existing) { res.status(404).json({ error: `Cluster "${clusterId}" not found` }); return; }
+    await archiveCluster(clusterId);
+    res.json({ archived: true, id: clusterId });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Clusters: archive failed");
+    res.status(500).json({ error: "Failed to archive cluster" });
+  }
+});
+
+// Add an artifact to a cluster.
+const addMemberSchema = z.object({
+  artifactId: z.string().min(1),
+  membershipReason: z.string().min(1).max(300),
+  addedBy: z.string().min(1),
+});
+
+router.post("/executive-brain/graph/clusters/:id/members", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const clusterId = String(req.params["id"] ?? "");
+  if (!clusterId) { res.status(400).json({ error: "Missing cluster id" }); return; }
+
+  const parsed = addMemberSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  try {
+    await addArtifactToCluster(clusterId, parsed.data.artifactId, parsed.data.membershipReason, parsed.data.addedBy);
+    res.status(201).json({ added: true, clusterId, artifactId: parsed.data.artifactId });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Clusters: add member failed");
+    res.status(500).json({ error: "Failed to add artifact to cluster" });
+  }
+});
+
+// Remove an artifact from a cluster.
+router.delete("/executive-brain/graph/clusters/:id/members/:artifactId", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const clusterId = String(req.params["id"] ?? "");
+  const artifactId = String(req.params["artifactId"] ?? "");
+  if (!clusterId || !artifactId) { res.status(400).json({ error: "Missing cluster or artifact id" }); return; }
+  try {
+    await removeArtifactFromCluster(clusterId, artifactId);
+    res.json({ removed: true, clusterId, artifactId });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Clusters: remove member failed");
+    res.status(500).json({ error: "Failed to remove artifact from cluster" });
+  }
+});
+
+// Get all artifacts in a cluster.
+router.get("/executive-brain/graph/clusters/:id/artifacts", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const clusterId = String(req.params["id"] ?? "");
+  if (!clusterId) { res.status(400).json({ error: "Missing cluster id" }); return; }
+  try {
+    const [cluster, artifacts] = await Promise.all([
+      getCluster(clusterId),
+      getClusterArtifacts(clusterId),
+    ]);
+    if (!cluster) { res.status(404).json({ error: `Cluster "${clusterId}" not found` }); return; }
+    res.json({ clusterId, artifacts, total: artifacts.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Clusters: get artifacts failed");
+    res.status(500).json({ error: "Failed to get cluster artifacts" });
+  }
+});
+
+// Get all clusters an artifact belongs to.
+router.get("/executive-brain/graph/artifacts/:id/clusters", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const artifactId = String(req.params["id"] ?? "");
+  if (!artifactId) { res.status(400).json({ error: "Missing artifact id" }); return; }
+  try {
+    const clusters = await findClustersForArtifact(artifactId);
+    res.json({ artifactId, clusters, total: clusters.length });
+  } catch (err) {
+    logger.error({ err, userId }, "Knowledge Clusters: find clusters for artifact failed");
+    res.status(500).json({ error: "Failed to find clusters for artifact" });
   }
 });
 

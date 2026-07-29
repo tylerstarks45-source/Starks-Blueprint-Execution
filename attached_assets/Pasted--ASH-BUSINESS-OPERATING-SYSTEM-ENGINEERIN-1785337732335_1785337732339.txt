@@ -1,0 +1,331 @@
+=========================================================
+ASH BUSINESS OPERATING SYSTEM
+ENGINEERING BUILD SPECIFICATION
+BUILD 005
+COGNITIVE KNOWLEDGE GRAPH
+=========================================================
+
+PROJECT STATUS
+
+Build 001
+COMPLETE
+
+Build 002
+COMPLETE
+
+Build 003
+COMPLETE
+
+Build 004
+COMPLETE
+
+Build 005
+ACTIVE
+
+ASH continues to evolve.
+
+=========================================================
+PERMANENT ENGINEERING LAW
+=========================================================
+
+ASH EVOLVES.
+
+ASH IS NEVER REBUILT.
+
+Reuse
+
+↓
+
+Extend
+
+↓
+
+Refactor
+
+↓
+
+Replace only when absolutely necessary.
+
+Every build should strengthen the cognitive architecture without introducing unnecessary complexity.
+
+=========================================================
+ARCHITECTURAL PURPOSE
+=========================================================
+
+Build 004 established durable Cognitive Memory.
+
+The Executive Brain now remembers.
+
+However...
+
+Memory alone is not knowledge.
+
+Knowledge emerges from relationships between memories.
+
+The objective of Build 005 is to establish ASH's Cognitive Knowledge Graph.
+
+The Knowledge Graph will become the semantic layer connecting Cognitive Artifacts into an explainable, navigable network.
+
+Do NOT redesign Cognitive Memory.
+
+Extend it.
+
+=========================================================
+ARCHITECTURAL PHILOSOPHY
+=========================================================
+
+Treat every Cognitive Artifact as a node in an evolving knowledge network.
+
+A Decision is not isolated.
+
+It may:
+
+Support another Decision.
+
+Contradict a previous Strategy.
+
+Produce a Lesson.
+
+Influence a Reflection.
+
+Depend on prior Knowledge.
+
+Become part of a larger Pattern.
+
+The Knowledge Graph should preserve these relationships explicitly rather than relying on future inference.
+
+=========================================================
+PRIMARY IMPLEMENTATION OBJECTIVES
+=========================================================
+
+---------------------------------------------------------
+1. Cognitive Relationship Model
+---------------------------------------------------------
+
+Create a reusable relationship model.
+
+Support relationship types including:
+
+Derived From
+
+Supports
+
+Contradicts
+
+Supersedes
+
+Depends On
+
+Explains
+
+Validates
+
+References
+
+Related To
+
+Produces
+
+Consumed By
+
+Future relationship types must be extensible without schema redesign.
+
+---------------------------------------------------------
+2. Artifact Graph Service
+---------------------------------------------------------
+
+Implement a reusable graph service responsible for:
+
+Creating relationships.
+
+Removing relationships.
+
+Traversing relationships.
+
+Finding connected artifacts.
+
+Returning graph neighborhoods.
+
+Supporting future graph algorithms.
+
+The service should remain independent of Executive Brain logic.
+
+---------------------------------------------------------
+3. Knowledge Navigation
+---------------------------------------------------------
+
+Implement retrieval APIs that allow future cognitive systems to ask:
+
+"What knowledge is related to this artifact?"
+
+"What decisions influenced this strategy?"
+
+"What lessons emerged from this objective?"
+
+"Which artifacts support this conclusion?"
+
+Do not implement reasoning over the graph.
+
+Only establish the navigation layer.
+
+---------------------------------------------------------
+4. Graph Integrity
+---------------------------------------------------------
+
+Protect graph consistency.
+
+Relationships should support:
+
+Version awareness.
+
+Lifecycle awareness.
+
+Traceability.
+
+Soft deletion compatibility.
+
+Future validation rules.
+
+=========================================================
+5. Knowledge Clusters
+=========================================================
+
+Introduce the concept of Knowledge Clusters.
+
+A cluster represents a group of closely related Cognitive Artifacts.
+
+Initially clusters may be simple connected groups.
+
+Future builds may classify them automatically.
+
+Prepare the architecture.
+
+=========================================================
+6. Explainable Relationships
+=========================================================
+
+Every relationship should preserve:
+
+Source Artifact.
+
+Target Artifact.
+
+Relationship Type.
+
+Created By.
+
+Creation Reason.
+
+Timestamp.
+
+Confidence.
+
+Nothing should become connected without an explainable reason.
+
+=========================================================
+ENGINEERING EXPECTATIONS
+=========================================================
+
+Reuse the Cognitive Artifact model.
+
+Reuse persistence.
+
+Reuse retrieval services.
+
+Avoid duplicate graph logic.
+
+Maintain backward compatibility.
+
+Keep graph services reusable.
+
+Think beyond current requirements.
+
+Design for millions of artifacts.
+
+=========================================================
+DO NOT IMPLEMENT
+=========================================================
+
+Do NOT redesign Memory.
+
+Do NOT redesign Reasoning.
+
+Do NOT redesign Reflection.
+
+Do NOT implement automatic relationship inference.
+
+Do NOT implement autonomous learning.
+
+Do NOT implement vector search.
+
+Do NOT redesign existing database models unless required.
+
+Only establish the Cognitive Knowledge Graph architecture.
+
+=========================================================
+ACCEPTANCE CRITERIA
+=========================================================
+
+✓ Relationship model exists.
+
+✓ Graph service exists.
+
+✓ Knowledge navigation exists.
+
+✓ Explainable relationships exist.
+
+✓ Knowledge Clusters exist.
+
+✓ Existing memory architecture remains compatible.
+
+✓ No unnecessary rewrites occurred.
+
+=========================================================
+IMPLEMENTATION REPORT
+=========================================================
+
+Return:
+
+1. Executive Summary
+
+2. Files Modified
+
+3. Files Created
+
+4. Existing Systems Reused
+
+5. Existing Systems Extended
+
+6. Refactoring Performed
+
+7. Capabilities Added
+
+8. Technical Debt Discovered
+
+9. Engineering Recommendations
+
+10. Anything Preventing Completion
+
+11. Cognitive Evolution Score
+
+12. Architectural Decisions Made
+
+Include:
+
+• Why each architectural decision was chosen
+
+• Alternatives considered
+
+• Tradeoffs
+
+• Future extension opportunities
+
+When complete...
+
+STOP.
+
+Wait for the next engineering specification.
+
+=========================================================
+BEGIN IMPLEMENTATION
+=========================================================

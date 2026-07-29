@@ -74,5 +74,6 @@ export * from "./business_intelligence";
 export * from "./governance";
 export * from "./audit_trail";
 export * from "./cognitive_artifacts";
+export * from "./cognitive_graph";
 
 export * from "./system_logs";

@@ -14,6 +14,7 @@ export * from "./runtime-state";
 export * from "./orchestration";
 export * from "./reasoning";
 export * from "./cognitive-memory";
+export * from "./artifact-graph";
 export { registerCoreBrains } from "./register-core-brains";
 
 import { logger } from "../logger";

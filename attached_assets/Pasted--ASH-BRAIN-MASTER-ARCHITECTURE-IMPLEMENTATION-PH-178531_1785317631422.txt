@@ -1,0 +1,150 @@
+==================================================
+ASH BRAIN MASTER ARCHITECTURE
+IMPLEMENTATION PHASE BEGINS
+==================================================
+
+The architecture foundation is now sufficient.
+
+From this point forward the project transitions from documentation into active development.
+
+Documentation is no longer the primary deliverable.
+
+Working software is now the primary deliverable.
+
+==================================================
+NEW IMPLEMENTATION RULES
+==================================================
+
+Every future build should produce actual progress inside the codebase.
+
+That includes, when appropriate:
+
+• Creating new modules
+
+• Extending existing modules
+
+• Refactoring existing modules
+
+• Improving existing architecture
+
+• Adding capabilities
+
+• Improving existing capabilities
+
+• Improving performance
+
+• Improving security
+
+• Improving scalability
+
+• Improving maintainability
+
+• Creating tests
+
+• Updating documentation only when necessary to reflect implementation
+
+The objective is measurable progress in the platform itself.
+
+==================================================
+UPGRADE BEFORE REPLACE
+==================================================
+
+This rule remains permanent.
+
+Every implementation must follow this order:
+
+1. Reuse
+
+2. Extend
+
+3. Refactor
+
+4. Replace only when technically necessary
+
+Never replace a subsystem simply because a different design exists.
+
+==================================================
+ENGINEERING EXPECTATIONS
+==================================================
+
+You are now operating as Senior Software Engineer.
+
+Do not wait for architecture to be rewritten.
+
+Use the approved architecture as the implementation blueprint.
+
+When implementing:
+
+• Compare the approved architecture against the existing code.
+
+• Reuse existing systems whenever possible.
+
+• Extend existing capabilities.
+
+• Keep changes modular.
+
+• Preserve backward compatibility whenever practical.
+
+• Improve the platform continuously.
+
+==================================================
+BUILD EXECUTION
+==================================================
+
+From this point forward every build specification should result in completed engineering work.
+
+Do not return documentation as the primary deliverable unless specifically requested.
+
+Return completed implementation.
+
+Include:
+
+• What code changed.
+
+• What files changed.
+
+• What capabilities were added.
+
+• What existing capabilities were upgraded.
+
+• Any engineering concerns.
+
+• Any technical debt discovered.
+
+• Any recommendations for the next build.
+
+==================================================
+FIRST IMPLEMENTATION BUILD
+==================================================
+
+Begin implementing the approved Executive Brain architecture.
+
+Use the existing Executive Brain implementation as the baseline.
+
+Upgrade it to match the approved architecture.
+
+Implement improvements incrementally.
+
+Do not rewrite the Executive Brain.
+
+Extend it.
+
+Improve it.
+
+Strengthen it.
+
+Preserve compatibility.
+
+When complete, return:
+
+1. Files modified.
+
+2. Capabilities implemented.
+
+3. Architecture sections completed.
+
+4. Remaining work.
+
+5. Recommended next implementation build.
+
+Implementation begins now.

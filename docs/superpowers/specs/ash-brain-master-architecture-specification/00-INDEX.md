@@ -1,6 +1,6 @@
 # ASH Brain Master Architecture Specification
 
-**Status:** Framework established. No volume has entered the Architecture phase yet.
+**Status:** In progress. Volume 1, Chapter 1 (Executive Brain) is Approved and locked as the chapter template. Volume 1, Chapter 2 (Planning Engine) is in the Architecture stage.
 **Established:** 2026-07-29
 **Baseline:** [`docs/superpowers/specs/2026-07-29-ash-brain-master-xray.md`](../2026-07-29-ash-brain-master-xray.md)
 
@@ -53,6 +53,16 @@ Each chapter file's section numbers 3–11 mirror these stages exactly, so a cha
 
 - **Architecture authorship and approval** belong to the project owner (the human directing this specification).
 - **This agent's role** is architecture review, engineering validation, edge-case identification, implementation, compliance auditing, gap analysis, performance review, security review, and refactoring recommendations — challenging implementation details where warranted, while preserving approved architecture unless a genuine engineering issue requires reopening it.
+
+## Chapter Template
+
+[Volume 1, Chapter 1 — Executive Brain](./volume-1-core-cognitive-architecture/01-executive-brain.md) is the **approved, locked template** for every chapter in this specification. It fixes:
+
+- The section skeleton (§1 Purpose & Scope, §2 Baseline Reference, §3 Architecture, §4–§11 the remaining lifecycle stages).
+- Within §3: a "Current Architecture Summary" grounded in the real codebase, a Mission statement, Core Responsibilities, per-capability **Capability Contracts** (Purpose, Authority, Responsibilities, What This Capability Will Never Do, Inputs, Outputs, Dependencies, Events Published, Events Consumed, Decision Logic, Success Criteria/KPIs, Failure Modes, Fallback Strategy, Security Requirements, Extension Rules, Current Maturity, Target Maturity), an Inputs/Outputs aggregate, an Integration Map, Future Growth, Open Architecture Questions, and a closing **Architecture Summary** (maturity assessment, technical debt, deferred decisions, risks, roadmap, chapter approval checklist).
+- The six-level maturity scale (L0 Absent → L5 Autonomous/Cross-Scope), reused verbatim by every chapter rather than redefined per chapter.
+
+Do not revisit Chapter 1 to refine it further. If a genuine improvement to the template is discovered while writing a later chapter, propose it as an explicit, standalone template revision applied consistently across **all** chapters (including Chapter 1) — never as an isolated edit to whichever chapter happened to surface it. Forward progress on new chapters takes priority over template polish.
 
 ## Structure: Volumes, Chapters, Sections
 

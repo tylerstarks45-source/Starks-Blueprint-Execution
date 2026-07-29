@@ -1,13 +1,14 @@
 # 1.1 — Executive Brain
 
-**Status:** Architecture Drafted (v3 — Capability Contracts) — Pending Review
+**Status:** Approved (Architecture Stage) — Locked as the Official Chapter Template
 **Volume:** 1 — Core Cognitive Architecture
 **Last Updated:** 2026-07-29
 
 **Revision history:**
 - **v1:** Architecture description — an accurate inventory of today's implementation.
 - **v2:** Evolved into a capability specification — every capability given a full engineering spec (Mission, Purpose, Responsibilities, Inputs, Outputs, Decision Logic, Dependencies, Events, KPIs, Failure Modes, Fallback Behavior, Security Considerations, Extension Points, Future Maturity Level).
-- **v3 (this revision):** Evolved further into binding **Capability Contracts** — each capability now defines its own Authority boundary and explicit "will never do" constraints, splits Events into Published/Consumed, and the chapter closes with a consolidated Architecture Summary (maturity assessment, technical debt, deferred decisions, risks, roadmap, and an approval checklist). The current implementation (§3.1, and the Current Maturity stated in every contract) remains the unmodified baseline throughout — no redesign is proposed anywhere in this revision, and every forward-looking statement is framed as an addition to, not a replacement of, existing architecture, per the Upgrade Before Replace law. This chapter remains unapproved and is returned for architectural review before any further chapter is started.
+- **v3:** Evolved further into binding **Capability Contracts** — each capability now defines its own Authority boundary and explicit "will never do" constraints, splits Events into Published/Consumed, and the chapter closes with a consolidated Architecture Summary (maturity assessment, technical debt, deferred decisions, risks, roadmap, and an approval checklist). The current implementation (§3.1, and the Current Maturity stated in every contract) remains the unmodified baseline throughout — no redesign is proposed anywhere in this revision, and every forward-looking statement is framed as an addition to, not a replacement of, existing architecture, per the Upgrade Before Replace law.
+- **Approved (2026-07-29):** v3 approved by the project owner and designated the **official structural and quality template** for every chapter in this specification (see §5). This chapter is now locked against further edits except when a future template-wide change is deliberately applied consistently across all chapters — see `00-INDEX.md`, "Chapter Template."
 
 ---
 
@@ -573,10 +574,15 @@ The following require review and a decision before any related implementation wo
 - [ ] The chapter is approved to proceed to Stage 2 (Architecture Review), or returned with specific requested changes.
 
 ## 4. Architecture Review
-_Reviewer notes, open questions, and requested changes go here once a draft exists._
+_Not separately conducted as a distinct stage: the project owner reviewed v1 and v2 in-line (each returned with named refinement requests, which produced v2 and v3 respectively) and approved v3 directly. No open reviewer items remain outstanding._
 
 ## 5. Approval
-_Approval record: who approved, when, and any conditions attached._
+
+- **Approved by:** Project owner.
+- **Date:** 2026-07-29.
+- **Scope of approval:** The v3 architecture content in §1–§3 (Purpose & Scope, Baseline Reference, and all of §3's Architecture content, including all 20 Capability Contracts and the Architecture Summary).
+- **Condition attached:** This chapter is additionally designated the **official architecture chapter template** for the entire ASH Brain Master Architecture Specification — its structure, section ordering, Capability Contract field set, maturity scale, and Architecture Summary format are binding on every chapter in every volume from this point forward (see `00-INDEX.md`, "Chapter Template").
+- **Change control:** This chapter must not be revisited for incremental refinement. If a future chapter's work reveals a genuine improvement to the template itself, that improvement is proposed and applied consistently across all chapters (including this one) as a deliberate, explicit template revision — never as an isolated edit to this chapter alone.
 
 ## 6. Implementation Notes
 _Summary of what was built and why, with references to source files — not a duplicate of the code itself._

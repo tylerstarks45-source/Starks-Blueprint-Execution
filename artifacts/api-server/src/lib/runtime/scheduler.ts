@@ -26,6 +26,54 @@ import { initializeBusinessDna, publishBusinessEvent } from "../business-intelli
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
 
+// ─── Persistent scheduler state ───────────────────────────────────────────────
+// Each sub-task's "last ran at" timestamp is stored in a small DB table so it
+// survives process restarts. An in-memory cache (populated at startup) keeps
+// every tick fast — the DB is only written when a task actually fires.
+
+const stateCache = new Map<string, number>();
+
+async function ensureSchedulerStateTable(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS scheduler_state (
+      task_key   TEXT        PRIMARY KEY,
+      last_run_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
+async function loadSchedulerState(): Promise<void> {
+  try {
+    const rows = await pool.query<{ task_key: string; last_run_at: Date }>(
+      `SELECT task_key, last_run_at FROM scheduler_state`,
+    );
+    for (const row of rows.rows) {
+      stateCache.set(row.task_key, new Date(row.last_run_at).getTime());
+    }
+    logger.info({ keys: rows.rowCount }, "Scheduler state loaded from DB");
+  } catch (err) {
+    logger.warn({ err }, "Failed to load scheduler state from DB — all tasks will start fresh");
+  }
+}
+
+function getState(key: string): number {
+  return stateCache.get(key) ?? 0;
+}
+
+async function setState(key: string, ts: number): Promise<void> {
+  stateCache.set(key, ts);
+  try {
+    await pool.query(
+      `INSERT INTO scheduler_state (task_key, last_run_at)
+       VALUES ($1, $2)
+       ON CONFLICT (task_key) DO UPDATE SET last_run_at = EXCLUDED.last_run_at`,
+      [key, new Date(ts)],
+    );
+  } catch (err) {
+    logger.warn({ err, key }, "Failed to persist scheduler state to DB");
+  }
+}
+
 type ScheduleType = "every_n_minutes" | "every_n_hours" | "daily" | "weekly";
 
 function computeNextRunAt(scheduleType: ScheduleType, scheduleConfig: Record<string, unknown>): Date {
@@ -331,12 +379,11 @@ async function handleTaskFailure(
 // ─── Weekly digest (runs once per week) ──────────────────────────────────────
 
 const WEEKLY_DIGEST_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
-let lastWeeklyDigest = 0;
 
 async function processWeeklyDigest(): Promise<void> {
   const now = Date.now();
-  if (now - lastWeeklyDigest < WEEKLY_DIGEST_INTERVAL_MS) return;
-  lastWeeklyDigest = now;
+  if (now - getState("weekly_digest") < WEEKLY_DIGEST_INTERVAL_MS) return;
+  await setState("weekly_digest", now);
 
   const weekAgo = new Date(now - 7 * 86_400_000);
 
@@ -429,12 +476,11 @@ async function processWeeklyDigest(): Promise<void> {
 // ─── A/B Test winner selection (runs nightly) ─────────────────────────────────
 
 const AB_TEST_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-let lastAbTestCheck = 0;
 
 async function processABTests(): Promise<void> {
   const now = Date.now();
-  if (now - lastAbTestCheck < AB_TEST_CHECK_INTERVAL_MS) return;
-  lastAbTestCheck = now;
+  if (now - getState("ab_test_check") < AB_TEST_CHECK_INTERVAL_MS) return;
+  await setState("ab_test_check", now);
 
   const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
   const fortyEightHoursAgo = new Date(now - 48 * 60 * 60 * 1000);
@@ -604,12 +650,11 @@ async function processABTests(): Promise<void> {
 // to subscribers based on their subscription date + step delayDays.
 
 const EMAIL_SEQUENCE_INTERVAL_MS = 5 * 60 * 1000;
-let lastEmailSequenceRun = 0;
 
 async function processEmailSequences(): Promise<void> {
   const now = Date.now();
-  if (now - lastEmailSequenceRun < EMAIL_SEQUENCE_INTERVAL_MS) return;
-  lastEmailSequenceRun = now;
+  if (now - getState("email_sequence") < EMAIL_SEQUENCE_INTERVAL_MS) return;
+  await setState("email_sequence", now);
 
   // Get all active sequences that have a linked list
   const sequences = await pool.query<{
@@ -716,12 +761,11 @@ async function processEmailSequences(): Promise<void> {
 // platform via the publishing dispatcher, mirroring processEmailSequences().
 
 const SOCIAL_POSTS_INTERVAL_MS = 5 * 60 * 1000;
-let lastSocialPostsRun = 0;
 
 async function processDuePosts(): Promise<void> {
   const now = Date.now();
-  if (now - lastSocialPostsRun < SOCIAL_POSTS_INTERVAL_MS) return;
-  lastSocialPostsRun = now;
+  if (now - getState("social_posts") < SOCIAL_POSTS_INTERVAL_MS) return;
+  await setState("social_posts", now);
 
   const nowDate = new Date();
 
@@ -816,12 +860,11 @@ async function processDuePosts(): Promise<void> {
 // here — this tick never applies anything outside the low-risk whitelist.
 
 const HEALTH_MONITOR_INTERVAL_MS = 5 * 60 * 1000;
-let lastHealthMonitorRun = 0;
 
 async function processHealthMonitoring(): Promise<void> {
   const now = Date.now();
-  if (now - lastHealthMonitorRun < HEALTH_MONITOR_INTERVAL_MS) return;
-  lastHealthMonitorRun = now;
+  if (now - getState("health_monitor") < HEALTH_MONITOR_INTERVAL_MS) return;
+  await setState("health_monitor", now);
 
   try {
     const systemCount = await recomputeAllActiveSystemsHealth();
@@ -898,12 +941,11 @@ async function processHealthMonitoring(): Promise<void> {
 }
 
 const BI_RECONCILIATION_INTERVAL_MS = 60 * 60 * 1000;
-let lastBusinessIntelligenceReconciliation = 0;
 
 async function processBusinessIntelligenceReconciliation(): Promise<void> {
   const now = Date.now();
-  if (now - lastBusinessIntelligenceReconciliation < BI_RECONCILIATION_INTERVAL_MS) return;
-  lastBusinessIntelligenceReconciliation = now;
+  if (now - getState("bi_reconciliation") < BI_RECONCILIATION_INTERVAL_MS) return;
+  await setState("bi_reconciliation", now);
   try {
     const businesses = await db.select({ id: businessesTable.id }).from(businessesTable);
     const results = await Promise.allSettled(businesses.map((business) => initializeBusinessDna(business.id)));
@@ -922,12 +964,11 @@ async function processBusinessIntelligenceReconciliation(): Promise<void> {
 // where startup-only orphan recovery misses jobs that hang mid-run.
 
 const HUNG_JOB_WATCHDOG_INTERVAL_MS = 5 * 60 * 1000;
-let lastHungJobWatchdog = 0;
 
 async function processHungJobWatchdog(): Promise<void> {
   const now = Date.now();
-  if (now - lastHungJobWatchdog < HUNG_JOB_WATCHDOG_INTERVAL_MS) return;
-  lastHungJobWatchdog = now;
+  if (now - getState("hung_job_watchdog") < HUNG_JOB_WATCHDOG_INTERVAL_MS) return;
+  await setState("hung_job_watchdog", now);
 
   try {
     const { reclaimed, finalFailed } = await reclaimHungJobs();
@@ -948,12 +989,11 @@ async function processHungJobWatchdog(): Promise<void> {
 // the Growth Recommendations panel.
 
 const IMPROVEMENT_PASS_INTERVAL_MS = 24 * 60 * 60 * 1000;
-let lastImprovementPassRun = 0;
 
 async function processImprovementPasses(): Promise<void> {
   const now = Date.now();
-  if (now - lastImprovementPassRun < IMPROVEMENT_PASS_INTERVAL_MS) return;
-  lastImprovementPassRun = now;
+  if (now - getState("improvement_pass") < IMPROVEMENT_PASS_INTERVAL_MS) return;
+  await setState("improvement_pass", now);
 
   try {
     const activeBusinesses = await db
@@ -980,12 +1020,11 @@ async function processImprovementPasses(): Promise<void> {
 // deterministic SQL aggregation — no AI cost, no fabricated claims.
 
 const BRAIN_DISTILL_INTERVAL_MS = 24 * 60 * 60 * 1000;
-let lastBrainDistillRun = 0;
 
 async function processBrainDistillation(): Promise<void> {
   const now = Date.now();
-  if (now - lastBrainDistillRun < BRAIN_DISTILL_INTERVAL_MS) return;
-  lastBrainDistillRun = now;
+  if (now - getState("brain_distill") < BRAIN_DISTILL_INTERVAL_MS) return;
+  await setState("brain_distill", now);
 
   try {
     const result = await distillAshBrain();
@@ -1003,7 +1042,6 @@ async function processBrainDistillation(): Promise<void> {
 
 const EXPIRY_WARNING_INTERVAL_MS = 6 * 60 * 60 * 1000; // check ~4×/day (7-day window applied in SQL)
 const EXPIRY_WARNING_DEDUPE_MS = 3 * 24 * 60 * 60 * 1000; // at most once / 3 days
-let lastExpiryWarningRun = 0;
 
 // Credentials whose tokens are refreshed automatically elsewhere — no warning.
 const AUTO_REFRESHABLE_KEYS = new Set([
@@ -1014,8 +1052,8 @@ const AUTO_REFRESHABLE_KEYS = new Set([
 
 async function processExpiringCredentialWarnings(): Promise<void> {
   const now = Date.now();
-  if (now - lastExpiryWarningRun < EXPIRY_WARNING_INTERVAL_MS) return;
-  lastExpiryWarningRun = now;
+  if (now - getState("expiry_warning") < EXPIRY_WARNING_INTERVAL_MS) return;
+  await setState("expiry_warning", now);
 
   try {
     const result = await pool.query(
@@ -1062,12 +1100,11 @@ async function processExpiringCredentialWarnings(): Promise<void> {
 // Cleanup/dedup/compression sweep. Runs a few times a day — this is
 // housekeeping, not latency-sensitive, and each run is idempotent.
 const MEMORY_MAINTENANCE_INTERVAL_MS = 4 * 60 * 60 * 1000;
-let lastMemoryMaintenanceRun = 0;
 
 async function processMemoryMaintenance(): Promise<void> {
   const now = Date.now();
-  if (now - lastMemoryMaintenanceRun < MEMORY_MAINTENANCE_INTERVAL_MS) return;
-  lastMemoryMaintenanceRun = now;
+  if (now - getState("memory_maintenance") < MEMORY_MAINTENANCE_INTERVAL_MS) return;
+  await setState("memory_maintenance", now);
 
   try {
     await runMemoryMaintenance();
@@ -1103,7 +1140,18 @@ export function startScheduler(): void {
     }
   }
 
-  setTimeout(loop, POLL_INTERVAL_MS);
+  // Ensure the state table exists and hydrate the in-memory cache from DB
+  // before the first tick so no task fires spuriously after a restart.
+  ensureSchedulerStateTable()
+    .then(() => loadSchedulerState())
+    .then(() => {
+      if (running) setTimeout(loop, POLL_INTERVAL_MS);
+    })
+    .catch((err) => {
+      logger.error({ err }, "Scheduler state init failed — starting without persisted state");
+      if (running) setTimeout(loop, POLL_INTERVAL_MS);
+    });
+
   logger.info({ pollIntervalMs: POLL_INTERVAL_MS }, "Scheduler started");
 }
 

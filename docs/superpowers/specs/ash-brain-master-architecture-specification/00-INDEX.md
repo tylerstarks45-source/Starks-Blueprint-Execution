@@ -1,6 +1,6 @@
 # ASH Brain Master Architecture Specification
 
-**Status:** In progress. Volume 1, Chapter 1 (Executive Brain) is Approved and locked as the chapter template. Volume 1, Chapter 2 (Planning Engine) is in the Architecture stage.
+**Status:** In progress. Volume 1, Chapter 1 (Executive Brain) is Approved and locked as the chapter template. Volume 1, Chapters 2–6 (Planning Engine, Validation Engine, Memory Engine, Research & Knowledge Engine, ASH Self-Improving Brain) are drafted as a single batch (Architecture stage) and are pending a cross-chapter consistency pass before being presented together for architectural review.
 **Established:** 2026-07-29
 **Baseline:** [`docs/superpowers/specs/2026-07-29-ash-brain-master-xray.md`](../2026-07-29-ash-brain-master-xray.md)
 

@@ -32,3 +32,11 @@ description: How chapters in docs/superpowers/specs/ash-brain-master-architectur
 ## Working pattern that worked well
 
 For each chapter: dispatch a dedicated read-only explore subagent against the real subsystem code first (entry points, control flow, DB tables, AI call sites + fallback behavior, event pub/sub, ownership checks, unused exports/TODOs) before drafting; then a fast follow-up round for specific gaps (e.g. "what exactly happens on the escalate path"). Ground every "Current Maturity" and every "Never Do" line in something the explorer actually found, not inference.
+
+## Batch-drafting mode (established 2026-07-29)
+
+The owner made this the **permanent** workflow going forward, not a one-off: draft every chapter in a volume in one pass (all left in Draft/"Architecture Drafted" status, no per-chapter pause for approval), then run one cross-chapter consistency pass over the whole volume, then present the whole volume for review together. Do not revert to the old per-chapter pause-and-approve cadence unless the owner says so.
+
+**Why:** avoids interrupting momentum for individual sign-off on chapters that are cheap to redraft together, and surfaces cross-chapter duplication/inconsistency (e.g. a maturity-scale table reproduced in full in one chapter but only cross-referenced in others) that per-chapter review would miss.
+
+**Consistency-pass checklist that worked for Volume 1** (6 chapters): (1) grep every chapter for its `**Status:**` line and its "Template note" paragraph, align phrasing across all Draft-status chapters; (2) grep for any chapter that reproduces the full maturity-scale table instead of cross-referencing Chapter 1 — trim to a cross-reference; (3) check that any open question shared by two+ chapters (e.g. risk-aggregation ownership disputed between two chapters, or duplicate "lesson"/"knowledge" distillation mechanisms across chapters) cross-references the sibling chapter's own open-question numbering, in both directions; (4) update the volume's own `README.md` chapter-status table and the top-level `00-INDEX.md` status line last, once every chapter file itself is settled.

@@ -1,10 +1,10 @@
 # 1.2 — Planning Engine
 
-**Status:** Architecture Drafted (v1 — Capability Contracts, following the approved Chapter 1 template) — Pending Review
+**Status:** Architecture Drafted — Draft (Volume 1 batch; pending architectural review)
 **Volume:** 1 — Core Cognitive Architecture
 **Last Updated:** 2026-07-29
 
-**Template note:** This chapter follows the structure, quality bar, and Capability Contract format locked in [Chapter 1.1 — Executive Brain](./01-executive-brain.md) (see `00-INDEX.md`, "Chapter Template"). It is written in a single pass at that standard rather than iterated through v1/v2/v3 the way Chapter 1 was, since the template itself is now fixed. This chapter has 13 capability contracts rather than Chapter 1's 20 — a reflection of the Planning Engine's narrower mission (turning a resolved goal into an ordered, risk-aware execution plan) relative to the Executive Brain's broader coordination mission, not a lighter-weight treatment.
+**Template note:** This chapter follows the structure, quality bar, and Capability Contract format locked in [Chapter 1.1 — Executive Brain](./01-executive-brain.md) (see `00-INDEX.md`, "Chapter Template"). Per the project owner's 2026-07-29 workflow update, this chapter is drafted in a single pass and left in Draft status alongside the rest of Volume 1, rather than paused individually for approval. It has thirteen capability contracts rather than Chapter 1's twenty — a reflection of the Planning Engine's narrower mission (turning a resolved goal into an ordered, risk-aware execution plan) relative to the Executive Brain's broader coordination mission, not a lighter-weight treatment.
 
 ---
 
@@ -65,16 +65,7 @@ Each responsibility above decomposes into one or more of the thirteen capabiliti
 
 ### 3.4 Core Capability Contracts
 
-Every capability implied by the mission (§3.2) is bound below to an explicit **Capability Contract**, using the field set and maturity scale fixed in Chapter 1 (§3.4) — reproduced here for reference only, not redefined:
-
-| Level | Name | Meaning |
-|---|---|---|
-| **L0** | Absent | No implementation; the responsibility is not currently discharged by any part of the system. |
-| **L1** | Implicit | Discharged only as a side effect of another capability's logic, with no dedicated code path of its own. |
-| **L2** | Explicit / Deterministic | Has its own dedicated code path, driven by fixed deterministic rules; no model call, no learning. |
-| **L3** | AI-Assisted | Uses a model call for judgment, with a deterministic fallback when the model call fails or is skipped. |
-| **L4** | Adaptive | Incorporates real outcome data to improve its own future decisions. |
-| **L5** | Autonomous / Cross-Scope | Reasons and self-optimizes across multiple goals, projects, or businesses without per-instance human tuning. |
+Every capability implied by the mission (§3.2) is bound below to an explicit **Capability Contract**, using the field set and maturity scale fixed in Chapter 1 (§3.4) — reproduced there in full; see that chapter for the canonical L0–L5 definitions, not redefined here.
 
 ---
 

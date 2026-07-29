@@ -1,0 +1,223 @@
+==================================================
+ASH BRAIN MASTER ARCHITECTURE SPECIFICATION
+BUILD #2
+VOLUME 1 – CORE COGNITIVE ARCHITECTURE
+==================================================
+
+OBJECTIVE
+
+Complete the remaining architecture chapters for Volume 1 using the approved Executive Brain chapter as the permanent template.
+
+This is an architecture development task only.
+
+No implementation.
+
+No production code changes.
+
+==================================================
+CURRENT BASELINE
+==================================================
+
+The Executive Brain chapter is now the approved architectural standard.
+
+Every remaining chapter must follow the exact same documentation quality, capability contract structure, maturity model, architecture summary, roadmap, technical debt analysis, risk assessment, and approval checklist.
+
+Continue following the Upgrade Before Replace principle.
+
+Every chapter must begin by documenting the current implementation before defining future evolution.
+
+==================================================
+CHAPTERS TO COMPLETE
+==================================================
+
+Chapter 2 – Planning Engine
+
+Chapter 3 – Validation Engine
+
+Chapter 4 – Memory Engine
+
+Chapter 5 – Research & Knowledge Engine
+
+Chapter 6 – Self-Improving Brain
+
+==================================================
+ARCHITECTURE REQUIREMENTS
+==================================================
+
+For every chapter:
+
+1. Analyze the existing implementation.
+
+2. Document the current architecture exactly as implemented.
+
+3. Identify every existing capability.
+
+4. Create Capability Contracts for every capability.
+
+Each capability must include:
+
+• Mission
+
+• Purpose
+
+• Authority
+
+• Responsibilities
+
+• What the capability will NEVER do
+
+• Inputs
+
+• Outputs
+
+• Dependencies
+
+• Events Published
+
+• Events Consumed
+
+• Decision Logic
+
+• Success Criteria / KPIs
+
+• Failure Modes
+
+• Fallback Strategy
+
+• Security Requirements
+
+• Extension Rules
+
+• Current Maturity
+
+• Target Maturity
+
+==================================================
+UPGRADE PATH
+==================================================
+
+For every capability clearly distinguish:
+
+CURRENT IMPLEMENTATION
+
+PLANNED EVOLUTION
+
+Every future capability must evolve from an existing implementation whenever technically possible.
+
+Avoid introducing replacement architectures unless absolutely required.
+
+If replacement is recommended:
+
+Explain:
+
+• Why extension is insufficient.
+
+• Why refactoring is insufficient.
+
+• Why replacement is required.
+
+==================================================
+ENGINEERING VALIDATION
+==================================================
+
+Throughout every chapter:
+
+Identify:
+
+• Existing strengths
+
+• Existing extension points
+
+• Technical debt
+
+• Reuse opportunities
+
+• Scalability concerns
+
+• Performance concerns
+
+• Security concerns
+
+• Integration points
+
+• Architectural risks
+
+• Open engineering questions
+
+==================================================
+ARCHITECTURE SUMMARY
+==================================================
+
+Each chapter must conclude with:
+
+• Capability maturity assessment
+
+• Technical debt summary
+
+• Deferred architecture decisions
+
+• Risk summary
+
+• Future roadmap
+
+• Chapter approval checklist
+
+==================================================
+CONSISTENCY
+==================================================
+
+When all five chapters are complete:
+
+Perform a consistency review across the entire volume.
+
+Verify:
+
+• Terminology
+
+• Capability naming
+
+• Maturity levels
+
+• Architectural principles
+
+• Cross-engine dependencies
+
+• Upgrade paths
+
+• Security terminology
+
+• Engineering language
+
+Ensure the entire volume reads as one unified architecture document.
+
+==================================================
+EXPECTED DELIVERABLE
+==================================================
+
+Return the completed draft of:
+
+Volume 1 – Core Cognitive Architecture
+
+containing:
+
+✓ Executive Brain (Locked Template)
+
+✓ Planning Engine
+
+✓ Validation Engine
+
+✓ Memory Engine
+
+✓ Research & Knowledge Engine
+
+✓ Self-Improving Brain
+
+Leave every chapter in Architecture Draft status.
+
+Do not implement code.
+
+Do not modify production systems.
+
+Do not begin Volume 2.
+
+Wait for the next Architecture Specification.

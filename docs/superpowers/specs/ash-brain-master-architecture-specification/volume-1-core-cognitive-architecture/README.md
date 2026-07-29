@@ -1,6 +1,6 @@
 # Volume 1 — Core Cognitive Architecture
 
-**Status:** Framework established. No chapter has entered the Architecture phase yet.
+**Status:** Chapter 1.1 (Executive Brain) is Approved and locked as the chapter template. Chapters 1.2–1.6 are drafted (Architecture stage) as a single Volume 1 batch and are pending the cross-chapter consistency pass and combined architectural review; none has been individually approved yet.
 
 ## Purpose
 
@@ -10,12 +10,12 @@ The reasoning and planning layers that sit between a user request and any model 
 
 | # | Chapter | Status |
 |---|---|---|
-| 1.1 | [Executive Brain](./01-executive-brain.md) | Not Started |
-| 1.2 | [Planning Engine](./02-planning-engine.md) | Not Started |
-| 1.3 | [Validation Engine](./03-validation-engine.md) | Not Started |
-| 1.4 | [Memory Engine](./04-memory-engine.md) | Not Started |
-| 1.5 | [Research & Knowledge Engine](./05-research-knowledge-engine.md) | Not Started |
-| 1.6 | [ASH Self-Improving Brain (Lesson Distillation)](./06-self-improving-brain.md) | Not Started |
+| 1.1 | [Executive Brain](./01-executive-brain.md) | Approved — Locked (chapter template) |
+| 1.2 | [Planning Engine](./02-planning-engine.md) | Architecture Drafted — Draft |
+| 1.3 | [Validation Engine](./03-validation-engine.md) | Architecture Drafted — Draft |
+| 1.4 | [Memory Engine](./04-memory-engine.md) | Architecture Drafted — Draft |
+| 1.5 | [Research & Knowledge Engine](./05-research-knowledge-engine.md) | Architecture Drafted — Draft |
+| 1.6 | [ASH Self-Improving Brain (Lesson Distillation)](./06-self-improving-brain.md) | Architecture Drafted — Draft |
 
 ---
 

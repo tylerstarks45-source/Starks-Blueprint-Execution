@@ -1,0 +1,544 @@
+=========================================================
+ASH BUSINESS OPERATING SYSTEM
+ENGINEERING BUILD SPECIFICATION
+BUILD 004
+EXECUTIVE COGNITIVE MEMORY ARCHITECTURE
+=========================================================
+
+PROJECT STATUS
+
+Build 001
+COMPLETE
+
+Build 002
+COMPLETE
+
+Build 003
+COMPLETE
+
+Build 004
+ACTIVE
+
+ASH continues to evolve.
+
+=========================================================
+PERMANENT ENGINEERING LAW
+=========================================================
+
+ASH EVOLVES.
+
+ASH IS NEVER REBUILT.
+
+Every implementation MUST follow:
+
+Reuse
+
+↓
+
+Extend
+
+↓
+
+Refactor
+
+↓
+
+Replace only when absolutely necessary.
+
+Existing architecture is always the first choice.
+
+Future evolution is more valuable than short-term convenience.
+
+=========================================================
+ARCHITECTURAL PURPOSE
+=========================================================
+
+This build is not about saving Decision Records.
+
+This build is about creating the first permanent Cognitive Memory Architecture for ASH.
+
+Builds 001–003 established:
+
+• Self Awareness
+
+• Cognitive Orchestration
+
+• Executive Reasoning
+
+Those systems can now think.
+
+However...
+
+Thought without memory cannot become intelligence.
+
+Every Executive decision currently exists only for the duration of the process.
+
+After restart...
+
+The reasoning disappears.
+
+That is unacceptable for the long-term vision of ASH.
+
+Beginning with this build...
+
+Executive cognition becomes durable.
+
+=========================================================
+ARCHITECTURAL PHILOSOPHY
+=========================================================
+
+Treat every Executive decision as a first-class Cognitive Artifact.
+
+A Cognitive Artifact is any structured product created by the cognitive system that may become future knowledge.
+
+Examples include:
+
+• Decision Record
+
+• Objective Analysis
+
+• Collaboration Plan
+
+• Reasoning Graph
+
+• Reflection
+
+• Lesson
+
+• Insight
+
+• Strategy
+
+• Observation
+
+• Pattern
+
+• Knowledge
+
+Build 004 only needs to persist Decision Records.
+
+However...
+
+The architecture MUST be designed for every future Cognitive Artifact.
+
+Do NOT build a Decision database.
+
+Build the foundation of Cognitive Memory.
+
+=========================================================
+COGNITIVE LIFECYCLE
+=========================================================
+
+Build this architecture around the following lifecycle.
+
+Observe
+
+↓
+
+Reason
+
+↓
+
+Decide
+
+↓
+
+Record
+
+↓
+
+Consolidate
+
+↓
+
+Retrieve
+
+↓
+
+Reflect
+
+↓
+
+Learn
+
+↓
+
+Improve
+
+Memory is one step.
+
+Not the destination.
+
+Future builds will extend the remaining stages.
+
+=========================================================
+PRIMARY IMPLEMENTATION OBJECTIVES
+=========================================================
+
+---------------------------------------------------------
+1. Cognitive Artifact Model
+---------------------------------------------------------
+
+Create a reusable Cognitive Artifact model.
+
+Every future memory object should be able to inherit from this architecture.
+
+Every artifact should support:
+
+Unique Identity
+
+Artifact Type
+
+Source Brain
+
+Originating Decision
+
+Version
+
+Created Timestamp
+
+Updated Timestamp
+
+Confidence
+
+Relationships
+
+Metadata
+
+Traceability
+
+Explainability
+
+Lifecycle Status
+
+Future artifact types must be addable without redesign.
+
+---------------------------------------------------------
+2. Executive Decision Persistence
+---------------------------------------------------------
+
+Replace the temporary in-memory Decision Record storage.
+
+Persist Executive Decision Records using the existing persistence architecture whenever practical.
+
+Reuse existing database infrastructure before introducing new tables.
+
+Persist the complete reasoning context.
+
+Not only the decision itself.
+
+Persist:
+
+Decision
+
+Objective Analysis
+
+Reasoning Stages
+
+Reasoning Graph
+
+Selected Brains
+
+Capability Resolution
+
+Confidence
+
+Collaboration Plan
+
+Explainability
+
+Executive Brain Version
+
+Timestamp
+
+Do NOT persist transient runtime state.
+
+---------------------------------------------------------
+3. Cognitive Memory Consolidation
+---------------------------------------------------------
+
+Create a Memory Consolidation Pipeline.
+
+Its responsibility is NOT storage.
+
+Its responsibility is deciding how Cognitive Artifacts enter long-term memory.
+
+Initially:
+
+Persist all Executive Decision Records.
+
+Future builds will introduce:
+
+Filtering
+
+Retention
+
+Summarization
+
+Compression
+
+Importance Scoring
+
+Lesson Extraction
+
+Design for future evolution.
+
+---------------------------------------------------------
+4. Cognitive Retrieval Architecture
+---------------------------------------------------------
+
+Retrieval is not a database query.
+
+Retrieval is the beginning of cognition.
+
+Design retrieval so future Executive reasoning can answer questions like:
+
+Have I solved something similar before?
+
+Have I encountered this business problem before?
+
+Which reasoning patterns consistently succeed?
+
+Which Brain combinations perform best?
+
+What decisions repeatedly fail?
+
+Do NOT implement those behaviors.
+
+Design the architecture so they become natural future extensions.
+
+---------------------------------------------------------
+5. Historical Reasoning Service
+---------------------------------------------------------
+
+Implement reusable services allowing retrieval of historical reasoning.
+
+Support querying by:
+
+Time
+
+Objective
+
+Decision Type
+
+Brain Participation
+
+Confidence
+
+Artifact Type
+
+Lifecycle Status
+
+This service should become the future foundation for Learning.
+
+---------------------------------------------------------
+6. Traceability
+---------------------------------------------------------
+
+Every persisted Cognitive Artifact must answer:
+
+Where did this originate?
+
+Which Executive decision created it?
+
+Which Brains contributed?
+
+Which capabilities were used?
+
+Which evidence supported it?
+
+Which reasoning graph produced it?
+
+Can this artifact be reviewed?
+
+Can it later be replaced?
+
+Can it eventually be retired?
+
+Traceability is mandatory.
+
+=========================================================
+MEMORY METADATA
+=========================================================
+
+Every Cognitive Artifact should support metadata for future evolution.
+
+Examples include:
+
+Outcome Status
+
+Review Status
+
+Reflection Completed
+
+Lesson Generated
+
+Memory Importance
+
+Business Context
+
+Confidence History
+
+Evidence References
+
+Related Artifacts
+
+Superseded By
+
+Supersedes
+
+Retention Policy
+
+Do NOT implement autonomous logic.
+
+Only establish architecture.
+
+=========================================================
+EXPLAINABLE MEMORY
+=========================================================
+
+Historical cognition must remain explainable.
+
+Future engineers should be able to reconstruct an Executive decision from stored artifacts alone.
+
+Nothing should become permanent knowledge without preserving:
+
+Reasoning
+
+Context
+
+Evidence
+
+Confidence
+
+Collaboration
+
+Decision
+
+=========================================================
+ENGINEERING EXPECTATIONS
+=========================================================
+
+Study existing implementation.
+
+Reuse Build 001–003 infrastructure.
+
+Avoid duplicate persistence.
+
+Avoid duplicate models.
+
+Maintain backward compatibility.
+
+Keep every implementation additive.
+
+Improve maintainability.
+
+Improve observability.
+
+Improve extensibility.
+
+Reduce technical debt where practical.
+
+Think like an operating system engineer.
+
+Do not optimize only for today's implementation.
+
+Optimize for ASH five years from now.
+
+=========================================================
+DO NOT IMPLEMENT
+=========================================================
+
+Do NOT redesign Memory Engine.
+
+Do NOT redesign Executive Brain.
+
+Do NOT redesign Planning.
+
+Do NOT redesign Validation.
+
+Do NOT redesign Research.
+
+Do NOT redesign Self-Improving Brain.
+
+Do NOT implement Learning.
+
+Do NOT implement Reflection.
+
+Do NOT implement autonomous memory management.
+
+Only establish the Cognitive Memory Architecture that every future learning system will build upon.
+
+=========================================================
+ACCEPTANCE CRITERIA
+=========================================================
+
+Build is complete when:
+
+✓ Cognitive Artifact model exists.
+
+✓ Executive Decision Records persist across restarts.
+
+✓ Memory Consolidation Pipeline exists.
+
+✓ Historical Reasoning Service exists.
+
+✓ Cognitive Retrieval Architecture exists.
+
+✓ Traceability exists.
+
+✓ Explainable memory exists.
+
+✓ Existing architecture remains compatible.
+
+✓ No unnecessary rewrites occurred.
+
+=========================================================
+IMPLEMENTATION REPORT
+=========================================================
+
+Return ONLY:
+
+1. Executive Summary
+
+2. Files Modified
+
+3. Files Created
+
+4. Existing Systems Reused
+
+5. Existing Systems Extended
+
+6. Refactoring Performed
+
+7. Capabilities Added
+
+8. Technical Debt Discovered
+
+9. Engineering Recommendations
+
+10. Anything preventing completion
+
+11. Cognitive Evolution Score
+
+12. Architectural Decisions Made
+
+For Architectural Decisions Made include:
+
+• Why each architectural decision was chosen
+
+• Alternatives considered
+
+• Tradeoffs
+
+• Future extension opportunities
+
+When implementation is complete:
+
+STOP.
+
+Wait for the next engineering specification.
+
+=========================================================
+BEGIN IMPLEMENTATION
+=========================================================

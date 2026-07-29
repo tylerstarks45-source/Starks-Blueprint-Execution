@@ -2,6 +2,7 @@ import { logger } from "../logger";
 import { getCachedHealthConcerns } from "../cognitive-foundation/brain-registry";
 import { orchestrate } from "../cognitive-foundation/orchestration";
 import { runReasoningPipeline } from "../cognitive-foundation/reasoning";
+import { consolidate } from "../cognitive-foundation/cognitive-memory";
 import { resolveActiveProject, updateProjectRollup } from "./project-manager";
 import { resolveGoalForRequest } from "./goal-manager";
 import { planTasks } from "./task-planner";
@@ -63,6 +64,37 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     reasoningResult = runReasoningPipeline(message, orchestrationResult);
   } catch (err) {
     logger.warn({ err }, "Executive Brain: reasoning pipeline failed (ignored)");
+  }
+
+  // ── Cognitive Memory Consolidation (Build 004) ───────────────────────
+  // Persist the Decision Record as a Cognitive Artifact — the first step
+  // of durable Executive cognition. Fire-and-forget: never blocks the
+  // request path. The in-memory ring buffer in reasoning.ts remains as
+  // the hot L1 cache; this writes the same record to the persistent store.
+  if (reasoningResult) {
+    const record = reasoningResult.decisionRecord;
+    void consolidate({
+      id: record.id,
+      artifactType: "decision_record",
+      sourceBrain: "executive-brain",
+      lifecycleStatus: "active",
+      confidenceOverall: record.confidence.overall,
+      confidenceReasoning: record.confidence.reasoning,
+      confidenceCapability: record.confidence.capability,
+      confidenceBrainSelection: record.confidence.brainSelection,
+      brainsSelected: record.brainsSelected,
+      capabilitiesUsed: record.capabilitiesUsed,
+      evidence: record.supportingContext,
+      executiveBrainVersion: "1.1.0",
+      content: record as unknown as Record<string, unknown>,
+      relationships: {},
+      metadata: {},
+      objectiveText: record.objectiveAnalysis.primaryGoal,
+      userId,
+      projectId: project.id,
+    }).catch((err) => {
+      logger.warn({ err, recordId: record.id }, "Cognitive memory: consolidation failed (non-fatal)");
+    });
   }
 
   const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult });

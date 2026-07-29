@@ -35,6 +35,10 @@ import {
   getDecisionRecord,
   listReflectionHooks,
   REFLECTION_QUESTION_IDS,
+  queryArtifacts,
+  getArtifact,
+  findSimilarDecisions,
+  getCognitiveMemorySummary,
 } from "../lib/cognitive-foundation";
 
 const router: IRouter = Router();
@@ -673,10 +677,19 @@ router.get("/executive-brain/reasoning/explain", async (req, res): Promise<void>
   }
 });
 
-// Recent Decision Records (in-process ring buffer, newest first).
+// Recent Decision Records — DB-backed (persistent across restarts), with
+// in-memory ring buffer as hot fallback. Supports filtering by confidence,
+// lifecycle status, and time range — the Historical Reasoning Service surface.
 // Query: ?limit=<number> (default 20, max 100)
+// Query: ?confidence=high|medium|low|unknown (optional)
+// Query: ?lifecycle=active|archived|superseded|retired (optional)
+// Query: ?from=<ISO date> ?to=<ISO date> (optional time window)
 const decisionRecordsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  confidence: z.enum(["high", "medium", "low", "unknown"]).optional(),
+  lifecycle: z.enum(["active", "archived", "superseded", "retired"]).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
 });
 
 router.get("/executive-brain/reasoning/records", async (req, res): Promise<void> => {
@@ -685,6 +698,10 @@ router.get("/executive-brain/reasoning/records", async (req, res): Promise<void>
 
   const parsed = decisionRecordsSchema.safeParse({
     limit: typeof req.query["limit"] === "string" ? req.query["limit"] : undefined,
+    confidence: typeof req.query["confidence"] === "string" ? req.query["confidence"] : undefined,
+    lifecycle: typeof req.query["lifecycle"] === "string" ? req.query["lifecycle"] : undefined,
+    from: typeof req.query["from"] === "string" ? req.query["from"] : undefined,
+    to: typeof req.query["to"] === "string" ? req.query["to"] : undefined,
   });
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -692,15 +709,39 @@ router.get("/executive-brain/reasoning/records", async (req, res): Promise<void>
   }
 
   try {
+    // Primary: DB query (persistent across restarts, supports full filter set)
+    const artifacts = await queryArtifacts({
+      userId,
+      artifactType: "decision_record",
+      ...(parsed.data.confidence ? { confidenceOverall: parsed.data.confidence } : {}),
+      ...(parsed.data.lifecycle ? { lifecycleStatus: parsed.data.lifecycle } : {}),
+      ...(parsed.data.from ? { fromTime: new Date(parsed.data.from) } : {}),
+      ...(parsed.data.to ? { toTime: new Date(parsed.data.to) } : {}),
+      limit: parsed.data.limit,
+    });
+
+    if (artifacts.length > 0) {
+      res.json({ records: artifacts.map((a) => a.content), total: artifacts.length, source: "persistent" });
+      return;
+    }
+
+    // Fallback: in-memory ring buffer (populated before first DB write completes,
+    // or if DB is unavailable)
     const records = getRecentDecisionRecords(parsed.data.limit);
-    res.json({ records, total: records.length });
+    res.json({ records, total: records.length, source: "cache" });
   } catch (err) {
     logger.error({ err, userId }, "Executive Reasoning: records endpoint failed");
-    res.status(500).json({ error: "Failed to retrieve decision records" });
+    // Final fallback: ring buffer
+    try {
+      const records = getRecentDecisionRecords(parsed.data.limit);
+      res.json({ records, total: records.length, source: "cache" });
+    } catch {
+      res.status(500).json({ error: "Failed to retrieve decision records" });
+    }
   }
 });
 
-// Single Decision Record by id (for visualization / reflection lookup).
+// Single Decision Record by id — tries DB first, then in-memory ring buffer.
 router.get("/executive-brain/reasoning/records/:id", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
@@ -711,15 +752,77 @@ router.get("/executive-brain/reasoning/records/:id", async (req, res): Promise<v
     return;
   }
   try {
+    // Try DB first (persistent)
+    const artifact = await getArtifact(id);
+    if (artifact) {
+      res.json({ record: artifact.content, artifact, source: "persistent" });
+      return;
+    }
+    // Fall back to in-memory ring buffer
     const record = getDecisionRecord(id);
     if (!record) {
       res.status(404).json({ error: `No decision record found with id "${id}"` });
       return;
     }
-    res.json({ record });
+    res.json({ record, source: "cache" });
   } catch (err) {
     logger.error({ err, userId }, "Executive Reasoning: record detail endpoint failed");
     res.status(500).json({ error: "Failed to retrieve decision record" });
+  }
+});
+
+// Find similar past decisions — Historical Reasoning Service.
+// "Have I solved something similar before?" answered from persistent memory.
+// Query: ?objective=<string> (required), ?limit=<number> (optional)
+const similarDecisionsSchema = z.object({
+  objective: z.string().min(1).max(500),
+  limit: z.coerce.number().int().min(1).max(20).optional().default(5),
+});
+
+router.get("/executive-brain/reasoning/similar", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const parsed = similarDecisionsSchema.safeParse({
+    objective: typeof req.query["objective"] === "string" ? req.query["objective"] : undefined,
+    limit: typeof req.query["limit"] === "string" ? req.query["limit"] : undefined,
+  });
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  try {
+    const similar = await findSimilarDecisions(parsed.data.objective, userId, parsed.data.limit);
+    res.json({
+      objective: parsed.data.objective,
+      similar: similar.map((a) => ({
+        id: a.id,
+        decision: (a.content as Record<string, unknown>)["decision"],
+        confidence: a.confidenceOverall,
+        brainsSelected: a.brainsSelected,
+        objectiveText: a.objectiveText,
+        createdAt: a.createdAt,
+      })),
+      total: similar.length,
+    });
+  } catch (err) {
+    logger.error({ err, userId }, "Cognitive Memory: similar decisions query failed");
+    res.status(500).json({ error: "Failed to find similar decisions" });
+  }
+});
+
+// Cognitive Memory summary for the authenticated user — total decisions,
+// confidence breakdown, unique Brain combinations encountered.
+router.get("/executive-brain/reasoning/memory/summary", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  try {
+    const summary = await getCognitiveMemorySummary(userId);
+    res.json({ userId, ...summary });
+  } catch (err) {
+    logger.error({ err, userId }, "Cognitive Memory: summary query failed");
+    res.status(500).json({ error: "Failed to retrieve cognitive memory summary" });
   }
 });
 

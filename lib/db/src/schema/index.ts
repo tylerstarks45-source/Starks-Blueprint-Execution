@@ -73,5 +73,6 @@ export * from "./ash_research";
 export * from "./business_intelligence";
 export * from "./governance";
 export * from "./audit_trail";
+export * from "./cognitive_artifacts";
 
 export * from "./system_logs";

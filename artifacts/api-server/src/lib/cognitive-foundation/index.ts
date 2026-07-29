@@ -13,6 +13,7 @@ export * from "./extension-points";
 export * from "./runtime-state";
 export * from "./orchestration";
 export * from "./reasoning";
+export * from "./cognitive-memory";
 export { registerCoreBrains } from "./register-core-brains";
 
 import { logger } from "../logger";

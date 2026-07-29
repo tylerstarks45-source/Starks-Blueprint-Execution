@@ -1,0 +1,162 @@
+MASTER X-RAY REQUEST
+
+We are beginning the ASH Brain Master Architecture Roadmap.
+
+Before designing additional Brain subsystems, produce a complete architectural X-RAY of the current implementation.
+
+This is NOT a compliance audit.
+
+It is a complete architectural inventory.
+
+Include:
+
+==================================================
+
+1. Brain Subsystems
+
+List every implemented Brain subsystem.
+
+For each include:
+
+- Purpose
+- Responsibilities
+- Major Components
+- Current Status
+- Dependencies
+- Integration Points
+
+==================================================
+
+2. Data Architecture
+
+Document:
+
+- Database tables
+- Ownership relationships
+- Memory stores
+- Knowledge stores
+- Business stores
+- Context stores
+- Event stores
+- Timeline
+- Audit tables
+
+==================================================
+
+3. Runtime Architecture
+
+Document:
+
+- Executive Brain
+- AI Orchestrator
+- Runtime
+- Provider Routing
+- Tool Execution
+- Memory Retrieval
+- Planning
+- Research
+- Business Intelligence
+
+Show how requests flow through the system.
+
+==================================================
+
+4. Event Architecture
+
+Document every:
+
+- Event
+- Publisher
+- Subscriber
+- Trigger
+- Workflow
+
+==================================================
+
+5. API Inventory
+
+Document:
+
+- Internal APIs
+
+- Public APIs
+
+- Services
+
+- Modules
+
+- Shared Libraries
+
+==================================================
+
+6. Ownership & Governance
+
+Document:
+
+- Ownership Model
+
+- Data Access Layer
+
+- Validation
+
+- Scope Isolation
+
+- Audit Layer
+
+==================================================
+
+7. Extension Points
+
+Identify every extension point intentionally designed for future expansion.
+
+==================================================
+
+8. Technical Debt
+
+Identify:
+
+- Remaining debt
+
+- Duplicate logic
+
+- Areas needing refactoring
+
+- Temporary implementations
+
+- Planned migrations
+
+==================================================
+
+9. Performance
+
+Identify:
+
+- Potential bottlenecks
+
+- Scaling risks
+
+- High-complexity modules
+
+==================================================
+
+10. Brain Completion Matrix
+
+For every Brain subsystem report:
+
+Not Started
+
+Architecture Complete
+
+Implementation Complete
+
+Compliance Complete
+
+Locked
+
+==================================================
+
+This X-RAY becomes the official baseline for designing the ASH Brain Master Architecture Roadmap.
+
+Do not redesign anything.
+
+Document the current system exactly as it exists.

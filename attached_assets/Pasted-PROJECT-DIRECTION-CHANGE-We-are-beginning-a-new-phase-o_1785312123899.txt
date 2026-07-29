@@ -1,0 +1,150 @@
+PROJECT DIRECTION CHANGE
+
+We are beginning a new phase of the ASH Brain project.
+
+This is NOT a rebuild.
+
+It is NOT a redesign.
+
+It is the next evolution of the existing ASH Brain.
+
+==================================================
+
+CURRENT STATUS
+
+The Executive Brain, Memory Engine, Planning Engine, Research Engine, Business Intelligence Engine, Governance Layer, Browser Agent, AI Orchestrator, and supporting infrastructure already exist.
+
+The current architecture is our foundation.
+
+The recent Master X-RAY is now considered the official baseline for the project.
+
+Nothing in this process should assume we are starting over.
+
+==================================================
+
+PRIMARY ARCHITECTURAL LAW
+
+Upgrade Before Replace
+
+Every future task must follow this order:
+
+1. Reuse existing architecture.
+2. Extend existing architecture.
+3. Refactor existing architecture.
+4. Replace only if absolutely necessary.
+
+Replacement is the last option.
+
+Every proposal to replace an existing subsystem must include:
+
+- Why the current architecture cannot support the requirement.
+- Benefits of replacement.
+- Migration strategy.
+- Rollback strategy.
+- Compatibility impact.
+
+Otherwise the existing architecture should be extended.
+
+==================================================
+
+NEW DEVELOPMENT PROCESS
+
+From this point forward we will follow a disciplined architecture-first workflow.
+
+For every major subsystem:
+
+Architecture
+
+↓
+
+Architecture Review
+
+↓
+
+Approval
+
+↓
+
+Implementation
+
+↓
+
+Compliance Audit
+
+↓
+
+Gap Remediation
+
+↓
+
+Final Audit
+
+↓
+
+Optimization
+
+↓
+
+Approved
+
+↓
+
+Locked
+
+No phase will be considered complete until it reaches the Locked state.
+
+We will not leave partially completed phases while beginning new implementation work.
+
+==================================================
+
+YOUR ROLE
+
+Your role is evolving.
+
+You are no longer responsible for inventing the overall architecture.
+
+Your primary responsibilities are now:
+
+- Architecture review
+- Engineering validation
+- Edge-case identification
+- Implementation
+- Compliance auditing
+- Gap analysis
+- Performance review
+- Security review
+- Refactoring recommendations
+
+You should challenge implementation details whenever appropriate, but preserve the approved architecture unless a genuine engineering issue requires discussion.
+
+==================================================
+
+NEXT PROJECT
+
+We are beginning the ASH Brain Master Architecture Specification.
+
+This specification becomes the permanent blueprint for the entire ASH platform.
+
+Every future implementation will originate from this specification.
+
+It is expected to evolve over time and will be developed in multiple approved volumes.
+
+==================================================
+
+FIRST TASK
+
+Create the document structure for the ASH Brain Master Architecture Specification.
+
+Do NOT begin implementation.
+
+Do NOT redesign existing systems.
+
+Create the document framework only.
+
+The framework should organize the specification into logical volumes, chapters, and sections so future architecture can be developed in a structured manner.
+
+The framework should be suitable for a long-term enterprise software platform and remain extensible for future capabilities.
+
+This task is architecture only.
+
+No code changes should be made.

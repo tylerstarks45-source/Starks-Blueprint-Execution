@@ -38,6 +38,7 @@ import { declareAnalysisExtensionPoints } from "../business-analysis/analysis-ex
 import { declareOpportunityExtensionPoints } from "../opportunity-discovery/opportunity-extension-points";
 import { declareSimulationExtensionPoints } from "../future-simulation/simulation-extension-points";
 import { declareDecisionExtensionPoints } from "../decision-intelligence/decision-extension-points";
+import { declareStrategyExtensionPoints } from "../executive-strategy/strategy-extension-points";
 
 let initialized = false;
 
@@ -71,6 +72,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareOpportunityExtensionPoints();       // Build 017: eight opportunity discovery seams
       declareSimulationExtensionPoints();        // Build 018: eight future state simulation seams
       declareDecisionExtensionPoints();          // Build 019: eight decision intelligence seams
+      declareStrategyExtensionPoints();          // Build 020: eight executive strategy seams
       registerCoreBrains();
       initialized = true;
 

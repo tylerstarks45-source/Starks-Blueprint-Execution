@@ -1,0 +1,433 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 020
+
+TITLE
+
+Executive Strategy Engine
+
+PHASE
+
+Phase III – Business Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Strategy Engine transforms executive decisions into
+coherent long-term business strategies.
+
+It answers:
+
+"How should the business compete, grow, and allocate its efforts to
+achieve the selected future?"
+
+It does NOT create execution plans.
+
+It does NOT create projects.
+
+It does NOT assign work.
+
+═══════════════════════════════════════════════════════════════════════
+MISSION
+═══════════════════════════════════════════════════════════════════════
+
+Convert a selected executive decision into a complete strategic
+framework.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE PIPELINE
+═══════════════════════════════════════════════════════════════════════
+
+Business Graph
+
+↓
+
+Business Analysis
+
+↓
+
+Opportunity Discovery
+
+↓
+
+Future State Simulation
+
+↓
+
+Decision Intelligence
+
+↓
+
+Executive Strategy
+
+↓
+
+Strategic Planning
+
+↓
+
+Execution
+
+═══════════════════════════════════════════════════════════════════════
+NEW COGNITIVE OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Executive Strategy
+
+Strategic Pillar
+
+Strategic Theme
+
+Strategic Objective
+
+Strategic Initiative
+
+Strategic Constraint
+
+Strategic Dependency
+
+Strategy Registry
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement a deterministic strategy engine capable of:
+
+• transforming executive decisions into strategy
+
+• defining strategic pillars
+
+• defining strategic objectives
+
+• identifying strategic dependencies
+
+• identifying strategic constraints
+
+• identifying strategic priorities
+
+• measuring strategic alignment
+
+• preserving immutable strategy history
+
+═══════════════════════════════════════════════════════════════════════
+CORE ENGINES
+═══════════════════════════════════════════════════════════════════════
+
+1. Strategy Formation Engine
+
+Transforms Executive Decisions into one or more Executive
+Strategies.
+
+=======================================================================
+
+2. Strategic Pillar Engine
+
+Creates long-term pillars such as:
+
+Revenue Growth
+
+Operational Excellence
+
+Customer Experience
+
+Innovation
+
+Technology
+
+Market Expansion
+
+Talent
+
+Financial Strength
+
+Governance
+
+=======================================================================
+
+3. Strategic Objective Engine
+
+Generates measurable strategic objectives for each pillar.
+
+Objectives are outcome-oriented.
+
+Never task-oriented.
+
+=======================================================================
+
+4. Strategic Dependency Engine
+
+Identifies:
+
+Cross-functional dependencies
+
+Business dependencies
+
+Technology dependencies
+
+Financial dependencies
+
+People dependencies
+
+=======================================================================
+
+5. Strategic Constraint Engine
+
+Evaluates:
+
+Budget limits
+
+Capacity limits
+
+Technology limits
+
+Governance limits
+
+Legal limits
+
+Time constraints
+
+=======================================================================
+
+6. Strategic Alignment Engine
+
+Measures alignment between:
+
+Business Vision
+
+Mission
+
+Goals
+
+Executive Decisions
+
+Business Health
+
+Opportunity Portfolio
+
+=======================================================================
+
+7. Strategy Evaluation Engine
+
+Scores:
+
+Completeness
+
+Alignment
+
+Risk
+
+Business Value
+
+Long-term Sustainability
+
+Strategic Confidence
+
+=======================================================================
+
+8. Strategy Report Engine
+
+Produces immutable reports containing:
+
+Executive Summary
+
+Strategic Pillars
+
+Objectives
+
+Dependencies
+
+Constraints
+
+Alignment
+
+Confidence
+
+Evidence
+
+═══════════════════════════════════════════════════════════════════════
+DATABASE
+═══════════════════════════════════════════════════════════════════════
+
+Create:
+
+executive_strategies
+
+strategic_pillars
+
+strategic_objectives
+
+strategic_dependencies
+
+strategic_constraints
+
+strategy_reports
+
+strategy_snapshots
+
+strategy_registry
+
+Append-only.
+
+Immutable.
+
+═══════════════════════════════════════════════════════════════════════
+EXECUTIVE BRAIN INTEGRATION
+═══════════════════════════════════════════════════════════════════════
+
+Executive Brain receives:
+
+Current Strategy
+
+Top Strategic Pillars
+
+Strategic Alignment Score
+
+Highest Priority Objectives
+
+Overall Strategic Confidence
+
+Strategy Summary
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Executive Strategy defines direction.
+
+Strategic Planning creates execution plans.
+
+Execution performs work.
+
+Those responsibilities must never overlap.
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Decision Intelligence
+
+✓ Future Simulation
+
+✓ Opportunity Discovery
+
+✓ Business Analysis
+
+✓ Business Graph
+
+✓ Governance
+
+✓ Registry Pattern
+
+✓ Executive Brain
+
+Purely additive.
+
+No mutation of prior layers.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Strategy Generation
+
+✓ Strategic Pillars
+
+✓ Strategic Objectives
+
+✓ Dependency Analysis
+
+✓ Constraint Analysis
+
+✓ Alignment Analysis
+
+✓ Executive Reports
+
+✓ Registry
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Strategy Objects
+
+7. Strategic Pillars
+
+8. Objectives
+
+9. Dependencies
+
+10. Constraints
+
+11. Registry
+
+12. Executive Brain Integration
+
+13. REST API
+
+14. Technical Decisions
+
+15. Performance Impact
+
+16. Architectural Trade-offs
+
+17. Future Extension Points
+
+18. Strategy Intelligence Score
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Strategy Engine is responsible for transforming a
+single executive decision into a coherent long-term business
+direction.
+
+It does not determine which decision should be selected—that is the
+responsibility of Decision Intelligence.
+
+It does not determine how work will be scheduled or executed—that
+belongs to Strategic Planning and the Execution layer.
+
+Its sole responsibility is to define *what the business should become*
+and *how it should compete* over time.
+
+This separation between Decision, Strategy, Planning, and Execution
+is a permanent architectural principle of the ASH Cognitive
+Operating System.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 021.
+
+═══════════════════════════════════════════════════════════════════════
+END BUILD 020
+═══════════════════════════════════════════════════════════════════════

@@ -90,4 +90,7 @@ export interface ExecutiveBrainResult {
   // Build 019: Decision Intelligence summary — the selected executive decision and
   // its justification. Decision Intelligence chooses; EB NEVER owns decision state.
   decisionSummary?: import("../decision-intelligence/types").DecisionSummary;
+  // Build 020: Executive Strategy summary — active strategy, top pillars, objectives.
+  // Executive Strategy defines direction; EB NEVER owns strategy state.
+  strategySummary?: import("../executive-strategy/types").StrategySummary;
 }

@@ -43,6 +43,9 @@ import type { BusinessAnalysisSummary } from "../business-analysis/types";
 // Build 017: Opportunity Discovery Engine
 import { fetchOpportunitySummary, triggerOpportunityRun, buildOpportunityAdvisory } from "./opportunity-integration";
 import type { OpportunityDiscoverySummary } from "../opportunity-discovery/types";
+// Build 018: Future State Simulation Engine
+import { fetchSimulationSummary, triggerSimulationRun, buildSimulationAdvisory } from "./simulation-integration";
+import type { SimulationSummary } from "../future-simulation/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -335,7 +338,22 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: opportunity discovery step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, userId });
+  // ── Future State Simulation Engine (Build 018) ────────────────────────────────
+  // Fetch the latest Simulation summary — multiple possible business futures.
+  // Simulation explores futures; EB NEVER owns simulation state.
+  // Trigger a background simulation run every 60 brain cycles (throttled).
+  // Fail-open: a simulation failure must never block the request path.
+  let simulationSummary: SimulationSummary | undefined;
+  try {
+    simulationSummary = await fetchSimulationSummary(userId) ?? undefined;
+    if (businessGraphSummary?.businessId) {
+      triggerSimulationRun(userId, businessGraphSummary.businessId);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: future simulation step failed (ignored)");
+  }
+
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, userId });
 
   logger.info(
     {
@@ -374,6 +392,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     businessGraphSummary,
     businessAnalysisSummary,
     opportunityDiscoverySummary,
+    simulationSummary,
   };
 }
 
@@ -398,9 +417,10 @@ async function buildContextNote(params: {
   businessGraphSummary: BusinessGraphSummary | undefined;
   businessAnalysisSummary: BusinessAnalysisSummary | undefined;
   opportunityDiscoverySummary: OpportunityDiscoverySummary | undefined;
+  simulationSummary: SimulationSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -644,6 +664,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: opportunity discovery advisory failed (ignored)");
+  }
+
+  // ── Future State Simulation advisory (Build 018) ──────────────────────────
+  // Multiple possible business futures: highest value, lowest risk, highest
+  // growth, avg risk. Simulation NEVER reasons; EB NEVER owns simulation state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const simAdvisory = buildSimulationAdvisory(simulationSummary ?? null);
+    if (simAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(simAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: future simulation advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

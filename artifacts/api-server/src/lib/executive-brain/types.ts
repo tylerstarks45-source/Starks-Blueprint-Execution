@@ -84,4 +84,7 @@ export interface ExecutiveBrainResult {
   // Build 017: Opportunity Discovery summary — ranked opportunities derived from
   // analysis. Discovery identifies value; EB reasons over summaries only.
   opportunityDiscoverySummary?: import("../opportunity-discovery/types").OpportunityDiscoverySummary;
+  // Build 018: Future State Simulation summary — multiple possible business futures
+  // derived from opportunities. Simulation explores futures; EB NEVER owns simulation state.
+  simulationSummary?: import("../future-simulation/types").SimulationSummary;
 }

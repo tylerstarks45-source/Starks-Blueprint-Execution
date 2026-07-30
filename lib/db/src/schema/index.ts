@@ -90,5 +90,6 @@ export * from "./opportunity_discovery";
 export * from "./future_simulation";
 export * from "./decision_intelligence";
 export * from "./executive_strategy";
+export * from "./strategic_planning";
 
 export * from "./system_logs";

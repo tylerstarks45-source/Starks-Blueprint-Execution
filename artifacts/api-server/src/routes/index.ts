@@ -72,6 +72,7 @@ import opportunityDiscoveryRouter from "./opportunity-discovery";
 import futureSimulationRouter from "./future-simulation";
 import decisionIntelligenceRouter from "./decision-intelligence";
 import executiveStrategyRouter from "./executive-strategy";
+import strategicPlanningRouter from "./strategic-planning";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -169,5 +170,7 @@ router.use("/api/future-simulation", futureSimulationRouter);
 router.use("/api/decision-intelligence", decisionIntelligenceRouter);
 // Build 020: Executive Strategy Engine — form strategy, pillars, objectives, dependencies, constraints
 router.use("/api/executive-strategy", executiveStrategyRouter);
+// Build 021: Strategic Planning Engine — programmes, initiatives, milestones, sequences, readiness
+router.use("/api/strategic-planning", strategicPlanningRouter);
 
 export default router;

@@ -93,4 +93,7 @@ export interface ExecutiveBrainResult {
   // Build 020: Executive Strategy summary — active strategy, top pillars, objectives.
   // Executive Strategy defines direction; EB NEVER owns strategy state.
   strategySummary?: import("../executive-strategy/types").StrategySummary;
+  // Build 021: Strategic Planning summary — programmes, initiatives, milestones, readiness.
+  // Strategic Planning organises work; EB NEVER owns planning state.
+  planningSummary?: import("../strategic-planning/types").PlanningSummary;
 }

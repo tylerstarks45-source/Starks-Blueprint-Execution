@@ -52,6 +52,9 @@ import type { DecisionSummary } from "../decision-intelligence/types";
 // Build 020: Executive Strategy Engine
 import { fetchStrategySummary, triggerStrategyRun, buildStrategyAdvisory } from "./strategy-integration";
 import type { StrategySummary } from "../executive-strategy/types";
+// Build 021: Strategic Planning Engine
+import { fetchPlanSummary, triggerPlanningRun, buildPlanningAdvisory } from "./planning-integration";
+import type { PlanningSummary } from "../strategic-planning/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -389,7 +392,22 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: executive strategy step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, userId });
+  // ── Strategic Planning Engine (Build 021) ────────────────────────────────────
+  // Fetch the latest Planning summary — programmes, initiatives, milestones, readiness.
+  // Strategic Planning organises work; EB NEVER owns planning state.
+  // Trigger a background planning run every 90 brain cycles (throttled).
+  // Fail-open: a planning failure must never block the request path.
+  let planningSummary: PlanningSummary | undefined;
+  try {
+    planningSummary = await fetchPlanSummary(userId) ?? undefined;
+    if (businessGraphSummary?.businessId) {
+      triggerPlanningRun(userId, businessGraphSummary.businessId);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: strategic planning step failed (ignored)");
+  }
+
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, userId });
 
   logger.info(
     {
@@ -431,6 +449,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     simulationSummary,
     decisionSummary,
     strategySummary,
+    planningSummary,
   };
 }
 
@@ -458,9 +477,10 @@ async function buildContextNote(params: {
   simulationSummary: SimulationSummary | undefined;
   decisionSummary: DecisionSummary | undefined;
   strategySummary: StrategySummary | undefined;
+  planningSummary: PlanningSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -746,6 +766,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: executive strategy advisory failed (ignored)");
+  }
+
+  // ── Strategic Planning advisory (Build 021) ──────────────────────────────
+  // Programmes, initiatives, milestones, readiness level, critical dependencies.
+  // Strategic Planning organises work; EB NEVER owns planning state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const planAdvisory = buildPlanningAdvisory(planningSummary ?? null);
+    if (planAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(planAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: strategic planning advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

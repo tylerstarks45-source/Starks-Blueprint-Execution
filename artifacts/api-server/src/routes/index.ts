@@ -67,6 +67,7 @@ import executiveReflectionRouter from "./executive-reflection";
 import executiveLearningRouter from "./executive-learning";
 import executiveGovernanceRouter from "./executive-governance";
 import businessGraphRouter from "./business-graph";
+import businessAnalysisRouter from "./business-analysis";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -154,5 +155,7 @@ router.use("/api/executive-learning", executiveLearningRouter);
 router.use("/api/executive-governance", executiveGovernanceRouter);
 // Build 015: Business Graph Engine — nodes, edges, KPIs, health, dependencies
 router.use("/api/business-graph", businessGraphRouter);
+// Build 016: Business Analysis Engine — reports, findings, bottlenecks, constraints, leverage
+router.use("/api/business-analysis", businessAnalysisRouter);
 
 export default router;

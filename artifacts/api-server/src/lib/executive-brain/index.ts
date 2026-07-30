@@ -37,6 +37,9 @@ import type { GovernanceSummary } from "../executive-governance/types";
 // Build 015: Business Graph Engine
 import { fetchBusinessSummary, triggerGraphRefresh, buildBusinessAdvisory } from "./business-integration";
 import type { BusinessGraphSummary } from "../business-graph/types";
+// Build 016: Business Analysis Engine
+import { fetchAnalysisSummary, triggerAnalysisRun, buildAnalysisAdvisory } from "./analysis-integration";
+import type { BusinessAnalysisSummary } from "../business-analysis/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -299,7 +302,22 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: business graph step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, userId });
+  // ── Business Analysis Engine (Build 016) ─────────────────────────────────────
+  // Fetch the latest Business Analysis summary for the user's primary business.
+  // Business Analysis NEVER performs reasoning; EB NEVER owns analysis state.
+  // Trigger a background analysis run every 40 brain cycles (throttled).
+  // Fail-open: an analysis failure must never block the request path.
+  let businessAnalysisSummary: BusinessAnalysisSummary | undefined;
+  try {
+    businessAnalysisSummary = await fetchAnalysisSummary(userId) ?? undefined;
+    if (businessGraphSummary?.businessId) {
+      triggerAnalysisRun(userId, businessGraphSummary.businessId);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: business analysis step failed (ignored)");
+  }
+
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, userId });
 
   logger.info(
     {
@@ -336,6 +354,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     learningSummary,
     governanceSummary,
     businessGraphSummary,
+    businessAnalysisSummary,
   };
 }
 
@@ -358,9 +377,10 @@ async function buildContextNote(params: {
   learningSummary: LearningSummary | undefined;
   governanceSummary: GovernanceSummary | undefined;
   businessGraphSummary: BusinessGraphSummary | undefined;
+  businessAnalysisSummary: BusinessAnalysisSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -575,6 +595,21 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: business graph advisory failed (ignored)");
+  }
+
+  // ── Business Analysis advisory (Build 016) ───────────────────────────────
+  // Compact deterministic analysis: maturity, complexity, stability, findings,
+  // top bottleneck, top constraint, top leverage point.
+  // Business Analysis NEVER reasons; EB NEVER owns analysis state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const analysisAdvisory = buildAnalysisAdvisory(businessAnalysisSummary ?? null);
+    if (analysisAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(analysisAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: business analysis advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

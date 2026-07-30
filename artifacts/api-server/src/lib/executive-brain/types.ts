@@ -77,4 +77,8 @@ export interface ExecutiveBrainResult {
   // reasoning about. Business Graph NEVER performs reasoning; EB NEVER owns
   // business state. Strict separation.
   businessGraphSummary?: import("../business-graph/types").BusinessGraphSummary;
+  // Build 016: Business Analysis summary — deterministic executive analysis of
+  // the business (bottlenecks, constraints, leverage points, findings).
+  // Analysis Engine explains reality; EB reasons over summaries only.
+  businessAnalysisSummary?: import("../business-analysis/types").BusinessAnalysisSummary;
 }

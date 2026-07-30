@@ -1,0 +1,638 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 016
+
+TITLE
+
+Business Analysis Engine
+
+PHASE
+
+Phase III – Business Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Business Analysis Engine transforms the Business Graph into
+Executive Business Understanding.
+
+The Business Graph stores business reality.
+
+Business Analysis explains business reality.
+
+No recommendations.
+
+No planning.
+
+No execution.
+
+No opportunity generation.
+
+Only deterministic executive analysis.
+
+═══════════════════════════════════════════════════════════════════════
+MISSION
+═══════════════════════════════════════════════════════════════════════
+
+Enable ASH to understand the current state of every business it
+operates before attempting to improve it.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE POSITION
+═══════════════════════════════════════════════════════════════════════
+
+Executive Brain
+
+↓
+
+Business Graph
+
+↓
+
+Business Analysis
+
+↓
+
+Opportunity Discovery (Build 017)
+
+↓
+
+Strategic Planning
+
+↓
+
+Execution
+
+Business Analysis never creates opportunities.
+
+It only explains the business.
+
+═══════════════════════════════════════════════════════════════════════
+NEW COGNITIVE OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Business Analysis
+
+Business Insight
+
+Business Bottleneck
+
+Business Constraint
+
+Business Leverage Point
+
+Business Health Report
+
+Executive Finding
+
+Analysis Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement a deterministic Business Analysis Engine capable of:
+
+• analyzing graph topology
+
+• analyzing KPIs
+
+• analyzing business health
+
+• analyzing dependencies
+
+• analyzing growth
+
+• analyzing execution
+
+• analyzing operational complexity
+
+• identifying leverage
+
+• identifying bottlenecks
+
+• identifying constraints
+
+• producing executive reports
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════
+
+=======================================================================
+1. GRAPH ANALYSIS ENGINE
+=======================================================================
+
+Analyze:
+
+Node density
+
+Relationship density
+
+Disconnected clusters
+
+Critical hubs
+
+Dependency chains
+
+Business complexity
+
+Business maturity
+
+Business completeness
+
+No graph mutation.
+
+=======================================================================
+2. KPI ANALYSIS ENGINE
+=======================================================================
+
+Analyze:
+
+Healthy KPIs
+
+Declining KPIs
+
+Improving KPIs
+
+Missing KPIs
+
+Volatile KPIs
+
+Unmeasured objectives
+
+Revenue concentration
+
+Growth consistency
+
+Produce KPI Findings.
+
+=======================================================================
+3. HEALTH ANALYSIS ENGINE
+=======================================================================
+
+Consume:
+
+Business Health Engine
+
+Produce:
+
+Health Trends
+
+Weakest Dimension
+
+Strongest Dimension
+
+Health Stability
+
+Health Drift
+
+Health Confidence
+
+No recalculation.
+
+Only analysis.
+
+=======================================================================
+4. BOTTLENECK ENGINE
+=======================================================================
+
+Identify:
+
+Execution bottlenecks
+
+Operational bottlenecks
+
+Marketing bottlenecks
+
+Sales bottlenecks
+
+Automation bottlenecks
+
+Dependency bottlenecks
+
+Each bottleneck receives:
+
+Severity
+
+Evidence
+
+Business impact
+
+Confidence
+
+=======================================================================
+5. CONSTRAINT ENGINE
+=======================================================================
+
+Identify:
+
+Resource constraints
+
+Financial constraints
+
+Time constraints
+
+Workflow constraints
+
+Technology constraints
+
+Capacity constraints
+
+Priority conflicts
+
+Goal conflicts
+
+=======================================================================
+6. LEVERAGE ENGINE
+=======================================================================
+
+Detect deterministic leverage points.
+
+Examples:
+
+Single KPI affecting multiple objectives
+
+Single project affecting multiple products
+
+Automation removing multiple bottlenecks
+
+Critical dependency resolution
+
+Shared assets
+
+Cross-functional improvements
+
+Leverage is descriptive.
+
+Never prescriptive.
+
+=======================================================================
+7. EXECUTIVE FINDINGS ENGINE
+=======================================================================
+
+Generate immutable findings.
+
+Each finding includes:
+
+Category
+
+Severity
+
+Evidence
+
+Confidence
+
+Business domains
+
+Related graph nodes
+
+Related KPIs
+
+Related health dimensions
+
+Created timestamp
+
+Version
+
+=======================================================================
+8. ANALYSIS REPORT ENGINE
+=======================================================================
+
+Produce immutable reports.
+
+Report sections:
+
+Executive Summary
+
+Business Overview
+
+Graph Analysis
+
+KPI Analysis
+
+Health Analysis
+
+Bottlenecks
+
+Constraints
+
+Leverage Points
+
+Business Stability
+
+Evidence
+
+Confidence
+
+Business Complexity Score
+
+Business Maturity Score
+
+═══════════════════════════════════════════════════════════════════════
+9. BUSINESS ANALYSIS REGISTRY
+═══════════════════════════════════════════════════════════════════════
+
+Provide:
+
+Analysis Reports
+
+Executive Findings
+
+Leverage Points
+
+Bottlenecks
+
+Constraints
+
+Historical Reports
+
+Analysis Metrics
+
+Diagnostics
+
+═══════════════════════════════════════════════════════════════════════
+10. EXECUTIVE BRAIN INTEGRATION
+═══════════════════════════════════════════════════════════════════════
+
+Executive Brain receives:
+
+Business Analysis Summary
+
+Critical Findings
+
+Largest Bottlenecks
+
+Largest Constraints
+
+Highest Leverage Areas
+
+Business Stability
+
+Business Complexity
+
+Business Maturity
+
+Business Confidence
+
+Executive Brain consumes summaries only.
+
+Business Analysis owns reports.
+
+═══════════════════════════════════════════════════════════════════════
+11. DATABASE
+═══════════════════════════════════════════════════════════════════════
+
+Create tables:
+
+business_analysis_reports
+
+business_findings
+
+business_bottlenecks
+
+business_constraints
+
+business_leverage_points
+
+analysis_snapshots
+
+analysis_metrics
+
+analysis_registry
+
+Append-only.
+
+Immutable.
+
+═══════════════════════════════════════════════════════════════════════
+12. APIs
+═══════════════════════════════════════════════════════════════════════
+
+Expose:
+
+Reports
+
+Findings
+
+Bottlenecks
+
+Constraints
+
+Leverage
+
+Snapshots
+
+History
+
+Diagnostics
+
+Search
+
+═══════════════════════════════════════════════════════════════════════
+13. EXTENSION POINTS
+═══════════════════════════════════════════════════════════════════════
+
+Declare only.
+
+Opportunity Detection
+
+Scenario Analysis
+
+Forecasting
+
+Business Benchmarking
+
+Market Comparison
+
+Industry Analysis
+
+Competitive Intelligence
+
+Strategic Recommendations
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Business Graph
+
+✓ KPI Engine
+
+✓ Health Engine
+
+✓ Dependency Engine
+
+✓ Executive Brain
+
+✓ Extension Registry
+
+Purely additive.
+
+No duplicated health logic.
+
+No duplicated KPI logic.
+
+No graph mutation.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Business Graph stores reality.
+
+Business Analysis explains reality.
+
+Opportunity Engine identifies value.
+
+Strategy chooses direction.
+
+Planning creates work.
+
+Execution performs work.
+
+Each layer owns one responsibility.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Graph Analysis
+
+✓ KPI Analysis
+
+✓ Health Analysis
+
+✓ Bottleneck Detection
+
+✓ Constraint Detection
+
+✓ Leverage Detection
+
+✓ Executive Findings
+
+✓ Reports
+
+✓ Registry
+
+✓ APIs
+
+✓ Executive Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1 Executive Summary
+
+2 Files Created
+
+3 Files Modified
+
+4 Database Changes
+
+5 APIs
+
+6 Services
+
+7 Analysis Model
+
+8 Finding Model
+
+9 Bottleneck Model
+
+10 Constraint Model
+
+11 Leverage Model
+
+12 Existing Systems Reused
+
+13 Existing Systems Extended
+
+14 Technical Debt
+
+15 Performance Impact
+
+16 Architectural Decisions
+
+For every decision include:
+
+Decision
+
+Reason
+
+Alternatives Considered
+
+Trade-offs Accepted
+
+Future Expansion Opportunities
+
+17 Business Intelligence Score
+
+Evaluate:
+
+Business Understanding
+
+Analysis Quality
+
+Executive Insight
+
+Explainability
+
+Business Readiness
+
+Scalability
+
+Maintainability
+
+Overall Grade
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+The Business Analysis Engine is the first system in Phase III that
+turns business data into executive understanding.
+
+It does not recommend actions.
+
+It does not create strategy.
+
+It does not execute work.
+
+Its responsibility is singular:
+
+Explain the business as it exists today.
+
+This separation allows future systems—Opportunity Discovery,
+Strategic Simulation, Forecasting, and Business Autopilot—to
+operate from a common, deterministic understanding of the
+business.
+
+This architectural boundary is permanent.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 017.
+
+═══════════════════════════════════════════════════════════════════════
+END BUILD 016
+═══════════════════════════════════════════════════════════════════════

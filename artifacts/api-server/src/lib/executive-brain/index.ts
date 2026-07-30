@@ -13,6 +13,9 @@ import { resolveContextSnapshot } from "../executive-context/context-resolution"
 import type { ExecutiveContextSnapshot } from "../executive-context/types";
 // Build 007: Executive Judgment Engine
 import { evaluateJudgmentFromReasoning } from "./judgment-integration";
+// Build 008: Executive Goal Engine
+import { fetchActiveGoals, buildGoalAdvisory } from "./goal-integration";
+import type { ExecutiveGoal } from "../executive-goal/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -118,8 +121,20 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     });
   }
 
-  // ── Executive Judgment Engine (Build 007) ───────────────────────────────
+  // ── Executive Goal Engine (Build 008) ───────────────────────────────────
+  // Resolve active goals for this user. Goals inform the Judgment Engine —
+  // they never change goals themselves (one-way dependency).
+  // Fail-open: an empty array is the fallback; the request always continues.
+  let activeGoals: ExecutiveGoal[] = [];
+  try {
+    activeGoals = await fetchActiveGoals(userId);
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: goal fetch failed (ignored)");
+  }
+
+  // ── Executive Judgment Engine (Build 007 + 008) ──────────────────────────
   // Derive decision options from the reasoning result and evaluate them.
+  // Active goals (Build 008) enrich option scores before evaluation.
   // The Judgment Engine scores all options, selects a recommendation, and
   // produces a full explanation. Persisted as a Cognitive Artifact.
   // Synchronous but fail-open: never blocks the request path.
@@ -131,6 +146,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
         message,
         reasoningResult,
         contextSnapshotId,
+        activeGoals,
       );
       judgmentId = judgment.id;
     } catch (err) {
@@ -138,7 +154,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     }
   }
 
-  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId });
+  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals });
 
   logger.info(
     {
@@ -149,6 +165,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
       taskCount: tasks.length,
       reasoningConfidence: reasoningResult?.objectiveAnalysis.confidence.overall,
       judgmentId,
+      activeGoalCount: activeGoals.length,
     },
     "Executive Brain resolved project/goal/tasks for request",
   );
@@ -162,6 +179,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     reasoningResult,
     contextSnapshotId,
     judgmentId,
+    activeGoals,
   };
 }
 
@@ -174,8 +192,9 @@ function buildContextNote(params: {
   reasoningResult: ExecutiveReasoningResult | undefined;
   contextSnapshot: ExecutiveContextSnapshot | undefined;
   judgmentId: string | undefined;
+  activeGoals: ExecutiveGoal[];
 }): string {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -271,6 +290,19 @@ function buildContextNote(params: {
       }
     } catch (err) {
       logger.warn({ err }, "Executive Brain: context advisory failed (ignored)");
+    }
+  }
+
+  // ── Executive Goal advisory (Build 008) ─────────────────────────────────
+  // One-line summary of active goals that are influencing this request.
+  // Zero-I/O: activeGoals were fetched before buildContextNote was called.
+  if (activeGoals.length > 0) {
+    try {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      const advisory = buildGoalAdvisory(activeGoals);
+      if (advisory) lines.push(clip(advisory, 500));
+    } catch (err) {
+      logger.warn({ err }, "Executive Brain: goal advisory failed (ignored)");
     }
   }
 

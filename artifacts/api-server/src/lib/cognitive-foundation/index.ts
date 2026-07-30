@@ -26,6 +26,7 @@ import { declareReflectionExtensionPoints } from "./reasoning";
 import { registerCoreBrains } from "./register-core-brains";
 import { declareContextExtensionPoints } from "../executive-context/context-extension-points";
 import { declareJudgmentExtensionPoints } from "../executive-judgment/judgment-extension-points";
+import { declareGoalExtensionPoints } from "../executive-goal/goal-extension-points";
 
 let initialized = false;
 
@@ -47,6 +48,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareReflectionExtensionPoints();     // Build 003: four reflection hooks
       declareContextExtensionPoints();        // Build 006: six context engine seams
       declareJudgmentExtensionPoints();       // Build 007: five judgment engine seams
+      declareGoalExtensionPoints();           // Build 008: six goal engine seams
       registerCoreBrains();
       initialized = true;
 

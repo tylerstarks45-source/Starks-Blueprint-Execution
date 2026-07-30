@@ -46,4 +46,8 @@ export interface ExecutiveBrainResult {
   // alternative rankings). Optional — absent when judgment evaluation fails or
   // no reasoning result was available.
   judgmentId?: string;
+  // Build 008: Active goals for this user at the time of the request.
+  // Passed to the Judgment Engine so active high-priority goals influence
+  // option scoring. Absent on failure or when no goals exist.
+  activeGoals?: import("../executive-goal/types").ExecutiveGoal[];
 }

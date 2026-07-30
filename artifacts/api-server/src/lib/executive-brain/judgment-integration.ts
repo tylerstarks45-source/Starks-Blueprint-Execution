@@ -13,6 +13,8 @@
 import type { ExecutiveReasoningResult, ObjectiveAnalysis, OrchestrationConfidence } from "../cognitive-foundation/types";
 import { evaluateJudgment } from "../executive-judgment";
 import type { JudgmentOption, ExecutiveJudgment } from "../executive-judgment";
+import type { ExecutiveGoal } from "../executive-goal/types";
+import { enrichOptionsWithGoals } from "./goal-integration";
 import { logger } from "../logger";
 
 // ─── Score mapping helpers ─────────────────────────────────────────────────────
@@ -114,16 +116,24 @@ function buildOptions(analysis: ObjectiveAnalysis): JudgmentOption[] {
 
 /** Derive judgment options from an Executive Reasoning Result and evaluate them.
  *  Called from runExecutiveBrain() after runReasoningPipeline(). Fail-open:
- *  if this throws, the caller logs and continues without a judgment. */
+ *  if this throws, the caller logs and continues without a judgment.
+ *
+ *  Build 008: activeGoals are passed in so high-priority active goals can
+ *  influence option scores (via enrichOptionsWithGoals). Goals influence
+ *  Judgment — Judgment never changes Goals. */
 export async function evaluateJudgmentFromReasoning(
   userId: number,
   message: string,
   reasoningResult: ExecutiveReasoningResult,
   contextSnapshotId: string | undefined,
+  activeGoals: ExecutiveGoal[] = [],
 ): Promise<ExecutiveJudgment> {
   const { objectiveAnalysis } = reasoningResult;
 
-  const options = buildOptions(objectiveAnalysis);
+  // Build base options from the reasoning result
+  const rawOptions = buildOptions(objectiveAnalysis);
+  // Enrich with goal context (Build 008) — deterministic score adjustments
+  const options = enrichOptionsWithGoals(rawOptions, activeGoals);
 
   // Confidence-to-weight adjustment: if confidence is low, weight reversibility higher
   const confScore = confToScore(objectiveAnalysis.confidence.overall);

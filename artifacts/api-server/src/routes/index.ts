@@ -59,6 +59,7 @@ import logsRouter from "./logs";
 import executiveBrainRouter from "./executive-brain";
 import executiveContextRouter from "./executive-context";
 import executiveJudgmentRouter from "./executive-judgment";
+import executiveGoalRouter from "./executive-goal";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -130,5 +131,7 @@ router.use(executiveBrainRouter);
 router.use(executiveContextRouter);
 // Build 007: Executive Judgment Engine — evaluate, compare, explain, risk, opportunity
 router.use(executiveJudgmentRouter);
+// Build 008: Executive Goal Engine — CRUD, hierarchy, priority, conflicts, progress, metrics
+router.use(executiveGoalRouter);
 
 export default router;

@@ -1,0 +1,421 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 008
+
+TITLE:
+Executive Goal Engine
+
+PHASE:
+Phase II – Executive Intelligence
+
+STATUS:
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+Build 007 gave ASH the ability to judge.
+
+Build 008 gives ASH purpose.
+
+Reasoning determines what is true.
+
+Judgment determines what is best.
+
+Goals determine what matters.
+
+The Executive Goal Engine becomes the permanent system responsible
+for defining, organizing, prioritizing, tracking, and managing every
+objective ASH pursues.
+
+Every future Planning, Execution, Reflection and Learning system
+will depend on this engine.
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement a reusable Goal Engine capable of:
+
+• Creating goals
+• Organizing goals
+• Prioritizing goals
+• Tracking progress
+• Measuring completion
+• Detecting conflicts
+• Managing dependencies
+• Maintaining hierarchy
+• Recording history
+• Supporting unlimited future expansion
+
+Goals must become first-class cognitive objects.
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════
+
+=======================================================================
+1. EXECUTIVE GOAL MODEL
+=======================================================================
+
+Create reusable Goal objects.
+
+Support:
+
+• Goal ID
+• Parent Goal
+• Goal Name
+• Goal Description
+• Goal Type
+• Goal Category
+• Goal Status
+• Priority
+• Importance
+• Urgency
+• Confidence
+• Progress %
+• Owner Brain
+• Related Context
+• Related Judgment
+• Related Memory
+• Related Knowledge
+• Related Goals
+• Dependencies
+• Constraints
+• Success Criteria
+• Failure Criteria
+• Metrics
+• Target Date
+• Completion Date
+• Version
+• Created
+• Updated
+
+Goals must support unlimited nesting.
+
+=======================================================================
+2. GOAL HIERARCHY
+=======================================================================
+
+Implement hierarchical goals.
+
+Example:
+
+Grow Business
+
+    Increase Revenue
+
+        Launch Product
+
+        Improve Marketing
+
+        Increase Conversion
+
+Children inherit strategic purpose
+without inheriting execution.
+
+=======================================================================
+3. GOAL PRIORITY ENGINE
+=======================================================================
+
+Implement dynamic prioritization.
+
+Consider:
+
+• Importance
+• Urgency
+• Strategic Value
+• Dependencies
+• Risk
+• Opportunity
+• Confidence
+
+Produce a Priority Score.
+
+=======================================================================
+4. GOAL CONFLICT ENGINE
+=======================================================================
+
+Detect conflicts.
+
+Examples:
+
+Two goals requiring the same resources.
+
+Mutually exclusive deadlines.
+
+Contradicting objectives.
+
+Circular dependencies.
+
+Never resolve conflicts automatically.
+
+Only report them.
+
+=======================================================================
+5. GOAL PROGRESS ENGINE
+=======================================================================
+
+Track:
+
+Not Started
+
+Active
+
+Blocked
+
+Paused
+
+Completed
+
+Cancelled
+
+Progress %
+
+Estimated Completion
+
+Historical Progress
+
+=======================================================================
+6. GOAL SERVICES
+=======================================================================
+
+Shared services:
+
+Create Goal
+
+Update Goal
+
+Archive Goal
+
+Link Goals
+
+Calculate Priority
+
+Retrieve Hierarchy
+
+Retrieve Active Goals
+
+Retrieve Goal History
+
+Detect Goal Conflicts
+
+Retrieve Metrics
+
+=======================================================================
+7. EXECUTIVE BRAIN INTEGRATION
+=======================================================================
+
+Every Executive request should now:
+
+Reason
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+Goals influence Judgment.
+
+Judgment never changes Goals.
+
+=======================================================================
+8. DATABASE
+=======================================================================
+
+Create goal tables supporting:
+
+Goal hierarchy
+
+Dependencies
+
+Metrics
+
+History
+
+Relationships
+
+Future planning integration
+
+=======================================================================
+9. APIs
+=======================================================================
+
+Create APIs for:
+
+Goal CRUD
+
+Goal Hierarchy
+
+Goal Progress
+
+Goal Metrics
+
+Goal Dependencies
+
+Goal Conflicts
+
+Goal History
+
+=======================================================================
+10. EXTENSION POINTS
+=======================================================================
+
+Create extension seams only.
+
+Do NOT implement:
+
+Planning
+
+Scheduling
+
+Automatic Goal Creation
+
+Learning
+
+Reflection
+
+Execution
+
+Optimization
+
+Autonomous Goal Changes
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Executive Brain
+
+✓ Judgment Engine
+
+✓ Context Engine
+
+✓ Knowledge Graph
+
+✓ Cognitive Memory
+
+✓ Extension Registry
+
+✓ Decision Records
+
+✓ Health Monitoring
+
+No rewrites.
+
+No duplicated logic.
+
+Purely additive.
+
+═══════════════════════════════════════════════════════════════════════
+DO NOT IMPLEMENT
+═══════════════════════════════════════════════════════════════════════
+
+Planning
+
+Execution
+
+Reflection
+
+Learning
+
+Adaptation
+
+Scheduling
+
+Task Management
+
+Workflow Engine
+
+Autonomous execution
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Executive Goal Model
+
+✓ Goal Hierarchy
+
+✓ Goal Priority Engine
+
+✓ Goal Conflict Engine
+
+✓ Goal Progress Engine
+
+✓ Shared Goal Services
+
+✓ Executive Integration
+
+✓ Database
+
+✓ APIs
+
+✓ Extension Framework
+
+✓ Fail-open Architecture
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Changes
+
+5. APIs
+
+6. Services
+
+7. Models
+
+8. Extension Points
+
+9. Existing Systems Reused
+
+10. Existing Systems Extended
+
+11. Technical Debt
+
+12. Performance Impact
+
+13. Architectural Decisions
+
+14. Cognitive Evolution Score
+
+Stop.
+
+Wait for Build 009.
+
+═══════════════════════════════════════════════════════════════════════
+END OF BUILD 008
+═══════════════════════════════════════════════════════════════════════

@@ -82,5 +82,6 @@ export * from "./executive_plan";
 export * from "./executive_execution";
 export * from "./executive_observation";
 export * from "./executive_reflection";
+export * from "./executive_learning";
 
 export * from "./system_logs";

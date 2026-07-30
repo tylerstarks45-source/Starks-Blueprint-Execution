@@ -28,6 +28,9 @@ import type { ObservationSummary } from "../executive-observation/types";
 // Build 012: Executive Reflection Engine
 import { fetchReflectionSummary, ensureCaseForCycle, buildReflectionAdvisory } from "./reflection-integration";
 import type { ReflectionSummary } from "../executive-reflection/types";
+// Build 013: Executive Principle Learning Engine
+import { fetchLearningSummary, triggerLearningCycle, buildLearningAdvisory } from "./learning-integration";
+import type { LearningSummary } from "../executive-learning/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -249,7 +252,20 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: reflection step failed (ignored)");
   }
 
-  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary });
+  // ── Executive Principle Learning Engine (Build 013) ─────────────────────────
+  // Fetch the validated principle summary for the advisory.
+  // Trigger a background learning cycle every 20 brain cycles (throttled).
+  // Learning NEVER changes behavior, planning, goals, judgment, or execution.
+  // Fail-open: a learning failure must never block the request path.
+  let learningSummary: LearningSummary | undefined;
+  try {
+    learningSummary = await fetchLearningSummary(userId) ?? undefined;
+    triggerLearningCycle(userId); // fire-and-forget, internally throttled
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: learning step failed (ignored)");
+  }
+
+  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary });
 
   logger.info(
     {
@@ -283,6 +299,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     activeExecutionId,
     observationSummary,
     reflectionSummary,
+    learningSummary,
   };
 }
 
@@ -302,8 +319,9 @@ function buildContextNote(params: {
   activeExecutionId: string | undefined;
   observationSummary: ObservationSummary | undefined;
   reflectionSummary: ReflectionSummary | undefined;
+  learningSummary: LearningSummary | undefined;
 }): string {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,

@@ -66,4 +66,7 @@ export interface ExecutiveBrainResult {
   // Build 012: Summary of recent Executive Cases and Reflection Reports for
   // this user. Absent on failure or when no cases exist yet.
   reflectionSummary?: import("../executive-reflection/types").ReflectionSummary;
+  // Build 013: Validated Executive Principles available to the reasoning pipeline.
+  // Draft and candidate principles are invisible here.
+  learningSummary?: import("../executive-learning/types").LearningSummary;
 }

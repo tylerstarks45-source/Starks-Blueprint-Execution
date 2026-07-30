@@ -31,6 +31,7 @@ import { declarePlanExtensionPoints } from "../executive-plan/plan-extension-poi
 import { declareExecutionExtensionPoints } from "../executive-execution/execution-extension-points";
 import { declareObservationExtensionPoints } from "../executive-observation/observation-extension-points";
 import { declareReflectionEngineExtensionPoints } from "../executive-reflection/reflection-extension-points";
+import { declareLearningExtensionPoints } from "../executive-learning/learning-extension-points";
 
 let initialized = false;
 
@@ -57,6 +58,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareExecutionExtensionPoints();       // Build 010: ten execution engine seams
       declareObservationExtensionPoints();        // Build 011: eight observation engine seams
       declareReflectionEngineExtensionPoints();  // Build 012: eight reflection engine seams
+      declareLearningExtensionPoints();          // Build 013: eight principle learning seams
       registerCoreBrains();
       initialized = true;
 

@@ -1,0 +1,754 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 013
+
+TITLE
+
+Executive Principle Learning Engine
+
+PHASE
+
+Phase II – Executive Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Principle Learning Engine transforms Executive
+Experience into reusable Executive Principles.
+
+Knowledge stores facts.
+
+Reflection stores experience.
+
+Learning discovers repeatable truths.
+
+Learning never modifies behavior.
+
+Learning never changes executive decisions.
+
+Learning produces verified principles that Adaptation may later
+choose to adopt.
+
+Executive Principles become permanent cognitive assets.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE PIPELINE
+═══════════════════════════════════════════════════════════════════════
+
+Reason
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+↓
+
+Planning
+
+↓
+
+Execution
+
+↓
+
+Observation
+
+↓
+
+Reflection
+
+↓
+
+Learning
+
+Adaptation begins in Build 014.
+
+═══════════════════════════════════════════════════════════════════════
+CORE PHILOSOPHY
+═══════════════════════════════════════════════════════════════════════
+
+Learning does NOT memorize.
+
+Learning generalizes.
+
+Example
+
+Reflection Reports
+
+↓
+
+Pattern Discovery
+
+↓
+
+Principle Extraction
+
+↓
+
+Evidence Validation
+
+↓
+
+Executive Principle
+
+Only validated principles become permanent knowledge.
+
+═══════════════════════════════════════════════════════════════════════
+NEW COGNITIVE OBJECT
+═══════════════════════════════════════════════════════════════════════
+
+Executive Principle
+
+Executive Principles represent generalized decision knowledge.
+
+Examples
+
+"Customer validation before feature expansion increases
+successful product launches."
+
+"High execution retry counts reduce resource efficiency."
+
+"Planning strategies with fewer dependency bottlenecks
+produce higher completion rates."
+
+Principles are NOT prompts.
+
+Principles are NOT memories.
+
+Principles are reusable executive knowledge.
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement an Executive Principle Learning Engine capable of:
+
+• Mining Executive Cases
+
+• Discovering repeated patterns
+
+• Extracting candidate principles
+
+• Validating principles
+
+• Tracking confidence
+
+• Tracking supporting evidence
+
+• Tracking contradictory evidence
+
+• Versioning principles
+
+• Retiring obsolete principles
+
+• Producing immutable Learning Reports
+
+Learning NEVER changes behavior.
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════
+
+=======================================================================
+1. EXECUTIVE PRINCIPLE MODEL
+=======================================================================
+
+Create ExecutivePrinciple.
+
+Support:
+
+Principle ID
+
+Title
+
+Description
+
+Category
+
+Business Domain
+
+Strategic Category
+
+Origin Cases
+
+Supporting Evidence
+
+Contradictory Evidence
+
+Confidence
+
+Reliability
+
+Novelty
+
+Generality
+
+Applicability
+
+Success Rate
+
+Failure Rate
+
+Times Observed
+
+Times Confirmed
+
+Times Contradicted
+
+Status
+
+Draft
+
+Candidate
+
+Validated
+
+Deprecated
+
+Archived
+
+Created
+
+Updated
+
+Version
+
+Immutable revisions.
+
+=======================================================================
+2. PATTERN DISCOVERY ENGINE
+=======================================================================
+
+Mine Executive Cases.
+
+Detect:
+
+Repeated success
+
+Repeated failure
+
+Repeated bottlenecks
+
+Repeated execution paths
+
+Repeated planning strategies
+
+Repeated judgment outcomes
+
+Repeated context shifts
+
+Repeated business outcomes
+
+No AI.
+
+Deterministic.
+
+=======================================================================
+3. PRINCIPLE EXTRACTION ENGINE
+=======================================================================
+
+Convert validated patterns into Candidate Principles.
+
+Every principle includes:
+
+Description
+
+Supporting cases
+
+Affected domains
+
+Confidence
+
+Evidence
+
+Extraction is reproducible.
+
+=======================================================================
+4. PRINCIPLE VALIDATION ENGINE
+=======================================================================
+
+Validation requires:
+
+Minimum observations
+
+Minimum supporting evidence
+
+Maximum contradiction threshold
+
+Minimum confidence
+
+Business significance
+
+Strategic significance
+
+Only validated principles enter the Principle Library.
+
+=======================================================================
+5. CONTRADICTION ENGINE
+=======================================================================
+
+Monitor every principle.
+
+Track:
+
+Supporting cases
+
+Contradicting cases
+
+Declining confidence
+
+Expired assumptions
+
+Domain drift
+
+Confidence adjusts continuously.
+
+Principles never disappear.
+
+Only become deprecated.
+
+=======================================================================
+6. PRINCIPLE LIBRARY
+=======================================================================
+
+Permanent repository.
+
+Organize by:
+
+Business Domain
+
+Strategy
+
+Marketing
+
+Sales
+
+Operations
+
+Automation
+
+Software
+
+Finance
+
+Leadership
+
+Product
+
+Customer
+
+Technology
+
+Searchable.
+
+Versioned.
+
+Immutable revisions.
+
+=======================================================================
+7. LEARNING REPORT ENGINE
+=======================================================================
+
+Produce reports containing:
+
+New Principles
+
+Strengthened Principles
+
+Weakening Principles
+
+Deprecated Principles
+
+Evidence Summary
+
+Confidence Changes
+
+Business Impact
+
+Learning Confidence
+
+Reports are immutable.
+
+=======================================================================
+8. EXECUTIVE LEARNING SERVICES
+=======================================================================
+
+Provide:
+
+Retrieve Principle
+
+Search Principles
+
+Retrieve Learning Reports
+
+Retrieve Evidence
+
+Retrieve Contradictions
+
+Retrieve Principle History
+
+Learning Diagnostics
+
+All Brains may consume.
+
+=======================================================================
+9. EXECUTIVE BRAIN INTEGRATION
+=======================================================================
+
+Executive Brain receives:
+
+Validated Principles only.
+
+Draft principles are invisible.
+
+Candidate principles are invisible.
+
+Executive reasoning consumes only trusted learning.
+
+=======================================================================
+10. DATABASE
+=======================================================================
+
+Create tables:
+
+Executive Principles
+
+Principle Evidence
+
+Principle Versions
+
+Learning Reports
+
+Learning Metrics
+
+Contradictions
+
+Validation History
+
+Principle Categories
+
+Immutable.
+
+=======================================================================
+11. APIs
+=======================================================================
+
+Expose:
+
+Search Principles
+
+Retrieve Principle
+
+Retrieve Versions
+
+Retrieve Reports
+
+Retrieve Evidence
+
+Retrieve Validation History
+
+Retrieve Contradictions
+
+Diagnostics
+
+Categories
+
+Domains
+
+=======================================================================
+12. EXTENSION POINTS
+=======================================================================
+
+Declare only.
+
+Do NOT implement:
+
+Adaptation
+
+Automatic Weight Changes
+
+Automatic Goal Changes
+
+Automatic Planning Changes
+
+Automatic Judgment Updates
+
+Autonomous Optimization
+
+Executive Coaching
+
+Policy Evolution
+
+═══════════════════════════════════════════════════════════════════════
+NEW ARCHITECTURAL COMPONENT
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE PRINCIPLE GRAPH
+
+Every principle becomes a node.
+
+Relationships include:
+
+Supports
+
+Contradicts
+
+Generalizes
+
+Specializes
+
+Depends On
+
+Supersedes
+
+Related To
+
+Allows future reasoning to traverse principles
+instead of isolated experiences.
+
+This graph is permanent.
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Reflection Engine
+
+✓ Observation Engine
+
+✓ Knowledge Graph
+
+✓ Memory
+
+✓ Executive Brain
+
+✓ Extension Registry
+
+Purely additive.
+
+Fail-open.
+
+Immutable.
+
+No duplicated logic.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Learning NEVER changes behavior.
+
+Learning NEVER changes planning.
+
+Learning NEVER changes goals.
+
+Learning NEVER changes judgment.
+
+Learning NEVER changes execution.
+
+Learning ONLY discovers executive principles.
+
+Adaptation owns behavioral change.
+
+═══════════════════════════════════════════════════════════════════════
+PRINCIPLE LIFECYCLE
+═══════════════════════════════════════════════════════════════════════
+
+Experience
+
+↓
+
+Executive Case
+
+↓
+
+Reflection
+
+↓
+
+Pattern
+
+↓
+
+Candidate Principle
+
+↓
+
+Validation
+
+↓
+
+Executive Principle
+
+↓
+
+Principle Library
+
+↓
+
+Future Executive Reasoning
+
+No shortcuts permitted.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Executive Principle Model
+
+✓ Pattern Discovery Engine
+
+✓ Principle Extraction Engine
+
+✓ Validation Engine
+
+✓ Contradiction Engine
+
+✓ Principle Library
+
+✓ Learning Reports
+
+✓ Executive Integration
+
+✓ Database
+
+✓ APIs
+
+✓ Principle Graph
+
+✓ Extension Framework
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Changes
+
+5. APIs
+
+6. Services
+
+7. Executive Principle Model
+
+8. Pattern Discovery
+
+9. Validation Pipeline
+
+10. Principle Graph
+
+11. Learning Reports
+
+12. Existing Systems Reused
+
+13. Existing Systems Extended
+
+14. Technical Debt
+
+15. Performance Impact
+
+16. Architectural Decisions
+
+For every decision include:
+
+• Decision
+
+• Reason
+
+• Alternatives Considered
+
+• Trade-offs Accepted
+
+• Future Expansion Opportunities
+
+17. Cognitive Evolution Score
+
+Evaluate:
+
+Principle Quality
+
+Generalization
+
+Business Learning
+
+Scalability
+
+Executive Wisdom
+
+Maintainability
+
+Future Adaptation Readiness
+
+Overall Grade
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Principle Learning Engine is the system that transforms
+experience into reusable executive wisdom.
+
+It does not optimize behavior.
+
+It does not rewrite cognition.
+
+Instead, it discovers durable principles supported by repeated
+evidence across many Executive Cases.
+
+By introducing the Executive Principle Graph, ASH begins to organize
+wisdom as a connected body of knowledge rather than a collection of
+isolated lessons.
+
+This allows future reasoning to navigate relationships between
+principles, recognize contradictions, specialize advice by business
+domain, and evolve a coherent executive worldview over time.
+
+Learning is the first stage where ASH becomes more capable because of
+its own accumulated experience.
+
+This architectural boundary is permanent.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 014.
+
+═══════════════════════════════════════════════════════════════════════
+END BUILD 013
+═══════════════════════════════════════════════════════════════════════

@@ -1,0 +1,749 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 011
+
+TITLE
+
+Executive Observation Engine
+
+PHASE
+
+Phase II – Executive Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+Observation is not logging.
+
+Observation is not telemetry.
+
+Observation is the Executive Awareness System.
+
+Its responsibility is to continuously understand what is happening
+across the entire Cognitive Operating System.
+
+Every cognitive subsystem publishes observations.
+
+Observation transforms raw events into executive awareness.
+
+Future Reflection, Learning and Adaptation never consume raw events.
+
+They consume structured observations.
+
+Observation therefore becomes the permanent nervous system of ASH.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE PIPELINE
+═══════════════════════════════════════════════════════════════════════
+
+Reason
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+↓
+
+Planning
+
+↓
+
+Execution
+
+↓
+
+Observation
+
+Reflection begins in Build 012.
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement an Executive Observation Engine capable of:
+
+• Capturing events
+
+• Correlating events
+
+• Detecting state changes
+
+• Building observation chains
+
+• Detecting anomalies
+
+• Measuring trends
+
+• Assigning executive attention
+
+• Producing cognitive signals
+
+• Recording immutable observations
+
+• Preparing Reflection input
+
+Observation NEVER performs analysis.
+
+Observation NEVER changes state.
+
+Observation ONLY understands what happened.
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════
+
+=======================================================================
+1. OBSERVATION MODEL
+=======================================================================
+
+Create ExecutiveObservation.
+
+Support:
+
+Observation ID
+
+Source System
+
+Source Object
+
+Source Type
+
+Timestamp
+
+Event Type
+
+Event Category
+
+Severity
+
+Attention Score
+
+Correlation IDs
+
+Related Goal
+
+Related Plan
+
+Related Execution
+
+Related Context
+
+Related Judgment
+
+Related Memory
+
+Related Knowledge
+
+Related User Request
+
+Observation Chain ID
+
+Signal Type
+
+Observed State
+
+Previous State
+
+Metadata
+
+Version
+
+Created
+
+Immutable.
+
+=======================================================================
+2. EVENT INGESTION ENGINE
+=======================================================================
+
+Every major subsystem publishes observations.
+
+Integrate with:
+
+Memory
+
+Knowledge
+
+Context
+
+Goals
+
+Judgment
+
+Planning
+
+Execution
+
+Future systems
+
+Observation accepts events only.
+
+Never performs business logic.
+
+=======================================================================
+3. OBSERVATION CHAIN ENGINE
+=======================================================================
+
+Create chronological observation chains.
+
+Example
+
+Goal Created
+
+↓
+
+Plan Generated
+
+↓
+
+Execution Started
+
+↓
+
+Execution Failed
+
+↓
+
+Retry
+
+↓
+
+Execution Completed
+
+Chains become searchable cognitive timelines.
+
+=======================================================================
+4. EVENT CORRELATION ENGINE
+=======================================================================
+
+Automatically correlate events.
+
+Support relationships by:
+
+Goal
+
+Plan
+
+Execution
+
+User Request
+
+Time Window
+
+Shared Resources
+
+Shared Objects
+
+Correlation is deterministic.
+
+=======================================================================
+5. ATTENTION ENGINE
+=======================================================================
+
+Every observation receives an Attention Score.
+
+Inputs:
+
+Severity
+
+Goal Priority
+
+Execution State
+
+Failure Count
+
+Novelty
+
+Business Impact
+
+Urgency
+
+Strategic Importance
+
+Outputs:
+
+0.00 → 1.00
+
+Observation never interrupts Executive Intelligence.
+
+It only ranks importance.
+
+=======================================================================
+6. SIGNAL ENGINE
+=======================================================================
+
+Convert observations into standardized Cognitive Signals.
+
+Supported signals:
+
+Success
+
+Failure
+
+Opportunity
+
+Risk
+
+Progress
+
+Regression
+
+Conflict
+
+Delay
+
+Bottleneck
+
+Novelty
+
+Trend
+
+Unknown
+
+Signals are immutable.
+
+Signals never contain recommendations.
+
+=======================================================================
+7. TREND ENGINE
+=======================================================================
+
+Detect measurable trends.
+
+Examples:
+
+Repeated failures
+
+Increasing success
+
+Growing latency
+
+Improving completion
+
+Execution velocity
+
+Goal completion velocity
+
+Planning frequency
+
+Trend detection is deterministic.
+
+No AI.
+
+=======================================================================
+8. ANOMALY ENGINE
+=======================================================================
+
+Detect abnormal behavior.
+
+Examples:
+
+Unexpected failures
+
+Missing events
+
+Repeated retries
+
+Execution loops
+
+Impossible state transitions
+
+Stalled progress
+
+Observation reports anomalies.
+
+Never fixes them.
+
+=======================================================================
+9. EXECUTIVE DASHBOARD SERVICES
+=======================================================================
+
+Provide reusable services.
+
+Latest Observations
+
+Observation Chains
+
+Attention Queue
+
+Signal Feed
+
+Trend Feed
+
+Anomaly Feed
+
+Observation History
+
+Observation Diagnostics
+
+All Brains may consume.
+
+=======================================================================
+10. EXECUTIVE BRAIN INTEGRATION
+=======================================================================
+
+Executive Brain becomes observation-aware.
+
+Pipeline
+
+Reason
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+↓
+
+Planning
+
+↓
+
+Execution
+
+↓
+
+Observation Summary
+
+Observation Summary becomes available during every Executive cycle.
+
+Executive Brain never reads raw observations.
+
+=======================================================================
+11. DATABASE
+=======================================================================
+
+Create tables supporting:
+
+Observations
+
+Observation Chains
+
+Signal Records
+
+Trend Records
+
+Anomaly Records
+
+Correlation Graph
+
+Attention Queue
+
+Observation Metrics
+
+Immutable history.
+
+=======================================================================
+12. APIs
+=======================================================================
+
+Expose REST APIs.
+
+Examples
+
+Latest Observations
+
+Observation History
+
+Chains
+
+Signals
+
+Attention Queue
+
+Anomalies
+
+Trends
+
+Correlations
+
+Diagnostics
+
+=======================================================================
+13. EXTENSION POINTS
+=======================================================================
+
+Declare extension points only.
+
+Do NOT implement:
+
+Reflection
+
+Learning
+
+Adaptation
+
+Alerting
+
+Notifications
+
+Business Analytics
+
+Executive Reports
+
+Opportunity Detection
+
+Predictive Analytics
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Executive Brain
+
+✓ Execution Engine
+
+✓ Planning Engine
+
+✓ Goal Engine
+
+✓ Judgment Engine
+
+✓ Context Engine
+
+✓ Memory
+
+✓ Knowledge Graph
+
+✓ Extension Registry
+
+✓ Health Monitoring
+
+Purely additive.
+
+Fail-open.
+
+No duplicated logic.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Observation NEVER changes execution.
+
+Observation NEVER changes plans.
+
+Observation NEVER changes goals.
+
+Observation NEVER modifies memory.
+
+Observation NEVER performs reasoning.
+
+Observation NEVER performs learning.
+
+Observation ONLY records, correlates, classifies and summarizes.
+
+Reflection owns interpretation.
+
+Learning owns improvement.
+
+═══════════════════════════════════════════════════════════════════════
+OBSERVATION CONTRACT
+═══════════════════════════════════════════════════════════════════════
+
+Every future subsystem must publish observations.
+
+Every observation must contain:
+
+Source
+
+Event
+
+Time
+
+Correlation
+
+Attention
+
+Signal
+
+Severity
+
+No subsystem may write directly into Reflection.
+
+Reflection only consumes Observation.
+
+This contract is permanent.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Executive Observation Model
+
+✓ Event Ingestion Engine
+
+✓ Observation Chain Engine
+
+✓ Correlation Engine
+
+✓ Attention Engine
+
+✓ Signal Engine
+
+✓ Trend Engine
+
+✓ Anomaly Engine
+
+✓ Dashboard Services
+
+✓ Executive Integration
+
+✓ Database
+
+✓ APIs
+
+✓ Extension Framework
+
+✓ Immutable Observation Store
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1 Executive Summary
+
+2 Files Created
+
+3 Files Modified
+
+4 Database Changes
+
+5 APIs
+
+6 Services
+
+7 Models
+
+8 Observation Flow
+
+9 Attention Engine
+
+10 Signal Engine
+
+11 Trend Engine
+
+12 Anomaly Engine
+
+13 Extension Points
+
+14 Existing Systems Reused
+
+15 Existing Systems Extended
+
+16 Technical Debt
+
+17 Performance Impact
+
+18 Architectural Decisions
+
+For every decision include:
+
+Decision
+
+Reason
+
+Alternatives Considered
+
+Trade-offs Accepted
+
+Future Expansion Opportunities
+
+19 Cognitive Evolution Score
+
+Evaluate:
+
+Executive Awareness
+
+Observation Quality
+
+Scalability
+
+Maintainability
+
+Business Intelligence Readiness
+
+Future Reflection Readiness
+
+Overall Grade
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Observation Engine is the Cognitive Nervous System of
+ASH.
+
+It continuously transforms raw cognitive activity into structured
+executive awareness.
+
+Observation does not think.
+
+Observation does not learn.
+
+Observation does not improve.
+
+It ensures that every future cognitive system begins with an accurate,
+consistent and immutable understanding of reality.
+
+By introducing Attention, Signals, Correlation, Chains, Trends and
+Anomalies as first-class cognitive objects, future Reflection and
+Learning systems operate on executive awareness rather than isolated
+events.
+
+This architectural boundary is permanent.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 012.
+
+═══════════════════════════════════════════════════════════════════════
+END BUILD 011
+═══════════════════════════════════════════════════════════════════════

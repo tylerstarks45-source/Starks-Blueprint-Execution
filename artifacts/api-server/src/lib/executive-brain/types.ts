@@ -60,4 +60,7 @@ export interface ExecutiveBrainResult {
   // points). Absent on failure, when no approved plan exists, or when an
   // execution already covers the active plan.
   activeExecutionId?: string;
+  // Build 011: Summary of recent observations for this user at the time of the
+  // request. Absent on failure or when no observations exist yet.
+  observationSummary?: import("../executive-observation/types").ObservationSummary;
 }

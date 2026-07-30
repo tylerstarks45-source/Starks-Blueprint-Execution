@@ -1,0 +1,649 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 010
+
+TITLE:
+Executive Execution Engine
+
+PHASE:
+Phase II – Executive Intelligence
+
+STATUS:
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+Build 009 created executable strategies.
+
+Build 010 introduces controlled execution.
+
+The Executive Execution Engine is responsible for coordinating,
+tracking, monitoring, and recording the execution of approved plans.
+
+Execution does not decide what should happen.
+
+Execution performs what Planning has already determined.
+
+Every execution becomes a permanent cognitive artifact available to
+Observation, Reflection, and Learning.
+
+Execution must always be deterministic, auditable, interruptible,
+recoverable, and explainable.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE PIPELINE
+═══════════════════════════════════════════════════════════════════════
+
+Reasoning
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+↓
+
+Planning
+
+↓
+
+Execution
+
+Observation belongs to Build 011.
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement a reusable Executive Execution Engine capable of:
+
+• Executing approved plans
+
+• Executing milestones
+
+• Executing individual steps
+
+• Tracking execution state
+
+• Handling retries
+
+• Suspending execution
+
+• Resuming execution
+
+• Cancelling execution
+
+• Recording execution history
+
+• Supporting future parallel execution
+
+• Supporting future AI Agent execution
+
+Execution must never modify Planning.
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════
+
+=======================================================================
+1. EXECUTION MODEL
+=======================================================================
+
+Create reusable ExecutiveExecution objects.
+
+Support:
+
+• Execution ID
+
+• Plan ID
+
+• Goal ID
+
+• Current Milestone
+
+• Current Step
+
+• Status
+
+• Started
+
+• Updated
+
+• Completed
+
+• Progress
+
+• Success
+
+• Failure Reason
+
+• Retry Count
+
+• Maximum Retries
+
+• Parent Execution
+
+• Child Executions
+
+• Related Memory
+
+• Related Context
+
+• Related Judgment
+
+• Related Plan
+
+• Related Goal
+
+• Version
+
+Unlimited hierarchy.
+
+=======================================================================
+2. EXECUTION STATE MACHINE
+=======================================================================
+
+Implement deterministic execution states.
+
+Pending
+
+Approved
+
+Running
+
+Waiting
+
+Paused
+
+Blocked
+
+Retrying
+
+Completed
+
+Failed
+
+Cancelled
+
+Execution must only transition through valid state changes.
+
+Illegal transitions must be rejected.
+
+=======================================================================
+3. STEP EXECUTION ENGINE
+=======================================================================
+
+Support execution of individual plan steps.
+
+Capabilities:
+
+Start Step
+
+Complete Step
+
+Pause Step
+
+Resume Step
+
+Skip Step (manual only)
+
+Retry Step
+
+Cancel Step
+
+Record timestamps.
+
+Maintain execution ordering.
+
+=======================================================================
+4. EXECUTION COORDINATOR
+=======================================================================
+
+Coordinate execution flow.
+
+Responsible for:
+
+Sequential execution
+
+Dependency validation
+
+Milestone completion
+
+Step ordering
+
+Execution progress
+
+Recovery points
+
+Coordinator never performs work itself.
+
+It orchestrates execution.
+
+=======================================================================
+5. EXECUTION HISTORY
+=======================================================================
+
+Maintain immutable execution history.
+
+Record:
+
+Every state transition
+
+Every retry
+
+Every failure
+
+Every cancellation
+
+Every completion
+
+Every manual intervention
+
+Append-only.
+
+Future Observation and Reflection depend on this history.
+
+=======================================================================
+6. EXECUTION SERVICES
+=======================================================================
+
+Provide reusable services.
+
+Create Execution
+
+Start Execution
+
+Pause Execution
+
+Resume Execution
+
+Retry Execution
+
+Cancel Execution
+
+Complete Execution
+
+Retrieve Execution
+
+Retrieve Active Executions
+
+Retrieve Execution History
+
+Retrieve Diagnostics
+
+All Brains may consume these services.
+
+=======================================================================
+7. EXECUTIVE BRAIN INTEGRATION
+=======================================================================
+
+Executive flow becomes:
+
+Reason
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+↓
+
+Planning
+
+↓
+
+Execution
+
+Execution receives approved plans.
+
+Execution never creates plans.
+
+Execution never changes goals.
+
+=======================================================================
+8. DATABASE
+=======================================================================
+
+Create execution tables supporting:
+
+Executions
+
+Execution Steps
+
+Execution History
+
+Execution Metrics
+
+Execution Relationships
+
+Execution Recovery Points
+
+Execution State
+
+Unlimited hierarchy.
+
+=======================================================================
+9. APIs
+=======================================================================
+
+Expose REST APIs.
+
+Examples:
+
+Create Execution
+
+Start Execution
+
+Pause Execution
+
+Resume Execution
+
+Retry Execution
+
+Cancel Execution
+
+Retrieve Execution
+
+Retrieve Active Executions
+
+Retrieve History
+
+Retrieve Diagnostics
+
+=======================================================================
+10. EXTENSION POINTS
+=======================================================================
+
+Declare extension seams only.
+
+Do NOT implement:
+
+Observation
+
+Reflection
+
+Learning
+
+External APIs
+
+AI Agents
+
+Workflow Automation
+
+Scheduling
+
+Notifications
+
+Recovery Intelligence
+
+Autonomous decision making
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Executive Brain
+
+✓ Planning Engine
+
+✓ Goal Engine
+
+✓ Judgment Engine
+
+✓ Context Engine
+
+✓ Knowledge Graph
+
+✓ Cognitive Memory
+
+✓ Extension Registry
+
+✓ Health Monitoring
+
+No duplicated logic.
+
+No architectural rewrites.
+
+Purely additive.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Execution NEVER plans.
+
+Execution NEVER judges.
+
+Execution NEVER changes goals.
+
+Execution NEVER edits plans.
+
+Execution ONLY coordinates execution.
+
+Actual work execution must occur through future execution adapters.
+
+The Execution Engine is an orchestration layer.
+
+It is NOT an automation engine.
+
+═══════════════════════════════════════════════════════════════════════
+EXECUTION ADAPTER ARCHITECTURE
+═══════════════════════════════════════════════════════════════════════
+
+Introduce execution adapter interfaces only.
+
+Support future adapters such as:
+
+• Internal Cognitive Task Adapter
+
+• AI Agent Adapter
+
+• Browser Automation Adapter
+
+• API Adapter
+
+• File System Adapter
+
+• Code Execution Adapter
+
+• Human Approval Adapter
+
+• External Workflow Adapter
+
+Do NOT implement adapters.
+
+Declare interfaces only.
+
+Future builds will implement them.
+
+═══════════════════════════════════════════════════════════════════════
+DO NOT IMPLEMENT
+═══════════════════════════════════════════════════════════════════════
+
+Observation
+
+Reflection
+
+Learning
+
+Adaptive execution
+
+Automatic replanning
+
+External integrations
+
+AI agents
+
+Browser automation
+
+API execution
+
+Filesystem changes
+
+Code execution
+
+Scheduling
+
+Notifications
+
+Human approval workflows
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Executive Execution Model
+
+✓ Execution State Machine
+
+✓ Step Execution Engine
+
+✓ Execution Coordinator
+
+✓ Immutable Execution History
+
+✓ Shared Execution Services
+
+✓ Executive Brain Integration
+
+✓ Database
+
+✓ REST APIs
+
+✓ Extension Framework
+
+✓ Execution Adapter Interfaces
+
+✓ Backward Compatibility
+
+✓ Fail-open Architecture
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Changes
+
+5. APIs
+
+6. Services
+
+7. Models
+
+8. Execution State Machine
+
+9. Extension Points
+
+10. Existing Systems Reused
+
+11. Existing Systems Extended
+
+12. Technical Debt
+
+13. Performance Impact
+
+14. Architectural Decisions
+
+For each decision include:
+
+• Decision
+
+• Reason
+
+• Alternatives Considered
+
+• Trade-offs Accepted
+
+• Future Expansion Opportunities
+
+15. Cognitive Evolution Score
+
+Evaluate:
+
+• Execution Intelligence
+
+• Reliability
+
+• Recoverability
+
+• Auditability
+
+• Scalability
+
+• Maintainability
+
+• Future Readiness
+
+Provide an overall grade with justification.
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Execution Engine is the permanent execution layer of the
+ASH Cognitive Operating System.
+
+Its responsibility is not to perform work directly, but to coordinate,
+track, and manage execution safely and predictably.
+
+By separating Planning from Execution and introducing execution
+adapter interfaces, ASH gains the flexibility to execute future work
+through AI agents, browser automation, APIs, humans, or other systems
+without changing the Executive Engine itself.
+
+This architectural boundary is permanent.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 011.
+
+═══════════════════════════════════════════════════════════════════════
+END OF BUILD 010
+═══════════════════════════════════════════════════════════════════════

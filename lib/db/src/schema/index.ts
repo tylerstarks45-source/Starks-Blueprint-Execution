@@ -79,5 +79,6 @@ export * from "./executive_context";
 export * from "./executive_judgment";
 export * from "./executive_goal";
 export * from "./executive_plan";
+export * from "./executive_execution";
 
 export * from "./system_logs";

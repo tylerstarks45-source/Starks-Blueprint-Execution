@@ -28,6 +28,7 @@ import { declareContextExtensionPoints } from "../executive-context/context-exte
 import { declareJudgmentExtensionPoints } from "../executive-judgment/judgment-extension-points";
 import { declareGoalExtensionPoints } from "../executive-goal/goal-extension-points";
 import { declarePlanExtensionPoints } from "../executive-plan/plan-extension-points";
+import { declareExecutionExtensionPoints } from "../executive-execution/execution-extension-points";
 
 let initialized = false;
 
@@ -51,6 +52,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareJudgmentExtensionPoints();       // Build 007: five judgment engine seams
       declareGoalExtensionPoints();           // Build 008: six goal engine seams
       declarePlanExtensionPoints();           // Build 009: six planning engine seams
+      declareExecutionExtensionPoints();      // Build 010: ten execution engine seams
       registerCoreBrains();
       initialized = true;
 

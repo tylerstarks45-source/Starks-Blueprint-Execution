@@ -19,6 +19,9 @@ import type { ExecutiveGoal } from "../executive-goal/types";
 // Build 009: Executive Planning Engine
 import { fetchActivePlans, ensurePlanForPrimaryGoal, buildPlanAdvisory } from "./plan-integration";
 import type { ExecutivePlan } from "../executive-plan/types";
+// Build 010: Executive Execution Engine
+import { fetchActiveExecutions, ensureExecutionForActivePlan, buildExecutionAdvisory } from "./execution-integration";
+import type { ExecutiveExecution } from "../executive-execution/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -174,7 +177,24 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: planning step failed (ignored)");
   }
 
-  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId });
+  // ── Executive Execution Engine (Build 010) ──────────────────────────────────
+  // Fetch active executions for this user. If no execution covers the primary
+  // approved plan, create a pending one. Execution NEVER plans, judges, or
+  // changes goals — it only coordinates execution of approved plans.
+  // Fail-open: an execution failure must never block the request path.
+  let activeExecutions: ExecutiveExecution[] = [];
+  let activeExecutionId: string | undefined;
+  try {
+    activeExecutions = await fetchActiveExecutions(userId);
+    activeExecutionId = await ensureExecutionForActivePlan(userId, activePlans, activeExecutions, {
+      contextSnapshotId,
+      judgmentId,
+    }) ?? undefined;
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: execution step failed (ignored)");
+  }
+
+  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId });
 
   logger.info(
     {
@@ -188,6 +208,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
       activeGoalCount: activeGoals.length,
       activePlanCount: activePlans.length,
       activePlanId,
+      activeExecutionCount: activeExecutions.length,
+      activeExecutionId,
     },
     "Executive Brain resolved project/goal/tasks for request",
   );
@@ -203,6 +225,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     judgmentId,
     activeGoals,
     activePlanId,
+    activeExecutionId,
   };
 }
 
@@ -218,8 +241,10 @@ function buildContextNote(params: {
   activeGoals: ExecutiveGoal[];
   activePlans: ExecutivePlan[];
   activePlanId: string | undefined;
+  activeExecutions: ExecutiveExecution[];
+  activeExecutionId: string | undefined;
 }): string {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -329,6 +354,19 @@ function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: planning advisory failed (ignored)");
+  }
+
+  // ── Executive Execution advisory (Build 010) ─────────────────────────────
+  // One-line summary of active executions and any newly created execution.
+  // Zero-I/O: activeExecutions were fetched before buildContextNote was called.
+  try {
+    const executionAdvisory = buildExecutionAdvisory(activeExecutions, activeExecutionId ?? null);
+    if (executionAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(executionAdvisory, 500));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: execution advisory failed (ignored)");
   }
 
   // ── Executive Goal advisory (Build 008) ─────────────────────────────────

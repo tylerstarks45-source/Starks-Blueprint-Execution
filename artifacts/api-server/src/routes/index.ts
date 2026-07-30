@@ -61,6 +61,7 @@ import executiveContextRouter from "./executive-context";
 import executiveJudgmentRouter from "./executive-judgment";
 import executiveGoalRouter from "./executive-goal";
 import executivePlanRouter from "./executive-plan";
+import executiveExecutionRouter from "./executive-execution";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -136,5 +137,7 @@ router.use(executiveJudgmentRouter);
 router.use(executiveGoalRouter);
 // Build 009: Executive Planning Engine — generate, milestone, steps, history, dependencies, scoring
 router.use(executivePlanRouter);
+// Build 010: Executive Execution Engine — state machine, coordinator, steps, history, recovery, adapters
+router.use(executiveExecutionRouter);
 
 export default router;

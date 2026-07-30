@@ -55,4 +55,9 @@ export interface ExecutiveBrainResult {
   // Absent on failure, when no active goals exist, or when a plan already covers
   // the primary goal.
   activePlanId?: string;
+  // Build 010: ID of the execution created or retrieved for the active plan.
+  // Links this response to the full execution record (steps, history, recovery
+  // points). Absent on failure, when no approved plan exists, or when an
+  // execution already covers the active plan.
+  activeExecutionId?: string;
 }

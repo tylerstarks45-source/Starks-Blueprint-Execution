@@ -87,4 +87,7 @@ export interface ExecutiveBrainResult {
   // Build 018: Future State Simulation summary — multiple possible business futures
   // derived from opportunities. Simulation explores futures; EB NEVER owns simulation state.
   simulationSummary?: import("../future-simulation/types").SimulationSummary;
+  // Build 019: Decision Intelligence summary — the selected executive decision and
+  // its justification. Decision Intelligence chooses; EB NEVER owns decision state.
+  decisionSummary?: import("../decision-intelligence/types").DecisionSummary;
 }

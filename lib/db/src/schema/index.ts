@@ -88,5 +88,6 @@ export * from "./business_graph";
 export * from "./business_analysis";
 export * from "./opportunity_discovery";
 export * from "./future_simulation";
+export * from "./decision_intelligence";
 
 export * from "./system_logs";

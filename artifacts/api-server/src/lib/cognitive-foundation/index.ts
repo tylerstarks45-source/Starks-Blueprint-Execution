@@ -25,6 +25,7 @@ import { declareOrchestrationExtensionPoints } from "./orchestration";
 import { declareReflectionExtensionPoints } from "./reasoning";
 import { registerCoreBrains } from "./register-core-brains";
 import { declareContextExtensionPoints } from "../executive-context/context-extension-points";
+import { declareJudgmentExtensionPoints } from "../executive-judgment/judgment-extension-points";
 
 let initialized = false;
 
@@ -45,6 +46,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareOrchestrationExtensionPoints();  // Build 002: eight orchestration seams
       declareReflectionExtensionPoints();     // Build 003: four reflection hooks
       declareContextExtensionPoints();        // Build 006: six context engine seams
+      declareJudgmentExtensionPoints();       // Build 007: five judgment engine seams
       registerCoreBrains();
       initialized = true;
 

@@ -41,4 +41,9 @@ export interface ExecutiveBrainResult {
   // auditing, and learning can reconstruct the full context in which the
   // decision was made. Optional — absent when no contexts exist or on failure.
   contextSnapshotId?: string;
+  // Build 007: ID of the Executive Judgment produced from the reasoning result.
+  // Links this response to the full judgment record (options scored, explanation,
+  // alternative rankings). Optional — absent when judgment evaluation fails or
+  // no reasoning result was available.
+  judgmentId?: string;
 }

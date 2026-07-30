@@ -11,6 +11,8 @@ import type { ExecutiveReasoningResult } from "../cognitive-foundation/types";
 // Build 006: Executive Context Engine
 import { resolveContextSnapshot } from "../executive-context/context-resolution";
 import type { ExecutiveContextSnapshot } from "../executive-context/types";
+// Build 007: Executive Judgment Engine
+import { evaluateJudgmentFromReasoning } from "./judgment-integration";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -116,7 +118,27 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     });
   }
 
-  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot });
+  // ── Executive Judgment Engine (Build 007) ───────────────────────────────
+  // Derive decision options from the reasoning result and evaluate them.
+  // The Judgment Engine scores all options, selects a recommendation, and
+  // produces a full explanation. Persisted as a Cognitive Artifact.
+  // Synchronous but fail-open: never blocks the request path.
+  let judgmentId: string | undefined;
+  if (reasoningResult) {
+    try {
+      const judgment = await evaluateJudgmentFromReasoning(
+        userId,
+        message,
+        reasoningResult,
+        contextSnapshotId,
+      );
+      judgmentId = judgment.id;
+    } catch (err) {
+      logger.warn({ err }, "Executive Brain: judgment evaluation failed (ignored)");
+    }
+  }
+
+  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId });
 
   logger.info(
     {
@@ -126,6 +148,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
       goalId: goal?.id,
       taskCount: tasks.length,
       reasoningConfidence: reasoningResult?.objectiveAnalysis.confidence.overall,
+      judgmentId,
     },
     "Executive Brain resolved project/goal/tasks for request",
   );
@@ -138,6 +161,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     brainContextNote,
     reasoningResult,
     contextSnapshotId,
+    judgmentId,
   };
 }
 
@@ -149,8 +173,9 @@ function buildContextNote(params: {
   orchestrationResult: ReturnType<typeof orchestrate> | null;
   reasoningResult: ExecutiveReasoningResult | undefined;
   contextSnapshot: ExecutiveContextSnapshot | undefined;
+  judgmentId: string | undefined;
 }): string {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -246,6 +271,18 @@ function buildContextNote(params: {
       }
     } catch (err) {
       logger.warn({ err }, "Executive Brain: context advisory failed (ignored)");
+    }
+  }
+
+  // ── Executive Judgment advisory (Build 007) ──────────────────────────────
+  // One-line summary of the judgment recommendation derived from the reasoning
+  // pipeline. Zero-I/O: judgment was computed before this function was called.
+  if (judgmentId) {
+    try {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(`Executive judgment (id: ${judgmentId}): recommendation available — consult /api/executive-judgment/${judgmentId} for scored options, explanation, and rationale.`, 500));
+    } catch (err) {
+      logger.warn({ err }, "Executive Brain: judgment advisory failed (ignored)");
     }
   }
 

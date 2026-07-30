@@ -1,0 +1,414 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 007
+
+TITLE:
+Executive Judgment Engine
+
+PHASE:
+Phase II – Executive Intelligence
+
+STATUS:
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+Build 006 gave ASH Context.
+
+ASH now understands the environment in which a decision is made.
+
+Build 007 gives ASH Judgment.
+
+Reasoning answers:
+
+"What can I conclude?"
+
+Judgment answers:
+
+"What should I do?"
+
+The Executive Judgment Engine becomes the permanent cognitive layer
+responsible for evaluating options, balancing trade-offs, assessing
+risk, estimating confidence, and selecting the best course of action.
+
+Judgment must become reusable infrastructure available to every Brain.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Judgment Engine must:
+
+• Evaluate multiple options
+• Compare competing alternatives
+• Assess risk
+• Assess opportunity
+• Score confidence
+• Evaluate trade-offs
+• Explain every recommendation
+• Preserve decision rationale
+• Learn-ready architecture
+• Integrate with Context, Memory and Knowledge Graph
+
+Judgment should never replace reasoning.
+
+Reasoning supplies possibilities.
+
+Judgment selects the best one.
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+=======================================================================
+1. EXECUTIVE JUDGMENT MODEL
+=======================================================================
+
+Create a reusable Executive Judgment model.
+
+Support:
+
+• Judgment ID
+• Decision Objective
+• Available Options
+• Selected Option
+• Decision Score
+• Confidence Score
+• Risk Score
+• Opportunity Score
+• Complexity Score
+• Strategic Alignment
+• Supporting Evidence
+• Related Context Snapshot
+• Related Cognitive Artifacts
+• Related Knowledge Clusters
+• Assumptions
+• Constraints
+• Decision Rationale
+• Alternative Rankings
+• Timestamp
+• Version
+
+Future expansion must require no redesign.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+2. JUDGMENT ENGINE
+=======================================================================
+
+Implement a reusable Executive Judgment Engine.
+
+Responsibilities:
+
+• Receive reasoning output
+• Generate alternatives
+• Compare alternatives
+• Score alternatives
+• Evaluate trade-offs
+• Evaluate constraints
+• Estimate uncertainty
+• Select preferred recommendation
+• Produce explanation
+
+The engine becomes shared infrastructure.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+3. DECISION SCORING
+=======================================================================
+
+Every candidate decision should receive independent scores.
+
+Examples:
+
+• Strategic Value
+• Risk
+• Cost
+• Complexity
+• Confidence
+• Expected Impact
+• Urgency
+• Reversibility
+• Resource Demand
+• Time Sensitivity
+
+Support weighted scoring.
+
+Weights must be configurable.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+4. DECISION EXPLANATION
+=======================================================================
+
+Every judgment must explain:
+
+• Why this option was selected
+• Why alternatives were rejected
+• Which assumptions mattered
+• Which constraints affected the outcome
+• Which evidence supported the decision
+• Overall confidence
+
+Explanations become permanent cognitive artifacts.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+5. DECISION HISTORY
+=======================================================================
+
+Maintain a complete history.
+
+Every judgment should reference:
+
+• Context Snapshot
+• Memory Artifacts
+• Knowledge Relationships
+• Executive Reasoning Output
+• Final Recommendation
+
+Nothing should overwrite historical decisions.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+6. SHARED JUDGMENT SERVICES
+=======================================================================
+
+Every Brain should be able to request:
+
+• Evaluate Decision
+• Compare Options
+• Score Alternatives
+• Assess Risk
+• Assess Opportunity
+• Explain Recommendation
+• Retrieve Judgment History
+
+Judgment belongs to the Cognitive Operating System.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+7. JUDGMENT HEALTH
+=======================================================================
+
+Create diagnostics.
+
+Measure:
+
+• Explanation completeness
+• Confidence quality
+• Evidence quality
+• Alternative coverage
+• Score consistency
+• Decision traceability
+
+Integrate into Executive Health Monitoring.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+8. EXTENSION FRAMEWORK
+=======================================================================
+
+Create extension points only.
+
+DO NOT implement:
+
+• Automatic policy generation
+• Ethical reasoning engines
+• Predictive simulations
+• Self-adjusting score weights
+• Learning-based optimization
+• Outcome feedback loops
+
+Only establish extension points.
+
+-----------------------------------------------------------------------
+
+=======================================================================
+9. EXECUTIVE JUDGMENT API
+=======================================================================
+
+Expose reusable APIs.
+
+Examples:
+
+• Evaluate Judgment
+• Compare Alternatives
+• Explain Judgment
+• Retrieve Judgment
+• Retrieve Decision History
+• Get Judgment Diagnostics
+
+Future Brains must consume these APIs.
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse existing systems.
+
+Integrate with:
+
+✓ Executive Brain
+✓ Context Engine (Build 006)
+✓ Knowledge Graph (Build 005)
+✓ Cognitive Memory (Build 004)
+✓ Executive Reasoning (Build 003)
+✓ Brain Registry
+✓ Extension Registry
+✓ Decision Records
+✓ Health Monitoring
+
+No duplicated logic.
+
+No architectural rewrites.
+
+Only additive changes.
+
+═══════════════════════════════════════════════════════════════════════
+DO NOT IMPLEMENT
+═══════════════════════════════════════════════════════════════════════
+
+Do NOT redesign Context.
+
+Do NOT redesign Memory.
+
+Do NOT redesign Knowledge Graph.
+
+Do NOT redesign Executive Reasoning.
+
+Do NOT implement Goal Management.
+
+Do NOT implement Planning.
+
+Do NOT implement Execution.
+
+Do NOT implement Reflection.
+
+Do NOT implement Learning.
+
+Do NOT implement autonomous decision making.
+
+The Executive Judgment Engine recommends.
+
+It does not execute.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Executive Judgment Model implemented
+
+✓ Executive Judgment Engine implemented
+
+✓ Decision Scoring implemented
+
+✓ Decision Explanation implemented
+
+✓ Decision History implemented
+
+✓ Shared Judgment Services implemented
+
+✓ Judgment Diagnostics implemented
+
+✓ Judgment APIs implemented
+
+✓ Extension Framework established
+
+✓ Existing architecture remains compatible
+
+✓ No unnecessary rewrites
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+When complete, return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Existing Systems Reused
+
+5. Existing Systems Extended
+
+6. Refactoring Performed
+
+7. Database Changes
+
+8. New APIs
+
+9. New Services
+
+10. New Models
+
+11. New Extension Points
+
+12. Performance Impact
+
+13. Technical Debt
+
+14. Engineering Recommendations
+
+15. Architectural Decisions
+
+For every architectural decision include:
+
+• Decision
+• Why it was chosen
+• Alternatives considered
+• Trade-offs accepted
+• Future expansion opportunities
+
+16. Cognitive Evolution Score
+
+Rate Build 007 on:
+
+• Intelligence Gain
+• Architectural Quality
+• Reusability
+• Scalability
+• Maintainability
+• Future Readiness
+
+Provide an overall grade with justification.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 008.
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+Build 007 is the first system that allows ASH to exercise executive
+judgment instead of simply producing intelligent responses.
+
+After this build, ASH will not only understand the situation—it will
+be able to justify why one path is better than another, preserve that
+reasoning for future analysis, and provide a reusable decision-making
+capability to every Brain in the Cognitive Operating System.
+
+This build establishes the foundation upon which Goal Management,
+Planning, Execution, Reflection, and Learning will all depend.
+
+═══════════════════════════════════════════════════════════════════════
+END OF BUILD 007
+═══════════════════════════════════════════════════════════════════════

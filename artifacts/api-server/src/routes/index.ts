@@ -63,6 +63,7 @@ import executiveGoalRouter from "./executive-goal";
 import executivePlanRouter from "./executive-plan";
 import executiveExecutionRouter from "./executive-execution";
 import executiveObservationRouter from "./executive-observation";
+import executiveReflectionRouter from "./executive-reflection";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -142,5 +143,7 @@ router.use(executivePlanRouter);
 router.use(executiveExecutionRouter);
 // Build 011: Executive Observation Engine — ingest, chains, signals, trends, anomalies, correlations
 router.use("/api/executive-observation", executiveObservationRouter);
+// Build 012: Executive Reflection Engine — cases, timelines, reports, factors, scores, evidence
+router.use("/api/executive-reflection", executiveReflectionRouter);
 
 export default router;

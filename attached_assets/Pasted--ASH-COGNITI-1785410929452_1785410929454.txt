@@ -1,0 +1,729 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 012
+
+TITLE
+
+Executive Reflection Engine
+
+PHASE
+
+Phase II – Executive Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+Reflection transforms executive experience into executive insight.
+
+Observation records reality.
+
+Reflection explains reality.
+
+Reflection never changes cognition.
+
+Reflection never creates learning.
+
+Reflection produces structured Reflection Reports that explain
+why outcomes occurred, what influenced them, and what executive
+principles can later be extracted by Learning.
+
+Reflection operates on completed Executive Cases rather than
+individual observations.
+
+Reflection is therefore ASH's Executive Review System.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE PIPELINE
+═══════════════════════════════════════════════════════════════════════
+
+Reason
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+↓
+
+Planning
+
+↓
+
+Execution
+
+↓
+
+Observation
+
+↓
+
+Reflection
+
+Learning begins in Build 013.
+
+═══════════════════════════════════════════════════════════════════════
+NEW COGNITIVE OBJECT
+═══════════════════════════════════════════════════════════════════════
+
+Executive Case
+
+An Executive Case represents a complete cognitive episode.
+
+Example
+
+User Request
+
+↓
+
+Reasoning
+
+↓
+
+Context
+
+↓
+
+Goal
+
+↓
+
+Judgment
+
+↓
+
+Plan
+
+↓
+
+Execution
+
+↓
+
+Observation Chain
+
+↓
+
+Outcome
+
+↓
+
+Reflection
+
+Cases become the permanent unit of executive experience.
+
+Reflection NEVER analyzes isolated observations.
+
+Reflection ALWAYS analyzes completed Executive Cases.
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement an Executive Reflection Engine capable of:
+
+• Building Executive Cases
+
+• Detecting case completion
+
+• Reconstructing decision timelines
+
+• Explaining executive decisions
+
+• Identifying influential factors
+
+• Measuring decision quality
+
+• Measuring execution quality
+
+• Identifying strengths
+
+• Identifying weaknesses
+
+• Producing immutable Reflection Reports
+
+Reflection NEVER recommends improvements.
+
+Reflection ONLY explains.
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════
+
+=======================================================================
+1. EXECUTIVE CASE ENGINE
+=======================================================================
+
+Create ExecutiveCase.
+
+Support:
+
+Case ID
+
+Root Request
+
+Goal IDs
+
+Plan IDs
+
+Execution IDs
+
+Observation Chain IDs
+
+Decision Timeline
+
+Start
+
+End
+
+Duration
+
+Completion Status
+
+Primary Outcome
+
+Business Domain
+
+Strategic Category
+
+Version
+
+Immutable after closure.
+
+=======================================================================
+2. CASE ASSEMBLY ENGINE
+=======================================================================
+
+Automatically assemble Executive Cases.
+
+Inputs:
+
+Observation Chains
+
+Correlations
+
+Goals
+
+Plans
+
+Executions
+
+User Requests
+
+Cases are deterministic.
+
+Cases may span hours or days.
+
+=======================================================================
+3. DECISION RECONSTRUCTION ENGINE
+=======================================================================
+
+Rebuild the executive timeline.
+
+Produce:
+
+Reasoning Sequence
+
+Context Evolution
+
+Goal Changes
+
+Judgment History
+
+Planning Decisions
+
+Execution Timeline
+
+Observation Timeline
+
+No inference.
+
+Reconstruction uses recorded history only.
+
+=======================================================================
+4. CAUSAL ANALYSIS ENGINE
+=======================================================================
+
+Determine:
+
+Which observations influenced outcomes?
+
+Which decisions mattered?
+
+Which plans succeeded?
+
+Which execution paths failed?
+
+Produce causal links only.
+
+No recommendations.
+
+=======================================================================
+5. EXECUTIVE FACTOR ENGINE
+=======================================================================
+
+Identify major contributing factors.
+
+Supported categories:
+
+Context
+
+Knowledge
+
+Goal Priority
+
+Planning Strategy
+
+Execution Quality
+
+External Factors
+
+Timing
+
+Business Constraints
+
+Confidence
+
+Each factor receives an Influence Score.
+
+0.00–1.00
+
+=======================================================================
+6. QUALITY ASSESSMENT ENGINE
+=======================================================================
+
+Score:
+
+Decision Quality
+
+Planning Quality
+
+Execution Quality
+
+Consistency
+
+Goal Alignment
+
+Strategic Alignment
+
+Resource Efficiency
+
+Evidence Quality
+
+Explain every score.
+
+Deterministic.
+
+=======================================================================
+7. REFLECTION REPORT ENGINE
+=======================================================================
+
+Produce immutable Reflection Reports.
+
+Include:
+
+Executive Summary
+
+Timeline
+
+Primary Factors
+
+Strengths
+
+Weaknesses
+
+Missed Opportunities
+
+Unexpected Outcomes
+
+Business Impact
+
+Evidence
+
+Confidence
+
+Reflection Confidence
+
+Reports become permanent cognitive artifacts.
+
+=======================================================================
+8. EXECUTIVE REVIEW SERVICES
+=======================================================================
+
+Provide:
+
+Retrieve Case
+
+Retrieve Reflection
+
+Retrieve Timeline
+
+Retrieve Factors
+
+Retrieve Scores
+
+Retrieve Evidence
+
+Retrieve Reports
+
+Reflection Diagnostics
+
+All Brains may consume.
+
+=======================================================================
+9. EXECUTIVE BRAIN INTEGRATION
+=======================================================================
+
+Executive Brain becomes reflection-aware.
+
+Pipeline
+
+Reason
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+↓
+
+Planning
+
+↓
+
+Execution
+
+↓
+
+Observation
+
+↓
+
+Reflection Summary
+
+Reflection summaries become available during future executive
+reasoning.
+
+Reflection never interrupts active execution.
+
+=======================================================================
+10. DATABASE
+=======================================================================
+
+Create tables supporting:
+
+Executive Cases
+
+Case Members
+
+Decision Timelines
+
+Reflection Reports
+
+Reflection Factors
+
+Reflection Scores
+
+Reflection Evidence
+
+Reflection Metrics
+
+Immutable.
+
+=======================================================================
+11. APIs
+=======================================================================
+
+Expose REST APIs.
+
+Examples
+
+Cases
+
+Reports
+
+Timelines
+
+Factors
+
+Evidence
+
+Scores
+
+Diagnostics
+
+Business Domains
+
+Strategic Categories
+
+=======================================================================
+12. EXTENSION POINTS
+=======================================================================
+
+Declare only.
+
+Do NOT implement:
+
+Learning
+
+Adaptation
+
+Business Optimization
+
+Predictive Reflection
+
+Executive Coaching
+
+Decision Simulation
+
+Counterfactual Analysis
+
+Strategy Evolution
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Observation Engine
+
+✓ Execution Engine
+
+✓ Planning Engine
+
+✓ Goal Engine
+
+✓ Judgment Engine
+
+✓ Context Engine
+
+✓ Memory
+
+✓ Knowledge
+
+✓ Executive Brain
+
+✓ Extension Registry
+
+Purely additive.
+
+Fail-open.
+
+Immutable.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Reflection NEVER changes plans.
+
+Reflection NEVER changes goals.
+
+Reflection NEVER changes execution.
+
+Reflection NEVER creates learning.
+
+Reflection NEVER changes weights.
+
+Reflection NEVER performs adaptation.
+
+Reflection ONLY explains completed executive cases.
+
+Learning owns extraction.
+
+Adaptation owns change.
+
+═══════════════════════════════════════════════════════════════════════
+EXECUTIVE CASE CONTRACT
+═══════════════════════════════════════════════════════════════════════
+
+Every completed Executive Case must contain:
+
+Origin
+
+Timeline
+
+Outcome
+
+Evidence
+
+Factors
+
+Scores
+
+Reflection Report
+
+Executive Cases become the permanent source of executive experience.
+
+Learning MUST consume Executive Cases.
+
+Nothing else.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Executive Case Engine
+
+✓ Case Assembly
+
+✓ Decision Reconstruction
+
+✓ Causal Analysis
+
+✓ Executive Factors
+
+✓ Quality Assessment
+
+✓ Reflection Reports
+
+✓ Executive Integration
+
+✓ Database
+
+✓ APIs
+
+✓ Extension Framework
+
+✓ Immutable Reports
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1 Executive Summary
+
+2 Files Created
+
+3 Files Modified
+
+4 Database Changes
+
+5 APIs
+
+6 Services
+
+7 Executive Case Model
+
+8 Decision Reconstruction
+
+9 Reflection Report
+
+10 Quality Assessment
+
+11 Causal Analysis
+
+12 Extension Points
+
+13 Existing Systems Reused
+
+14 Existing Systems Extended
+
+15 Technical Debt
+
+16 Performance Impact
+
+17 Architectural Decisions
+
+For each decision include:
+
+Decision
+
+Reason
+
+Alternatives Considered
+
+Trade-offs Accepted
+
+Future Expansion Opportunities
+
+18 Cognitive Evolution Score
+
+Evaluate:
+
+Executive Experience
+
+Reflection Quality
+
+Business Insight
+
+Maintainability
+
+Future Learning Readiness
+
+Scalability
+
+Overall Grade
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Reflection Engine is the first system within ASH that
+attempts to understand the complete story behind executive outcomes.
+
+It does not judge success or failure in isolation.
+
+Instead, it reconstructs complete Executive Cases, preserving the
+sequence of decisions, actions, observations, and outcomes that led to
+each result.
+
+Reflection produces explanation—not change.
+
+By separating explanation from learning, ASH gains the ability to build
+a permanent library of executive experience that can later be mined for
+wisdom without rewriting history or introducing hindsight bias.
+
+This architectural boundary is permanent.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 013.
+
+═══════════════════════════════════════════════════════════════════════
+END BUILD 012
+═══════════════════════════════════════════════════════════════════════

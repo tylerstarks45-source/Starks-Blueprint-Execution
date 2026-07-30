@@ -63,4 +63,7 @@ export interface ExecutiveBrainResult {
   // Build 011: Summary of recent observations for this user at the time of the
   // request. Absent on failure or when no observations exist yet.
   observationSummary?: import("../executive-observation/types").ObservationSummary;
+  // Build 012: Summary of recent Executive Cases and Reflection Reports for
+  // this user. Absent on failure or when no cases exist yet.
+  reflectionSummary?: import("../executive-reflection/types").ReflectionSummary;
 }

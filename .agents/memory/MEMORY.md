@@ -56,5 +56,7 @@
 - [Executive Goal Engine](executive-goal.md) — Build 008: 4 tables, priority formula, conflict detection (4 types, never resolves), progress history; goals→judgment one-way; 38 total EPs at boot.
 - [Executive Planning Engine](executive-plan.md) — Build 009: 6 tables, deterministic generation (5 strategies), 7-dimension scoring, 5 dependency detectors, immutable history; planning NEVER executes; 44 total EPs at boot.
 - [Executive Execution Engine](executive-execution.md) — Build 010: 6 tables, 10-state machine, step engine, coordinator, adapters (interfaces only), immutable history; execution NEVER plans/judges/changes goals; 54 total EPs at boot.
+- [Executive Observation Engine](executive-observation.md) — Build 011: 8 tables, append-only observations, 8 EPs, 16 REST endpoints; Observation NEVER changes state; 62 total EPs at boot.
+- [Executive Reflection Engine](executive-reflection.md) — Build 012: 8 tables, Executive Cases + Reflection Reports, 8 EPs, 16 REST endpoints; Reflection ONLY explains completed cases; 70 total EPs at boot.
 - [Cognitive Foundation registries](cognitive-foundation.md) — in-process brain/capability/extension-point registries in api-server; future Brains register at boot; consumers read the registry, never hardcode lists.
 - [Executive Context Engine](executive-context-engine.md) — Build 006: 4 new tables, 6 modules, 18 API routes, 6 extension points; db project-references require `pnpm --filter @workspace/db exec tsc` after schema changes; types.ts stays self-contained (no re-export from @workspace/db).

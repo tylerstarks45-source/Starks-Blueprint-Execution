@@ -25,6 +25,9 @@ import type { ExecutiveExecution } from "../executive-execution/types";
 // Build 011: Executive Observation Engine
 import { fetchObservationSummary, publishBrainObservation, buildObservationAdvisory } from "./observation-integration";
 import type { ObservationSummary } from "../executive-observation/types";
+// Build 012: Executive Reflection Engine
+import { fetchReflectionSummary, ensureCaseForCycle, buildReflectionAdvisory } from "./reflection-integration";
+import type { ReflectionSummary } from "../executive-reflection/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -222,7 +225,31 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: observation step failed (ignored)");
   }
 
-  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary });
+  // ── Executive Reflection Engine (Build 012) ──────────────────────────────────
+  // Fetch reflection summary (recent cases + quality scores) for the advisory.
+  // Ensure a case is open for this cycle (idempotent — reuses existing case
+  // when the same execution is active).
+  // Reflection NEVER changes execution, plans, goals, or memory.
+  // Fail-open: a reflection failure must never block the request path.
+  let reflectionSummary: ReflectionSummary | undefined;
+  try {
+    reflectionSummary = await fetchReflectionSummary(userId) ?? undefined;
+    // Open/reuse a case for this brain cycle (fire-and-forget)
+    void ensureCaseForCycle({
+      userId,
+      rootRequest: message,
+      primaryGoalId: activeGoals[0]?.id,
+      primaryPlanId: activePlanId,
+      primaryExecutionId: activeExecutionId,
+      primaryChainId: observationSummary?.latestChainId ?? undefined,
+    }).catch((err) => {
+      logger.warn({ err }, "Executive Brain: case open failed (non-fatal)");
+    });
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: reflection step failed (ignored)");
+  }
+
+  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary });
 
   logger.info(
     {
@@ -255,6 +282,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     activePlanId,
     activeExecutionId,
     observationSummary,
+    reflectionSummary,
   };
 }
 
@@ -273,8 +301,9 @@ function buildContextNote(params: {
   activeExecutions: ExecutiveExecution[];
   activeExecutionId: string | undefined;
   observationSummary: ObservationSummary | undefined;
+  reflectionSummary: ReflectionSummary | undefined;
 }): string {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -435,6 +464,19 @@ function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: observation advisory failed (ignored)");
+  }
+
+  // ── Executive Reflection advisory (Build 012) ────────────────────────────
+  // Summary of recent Executive Cases and Reflection Reports.
+  // Zero-I/O: the summary was fetched before buildContextNote was called.
+  try {
+    const reflectionAdvisory = buildReflectionAdvisory(reflectionSummary ?? null);
+    if (reflectionAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(reflectionAdvisory, 500));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: reflection advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

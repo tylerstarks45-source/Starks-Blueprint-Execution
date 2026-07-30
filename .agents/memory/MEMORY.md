@@ -59,5 +59,6 @@
 - [Executive Observation Engine](executive-observation.md) — Build 011: 8 tables, append-only observations, 8 EPs, 16 REST endpoints; Observation NEVER changes state; 62 total EPs at boot.
 - [Executive Reflection Engine](executive-reflection.md) — Build 012: 8 tables, Executive Cases + Reflection Reports, 8 EPs, 16 REST endpoints; Reflection ONLY explains completed cases; 70 total EPs at boot.
 - [Executive Principle Learning Engine](executive-learning.md) — Build 013: 9 tables, 8 EPs, 78 total EPs; pattern-based discovery (no AI); only VALIDATED principles visible to EB; background cycle every 20 EB cycles.
+- [Executive Governance & Adaptation Engine](executive-governance.md) — Build 014: 9 tables, 8 EPs, 86 total EPs; constitutional layer; APPROVED policies only reach EB; background cycle every 25 EB cycles; buildContextNote is now async.
 - [Cognitive Foundation registries](cognitive-foundation.md) — in-process brain/capability/extension-point registries in api-server; future Brains register at boot; consumers read the registry, never hardcode lists.
 - [Executive Context Engine](executive-context-engine.md) — Build 006: 4 new tables, 6 modules, 18 API routes, 6 extension points; db project-references require `pnpm --filter @workspace/db exec tsc` after schema changes; types.ts stays self-contained (no re-export from @workspace/db).

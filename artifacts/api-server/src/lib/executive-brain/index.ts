@@ -31,6 +31,9 @@ import type { ReflectionSummary } from "../executive-reflection/types";
 // Build 013: Executive Principle Learning Engine
 import { fetchLearningSummary, triggerLearningCycle, buildLearningAdvisory } from "./learning-integration";
 import type { LearningSummary } from "../executive-learning/types";
+// Build 014: Executive Governance & Adaptation Engine
+import { fetchGovernanceSummary, triggerGovernanceCycle, buildGovernanceAdvisory } from "./governance-integration";
+import type { GovernanceSummary } from "../executive-governance/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -265,7 +268,21 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: learning step failed (ignored)");
   }
 
-  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary });
+  // ── Executive Governance & Adaptation Engine (Build 014) ────────────────────
+  // Fetch governance summary (active profile + approved policies) for the advisory.
+  // Executive reasoning reads ONLY through approved policies — never raw principles.
+  // Trigger a background governance cycle every 25 brain cycles (throttled).
+  // Governance NEVER performs execution. Adaptation NEVER creates policy.
+  // Fail-open: a governance failure must never block the request path.
+  let governanceSummary: GovernanceSummary | undefined;
+  try {
+    governanceSummary = await fetchGovernanceSummary(userId) ?? undefined;
+    triggerGovernanceCycle(userId); // fire-and-forget, internally throttled
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: governance step failed (ignored)");
+  }
+
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, userId });
 
   logger.info(
     {
@@ -300,10 +317,11 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     observationSummary,
     reflectionSummary,
     learningSummary,
+    governanceSummary,
   };
 }
 
-function buildContextNote(params: {
+async function buildContextNote(params: {
   isNew: boolean;
   project: ExecutiveBrainResult["project"];
   goal: ExecutiveBrainResult["goal"];
@@ -320,8 +338,10 @@ function buildContextNote(params: {
   observationSummary: ObservationSummary | undefined;
   reflectionSummary: ReflectionSummary | undefined;
   learningSummary: LearningSummary | undefined;
-}): string {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary } = params;
+  governanceSummary: GovernanceSummary | undefined;
+  userId: number;
+}): Promise<string> {
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -495,6 +515,33 @@ function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: reflection advisory failed (ignored)");
+  }
+
+  // ── Executive Principle Learning advisory (Build 013) ────────────────────
+  // Summary of validated principles discovered from experience.
+  // Zero-I/O: the summary was fetched before buildContextNote was called.
+  try {
+    const learningAdvisory = buildLearningAdvisory(learningSummary ?? null);
+    if (learningAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(learningAdvisory, 500));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: learning advisory failed (ignored)");
+  }
+
+  // ── Executive Governance advisory (Build 014) ────────────────────────────
+  // Active behavior profile + approved policy advisories.
+  // Executive reasoning reads ONLY through approved policies — never raw principles.
+  // This is an async call (reads approved policies from DB) but fail-open.
+  try {
+    const governanceAdvisory = await buildGovernanceAdvisory(governanceSummary ?? null, userId);
+    if (governanceAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(governanceAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: governance advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

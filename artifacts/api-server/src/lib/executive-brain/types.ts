@@ -69,4 +69,8 @@ export interface ExecutiveBrainResult {
   // Build 013: Validated Executive Principles available to the reasoning pipeline.
   // Draft and candidate principles are invisible here.
   learningSummary?: import("../executive-learning/types").LearningSummary;
+  // Build 014: Active governance profile + approved policy advisories.
+  // Executive reasoning reads ONLY through approved policies — never raw principles.
+  // Draft and proposed policies are invisible here.
+  governanceSummary?: import("../executive-governance/types").GovernanceSummary;
 }

@@ -1,0 +1,698 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 014
+
+TITLE
+
+Executive Governance & Adaptation Engine
+
+PHASE
+
+Phase II – Executive Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Governance & Adaptation Engine converts validated
+Executive Principles into governed Executive Policies and controlled
+Behavior Profiles.
+
+Learning discovers truth.
+
+Governance decides whether that truth should influence behavior.
+
+Adaptation applies only approved policies.
+
+No principle may directly modify executive cognition.
+
+Governance is therefore the constitutional layer of ASH.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE PIPELINE
+═══════════════════════════════════════════════════════════════════════
+
+Reason
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+↓
+
+Planning
+
+↓
+
+Execution
+
+↓
+
+Observation
+
+↓
+
+Reflection
+
+↓
+
+Learning
+
+↓
+
+Governance
+
+↓
+
+Adaptation
+
+═══════════════════════════════════════════════════════════════════════
+NEW COGNITIVE OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Executive Policy
+
+Behavior Profile
+
+Policy Decision
+
+Policy Version
+
+Behavior Snapshot
+
+Governance Report
+
+═══════════════════════════════════════════════════════════════════════
+CORE PHILOSOPHY
+═══════════════════════════════════════════════════════════════════════
+
+Principles are observations about reality.
+
+Policies are decisions about behavior.
+
+Behavior Profiles define how executive cognition should operate.
+
+No behavior changes occur without an approved policy.
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement an Executive Governance Engine capable of:
+
+• Evaluating validated principles
+
+• Detecting policy conflicts
+
+• Creating Executive Policies
+
+• Versioning policies
+
+• Creating behavior profiles
+
+• Applying profiles safely
+
+• Supporting rollback
+
+• Recording every governance decision
+
+• Producing immutable Governance Reports
+
+Governance never changes facts.
+
+Governance only authorizes behavior.
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════
+
+=======================================================================
+1. EXECUTIVE POLICY ENGINE
+=======================================================================
+
+Create ExecutivePolicy.
+
+Support:
+
+Policy ID
+
+Title
+
+Description
+
+Source Principle IDs
+
+Business Domains
+
+Strategic Categories
+
+Policy Type
+
+Priority
+
+Status
+
+Draft
+
+Proposed
+
+Approved
+
+Rejected
+
+Retired
+
+Effective Date
+
+Expiration
+
+Created
+
+Version
+
+Immutable revisions.
+
+=======================================================================
+2. POLICY EVALUATION ENGINE
+=======================================================================
+
+Evaluate every validated principle.
+
+Inputs:
+
+Confidence
+
+Reliability
+
+Evidence
+
+Contradictions
+
+Business Impact
+
+Principle Age
+
+Observation Count
+
+Decision outputs:
+
+Approve
+
+Reject
+
+Defer
+
+Merge
+
+Split
+
+Supersede
+
+=======================================================================
+3. POLICY CONFLICT ENGINE
+=======================================================================
+
+Detect:
+
+Contradicting policies
+
+Overlapping domains
+
+Duplicate guidance
+
+Priority conflicts
+
+Deprecated dependencies
+
+Cycles
+
+Produce Conflict Reports.
+
+=======================================================================
+4. BEHAVIOR PROFILE ENGINE
+=======================================================================
+
+Create Behavior Profiles.
+
+Examples:
+
+Conservative
+
+Balanced
+
+Aggressive
+
+Experimental
+
+Custom
+
+Profiles contain only references to approved policies.
+
+No duplicated policy logic.
+
+=======================================================================
+5. ADAPTATION ENGINE
+=======================================================================
+
+Generate Adaptation Plans.
+
+Plans describe:
+
+Policies to activate
+
+Policies to retire
+
+Expected impact
+
+Affected cognitive systems
+
+Rollback strategy
+
+Adaptation Plans are executable only after approval.
+
+=======================================================================
+6. CHANGE APPLICATION ENGINE
+=======================================================================
+
+Apply Behavior Profiles.
+
+Supported targets:
+
+Executive Brain
+
+Planning
+
+Judgment
+
+Goal Prioritization
+
+Execution Strategy
+
+Context weighting
+
+Future cognitive systems
+
+Every applied change is versioned.
+
+=======================================================================
+7. ROLLBACK ENGINE
+=======================================================================
+
+Every adaptation creates:
+
+Behavior Snapshot
+
+Rollback Point
+
+Change Log
+
+Rollback restores previous profile without
+modifying history.
+
+=======================================================================
+8. GOVERNANCE REPORT ENGINE
+=======================================================================
+
+Produce immutable reports containing:
+
+Evaluated Principles
+
+Approved Policies
+
+Rejected Policies
+
+Conflict Analysis
+
+Behavior Changes
+
+Rollback Points
+
+Executive Summary
+
+Confidence
+
+Evidence
+
+═══════════════════════════════════════════════════════════════════════
+9. POLICY REGISTRY
+═══════════════════════════════════════════════════════════════════════
+
+Provide:
+
+Retrieve Policies
+
+Search Policies
+
+Policy History
+
+Behavior Profiles
+
+Current Profile
+
+Governance Diagnostics
+
+Rollback History
+
+═══════════════════════════════════════════════════════════════════════
+10. EXECUTIVE BRAIN INTEGRATION
+═══════════════════════════════════════════════════════════════════════
+
+Executive Brain consumes:
+
+Current Behavior Profile
+
+Policy Advisory
+
+Adaptation Summary
+
+Executive reasoning never reads raw principles.
+
+It reasons through active policy.
+
+═══════════════════════════════════════════════════════════════════════
+11. DATABASE
+═══════════════════════════════════════════════════════════════════════
+
+Create tables:
+
+Executive Policies
+
+Policy Versions
+
+Policy Decisions
+
+Policy Conflicts
+
+Behavior Profiles
+
+Behavior Snapshots
+
+Adaptation Plans
+
+Governance Reports
+
+Governance Metrics
+
+Immutable revisions.
+
+═══════════════════════════════════════════════════════════════════════
+12. APIs
+═══════════════════════════════════════════════════════════════════════
+
+Expose:
+
+Policies
+
+Profiles
+
+Plans
+
+Reports
+
+Conflicts
+
+Snapshots
+
+Rollback
+
+Diagnostics
+
+Search
+
+History
+
+═══════════════════════════════════════════════════════════════════════
+13. EXTENSION POINTS
+═══════════════════════════════════════════════════════════════════════
+
+Declare only.
+
+Do NOT implement:
+
+Autonomous Goal Creation
+
+Autonomous Business Creation
+
+Self-Modifying Code
+
+Recursive Policy Generation
+
+Cross-User Learning
+
+Model Fine-Tuning
+
+Human Approval Workflows
+
+Multi-Agent Governance
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Learning Engine
+
+✓ Principle Graph
+
+✓ Reflection Engine
+
+✓ Executive Brain
+
+✓ Extension Registry
+
+✓ Observation Engine
+
+Purely additive.
+
+Fail-open.
+
+Immutable.
+
+Backward compatible.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Policies are immutable revisions.
+
+Behavior Profiles reference policies.
+
+Adaptation executes profiles.
+
+Learning never changes behavior.
+
+Governance never performs execution.
+
+Adaptation never creates policy.
+
+Every behavior change must be:
+
+Explainable
+
+Versioned
+
+Auditable
+
+Reversible
+
+═══════════════════════════════════════════════════════════════════════
+POLICY LIFECYCLE
+═══════════════════════════════════════════════════════════════════════
+
+Executive Cases
+
+↓
+
+Reflection
+
+↓
+
+Learning
+
+↓
+
+Validated Principles
+
+↓
+
+Governance
+
+↓
+
+Executive Policies
+
+↓
+
+Behavior Profiles
+
+↓
+
+Adaptation
+
+↓
+
+Executive Brain
+
+No shortcuts permitted.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Executive Policy Engine
+
+✓ Policy Evaluation
+
+✓ Conflict Engine
+
+✓ Behavior Profiles
+
+✓ Adaptation Plans
+
+✓ Change Application
+
+✓ Rollback
+
+✓ Governance Reports
+
+✓ Registry
+
+✓ Executive Integration
+
+✓ Database
+
+✓ APIs
+
+✓ Extension Framework
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1 Executive Summary
+
+2 Files Created
+
+3 Files Modified
+
+4 Database Changes
+
+5 APIs
+
+6 Services
+
+7 Policy Model
+
+8 Behavior Profile Model
+
+9 Adaptation Pipeline
+
+10 Rollback System
+
+11 Governance Reports
+
+12 Existing Systems Reused
+
+13 Existing Systems Extended
+
+14 Technical Debt
+
+15 Performance Impact
+
+16 Architectural Decisions
+
+For every decision include:
+
+Decision
+
+Reason
+
+Alternatives Considered
+
+Trade-offs Accepted
+
+Future Expansion Opportunities
+
+17 Cognitive Evolution Score
+
+Evaluate:
+
+Governance Quality
+
+Adaptation Safety
+
+Business Readiness
+
+Explainability
+
+Scalability
+
+Executive Intelligence
+
+Maintainability
+
+Overall Grade
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Governance & Adaptation Engine is the constitutional
+layer of the Cognitive Operating System.
+
+It ensures that accumulated wisdom does not become behavior without
+deliberate governance.
+
+By separating Principles, Policies, and Behavior Profiles, ASH gains
+the ability to evolve in a controlled, explainable, and reversible
+manner.
+
+Every behavioral change becomes an explicit governance decision,
+creating a complete audit trail from Executive Experience through
+Reflection, Learning, Governance, and finally Adaptation.
+
+This separation allows ASH to improve continuously while preserving
+stability, accountability, and trust.
+
+This architectural boundary is permanent.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Phase III planning.
+
+═══════════════════════════════════════════════════════════════════════
+END BUILD 014
+═══════════════════════════════════════════════════════════════════════

@@ -40,6 +40,9 @@ import type { BusinessGraphSummary } from "../business-graph/types";
 // Build 016: Business Analysis Engine
 import { fetchAnalysisSummary, triggerAnalysisRun, buildAnalysisAdvisory } from "./analysis-integration";
 import type { BusinessAnalysisSummary } from "../business-analysis/types";
+// Build 017: Opportunity Discovery Engine
+import { fetchOpportunitySummary, triggerOpportunityRun, buildOpportunityAdvisory } from "./opportunity-integration";
+import type { OpportunityDiscoverySummary } from "../opportunity-discovery/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -317,7 +320,22 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: business analysis step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, userId });
+  // ── Opportunity Discovery Engine (Build 017) ──────────────────────────────────
+  // Fetch the latest Opportunity Discovery summary for the user's primary business.
+  // Opportunity Discovery identifies value; EB NEVER owns opportunity state.
+  // Trigger a background discovery run every 50 brain cycles (throttled).
+  // Fail-open: a discovery failure must never block the request path.
+  let opportunityDiscoverySummary: OpportunityDiscoverySummary | undefined;
+  try {
+    opportunityDiscoverySummary = await fetchOpportunitySummary(userId) ?? undefined;
+    if (businessGraphSummary?.businessId) {
+      triggerOpportunityRun(userId, businessGraphSummary.businessId);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: opportunity discovery step failed (ignored)");
+  }
+
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, userId });
 
   logger.info(
     {
@@ -355,6 +373,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     governanceSummary,
     businessGraphSummary,
     businessAnalysisSummary,
+    opportunityDiscoverySummary,
   };
 }
 
@@ -378,9 +397,10 @@ async function buildContextNote(params: {
   governanceSummary: GovernanceSummary | undefined;
   businessGraphSummary: BusinessGraphSummary | undefined;
   businessAnalysisSummary: BusinessAnalysisSummary | undefined;
+  opportunityDiscoverySummary: OpportunityDiscoverySummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -610,6 +630,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: business analysis advisory failed (ignored)");
+  }
+
+  // ── Opportunity Discovery advisory (Build 017) ────────────────────────────
+  // Top opportunities ranked by composite score: category, impact, confidence.
+  // Opportunity Discovery identifies value; EB NEVER owns opportunity state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const oppAdvisory = buildOpportunityAdvisory(opportunityDiscoverySummary ?? null);
+    if (oppAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(oppAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: opportunity discovery advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

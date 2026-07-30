@@ -35,6 +35,7 @@ import { declareLearningExtensionPoints } from "../executive-learning/learning-e
 import { declareGovernanceExtensionPoints } from "../executive-governance/governance-extension-points";
 import { declareBusinessGraphExtensionPoints } from "../business-graph/business-extension-points";
 import { declareAnalysisExtensionPoints } from "../business-analysis/analysis-extension-points";
+import { declareOpportunityExtensionPoints } from "../opportunity-discovery/opportunity-extension-points";
 
 let initialized = false;
 
@@ -65,6 +66,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareGovernanceExtensionPoints();        // Build 014: eight governance & adaptation seams
       declareBusinessGraphExtensionPoints();     // Build 015: eight business graph seams
       declareAnalysisExtensionPoints();          // Build 016: eight business analysis seams
+      declareOpportunityExtensionPoints();       // Build 017: eight opportunity discovery seams
       registerCoreBrains();
       initialized = true;
 

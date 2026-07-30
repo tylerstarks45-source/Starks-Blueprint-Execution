@@ -81,4 +81,7 @@ export interface ExecutiveBrainResult {
   // the business (bottlenecks, constraints, leverage points, findings).
   // Analysis Engine explains reality; EB reasons over summaries only.
   businessAnalysisSummary?: import("../business-analysis/types").BusinessAnalysisSummary;
+  // Build 017: Opportunity Discovery summary — ranked opportunities derived from
+  // analysis. Discovery identifies value; EB reasons over summaries only.
+  opportunityDiscoverySummary?: import("../opportunity-discovery/types").OpportunityDiscoverySummary;
 }

@@ -68,6 +68,7 @@ import executiveLearningRouter from "./executive-learning";
 import executiveGovernanceRouter from "./executive-governance";
 import businessGraphRouter from "./business-graph";
 import businessAnalysisRouter from "./business-analysis";
+import opportunityDiscoveryRouter from "./opportunity-discovery";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -157,5 +158,7 @@ router.use("/api/executive-governance", executiveGovernanceRouter);
 router.use("/api/business-graph", businessGraphRouter);
 // Build 016: Business Analysis Engine — reports, findings, bottlenecks, constraints, leverage
 router.use("/api/business-analysis", businessAnalysisRouter);
+// Build 017: Opportunity Discovery Engine — ranked opportunities, evidence, scores
+router.use("/api/opportunity-discovery", opportunityDiscoveryRouter);
 
 export default router;

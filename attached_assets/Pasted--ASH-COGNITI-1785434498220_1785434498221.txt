@@ -1,0 +1,302 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 017
+
+TITLE
+
+Opportunity Discovery Engine
+
+PHASE
+
+Phase III – Business Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+Transform deterministic Business Analysis into a ranked set of
+Executive Opportunities.
+
+This layer identifies where measurable business value may exist.
+
+It NEVER creates strategy.
+
+It NEVER creates execution plans.
+
+It NEVER performs execution.
+
+It only discovers and ranks opportunities.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE PIPELINE
+═══════════════════════════════════════════════════════════════════════
+
+Business Graph
+
+↓
+
+Business Analysis
+
+↓
+
+Opportunity Discovery
+
+↓
+
+Strategic Simulation (Build 018)
+
+↓
+
+Decision Intelligence
+
+↓
+
+Planning
+
+↓
+
+Execution
+
+═══════════════════════════════════════════════════════════════════════
+NEW COGNITIVE OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Executive Opportunity
+
+Opportunity Report
+
+Opportunity Evidence
+
+Opportunity Category
+
+Opportunity Score
+
+Opportunity Confidence
+
+Opportunity Registry
+
+Opportunity Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement a deterministic Opportunity Discovery Engine capable of:
+
+• discovering opportunities
+
+• ranking opportunities
+
+• scoring opportunities
+
+• grouping opportunities
+
+• measuring potential impact
+
+• measuring implementation difficulty
+
+• measuring confidence
+
+• explaining why every opportunity exists
+
+• maintaining immutable opportunity history
+
+═══════════════════════════════════════════════════════════════════════
+CORE ENGINES
+═══════════════════════════════════════════════════════════════════════
+
+1. Opportunity Detection Engine
+
+Consumes Business Analysis Reports.
+
+Discovers opportunities from:
+
+• bottlenecks
+
+• constraints
+
+• leverage points
+
+• KPI trends
+
+• health trends
+
+• graph topology
+
+2. Opportunity Classification Engine
+
+Categories include:
+
+Revenue Growth
+
+Cost Reduction
+
+Automation
+
+Marketing
+
+Sales
+
+Customer Success
+
+Operations
+
+Product
+
+Infrastructure
+
+Finance
+
+Risk Reduction
+
+Knowledge
+
+3. Opportunity Scoring Engine
+
+Every opportunity receives:
+
+Business Impact
+
+Estimated Reach
+
+Estimated Effort
+
+Risk
+
+Confidence
+
+Strategic Value
+
+Composite Opportunity Score
+
+4. Opportunity Ranking Engine
+
+Ranks every opportunity.
+
+Produces Top Opportunities.
+
+Produces Priority Groups.
+
+5. Opportunity Evidence Engine
+
+Every opportunity must include evidence.
+
+Evidence references:
+
+Business Analysis Findings
+
+Business Graph Nodes
+
+KPIs
+
+Health Reports
+
+Dependencies
+
+No unsupported opportunities allowed.
+
+6. Opportunity Registry
+
+Maintains:
+
+Historical Opportunities
+
+Status
+
+Score History
+
+Confidence History
+
+Discovery Date
+
+Resolution Date
+
+Lifecycle
+
+═══════════════════════════════════════════════════════════════════════
+EXECUTIVE BRAIN INTEGRATION
+═══════════════════════════════════════════════════════════════════════
+
+Executive Brain receives:
+
+Top Opportunities
+
+Highest Score
+
+Highest Confidence
+
+Highest Business Value
+
+Executive Opportunity Summary
+
+Executive Brain does NOT receive full reports.
+
+═══════════════════════════════════════════════════════════════════════
+DATABASE
+═══════════════════════════════════════════════════════════════════════
+
+Create:
+
+executive_opportunities
+
+opportunity_reports
+
+opportunity_evidence
+
+opportunity_scores
+
+opportunity_rankings
+
+opportunity_snapshots
+
+opportunity_registry
+
+All immutable except registry roll-up.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Every opportunity must reference evidence.
+
+No AI hallucinated opportunities.
+
+No strategy.
+
+No recommendations.
+
+No plans.
+
+Only ranked opportunities supported by deterministic evidence.
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+Business Analysis explains reality.
+
+Opportunity Discovery identifies value.
+
+These responsibilities must never merge.
+
+Opportunity Discovery is the executive lens that highlights where
+attention should be focused. It does not decide what to do about
+those opportunities—that responsibility belongs to Strategic
+Simulation and Decision Intelligence in subsequent builds.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 018.
+
+═══════════════════════════════════════════════════════════════════════
+END BUILD 017
+═══════════════════════════════════════════════════════════════════════

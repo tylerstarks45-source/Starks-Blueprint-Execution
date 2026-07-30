@@ -73,4 +73,8 @@ export interface ExecutiveBrainResult {
   // Executive reasoning reads ONLY through approved policies — never raw principles.
   // Draft and proposed policies are invisible here.
   governanceSummary?: import("../executive-governance/types").GovernanceSummary;
+  // Build 015: Business Graph summary — the real-world business graph the EB is
+  // reasoning about. Business Graph NEVER performs reasoning; EB NEVER owns
+  // business state. Strict separation.
+  businessGraphSummary?: import("../business-graph/types").BusinessGraphSummary;
 }

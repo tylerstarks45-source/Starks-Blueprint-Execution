@@ -34,6 +34,9 @@ import type { LearningSummary } from "../executive-learning/types";
 // Build 014: Executive Governance & Adaptation Engine
 import { fetchGovernanceSummary, triggerGovernanceCycle, buildGovernanceAdvisory } from "./governance-integration";
 import type { GovernanceSummary } from "../executive-governance/types";
+// Build 015: Business Graph Engine
+import { fetchBusinessSummary, triggerGraphRefresh, buildBusinessAdvisory } from "./business-integration";
+import type { BusinessGraphSummary } from "../business-graph/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -282,7 +285,21 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: governance step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, userId });
+  // ── Business Graph Engine (Build 015) ───────────────────────────────────────
+  // Fetch the Business Graph summary for the primary business of this user.
+  // Executive Brain reasons OVER the graph; Business Graph NEVER reasons.
+  // Business Graph NEVER owns EB state; EB NEVER owns business state.
+  // Trigger a background graph refresh every 30 brain cycles (throttled).
+  // Fail-open: a business graph failure must never block the request path.
+  let businessGraphSummary: BusinessGraphSummary | undefined;
+  try {
+    businessGraphSummary = await fetchBusinessSummary(userId) ?? undefined;
+    triggerGraphRefresh(userId); // fire-and-forget, internally throttled
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: business graph step failed (ignored)");
+  }
+
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, userId });
 
   logger.info(
     {
@@ -318,6 +335,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     reflectionSummary,
     learningSummary,
     governanceSummary,
+    businessGraphSummary,
   };
 }
 
@@ -339,9 +357,10 @@ async function buildContextNote(params: {
   reflectionSummary: ReflectionSummary | undefined;
   learningSummary: LearningSummary | undefined;
   governanceSummary: GovernanceSummary | undefined;
+  businessGraphSummary: BusinessGraphSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -542,6 +561,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: governance advisory failed (ignored)");
+  }
+
+  // ── Business Graph advisory (Build 015) ──────────────────────────────────
+  // Assembles a compact business-aware context section from the graph state.
+  // EB reasons over the graph; Business Graph NEVER reasons.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const bizAdvisory = buildBusinessAdvisory(businessGraphSummary ?? null);
+    if (bizAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(bizAdvisory, 700));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: business graph advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

@@ -33,6 +33,7 @@ import { declareObservationExtensionPoints } from "../executive-observation/obse
 import { declareReflectionEngineExtensionPoints } from "../executive-reflection/reflection-extension-points";
 import { declareLearningExtensionPoints } from "../executive-learning/learning-extension-points";
 import { declareGovernanceExtensionPoints } from "../executive-governance/governance-extension-points";
+import { declareBusinessGraphExtensionPoints } from "../business-graph/business-extension-points";
 
 let initialized = false;
 
@@ -61,6 +62,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareReflectionEngineExtensionPoints();  // Build 012: eight reflection engine seams
       declareLearningExtensionPoints();          // Build 013: eight principle learning seams
       declareGovernanceExtensionPoints();        // Build 014: eight governance & adaptation seams
+      declareBusinessGraphExtensionPoints();     // Build 015: eight business graph seams
       registerCoreBrains();
       initialized = true;
 

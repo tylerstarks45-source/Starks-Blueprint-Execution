@@ -1,0 +1,547 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 015
+
+TITLE
+
+Business Operating System (Business Graph Engine)
+
+PHASE
+
+Phase III – Business Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Business Operating System provides ASH with a persistent,
+structured understanding of businesses.
+
+The Executive Brain understands cognition.
+
+The Business Graph understands businesses.
+
+Every online business becomes a living graph composed of
+entities, relationships, assets, goals, workflows,
+performance metrics and strategic state.
+
+All future business reasoning operates on the Business Graph.
+
+═══════════════════════════════════════════════════════════════════════
+MISSION
+═══════════════════════════════════════════════════════════════════════
+
+Make ASH capable of operating businesses instead of merely
+completing tasks.
+
+═══════════════════════════════════════════════════════════════════════
+NEW CORE OBJECT
+═══════════════════════════════════════════════════════════════════════
+
+Business Graph
+
+A Business Graph models an entire business.
+
+Examples
+
+Company
+
+↓
+
+Products
+
+↓
+
+Customers
+
+↓
+
+Offers
+
+↓
+
+Funnels
+
+↓
+
+Marketing
+
+↓
+
+Sales
+
+↓
+
+Operations
+
+↓
+
+Finance
+
+↓
+
+Automation
+
+↓
+
+Projects
+
+↓
+
+People
+
+↓
+
+Assets
+
+↓
+
+KPIs
+
+↓
+
+Goals
+
+Everything is connected.
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement a Business Graph Engine capable of:
+
+• Creating businesses
+
+• Modeling business entities
+
+• Modeling relationships
+
+• Tracking ownership
+
+• Tracking dependencies
+
+• Tracking lifecycle
+
+• Tracking KPIs
+
+• Tracking business health
+
+• Providing executive business context
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════
+
+=======================================================================
+1. BUSINESS GRAPH ENGINE
+=======================================================================
+
+Create BusinessGraph.
+
+Support:
+
+Business
+
+Departments
+
+Projects
+
+Products
+
+Services
+
+Offers
+
+Funnels
+
+Campaigns
+
+Customers
+
+Leads
+
+Partners
+
+Suppliers
+
+Employees
+
+Agents
+
+Assets
+
+Processes
+
+Automation
+
+Knowledge Assets
+
+Revenue Streams
+
+Expenses
+
+KPIs
+
+Objectives
+
+Risks
+
+Everything represented as graph nodes.
+
+=======================================================================
+2. BUSINESS RELATIONSHIP ENGINE
+=======================================================================
+
+Create typed edges.
+
+Examples
+
+owns
+
+depends_on
+
+supports
+
+blocks
+
+generates
+
+markets
+
+sells
+
+contains
+
+uses
+
+belongs_to
+
+managed_by
+
+created_from
+
+optimized_by
+
+measures
+
+Every relationship versioned.
+
+=======================================================================
+3. BUSINESS STATE ENGINE
+=======================================================================
+
+Every node maintains:
+
+Lifecycle
+
+Health
+
+Status
+
+Owner
+
+Priority
+
+Risk
+
+Confidence
+
+Business Value
+
+Strategic Importance
+
+=======================================================================
+4. KPI ENGINE
+=======================================================================
+
+Support KPIs.
+
+Examples
+
+Revenue
+
+MRR
+
+ARR
+
+Conversion Rate
+
+CAC
+
+LTV
+
+Profit
+
+Traffic
+
+Lead Velocity
+
+Retention
+
+Churn
+
+Pipeline Value
+
+Growth Rate
+
+KPIs become first-class objects.
+
+=======================================================================
+5. BUSINESS HEALTH ENGINE
+=======================================================================
+
+Calculate:
+
+Financial Health
+
+Marketing Health
+
+Sales Health
+
+Operational Health
+
+Product Health
+
+Growth Health
+
+Executive Health
+
+Overall Business Health
+
+Deterministic.
+
+Explainable.
+
+=======================================================================
+6. DEPENDENCY ENGINE
+=======================================================================
+
+Track:
+
+Critical paths
+
+Single points of failure
+
+Blocked initiatives
+
+Missing assets
+
+Broken workflows
+
+Risk propagation
+
+=======================================================================
+7. BUSINESS CONTEXT ENGINE
+=======================================================================
+
+Executive Brain now receives:
+
+Business Summary
+
+Critical Risks
+
+Current KPIs
+
+Strategic Priorities
+
+Dependency Alerts
+
+Business Opportunities
+
+Business Health
+
+Every reasoning cycle becomes business-aware.
+
+=======================================================================
+8. BUSINESS REGISTRY
+=======================================================================
+
+Provide:
+
+Businesses
+
+Projects
+
+Assets
+
+Relationships
+
+KPIs
+
+Dependencies
+
+Health
+
+Diagnostics
+
+Search
+
+=======================================================================
+9. DATABASE
+=======================================================================
+
+Create tables:
+
+businesses
+
+business_nodes
+
+business_edges
+
+business_kpis
+
+business_metrics
+
+business_health
+
+business_dependencies
+
+business_snapshots
+
+business_registry
+
+═══════════════════════════════════════════════════════════════════════
+10. APIs
+═══════════════════════════════════════════════════════════════════════
+
+Expose:
+
+Businesses
+
+Graph
+
+Nodes
+
+Relationships
+
+KPIs
+
+Health
+
+Dependencies
+
+Snapshots
+
+Diagnostics
+
+═══════════════════════════════════════════════════════════════════════
+11. EXECUTIVE BRAIN INTEGRATION
+═══════════════════════════════════════════════════════════════════════
+
+Executive Brain receives:
+
+Business Graph Summary
+
+Business Health
+
+Priority Projects
+
+Critical Dependencies
+
+Active Risks
+
+Business Opportunities
+
+Business Context
+
+═══════════════════════════════════════════════════════════════════════
+12. EXTENSION POINTS
+═══════════════════════════════════════════════════════════════════════
+
+Declare only.
+
+Future:
+
+Opportunity Engine
+
+Simulation Engine
+
+Multi-Agent Operations
+
+Forecasting
+
+Market Intelligence
+
+Competitive Intelligence
+
+Business Reports
+
+Portfolio Management
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Business Graph contains business reality.
+
+Executive Cognition reasons over Business Graph.
+
+Business Graph never performs reasoning.
+
+Executive Brain never owns business state.
+
+Strict separation.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Business Graph
+
+✓ Relationship Engine
+
+✓ KPI Engine
+
+✓ Business Health
+
+✓ Dependency Engine
+
+✓ Executive Integration
+
+✓ Registry
+
+✓ APIs
+
+✓ Database
+
+✓ Extension Framework
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+Phase II built an Executive Mind.
+
+Phase III begins building an Executive Enterprise.
+
+The Business Graph becomes the persistent digital twin of every
+business ASH operates.
+
+Rather than reasoning over isolated prompts, files, or tasks,
+ASH now reasons over a structured representation of the business
+itself.
+
+Every future capability—strategy, forecasting, opportunity
+discovery, multi-agent execution, simulations, and autonomous
+operations—will build on this graph.
+
+This architectural boundary is permanent.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 016.
+
+═══════════════════════════════════════════════════════════════════════
+END BUILD 015
+═══════════════════════════════════════════════════════════════════════

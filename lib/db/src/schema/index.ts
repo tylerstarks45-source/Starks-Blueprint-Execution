@@ -78,5 +78,6 @@ export * from "./cognitive_graph";
 export * from "./executive_context";
 export * from "./executive_judgment";
 export * from "./executive_goal";
+export * from "./executive_plan";
 
 export * from "./system_logs";

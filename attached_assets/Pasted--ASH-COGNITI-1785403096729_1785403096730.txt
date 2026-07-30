@@ -1,0 +1,591 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 009
+
+TITLE:
+Executive Planning Engine
+
+PHASE:
+Phase II – Executive Intelligence
+
+STATUS:
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+Build 008 gave ASH Goals.
+
+Goals define the destination.
+
+Build 009 gives ASH Planning.
+
+Planning determines the optimal path from the current state toward a
+goal without executing any actions.
+
+The Executive Planning Engine becomes the permanent cognitive system
+responsible for transforming goals into structured execution plans.
+
+Planning is strategic thinking.
+
+Execution comes later.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE PIPELINE
+═══════════════════════════════════════════════════════════════════════
+
+Reasoning
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+↓
+
+Planning
+
+Execution is NOT part of this build.
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement a reusable Planning Engine capable of:
+
+• Building execution plans
+• Breaking goals into milestones
+• Creating ordered work steps
+• Detecting dependencies
+• Identifying blockers
+• Estimating effort
+• Estimating duration
+• Supporting multiple alternative plans
+• Ranking plans
+• Recording planning history
+
+Plans become permanent cognitive objects.
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════
+
+=======================================================================
+1. EXECUTIVE PLAN MODEL
+=======================================================================
+
+Create reusable Executive Plan objects.
+
+Support:
+
+• Plan ID
+• Goal ID
+• Parent Plan
+• Plan Name
+• Description
+• Status
+• Planning Strategy
+• Estimated Duration
+• Estimated Complexity
+• Estimated Cost
+• Estimated Risk
+• Estimated Confidence
+• Priority
+• Success Probability
+• Milestones
+• Steps
+• Dependencies
+• Assumptions
+• Constraints
+• Required Resources
+• Related Context
+• Related Judgment
+• Related Goals
+• Related Memory
+• Related Knowledge
+• Version
+• Created
+• Updated
+
+Plans must support unlimited nesting.
+
+=======================================================================
+2. PLAN GENERATION ENGINE
+=======================================================================
+
+Create a deterministic Planning Engine.
+
+Input:
+
+Goal
+
+Context
+
+Judgment
+
+Knowledge
+
+Output:
+
+Structured Plan
+
+The engine must produce:
+
+• Milestones
+• Ordered work steps
+• Dependency graph
+• Estimated effort
+• Estimated duration
+
+No AI calls.
+
+Planning must be deterministic.
+
+=======================================================================
+3. MILESTONE ENGINE
+=======================================================================
+
+Every plan consists of milestones.
+
+Milestones contain ordered steps.
+
+Support:
+
+• Parent milestone
+• Completion state
+• Dependencies
+• Progress
+• Ordering
+
+Unlimited hierarchy.
+
+=======================================================================
+4. DEPENDENCY ENGINE
+=======================================================================
+
+Detect:
+
+• Circular dependencies
+• Missing prerequisites
+• Resource conflicts
+• Invalid ordering
+• Blocked milestones
+
+Produce reports only.
+
+Never modify plans automatically.
+
+=======================================================================
+5. PLAN SCORING ENGINE
+=======================================================================
+
+Every generated plan receives scores.
+
+Evaluate:
+
+• Complexity
+• Risk
+• Cost
+• Estimated Duration
+• Resource Demand
+• Strategic Alignment
+• Confidence
+
+Produce:
+
+Overall Plan Score
+
+Support multiple candidate plans.
+
+Rank them.
+
+=======================================================================
+6. PLAN HISTORY
+=======================================================================
+
+Maintain immutable planning history.
+
+Track:
+
+Plan revisions
+
+Planning decisions
+
+Alternative plans
+
+Rejected plans
+
+Timestamps
+
+Nothing is overwritten.
+
+Future Reflection and Learning depend on this.
+
+=======================================================================
+7. SHARED PLANNING SERVICES
+=======================================================================
+
+Provide reusable services.
+
+Create Plan
+
+Retrieve Plan
+
+Update Plan
+
+Archive Plan
+
+Generate Plan
+
+Generate Alternative Plans
+
+Compare Plans
+
+Retrieve Plan History
+
+Retrieve Milestones
+
+Retrieve Dependencies
+
+Retrieve Diagnostics
+
+All Brains may consume these services.
+
+=======================================================================
+8. EXECUTIVE BRAIN INTEGRATION
+=======================================================================
+
+Executive flow becomes:
+
+Reason
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+↓
+
+Planning
+
+Planning produces recommendations.
+
+It never performs execution.
+
+=======================================================================
+9. DATABASE
+=======================================================================
+
+Create planning tables supporting:
+
+Executive Plans
+
+Milestones
+
+Plan Dependencies
+
+Plan History
+
+Alternative Plans
+
+Planning Metrics
+
+Planning Relationships
+
+Unlimited hierarchy.
+
+=======================================================================
+10. APIs
+=======================================================================
+
+Expose REST APIs.
+
+Examples:
+
+Create Plan
+
+Generate Plan
+
+Retrieve Plan
+
+Retrieve Milestones
+
+Retrieve Plan History
+
+Compare Plans
+
+Retrieve Alternatives
+
+Retrieve Diagnostics
+
+Archive Plan
+
+=======================================================================
+11. EXTENSION POINTS
+=======================================================================
+
+Declare extension points only.
+
+Do NOT implement:
+
+Execution
+
+Scheduling
+
+Task automation
+
+Learning
+
+Reflection
+
+Adaptive planning
+
+Self-modifying plans
+
+Autonomous execution
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse existing systems.
+
+Integrate with:
+
+✓ Executive Brain
+
+✓ Goal Engine
+
+✓ Judgment Engine
+
+✓ Context Engine
+
+✓ Knowledge Graph
+
+✓ Cognitive Memory
+
+✓ Decision Records
+
+✓ Extension Registry
+
+✓ Health Monitoring
+
+No duplicated logic.
+
+No architectural rewrites.
+
+Purely additive.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Planning NEVER executes.
+
+Planning NEVER changes goals.
+
+Planning NEVER changes judgments.
+
+Planning NEVER changes memory.
+
+Planning ONLY creates executable strategies.
+
+Execution belongs to Build 010.
+
+═══════════════════════════════════════════════════════════════════════
+DO NOT IMPLEMENT
+═══════════════════════════════════════════════════════════════════════
+
+Execution Engine
+
+Task Runner
+
+Automation
+
+Scheduling
+
+Reflection
+
+Learning
+
+Adaptation
+
+Autonomous Actions
+
+Notifications
+
+External API execution
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Executive Plan Model
+
+✓ Plan Generation Engine
+
+✓ Milestone Engine
+
+✓ Dependency Engine
+
+✓ Plan Scoring Engine
+
+✓ Planning History
+
+✓ Shared Planning Services
+
+✓ Executive Brain Integration
+
+✓ Database
+
+✓ APIs
+
+✓ Extension Framework
+
+✓ Backward Compatibility
+
+✓ Fail-open Architecture
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Changes
+
+5. APIs
+
+6. Services
+
+7. Models
+
+8. Extension Points
+
+9. Existing Systems Reused
+
+10. Existing Systems Extended
+
+11. Technical Debt
+
+12. Performance Impact
+
+13. Architectural Decisions
+
+For each architectural decision include:
+
+• Decision
+• Reason
+• Alternatives Considered
+• Trade-offs Accepted
+• Future Expansion Opportunities
+
+14. Cognitive Evolution Score
+
+Evaluate:
+
+• Planning Intelligence
+
+• Architectural Quality
+
+• Reusability
+
+• Scalability
+
+• Maintainability
+
+• Future Readiness
+
+Provide an overall grade with justification.
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Planning Engine is the first system that transforms
+executive intent into structured strategy.
+
+After this build, ASH will possess the complete executive decision
+pipeline:
+
+Reason
+
+↓
+
+Memory
+
+↓
+
+Knowledge
+
+↓
+
+Context
+
+↓
+
+Goals
+
+↓
+
+Judgment
+
+↓
+
+Planning
+
+Execution remains intentionally separate.
+
+This separation preserves deterministic planning while allowing the
+future Execution Engine to become reusable across every Brain in the
+Cognitive Operating System.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 010.
+
+═══════════════════════════════════════════════════════════════════════
+END OF BUILD 009
+═══════════════════════════════════════════════════════════════════════

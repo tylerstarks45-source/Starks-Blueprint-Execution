@@ -50,4 +50,9 @@ export interface ExecutiveBrainResult {
   // Passed to the Judgment Engine so active high-priority goals influence
   // option scoring. Absent on failure or when no goals exist.
   activeGoals?: import("../executive-goal/types").ExecutiveGoal[];
+  // Build 009: ID of the plan generated or retrieved for the primary active goal.
+  // Links this response to the full plan (milestones, steps, dependency report).
+  // Absent on failure, when no active goals exist, or when a plan already covers
+  // the primary goal.
+  activePlanId?: string;
 }

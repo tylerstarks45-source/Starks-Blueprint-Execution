@@ -16,6 +16,9 @@ import { evaluateJudgmentFromReasoning } from "./judgment-integration";
 // Build 008: Executive Goal Engine
 import { fetchActiveGoals, buildGoalAdvisory } from "./goal-integration";
 import type { ExecutiveGoal } from "../executive-goal/types";
+// Build 009: Executive Planning Engine
+import { fetchActivePlans, ensurePlanForPrimaryGoal, buildPlanAdvisory } from "./plan-integration";
+import type { ExecutivePlan } from "../executive-plan/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -154,7 +157,24 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     }
   }
 
-  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals });
+  // ── Executive Planning Engine (Build 009) ───────────────────────────────────
+  // Fetch active plans for this user. If no plan covers the primary active goal,
+  // generate one deterministically.  Planning NEVER executes — it only produces
+  // structured strategies.  Fail-open: a planning failure must never block the
+  // request path.
+  let activePlans: ExecutivePlan[] = [];
+  let activePlanId: string | undefined;
+  try {
+    activePlans = await fetchActivePlans(userId);
+    activePlanId = await ensurePlanForPrimaryGoal(userId, activeGoals, activePlans, {
+      contextSnapshotId,
+      judgmentId,
+    }) ?? undefined;
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: planning step failed (ignored)");
+  }
+
+  const brainContextNote = buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId });
 
   logger.info(
     {
@@ -166,6 +186,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
       reasoningConfidence: reasoningResult?.objectiveAnalysis.confidence.overall,
       judgmentId,
       activeGoalCount: activeGoals.length,
+      activePlanCount: activePlans.length,
+      activePlanId,
     },
     "Executive Brain resolved project/goal/tasks for request",
   );
@@ -180,6 +202,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     contextSnapshotId,
     judgmentId,
     activeGoals,
+    activePlanId,
   };
 }
 
@@ -193,8 +216,10 @@ function buildContextNote(params: {
   contextSnapshot: ExecutiveContextSnapshot | undefined;
   judgmentId: string | undefined;
   activeGoals: ExecutiveGoal[];
+  activePlans: ExecutivePlan[];
+  activePlanId: string | undefined;
 }): string {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -291,6 +316,19 @@ function buildContextNote(params: {
     } catch (err) {
       logger.warn({ err }, "Executive Brain: context advisory failed (ignored)");
     }
+  }
+
+  // ── Executive Planning advisory (Build 009) ──────────────────────────────
+  // One-line summary of active plans and any newly generated plan.
+  // Zero-I/O: activePlans were fetched before buildContextNote was called.
+  try {
+    const planAdvisory = buildPlanAdvisory(activePlans, activePlanId ?? null);
+    if (planAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(planAdvisory, 500));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: planning advisory failed (ignored)");
   }
 
   // ── Executive Goal advisory (Build 008) ─────────────────────────────────

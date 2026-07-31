@@ -61,6 +61,9 @@ import type { CapabilitySummary } from "../capability-planning/types";
 // Build 023: Operational Planning Engine
 import { fetchOperationalSummary, triggerOperationalRun, buildOperationalAdvisory } from "./operational-integration";
 import type { OperationalSummary } from "../operational-planning/types";
+// Build 024: Execution Orchestration Engine
+import { fetchExecutionOrchestrationSummary, triggerExecutionOrchestrationRun, buildExecutionOrchestrationAdvisory } from "./execution-orchestration-integration";
+import type { ExecutionOrchestrationSummary } from "../execution-orchestration/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -443,7 +446,22 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: operational planning step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, userId });
+  // ── Execution Orchestration Engine (Build 024) ───────────────────────────────
+  // Fetch the latest Execution Orchestration summary — assignments, owners, blockers, automation ratio.
+  // Execution Orchestration assigns responsibility; EB NEVER owns execution state.
+  // Trigger a background orchestration run every 120 brain cycles (throttled).
+  // Fail-open: an orchestration failure must never block the request path.
+  let executionOrchestrationSummary: ExecutionOrchestrationSummary | undefined;
+  try {
+    executionOrchestrationSummary = await fetchExecutionOrchestrationSummary(userId) ?? undefined;
+    if (businessGraphSummary?.businessId) {
+      triggerExecutionOrchestrationRun(userId, businessGraphSummary.businessId);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: execution orchestration step failed (ignored)");
+  }
+
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, userId });
 
   logger.info(
     {
@@ -488,6 +506,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     planningSummary,
     capabilitySummary,
     operationalSummary,
+    executionOrchestrationSummary,
   };
 }
 
@@ -518,9 +537,10 @@ async function buildContextNote(params: {
   planningSummary: PlanningSummary | undefined;
   capabilitySummary: CapabilitySummary | undefined;
   operationalSummary: OperationalSummary | undefined;
+  executionOrchestrationSummary: ExecutionOrchestrationSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -848,6 +868,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: operational planning advisory failed (ignored)");
+  }
+
+  // ── Execution Orchestration advisory (Build 024) ─────────────────────────
+  // Assignments, automation ratio, critical blockers, readiness, confidence.
+  // Execution Orchestration assigns responsibility; EB NEVER owns execution state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const eoAdvisory = buildExecutionOrchestrationAdvisory(executionOrchestrationSummary ?? null);
+    if (eoAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(eoAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: execution orchestration advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

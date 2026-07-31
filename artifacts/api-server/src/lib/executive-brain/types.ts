@@ -102,4 +102,7 @@ export interface ExecutiveBrainResult {
   // Build 023: Operational Planning summary — phases, work packages, dependencies, readiness.
   // Operational Planning organises work for execution; EB NEVER owns operational state.
   operationalSummary?: import("../operational-planning/types").OperationalSummary;
+  // Build 024: Execution Orchestration summary — assignments, owners, blockers, automation ratio.
+  // Execution Orchestration assigns responsibility; EB NEVER owns execution state.
+  executionOrchestrationSummary?: import("../execution-orchestration/types").ExecutionOrchestrationSummary;
 }

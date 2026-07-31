@@ -43,6 +43,7 @@ import { declarePlanningExtensionPoints } from "../strategic-planning/planning-e
 import { declareCapabilityExtensionPoints } from "../capability-planning/capability-extension-points";
 import { declareOperationalExtensionPoints } from "../operational-planning/operational-extension-points";
 import { declareExecutionOrchestrationExtensionPoints } from "../execution-orchestration/execution-extension-points";
+import { declareAuthorityResolutionExtensionPoints } from "../authority-resolution/authority-extension-points";
 
 let initialized = false;
 
@@ -81,6 +82,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareCapabilityExtensionPoints();        // Build 022: eight capability planning seams
       declareOperationalExtensionPoints();       // Build 023: eight operational planning seams
       declareExecutionOrchestrationExtensionPoints(); // Build 024: eight execution orchestration seams
+      declareAuthorityResolutionExtensionPoints();   // Build 025: eight authority resolution seams
       registerCoreBrains();
       initialized = true;
 

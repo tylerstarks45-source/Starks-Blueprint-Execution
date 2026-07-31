@@ -1,0 +1,408 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 025
+
+TITLE
+
+Authority Resolution Engine
+
+PHASE
+
+Phase IV – Operational Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Authority Resolution Engine determines whether ASH possesses
+the legal, operational, technical, and user-granted authority
+required to perform each execution assignment.
+
+It answers:
+
+"Am I authorized to perform this action?"
+
+This engine never executes.
+
+It never requests permissions automatically.
+
+It never bypasses governance.
+
+═══════════════════════════════════════════════════════════════════════
+MISSION
+═══════════════════════════════════════════════════════════════════════
+
+Resolve execution authority before any execution engine is allowed
+to act.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE PIPELINE
+═══════════════════════════════════════════════════════════════════════
+
+Business Graph
+
+↓
+
+Business Analysis
+
+↓
+
+Opportunity Discovery
+
+↓
+
+Future State Simulation
+
+↓
+
+Decision Intelligence
+
+↓
+
+Executive Strategy
+
+↓
+
+Strategic Planning
+
+↓
+
+Capability Planning
+
+↓
+
+Operational Planning
+
+↓
+
+Execution Orchestration
+
+↓
+
+Authority Resolution
+
+↓
+
+Execution
+
+═══════════════════════════════════════════════════════════════════════
+NEW COGNITIVE OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Authority Plan
+
+Authority Requirement
+
+Authority Grant
+
+Authority Scope
+
+Authority Token
+
+Authority Decision
+
+Authority Registry
+
+Authority Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement a deterministic Authority Resolution Engine capable of:
+
+• identifying required authorities
+
+• validating granted authorities
+
+• identifying missing authorities
+
+• validating scope limitations
+
+• evaluating authority confidence
+
+• identifying approval requirements
+
+• preserving immutable authority history
+
+═══════════════════════════════════════════════════════════════════════
+CORE ENGINES
+═══════════════════════════════════════════════════════════════════════
+
+1. Authority Discovery Engine
+
+Derives authority requirements from every execution assignment.
+
+=======================================================================
+
+2. Scope Resolution Engine
+
+Determines scope:
+
+User
+
+Business
+
+Project
+
+Workspace
+
+Organization
+
+Device
+
+Cloud Resource
+
+Integration
+
+=======================================================================
+
+3. Authority Validation Engine
+
+Determines:
+
+Granted
+
+Pending
+
+Expired
+
+Denied
+
+Unavailable
+
+=======================================================================
+
+4. Permission Dependency Engine
+
+Maps authority dependencies between integrations, systems,
+credentials, approvals, and governance policies.
+
+=======================================================================
+
+5. Approval Resolution Engine
+
+Determines when explicit human approval is required before authority
+can be considered valid.
+
+=======================================================================
+
+6. Authority Evaluation Engine
+
+Scores:
+
+Coverage
+
+Completeness
+
+Risk
+
+Trust
+
+Readiness
+
+Confidence
+
+=======================================================================
+
+7. Authority Report Engine
+
+Produces immutable reports containing:
+
+Executive Summary
+
+Authority Inventory
+
+Missing Authorities
+
+Approval Requirements
+
+Risk Assessment
+
+Confidence
+
+Evidence
+
+═══════════════════════════════════════════════════════════════════════
+DATABASE
+═══════════════════════════════════════════════════════════════════════
+
+Create:
+
+authority_reports
+
+authority_plans
+
+authority_requirements
+
+authority_grants
+
+authority_scopes
+
+authority_decisions
+
+authority_registry
+
+authority_snapshots
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+EXECUTIVE BRAIN INTEGRATION
+═══════════════════════════════════════════════════════════════════════
+
+Executive Brain receives:
+
+Authority Readiness
+
+Granted Authorities
+
+Missing Authorities
+
+Pending Approvals
+
+Execution Authorization Score
+
+Authority Summary
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Authority Resolution determines whether execution is authorized.
+
+Authority Resolution never:
+
+• executes work
+
+• grants permissions
+
+• modifies credentials
+
+• bypasses governance
+
+• bypasses approvals
+
+• elevate privileges
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Execution Orchestration
+
+✓ Operational Planning
+
+✓ Capability Planning
+
+✓ Governance
+
+✓ Executive Brain
+
+✓ Registry Pattern
+
+Purely additive.
+
+No mutation of previous layers.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Authority Inventory
+
+✓ Scope Resolution
+
+✓ Authority Validation
+
+✓ Approval Resolution
+
+✓ Dependency Mapping
+
+✓ Registry
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Authority Model
+
+7. Scope Model
+
+8. Validation Model
+
+9. Approval Model
+
+10. Registry
+
+11. Executive Brain Integration
+
+12. REST API
+
+13. Technical Decisions
+
+14. Performance Impact
+
+15. Architectural Trade-offs
+
+16. Future Extension Points
+
+17. Authority Resolution Score
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+Authority Resolution is the final safety gate before execution.
+
+Execution is prohibited unless authority has been successfully
+resolved.
+
+This engine validates whether ASH has the permissions,
+approvals, scope, governance, and explicit authorization required
+to perform an action.
+
+It never performs execution itself.
+
+This separation between Authority Resolution and Execution is a
+permanent architectural principle of the ASH Cognitive Operating
+System.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 026.
+
+═══════════════════════════════════════════════════════════════════════
+END BUILD 025
+═══════════════════════════════════════════════════════════════════════

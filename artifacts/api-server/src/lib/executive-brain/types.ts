@@ -105,4 +105,7 @@ export interface ExecutiveBrainResult {
   // Build 024: Execution Orchestration summary — assignments, owners, blockers, automation ratio.
   // Execution Orchestration assigns responsibility; EB NEVER owns execution state.
   executionOrchestrationSummary?: import("../execution-orchestration/types").ExecutionOrchestrationSummary;
+  // Build 025: Authority Resolution summary — requirements, grants, decisions, authorization score.
+  // Authority Resolution determines whether execution is authorized; EB NEVER owns authority state.
+  authoritySummary?: import("../authority-resolution/types").AuthoritySummary;
 }

@@ -64,6 +64,9 @@ import type { OperationalSummary } from "../operational-planning/types";
 // Build 024: Execution Orchestration Engine
 import { fetchExecutionOrchestrationSummary, triggerExecutionOrchestrationRun, buildExecutionOrchestrationAdvisory } from "./execution-orchestration-integration";
 import type { ExecutionOrchestrationSummary } from "../execution-orchestration/types";
+// Build 025: Authority Resolution Engine
+import { fetchAuthoritySummary, triggerAuthorityResolutionRun, buildAuthorityAdvisory } from "./authority-resolution-integration";
+import type { AuthoritySummary } from "../authority-resolution/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -461,7 +464,22 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: execution orchestration step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, userId });
+  // ── Authority Resolution Engine (Build 025) ──────────────────────────────────
+  // Fetch the latest Authority Resolution summary — requirements, grants, decisions, authorization score.
+  // Authority Resolution determines whether execution is authorized; EB NEVER owns authority state.
+  // Trigger a background authority resolution run every 130 brain cycles (throttled).
+  // Fail-open: an authority failure must never block the request path.
+  let authoritySummary: AuthoritySummary | undefined;
+  try {
+    authoritySummary = await fetchAuthoritySummary(userId) ?? undefined;
+    if (businessGraphSummary?.businessId) {
+      triggerAuthorityResolutionRun(userId, businessGraphSummary.businessId);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: authority resolution step failed (ignored)");
+  }
+
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, userId });
 
   logger.info(
     {
@@ -507,6 +525,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     capabilitySummary,
     operationalSummary,
     executionOrchestrationSummary,
+    authoritySummary,
   };
 }
 
@@ -538,9 +557,10 @@ async function buildContextNote(params: {
   capabilitySummary: CapabilitySummary | undefined;
   operationalSummary: OperationalSummary | undefined;
   executionOrchestrationSummary: ExecutionOrchestrationSummary | undefined;
+  authoritySummary: AuthoritySummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -882,6 +902,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: execution orchestration advisory failed (ignored)");
+  }
+
+  // ── Authority Resolution advisory (Build 025) ────────────────────────────
+  // Requirements, grants, authorization score, missing authorities, pending approvals.
+  // Authority Resolution determines whether execution is authorized; EB NEVER owns authority state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const authAdvisory = buildAuthorityAdvisory(authoritySummary ?? null);
+    if (authAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(authAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: authority resolution advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

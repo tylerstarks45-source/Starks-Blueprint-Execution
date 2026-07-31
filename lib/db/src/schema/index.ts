@@ -94,5 +94,6 @@ export * from "./strategic_planning";
 export * from "./capability_planning";
 export * from "./operational_planning";
 export * from "./execution_orchestration";
+export * from "./authority_resolution";
 
 export * from "./system_logs";

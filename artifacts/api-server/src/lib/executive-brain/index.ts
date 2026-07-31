@@ -55,6 +55,9 @@ import type { StrategySummary } from "../executive-strategy/types";
 // Build 021: Strategic Planning Engine
 import { fetchPlanSummary, triggerPlanningRun, buildPlanningAdvisory } from "./planning-integration";
 import type { PlanningSummary } from "../strategic-planning/types";
+// Build 022: Capability Planning Engine
+import { fetchCapabilitySummary, triggerCapabilityRun, buildCapabilityAdvisory } from "./capability-integration";
+import type { CapabilitySummary } from "../capability-planning/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -407,7 +410,22 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: strategic planning step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, userId });
+  // ── Capability Planning Engine (Build 022) ───────────────────────────────────
+  // Fetch the latest Capability summary — domains, requirements, gaps, readiness.
+  // Capability Planning identifies required capabilities; EB NEVER owns capability state.
+  // Trigger a background capability run every 100 brain cycles (throttled).
+  // Fail-open: a capability failure must never block the request path.
+  let capabilitySummary: CapabilitySummary | undefined;
+  try {
+    capabilitySummary = await fetchCapabilitySummary(userId) ?? undefined;
+    if (businessGraphSummary?.businessId) {
+      triggerCapabilityRun(userId, businessGraphSummary.businessId);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: capability planning step failed (ignored)");
+  }
+
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, userId });
 
   logger.info(
     {
@@ -450,6 +468,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     decisionSummary,
     strategySummary,
     planningSummary,
+    capabilitySummary,
   };
 }
 
@@ -478,9 +497,10 @@ async function buildContextNote(params: {
   decisionSummary: DecisionSummary | undefined;
   strategySummary: StrategySummary | undefined;
   planningSummary: PlanningSummary | undefined;
+  capabilitySummary: CapabilitySummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -780,6 +800,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: strategic planning advisory failed (ignored)");
+  }
+
+  // ── Capability Planning advisory (Build 022) ─────────────────────────────
+  // Domains, requirements, gaps, readiness level, highest risk gap.
+  // Capability Planning identifies what capabilities are required; EB NEVER owns capability state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const capAdvisory = buildCapabilityAdvisory(capabilitySummary ?? null);
+    if (capAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(capAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: capability planning advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

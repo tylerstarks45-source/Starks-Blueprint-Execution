@@ -96,4 +96,7 @@ export interface ExecutiveBrainResult {
   // Build 021: Strategic Planning summary — programmes, initiatives, milestones, readiness.
   // Strategic Planning organises work; EB NEVER owns planning state.
   planningSummary?: import("../strategic-planning/types").PlanningSummary;
+  // Build 022: Capability Planning summary — domains, requirements, gaps, readiness.
+  // Capability Planning identifies what capabilities are required; EB NEVER owns capability state.
+  capabilitySummary?: import("../capability-planning/types").CapabilitySummary;
 }

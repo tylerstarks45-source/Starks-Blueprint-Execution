@@ -40,6 +40,7 @@ import { declareSimulationExtensionPoints } from "../future-simulation/simulatio
 import { declareDecisionExtensionPoints } from "../decision-intelligence/decision-extension-points";
 import { declareStrategyExtensionPoints } from "../executive-strategy/strategy-extension-points";
 import { declarePlanningExtensionPoints } from "../strategic-planning/planning-extension-points";
+import { declareCapabilityExtensionPoints } from "../capability-planning/capability-extension-points";
 
 let initialized = false;
 
@@ -75,6 +76,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareDecisionExtensionPoints();          // Build 019: eight decision intelligence seams
       declareStrategyExtensionPoints();          // Build 020: eight executive strategy seams
       declarePlanningExtensionPoints();          // Build 021: eight strategic planning seams
+      declareCapabilityExtensionPoints();        // Build 022: eight capability planning seams
       registerCoreBrains();
       initialized = true;
 

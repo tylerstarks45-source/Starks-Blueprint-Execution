@@ -67,6 +67,9 @@ import type { ExecutionOrchestrationSummary } from "../execution-orchestration/t
 // Build 025: Authority Resolution Engine
 import { fetchAuthoritySummary, triggerAuthorityResolutionRun, buildAuthorityAdvisory } from "./authority-resolution-integration";
 import type { AuthoritySummary } from "../authority-resolution/types";
+// Build 026: Execution Risk Assessment Engine
+import { fetchExecutionRiskSummary, triggerRiskAssessmentRun, buildRiskAdvisory } from "./execution-risk-integration";
+import type { ExecutionRiskSummary } from "../execution-risk/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -479,7 +482,22 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: authority resolution step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, userId });
+  // ── Execution Risk Assessment Engine (Build 026) ──────────────────────────────
+  // Fetch the latest Execution Risk summary — risk profiles, safety score, rollback readiness.
+  // Risk Assessment evaluates operational safety; EB NEVER owns risk state.
+  // Trigger a background risk assessment run every 140 brain cycles (throttled).
+  // Fail-open: a risk failure must never block the request path.
+  let executionRiskSummary: ExecutionRiskSummary | undefined;
+  try {
+    executionRiskSummary = await fetchExecutionRiskSummary(userId) ?? undefined;
+    if (businessGraphSummary?.businessId) {
+      triggerRiskAssessmentRun(userId, businessGraphSummary.businessId);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: execution risk assessment step failed (ignored)");
+  }
+
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, userId });
 
   logger.info(
     {
@@ -526,6 +544,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     operationalSummary,
     executionOrchestrationSummary,
     authoritySummary,
+    executionRiskSummary,
   };
 }
 
@@ -558,9 +577,10 @@ async function buildContextNote(params: {
   operationalSummary: OperationalSummary | undefined;
   executionOrchestrationSummary: ExecutionOrchestrationSummary | undefined;
   authoritySummary: AuthoritySummary | undefined;
+  executionRiskSummary: ExecutionRiskSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -916,6 +936,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: authority resolution advisory failed (ignored)");
+  }
+
+  // ── Execution Risk Assessment advisory (Build 026) ───────────────────────
+  // Risk profiles, safety score, rollback readiness, highest risk, mitigation count.
+  // Risk Assessment evaluates safety; EB NEVER owns risk state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const riskAdvisory = buildRiskAdvisory(executionRiskSummary ?? null);
+    if (riskAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(riskAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: execution risk advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

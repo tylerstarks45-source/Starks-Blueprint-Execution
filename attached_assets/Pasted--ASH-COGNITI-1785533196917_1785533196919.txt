@@ -1,0 +1,440 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 026
+
+TITLE
+
+Execution Risk Assessment Engine
+
+PHASE
+
+Phase IV – Operational Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Execution Risk Assessment Engine evaluates every approved
+execution assignment after Authority Resolution and before any
+execution engine is permitted to act.
+
+It answers:
+
+"What is the operational risk of performing this action?"
+
+This engine never executes work.
+
+It never blocks by policy alone.
+
+It produces deterministic risk assessments for downstream execution
+governance.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Provide a complete operational risk profile for every execution plan.
+
+═══════════════════════════════════════════════════════════════════════
+
+COGNITIVE PIPELINE
+
+Business Graph
+
+↓
+
+Business Analysis
+
+↓
+
+Opportunity Discovery
+
+↓
+
+Future State Simulation
+
+↓
+
+Decision Intelligence
+
+↓
+
+Executive Strategy
+
+↓
+
+Strategic Planning
+
+↓
+
+Capability Planning
+
+↓
+
+Operational Planning
+
+↓
+
+Execution Orchestration
+
+↓
+
+Authority Resolution
+
+↓
+
+Execution Risk Assessment
+
+↓
+
+Execution
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW COGNITIVE OBJECTS
+
+Execution Risk Report
+
+Risk Profile
+
+Risk Category
+
+Risk Mitigation
+
+Risk Dependency
+
+Risk Registry
+
+Risk Snapshot
+
+Execution Safety Score
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement a deterministic execution risk engine capable of:
+
+• evaluating operational risk
+
+• evaluating financial risk
+
+• evaluating security risk
+
+• evaluating privacy risk
+
+• evaluating compliance risk
+
+• evaluating business continuity risk
+
+• evaluating reversibility
+
+• evaluating rollback capability
+
+• identifying mitigation strategies
+
+• preserving immutable risk history
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1. Operational Risk Engine
+
+Evaluates operational disruption.
+
+=======================================================================
+
+2. Financial Risk Engine
+
+Evaluates:
+
+Financial exposure
+
+Potential loss
+
+Billing impact
+
+Cost uncertainty
+
+=======================================================================
+
+3. Security Risk Engine
+
+Evaluates:
+
+Privilege level
+
+Sensitive systems
+
+Credential exposure
+
+Infrastructure impact
+
+=======================================================================
+
+4. Privacy Risk Engine
+
+Evaluates:
+
+Personal data
+
+Customer data
+
+Business data
+
+Confidential assets
+
+=======================================================================
+
+5. Compliance Risk Engine
+
+Evaluates:
+
+Policy violations
+
+Governance impact
+
+Regulatory exposure
+
+Audit implications
+
+=======================================================================
+
+6. Reversibility Engine
+
+Determines:
+
+Fully Reversible
+
+Partially Reversible
+
+Irreversible
+
+Rollback Available
+
+Rollback Complexity
+
+=======================================================================
+
+7. Mitigation Engine
+
+Produces deterministic mitigation actions.
+
+Examples:
+
+Require approval
+
+Create backup
+
+Create snapshot
+
+Dry-run first
+
+Human review
+
+Incremental rollout
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+execution_risk_reports
+
+execution_risk_profiles
+
+execution_risk_categories
+
+execution_risk_dependencies
+
+execution_risk_mitigations
+
+execution_safety_scores
+
+execution_risk_registry
+
+execution_risk_snapshots
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN INTEGRATION
+
+Executive Brain receives:
+
+Overall Risk Score
+
+Highest Risk Item
+
+Safety Score
+
+Rollback Readiness
+
+Mitigation Count
+
+Execution Risk Summary
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST   /assess-risk/:businessId
+
+GET    /businesses/:businessId/reports
+
+GET    /reports/:reportId
+
+GET    /plans/:planId/risk
+
+GET    /plans/:planId/mitigations
+
+GET    /plans/:planId/safety
+
+GET    /plans/:planId/reversibility
+
+GET    /businesses/:businessId/registry
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse:
+
+✓ Authority Resolution
+
+✓ Execution Orchestration
+
+✓ Operational Planning
+
+✓ Capability Planning
+
+✓ Governance
+
+✓ Executive Brain
+
+✓ Registry Pattern
+
+Purely additive.
+
+No mutation of previous layers.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURAL RULES
+
+Execution Risk Assessment evaluates.
+
+Execution performs.
+
+Risk Assessment never:
+
+• executes
+
+• grants authority
+
+• changes permissions
+
+• bypasses governance
+
+• modify previous layers
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ Risk Profiles
+
+✓ Safety Scores
+
+✓ Reversibility Analysis
+
+✓ Rollback Readiness
+
+✓ Mitigation Plans
+
+✓ Registry
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Risk Model
+
+7. Safety Model
+
+8. Reversibility Model
+
+9. Mitigation Model
+
+10. Registry
+
+11. Executive Brain Integration
+
+12. REST API
+
+13. Technical Decisions
+
+14. Performance Impact
+
+15. Architectural Trade-offs
+
+16. Future Extension Points
+
+17. Execution Risk Assessment Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+Execution Risk Assessment is the final analytical layer before any
+execution engine is permitted to perform work.
+
+Authority determines whether ASH is allowed.
+
+Risk determines whether execution is safe.
+
+Execution is allowed to begin only after both layers have completed.
+
+This separation between Authority, Risk, and Execution is a
+permanent architectural principle of the ASH Cognitive Operating
+System.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 027.
+
+═══════════════════════════════════════════════════════════════════════
+END BUILD 026
+═══════════════════════════════════════════════════════════════════════

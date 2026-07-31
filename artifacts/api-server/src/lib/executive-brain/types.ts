@@ -108,4 +108,7 @@ export interface ExecutiveBrainResult {
   // Build 025: Authority Resolution summary — requirements, grants, decisions, authorization score.
   // Authority Resolution determines whether execution is authorized; EB NEVER owns authority state.
   authoritySummary?: import("../authority-resolution/types").AuthoritySummary;
+  // Build 026: Execution Risk Assessment summary — risk profiles, safety score, rollback readiness.
+  // Risk Assessment evaluates safety; EB NEVER owns risk state.
+  executionRiskSummary?: import("../execution-risk/types").ExecutionRiskSummary;
 }

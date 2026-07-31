@@ -74,6 +74,7 @@ import decisionIntelligenceRouter from "./decision-intelligence";
 import executiveStrategyRouter from "./executive-strategy";
 import strategicPlanningRouter from "./strategic-planning";
 import capabilityPlanningRouter from "./capability-planning";
+import operationalPlanningRouter from "./operational-planning";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -175,5 +176,7 @@ router.use("/api/executive-strategy", executiveStrategyRouter);
 router.use("/api/strategic-planning", strategicPlanningRouter);
 // Build 022: Capability Planning Engine — domains, requirements, gaps, readiness, dependencies
 router.use("/api/capability-planning", capabilityPlanningRouter);
+// Build 023: Operational Planning Engine — phases, work packages, dependencies, sequences, readiness
+router.use("/api/operational-planning", operationalPlanningRouter);
 
 export default router;

@@ -99,4 +99,7 @@ export interface ExecutiveBrainResult {
   // Build 022: Capability Planning summary — domains, requirements, gaps, readiness.
   // Capability Planning identifies what capabilities are required; EB NEVER owns capability state.
   capabilitySummary?: import("../capability-planning/types").CapabilitySummary;
+  // Build 023: Operational Planning summary — phases, work packages, dependencies, readiness.
+  // Operational Planning organises work for execution; EB NEVER owns operational state.
+  operationalSummary?: import("../operational-planning/types").OperationalSummary;
 }

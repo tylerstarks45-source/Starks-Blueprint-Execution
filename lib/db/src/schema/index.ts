@@ -92,5 +92,6 @@ export * from "./decision_intelligence";
 export * from "./executive_strategy";
 export * from "./strategic_planning";
 export * from "./capability_planning";
+export * from "./operational_planning";
 
 export * from "./system_logs";

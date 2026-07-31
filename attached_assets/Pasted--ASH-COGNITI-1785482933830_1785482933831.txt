@@ -1,0 +1,451 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 023
+
+TITLE
+
+Operational Planning Engine
+
+PHASE
+
+Phase IV – Operational Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Operational Planning Engine transforms approved Capability
+Plans into executable operational work structures.
+
+It answers:
+
+"How should the required work be organized for execution?"
+
+This engine creates operational plans.
+
+It does NOT execute.
+
+It does NOT schedule calendar dates.
+
+It does NOT assign people.
+
+═══════════════════════════════════════════════════════════════════════
+MISSION
+═══════════════════════════════════════════════════════════════════════
+
+Convert approved capabilities into structured operational work.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE PIPELINE
+═══════════════════════════════════════════════════════════════════════
+
+Business Graph
+
+↓
+
+Business Analysis
+
+↓
+
+Opportunity Discovery
+
+↓
+
+Future State Simulation
+
+↓
+
+Decision Intelligence
+
+↓
+
+Executive Strategy
+
+↓
+
+Strategic Planning
+
+↓
+
+Capability Planning
+
+↓
+
+Operational Planning
+
+↓
+
+Execution
+
+═══════════════════════════════════════════════════════════════════════
+NEW COGNITIVE OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Operational Plan
+
+Work Package
+
+Operational Objective
+
+Execution Dependency
+
+Execution Sequence
+
+Operational Phase
+
+Operational Registry
+
+Operational Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement a deterministic Operational Planning Engine capable of:
+
+• transforming capability requirements into operational work
+
+• organizing work into phases
+
+• creating work packages
+
+• identifying execution dependencies
+
+• defining execution sequencing
+
+• evaluating execution readiness
+
+• preserving immutable operational history
+
+═══════════════════════════════════════════════════════════════════════
+CORE ENGINES
+═══════════════════════════════════════════════════════════════════════
+
+1. Work Package Engine
+
+Transforms capability requirements into executable work packages.
+
+Each package is outcome-oriented.
+
+Never individual tasks.
+
+=======================================================================
+
+2. Operational Phase Engine
+
+Organizes work into logical phases:
+
+Preparation
+
+Foundation
+
+Implementation
+
+Validation
+
+Optimization
+
+=======================================================================
+
+3. Dependency Resolution Engine
+
+Maps:
+
+Package dependencies
+
+Capability dependencies
+
+Technology dependencies
+
+Cross-functional dependencies
+
+External dependencies
+
+=======================================================================
+
+4. Sequencing Engine
+
+Produces deterministic execution order.
+
+No scheduling.
+
+Only logical ordering.
+
+=======================================================================
+
+5. Readiness Verification Engine
+
+Evaluates:
+
+Capability readiness
+
+Operational readiness
+
+Technology readiness
+
+Governance readiness
+
+Execution confidence
+
+=======================================================================
+
+6. Operational Evaluation Engine
+
+Scores:
+
+Completeness
+
+Feasibility
+
+Complexity
+
+Risk
+
+Readiness
+
+Confidence
+
+=======================================================================
+
+7. Operational Report Engine
+
+Produces immutable reports including:
+
+Executive Summary
+
+Operational Phases
+
+Work Packages
+
+Dependencies
+
+Execution Sequence
+
+Readiness
+
+Confidence
+
+═══════════════════════════════════════════════════════════════════════
+DATABASE
+═══════════════════════════════════════════════════════════════════════
+
+Create:
+
+operational_reports
+
+operational_plans
+
+work_packages
+
+operational_phases
+
+execution_dependencies
+
+execution_sequences
+
+operational_readiness
+
+operational_registry
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+EXECUTIVE BRAIN INTEGRATION
+═══════════════════════════════════════════════════════════════════════
+
+Executive Brain receives:
+
+Operational Readiness
+
+Phase Count
+
+Work Package Count
+
+Critical Dependencies
+
+Execution Confidence
+
+Operational Summary
+
+═══════════════════════════════════════════════════════════════════════
+REST API
+═══════════════════════════════════════════════════════════════════════
+
+Expose:
+
+POST   /plan-operations/:businessId
+
+GET    /businesses/:businessId/reports
+
+GET    /reports/:reportId
+
+GET    /plans/:planId
+
+GET    /plans/:planId/phases
+
+GET    /plans/:planId/work-packages
+
+GET    /plans/:planId/dependencies
+
+GET    /plans/:planId/sequences
+
+GET    /plans/:planId/readiness
+
+GET    /businesses/:businessId/registry
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Capability Planning
+
+✓ Strategic Planning
+
+✓ Executive Strategy
+
+✓ Decision Intelligence
+
+✓ Future State Simulation
+
+✓ Business Analysis
+
+✓ Business Graph
+
+✓ Registry Pattern
+
+✓ Executive Brain
+
+Purely additive.
+
+No mutation of previous layers.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Operational Planning creates executable work structures.
+
+Operational Planning never:
+
+• executes work
+
+• schedules calendar dates
+
+• assigns people
+
+• provisions systems
+
+Execution owns execution.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Operational Plans
+
+✓ Work Packages
+
+✓ Operational Phases
+
+✓ Dependency Resolution
+
+✓ Execution Sequencing
+
+✓ Readiness Verification
+
+✓ Registry
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Operational Objects
+
+7. Work Package Model
+
+8. Phase Model
+
+9. Dependency Model
+
+10. Readiness Model
+
+11. Registry
+
+12. Executive Brain Integration
+
+13. REST API
+
+14. Technical Decisions
+
+15. Performance Impact
+
+16. Architectural Trade-offs
+
+17. Future Extension Points
+
+18. Operational Planning Score
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+The Operational Planning Engine marks the transition from executive
+reasoning into operational reasoning.
+
+It converts approved capabilities into organized operational work,
+while deliberately remaining separate from execution.
+
+It never schedules work.
+
+It never assigns personnel.
+
+It never performs actions.
+
+Its sole responsibility is to answer:
+
+"How should the work itself be organized?"
+
+Execution begins only after this layer.
+
+This separation between Operational Planning and Execution is a
+permanent architectural principle of the ASH Cognitive Operating
+System.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 024.
+
+═══════════════════════════════════════════════════════════════════════
+END BUILD 023
+═══════════════════════════════════════════════════════════════════════

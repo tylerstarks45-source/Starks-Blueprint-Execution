@@ -58,6 +58,9 @@ import type { PlanningSummary } from "../strategic-planning/types";
 // Build 022: Capability Planning Engine
 import { fetchCapabilitySummary, triggerCapabilityRun, buildCapabilityAdvisory } from "./capability-integration";
 import type { CapabilitySummary } from "../capability-planning/types";
+// Build 023: Operational Planning Engine
+import { fetchOperationalSummary, triggerOperationalRun, buildOperationalAdvisory } from "./operational-integration";
+import type { OperationalSummary } from "../operational-planning/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -425,7 +428,22 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: capability planning step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, userId });
+  // ── Operational Planning Engine (Build 023) ──────────────────────────────────
+  // Fetch the latest Operational summary — phases, work packages, dependencies, readiness.
+  // Operational Planning organises work for execution; EB NEVER owns operational state.
+  // Trigger a background operational run every 110 brain cycles (throttled).
+  // Fail-open: an operational failure must never block the request path.
+  let operationalSummary: OperationalSummary | undefined;
+  try {
+    operationalSummary = await fetchOperationalSummary(userId) ?? undefined;
+    if (businessGraphSummary?.businessId) {
+      triggerOperationalRun(userId, businessGraphSummary.businessId);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: operational planning step failed (ignored)");
+  }
+
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, userId });
 
   logger.info(
     {
@@ -469,6 +487,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     strategySummary,
     planningSummary,
     capabilitySummary,
+    operationalSummary,
   };
 }
 
@@ -498,9 +517,10 @@ async function buildContextNote(params: {
   strategySummary: StrategySummary | undefined;
   planningSummary: PlanningSummary | undefined;
   capabilitySummary: CapabilitySummary | undefined;
+  operationalSummary: OperationalSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -814,6 +834,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: capability planning advisory failed (ignored)");
+  }
+
+  // ── Operational Planning advisory (Build 023) ────────────────────────────
+  // Phases, work packages, critical dependencies, execution readiness, confidence.
+  // Operational Planning organises work for execution; EB NEVER owns operational state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const opAdvisory = buildOperationalAdvisory(operationalSummary ?? null);
+    if (opAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(opAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: operational planning advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

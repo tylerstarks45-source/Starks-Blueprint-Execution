@@ -129,4 +129,5 @@ export interface ExecutiveBrainResult {
   technologyRelationshipSummary?: import("../technology-relationships/types").TechnologyRelationshipSummary;
   technologyEvolutionSummary?: import("../technology-evolution/types").TechnologyEvolutionSummary;
   systemsDynamicsSummary?: import("../systems-dynamics/types").SystemsDynamicsSummary;
+  tradeoffIntelligenceSummary?: import("../tradeoff-intelligence/types").TradeoffIntelligenceSummary;
 }

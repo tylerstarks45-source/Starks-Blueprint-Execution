@@ -55,6 +55,7 @@ import { declareGlobalTechnologyExtensionPoints } from "../global-technology/gti
 import { declareTechnologyRelationshipExtensionPoints } from "../technology-relationships/tri-extension-points";
 import { declareTechnologyEvolutionExtensionPoints } from "../technology-evolution/tei-extension-points";
 import { declareSystemsDynamicsExtensionPoints } from "../systems-dynamics/sdi-extension-points";
+import { declareTradeoffIntelligenceExtensionPoints } from "../tradeoff-intelligence/eti-extension-points";
 
 let initialized = false;
 
@@ -105,6 +106,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareTechnologyRelationshipExtensionPoints(); // Build 034: eight technology relationship intelligence seams
       declareTechnologyEvolutionExtensionPoints(); // Build 035: eight technology evolution intelligence seams
       declareSystemsDynamicsExtensionPoints(); // Build 036: eight systems dynamics intelligence seams
+      declareTradeoffIntelligenceExtensionPoints(); // Build 037: eight executive trade-off intelligence seams
       registerCoreBrains();
       initialized = true;
 

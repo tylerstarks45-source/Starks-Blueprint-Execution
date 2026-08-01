@@ -91,11 +91,13 @@ import { fetchGlobalTechnologySummary, triggerGlobalTechnologyScan, buildGlobalT
 import { fetchTechnologyRelationshipSummary, triggerTechnologyRelationshipRebuild, buildTechnologyRelationshipAdvisory } from "./technology-relationships-integration";
 import { fetchTechnologyEvolutionSummary, triggerTechnologyEvolutionRebuild, buildTechnologyEvolutionAdvisory } from "./technology-evolution-integration";
 import { fetchSystemsDynamicsSummary, triggerSystemsDynamicsRebuild, buildSystemsDynamicsAdvisory } from "./systems-dynamics-integration";
+import { fetchTradeoffIntelligenceSummary, triggerTradeoffIntelligenceRebuild, buildTradeoffIntelligenceAdvisory } from "./tradeoff-intelligence-integration";
 import type { GlobalTechnologySummary } from "../global-technology/types";
 import type { PlatformInfrastructureSummary } from "../platform-infrastructure/types";
 import type { TechnologyRelationshipSummary } from "../technology-relationships/types";
 import type { TechnologyEvolutionSummary } from "../technology-evolution/types";
 import type { SystemsDynamicsSummary } from "../systems-dynamics/types";
+import type { TradeoffIntelligenceSummary } from "../tradeoff-intelligence/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -567,6 +569,18 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: systems dynamics step failed (ignored)");
   }
 
+  // ── Executive Trade-off Intelligence Engine (Build 037) ───────────────────
+  // Multi-objective decision evaluation: constraint modeling, Pareto frontiers,
+  // sensitivity analysis, executive recommendations. Never executes decisions.
+  // Architectural Law: evaluation-only — Executive Optimization Law applies. Fail-open.
+  let tradeoffIntelligenceSummary: TradeoffIntelligenceSummary | undefined;
+  try {
+    tradeoffIntelligenceSummary = await fetchTradeoffIntelligenceSummary(userId) ?? undefined;
+    triggerTradeoffIntelligenceRebuild(userId);
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: trade-off intelligence step failed (ignored)");
+  }
+
   // ── Adaptive Capability Intelligence Engine (Build 031) ──────────────────
   // Evaluates readiness, health, reliability, availability of every installed adapter capability.
   // This engine evaluates only — it never executes workflows or modifies adapter state.
@@ -652,7 +666,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: execution risk assessment step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, userId });
 
   logger.info(
     {
@@ -710,6 +724,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     technologyRelationshipSummary,
     technologyEvolutionSummary,
     systemsDynamicsSummary,
+    tradeoffIntelligenceSummary,
   };
 }
 
@@ -753,9 +768,10 @@ async function buildContextNote(params: {
   technologyRelationshipSummary: TechnologyRelationshipSummary | undefined;
   technologyEvolutionSummary: TechnologyEvolutionSummary | undefined;
   systemsDynamicsSummary: SystemsDynamicsSummary | undefined;
+  tradeoffIntelligenceSummary: TradeoffIntelligenceSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1166,6 +1182,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: systems dynamics advisory failed (ignored)");
+  }
+
+  // ── Executive Trade-off advisory (Build 037) ───────────────────────────────
+  // Recent decision evaluations, frontier analysis, sensitivity flags, confidence.
+  // Architectural Law: advisory only. Executive Optimization Law — never recommend
+  // an option solely because it has the highest individual score. Fail-open.
+  try {
+    const etiAdvisory = buildTradeoffIntelligenceAdvisory(tradeoffIntelligenceSummary ?? null);
+    if (etiAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(etiAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: trade-off intelligence advisory failed (ignored)");
   }
 
   // ── Platform Infrastructure advisory (Build 032) ─────────────────────────

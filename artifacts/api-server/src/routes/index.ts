@@ -88,6 +88,7 @@ import { globalTechnologyRouter } from "./global-technology";
 import { technologyRelationshipsRouter } from "./technology-relationships";
 import { technologyEvolutionRouter } from "./technology-evolution";
 import { systemsDynamicsRouter } from "./systems-dynamics";
+import { tradeoffIntelligenceRouter } from "./tradeoff-intelligence";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -213,5 +214,6 @@ router.use("/global-technology", globalTechnologyRouter);
 router.use("/technology-relationships", technologyRelationshipsRouter);
 router.use("/technology-evolution", technologyEvolutionRouter);
 router.use("/systems-dynamics", systemsDynamicsRouter);
+router.use("/tradeoffs", tradeoffIntelligenceRouter);
 
 export default router;

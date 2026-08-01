@@ -1,0 +1,419 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 037
+
+TITLE
+
+Executive Trade-off Intelligence Engine
+
+PHASE
+
+Phase VI – Executive Systems Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+The Executive Trade-off Intelligence Engine enables ASH to
+evaluate competing options under real-world constraints.
+
+Previous builds identify opportunities.
+
+This build determines which opportunity is best for the user's
+specific situation.
+
+The engine models executive decision-making by balancing multiple
+dimensions simultaneously rather than optimizing a single metric.
+
+It never executes decisions.
+
+It evaluates trade-offs and produces deterministic,
+evidence-based recommendations.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Provide deterministic multi-objective optimization that enables
+ASH to recommend the most appropriate solution rather than the
+universally "best" solution.
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW COGNITIVE OBJECTS
+
+Decision Scenario
+
+Constraint Set
+
+Optimization Profile
+
+Trade-off Matrix
+
+Objective Function
+
+Decision Frontier
+
+Compromise Point
+
+Executive Preference Profile
+
+Sensitivity Analysis
+
+Decision Assumption
+
+Trade-off Registry
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement deterministic trade-off intelligence capable of:
+
+• evaluating cost vs performance
+
+• evaluating speed vs quality
+
+• evaluating risk vs reward
+
+• evaluating simplicity vs flexibility
+
+• evaluating short-term vs long-term value
+
+• evaluating capital vs operating expense
+
+• evaluating automation vs manual effort
+
+• evaluating innovation vs stability
+
+• evaluating growth vs sustainability
+
+• evaluating security vs usability
+
+• evaluating latency vs cost
+
+• evaluating infrastructure vs cloud
+
+• evaluating build vs buy
+
+• preserving immutable decision history
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1.
+
+Constraint Modeling Engine
+
+Captures:
+
+Budget
+
+Timeline
+
+Risk tolerance
+
+Available skills
+
+Infrastructure
+
+Compliance
+
+Business goals
+
+Operational limits
+
+──────────────────────────────────────────────────────────────────────
+
+2.
+
+Objective Optimization Engine
+
+Supports weighted optimization across multiple objectives.
+
+Produces deterministic scoring.
+
+──────────────────────────────────────────────────────────────────────
+
+3.
+
+Trade-off Matrix Engine
+
+Builds a comparison matrix for all candidate solutions.
+
+Every score must be explainable.
+
+──────────────────────────────────────────────────────────────────────
+
+4.
+
+Sensitivity Analysis Engine
+
+Determines how recommendations change when one or more
+constraints change.
+
+Examples:
+
+Budget doubles
+
+Timeline halves
+
+Risk tolerance decreases
+
+Infrastructure expands
+
+──────────────────────────────────────────────────────────────────────
+
+5.
+
+Decision Frontier Engine
+
+Identifies solutions that are not dominated by any other solution
+across the evaluated objectives.
+
+Provides the Executive Brain with the optimal candidate set rather
+than a single arbitrary answer.
+
+──────────────────────────────────────────────────────────────────────
+
+6.
+
+Executive Recommendation Engine
+
+Produces:
+
+Recommended option
+
+Runner-up options
+
+Reasons
+
+Rejected alternatives
+
+Trade-off explanation
+
+Evidence
+
+Confidence
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+tradeoff_scenarios
+
+constraint_sets
+
+optimization_profiles
+
+tradeoff_matrices
+
+decision_frontiers
+
+sensitivity_analyses
+
+tradeoff_registry
+
+tradeoff_snapshots
+
+executive_preferences
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN
+
+Receives:
+
+Recommended Strategy
+
+Decision Frontier
+
+Key Constraints
+
+Trade-off Summary
+
+Sensitivity Summary
+
+Executive Confidence
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST   /tradeoffs/evaluate
+
+POST   /tradeoffs/compare
+
+GET    /tradeoffs/scenarios
+
+GET    /tradeoffs/frontiers
+
+GET    /tradeoffs/matrices
+
+GET    /tradeoffs/sensitivity
+
+GET    /tradeoffs/preferences
+
+GET    /tradeoffs/registry
+
+GET    /tradeoffs/snapshots
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse:
+
+✓ Systems Dynamics Intelligence
+
+✓ Executive Judgment
+
+✓ Executive Strategy
+
+✓ Capability Planning
+
+✓ Universal Execution
+
+✓ Executive Brain
+
+Purely additive.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURAL RULES
+
+Trade-off Intelligence
+
+Never:
+
+• executes work
+
+• changes strategies
+
+• modifies plans
+
+• changes infrastructure
+
+It evaluates competing alternatives only.
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW PERMANENT LAW
+
+Executive Optimization Law
+
+ASH shall never recommend an option solely because it has the
+highest individual score.
+
+Every recommendation must be evaluated against the complete
+constraint set and the expected impact on the larger system.
+
+Recommendations must explain:
+
+• why the chosen option won
+
+• why alternatives lost
+
+• which assumptions affected the decision
+
+• how the recommendation changes when constraints change
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ Constraint Modeling
+
+✓ Multi-objective Optimization
+
+✓ Trade-off Matrix
+
+✓ Decision Frontier
+
+✓ Sensitivity Analysis
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Constraint Model
+
+7. Trade-off Model
+
+8. Decision Frontier Model
+
+9. Sensitivity Model
+
+10. Executive Recommendation Model
+
+11. Registry
+
+12. Executive Brain Integration
+
+13. REST API
+
+14. Technical Decisions
+
+15. Performance Impact
+
+16. Architectural Trade-offs
+
+17. Future Extension Points
+
+18. Executive Trade-off Intelligence Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+Systems Intelligence explains how systems behave.
+
+Trade-off Intelligence explains which decision should be made when
+multiple valid options exist.
+
+This build enables ASH to think more like an experienced executive,
+balancing competing priorities instead of chasing a single optimum.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 038.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 037
+
+═══════════════════════════════════════════════════════════════════════

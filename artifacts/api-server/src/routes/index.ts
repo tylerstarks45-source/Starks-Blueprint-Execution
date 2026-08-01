@@ -82,6 +82,7 @@ import executionSimulationRouter from "./execution-simulation";
 import workflowExecutionRouter from "./workflow-execution";
 import universalExecutionRouter from "./universal-execution";
 import adapterFrameworkRouter from "./adapter-framework";
+import { capabilityIntelligenceRouter } from "./capability-intelligence";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -199,5 +200,7 @@ router.use(workflowExecutionRouter);
 router.use(universalExecutionRouter);
 // Build 030: Universal Execution Adapter Framework — adapters, registry, capabilities, lifecycle, telemetry
 router.use(adapterFrameworkRouter);
+// Build 031: Adaptive Capability Intelligence Engine — health, reliability, availability, forecasts, optimizations
+router.use("/capability-intelligence", capabilityIntelligenceRouter);
 
 export default router;

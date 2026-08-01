@@ -1,0 +1,466 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 031
+
+TITLE
+
+Adaptive Capability Intelligence Engine
+
+PHASE
+
+Phase V – Adaptive Execution Platform
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+The Adaptive Capability Intelligence Engine continuously evaluates
+the operational condition of every installed execution adapter.
+
+It answers:
+
+"Can this capability be trusted right now?"
+
+This engine never executes work.
+
+It continuously evaluates capability readiness.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Transform adapters from passive integrations into continuously
+evaluated operational capabilities.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURE
+
+Brain
+
+↓
+
+Execution Engine
+
+↓
+
+Adapter Framework
+
+↓
+
+Capability Intelligence
+
+↓
+
+External Platform
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW COGNITIVE OBJECTS
+
+Capability Health
+
+Capability Readiness
+
+Capability Reliability
+
+Capability Availability
+
+Capability Stability
+
+Capability Confidence
+
+Capability Profile
+
+Capability Registry
+
+Capability Lifecycle
+
+Capability Degradation Event
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement deterministic capability intelligence capable of:
+
+• measuring operational readiness
+
+• monitoring capability health
+
+• tracking capability reliability
+
+• tracking execution success
+
+• tracking failure rates
+
+• monitoring latency trends
+
+• monitoring quota consumption
+
+• monitoring rate limits
+
+• monitoring version compatibility
+
+• monitoring dependency health
+
+• preserving immutable capability history
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1.
+
+Capability Health Engine
+
+Evaluates:
+
+Healthy
+
+Warning
+
+Degraded
+
+Critical
+
+Unavailable
+
+=======================================================================
+
+2.
+
+Capability Reliability Engine
+
+Measures:
+
+Historical success
+
+Failure frequency
+
+Recovery rate
+
+Consistency
+
+Confidence
+
+=======================================================================
+
+3.
+
+Capability Availability Engine
+
+Tracks:
+
+Availability
+
+Maintenance windows
+
+Connectivity
+
+Service interruptions
+
+Scheduled downtime
+
+=======================================================================
+
+4.
+
+Capability Dependency Engine
+
+Determines:
+
+Dependency failures
+
+Dependency health
+
+Shared infrastructure
+
+Upstream risk
+
+Downstream impact
+
+=======================================================================
+
+5.
+
+Capability Forecast Engine
+
+Predicts:
+
+Expected degradation
+
+Capacity exhaustion
+
+Rate-limit exhaustion
+
+Credential expiration
+
+Certificate expiration
+
+Version incompatibility
+
+=======================================================================
+
+6.
+
+Capability Optimization Engine
+
+Produces deterministic recommendations.
+
+Examples:
+
+Upgrade adapter
+
+Rotate credentials
+
+Increase quota
+
+Install newer adapter
+
+Replace deprecated API
+
+Enable caching
+
+Reduce request volume
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+capability_health
+
+capability_reliability
+
+capability_availability
+
+capability_dependencies
+
+capability_forecasts
+
+capability_optimizations
+
+capability_registry
+
+capability_snapshots
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN
+
+Receives:
+
+Capability Health
+
+Capability Confidence
+
+Capability Availability
+
+Capability Risks
+
+Capability Recommendations
+
+Capability Summary
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST   /evaluate
+
+GET    /registry
+
+GET    /health
+
+GET    /availability
+
+GET    /reliability
+
+GET    /forecast
+
+GET    /optimizations
+
+GET    /snapshots
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse:
+
+✓ Universal Adapter Framework
+
+✓ Universal Execution
+
+✓ Observation Engine
+
+✓ Reflection Engine
+
+✓ Learning Engine
+
+✓ Governance
+
+✓ Executive Brain
+
+Purely additive.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURAL RULES
+
+Capability Intelligence evaluates.
+
+Adapters execute.
+
+Capability Intelligence never:
+
+• executes workflows
+
+• changes adapter code
+
+• modifies credentials
+
+• bypasses governance
+
+• grant permissions
+
+• install software
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW PERMANENT ADMINISTRATOR PROTOCOL
+
+Capability Intelligence may generate
+Administrative Infrastructure Recommendations.
+
+These recommendations are visible ONLY to the
+Platform Administrator.
+
+Examples include:
+
+• GPU expansion
+• CPU expansion
+• RAM upgrades
+• Storage expansion
+• Database scaling
+• Vector database scaling
+• Search infrastructure improvements
+• Browser infrastructure improvements
+• Model provider recommendations
+• Inference provider recommendations
+• Adapter installation recommendations
+• Credential renewal reminders
+• API quota upgrades
+
+These recommendations are NEVER shown to standard users.
+
+They are advisory only.
+
+ASH may recommend.
+
+Only the Administrator approves.
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ Capability Registry
+
+✓ Health Engine
+
+✓ Reliability Engine
+
+✓ Forecasting
+
+✓ Optimization Engine
+
+✓ Administrative Recommendations
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Capability Intelligence Model
+
+7. Forecast Model
+
+8. Reliability Model
+
+9. Optimization Model
+
+10. Administrator Recommendation Model
+
+11. Registry
+
+12. Executive Brain Integration
+
+13. REST API
+
+14. Technical Decisions
+
+15. Performance Impact
+
+16. Architectural Trade-offs
+
+17. Future Extension Points
+
+18. Capability Intelligence Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+The Adaptive Capability Intelligence Engine gives ASH continuous
+situational awareness of every execution capability.
+
+It allows ASH to understand not only what she CAN do, but how
+well she can currently do it.
+
+All infrastructure recommendations produced by this engine are
+restricted to the Administrator account and are advisory only.
+
+This creates a permanent separation between user-facing operation
+and platform self-improvement.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 032.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 031
+
+═══════════════════════════════════════════════════════════════════════

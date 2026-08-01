@@ -123,4 +123,5 @@ export interface ExecutiveBrainResult {
   // Build 030: Adapter Framework summary — adapters, health, capability coverage.
   // Adapters execute; EB NEVER owns adapter state.
   adapterFrameworkSummary?: import("../adapter-framework/types").AdapterFrameworkSummary;
+  capabilityIntelligenceSummary?: import("../capability-intelligence/types").CapabilityIntelligenceSummary;
 }

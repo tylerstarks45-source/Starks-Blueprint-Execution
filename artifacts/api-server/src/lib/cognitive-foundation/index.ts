@@ -49,6 +49,7 @@ import { declareExecutionSimulationExtensionPoints } from "../execution-simulati
 import { declareWorkflowExecutionExtensionPoints } from "../workflow-execution/workflow-extension-points";
 import { declareUniversalExecutionExtensionPoints } from "../universal-execution/execution-extension-points";
 import { declareAdapterFrameworkExtensionPoints } from "../adapter-framework/adapter-extension-points";
+import { declareCapabilityIntelligenceExtensionPoints } from "../capability-intelligence/ci-extension-points";
 
 let initialized = false;
 
@@ -93,6 +94,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareWorkflowExecutionExtensionPoints();     // Build 028: eight workflow construction seams
       declareUniversalExecutionExtensionPoints();    // Build 029: eight universal execution seams
       declareAdapterFrameworkExtensionPoints();      // Build 030: eight adapter framework seams
+      declareCapabilityIntelligenceExtensionPoints(); // Build 031: eight capability intelligence seams
       registerCoreBrains();
       initialized = true;
 

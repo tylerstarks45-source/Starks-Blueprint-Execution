@@ -82,6 +82,9 @@ import type { ExecutionSessionSummary } from "../universal-execution/types";
 // Build 030: Universal Execution Adapter Framework
 import { fetchAdapterFrameworkSummary, triggerAdapterFrameworkScan, buildAdapterFrameworkAdvisory } from "./adapter-framework-integration";
 import type { AdapterFrameworkSummary } from "../adapter-framework/types";
+// Build 031: Adaptive Capability Intelligence Engine
+import { fetchCapabilityIntelligenceSummary, triggerCapabilityIntelligenceScan, buildCapabilityIntelligenceAdvisory } from "./capability-intelligence-integration";
+import type { CapabilityIntelligenceSummary } from "../capability-intelligence/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -494,6 +497,18 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: authority resolution step failed (ignored)");
   }
 
+  // ── Adaptive Capability Intelligence Engine (Build 031) ──────────────────
+  // Evaluates readiness, health, reliability, availability of every installed adapter capability.
+  // This engine evaluates only — it never executes workflows or modifies adapter state.
+  // Fail-open: a CI failure must never block the EB request path.
+  let capabilityIntelligenceSummary: CapabilityIntelligenceSummary | undefined;
+  try {
+    capabilityIntelligenceSummary = await fetchCapabilityIntelligenceSummary(userId) ?? undefined;
+    triggerCapabilityIntelligenceScan(userId);
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: capability intelligence step failed (ignored)");
+  }
+
   // ── Universal Execution Adapter Framework (Build 030) ────────────────────
   // Fetch available adapters, health, capability coverage.
   // Adapters execute; EB NEVER owns adapter state.
@@ -567,7 +582,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: execution risk assessment step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, userId });
 
   logger.info(
     {
@@ -619,6 +634,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     workflowSummary,
     universalExecutionSummary,
     adapterFrameworkSummary,
+    capabilityIntelligenceSummary,
   };
 }
 
@@ -656,9 +672,10 @@ async function buildContextNote(params: {
   workflowSummary: WorkflowSummary | undefined;
   universalExecutionSummary: ExecutionSessionSummary | undefined;
   adapterFrameworkSummary: AdapterFrameworkSummary | undefined;
+  capabilityIntelligenceSummary: CapabilityIntelligenceSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1014,6 +1031,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: authority resolution advisory failed (ignored)");
+  }
+
+  // ── Capability Intelligence advisory (Build 031) ─────────────────────────
+  // Capability health, reliability, availability, forecasts, and optimizations.
+  // Evaluates only — never executes or changes adapter state.
+  // Fail-open: a CI advisory failure must never break context assembly.
+  try {
+    const ciAdvisory = buildCapabilityIntelligenceAdvisory(capabilityIntelligenceSummary ?? null);
+    if (ciAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(ciAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: capability intelligence advisory failed (ignored)");
   }
 
   // ── Adapter Framework advisory (Build 030) ───────────────────────────────

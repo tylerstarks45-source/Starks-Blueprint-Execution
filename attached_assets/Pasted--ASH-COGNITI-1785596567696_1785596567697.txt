@@ -1,0 +1,445 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 038
+
+TITLE
+
+Executive Portfolio Intelligence Engine
+
+PHASE
+
+Phase VI – Executive Systems Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+The Executive Portfolio Intelligence Engine enables ASH to manage
+collections of initiatives rather than evaluating individual
+decisions in isolation.
+
+Trade-off Intelligence selects the best decision.
+
+Portfolio Intelligence selects the best combination of decisions.
+
+This engine never executes initiatives.
+
+It evaluates balance, diversification, dependencies,
+resource allocation, strategic alignment, and overall portfolio
+performance.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Provide deterministic portfolio optimization across business,
+technology, execution, infrastructure, and strategic initiatives.
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW COGNITIVE OBJECTS
+
+Portfolio
+
+Initiative
+
+Strategic Theme
+
+Investment Bucket
+
+Resource Allocation
+
+Portfolio Constraint
+
+Portfolio Balance
+
+Portfolio Exposure
+
+Portfolio Diversification
+
+Portfolio Capacity
+
+Portfolio Health
+
+Portfolio Registry
+
+Portfolio Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement deterministic portfolio intelligence capable of:
+
+• grouping initiatives
+
+• allocating finite resources
+
+• balancing short and long-term investments
+
+• balancing maintenance vs innovation
+
+• balancing automation vs human effort
+
+• balancing infrastructure vs product work
+
+• identifying overcommitment
+
+• identifying concentration risk
+
+• identifying dependency clusters
+
+• identifying execution bottlenecks
+
+• identifying unused capacity
+
+• identifying portfolio gaps
+
+• preserving immutable portfolio history
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1.
+
+Portfolio Construction Engine
+
+Creates structured portfolios from strategic initiatives.
+
+──────────────────────────────────────────────────────────────────────
+
+2.
+
+Allocation Intelligence Engine
+
+Evaluates allocation of:
+
+Budget
+
+People
+
+Infrastructure
+
+Compute
+
+Time
+
+Attention
+
+──────────────────────────────────────────────────────────────────────
+
+3.
+
+Balance Intelligence Engine
+
+Measures:
+
+Strategic balance
+
+Execution balance
+
+Technology balance
+
+Business balance
+
+Operational balance
+
+──────────────────────────────────────────────────────────────────────
+
+4.
+
+Exposure Intelligence Engine
+
+Detects:
+
+Single-point dependency
+
+Vendor concentration
+
+Execution concentration
+
+Technology concentration
+
+Financial concentration
+
+──────────────────────────────────────────────────────────────────────
+
+5.
+
+Capacity Intelligence Engine
+
+Calculates:
+
+Current utilization
+
+Available capacity
+
+Growth capacity
+
+Constraint pressure
+
+Expansion readiness
+
+──────────────────────────────────────────────────────────────────────
+
+6.
+
+Portfolio Recommendation Engine
+
+Produces deterministic recommendations including:
+
+Rebalance
+
+Delay
+
+Accelerate
+
+Consolidate
+
+Retire
+
+Expand
+
+Every recommendation includes:
+
+Evidence
+
+Expected impact
+
+Risk
+
+Confidence
+
+Alternative allocations
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+executive_portfolios
+
+portfolio_initiatives
+
+portfolio_allocations
+
+portfolio_exposures
+
+portfolio_capacity
+
+portfolio_recommendations
+
+portfolio_registry
+
+portfolio_snapshots
+
+portfolio_history
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN
+
+Receives:
+
+Portfolio Health
+
+Portfolio Balance
+
+Capacity Summary
+
+Top Risks
+
+Top Opportunities
+
+Recommended Rebalancing
+
+Portfolio Confidence
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST   /portfolio/evaluate
+
+POST   /portfolio/rebalance
+
+GET    /portfolio
+
+GET    /portfolio/initiatives
+
+GET    /portfolio/allocations
+
+GET    /portfolio/exposure
+
+GET    /portfolio/capacity
+
+GET    /portfolio/recommendations
+
+GET    /portfolio/registry
+
+GET    /portfolio/snapshots
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse:
+
+✓ Executive Strategy
+
+✓ Strategic Planning
+
+✓ Capability Planning
+
+✓ Systems Dynamics
+
+✓ Trade-off Intelligence
+
+✓ Executive Brain
+
+Purely additive.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURAL RULES
+
+Portfolio Intelligence
+
+Never:
+
+• executes initiatives
+
+• reallocates resources automatically
+
+• changes strategy
+
+• modifies plans
+
+It evaluates complete portfolios only.
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW PERMANENT LAW
+
+Portfolio Optimization Law
+
+ASH shall never optimize a single initiative while degrading the
+overall portfolio.
+
+Every recommendation must evaluate:
+
+• portfolio balance
+
+• resource capacity
+
+• strategic alignment
+
+• dependency exposure
+
+• diversification
+
+• long-term sustainability
+
+• opportunity cost
+
+Local gains must never reduce overall portfolio performance.
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ Portfolio Engine
+
+✓ Allocation Intelligence
+
+✓ Exposure Intelligence
+
+✓ Capacity Intelligence
+
+✓ Portfolio Recommendations
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Portfolio Model
+
+7. Allocation Model
+
+8. Exposure Model
+
+9. Capacity Model
+
+10. Recommendation Model
+
+11. Registry
+
+12. Executive Brain Integration
+
+13. REST API
+
+14. Technical Decisions
+
+15. Performance Impact
+
+16. Architectural Trade-offs
+
+17. Future Extension Points
+
+18. Executive Portfolio Intelligence Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+Trade-off Intelligence determines the best individual decision.
+
+Portfolio Intelligence determines the best collection of decisions.
+
+This engine enables ASH to think like an executive responsible
+for an entire organization rather than a single project.
+
+Recommendations remain deterministic, explainable, and advisory.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 039.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 038
+
+═══════════════════════════════════════════════════════════════════════

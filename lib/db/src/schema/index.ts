@@ -112,5 +112,6 @@ export * from "./priority_intelligence";
 export * from "./unified_orchestration";
 export * from "./knowledge_graph";
 export * from "./digital_operating";
+export * from "./connections_hub";
 
 export * from "./system_logs";

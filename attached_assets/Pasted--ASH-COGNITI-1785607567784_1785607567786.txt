@@ -1,0 +1,456 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 044
+
+TITLE
+
+Unified Connections & Integration Hub
+
+PHASE
+
+Phase VII – Unified Cognitive Operating System
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Unified Connections & Integration Hub becomes the single
+authoritative service responsible for every external connection
+used by ASH.
+
+Every connector, adapter, API integration, cloud platform,
+database, AI provider, browser automation provider,
+communication platform, business application, and future service
+must register through this Hub.
+
+No connector owns its own credentials.
+
+No connector manages its own lifecycle.
+
+The Hub owns identity, connection health, capability discovery,
+credential references, rotation metadata, and platform status.
+
+═══════════════════════════════════════════════════════════════════════
+MISSION
+═══════════════════════════════════════════════════════════════════════
+
+Create one deterministic integration platform capable of securely
+managing every external service ASH can communicate with.
+
+═══════════════════════════════════════════════════════════════════════
+CONNECTION DOMAINS
+═══════════════════════════════════════════════════════════════════════
+
+AI Providers
+
+Cloud Providers
+
+Source Control
+
+Developer Platforms
+
+Payment Platforms
+
+Accounting Platforms
+
+CRM Platforms
+
+Marketing Platforms
+
+Advertising Platforms
+
+Communication Platforms
+
+Storage Providers
+
+Databases
+
+Productivity Platforms
+
+Automation Platforms
+
+Identity Providers
+
+Analytics Platforms
+
+Browser Providers
+
+Desktop Providers
+
+MCP Servers
+
+Future Providers
+
+═══════════════════════════════════════════════════════════════════════
+NEW OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Connection
+
+Provider
+
+Capability Catalog
+
+Connection Profile
+
+Credential Reference
+
+Authentication Profile
+
+Connection Health
+
+Capability Discovery
+
+Integration Registry
+
+Connection Snapshot
+
+Provider Policy
+
+Connection Audit
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement deterministic connection management capable of:
+
+• provider registration
+
+• provider discovery
+
+• capability discovery
+
+• provider health monitoring
+
+• authentication profile tracking
+
+• credential reference management
+
+• API version tracking
+
+• rate-limit awareness
+
+• quota awareness
+
+• latency tracking
+
+• provider failover recommendations
+
+• provider comparison
+
+• provider compatibility mapping
+
+• provider lifecycle management
+
+• administrator approval workflow
+
+═══════════════════════════════════════════════════════════════════════
+CORE ENGINES
+═══════════════════════════════════════════════════════════════════════
+
+1. Provider Registry Engine
+
+Maintains canonical records for every supported provider.
+
+──────────────────────────────────────────────────────────────────────
+
+2. Capability Discovery Engine
+
+Determines what each provider is capable of.
+
+──────────────────────────────────────────────────────────────────────
+
+3. Connection Health Engine
+
+Tracks:
+
+Availability
+
+Latency
+
+Quota
+
+Rate limits
+
+Authentication state
+
+Version compatibility
+
+──────────────────────────────────────────────────────────────────────
+
+4. Compatibility Engine
+
+Determines which providers can satisfy requested capabilities
+and recommends alternatives.
+
+──────────────────────────────────────────────────────────────────────
+
+5. Connection Lifecycle Engine
+
+Tracks:
+
+Created
+
+Connected
+
+Suspended
+
+Revoked
+
+Expired
+
+Migrated
+
+Archived
+
+──────────────────────────────────────────────────────────────────────
+
+6. Integration Recommendation Engine
+
+Produces deterministic recommendations for:
+
+Migration
+
+Failover
+
+Redundancy
+
+Provider upgrades
+
+Capability expansion
+
+Risk reduction
+
+═══════════════════════════════════════════════════════════════════════
+DATABASE
+═══════════════════════════════════════════════════════════════════════
+
+Create:
+
+connection_providers
+
+provider_capabilities
+
+connection_profiles
+
+credential_references
+
+connection_health
+
+provider_compatibility
+
+connection_registry
+
+connection_snapshots
+
+connection_audit
+
+Append-only.
+
+Immutable except registry.
+
+Credentials themselves are NEVER stored in these tables.
+
+Only secure references managed by the platform's credential store.
+
+═══════════════════════════════════════════════════════════════════════
+EXECUTIVE BRAIN
+═══════════════════════════════════════════════════════════════════════
+
+Receives:
+
+Connection Summary
+
+Provider Health
+
+Quota Summary
+
+Capability Coverage
+
+Provider Risks
+
+Recommended Improvements
+
+═══════════════════════════════════════════════════════════════════════
+REST API
+═══════════════════════════════════════════════════════════════════════
+
+POST /connections/register
+
+POST /connections/discover
+
+POST /connections/evaluate
+
+POST /connections/refresh
+
+GET  /connections/providers
+
+GET  /connections/health
+
+GET  /connections/capabilities
+
+GET  /connections/registry
+
+GET  /connections/snapshots
+
+GET  /connections/audit
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Unified Authority Framework
+
+✓ Unified Digital Operating Layer
+
+✓ Unified Knowledge Graph
+
+✓ Unified Cognitive Orchestrator
+
+✓ Universal Adapter Framework
+
+✓ Executive Brain
+
+✓ Registry Pattern
+
+Purely additive.
+
+No connector may communicate directly with external providers
+without first registering through the Integration Hub.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+The Integration Hub does not execute work.
+
+The Digital Operating Layer executes work.
+
+The Integration Hub owns connection intelligence.
+
+Every external provider must expose its capabilities through the
+Hub before becoming available to ASH.
+
+═══════════════════════════════════════════════════════════════════════
+NEW PERMANENT LAW
+
+Unified Connection Law
+
+Every external integration shall be represented by exactly one
+canonical provider record.
+
+Every connection must maintain:
+
+• provider identity
+
+• capability catalog
+
+• authentication profile
+
+• credential reference
+
+• health status
+
+• compatibility metadata
+
+• audit history
+
+No duplicate provider definitions shall exist.
+
+No connector shall own credentials.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Provider Registry
+
+✓ Capability Discovery
+
+✓ Connection Health
+
+✓ Compatibility Mapping
+
+✓ Lifecycle Tracking
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Provider Registry Model
+
+6. Capability Discovery Model
+
+7. Connection Health Model
+
+8. Compatibility Model
+
+9. Lifecycle Model
+
+10. Executive Brain Integration
+
+11. REST API
+
+12. Technical Decisions
+
+13. Performance Impact
+
+14. Architectural Trade-offs
+
+15. Future Extension Points
+
+16. Unified Connections Hub Score
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+
+This build creates the permanent integration backbone of the ASH
+platform.
+
+Every future integration—including AI models, cloud platforms,
+developer tools, business software, browsers, databases, and MCP
+servers—plugs into one unified connection architecture instead of
+implementing its own lifecycle.
+
+This allows ASH to intelligently compare providers, understand
+their capabilities, monitor their health, recommend alternatives,
+and prepare for future expansion without changing the core
+architecture.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 045.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 044
+
+═══════════════════════════════════════════════════════════════════════

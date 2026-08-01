@@ -226,5 +226,7 @@ router.use("/priority", priorityIntelligenceRouter);
 router.use("/orchestrator", unifiedOrchestrationRouter);
 router.use("/graph", knowledgeGraphRouter);
 router.use("/operating", digitalOperatingLayerRouter);
+import { connectionsHubRouter } from "./connections-hub";
+router.use("/connections", connectionsHubRouter);
 
 export default router;

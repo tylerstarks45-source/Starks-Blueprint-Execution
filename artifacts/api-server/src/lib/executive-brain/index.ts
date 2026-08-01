@@ -76,6 +76,9 @@ import type { ExecutionSimulationSummary } from "../execution-simulation/types";
 // Build 028: Intelligent Workflow Execution Engine
 import { fetchWorkflowExecutionSummary, triggerWorkflowBuildRun, buildWorkflowExecutionAdvisory } from "./workflow-execution-integration";
 import type { WorkflowSummary } from "../workflow-execution/types";
+// Build 029: Universal Execution Engine
+import { fetchUniversalExecutionSummary, triggerUniversalExecutionRun, buildUniversalExecutionAdvisory } from "./universal-execution-integration";
+import type { ExecutionSessionSummary } from "../universal-execution/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -488,6 +491,21 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: authority resolution step failed (ignored)");
   }
 
+  // ── Universal Execution Engine (Build 029) ───────────────────────────────
+  // Fetch the latest execution summary — sessions, nodes, health, success rate.
+  // Execution executes; EB NEVER owns execution state.
+  // Trigger a background execution run every 170 brain cycles (throttled).
+  // Fail-open: an execution failure must never block the request path.
+  let universalExecutionSummary: ExecutionSessionSummary | undefined;
+  try {
+    universalExecutionSummary = await fetchUniversalExecutionSummary(userId) ?? undefined;
+    if (businessGraphSummary?.businessId) {
+      triggerUniversalExecutionRun(userId, businessGraphSummary.businessId);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: universal execution step failed (ignored)");
+  }
+
   // ── Intelligent Workflow Execution Engine (Build 028) ────────────────────────
   // Fetch the latest Workflow summary — nodes, edges, checkpoints, phases, readiness.
   // Workflow Construction builds; EB NEVER owns workflow state.
@@ -533,7 +551,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: execution risk assessment step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, userId });
 
   logger.info(
     {
@@ -583,6 +601,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     executionRiskSummary,
     executionSimulationSummary,
     workflowSummary,
+    universalExecutionSummary,
   };
 }
 
@@ -618,9 +637,10 @@ async function buildContextNote(params: {
   executionRiskSummary: ExecutionRiskSummary | undefined;
   executionSimulationSummary: ExecutionSimulationSummary | undefined;
   workflowSummary: WorkflowSummary | undefined;
+  universalExecutionSummary: ExecutionSessionSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -976,6 +996,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: authority resolution advisory failed (ignored)");
+  }
+
+  // ── Universal Execution advisory (Build 029) ─────────────────────────────
+  // Sessions, nodes, health, success rate.
+  // Execution executes; EB NEVER owns execution state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const ueAdvisory = buildUniversalExecutionAdvisory(universalExecutionSummary ?? null);
+    if (ueAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(ueAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: universal execution advisory failed (ignored)");
   }
 
   // ── Intelligent Workflow advisory (Build 028) ─────────────────────────────

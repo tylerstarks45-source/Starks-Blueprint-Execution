@@ -117,4 +117,7 @@ export interface ExecutiveBrainResult {
   // Build 028: Workflow summary — nodes, edges, checkpoints, phases, readiness.
   // Workflow Construction builds; EB NEVER owns workflow state.
   workflowSummary?: import("../workflow-execution/types").WorkflowSummary;
+  // Build 029: Universal Execution summary — sessions, nodes, health, success rate.
+  // Execution executes; EB NEVER owns execution state.
+  universalExecutionSummary?: import("../universal-execution/types").ExecutionSessionSummary;
 }

@@ -1,0 +1,442 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 029
+
+TITLE
+
+Universal Execution Engine
+
+PHASE
+
+Phase IV – Operational Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+The Universal Execution Engine is the first engine permitted to
+perform approved work.
+
+It executes only after all upstream cognitive gates have completed:
+
+✓ Operational Planning
+
+✓ Execution Orchestration
+
+✓ Authority Resolution
+
+✓ Execution Risk Assessment
+
+✓ Execution Simulation
+
+✓ Workflow Construction
+
+Execution never makes strategic decisions.
+
+Execution never bypasses authority.
+
+Execution never bypasses risk.
+
+Execution faithfully performs approved workflow nodes.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Execute deterministic workflow nodes while producing complete
+observability and recoverability.
+
+═══════════════════════════════════════════════════════════════════════
+
+COGNITIVE PIPELINE
+
+Reason
+
+↓
+
+Judge
+
+↓
+
+Strategy
+
+↓
+
+Planning
+
+↓
+
+Capability
+
+↓
+
+Operations
+
+↓
+
+Orchestration
+
+↓
+
+Authority
+
+↓
+
+Risk
+
+↓
+
+Simulation
+
+↓
+
+Workflow
+
+↓
+
+Execution
+
+↓
+
+Observation
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW COGNITIVE OBJECTS
+
+Execution Session
+
+Execution Context
+
+Execution Node Result
+
+Execution Evidence
+
+Execution Event
+
+Execution Timeline
+
+Execution Registry
+
+Execution Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement a deterministic execution engine capable of:
+
+• executing workflow nodes
+
+• maintaining execution state
+
+• recording execution evidence
+
+• tracking execution progress
+
+• validating checkpoint completion
+
+• triggering rollback when instructed
+
+• pausing safely
+
+• resuming safely
+
+• stopping safely
+
+• preserving immutable execution history
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1. Execution Session Engine
+
+Creates immutable execution sessions.
+
+=======================================================================
+
+2. Node Execution Engine
+
+Executes one workflow node at a time.
+
+Never skips checkpoints.
+
+=======================================================================
+
+3. Execution State Engine
+
+Tracks:
+
+Pending
+
+Ready
+
+Running
+
+Waiting
+
+Paused
+
+Succeeded
+
+Failed
+
+Rolled Back
+
+Cancelled
+
+=======================================================================
+
+4. Checkpoint Validation Engine
+
+Confirms required checkpoints before and after node execution.
+
+=======================================================================
+
+5. Evidence Collection Engine
+
+Captures:
+
+Inputs
+
+Outputs
+
+Logs
+
+Errors
+
+Validation Results
+
+Execution Metadata
+
+=======================================================================
+
+6. Rollback Coordination Engine
+
+Coordinates rollback using Build 028 rollback definitions.
+
+Never invents rollback logic.
+
+=======================================================================
+
+7. Execution Reporting Engine
+
+Produces immutable execution reports.
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+execution_sessions
+
+execution_nodes
+
+execution_events
+
+execution_evidence
+
+execution_timelines
+
+execution_reports
+
+execution_registry
+
+execution_snapshots
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN INTEGRATION
+
+Executive Brain receives:
+
+Execution Progress
+
+Execution Health
+
+Completed Nodes
+
+Failed Nodes
+
+Rollback Status
+
+Execution Summary
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST   /execute/:businessId
+
+POST   /sessions/:sessionId/pause
+
+POST   /sessions/:sessionId/resume
+
+POST   /sessions/:sessionId/cancel
+
+GET    /sessions/:sessionId
+
+GET    /sessions/:sessionId/events
+
+GET    /sessions/:sessionId/evidence
+
+GET    /sessions/:sessionId/timeline
+
+GET    /businesses/:businessId/registry
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse:
+
+✓ Workflow Engine
+
+✓ Execution Simulation
+
+✓ Execution Risk
+
+✓ Authority Resolution
+
+✓ Execution Orchestration
+
+✓ Observation Engine
+
+✓ Registry Pattern
+
+✓ Executive Brain
+
+Purely additive.
+
+No mutation of previous layers.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURAL RULES
+
+Execution executes.
+
+Execution does not:
+
+• create strategy
+
+• modify plans
+
+• bypass approvals
+
+• elevate permissions
+
+• invent rollback paths
+
+• ignore checkpoints
+
+• ignore workflow order
+
+Every executed node must generate immutable evidence.
+
+Every execution event must be observable.
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ Execution Sessions
+
+✓ Workflow Execution
+
+✓ Checkpoint Validation
+
+✓ Evidence Collection
+
+✓ Rollback Coordination
+
+✓ Registry
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Execution Model
+
+7. Session Model
+
+8. Evidence Model
+
+9. Rollback Integration
+
+10. Registry
+
+11. Executive Brain Integration
+
+12. REST API
+
+13. Technical Decisions
+
+14. Performance Impact
+
+15. Architectural Trade-offs
+
+16. Future Extension Points
+
+17. Universal Execution Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+This is the first build that performs approved work.
+
+Execution is intentionally generic.
+
+It knows nothing about Shopify, GitHub, Stripe, browsers,
+desktops, cloud providers, CRMs, or operating systems.
+
+It only knows how to execute workflow nodes.
+
+Platform-specific behavior will be introduced later through
+Execution Adapters.
+
+This architectural separation is permanent.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 030.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 029
+
+═══════════════════════════════════════════════════════════════════════

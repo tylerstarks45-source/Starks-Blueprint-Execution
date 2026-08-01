@@ -89,9 +89,11 @@ import type { CapabilityIntelligenceSummary } from "../capability-intelligence/t
 import { fetchPlatformInfrastructureSummary, triggerPlatformInfrastructureScan, buildPlatformInfrastructureAdvisory } from "./platform-infrastructure-integration";
 import { fetchGlobalTechnologySummary, triggerGlobalTechnologyScan, buildGlobalTechnologyAdvisory } from "./global-technology-integration";
 import { fetchTechnologyRelationshipSummary, triggerTechnologyRelationshipRebuild, buildTechnologyRelationshipAdvisory } from "./technology-relationships-integration";
+import { fetchTechnologyEvolutionSummary, triggerTechnologyEvolutionRebuild, buildTechnologyEvolutionAdvisory } from "./technology-evolution-integration";
 import type { GlobalTechnologySummary } from "../global-technology/types";
 import type { PlatformInfrastructureSummary } from "../platform-infrastructure/types";
 import type { TechnologyRelationshipSummary } from "../technology-relationships/types";
+import type { TechnologyEvolutionSummary } from "../technology-evolution/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -539,6 +541,18 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: technology relationship step failed (ignored)");
   }
 
+  // ── Technology Evolution Intelligence Engine (Build 035) ─────────────────
+  // Models how technologies change over time: lifecycle, trends, velocity,
+  // adoption patterns, future outlook. Never installs or upgrades anything.
+  // Architectural Law: observation-only intelligence. Fail-open.
+  let technologyEvolutionSummary: TechnologyEvolutionSummary | undefined;
+  try {
+    technologyEvolutionSummary = await fetchTechnologyEvolutionSummary(userId) ?? undefined;
+    triggerTechnologyEvolutionRebuild(userId);
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: technology evolution step failed (ignored)");
+  }
+
   // ── Adaptive Capability Intelligence Engine (Build 031) ──────────────────
   // Evaluates readiness, health, reliability, availability of every installed adapter capability.
   // This engine evaluates only — it never executes workflows or modifies adapter state.
@@ -624,7 +638,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: execution risk assessment step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, userId });
 
   logger.info(
     {
@@ -680,6 +694,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     platformInfrastructureSummary,
     globalTechnologySummary,
     technologyRelationshipSummary,
+    technologyEvolutionSummary,
   };
 }
 
@@ -721,9 +736,10 @@ async function buildContextNote(params: {
   platformInfrastructureSummary: PlatformInfrastructureSummary | undefined;
   globalTechnologySummary: GlobalTechnologySummary | undefined;
   technologyRelationshipSummary: TechnologyRelationshipSummary | undefined;
+  technologyEvolutionSummary: TechnologyEvolutionSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1106,6 +1122,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: technology relationship advisory failed (ignored)");
+  }
+
+  // ── Technology Evolution advisory (Build 035) ─────────────────────────────
+  // Lifecycle stages, trend directions, velocity, adoption, outlook per technology.
+  // Architectural Law: advisory only. Never installs, upgrades, or modifies platform state.
+  // Fail-open: advisory failure must never break context assembly.
+  try {
+    const teiAdvisory = buildTechnologyEvolutionAdvisory(technologyEvolutionSummary ?? null);
+    if (teiAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(teiAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: technology evolution advisory failed (ignored)");
   }
 
   // ── Platform Infrastructure advisory (Build 032) ─────────────────────────

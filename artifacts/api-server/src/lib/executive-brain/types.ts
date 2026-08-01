@@ -127,4 +127,5 @@ export interface ExecutiveBrainResult {
   platformInfrastructureSummary?: import("../platform-infrastructure/types").PlatformInfrastructureSummary;
   globalTechnologySummary?: import("../global-technology/types").GlobalTechnologySummary;
   technologyRelationshipSummary?: import("../technology-relationships/types").TechnologyRelationshipSummary;
+  technologyEvolutionSummary?: import("../technology-evolution/types").TechnologyEvolutionSummary;
 }

@@ -1,0 +1,458 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 039
+
+TITLE
+
+Executive Priority Intelligence Engine
+
+PHASE
+
+Phase VI – Executive Systems Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Executive Priority Intelligence Engine determines what deserves
+attention first.
+
+Planning produces initiatives.
+
+Trade-off Intelligence evaluates alternatives.
+
+Portfolio Intelligence balances collections.
+
+Priority Intelligence continuously orders work based on changing
+conditions.
+
+It never executes work.
+
+It determines execution priority.
+
+═══════════════════════════════════════════════════════════════════════
+MISSION
+═══════════════════════════════════════════════════════════════════════
+
+Create deterministic priority intelligence capable of continuously
+ranking every initiative, opportunity, execution, and recommendation
+according to executive value.
+
+═══════════════════════════════════════════════════════════════════════
+NEW COGNITIVE OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Priority Queue
+
+Priority Profile
+
+Priority Score
+
+Priority Window
+
+Priority Dependency
+
+Priority Blocker
+
+Priority Escalation
+
+Priority Opportunity
+
+Priority Registry
+
+Priority Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement deterministic priority intelligence capable of:
+
+• ranking initiatives
+
+• ranking strategic goals
+
+• ranking opportunities
+
+• ranking risks
+
+• ranking technical debt
+
+• ranking infrastructure improvements
+
+• ranking business improvements
+
+• ranking execution work
+
+• detecting blocked priorities
+
+• detecting stale priorities
+
+• detecting priority conflicts
+
+• detecting dependency delays
+
+• recalculating priorities as constraints change
+
+• preserving immutable priority history
+
+═══════════════════════════════════════════════════════════════════════
+CORE ENGINES
+═══════════════════════════════════════════════════════════════════════
+
+1.
+
+Priority Scoring Engine
+
+Calculates weighted priority using:
+
+Strategic Value
+
+Business Impact
+
+Urgency
+
+Dependency Criticality
+
+Resource Availability
+
+Risk Reduction
+
+Confidence
+
+Time Sensitivity
+
+──────────────────────────────────────────────────────────────────────
+
+2.
+
+Dependency Priority Engine
+
+Adjusts priorities based on upstream and downstream dependency
+relationships.
+
+──────────────────────────────────────────────────────────────────────
+
+3.
+
+Attention Allocation Engine
+
+Determines where executive attention should be concentrated.
+
+Measures:
+
+Attention Load
+
+Priority Saturation
+
+Focus Drift
+
+Critical Window Utilization
+
+──────────────────────────────────────────────────────────────────────
+
+4.
+
+Escalation Intelligence Engine
+
+Automatically classifies:
+
+Normal
+
+Important
+
+High
+
+Critical
+
+Executive
+
+Only classifies.
+
+Never executes.
+
+──────────────────────────────────────────────────────────────────────
+
+5.
+
+Priority Aging Engine
+
+Detects:
+
+Neglected work
+
+Recurring postponement
+
+Priority decay
+
+Missed opportunities
+
+Stale recommendations
+
+──────────────────────────────────────────────────────────────────────
+
+6.
+
+Executive Priority Recommendation Engine
+
+Produces:
+
+Execute Now
+
+Prepare
+
+Monitor
+
+Delegate
+
+Delay
+
+Retire
+
+Every recommendation includes:
+
+Evidence
+
+Business impact
+
+Opportunity cost
+
+Risk if delayed
+
+Confidence
+
+Reasoning trace
+
+═══════════════════════════════════════════════════════════════════════
+DATABASE
+═══════════════════════════════════════════════════════════════════════
+
+Create:
+
+priority_profiles
+
+priority_scores
+
+priority_dependencies
+
+priority_attention
+
+priority_escalations
+
+priority_history
+
+priority_registry
+
+priority_snapshots
+
+priority_recommendations
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+EXECUTIVE BRAIN
+═══════════════════════════════════════════════════════════════════════
+
+Receives:
+
+Highest Priorities
+
+Critical Escalations
+
+Attention Allocation
+
+Blocked Priorities
+
+Priority Changes
+
+Executive Focus Summary
+
+═══════════════════════════════════════════════════════════════════════
+REST API
+═══════════════════════════════════════════════════════════════════════
+
+POST   /priority/evaluate
+
+POST   /priority/recalculate
+
+GET    /priority
+
+GET    /priority/scores
+
+GET    /priority/attention
+
+GET    /priority/escalations
+
+GET    /priority/history
+
+GET    /priority/recommendations
+
+GET    /priority/registry
+
+GET    /priority/snapshots
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Executive Strategy
+
+✓ Strategic Planning
+
+✓ Trade-off Intelligence
+
+✓ Portfolio Intelligence
+
+✓ Systems Dynamics
+
+✓ Executive Brain
+
+✓ Registry Pattern
+
+Purely additive.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Priority Intelligence
+
+Never:
+
+• executes work
+
+• changes plans
+
+• changes strategy
+
+• reallocates resources
+
+It evaluates executive priority only.
+
+═══════════════════════════════════════════════════════════════════════
+NEW PERMANENT LAW
+
+Executive Priority Law
+
+ASH shall never recommend work based solely on urgency.
+
+Every priority must balance:
+
+• strategic value
+
+• business impact
+
+• dependency position
+
+• opportunity cost
+
+• available capacity
+
+• long-term objectives
+
+• current system constraints
+
+Urgent work is not automatically important.
+
+Important work is not automatically urgent.
+
+Executive priority is the deterministic balance of both.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Priority Engine
+
+✓ Attention Allocation
+
+✓ Dependency Priorities
+
+✓ Escalation Intelligence
+
+✓ Priority Aging
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+═══════════════════════════════════════════════════════════════════════
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Priority Model
+
+7. Attention Model
+
+8. Escalation Model
+
+9. Aging Model
+
+10. Recommendation Model
+
+11. Registry
+
+12. Executive Brain Integration
+
+13. REST API
+
+14. Technical Decisions
+
+15. Performance Impact
+
+16. Architectural Trade-offs
+
+17. Future Extension Points
+
+18. Executive Priority Intelligence Score
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+═══════════════════════════════════════════════════════════════════════
+
+Executive Priority Intelligence is the final executive reasoning
+layer before operational launch.
+
+It ensures ASH not only knows what is valuable but also what should
+receive attention first under real-world constraints.
+
+This engine completes the executive decision stack by transforming
+strategic understanding into a continuously optimized order of
+execution.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 040.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 039
+
+═══════════════════════════════════════════════════════════════════════

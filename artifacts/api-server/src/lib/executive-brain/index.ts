@@ -93,6 +93,7 @@ import { fetchTechnologyEvolutionSummary, triggerTechnologyEvolutionRebuild, bui
 import { fetchSystemsDynamicsSummary, triggerSystemsDynamicsRebuild, buildSystemsDynamicsAdvisory } from "./systems-dynamics-integration";
 import { fetchTradeoffIntelligenceSummary, triggerTradeoffIntelligenceRebuild, buildTradeoffIntelligenceAdvisory } from "./tradeoff-intelligence-integration";
 import { fetchPortfolioIntelligenceSummary, triggerPortfolioIntelligenceRebuild, buildPortfolioIntelligenceAdvisory } from "./portfolio-intelligence-integration";
+import { fetchPriorityIntelligenceSummary, triggerPriorityIntelligenceRebuild, buildPriorityIntelligenceAdvisory } from "./priority-intelligence-integration";
 import type { GlobalTechnologySummary } from "../global-technology/types";
 import type { PlatformInfrastructureSummary } from "../platform-infrastructure/types";
 import type { TechnologyRelationshipSummary } from "../technology-relationships/types";
@@ -594,6 +595,18 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: portfolio intelligence step failed (ignored)");
   }
 
+  // ── Executive Priority Intelligence Engine (Build 039) ────────────────────
+  // Continuously ranks every initiative, opportunity, execution, and recommendation
+  // by executive value across 8 dimensions. Never executes or changes plans.
+  // Architectural Law: evaluation-only — Executive Priority Law applies. Fail-open.
+  let priorityIntelligenceSummary: import("../priority-intelligence/types").PriorityIntelligenceSummary | undefined;
+  try {
+    priorityIntelligenceSummary = await fetchPriorityIntelligenceSummary(userId) ?? undefined;
+    triggerPriorityIntelligenceRebuild(userId);
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: priority intelligence step failed (ignored)");
+  }
+
   // ── Adaptive Capability Intelligence Engine (Build 031) ──────────────────
   // Evaluates readiness, health, reliability, availability of every installed adapter capability.
   // This engine evaluates only — it never executes workflows or modifies adapter state.
@@ -679,7 +692,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: execution risk assessment step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, userId });
 
   logger.info(
     {
@@ -739,6 +752,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     systemsDynamicsSummary,
     tradeoffIntelligenceSummary,
     portfolioIntelligenceSummary,
+    priorityIntelligenceSummary,
   };
 }
 
@@ -784,9 +798,10 @@ async function buildContextNote(params: {
   systemsDynamicsSummary: SystemsDynamicsSummary | undefined;
   tradeoffIntelligenceSummary: TradeoffIntelligenceSummary | undefined;
   portfolioIntelligenceSummary: import("../portfolio-intelligence/types").PortfolioIntelligenceSummary | undefined;
+  priorityIntelligenceSummary: import("../priority-intelligence/types").PriorityIntelligenceSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1225,6 +1240,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: portfolio intelligence advisory failed (ignored)");
+  }
+
+  // ── Executive Priority advisory (Build 039) ────────────────────────────────
+  // Ranked priorities, blocked items, escalations, attention allocation, focus area.
+  // Architectural Law: advisory only. Executive Priority Law — urgency alone never
+  // determines priority; every score balances 8 dimensions. Fail-open.
+  try {
+    const epriAdvisory = buildPriorityIntelligenceAdvisory(priorityIntelligenceSummary ?? null);
+    if (epriAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(epriAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: priority intelligence advisory failed (ignored)");
   }
 
   // ── Platform Infrastructure advisory (Build 032) ─────────────────────────

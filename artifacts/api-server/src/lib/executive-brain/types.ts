@@ -131,4 +131,5 @@ export interface ExecutiveBrainResult {
   systemsDynamicsSummary?: import("../systems-dynamics/types").SystemsDynamicsSummary;
   tradeoffIntelligenceSummary?: import("../tradeoff-intelligence/types").TradeoffIntelligenceSummary;
   portfolioIntelligenceSummary?: import("../portfolio-intelligence/types").PortfolioIntelligenceSummary;
+  priorityIntelligenceSummary?: import("../priority-intelligence/types").PriorityIntelligenceSummary;
 }

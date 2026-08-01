@@ -108,5 +108,6 @@ export * from "./technology_evolution";
 export * from "./systems_dynamics";
 export * from "./tradeoff_intelligence";
 export * from "./portfolio_intelligence";
+export * from "./priority_intelligence";
 
 export * from "./system_logs";

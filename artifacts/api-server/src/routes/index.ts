@@ -79,6 +79,7 @@ import executionOrchestrationRouter from "./execution-orchestration";
 import authorityResolutionRouter from "./authority-resolution";
 import executionRiskRouter from "./execution-risk";
 import executionSimulationRouter from "./execution-simulation";
+import workflowExecutionRouter from "./workflow-execution";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -190,5 +191,7 @@ router.use(authorityResolutionRouter);
 router.use(executionRiskRouter);
 // Build 027: Execution Simulation Engine — scenarios, outcomes, state changes, rollback, registry
 router.use(executionSimulationRouter);
+// Build 028: Intelligent Workflow Execution Engine — nodes, edges, checkpoints, branches, rollback, registry
+router.use(workflowExecutionRouter);
 
 export default router;

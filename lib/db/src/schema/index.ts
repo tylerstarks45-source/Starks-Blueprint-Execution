@@ -97,5 +97,6 @@ export * from "./execution_orchestration";
 export * from "./authority_resolution";
 export * from "./execution_risk";
 export * from "./execution_simulation";
+export * from "./workflow_execution";
 
 export * from "./system_logs";

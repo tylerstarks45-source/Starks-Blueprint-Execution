@@ -46,6 +46,7 @@ import { declareExecutionOrchestrationExtensionPoints } from "../execution-orche
 import { declareAuthorityResolutionExtensionPoints } from "../authority-resolution/authority-extension-points";
 import { declareExecutionRiskExtensionPoints } from "../execution-risk/risk-extension-points";
 import { declareExecutionSimulationExtensionPoints } from "../execution-simulation/simulation-extension-points";
+import { declareWorkflowExecutionExtensionPoints } from "../workflow-execution/workflow-extension-points";
 
 let initialized = false;
 
@@ -87,6 +88,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareAuthorityResolutionExtensionPoints();   // Build 025: eight authority resolution seams
       declareExecutionRiskExtensionPoints();         // Build 026: eight execution risk assessment seams
       declareExecutionSimulationExtensionPoints();   // Build 027: eight execution simulation seams
+      declareWorkflowExecutionExtensionPoints();     // Build 028: eight workflow construction seams
       registerCoreBrains();
       initialized = true;
 

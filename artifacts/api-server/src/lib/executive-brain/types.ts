@@ -114,4 +114,7 @@ export interface ExecutiveBrainResult {
   // Build 027: Execution Simulation summary — scenarios, confidence, rollback, estimated duration.
   // Simulation predicts; EB NEVER owns simulation state.
   executionSimulationSummary?: import("../execution-simulation/types").ExecutionSimulationSummary;
+  // Build 028: Workflow summary — nodes, edges, checkpoints, phases, readiness.
+  // Workflow Construction builds; EB NEVER owns workflow state.
+  workflowSummary?: import("../workflow-execution/types").WorkflowSummary;
 }

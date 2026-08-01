@@ -1,0 +1,454 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 028
+
+TITLE
+
+Intelligent Workflow Execution Engine
+
+PHASE
+
+Phase IV – Operational Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+The Intelligent Workflow Execution Engine transforms approved
+Execution Plans into deterministic execution workflows.
+
+It answers:
+
+"What sequence of executable operations must occur to accomplish
+this objective?"
+
+This engine builds execution workflows.
+
+It never performs execution.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Construct complete execution workflows ready for the future
+Execution Engine.
+
+═══════════════════════════════════════════════════════════════════════
+
+COGNITIVE PIPELINE
+
+Business Graph
+
+↓
+
+Business Analysis
+
+↓
+
+Opportunity Discovery
+
+↓
+
+Future State Simulation
+
+↓
+
+Decision Intelligence
+
+↓
+
+Executive Strategy
+
+↓
+
+Strategic Planning
+
+↓
+
+Capability Planning
+
+↓
+
+Operational Planning
+
+↓
+
+Execution Orchestration
+
+↓
+
+Authority Resolution
+
+↓
+
+Execution Risk Assessment
+
+↓
+
+Execution Simulation
+
+↓
+
+Workflow Construction
+
+↓
+
+Execution
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW COGNITIVE OBJECTS
+
+Execution Workflow
+
+Workflow Phase
+
+Workflow Node
+
+Workflow Edge
+
+Workflow Checkpoint
+
+Workflow Branch
+
+Workflow Registry
+
+Workflow Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement a deterministic Workflow Engine capable of:
+
+• constructing execution workflows
+
+• organizing workflow phases
+
+• creating execution nodes
+
+• defining checkpoints
+
+• mapping workflow dependencies
+
+• supporting conditional branching
+
+• supporting retry paths
+
+• supporting rollback paths
+
+• preserving immutable workflow history
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1. Workflow Construction Engine
+
+Transforms execution plans into workflow graphs.
+
+=======================================================================
+
+2. Workflow Phase Engine
+
+Groups nodes into logical execution phases.
+
+Preparation
+
+Configuration
+
+Validation
+
+Deployment
+
+Verification
+
+Completion
+
+=======================================================================
+
+3. Dependency Graph Engine
+
+Constructs directed execution graphs.
+
+Supports:
+
+Parallel branches
+
+Sequential paths
+
+Merge points
+
+Synchronization
+
+=======================================================================
+
+4. Checkpoint Engine
+
+Creates deterministic checkpoints.
+
+Each checkpoint defines:
+
+Expected state
+
+Required validation
+
+Rollback marker
+
+Success criteria
+
+=======================================================================
+
+5. Conditional Routing Engine
+
+Creates deterministic branches for:
+
+Success
+
+Failure
+
+Retry
+
+Escalation
+
+Skip
+
+Manual approval
+
+=======================================================================
+
+6. Rollback Path Engine
+
+Every workflow node receives a deterministic rollback path.
+
+Rollback is part of the workflow.
+
+Never an afterthought.
+
+=======================================================================
+
+7. Workflow Evaluation Engine
+
+Scores:
+
+Completeness
+
+Reliability
+
+Recoverability
+
+Complexity
+
+Maintainability
+
+Confidence
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+execution_workflows
+
+workflow_nodes
+
+workflow_edges
+
+workflow_checkpoints
+
+workflow_branches
+
+workflow_rollbacks
+
+workflow_registry
+
+workflow_snapshots
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN INTEGRATION
+
+Executive Brain receives:
+
+Workflow Readiness
+
+Workflow Complexity
+
+Checkpoint Count
+
+Rollback Coverage
+
+Workflow Confidence
+
+Workflow Summary
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST   /build-workflow/:businessId
+
+GET    /businesses/:businessId/workflows
+
+GET    /workflows/:workflowId
+
+GET    /workflows/:workflowId/nodes
+
+GET    /workflows/:workflowId/edges
+
+GET    /workflows/:workflowId/checkpoints
+
+GET    /workflows/:workflowId/branches
+
+GET    /workflows/:workflowId/rollback
+
+GET    /businesses/:businessId/registry
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse:
+
+✓ Execution Simulation
+
+✓ Execution Risk Assessment
+
+✓ Authority Resolution
+
+✓ Execution Orchestration
+
+✓ Operational Planning
+
+✓ Registry Pattern
+
+✓ Executive Brain
+
+Purely additive.
+
+No mutation of previous layers.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURAL RULES
+
+Workflow Engine constructs workflows.
+
+Execution Engine performs workflows.
+
+Workflow Engine never:
+
+• executes
+
+• modifies systems
+
+• changes state
+
+• bypasses approvals
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ Workflow Graph
+
+✓ Workflow Nodes
+
+✓ Workflow Branches
+
+✓ Checkpoints
+
+✓ Rollback Paths
+
+✓ Registry
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Workflow Model
+
+7. Graph Model
+
+8. Checkpoint Model
+
+9. Branching Model
+
+10. Rollback Model
+
+11. Registry
+
+12. Executive Brain Integration
+
+13. REST API
+
+14. Technical Decisions
+
+15. Performance Impact
+
+16. Architectural Trade-offs
+
+17. Future Extension Points
+
+18. Workflow Intelligence Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+The Intelligent Workflow Execution Engine is the final preparation
+layer before execution.
+
+Its responsibility is to transform approved execution plans into
+complete executable workflows containing checkpoints,
+dependencies, rollback paths, validation gates, and conditional
+branches.
+
+Execution itself remains the responsibility of the future Execution
+Engine.
+
+This separation between Workflow Construction and Workflow
+Execution is a permanent architectural principle of the ASH
+Cognitive Operating System.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 029.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 028
+
+═══════════════════════════════════════════════════════════════════════

@@ -79,6 +79,9 @@ import type { WorkflowSummary } from "../workflow-execution/types";
 // Build 029: Universal Execution Engine
 import { fetchUniversalExecutionSummary, triggerUniversalExecutionRun, buildUniversalExecutionAdvisory } from "./universal-execution-integration";
 import type { ExecutionSessionSummary } from "../universal-execution/types";
+// Build 030: Universal Execution Adapter Framework
+import { fetchAdapterFrameworkSummary, triggerAdapterFrameworkScan, buildAdapterFrameworkAdvisory } from "./adapter-framework-integration";
+import type { AdapterFrameworkSummary } from "../adapter-framework/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -491,6 +494,19 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: authority resolution step failed (ignored)");
   }
 
+  // ── Universal Execution Adapter Framework (Build 030) ────────────────────
+  // Fetch available adapters, health, capability coverage.
+  // Adapters execute; EB NEVER owns adapter state.
+  // Trigger a background adapter scan every 180 brain cycles (throttled).
+  // Fail-open: an adapter scan failure must never block the request path.
+  let adapterFrameworkSummary: AdapterFrameworkSummary | undefined;
+  try {
+    adapterFrameworkSummary = await fetchAdapterFrameworkSummary(userId) ?? undefined;
+    triggerAdapterFrameworkScan(userId);
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: adapter framework step failed (ignored)");
+  }
+
   // ── Universal Execution Engine (Build 029) ───────────────────────────────
   // Fetch the latest execution summary — sessions, nodes, health, success rate.
   // Execution executes; EB NEVER owns execution state.
@@ -551,7 +567,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: execution risk assessment step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, userId });
 
   logger.info(
     {
@@ -602,6 +618,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     executionSimulationSummary,
     workflowSummary,
     universalExecutionSummary,
+    adapterFrameworkSummary,
   };
 }
 
@@ -638,9 +655,10 @@ async function buildContextNote(params: {
   executionSimulationSummary: ExecutionSimulationSummary | undefined;
   workflowSummary: WorkflowSummary | undefined;
   universalExecutionSummary: ExecutionSessionSummary | undefined;
+  adapterFrameworkSummary: AdapterFrameworkSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -996,6 +1014,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: authority resolution advisory failed (ignored)");
+  }
+
+  // ── Adapter Framework advisory (Build 030) ───────────────────────────────
+  // Available adapters, missing adapters, health, confidence, capability coverage.
+  // Adapters execute; EB NEVER owns adapter state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const afAdvisory = buildAdapterFrameworkAdvisory(adapterFrameworkSummary ?? null);
+    if (afAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(afAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: adapter framework advisory failed (ignored)");
   }
 
   // ── Universal Execution advisory (Build 029) ─────────────────────────────

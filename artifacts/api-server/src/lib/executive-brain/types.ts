@@ -120,4 +120,7 @@ export interface ExecutiveBrainResult {
   // Build 029: Universal Execution summary — sessions, nodes, health, success rate.
   // Execution executes; EB NEVER owns execution state.
   universalExecutionSummary?: import("../universal-execution/types").ExecutionSessionSummary;
+  // Build 030: Adapter Framework summary — adapters, health, capability coverage.
+  // Adapters execute; EB NEVER owns adapter state.
+  adapterFrameworkSummary?: import("../adapter-framework/types").AdapterFrameworkSummary;
 }

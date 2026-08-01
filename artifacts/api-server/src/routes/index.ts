@@ -85,6 +85,7 @@ import adapterFrameworkRouter from "./adapter-framework";
 import { capabilityIntelligenceRouter } from "./capability-intelligence";
 import { platformInfrastructureRouter } from "./platform-infrastructure";
 import { globalTechnologyRouter } from "./global-technology";
+import { technologyRelationshipsRouter } from "./technology-relationships";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -207,5 +208,6 @@ router.use("/capability-intelligence", capabilityIntelligenceRouter);
 // Build 032: Platform Infrastructure Intelligence Engine — resources, health, capacity, forecasts, alerts
 router.use("/platform-infrastructure", platformInfrastructureRouter);
 router.use("/global-technology", globalTechnologyRouter);
+router.use("/technology-relationships", technologyRelationshipsRouter);
 
 export default router;

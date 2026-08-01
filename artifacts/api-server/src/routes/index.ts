@@ -91,6 +91,7 @@ import { systemsDynamicsRouter } from "./systems-dynamics";
 import { tradeoffIntelligenceRouter } from "./tradeoff-intelligence";
 import { portfolioIntelligenceRouter } from "./portfolio-intelligence";
 import { priorityIntelligenceRouter } from "./priority-intelligence";
+import { unifiedOrchestrationRouter } from "./unified-orchestration";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -219,5 +220,7 @@ router.use("/systems-dynamics", systemsDynamicsRouter);
 router.use("/tradeoffs", tradeoffIntelligenceRouter);
 router.use("/portfolio", portfolioIntelligenceRouter);
 router.use("/priority", priorityIntelligenceRouter);
+// Build 040: Unified Cognitive Orchestration Engine — unified cycle, waves, diagnostics, registry
+router.use("/orchestrator", unifiedOrchestrationRouter);
 
 export default router;

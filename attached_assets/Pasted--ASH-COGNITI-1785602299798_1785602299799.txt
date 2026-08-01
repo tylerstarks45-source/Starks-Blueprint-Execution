@@ -1,0 +1,418 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 040
+
+TITLE
+
+Unified Cognitive Orchestration Engine
+
+PHASE
+
+Phase VII – Unified Cognitive Operating System
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Unified Cognitive Orchestration Engine is the central conductor
+of every intelligence system built throughout the platform.
+
+Previous builds created individual cognitive engines.
+
+This build unifies them into one coordinated executive mind.
+
+No engine is replaced.
+
+No engine is duplicated.
+
+Every engine keeps its responsibility.
+
+The Orchestrator determines:
+
+• when engines execute
+
+• execution dependencies
+
+• execution order
+
+• information flow
+
+• confidence propagation
+
+• evidence propagation
+
+• cognitive synchronization
+
+═══════════════════════════════════════════════════════════════════════
+MISSION
+═══════════════════════════════════════════════════════════════════════
+
+Create one deterministic orchestration layer capable of coordinating
+every cognitive subsystem as a single executive operating system.
+
+═══════════════════════════════════════════════════════════════════════
+COGNITIVE ENGINES TO ORCHESTRATE
+═══════════════════════════════════════════════════════════════════════
+
+Reasoning
+
+Memory
+
+Knowledge
+
+Context
+
+Goals
+
+Judgment
+
+Planning
+
+Execution
+
+Observation
+
+Reflection
+
+Learning
+
+Governance
+
+Business Graph
+
+Business Analysis
+
+Opportunity Discovery
+
+Future Simulation
+
+Decision Intelligence
+
+Executive Strategy
+
+Strategic Planning
+
+Capability Planning
+
+Infrastructure Intelligence
+
+Technology Intelligence
+
+Technology Relationships
+
+Technology Evolution
+
+Systems Dynamics
+
+Trade-off Intelligence
+
+Portfolio Intelligence
+
+Priority Intelligence
+
+All future engines automatically register with the orchestrator.
+
+═══════════════════════════════════════════════════════════════════════
+NEW COGNITIVE OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Execution Graph
+
+Execution Phase
+
+Execution Dependency
+
+Execution Wave
+
+Cognitive Cycle
+
+Synchronization Point
+
+Evidence Flow
+
+Confidence Flow
+
+Orchestration Registry
+
+Execution Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement deterministic orchestration capable of:
+
+• dependency resolution
+
+• execution scheduling
+
+• execution waves
+
+• parallel execution groups
+
+• sequential execution groups
+
+• synchronization barriers
+
+• evidence propagation
+
+• confidence propagation
+
+• engine health monitoring
+
+• execution tracing
+
+• cycle diagnostics
+
+• orchestration replay
+
+═══════════════════════════════════════════════════════════════════════
+CORE ENGINES
+═══════════════════════════════════════════════════════════════════════
+
+1.
+
+Dependency Resolution Engine
+
+Determines which engines must execute first.
+
+──────────────────────────────────────────────────────────────────────
+
+2.
+
+Execution Scheduler
+
+Creates deterministic execution waves.
+
+──────────────────────────────────────────────────────────────────────
+
+3.
+
+Synchronization Engine
+
+Coordinates all engine outputs before Executive Brain synthesis.
+
+──────────────────────────────────────────────────────────────────────
+
+4.
+
+Evidence Propagation Engine
+
+Ensures downstream engines receive upstream evidence without
+duplication.
+
+──────────────────────────────────────────────────────────────────────
+
+5.
+
+Confidence Propagation Engine
+
+Carries confidence through the complete cognitive pipeline so final
+recommendations reflect cumulative certainty.
+
+──────────────────────────────────────────────────────────────────────
+
+6.
+
+Execution Diagnostics Engine
+
+Records:
+
+execution time
+
+engine participation
+
+dependency satisfaction
+
+health
+
+confidence variance
+
+pipeline completeness
+
+═══════════════════════════════════════════════════════════════════════
+DATABASE
+
+Create:
+
+cognitive_cycles
+
+execution_graphs
+
+execution_dependencies
+
+execution_waves
+
+execution_diagnostics
+
+confidence_flows
+
+evidence_flows
+
+orchestration_registry
+
+orchestration_snapshots
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+EXECUTIVE BRAIN
+
+Executive Brain no longer manually chains intelligence engines.
+
+Instead it requests:
+
+runUnifiedCognitiveCycle()
+
+The orchestrator coordinates the complete reasoning cycle.
+
+═══════════════════════════════════════════════════════════════════════
+REST API
+
+POST /orchestrator/run
+
+POST /orchestrator/replay
+
+GET  /orchestrator/cycles
+
+GET  /orchestrator/graph
+
+GET  /orchestrator/dependencies
+
+GET  /orchestrator/waves
+
+GET  /orchestrator/diagnostics
+
+GET  /orchestrator/confidence
+
+GET  /orchestrator/evidence
+
+GET  /orchestrator/registry
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+
+Reuse every cognitive engine built to date.
+
+No duplicate logic.
+
+No migration.
+
+No behavioral changes.
+
+The orchestrator coordinates existing engines only.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+
+The Orchestrator never replaces intelligence.
+
+It coordinates intelligence.
+
+Every future intelligence engine must register with the
+Unified Cognitive Orchestrator.
+
+═══════════════════════════════════════════════════════════════════════
+NEW PERMANENT LAW
+
+Unified Cognition Law
+
+No cognitive engine shall execute in isolation if its output
+depends on evidence produced by another registered engine.
+
+The Unified Cognitive Orchestrator becomes the single authoritative
+execution coordinator for the entire Cognitive Operating System.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+
+✓ Unified orchestration
+
+✓ Dependency graph
+
+✓ Execution waves
+
+✓ Synchronization
+
+✓ Evidence propagation
+
+✓ Confidence propagation
+
+✓ Executive Brain integration
+
+✓ Full backward compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Orchestration Model
+
+6. Dependency Graph
+
+7. Execution Wave Model
+
+8. Synchronization Model
+
+9. Evidence Flow Model
+
+10. Confidence Flow Model
+
+11. Executive Brain Integration
+
+12. REST API
+
+13. Technical Decisions
+
+14. Performance Impact
+
+15. Architectural Trade-offs
+
+16. Future Extension Points
+
+17. Unified Cognitive Orchestration Score
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+
+This is the most important architectural build since the Executive
+Brain itself.
+
+Every intelligence system built over the previous 39 builds now
+operates as one coordinated Cognitive Operating System rather than
+independent modules.
+
+From this point forward, ASH no longer behaves like a collection of
+engines.
+
+She behaves like one unified executive intelligence.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 041.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 040
+
+═══════════════════════════════════════════════════════════════════════

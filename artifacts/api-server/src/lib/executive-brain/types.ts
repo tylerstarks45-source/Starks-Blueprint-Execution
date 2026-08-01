@@ -132,4 +132,8 @@ export interface ExecutiveBrainResult {
   tradeoffIntelligenceSummary?: import("../tradeoff-intelligence/types").TradeoffIntelligenceSummary;
   portfolioIntelligenceSummary?: import("../portfolio-intelligence/types").PortfolioIntelligenceSummary;
   priorityIntelligenceSummary?: import("../priority-intelligence/types").PriorityIntelligenceSummary;
+  // Build 040: Unified Cognitive Orchestration Engine — aggregate metadata from the unified cognitive cycle.
+  // The orchestrator runs all 25 intelligence engines (Builds 015–039) in dependency-ordered waves.
+  // Unified Cognition Law: no engine executes in isolation if its output depends on evidence from another registered engine.
+  unifiedOrchestrationSummary?: import("../unified-orchestration/types").UnifiedOrchestrationSummary;
 }

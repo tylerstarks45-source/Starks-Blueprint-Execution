@@ -34,72 +34,65 @@ import type { LearningSummary } from "../executive-learning/types";
 // Build 014: Executive Governance & Adaptation Engine
 import { fetchGovernanceSummary, triggerGovernanceCycle, buildGovernanceAdvisory } from "./governance-integration";
 import type { GovernanceSummary } from "../executive-governance/types";
-// Build 015: Business Graph Engine
-import { fetchBusinessSummary, triggerGraphRefresh, buildBusinessAdvisory } from "./business-integration";
+// Build 040: Unified Cognitive Orchestration Engine
+// All intelligence engines (Builds 015–039) are now coordinated through the
+// Unified Cognitive Orchestrator. Unified Cognition Law: no engine executes in
+// isolation if its output depends on evidence from another registered engine.
+import { runUnifiedCognitiveCycle, fetchOrchestrationSummary, triggerOrchestrationSnapshot, buildOrchestrationAdvisory } from "./unified-orchestration-integration";
+import type { CognitiveCycleResult } from "./unified-orchestration-integration";
+// Advisory builders (re-exported from Unified Orchestration for buildContextNote)
+import {
+  buildBusinessAdvisory,
+  buildAnalysisAdvisory,
+  buildOpportunityAdvisory,
+  buildSimulationAdvisory,
+  buildDecisionAdvisory,
+  buildStrategyAdvisory,
+  buildPlanningAdvisory,
+  buildCapabilityAdvisory,
+  buildOperationalAdvisory,
+  buildExecutionOrchestrationAdvisory,
+  buildAuthorityAdvisory,
+  buildRiskAdvisory,
+  buildExecutionSimulationAdvisory,
+  buildWorkflowExecutionAdvisory,
+  buildUniversalExecutionAdvisory,
+  buildAdapterFrameworkAdvisory,
+  buildCapabilityIntelligenceAdvisory,
+  buildPlatformInfrastructureAdvisory,
+  buildGlobalTechnologyAdvisory,
+  buildTechnologyRelationshipAdvisory,
+  buildTechnologyEvolutionAdvisory,
+  buildSystemsDynamicsAdvisory,
+  buildTradeoffIntelligenceAdvisory,
+  buildPortfolioIntelligenceAdvisory,
+  buildPriorityIntelligenceAdvisory,
+} from "./unified-orchestration-integration";
+// Summary types (kept direct for TypeScript clarity in buildContextNote param annotations)
 import type { BusinessGraphSummary } from "../business-graph/types";
-// Build 016: Business Analysis Engine
-import { fetchAnalysisSummary, triggerAnalysisRun, buildAnalysisAdvisory } from "./analysis-integration";
 import type { BusinessAnalysisSummary } from "../business-analysis/types";
-// Build 017: Opportunity Discovery Engine
-import { fetchOpportunitySummary, triggerOpportunityRun, buildOpportunityAdvisory } from "./opportunity-integration";
 import type { OpportunityDiscoverySummary } from "../opportunity-discovery/types";
-// Build 018: Future State Simulation Engine
-import { fetchSimulationSummary, triggerSimulationRun, buildSimulationAdvisory } from "./simulation-integration";
 import type { SimulationSummary } from "../future-simulation/types";
-// Build 019: Decision Intelligence Engine
-import { fetchDecisionSummary, triggerDecisionRun, buildDecisionAdvisory } from "./decision-integration";
 import type { DecisionSummary } from "../decision-intelligence/types";
-// Build 020: Executive Strategy Engine
-import { fetchStrategySummary, triggerStrategyRun, buildStrategyAdvisory } from "./strategy-integration";
 import type { StrategySummary } from "../executive-strategy/types";
-// Build 021: Strategic Planning Engine
-import { fetchPlanSummary, triggerPlanningRun, buildPlanningAdvisory } from "./planning-integration";
 import type { PlanningSummary } from "../strategic-planning/types";
-// Build 022: Capability Planning Engine
-import { fetchCapabilitySummary, triggerCapabilityRun, buildCapabilityAdvisory } from "./capability-integration";
 import type { CapabilitySummary } from "../capability-planning/types";
-// Build 023: Operational Planning Engine
-import { fetchOperationalSummary, triggerOperationalRun, buildOperationalAdvisory } from "./operational-integration";
 import type { OperationalSummary } from "../operational-planning/types";
-// Build 024: Execution Orchestration Engine
-import { fetchExecutionOrchestrationSummary, triggerExecutionOrchestrationRun, buildExecutionOrchestrationAdvisory } from "./execution-orchestration-integration";
 import type { ExecutionOrchestrationSummary } from "../execution-orchestration/types";
-// Build 025: Authority Resolution Engine
-import { fetchAuthoritySummary, triggerAuthorityResolutionRun, buildAuthorityAdvisory } from "./authority-resolution-integration";
 import type { AuthoritySummary } from "../authority-resolution/types";
-// Build 026: Execution Risk Assessment Engine
-import { fetchExecutionRiskSummary, triggerRiskAssessmentRun, buildRiskAdvisory } from "./execution-risk-integration";
 import type { ExecutionRiskSummary } from "../execution-risk/types";
-// Build 027: Execution Simulation Engine
-import { fetchExecutionSimulationSummary, triggerExecutionSimulationRun, buildExecutionSimulationAdvisory } from "./execution-simulation-integration";
 import type { ExecutionSimulationSummary } from "../execution-simulation/types";
-// Build 028: Intelligent Workflow Execution Engine
-import { fetchWorkflowExecutionSummary, triggerWorkflowBuildRun, buildWorkflowExecutionAdvisory } from "./workflow-execution-integration";
 import type { WorkflowSummary } from "../workflow-execution/types";
-// Build 029: Universal Execution Engine
-import { fetchUniversalExecutionSummary, triggerUniversalExecutionRun, buildUniversalExecutionAdvisory } from "./universal-execution-integration";
 import type { ExecutionSessionSummary } from "../universal-execution/types";
-// Build 030: Universal Execution Adapter Framework
-import { fetchAdapterFrameworkSummary, triggerAdapterFrameworkScan, buildAdapterFrameworkAdvisory } from "./adapter-framework-integration";
 import type { AdapterFrameworkSummary } from "../adapter-framework/types";
-// Build 031: Adaptive Capability Intelligence Engine
-import { fetchCapabilityIntelligenceSummary, triggerCapabilityIntelligenceScan, buildCapabilityIntelligenceAdvisory } from "./capability-intelligence-integration";
 import type { CapabilityIntelligenceSummary } from "../capability-intelligence/types";
-// Build 032: Platform Infrastructure Intelligence Engine
-import { fetchPlatformInfrastructureSummary, triggerPlatformInfrastructureScan, buildPlatformInfrastructureAdvisory } from "./platform-infrastructure-integration";
-import { fetchGlobalTechnologySummary, triggerGlobalTechnologyScan, buildGlobalTechnologyAdvisory } from "./global-technology-integration";
-import { fetchTechnologyRelationshipSummary, triggerTechnologyRelationshipRebuild, buildTechnologyRelationshipAdvisory } from "./technology-relationships-integration";
-import { fetchTechnologyEvolutionSummary, triggerTechnologyEvolutionRebuild, buildTechnologyEvolutionAdvisory } from "./technology-evolution-integration";
-import { fetchSystemsDynamicsSummary, triggerSystemsDynamicsRebuild, buildSystemsDynamicsAdvisory } from "./systems-dynamics-integration";
-import { fetchTradeoffIntelligenceSummary, triggerTradeoffIntelligenceRebuild, buildTradeoffIntelligenceAdvisory } from "./tradeoff-intelligence-integration";
-import { fetchPortfolioIntelligenceSummary, triggerPortfolioIntelligenceRebuild, buildPortfolioIntelligenceAdvisory } from "./portfolio-intelligence-integration";
-import { fetchPriorityIntelligenceSummary, triggerPriorityIntelligenceRebuild, buildPriorityIntelligenceAdvisory } from "./priority-intelligence-integration";
-import type { GlobalTechnologySummary } from "../global-technology/types";
 import type { PlatformInfrastructureSummary } from "../platform-infrastructure/types";
+import type { GlobalTechnologySummary } from "../global-technology/types";
 import type { TechnologyRelationshipSummary } from "../technology-relationships/types";
 import type { TechnologyEvolutionSummary } from "../technology-evolution/types";
 import type { SystemsDynamicsSummary } from "../systems-dynamics/types";
 import type { TradeoffIntelligenceSummary } from "../tradeoff-intelligence/types";
+import type { UnifiedOrchestrationSummary } from "../unified-orchestration/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -348,351 +341,78 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: governance step failed (ignored)");
   }
 
-  // ── Business Graph Engine (Build 015) ───────────────────────────────────────
-  // Fetch the Business Graph summary for the primary business of this user.
-  // Executive Brain reasons OVER the graph; Business Graph NEVER reasons.
-  // Business Graph NEVER owns EB state; EB NEVER owns business state.
-  // Trigger a background graph refresh every 30 brain cycles (throttled).
-  // Fail-open: a business graph failure must never block the request path.
-  let businessGraphSummary: BusinessGraphSummary | undefined;
-  try {
-    businessGraphSummary = await fetchBusinessSummary(userId) ?? undefined;
-    triggerGraphRefresh(userId); // fire-and-forget, internally throttled
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: business graph step failed (ignored)");
-  }
-
-  // ── Business Analysis Engine (Build 016) ─────────────────────────────────────
-  // Fetch the latest Business Analysis summary for the user's primary business.
-  // Business Analysis NEVER performs reasoning; EB NEVER owns analysis state.
-  // Trigger a background analysis run every 40 brain cycles (throttled).
-  // Fail-open: an analysis failure must never block the request path.
-  let businessAnalysisSummary: BusinessAnalysisSummary | undefined;
-  try {
-    businessAnalysisSummary = await fetchAnalysisSummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerAnalysisRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: business analysis step failed (ignored)");
-  }
-
-  // ── Opportunity Discovery Engine (Build 017) ──────────────────────────────────
-  // Fetch the latest Opportunity Discovery summary for the user's primary business.
-  // Opportunity Discovery identifies value; EB NEVER owns opportunity state.
-  // Trigger a background discovery run every 50 brain cycles (throttled).
-  // Fail-open: a discovery failure must never block the request path.
-  let opportunityDiscoverySummary: OpportunityDiscoverySummary | undefined;
-  try {
-    opportunityDiscoverySummary = await fetchOpportunitySummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerOpportunityRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: opportunity discovery step failed (ignored)");
-  }
-
-  // ── Future State Simulation Engine (Build 018) ────────────────────────────────
-  // Fetch the latest Simulation summary — multiple possible business futures.
-  // Simulation explores futures; EB NEVER owns simulation state.
-  // Trigger a background simulation run every 60 brain cycles (throttled).
-  // Fail-open: a simulation failure must never block the request path.
-  let simulationSummary: SimulationSummary | undefined;
-  try {
-    simulationSummary = await fetchSimulationSummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerSimulationRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: future simulation step failed (ignored)");
-  }
-
-  // ── Decision Intelligence Engine (Build 019) ─────────────────────────────────
-  // Fetch the latest Decision summary — selected executive decision + justification.
-  // Decision Intelligence chooses; EB NEVER owns decision state.
-  // Trigger a background decision run every 70 brain cycles (throttled).
-  // Fail-open: a decision failure must never block the request path.
-  let decisionSummary: DecisionSummary | undefined;
-  try {
-    decisionSummary = await fetchDecisionSummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerDecisionRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: decision intelligence step failed (ignored)");
-  }
-
-  // ── Executive Strategy Engine (Build 020) ────────────────────────────────────
-  // Fetch the latest Strategy summary — active strategy, top pillars, objectives.
-  // Executive Strategy defines direction; EB NEVER owns strategy state.
-  // Trigger a background strategy run every 80 brain cycles (throttled).
-  // Fail-open: a strategy failure must never block the request path.
-  let strategySummary: StrategySummary | undefined;
-  try {
-    strategySummary = await fetchStrategySummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerStrategyRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: executive strategy step failed (ignored)");
-  }
-
-  // ── Strategic Planning Engine (Build 021) ────────────────────────────────────
-  // Fetch the latest Planning summary — programmes, initiatives, milestones, readiness.
-  // Strategic Planning organises work; EB NEVER owns planning state.
-  // Trigger a background planning run every 90 brain cycles (throttled).
-  // Fail-open: a planning failure must never block the request path.
-  let planningSummary: PlanningSummary | undefined;
-  try {
-    planningSummary = await fetchPlanSummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerPlanningRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: strategic planning step failed (ignored)");
-  }
-
-  // ── Capability Planning Engine (Build 022) ───────────────────────────────────
-  // Fetch the latest Capability summary — domains, requirements, gaps, readiness.
-  // Capability Planning identifies required capabilities; EB NEVER owns capability state.
-  // Trigger a background capability run every 100 brain cycles (throttled).
-  // Fail-open: a capability failure must never block the request path.
-  let capabilitySummary: CapabilitySummary | undefined;
-  try {
-    capabilitySummary = await fetchCapabilitySummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerCapabilityRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: capability planning step failed (ignored)");
-  }
-
-  // ── Operational Planning Engine (Build 023) ──────────────────────────────────
-  // Fetch the latest Operational summary — phases, work packages, dependencies, readiness.
-  // Operational Planning organises work for execution; EB NEVER owns operational state.
-  // Trigger a background operational run every 110 brain cycles (throttled).
-  // Fail-open: an operational failure must never block the request path.
-  let operationalSummary: OperationalSummary | undefined;
-  try {
-    operationalSummary = await fetchOperationalSummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerOperationalRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: operational planning step failed (ignored)");
-  }
-
-  // ── Execution Orchestration Engine (Build 024) ───────────────────────────────
-  // Fetch the latest Execution Orchestration summary — assignments, owners, blockers, automation ratio.
-  // Execution Orchestration assigns responsibility; EB NEVER owns execution state.
-  // Trigger a background orchestration run every 120 brain cycles (throttled).
-  // Fail-open: an orchestration failure must never block the request path.
+  // ── Unified Cognitive Cycle (Build 040) ──────────────────────────────────────
+  // The Unified Cognitive Orchestrator coordinates all intelligence engines
+  // (Builds 015–039) in dependency-ordered waves. Each engine runs in its
+  // assigned wave; all engines in the same wave execute in parallel.
+  //
+  // UNIFIED COGNITION LAW: No intelligence engine executes in isolation when
+  // its output depends on evidence produced by another registered engine.
+  // The orchestrator enforces this law across all 25 engines in every cycle.
+  //
+  // Fail-open: if the unified cycle throws, all summaries remain undefined and
+  // the EB continues to the context note with gracefully degraded intelligence.
+  let businessGraphSummary:          BusinessGraphSummary | undefined;
+  let businessAnalysisSummary:       BusinessAnalysisSummary | undefined;
+  let opportunityDiscoverySummary:   OpportunityDiscoverySummary | undefined;
+  let simulationSummary:             SimulationSummary | undefined;
+  let decisionSummary:               DecisionSummary | undefined;
+  let strategySummary:               StrategySummary | undefined;
+  let planningSummary:               PlanningSummary | undefined;
+  let capabilitySummary:             CapabilitySummary | undefined;
+  let operationalSummary:            OperationalSummary | undefined;
   let executionOrchestrationSummary: ExecutionOrchestrationSummary | undefined;
-  try {
-    executionOrchestrationSummary = await fetchExecutionOrchestrationSummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerExecutionOrchestrationRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: execution orchestration step failed (ignored)");
-  }
-
-  // ── Authority Resolution Engine (Build 025) ──────────────────────────────────
-  // Fetch the latest Authority Resolution summary — requirements, grants, decisions, authorization score.
-  // Authority Resolution determines whether execution is authorized; EB NEVER owns authority state.
-  // Trigger a background authority resolution run every 130 brain cycles (throttled).
-  // Fail-open: an authority failure must never block the request path.
-  let authoritySummary: AuthoritySummary | undefined;
-  try {
-    authoritySummary = await fetchAuthoritySummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerAuthorityResolutionRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: authority resolution step failed (ignored)");
-  }
-
-  // ── Platform Infrastructure Intelligence Engine (Build 032) ──────────────
-  // Observes the computing environment: CPU, RAM, GPU, storage, database, queues, adapters.
-  // This engine observes and advises only — never provisions or modifies infrastructure.
-  // Fail-open: a PII failure must never block the EB request path.
-  let platformInfrastructureSummary: PlatformInfrastructureSummary | undefined;
-  try {
-    platformInfrastructureSummary = await fetchPlatformInfrastructureSummary(userId) ?? undefined;
-    triggerPlatformInfrastructureScan(userId);
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: platform infrastructure step failed (ignored)");
-  }
-
-  // ── Global Technology Intelligence Engine (Build 033) ────────────────────
-  // Catalogs external technologies ASH may leverage with administrator approval.
-  // Observes and advises only — never installs or provisions anything.
-  let globalTechnologySummary: GlobalTechnologySummary | undefined;
-  try {
-    globalTechnologySummary = await fetchGlobalTechnologySummary(userId) ?? undefined;
-    triggerGlobalTechnologyScan(userId);
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: global technology step failed (ignored)");
-  }
-
-  // ── Technology Relationship Intelligence Engine (Build 034) ──────────────
-  // Models how technologies relate: dependency graph, ecosystem mapping,
-  // synergy scores, conflict detection, migration paths.
-  // Architectural Law: never installs, creates adapters, or changes platform state. Observes only.
-  let technologyRelationshipSummary: TechnologyRelationshipSummary | undefined;
-  try {
-    technologyRelationshipSummary = await fetchTechnologyRelationshipSummary(userId) ?? undefined;
-    triggerTechnologyRelationshipRebuild(userId);
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: technology relationship step failed (ignored)");
-  }
-
-  // ── Technology Evolution Intelligence Engine (Build 035) ─────────────────
-  // Models how technologies change over time: lifecycle, trends, velocity,
-  // adoption patterns, future outlook. Never installs or upgrades anything.
-  // Architectural Law: observation-only intelligence. Fail-open.
-  let technologyEvolutionSummary: TechnologyEvolutionSummary | undefined;
-  try {
-    technologyEvolutionSummary = await fetchTechnologyEvolutionSummary(userId) ?? undefined;
-    triggerTechnologyEvolutionRebuild(userId);
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: technology evolution step failed (ignored)");
-  }
-
-  // ── Systems Dynamics Intelligence Engine (Build 036) ─────────────────────
-  // Models complete system behavior: feedback loops, propagation paths,
-  // constraints, leverage points, resilience. Never executes or modifies state.
-  // Architectural Law: observation-only — Systems Thinking Law applies. Fail-open.
-  let systemsDynamicsSummary: SystemsDynamicsSummary | undefined;
-  try {
-    systemsDynamicsSummary = await fetchSystemsDynamicsSummary(userId) ?? undefined;
-    triggerSystemsDynamicsRebuild(userId);
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: systems dynamics step failed (ignored)");
-  }
-
-  // ── Executive Trade-off Intelligence Engine (Build 037) ───────────────────
-  // Multi-objective decision evaluation: constraint modeling, Pareto frontiers,
-  // sensitivity analysis, executive recommendations. Never executes decisions.
-  // Architectural Law: evaluation-only — Executive Optimization Law applies. Fail-open.
-  let tradeoffIntelligenceSummary: TradeoffIntelligenceSummary | undefined;
-  try {
-    tradeoffIntelligenceSummary = await fetchTradeoffIntelligenceSummary(userId) ?? undefined;
-    triggerTradeoffIntelligenceRebuild(userId);
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: trade-off intelligence step failed (ignored)");
-  }
-
-  // ── Executive Portfolio Intelligence Engine (Build 038) ───────────────────
-  // Portfolio evaluation: balance, allocation, exposure, capacity, recommendations.
-  // Never executes initiatives or reallocates resources automatically.
-  // Architectural Law: evaluation-only — Portfolio Optimization Law applies. Fail-open.
-  let portfolioIntelligenceSummary: import("../portfolio-intelligence/types").PortfolioIntelligenceSummary | undefined;
-  try {
-    portfolioIntelligenceSummary = await fetchPortfolioIntelligenceSummary(userId) ?? undefined;
-    triggerPortfolioIntelligenceRebuild(userId);
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: portfolio intelligence step failed (ignored)");
-  }
-
-  // ── Executive Priority Intelligence Engine (Build 039) ────────────────────
-  // Continuously ranks every initiative, opportunity, execution, and recommendation
-  // by executive value across 8 dimensions. Never executes or changes plans.
-  // Architectural Law: evaluation-only — Executive Priority Law applies. Fail-open.
-  let priorityIntelligenceSummary: import("../priority-intelligence/types").PriorityIntelligenceSummary | undefined;
-  try {
-    priorityIntelligenceSummary = await fetchPriorityIntelligenceSummary(userId) ?? undefined;
-    triggerPriorityIntelligenceRebuild(userId);
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: priority intelligence step failed (ignored)");
-  }
-
-  // ── Adaptive Capability Intelligence Engine (Build 031) ──────────────────
-  // Evaluates readiness, health, reliability, availability of every installed adapter capability.
-  // This engine evaluates only — it never executes workflows or modifies adapter state.
-  // Fail-open: a CI failure must never block the EB request path.
+  let authoritySummary:              AuthoritySummary | undefined;
+  let executionRiskSummary:          ExecutionRiskSummary | undefined;
+  let executionSimulationSummary:    ExecutionSimulationSummary | undefined;
+  let workflowSummary:               WorkflowSummary | undefined;
+  let universalExecutionSummary:     ExecutionSessionSummary | undefined;
+  let adapterFrameworkSummary:       AdapterFrameworkSummary | undefined;
   let capabilityIntelligenceSummary: CapabilityIntelligenceSummary | undefined;
+  let platformInfrastructureSummary: PlatformInfrastructureSummary | undefined;
+  let globalTechnologySummary:       GlobalTechnologySummary | undefined;
+  let technologyRelationshipSummary: TechnologyRelationshipSummary | undefined;
+  let technologyEvolutionSummary:    TechnologyEvolutionSummary | undefined;
+  let systemsDynamicsSummary:        SystemsDynamicsSummary | undefined;
+  let tradeoffIntelligenceSummary:   TradeoffIntelligenceSummary | undefined;
+  let portfolioIntelligenceSummary:  import("../portfolio-intelligence/types").PortfolioIntelligenceSummary | undefined;
+  let priorityIntelligenceSummary:   import("../priority-intelligence/types").PriorityIntelligenceSummary | undefined;
+  let unifiedOrchestrationSummary:   UnifiedOrchestrationSummary | undefined;
   try {
-    capabilityIntelligenceSummary = await fetchCapabilityIntelligenceSummary(userId) ?? undefined;
-    triggerCapabilityIntelligenceScan(userId);
+    const cycleResult: CognitiveCycleResult = await runUnifiedCognitiveCycle(userId);
+    businessGraphSummary            = cycleResult.businessGraphSummary;
+    businessAnalysisSummary         = cycleResult.businessAnalysisSummary;
+    opportunityDiscoverySummary     = cycleResult.opportunityDiscoverySummary;
+    simulationSummary               = cycleResult.simulationSummary;
+    decisionSummary                 = cycleResult.decisionSummary;
+    strategySummary                 = cycleResult.strategySummary;
+    planningSummary                 = cycleResult.planningSummary;
+    capabilitySummary               = cycleResult.capabilitySummary;
+    operationalSummary              = cycleResult.operationalSummary;
+    executionOrchestrationSummary   = cycleResult.executionOrchestrationSummary;
+    authoritySummary                = cycleResult.authoritySummary;
+    executionRiskSummary            = cycleResult.executionRiskSummary;
+    executionSimulationSummary      = cycleResult.executionSimulationSummary;
+    workflowSummary                 = cycleResult.workflowSummary;
+    universalExecutionSummary       = cycleResult.universalExecutionSummary;
+    adapterFrameworkSummary         = cycleResult.adapterFrameworkSummary;
+    capabilityIntelligenceSummary   = cycleResult.capabilityIntelligenceSummary;
+    platformInfrastructureSummary   = cycleResult.platformInfrastructureSummary;
+    globalTechnologySummary         = cycleResult.globalTechnologySummary;
+    technologyRelationshipSummary   = cycleResult.technologyRelationshipSummary;
+    technologyEvolutionSummary      = cycleResult.technologyEvolutionSummary;
+    systemsDynamicsSummary          = cycleResult.systemsDynamicsSummary;
+    tradeoffIntelligenceSummary     = cycleResult.tradeoffIntelligenceSummary;
+    portfolioIntelligenceSummary    = cycleResult.portfolioIntelligenceSummary;
+    priorityIntelligenceSummary     = cycleResult.priorityIntelligenceSummary;
+    // Fetch orchestration aggregate summary for advisory (non-blocking, throttled snapshot)
+    unifiedOrchestrationSummary     = await fetchOrchestrationSummary(userId) ?? undefined;
+    triggerOrchestrationSnapshot(); // fire-and-forget platform snapshot, every 280 cycles
   } catch (err) {
-    logger.warn({ err }, "Executive Brain: capability intelligence step failed (ignored)");
+    logger.warn({ err }, "Executive Brain: unified cognitive cycle failed (ignored) — all summaries undefined");
   }
 
-  // ── Universal Execution Adapter Framework (Build 030) ────────────────────
-  // Fetch available adapters, health, capability coverage.
-  // Adapters execute; EB NEVER owns adapter state.
-  // Trigger a background adapter scan every 180 brain cycles (throttled).
-  // Fail-open: an adapter scan failure must never block the request path.
-  let adapterFrameworkSummary: AdapterFrameworkSummary | undefined;
-  try {
-    adapterFrameworkSummary = await fetchAdapterFrameworkSummary(userId) ?? undefined;
-    triggerAdapterFrameworkScan(userId);
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: adapter framework step failed (ignored)");
-  }
-
-  // ── Universal Execution Engine (Build 029) ───────────────────────────────
-  // Fetch the latest execution summary — sessions, nodes, health, success rate.
-  // Execution executes; EB NEVER owns execution state.
-  // Trigger a background execution run every 170 brain cycles (throttled).
-  // Fail-open: an execution failure must never block the request path.
-  let universalExecutionSummary: ExecutionSessionSummary | undefined;
-  try {
-    universalExecutionSummary = await fetchUniversalExecutionSummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerUniversalExecutionRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: universal execution step failed (ignored)");
-  }
-
-  // ── Intelligent Workflow Execution Engine (Build 028) ────────────────────────
-  // Fetch the latest Workflow summary — nodes, edges, checkpoints, phases, readiness.
-  // Workflow Construction builds; EB NEVER owns workflow state.
-  // Trigger a background workflow build every 160 brain cycles (throttled).
-  // Fail-open: a workflow failure must never block the request path.
-  let workflowSummary: WorkflowSummary | undefined;
-  try {
-    workflowSummary = await fetchWorkflowExecutionSummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerWorkflowBuildRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: workflow execution step failed (ignored)");
-  }
-
-  // ── Execution Simulation Engine (Build 027) ───────────────────────────────────
-  // Fetch the latest Execution Simulation summary — scenarios, confidence, rollback, estimated duration.
-  // Simulation predicts execution behaviour; EB NEVER owns simulation state.
-  // Trigger a background simulation run every 150 brain cycles (throttled).
-  // Fail-open: a simulation failure must never block the request path.
-  let executionSimulationSummary: ExecutionSimulationSummary | undefined;
-  try {
-    executionSimulationSummary = await fetchExecutionSimulationSummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerExecutionSimulationRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: execution simulation step failed (ignored)");
-  }
-
-  // ── Execution Risk Assessment Engine (Build 026) ──────────────────────────────
-  // Fetch the latest Execution Risk summary — risk profiles, safety score, rollback readiness.
-  // Risk Assessment evaluates operational safety; EB NEVER owns risk state.
-  // Trigger a background risk assessment run every 140 brain cycles (throttled).
-  // Fail-open: a risk failure must never block the request path.
-  let executionRiskSummary: ExecutionRiskSummary | undefined;
-  try {
-    executionRiskSummary = await fetchExecutionRiskSummary(userId) ?? undefined;
-    if (businessGraphSummary?.businessId) {
-      triggerRiskAssessmentRun(userId, businessGraphSummary.businessId);
-    }
-  } catch (err) {
-    logger.warn({ err }, "Executive Brain: execution risk assessment step failed (ignored)");
-  }
-
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, userId });
 
   logger.info(
     {
@@ -753,6 +473,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     tradeoffIntelligenceSummary,
     portfolioIntelligenceSummary,
     priorityIntelligenceSummary,
+    unifiedOrchestrationSummary,
   };
 }
 
@@ -799,9 +520,10 @@ async function buildContextNote(params: {
   tradeoffIntelligenceSummary: TradeoffIntelligenceSummary | undefined;
   portfolioIntelligenceSummary: import("../portfolio-intelligence/types").PortfolioIntelligenceSummary | undefined;
   priorityIntelligenceSummary: import("../priority-intelligence/types").PriorityIntelligenceSummary | undefined;
+  unifiedOrchestrationSummary: UnifiedOrchestrationSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1352,6 +1074,21 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: execution risk advisory failed (ignored)");
+  }
+
+  // ── Unified Cognitive Orchestration advisory (Build 040) ─────────────────
+  // Pipeline-level summary: engines, waves, avg confidence, success rate, law compliance.
+  // Unified Cognition Law: no engine executes in isolation if its output depends on
+  // evidence from another registered engine.
+  // Fail-open: advisory failure must never break context assembly.
+  try {
+    const ucosAdvisory = buildOrchestrationAdvisory(unifiedOrchestrationSummary ?? null);
+    if (ucosAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(ucosAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: unified cognitive orchestration advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

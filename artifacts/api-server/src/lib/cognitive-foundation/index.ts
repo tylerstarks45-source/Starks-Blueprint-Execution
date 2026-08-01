@@ -58,6 +58,7 @@ import { declareSystemsDynamicsExtensionPoints } from "../systems-dynamics/sdi-e
 import { declareTradeoffIntelligenceExtensionPoints } from "../tradeoff-intelligence/eti-extension-points";
 import { declarePortfolioIntelligenceExtensionPoints } from "../portfolio-intelligence/epi-extension-points";
 import { declarePriorityIntelligenceExtensionPoints } from "../priority-intelligence/epri-extension-points";
+import { declareUnifiedOrchestrationExtensionPoints } from "../unified-orchestration/ucos-extension-points";
 
 let initialized = false;
 
@@ -111,6 +112,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareTradeoffIntelligenceExtensionPoints(); // Build 037: eight executive trade-off intelligence seams
       declarePortfolioIntelligenceExtensionPoints(); // Build 038: eight executive portfolio intelligence seams
       declarePriorityIntelligenceExtensionPoints();  // Build 039: eight executive priority intelligence seams
+      declareUnifiedOrchestrationExtensionPoints();  // Build 040: eight unified cognitive orchestration seams
       registerCoreBrains();
       initialized = true;
 

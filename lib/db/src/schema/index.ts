@@ -109,5 +109,6 @@ export * from "./systems_dynamics";
 export * from "./tradeoff_intelligence";
 export * from "./portfolio_intelligence";
 export * from "./priority_intelligence";
+export * from "./unified_orchestration";
 
 export * from "./system_logs";

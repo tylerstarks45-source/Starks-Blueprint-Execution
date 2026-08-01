@@ -1,0 +1,495 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 043
+
+TITLE
+
+Unified Digital Operating Layer
+
+PHASE
+
+Phase VII – Unified Cognitive Operating System
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+The Unified Digital Operating Layer provides the standardized
+runtime through which ASH may safely interact with external
+digital environments after explicit authorization.
+
+This layer does not determine WHAT should be done.
+
+Previous intelligence engines already do that.
+
+This layer determines HOW approved work is performed across
+digital systems while remaining governed by the Unified Authority
+Framework.
+
+Every future connector, adapter, automation engine, desktop
+integration, browser session, cloud service, API, filesystem,
+and external platform shall execute through this operating layer.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Create one deterministic operating environment capable of
+coordinating every external interaction through a common runtime.
+
+═══════════════════════════════════════════════════════════════════════
+
+OPERATING DOMAINS
+
+Desktop
+
+Filesystem
+
+Browser
+
+Terminal
+
+Operating System
+
+Cloud Infrastructure
+
+Databases
+
+Developer Tools
+
+Communication Platforms
+
+Business Platforms
+
+AI Providers
+
+API Services
+
+Automation Platforms
+
+Future Connectors
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW OPERATING OBJECTS
+
+Digital Workspace
+
+Execution Session
+
+Operating Context
+
+Environment Profile
+
+Capability Binding
+
+Connector Session
+
+Execution Channel
+
+Runtime Capability
+
+Operation Ticket
+
+Execution Receipt
+
+Operating Registry
+
+Operating Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement deterministic operating capabilities including:
+
+• desktop session management
+
+• browser session management
+
+• filesystem abstraction
+
+• terminal abstraction
+
+• operating system abstraction
+
+• API abstraction
+
+• connector abstraction
+
+• execution channel management
+
+• runtime health monitoring
+
+• capability registration
+
+• environment discovery
+
+• execution receipts
+
+• rollback metadata
+
+• audit synchronization
+
+• runtime diagnostics
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1.
+
+Environment Discovery Engine
+
+Discovers approved operating environments.
+
+Never escalates privileges.
+
+──────────────────────────────────────────────────────────────────────
+
+2.
+
+Runtime Session Engine
+
+Creates managed execution sessions.
+
+Tracks lifecycle, ownership,
+authority scope, and expiration.
+
+──────────────────────────────────────────────────────────────────────
+
+3.
+
+Capability Binding Engine
+
+Maps approved capabilities to
+authorized execution channels.
+
+──────────────────────────────────────────────────────────────────────
+
+4.
+
+Execution Channel Engine
+
+Provides standardized channels for:
+
+Desktop
+
+Browser
+
+Filesystem
+
+Terminal
+
+Cloud
+
+API
+
+Database
+
+Future connectors
+
+──────────────────────────────────────────────────────────────────────
+
+5.
+
+Execution Receipt Engine
+
+Records:
+
+Requested operation
+
+Authorized operation
+
+Actual operation
+
+Start
+
+Finish
+
+Duration
+
+Result
+
+Rollback reference
+
+Evidence
+
+──────────────────────────────────────────────────────────────────────
+
+6.
+
+Runtime Diagnostics Engine
+
+Measures:
+
+Availability
+
+Latency
+
+Reliability
+
+Session health
+
+Connector health
+
+Resource utilization
+
+Execution throughput
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+digital_workspaces
+
+execution_sessions
+
+environment_profiles
+
+capability_bindings
+
+execution_channels
+
+execution_receipts
+
+runtime_diagnostics
+
+operating_registry
+
+operating_snapshots
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN
+
+Receives:
+
+Runtime Summary
+
+Environment Health
+
+Authorized Channels
+
+Execution Capacity
+
+Connector Status
+
+Operating Advisory
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST /operating/discover
+
+POST /operating/session
+
+POST /operating/channel
+
+POST /operating/diagnostics
+
+GET  /operating/workspaces
+
+GET  /operating/environments
+
+GET  /operating/channels
+
+GET  /operating/receipts
+
+GET  /operating/registry
+
+GET  /operating/snapshots
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse:
+
+✓ Unified Authority Framework
+
+✓ Unified Cognitive Knowledge Graph
+
+✓ Unified Cognitive Orchestrator
+
+✓ Universal Adapter Framework
+
+✓ Execution Framework
+
+✓ Executive Brain
+
+✓ Registry Pattern
+
+Purely additive.
+
+No connector shall communicate directly with the Executive Brain.
+
+All runtime communication flows through the Unified Digital
+Operating Layer.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURAL RULES
+
+The Operating Layer never decides.
+
+The Operating Layer executes approved work.
+
+Every operation requires:
+
+• Authority validation
+
+• Capability validation
+
+• Operating environment validation
+
+• Session validation
+
+• Receipt generation
+
+• Audit synchronization
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW PERMANENT LAW
+
+Unified Operating Law
+
+Every external action performed by ASH shall execute through the
+Unified Digital Operating Layer.
+
+No browser automation...
+
+No desktop automation...
+
+No filesystem operation...
+
+No cloud operation...
+
+No connector...
+
+No API execution...
+
+May bypass the operating layer.
+
+Every operation must produce:
+
+• execution receipt
+
+• audit evidence
+
+• authority reference
+
+• session reference
+
+• rollback metadata (when applicable)
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ Environment Discovery
+
+✓ Runtime Sessions
+
+✓ Capability Binding
+
+✓ Execution Channels
+
+✓ Execution Receipts
+
+✓ Runtime Diagnostics
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Environment Model
+
+6. Runtime Session Model
+
+7. Capability Binding Model
+
+8. Execution Channel Model
+
+9. Receipt Model
+
+10. Diagnostics Model
+
+11. Executive Brain Integration
+
+12. REST API
+
+13. Technical Decisions
+
+14. Performance Impact
+
+15. Architectural Trade-offs
+
+16. Future Extension Points
+
+17. Unified Digital Operating Layer Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+This build establishes the permanent runtime foundation through
+which ASH will eventually operate browsers, desktops, cloud
+services, developer platforms, SaaS applications, APIs, databases,
+and future integrations.
+
+The Operating Layer performs no reasoning.
+
+It performs no planning.
+
+It performs no authorization.
+
+It provides a secure, observable, auditable runtime for executing
+already-approved work.
+
+This separation of reasoning, authority, and execution is one of
+the defining architectural characteristics of the ASH Cognitive
+Operating System.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 044.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 043
+
+═══════════════════════════════════════════════════════════════════════

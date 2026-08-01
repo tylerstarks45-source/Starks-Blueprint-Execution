@@ -60,6 +60,7 @@ import { declarePortfolioIntelligenceExtensionPoints } from "../portfolio-intell
 import { declarePriorityIntelligenceExtensionPoints } from "../priority-intelligence/epri-extension-points";
 import { declareUnifiedOrchestrationExtensionPoints } from "../unified-orchestration/ucos-extension-points";
 import { declareKnowledgeGraphExtensionPoints } from "../knowledge-graph/kg-extension-points";
+import { declareDigitalOperatingLayerExtensionPoints } from "../digital-operating-layer/dol-extension-points";
 
 let initialized = false;
 
@@ -115,6 +116,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declarePriorityIntelligenceExtensionPoints();  // Build 039: eight executive priority intelligence seams
       declareUnifiedOrchestrationExtensionPoints();  // Build 040: eight unified cognitive orchestration seams
       declareKnowledgeGraphExtensionPoints();        // Build 041: eight unified knowledge graph seams
+      declareDigitalOperatingLayerExtensionPoints(); // Build 043: eight unified digital operating layer seams
       registerCoreBrains();
       initialized = true;
 

@@ -43,6 +43,9 @@ import type { CognitiveCycleResult } from "./unified-orchestration-integration";
 // Build 041: Unified Cognitive Knowledge Graph
 import { fetchKnowledgeGraphView, triggerGraphRebuild, buildGraphAdvisory } from "./knowledge-graph-integration";
 import type { UnifiedGraphView } from "./knowledge-graph-integration";
+// Build 043: Unified Digital Operating Layer
+import { fetchOperatingLayerView, triggerOperatingLayerInit, buildOperatingLayerAdvisory } from "./digital-operating-layer-integration";
+import type { OperatingLayerSummary } from "./digital-operating-layer-integration";
 // Advisory builders (re-exported from Unified Orchestration for buildContextNote)
 import {
   buildBusinessAdvisory,
@@ -382,6 +385,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   let priorityIntelligenceSummary:   import("../priority-intelligence/types").PriorityIntelligenceSummary | undefined;
   let unifiedOrchestrationSummary:   UnifiedOrchestrationSummary | undefined;
   let unifiedGraphView:              UnifiedGraphView | undefined;
+  let operatingLayerSummary:         OperatingLayerSummary | undefined;
   try {
     const cycleResult: CognitiveCycleResult = await runUnifiedCognitiveCycle(userId);
     businessGraphSummary            = cycleResult.businessGraphSummary;
@@ -415,11 +419,14 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     // Build 041: Unified Knowledge Graph — fetch latest view, trigger background rebuild every 290 cycles
     unifiedGraphView = await fetchKnowledgeGraphView(userId) ?? undefined;
     triggerGraphRebuild(userId); // fire-and-forget graph rebuild, every 290 cycles
+    // Build 043: Unified Digital Operating Layer — fetch latest view, trigger init every 300 cycles
+    operatingLayerSummary = await fetchOperatingLayerView(userId) ?? undefined;
+    triggerOperatingLayerInit(userId); // fire-and-forget operating layer init, every 300 cycles
   } catch (err) {
     logger.warn({ err }, "Executive Brain: unified cognitive cycle failed (ignored) — all summaries undefined");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, userId });
 
   logger.info(
     {
@@ -482,6 +489,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     priorityIntelligenceSummary,
     unifiedOrchestrationSummary,
     unifiedGraphView,
+    operatingLayerSummary,
   };
 }
 
@@ -530,9 +538,10 @@ async function buildContextNote(params: {
   priorityIntelligenceSummary: import("../priority-intelligence/types").PriorityIntelligenceSummary | undefined;
   unifiedOrchestrationSummary: UnifiedOrchestrationSummary | undefined;
   unifiedGraphView:            UnifiedGraphView | undefined;
+  operatingLayerSummary:       OperatingLayerSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1112,6 +1121,19 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: unified knowledge graph advisory failed (ignored)");
+  }
+
+  // ── Build 043: Unified Digital Operating Layer advisory ──────────────────
+  // Runtime environment — active sessions, channels, receipts, health.
+  // Unified Operating Law: every external action must produce an execution receipt.
+  try {
+    const dolAdvisory = buildOperatingLayerAdvisory(operatingLayerSummary ?? null);
+    if (dolAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(dolAdvisory, 500));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: digital operating layer advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

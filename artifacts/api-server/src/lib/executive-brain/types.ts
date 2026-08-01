@@ -137,4 +137,5 @@ export interface ExecutiveBrainResult {
   // Unified Cognition Law: no engine executes in isolation if its output depends on evidence from another registered engine.
   unifiedOrchestrationSummary?: import("../unified-orchestration/types").UnifiedOrchestrationSummary;
   unifiedGraphView?:            import("../knowledge-graph/types").UnifiedGraphView;
+  operatingLayerSummary?:      import("../digital-operating-layer/types").OperatingLayerSummary;
 }

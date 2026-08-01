@@ -128,4 +128,5 @@ export interface ExecutiveBrainResult {
   globalTechnologySummary?: import("../global-technology/types").GlobalTechnologySummary;
   technologyRelationshipSummary?: import("../technology-relationships/types").TechnologyRelationshipSummary;
   technologyEvolutionSummary?: import("../technology-evolution/types").TechnologyEvolutionSummary;
+  systemsDynamicsSummary?: import("../systems-dynamics/types").SystemsDynamicsSummary;
 }

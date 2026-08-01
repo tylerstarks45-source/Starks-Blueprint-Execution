@@ -105,5 +105,6 @@ export * from "./platform_infrastructure";
 export * from "./global_technology";
 export * from "./technology_relationships";
 export * from "./technology_evolution";
+export * from "./systems_dynamics";
 
 export * from "./system_logs";

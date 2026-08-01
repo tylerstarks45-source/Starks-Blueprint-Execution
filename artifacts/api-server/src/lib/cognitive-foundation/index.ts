@@ -54,6 +54,7 @@ import { declarePlatformInfrastructureExtensionPoints } from "../platform-infras
 import { declareGlobalTechnologyExtensionPoints } from "../global-technology/gti-extension-points";
 import { declareTechnologyRelationshipExtensionPoints } from "../technology-relationships/tri-extension-points";
 import { declareTechnologyEvolutionExtensionPoints } from "../technology-evolution/tei-extension-points";
+import { declareSystemsDynamicsExtensionPoints } from "../systems-dynamics/sdi-extension-points";
 
 let initialized = false;
 
@@ -103,6 +104,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareGlobalTechnologyExtensionPoints();       // Build 033: eight global technology intelligence seams
       declareTechnologyRelationshipExtensionPoints(); // Build 034: eight technology relationship intelligence seams
       declareTechnologyEvolutionExtensionPoints(); // Build 035: eight technology evolution intelligence seams
+      declareSystemsDynamicsExtensionPoints(); // Build 036: eight systems dynamics intelligence seams
       registerCoreBrains();
       initialized = true;
 

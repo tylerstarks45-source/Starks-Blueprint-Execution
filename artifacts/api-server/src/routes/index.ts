@@ -87,6 +87,7 @@ import { platformInfrastructureRouter } from "./platform-infrastructure";
 import { globalTechnologyRouter } from "./global-technology";
 import { technologyRelationshipsRouter } from "./technology-relationships";
 import { technologyEvolutionRouter } from "./technology-evolution";
+import { systemsDynamicsRouter } from "./systems-dynamics";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -211,5 +212,6 @@ router.use("/platform-infrastructure", platformInfrastructureRouter);
 router.use("/global-technology", globalTechnologyRouter);
 router.use("/technology-relationships", technologyRelationshipsRouter);
 router.use("/technology-evolution", technologyEvolutionRouter);
+router.use("/systems-dynamics", systemsDynamicsRouter);
 
 export default router;

@@ -1,0 +1,439 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 036
+
+TITLE
+
+Systems Dynamics Intelligence Engine
+
+PHASE
+
+Phase VI – Executive Systems Intelligence
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+The Systems Dynamics Intelligence Engine enables ASH to reason
+about entire interconnected systems rather than isolated
+components.
+
+Business Analysis evaluates businesses.
+
+Technology Relationship Intelligence evaluates technologies.
+
+Systems Dynamics evaluates how changes propagate through complete
+systems.
+
+This engine never executes work.
+
+It models cause, effect, propagation, stability, leverage, and
+system behavior.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Provide deterministic understanding of complex systems across the
+entire ASH platform.
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW COGNITIVE OBJECTS
+
+System
+
+Subsystem
+
+Feedback Loop
+
+Leverage Point
+
+Constraint
+
+Bottleneck
+
+Propagation Path
+
+Cascade Event
+
+System Stability
+
+System Resilience
+
+System Equilibrium
+
+System Dynamics Registry
+
+System Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement deterministic systems intelligence capable of:
+
+• identifying system boundaries
+
+• identifying subsystems
+
+• identifying feedback loops
+
+• identifying reinforcing loops
+
+• identifying balancing loops
+
+• identifying bottlenecks
+
+• identifying leverage points
+
+• identifying cascading effects
+
+• identifying failure propagation
+
+• identifying recovery propagation
+
+• identifying resilience
+
+• identifying equilibrium
+
+• forecasting system-wide impact
+
+• preserving immutable systems history
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1.
+
+System Mapping Engine
+
+Creates deterministic system maps.
+
+──────────────────────────────────────────────────────────────────────
+
+2.
+
+Feedback Loop Engine
+
+Detects:
+
+Reinforcing loops
+
+Balancing loops
+
+Delayed loops
+
+Emergent loops
+
+──────────────────────────────────────────────────────────────────────
+
+3.
+
+Propagation Engine
+
+Models:
+
+Cause
+
+Effect
+
+Cascade
+
+Recovery
+
+Dependency propagation
+
+──────────────────────────────────────────────────────────────────────
+
+4.
+
+Constraint Intelligence Engine
+
+Identifies:
+
+Primary constraints
+
+Secondary constraints
+
+Execution bottlenecks
+
+Technology bottlenecks
+
+Business bottlenecks
+
+Infrastructure bottlenecks
+
+──────────────────────────────────────────────────────────────────────
+
+5.
+
+Leverage Point Engine
+
+Identifies the smallest changes that create the greatest
+system-wide improvement.
+
+Calculates:
+
+Leverage score
+
+Expected impact
+
+Risk
+
+Confidence
+
+──────────────────────────────────────────────────────────────────────
+
+6.
+
+System Resilience Engine
+
+Evaluates:
+
+Robustness
+
+Redundancy
+
+Fault tolerance
+
+Recovery capacity
+
+Operational resilience
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+systems
+
+subsystems
+
+feedback_loops
+
+propagation_paths
+
+system_constraints
+
+leverage_points
+
+system_resilience
+
+systems_registry
+
+systems_snapshots
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN
+
+Receives:
+
+System Health
+
+Critical Constraints
+
+Highest Leverage Opportunity
+
+Propagation Risk
+
+Resilience Score
+
+Executive Systems Summary
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST   /systems/rebuild
+
+GET    /systems
+
+GET    /subsystems
+
+GET    /feedback-loops
+
+GET    /propagation
+
+GET    /constraints
+
+GET    /leverage
+
+GET    /resilience
+
+GET    /registry
+
+GET    /snapshots
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse:
+
+✓ Business Graph
+
+✓ Technology Relationship Intelligence
+
+✓ Technology Evolution Intelligence
+
+✓ Opportunity Discovery
+
+✓ Executive Brain
+
+✓ Registry Pattern
+
+Purely additive.
+
+Do not modify previous builds.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURAL RULES
+
+Systems Dynamics Intelligence
+
+Never:
+
+• executes work
+
+• changes strategy
+
+• changes execution
+
+• changes infrastructure
+
+• modifies platform state
+
+It only models complete system behavior.
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW PERMANENT LAW
+
+Systems Thinking Law
+
+ASH shall never optimize one component without evaluating the
+effect on the larger system.
+
+Every recommendation must consider:
+
+• downstream impact
+
+• upstream dependencies
+
+• propagation effects
+
+• system resilience
+
+• long-term equilibrium
+
+Local optimization shall never degrade global optimization.
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ System Maps
+
+✓ Feedback Loops
+
+✓ Propagation Engine
+
+✓ Constraint Intelligence
+
+✓ Leverage Engine
+
+✓ Resilience Engine
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Systems Model
+
+7. Propagation Model
+
+8. Constraint Model
+
+9. Leverage Model
+
+10. Resilience Model
+
+11. Registry
+
+12. Executive Brain Integration
+
+13. REST API
+
+14. Technical Decisions
+
+15. Performance Impact
+
+16. Architectural Trade-offs
+
+17. Future Extension Points
+
+18. Systems Intelligence Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+This build marks the evolution of ASH from relationship reasoning
+to systems reasoning.
+
+Relationships explain connections.
+
+Systems explain behavior.
+
+From this point forward ASH should increasingly reason in terms
+of complete systems instead of isolated technologies,
+businesses, or components.
+
+This establishes the foundation for true executive-level
+decision making.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 037.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 036
+
+═══════════════════════════════════════════════════════════════════════

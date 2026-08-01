@@ -83,6 +83,7 @@ import workflowExecutionRouter from "./workflow-execution";
 import universalExecutionRouter from "./universal-execution";
 import adapterFrameworkRouter from "./adapter-framework";
 import { capabilityIntelligenceRouter } from "./capability-intelligence";
+import { platformInfrastructureRouter } from "./platform-infrastructure";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -202,5 +203,7 @@ router.use(universalExecutionRouter);
 router.use(adapterFrameworkRouter);
 // Build 031: Adaptive Capability Intelligence Engine — health, reliability, availability, forecasts, optimizations
 router.use("/capability-intelligence", capabilityIntelligenceRouter);
+// Build 032: Platform Infrastructure Intelligence Engine — resources, health, capacity, forecasts, alerts
+router.use("/platform-infrastructure", platformInfrastructureRouter);
 
 export default router;

@@ -124,4 +124,5 @@ export interface ExecutiveBrainResult {
   // Adapters execute; EB NEVER owns adapter state.
   adapterFrameworkSummary?: import("../adapter-framework/types").AdapterFrameworkSummary;
   capabilityIntelligenceSummary?: import("../capability-intelligence/types").CapabilityIntelligenceSummary;
+  platformInfrastructureSummary?: import("../platform-infrastructure/types").PlatformInfrastructureSummary;
 }

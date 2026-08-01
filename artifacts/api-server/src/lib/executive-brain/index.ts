@@ -85,6 +85,9 @@ import type { AdapterFrameworkSummary } from "../adapter-framework/types";
 // Build 031: Adaptive Capability Intelligence Engine
 import { fetchCapabilityIntelligenceSummary, triggerCapabilityIntelligenceScan, buildCapabilityIntelligenceAdvisory } from "./capability-intelligence-integration";
 import type { CapabilityIntelligenceSummary } from "../capability-intelligence/types";
+// Build 032: Platform Infrastructure Intelligence Engine
+import { fetchPlatformInfrastructureSummary, triggerPlatformInfrastructureScan, buildPlatformInfrastructureAdvisory } from "./platform-infrastructure-integration";
+import type { PlatformInfrastructureSummary } from "../platform-infrastructure/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -497,6 +500,18 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: authority resolution step failed (ignored)");
   }
 
+  // ── Platform Infrastructure Intelligence Engine (Build 032) ──────────────
+  // Observes the computing environment: CPU, RAM, GPU, storage, database, queues, adapters.
+  // This engine observes and advises only — never provisions or modifies infrastructure.
+  // Fail-open: a PII failure must never block the EB request path.
+  let platformInfrastructureSummary: PlatformInfrastructureSummary | undefined;
+  try {
+    platformInfrastructureSummary = await fetchPlatformInfrastructureSummary(userId) ?? undefined;
+    triggerPlatformInfrastructureScan(userId);
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: platform infrastructure step failed (ignored)");
+  }
+
   // ── Adaptive Capability Intelligence Engine (Build 031) ──────────────────
   // Evaluates readiness, health, reliability, availability of every installed adapter capability.
   // This engine evaluates only — it never executes workflows or modifies adapter state.
@@ -582,7 +597,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: execution risk assessment step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, userId });
 
   logger.info(
     {
@@ -635,6 +650,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     universalExecutionSummary,
     adapterFrameworkSummary,
     capabilityIntelligenceSummary,
+    platformInfrastructureSummary,
   };
 }
 
@@ -673,9 +689,10 @@ async function buildContextNote(params: {
   universalExecutionSummary: ExecutionSessionSummary | undefined;
   adapterFrameworkSummary: AdapterFrameworkSummary | undefined;
   capabilityIntelligenceSummary: CapabilityIntelligenceSummary | undefined;
+  platformInfrastructureSummary: PlatformInfrastructureSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1031,6 +1048,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: authority resolution advisory failed (ignored)");
+  }
+
+  // ── Platform Infrastructure advisory (Build 032) ─────────────────────────
+  // Platform readiness, resource health, pressure, performance score, top alerts.
+  // Observes only — never provisions or modifies infrastructure.
+  // Fail-open: a PII advisory failure must never break context assembly.
+  try {
+    const piiAdvisory = buildPlatformInfrastructureAdvisory(platformInfrastructureSummary ?? null);
+    if (piiAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(piiAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: platform infrastructure advisory failed (ignored)");
   }
 
   // ── Capability Intelligence advisory (Build 031) ─────────────────────────

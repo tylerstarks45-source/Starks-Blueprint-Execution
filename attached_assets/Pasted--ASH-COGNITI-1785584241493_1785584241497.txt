@@ -1,0 +1,493 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 032
+
+TITLE
+
+Platform Infrastructure Intelligence Engine
+
+PHASE
+
+Phase V – Adaptive Execution Platform
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+The Platform Infrastructure Intelligence Engine provides continuous,
+deterministic awareness of the computing environment in which ASH
+operates.
+
+It answers:
+
+"What is the current health and capacity of the platform itself?"
+
+This engine never executes work.
+
+It never provisions infrastructure.
+
+It never modifies infrastructure.
+
+It observes, evaluates, forecasts, and advises.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Give ASH complete operational awareness of the platform that hosts
+her intelligence.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURE
+
+Executive Brain
+
+↓
+
+Capability Intelligence
+
+↓
+
+Platform Infrastructure Intelligence
+
+↓
+
+Execution Platform
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW COGNITIVE OBJECTS
+
+Infrastructure Profile
+
+Infrastructure Snapshot
+
+Infrastructure Health
+
+Infrastructure Capacity
+
+Infrastructure Forecast
+
+Infrastructure Recommendation
+
+Infrastructure Registry
+
+Infrastructure Alert
+
+Resource Pressure
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement deterministic infrastructure intelligence capable of:
+
+• monitoring CPU utilization
+
+• monitoring RAM utilization
+
+• monitoring GPU utilization
+
+• monitoring GPU memory
+
+• monitoring storage capacity
+
+• monitoring storage growth
+
+• monitoring database utilization
+
+• monitoring vector database utilization
+
+• monitoring network latency
+
+• monitoring bandwidth
+
+• monitoring execution queue depth
+
+• monitoring adapter utilization
+
+• monitoring model provider health
+
+• monitoring API quota usage
+
+• monitoring cache utilization
+
+• monitoring browser infrastructure
+
+• monitoring worker utilization
+
+• monitoring execution throughput
+
+• forecasting infrastructure exhaustion
+
+• generating administrator recommendations
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1.
+
+Infrastructure Discovery Engine
+
+Discovers all observable infrastructure resources.
+
+=======================================================================
+
+2.
+
+Resource Health Engine
+
+Evaluates:
+
+CPU
+
+RAM
+
+GPU
+
+Storage
+
+Database
+
+Workers
+
+Browser Pool
+
+Model Providers
+
+Network
+
+=======================================================================
+
+3.
+
+Capacity Forecast Engine
+
+Forecasts:
+
+Resource exhaustion
+
+Storage growth
+
+Memory pressure
+
+GPU pressure
+
+Database growth
+
+Queue growth
+
+Bandwidth demand
+
+API quota exhaustion
+
+=======================================================================
+
+4.
+
+Infrastructure Dependency Engine
+
+Maps relationships between services,
+workers, queues, databases, models,
+adapters, and execution systems.
+
+=======================================================================
+
+5.
+
+Performance Intelligence Engine
+
+Measures:
+
+Throughput
+
+Latency
+
+Utilization
+
+Concurrency
+
+Efficiency
+
+Bottlenecks
+
+=======================================================================
+
+6.
+
+Infrastructure Recommendation Engine
+
+Produces deterministic administrator-only
+recommendations including:
+
+GPU expansion
+
+RAM expansion
+
+CPU scaling
+
+Worker scaling
+
+Database scaling
+
+Vector database scaling
+
+Storage expansion
+
+Model provider optimization
+
+Queue optimization
+
+Browser pool expansion
+
+Cache optimization
+
+Search infrastructure expansion
+
+Inference provider migration
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+platform_infrastructure_registry
+
+infrastructure_snapshots
+
+resource_health
+
+resource_capacity
+
+resource_forecasts
+
+resource_dependencies
+
+resource_alerts
+
+resource_recommendations
+
+platform_performance
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN
+
+Receives:
+
+Infrastructure Health
+
+Infrastructure Capacity
+
+Infrastructure Risks
+
+Resource Pressure
+
+Performance Summary
+
+Administrator Recommendations
+
+Overall Platform Readiness
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST   /scan
+
+GET    /registry
+
+GET    /health
+
+GET    /capacity
+
+GET    /performance
+
+GET    /forecasts
+
+GET    /recommendations
+
+GET    /snapshots
+
+GET    /alerts
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse:
+
+✓ Capability Intelligence
+
+✓ Adapter Framework
+
+✓ Universal Execution
+
+✓ Observation Engine
+
+✓ Learning Engine
+
+✓ Governance
+
+✓ Executive Brain
+
+Purely additive.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURAL RULES
+
+Infrastructure Intelligence observes.
+
+Infrastructure Intelligence never:
+
+• provisions hardware
+
+• purchases services
+
+• modifies infrastructure
+
+• changes cloud resources
+
+• allocates GPUs
+
+• installs software
+
+• changes databases
+
+All recommendations are advisory.
+
+Only the Platform Administrator approves changes.
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW ADMINISTRATIVE LAW
+
+Infrastructure recommendations are visible only to the
+Platform Administrator.
+
+Recommendations must include:
+
+• Evidence
+• Current utilization
+• Historical trend
+• Predicted exhaustion
+• Expected improvement
+• Estimated cost impact
+• Confidence
+• Priority
+• Alternatives
+• Risks if ignored
+
+ASH never asks for upgrades without evidence.
+
+Every recommendation must be explainable.
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ Infrastructure Registry
+
+✓ Health Engine
+
+✓ Capacity Engine
+
+✓ Forecasting
+
+✓ Dependency Mapping
+
+✓ Performance Intelligence
+
+✓ Administrator Recommendations
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Infrastructure Intelligence Model
+
+7. Capacity Model
+
+8. Forecast Model
+
+9. Performance Model
+
+10. Administrator Recommendation Model
+
+11. Registry
+
+12. Executive Brain Integration
+
+13. REST API
+
+14. Technical Decisions
+
+15. Performance Impact
+
+16. Architectural Trade-offs
+
+17. Future Extension Points
+
+18. Platform Infrastructure Intelligence Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+Capability Intelligence evaluates what ASH can do.
+
+Platform Infrastructure Intelligence evaluates the environment in
+which ASH performs those capabilities.
+
+This distinction is permanent.
+
+Capability health and platform health are independent cognitive
+domains.
+
+Infrastructure recommendations are advisory only and are restricted
+to the Platform Administrator.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 033.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 032
+
+═══════════════════════════════════════════════════════════════════════

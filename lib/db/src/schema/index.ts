@@ -101,5 +101,6 @@ export * from "./workflow_execution";
 export * from "./universal_execution";
 export * from "./adapter_framework";
 export * from "./capability_intelligence";
+export * from "./platform_infrastructure";
 
 export * from "./system_logs";

@@ -125,4 +125,5 @@ export interface ExecutiveBrainResult {
   adapterFrameworkSummary?: import("../adapter-framework/types").AdapterFrameworkSummary;
   capabilityIntelligenceSummary?: import("../capability-intelligence/types").CapabilityIntelligenceSummary;
   platformInfrastructureSummary?: import("../platform-infrastructure/types").PlatformInfrastructureSummary;
+  globalTechnologySummary?: import("../global-technology/types").GlobalTechnologySummary;
 }

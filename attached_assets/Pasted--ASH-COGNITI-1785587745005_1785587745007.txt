@@ -1,0 +1,453 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 033
+
+TITLE
+
+Global Technology Intelligence Engine
+
+PHASE
+
+Phase V – Adaptive Execution Platform
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+The Global Technology Intelligence Engine gives ASH continuous
+awareness of the external technology ecosystem.
+
+Where Platform Infrastructure Intelligence (Build 032) evaluates
+the resources ASH currently has, Global Technology Intelligence
+evaluates the resources ASH could use.
+
+This engine never installs software.
+
+It never provisions services.
+
+It never purchases products.
+
+It observes, evaluates, compares, and recommends.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Create a continuously evolving catalog of technologies,
+platforms, providers, services, AI models, APIs, developer tools,
+business software, cloud infrastructure, and execution capabilities
+that ASH may leverage with administrator approval.
+
+═══════════════════════════════════════════════════════════════════════
+
+COGNITIVE PIPELINE
+
+Executive Brain
+
+↓
+
+Capability Intelligence
+
+↓
+
+Platform Infrastructure Intelligence
+
+↓
+
+Global Technology Intelligence
+
+↓
+
+Administrator Intelligence
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW COGNITIVE OBJECTS
+
+Technology Catalog
+
+Technology Profile
+
+Technology Provider
+
+Technology Capability
+
+Technology Compatibility
+
+Technology Lifecycle
+
+Technology Benchmark
+
+Technology Recommendation
+
+Technology Opportunity
+
+Technology Registry
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement deterministic technology intelligence capable of:
+
+• cataloging external platforms
+
+• cataloging AI providers
+
+• cataloging cloud providers
+
+• cataloging developer tools
+
+• cataloging browser technologies
+
+• cataloging operating systems
+
+• cataloging databases
+
+• cataloging vector databases
+
+• cataloging search technologies
+
+• cataloging automation platforms
+
+• cataloging business software
+
+• cataloging security platforms
+
+• cataloging analytics platforms
+
+• cataloging payment providers
+
+• cataloging CRM systems
+
+• cataloging communication systems
+
+• cataloging storage providers
+
+• cataloging inference providers
+
+• cataloging execution environments
+
+• cataloging connector ecosystems
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1.
+
+Technology Discovery Engine
+
+Maintains a structured technology catalog.
+
+Never installs.
+
+Never modifies.
+
+=======================================================================
+
+2.
+
+Technology Classification Engine
+
+Groups technologies into standardized domains.
+
+=======================================================================
+
+3.
+
+Compatibility Intelligence Engine
+
+Determines compatibility with:
+
+Current infrastructure
+
+Current adapters
+
+Current operating systems
+
+Current execution model
+
+=======================================================================
+
+4.
+
+Technology Benchmark Engine
+
+Stores deterministic benchmark metadata including:
+
+Performance
+
+Reliability
+
+Cost
+
+Latency
+
+Scalability
+
+Maintenance burden
+
+Vendor maturity
+
+Community adoption
+
+Security posture
+
+=======================================================================
+
+5.
+
+Technology Recommendation Engine
+
+Produces administrator-only recommendations when a technology
+could measurably improve ASH.
+
+Every recommendation must include:
+
+Evidence
+
+Expected improvement
+
+Cost estimate
+
+Implementation complexity
+
+Operational risk
+
+Compatibility score
+
+Confidence
+
+Alternative technologies
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+technology_catalog
+
+technology_providers
+
+technology_capabilities
+
+technology_benchmarks
+
+technology_compatibility
+
+technology_recommendations
+
+technology_registry
+
+technology_snapshots
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN
+
+Receives:
+
+Technology Readiness
+
+Technology Opportunities
+
+Technology Compatibility
+
+Recommended Technologies
+
+Innovation Summary
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST   /catalog/refresh
+
+GET    /catalog
+
+GET    /providers
+
+GET    /categories
+
+GET    /benchmarks
+
+GET    /compatibility
+
+GET    /recommendations
+
+GET    /registry
+
+GET    /snapshots
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse:
+
+✓ Platform Infrastructure Intelligence
+
+✓ Capability Intelligence
+
+✓ Universal Adapter Framework
+
+✓ Executive Brain
+
+✓ Registry Pattern
+
+Purely additive.
+
+No existing engine modifications.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURAL RULES
+
+Technology Intelligence never:
+
+• installs software
+
+• changes infrastructure
+
+• purchases services
+
+• creates adapters
+
+• changes execution
+
+• changes configuration
+
+It only evaluates the external ecosystem.
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW PERMANENT ADMINISTRATOR LAW
+
+Technology recommendations are visible ONLY to the Platform
+Administrator.
+
+ASH shall never recommend platform upgrades,
+technology migrations,
+provider changes,
+AI model changes,
+cloud migrations,
+or infrastructure expansion
+to ordinary users.
+
+Administrator recommendations must always include:
+
+• Evidence
+• Business impact
+• Performance impact
+• Cost impact
+• Security impact
+• Compatibility score
+• Risk assessment
+• Confidence
+• Alternatives
+
+Recommendations remain advisory.
+
+Only the Administrator authorizes change.
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ Technology Catalog
+
+✓ Provider Registry
+
+✓ Compatibility Engine
+
+✓ Benchmark Engine
+
+✓ Recommendation Engine
+
+✓ Executive Brain Integration
+
+✓ Immutable History
+
+✓ Administrator-only visibility
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Core Engines
+
+6. Technology Intelligence Model
+
+7. Compatibility Model
+
+8. Benchmark Model
+
+9. Recommendation Model
+
+10. Registry
+
+11. Executive Brain Integration
+
+12. REST API
+
+13. Technical Decisions
+
+14. Performance Impact
+
+15. Architectural Trade-offs
+
+16. Future Extension Points
+
+17. Global Technology Intelligence Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+Platform Infrastructure Intelligence understands what ASH has.
+
+Global Technology Intelligence understands what the world offers.
+
+The combination allows ASH to produce evidence-based,
+administrator-only recommendations for future expansion without
+ever modifying the platform autonomously.
+
+This establishes a permanent separation between awareness,
+recommendation, and execution.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 034.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 033
+
+═══════════════════════════════════════════════════════════════════════

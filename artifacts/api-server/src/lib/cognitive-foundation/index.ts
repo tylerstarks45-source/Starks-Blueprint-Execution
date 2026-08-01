@@ -51,6 +51,7 @@ import { declareUniversalExecutionExtensionPoints } from "../universal-execution
 import { declareAdapterFrameworkExtensionPoints } from "../adapter-framework/adapter-extension-points";
 import { declareCapabilityIntelligenceExtensionPoints } from "../capability-intelligence/ci-extension-points";
 import { declarePlatformInfrastructureExtensionPoints } from "../platform-infrastructure/pii-extension-points";
+import { declareGlobalTechnologyExtensionPoints } from "../global-technology/gti-extension-points";
 
 let initialized = false;
 
@@ -97,6 +98,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareAdapterFrameworkExtensionPoints();      // Build 030: eight adapter framework seams
       declareCapabilityIntelligenceExtensionPoints(); // Build 031: eight capability intelligence seams
       declarePlatformInfrastructureExtensionPoints(); // Build 032: eight platform infrastructure seams
+      declareGlobalTechnologyExtensionPoints();       // Build 033: eight global technology intelligence seams
       registerCoreBrains();
       initialized = true;
 

@@ -87,6 +87,8 @@ import { fetchCapabilityIntelligenceSummary, triggerCapabilityIntelligenceScan, 
 import type { CapabilityIntelligenceSummary } from "../capability-intelligence/types";
 // Build 032: Platform Infrastructure Intelligence Engine
 import { fetchPlatformInfrastructureSummary, triggerPlatformInfrastructureScan, buildPlatformInfrastructureAdvisory } from "./platform-infrastructure-integration";
+import { fetchGlobalTechnologySummary, triggerGlobalTechnologyScan, buildGlobalTechnologyAdvisory } from "./global-technology-integration";
+import type { GlobalTechnologySummary } from "../global-technology/types";
 import type { PlatformInfrastructureSummary } from "../platform-infrastructure/types";
 
 export * from "./types";
@@ -512,6 +514,17 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: platform infrastructure step failed (ignored)");
   }
 
+  // ── Global Technology Intelligence Engine (Build 033) ────────────────────
+  // Catalogs external technologies ASH may leverage with administrator approval.
+  // Observes and advises only — never installs or provisions anything.
+  let globalTechnologySummary: GlobalTechnologySummary | undefined;
+  try {
+    globalTechnologySummary = await fetchGlobalTechnologySummary(userId) ?? undefined;
+    triggerGlobalTechnologyScan(userId);
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: global technology step failed (ignored)");
+  }
+
   // ── Adaptive Capability Intelligence Engine (Build 031) ──────────────────
   // Evaluates readiness, health, reliability, availability of every installed adapter capability.
   // This engine evaluates only — it never executes workflows or modifies adapter state.
@@ -597,7 +610,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: execution risk assessment step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, userId });
 
   logger.info(
     {
@@ -651,6 +664,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     adapterFrameworkSummary,
     capabilityIntelligenceSummary,
     platformInfrastructureSummary,
+    globalTechnologySummary,
   };
 }
 
@@ -690,9 +704,10 @@ async function buildContextNote(params: {
   adapterFrameworkSummary: AdapterFrameworkSummary | undefined;
   capabilityIntelligenceSummary: CapabilityIntelligenceSummary | undefined;
   platformInfrastructureSummary: PlatformInfrastructureSummary | undefined;
+  globalTechnologySummary: GlobalTechnologySummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1048,6 +1063,19 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: authority resolution advisory failed (ignored)");
+  }
+
+  // ── Global Technology advisory (Build 033) ───────────────────────────────
+  // Technology readiness, innovation score, open recommendations for administrator.
+  // Fail-open: advisory failure must never break context assembly.
+  try {
+    const gtiAdvisory = buildGlobalTechnologyAdvisory(globalTechnologySummary ?? null);
+    if (gtiAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(gtiAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: global technology advisory failed (ignored)");
   }
 
   // ── Platform Infrastructure advisory (Build 032) ─────────────────────────

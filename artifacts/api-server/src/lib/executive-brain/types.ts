@@ -111,4 +111,7 @@ export interface ExecutiveBrainResult {
   // Build 026: Execution Risk Assessment summary — risk profiles, safety score, rollback readiness.
   // Risk Assessment evaluates safety; EB NEVER owns risk state.
   executionRiskSummary?: import("../execution-risk/types").ExecutionRiskSummary;
+  // Build 027: Execution Simulation summary — scenarios, confidence, rollback, estimated duration.
+  // Simulation predicts; EB NEVER owns simulation state.
+  executionSimulationSummary?: import("../execution-simulation/types").ExecutionSimulationSummary;
 }

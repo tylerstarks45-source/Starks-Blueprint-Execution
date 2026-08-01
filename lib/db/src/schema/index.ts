@@ -96,5 +96,6 @@ export * from "./operational_planning";
 export * from "./execution_orchestration";
 export * from "./authority_resolution";
 export * from "./execution_risk";
+export * from "./execution_simulation";
 
 export * from "./system_logs";

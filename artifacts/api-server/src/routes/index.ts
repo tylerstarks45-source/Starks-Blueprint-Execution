@@ -78,6 +78,7 @@ import operationalPlanningRouter from "./operational-planning";
 import executionOrchestrationRouter from "./execution-orchestration";
 import authorityResolutionRouter from "./authority-resolution";
 import executionRiskRouter from "./execution-risk";
+import executionSimulationRouter from "./execution-simulation";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -187,5 +188,7 @@ router.use("/api/execution-orchestration", executionOrchestrationRouter);
 router.use(authorityResolutionRouter);
 // Build 026: Execution Risk Assessment Engine — risk profiles, mitigations, safety scores, registry
 router.use(executionRiskRouter);
+// Build 027: Execution Simulation Engine — scenarios, outcomes, state changes, rollback, registry
+router.use(executionSimulationRouter);
 
 export default router;

@@ -70,6 +70,9 @@ import type { AuthoritySummary } from "../authority-resolution/types";
 // Build 026: Execution Risk Assessment Engine
 import { fetchExecutionRiskSummary, triggerRiskAssessmentRun, buildRiskAdvisory } from "./execution-risk-integration";
 import type { ExecutionRiskSummary } from "../execution-risk/types";
+// Build 027: Execution Simulation Engine
+import { fetchExecutionSimulationSummary, triggerExecutionSimulationRun, buildExecutionSimulationAdvisory } from "./execution-simulation-integration";
+import type { ExecutionSimulationSummary } from "../execution-simulation/types";
 
 export * from "./types";
 export * as ProjectManager from "./project-manager";
@@ -482,6 +485,21 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: authority resolution step failed (ignored)");
   }
 
+  // ── Execution Simulation Engine (Build 027) ───────────────────────────────────
+  // Fetch the latest Execution Simulation summary — scenarios, confidence, rollback, estimated duration.
+  // Simulation predicts execution behaviour; EB NEVER owns simulation state.
+  // Trigger a background simulation run every 150 brain cycles (throttled).
+  // Fail-open: a simulation failure must never block the request path.
+  let executionSimulationSummary: ExecutionSimulationSummary | undefined;
+  try {
+    executionSimulationSummary = await fetchExecutionSimulationSummary(userId) ?? undefined;
+    if (businessGraphSummary?.businessId) {
+      triggerExecutionSimulationRun(userId, businessGraphSummary.businessId);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: execution simulation step failed (ignored)");
+  }
+
   // ── Execution Risk Assessment Engine (Build 026) ──────────────────────────────
   // Fetch the latest Execution Risk summary — risk profiles, safety score, rollback readiness.
   // Risk Assessment evaluates operational safety; EB NEVER owns risk state.
@@ -497,7 +515,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: execution risk assessment step failed (ignored)");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, userId });
 
   logger.info(
     {
@@ -545,6 +563,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     executionOrchestrationSummary,
     authoritySummary,
     executionRiskSummary,
+    executionSimulationSummary,
   };
 }
 
@@ -578,9 +597,10 @@ async function buildContextNote(params: {
   executionOrchestrationSummary: ExecutionOrchestrationSummary | undefined;
   authoritySummary: AuthoritySummary | undefined;
   executionRiskSummary: ExecutionRiskSummary | undefined;
+  executionSimulationSummary: ExecutionSimulationSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -936,6 +956,20 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: authority resolution advisory failed (ignored)");
+  }
+
+  // ── Execution Simulation advisory (Build 027) ────────────────────────────
+  // Scenarios, confidence, rollback confidence, estimated duration.
+  // Simulation predicts; EB NEVER owns simulation state.
+  // Fail-open: a failure here must never break context assembly.
+  try {
+    const simAdvisory = buildExecutionSimulationAdvisory(executionSimulationSummary ?? null);
+    if (simAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(simAdvisory, 600));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: execution simulation advisory failed (ignored)");
   }
 
   // ── Execution Risk Assessment advisory (Build 026) ───────────────────────

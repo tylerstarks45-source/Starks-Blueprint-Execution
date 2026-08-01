@@ -62,6 +62,7 @@ import { declareUnifiedOrchestrationExtensionPoints } from "../unified-orchestra
 import { declareKnowledgeGraphExtensionPoints } from "../knowledge-graph/kg-extension-points";
 import { declareDigitalOperatingLayerExtensionPoints } from "../digital-operating-layer/dol-extension-points";
 import { declareConnectionsHubExtensionPoints } from "../connections-hub/hub-extension-points";
+import { declareCertificationExtensionPoints } from "../certification/cert-extension-points";
 
 let initialized = false;
 
@@ -119,6 +120,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareKnowledgeGraphExtensionPoints();        // Build 041: eight unified knowledge graph seams
       declareDigitalOperatingLayerExtensionPoints(); // Build 043: eight unified digital operating layer seams
       declareConnectionsHubExtensionPoints();        // Build 044: eight unified connections & integration hub seams
+      declareCertificationExtensionPoints();         // Build 045: eight cognitive certification & launch readiness seams
       registerCoreBrains();
       initialized = true;
 

@@ -228,5 +228,7 @@ router.use("/graph", knowledgeGraphRouter);
 router.use("/operating", digitalOperatingLayerRouter);
 import { connectionsHubRouter } from "./connections-hub";
 router.use("/connections", connectionsHubRouter);
+import { certificationRouter } from "./certification";
+router.use("/certification", certificationRouter);
 
 export default router;

@@ -139,4 +139,5 @@ export interface ExecutiveBrainResult {
   unifiedGraphView?:            import("../knowledge-graph/types").UnifiedGraphView;
   operatingLayerSummary?:      import("../digital-operating-layer/types").OperatingLayerSummary;
   connectionHubSummary?:       import("../connections-hub/types").ConnectionHubSummary;
+  certificationSummary?:       import("../certification/types").CertificationSummary;
 }

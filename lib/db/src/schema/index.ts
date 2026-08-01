@@ -113,5 +113,6 @@ export * from "./unified_orchestration";
 export * from "./knowledge_graph";
 export * from "./digital_operating";
 export * from "./connections_hub";
+export * from "./certification";
 
 export * from "./system_logs";

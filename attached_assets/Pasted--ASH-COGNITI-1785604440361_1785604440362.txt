@@ -1,0 +1,437 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+                  ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 041
+
+TITLE
+
+Unified Cognitive Knowledge Graph Engine
+
+PHASE
+
+Phase VII – Unified Cognitive Operating System
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+The Unified Cognitive Knowledge Graph Engine creates a single,
+canonical knowledge graph representing every cognitive object,
+relationship, observation, decision, business entity,
+technology, execution artifact, capability, and infrastructure
+resource known to ASH.
+
+Previous builds created specialized graphs.
+
+This build unifies them.
+
+The Knowledge Graph becomes the authoritative semantic model for
+the Cognitive Operating System.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Create one unified graph capable of representing the complete
+state of ASH's knowledge while preserving explainability,
+traceability, and deterministic reasoning.
+
+═══════════════════════════════════════════════════════════════════════
+
+UNIFIED GRAPH DOMAINS
+
+Business
+
+Technology
+
+Infrastructure
+
+Capability
+
+Execution
+
+Planning
+
+Goals
+
+Memory
+
+Knowledge
+
+Observation
+
+Reflection
+
+Learning
+
+Governance
+
+Strategy
+
+Portfolio
+
+Priority
+
+Trade-offs
+
+Systems
+
+Relationships
+
+Technology Evolution
+
+Opportunities
+
+Business Graph
+
+Future Simulation
+
+Decision Intelligence
+
+Every future domain automatically registers itself.
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW GRAPH OBJECTS
+
+Knowledge Node
+
+Knowledge Edge
+
+Semantic Relationship
+
+Evidence Node
+
+Confidence Node
+
+Reasoning Path
+
+Decision Path
+
+Execution Path
+
+Observation Path
+
+Learning Path
+
+Authority Path
+
+Temporal Node
+
+Temporal Edge
+
+Graph Registry
+
+Graph Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement deterministic graph intelligence capable of:
+
+• creating canonical graph nodes
+
+• creating canonical graph edges
+
+• merging duplicate entities
+
+• preserving identity
+
+• preserving provenance
+
+• preserving evidence
+
+• preserving confidence
+
+• preserving timestamps
+
+• preserving reasoning paths
+
+• preserving execution paths
+
+• preserving learning history
+
+• supporting graph traversal
+
+• supporting semantic queries
+
+• supporting impact analysis
+
+• supporting explanation generation
+
+• supporting graph snapshots
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1.
+
+Graph Identity Engine
+
+Creates globally unique cognitive identities.
+
+──────────────────────────────────────────────────────────────────────
+
+2.
+
+Graph Merge Engine
+
+Resolves duplicate entities while preserving history.
+
+──────────────────────────────────────────────────────────────────────
+
+3.
+
+Evidence Linking Engine
+
+Links every conclusion back to supporting evidence.
+
+──────────────────────────────────────────────────────────────────────
+
+4.
+
+Confidence Linking Engine
+
+Carries confidence through graph edges without losing provenance.
+
+──────────────────────────────────────────────────────────────────────
+
+5.
+
+Semantic Traversal Engine
+
+Supports deterministic traversal across every registered domain.
+
+──────────────────────────────────────────────────────────────────────
+
+6.
+
+Explanation Path Engine
+
+Produces explainable reasoning paths showing exactly how any
+conclusion was reached.
+
+──────────────────────────────────────────────────────────────────────
+
+7.
+
+Temporal Evolution Engine
+
+Maintains time-aware graph snapshots so ASH can compare the graph
+at different moments without rewriting history.
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+knowledge_graph_nodes
+
+knowledge_graph_edges
+
+graph_evidence
+
+graph_confidence
+
+graph_paths
+
+graph_temporal_history
+
+graph_registry
+
+graph_snapshots
+
+graph_identity_map
+
+Append-only.
+
+Immutable except registry.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN
+
+The Executive Brain no longer consumes independent summaries.
+
+Instead it requests:
+
+Unified Cognitive Graph View
+
+The graph assembles the relevant executive context from every
+registered intelligence engine.
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST /graph/rebuild
+
+POST /graph/query
+
+GET  /graph
+
+GET  /graph/node/:id
+
+GET  /graph/edge/:id
+
+GET  /graph/path
+
+GET  /graph/evidence
+
+GET  /graph/confidence
+
+GET  /graph/snapshots
+
+GET  /graph/registry
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse ALL previous graph-producing engines.
+
+No duplicate storage.
+
+Graph nodes should reference existing authoritative records where
+possible instead of copying data.
+
+The graph becomes an integration layer—not another database of
+duplicated business objects.
+
+═══════════════════════════════════════════════════════════════════════
+
+ARCHITECTURAL RULES
+
+The Unified Knowledge Graph never replaces existing engines.
+
+It integrates them.
+
+Each engine remains the system of record for its own domain.
+
+The graph is the system of relationships.
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW PERMANENT LAW
+
+Unified Knowledge Law
+
+Every persistent cognitive artifact created by ASH shall be
+addressable through the Unified Cognitive Knowledge Graph.
+
+Every graph node must maintain:
+
+• identity
+
+• provenance
+
+• evidence
+
+• confidence
+
+• timestamps
+
+• domain ownership
+
+• relationship history
+
+No knowledge shall become orphaned.
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ Unified Knowledge Graph
+
+✓ Canonical Node Identity
+
+✓ Semantic Relationships
+
+✓ Evidence Linking
+
+✓ Confidence Linking
+
+✓ Explanation Paths
+
+✓ Temporal History
+
+✓ Executive Brain Integration
+
+✓ Zero Duplicate Business Data
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Graph Schema
+
+5. Identity Model
+
+6. Relationship Model
+
+7. Evidence Model
+
+8. Confidence Model
+
+9. Temporal Model
+
+10. Graph Traversal
+
+11. Executive Brain Integration
+
+12. REST API
+
+13. Technical Decisions
+
+14. Performance Impact
+
+15. Architectural Trade-offs
+
+16. Future Extension Points
+
+17. Unified Knowledge Graph Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+This build establishes the Unified Cognitive Knowledge Graph as the
+central semantic representation of ASH's intelligence.
+
+The graph does not replace domain intelligence.
+
+It connects domain intelligence.
+
+From this point forward every cognitive engine contributes to one
+shared understanding of the world.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 042.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 041
+
+═══════════════════════════════════════════════════════════════════════

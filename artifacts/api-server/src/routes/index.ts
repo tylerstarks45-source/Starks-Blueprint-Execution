@@ -92,6 +92,7 @@ import { tradeoffIntelligenceRouter } from "./tradeoff-intelligence";
 import { portfolioIntelligenceRouter } from "./portfolio-intelligence";
 import { priorityIntelligenceRouter } from "./priority-intelligence";
 import { unifiedOrchestrationRouter } from "./unified-orchestration";
+import { knowledgeGraphRouter } from "./knowledge-graph";
 import businessIntelligenceRouter from "./business-intelligence";
 
 const router: IRouter = Router();
@@ -222,5 +223,6 @@ router.use("/portfolio", portfolioIntelligenceRouter);
 router.use("/priority", priorityIntelligenceRouter);
 // Build 040: Unified Cognitive Orchestration Engine — unified cycle, waves, diagnostics, registry
 router.use("/orchestrator", unifiedOrchestrationRouter);
+router.use("/graph", knowledgeGraphRouter);
 
 export default router;

@@ -136,4 +136,5 @@ export interface ExecutiveBrainResult {
   // The orchestrator runs all 25 intelligence engines (Builds 015–039) in dependency-ordered waves.
   // Unified Cognition Law: no engine executes in isolation if its output depends on evidence from another registered engine.
   unifiedOrchestrationSummary?: import("../unified-orchestration/types").UnifiedOrchestrationSummary;
+  unifiedGraphView?:            import("../knowledge-graph/types").UnifiedGraphView;
 }

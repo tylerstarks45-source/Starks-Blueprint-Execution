@@ -115,5 +115,6 @@ export * from "./digital_operating";
 export * from "./connections_hub";
 export * from "./certification";
 export * from "./launch_hardening";
+export * from "./unified_platform";
 
 export * from "./system_logs";

@@ -141,4 +141,5 @@ export interface ExecutiveBrainResult {
   connectionHubSummary?:       import("../connections-hub/types").ConnectionHubSummary;
   certificationSummary?:       import("../certification/types").CertificationSummary;
   hardeningSummary?:           import("../launch-hardening/types").HardeningSummary;
+  uposSummary?:                import("../unified-platform/types").UPOSSummary;
 }

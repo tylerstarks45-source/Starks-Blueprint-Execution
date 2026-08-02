@@ -131,7 +131,7 @@ export const ARCHITECTURAL_LAWS: ArchitecturalLaw[] = [
 // ── Expected EP count after Build 045 ────────────────────────────────────
 // H-07 fix: renamed from EXPECTED_EP_COUNT to MINIMUM_EP_COUNT to document that
 // this is a floor (>=), not an exact target. Update after each build that adds new EPs.
-export const MINIMUM_EP_COUNT = 334;   // Build 045A: 334 cumulative EPs across all builds
+export const MINIMUM_EP_COUNT = 342;   // Build 046: 342 cumulative EPs (334 + 8 UPOS EPs)
 // Keep a deprecated alias so any code still referencing the old name compiles and
 // generates a type-level deprecation signal.
 /** @deprecated Use MINIMUM_EP_COUNT */

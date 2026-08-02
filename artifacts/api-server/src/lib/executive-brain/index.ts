@@ -55,6 +55,9 @@ import type { CertificationSummary } from "./certification-integration";
 // Build 045A: Launch Hardening Framework
 import { fetchHardeningView, notifyHardeningCycle, buildHardeningAdvisory } from "./launch-hardening-integration";
 import type { HardeningSummary } from "./launch-hardening-integration";
+// Build 046: Unified Platform Operating System
+import { fetchUPOSView, triggerUPOSInit, buildUPOSAdvisory } from "./unified-platform-integration";
+import type { UPOSSummary } from "./unified-platform-integration";
 // Advisory builders (re-exported from Unified Orchestration for buildContextNote)
 import {
   buildBusinessAdvisory,
@@ -149,6 +152,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   const preWarmReflection = fetchReflectionSummary(userId).catch((): ReflectionSummary | undefined => undefined);
   const preWarmLearning   = fetchLearningSummary(userId).catch((): LearningSummary | undefined => undefined);
   const preWarmGovernance = fetchGovernanceSummary(userId).catch((): GovernanceSummary | undefined => undefined);
+  // Build 046: pre-warm UPOS summary concurrently with LLM round-trips (A-01 pattern)
+  const preWarmUPOS       = fetchUPOSView(userId).catch((): UPOSSummary | undefined => undefined);
 
   // ── Executive Context Engine (Build 006) ─────────────────────────────────
   // Resolve the current situational context BEFORE any planning or reasoning.
@@ -456,6 +461,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   let connectionHubSummary:          ConnectionHubSummary | undefined;
   let certificationSummary:          CertificationSummary | undefined;
   let hardeningSummary:              HardeningSummary | undefined;
+  let uposSummary:                   UPOSSummary | undefined;
   try {
     const cycleResult: CognitiveCycleResult = await runUnifiedCognitiveCycle(userId);
     businessGraphSummary            = cycleResult.businessGraphSummary;
@@ -501,11 +507,14 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     // Build 045A: Launch Hardening — fetch latest snapshot passively (never auto-triggers)
     hardeningSummary = await fetchHardeningView() ?? undefined;
     notifyHardeningCycle();
+    // Build 046: Unified Platform OS — await pre-warm, trigger background init every 320 cycles
+    uposSummary = await preWarmUPOS ?? undefined;
+    void Promise.resolve(triggerUPOSInit(userId)).catch((err: unknown) => logger.warn({ err }, "UPOS: background init trigger failed (non-fatal)")); // fire-and-forget, every 320 cycles
   } catch (err) {
     logger.warn({ err }, "Executive Brain: unified cognitive cycle failed (ignored) — all summaries undefined");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, userId });
 
   logger.info(
     {
@@ -572,6 +581,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     connectionHubSummary,
     certificationSummary,
     hardeningSummary,
+    uposSummary,
   };
 }
 
@@ -624,9 +634,10 @@ async function buildContextNote(params: {
   connectionHubSummary:        ConnectionHubSummary | undefined;
   certificationSummary:        CertificationSummary | undefined;
   hardeningSummary:            HardeningSummary | undefined;
+  uposSummary:                 UPOSSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1258,6 +1269,19 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: hardening advisory failed (ignored)");
+  }
+
+  // ── Build 046: Unified Platform OS advisory ───────────────────────────────
+  // Runtime summary: active apps, workspaces, projects, commands, health.
+  // Context snapshot: current page/app/project/workspace/permissions for ASH.
+  try {
+    const uposAdvisory = buildUPOSAdvisory(uposSummary ?? null);
+    if (uposAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(uposAdvisory, 500));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: UPOS advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

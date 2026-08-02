@@ -1,0 +1,499 @@
+═══════════════════════════════════════════════════════════════════════
+                 STARKS GLOBAL GROUP PLATFORM
+                ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 046
+
+TITLE
+
+Unified Platform Operating System (UPOS)
+
+PHASE
+
+IX — Platform Ecosystem
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Unified Platform Operating System establishes the common
+runtime that powers every authenticated experience inside the
+Starks Global Group platform.
+
+ASH is no longer viewed as a feature.
+
+ASH becomes the Operating System of the platform.
+
+Every page, builder, project, workspace, application, integration,
+and future capability runs through UPOS.
+
+The dashboard is an interface.
+
+Builders are applications.
+
+ASH is the operating system coordinating everything.
+
+═══════════════════════════════════════════════════════════════════════
+MISSION
+═══════════════════════════════════════════════════════════════════════
+
+Create one deterministic platform operating layer that provides:
+
+• shared runtime
+
+• shared projects
+
+• shared workspaces
+
+• shared navigation context
+
+• shared activity stream
+
+• shared assets
+
+• shared notifications
+
+• shared search
+
+• shared commands
+
+• shared permissions
+
+• shared runtime state
+
+Every future builder inherits these services.
+
+═══════════════════════════════════════════════════════════════════════
+PLATFORM DOMAINS
+═══════════════════════════════════════════════════════════════════════
+
+Workspace
+
+Projects
+
+Applications
+
+Builders
+
+Assets
+
+Files
+
+Search
+
+Notifications
+
+Commands
+
+Runtime
+
+Activity
+
+Context
+
+Navigation
+
+Preferences
+
+Sessions
+
+User Presence
+
+Organization
+
+Teams
+
+Future Applications
+
+═══════════════════════════════════════════════════════════════════════
+NEW PLATFORM OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Platform Workspace
+
+Platform Project
+
+Platform Application
+
+Platform Runtime
+
+Platform Context
+
+Platform Session
+
+Platform Command
+
+Global Search Index
+
+Notification Feed
+
+Activity Timeline
+
+Platform Registry
+
+Platform Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement deterministic platform infrastructure capable of:
+
+• application registration
+
+• workspace lifecycle
+
+• project lifecycle
+
+• runtime lifecycle
+
+• global command routing
+
+• global activity tracking
+
+• notification routing
+
+• unified navigation context
+
+• global search registration
+
+• application discovery
+
+• application health
+
+• runtime diagnostics
+
+• session coordination
+
+• user context awareness
+
+• builder hosting
+
+═══════════════════════════════════════════════════════════════════════
+CORE ENGINES
+═══════════════════════════════════════════════════════════════════════
+
+1.
+
+Platform Runtime Engine
+
+Owns runtime state for every authenticated user.
+
+──────────────────────────────────────────────────────────────────────
+
+2.
+
+Workspace Engine
+
+Owns workspaces across every builder and application.
+
+──────────────────────────────────────────────────────────────────────
+
+3.
+
+Application Registry Engine
+
+Registers every application capable of running inside UPOS.
+
+Applications include:
+
+Website Builder
+
+CRM
+
+Automation Builder
+
+Dashboard
+
+Future apps
+
+──────────────────────────────────────────────────────────────────────
+
+4.
+
+Global Command Engine
+
+Allows any application to expose commands.
+
+ASH can invoke those commands after authority validation.
+
+──────────────────────────────────────────────────────────────────────
+
+5.
+
+Global Search Engine
+
+Indexes every registered application.
+
+Provides unified discovery.
+
+──────────────────────────────────────────────────────────────────────
+
+6.
+
+Context Engine
+
+Tracks:
+
+Current page
+
+Current project
+
+Current builder
+
+Current workspace
+
+Current organization
+
+Current permissions
+
+This context is continuously available to ASH.
+
+═══════════════════════════════════════════════════════════════════════
+DATABASE
+═══════════════════════════════════════════════════════════════════════
+
+Create:
+
+platform_workspaces
+
+platform_projects
+
+platform_applications
+
+platform_sessions
+
+platform_context
+
+platform_commands
+
+platform_notifications
+
+platform_activity
+
+platform_registry
+
+platform_snapshots
+
+Append-only except registry.
+
+═══════════════════════════════════════════════════════════════════════
+ASH INTEGRATION
+═══════════════════════════════════════════════════════════════════════
+
+ASH becomes the primary operating interface.
+
+Every authenticated page exposes its capabilities through UPOS.
+
+ASH always knows:
+
+• where the user is
+
+• what application is active
+
+• what project is active
+
+• what workspace is active
+
+• what permissions exist
+
+• what commands are available
+
+Every application must publish a capability manifest into UPOS.
+
+ASH never hardcodes application behavior.
+
+═══════════════════════════════════════════════════════════════════════
+REST API
+═══════════════════════════════════════════════════════════════════════
+
+POST /platform/workspaces
+
+POST /platform/projects
+
+POST /platform/applications
+
+POST /platform/commands
+
+GET  /platform/runtime
+
+GET  /platform/context
+
+GET  /platform/search
+
+GET  /platform/activity
+
+GET  /platform/registry
+
+GET  /platform/snapshots
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Cognitive Operating System
+
+✓ Unified Knowledge Graph
+
+✓ Unified Authority Framework
+
+✓ Unified Digital Operating Layer
+
+✓ Unified Connections Hub
+
+✓ Certification Framework
+
+✓ Registry Pattern
+
+Purely additive.
+
+Do not modify Builds 001–045C.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Applications never communicate directly with each other.
+
+Applications communicate through UPOS.
+
+ASH interacts with UPOS.
+
+UPOS routes requests to applications.
+
+Every application must declare:
+
+• capabilities
+
+• commands
+
+• permissions required
+
+• supported project types
+
+• supported asset types
+
+═══════════════════════════════════════════════════════════════════════
+NEW PERMANENT LAW
+
+Unified Platform Law
+
+Every authenticated capability inside the Starks Global Group
+platform shall execute through the Unified Platform Operating
+System.
+
+No application may implement its own:
+
+• project system
+
+• workspace system
+
+• global search
+
+• notifications
+
+• activity tracking
+
+• command routing
+
+• runtime context
+
+• application registry
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Platform Runtime
+
+✓ Workspace System
+
+✓ Project System
+
+✓ Application Registry
+
+✓ Global Commands
+
+✓ Global Search
+
+✓ Context Awareness
+
+✓ ASH Operating Interface
+
+✓ Runtime Diagnostics
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Runtime Architecture
+
+6. Workspace Model
+
+7. Project Model
+
+8. Application Registry
+
+9. Global Command Architecture
+
+10. Context Model
+
+11. ASH Integration
+
+12. REST API
+
+13. Technical Decisions
+
+14. Performance Impact
+
+15. Architectural Trade-offs
+
+16. Extension Points Added
+
+17. Platform Operating System Score
+
+═══════════════════════════════════════════════════════════════════════
+CHIEF ARCHITECT NOTE
+
+This build marks the beginning of the Platform Ecosystem.
+
+The Cognitive Operating System is now considered stable and
+feature-frozen.
+
+From this point forward, every builder, application, and future
+platform capability shall inherit the services provided by UPOS
+rather than implementing them independently.
+
+This architectural separation allows ASH's intelligence to evolve
+independently from the platform while ensuring every application
+benefits from a common operating environment.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 047.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 046
+
+═══════════════════════════════════════════════════════════════════════

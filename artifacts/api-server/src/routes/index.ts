@@ -232,5 +232,8 @@ import { certificationRouter } from "./certification";
 router.use("/certification", certificationRouter);
 import { launchHardeningRouter } from "./launch-hardening";
 router.use("/launch-hardening", launchHardeningRouter);
+// Build 046: Unified Platform Operating System — workspace, project, app, command, search, activity, registry
+import { unifiedPlatformRouter } from "./unified-platform";
+router.use("/platform", unifiedPlatformRouter);
 
 export default router;

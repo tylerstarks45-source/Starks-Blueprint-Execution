@@ -3373,6 +3373,317 @@ paths:
 # Launch Hardening). All are mounted under /api via the servers.url prefix.
 # Admin-only endpoints are marked with x-admin-only: true for tooling.
 
+  # ── Build 046: Unified Platform Operating System ────────────────────────────
+  /platform/workspaces:
+    post:
+      operationId: createPlatformWorkspace
+      tags: [platform]
+      summary: Create a new platform workspace for the authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                workspaceName: { type: string, maxLength: 200 }
+                workspaceType: { type: string, enum: [personal, team, organization] }
+                configuration: { type: object, additionalProperties: true }
+              required: [workspaceName]
+      responses:
+        "200":
+          description: Created workspace
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  workspace: { type: object, additionalProperties: true }
+                required: [success, workspace]
+
+  /platform/projects:
+    post:
+      operationId: createPlatformProject
+      tags: [platform]
+      summary: Create a new platform project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                workspaceId: { type: integer }
+                appId:       { type: string }
+                projectName: { type: string, maxLength: 200 }
+                projectType: { type: string, enum: [website, crm, automation, dashboard, custom] }
+                metadata:    { type: object, additionalProperties: true }
+              required: [projectName, projectType]
+      responses:
+        "200":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  project: { type: object, additionalProperties: true }
+                required: [success, project]
+
+  /platform/applications:
+    get:
+      operationId: listPlatformApplications
+      tags: [platform]
+      summary: List all registered platform applications
+      responses:
+        "200":
+          description: Application list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  applications: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, applications, count]
+    post:
+      operationId: registerPlatformApplication
+      tags: [platform]
+      summary: Register a new application in UPOS (admin only)
+      x-admin-only: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                appId:       { type: string }
+                appName:     { type: string }
+                appDomain:   { type: string }
+                version:     { type: string }
+                description: { type: string }
+              required: [appId, appName, appDomain]
+      responses:
+        "200":
+          description: Registered application
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  app: { type: object, additionalProperties: true }
+                required: [success, app]
+
+  /platform/commands:
+    get:
+      operationId: listPlatformCommands
+      tags: [platform]
+      summary: List all active platform commands; optionally filter by appId
+      parameters:
+        - name: appId
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Command list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  commands: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, commands, count]
+    post:
+      operationId: registerPlatformCommands
+      tags: [platform]
+      summary: Register commands for an application (admin only)
+      x-admin-only: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                appId:    { type: string }
+                commands: { type: array, items: { type: object, additionalProperties: true }, minItems: 1 }
+              required: [appId, commands]
+      responses:
+        "200":
+          description: Registration result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:    { type: boolean }
+                  registered: { type: integer }
+                required: [success, registered]
+
+  /platform/runtime:
+    get:
+      operationId: getPlatformRuntime
+      tags: [platform]
+      summary: Get the authenticated user's UPOS runtime state
+      responses:
+        "200":
+          description: Runtime state and active sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:      { type: boolean }
+                  runtime:      { type: object, additionalProperties: true }
+                  sessions:     { type: array, items: { type: object, additionalProperties: true } }
+                  sessionCount: { type: integer }
+                required: [success, runtime, sessions, sessionCount]
+
+  /platform/context:
+    get:
+      operationId: getPlatformContext
+      tags: [platform]
+      summary: Get the user's current UPOS navigation context (ASH always has access to this)
+      responses:
+        "200":
+          description: Current context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  context: { type: object, additionalProperties: true }
+                required: [success]
+    patch:
+      operationId: updatePlatformContext
+      tags: [platform]
+      summary: Update the user's current context (called by each page as it loads)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currentPage:        { type: string }
+                currentAppId:       { type: string }
+                currentProjectId:   { type: integer }
+                currentWorkspaceId: { type: integer }
+                currentOrgId:       { type: integer }
+                permissions:        { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: Updated context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  context: { type: object, additionalProperties: true }
+                required: [success, context]
+
+  /platform/search:
+    get:
+      operationId: getPlatformSearch
+      tags: [platform]
+      summary: Global unified search across apps, commands, projects, and workspaces
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+          description: Search query
+        - name: kinds
+          in: query
+          schema: { type: string }
+          description: Comma-separated list of result kinds (application,command,project,workspace)
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  results: { type: array, items: { type: object, additionalProperties: true } }
+                  count:   { type: integer }
+                required: [success, results, count]
+
+  /platform/activity:
+    get:
+      operationId: getPlatformActivity
+      tags: [platform]
+      summary: Get the authenticated user's platform activity timeline
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Activity timeline
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:  { type: boolean }
+                  activity: { type: array, items: { type: object, additionalProperties: true } }
+                  count:    { type: integer }
+                required: [success, activity, count]
+
+  /platform/registry:
+    get:
+      operationId: getPlatformRegistry
+      tags: [platform]
+      summary: Get the platform application registry
+      responses:
+        "200":
+          description: Application registry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:  { type: boolean }
+                  registry: { type: array, items: { type: object, additionalProperties: true } }
+                  count:    { type: integer }
+                required: [success, registry, count]
+
+  /platform/snapshots:
+    get:
+      operationId: getPlatformSnapshots
+      tags: [platform]
+      summary: Get platform runtime snapshots (admin only)
+      x-admin-only: true
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Platform snapshots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:   { type: boolean }
+                  snapshots: { type: array, items: { type: object, additionalProperties: true } }
+                  count:     { type: integer }
+                required: [success, snapshots, count]
+
   # ── Build 043: Digital Operating Layer ──────────────────────────────────────
   /operating/status:
     get:

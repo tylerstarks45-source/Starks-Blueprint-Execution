@@ -64,6 +64,7 @@ import { declareDigitalOperatingLayerExtensionPoints } from "../digital-operatin
 import { declareConnectionsHubExtensionPoints } from "../connections-hub/hub-extension-points";
 import { declareCertificationExtensionPoints }   from "../certification/cert-extension-points";
 import { declareLaunchHardeningExtensionPoints } from "../launch-hardening/lh-extension-points";
+import { declareUPOSExtensionPoints }            from "../unified-platform/upos-extension-points";
 
 let initialized = false;
 
@@ -123,6 +124,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareConnectionsHubExtensionPoints();        // Build 044: eight unified connections & integration hub seams
       declareCertificationExtensionPoints();         // Build 045:  eight cognitive certification & launch readiness seams
       declareLaunchHardeningExtensionPoints();       // Build 045A: eight launch hardening framework seams
+      declareUPOSExtensionPoints();                  // Build 046: eight unified platform OS seams
       registerCoreBrains();
       initialized = true;
 

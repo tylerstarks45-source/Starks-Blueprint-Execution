@@ -1,5 +1,6 @@
 // ── Build 045: Cognitive Certification & Launch Readiness — REST Routes ────
 import { Router }      from "express";
+import { z }           from "zod";
 import { db }          from "@workspace/db";
 import {
   certificationRuns, certificationDomains, healthChecks,
@@ -18,20 +19,46 @@ import { computeLaunchReadiness }  from "../lib/certification/cert-launch-engine
 
 export const certificationRouter = Router();
 
+// M-04: Zod schema for POST /certification/run body
+const CertRunBodySchema = z.object({
+  runName: z.string().max(200).optional(),
+});
+
+// M-03: certification runs are expensive — limit to 3 per 10 minutes per admin
+const certRunWindows = new Map<number, number[]>();
+function checkCertRateLimit(callerId: number): boolean {
+  const now = Date.now();
+  const cutoff = now - 10 * 60 * 1000;
+  const prior = (certRunWindows.get(callerId) ?? []).filter((t) => t > cutoff);
+  if (prior.length >= 3) return false;
+  prior.push(now);
+  certRunWindows.set(callerId, prior);
+  return true;
+}
+
 // ── POST /certification/run ────────────────────────────────────────────────
 // Trigger a full certification run (admin only).
 certificationRouter.post("/run", async (req, res): Promise<void> => {
   const caller = await requireAdmin(req, res);
   if (!caller) return;
+  // M-03: rate-limit expensive certification runs
+  if (!checkCertRateLimit(caller.id)) {
+    res.status(429).json({ error: "Too many certification runs — wait 10 minutes before retrying" });
+    return;
+  }
   try {
-    const runName = (req.body as any)?.runName ?? `Certification Run — ${new Date().toISOString()}`;
+    // M-04: validate body with Zod
+    const parsed = CertRunBodySchema.safeParse(req.body);
+    const runName = parsed.success && parsed.data.runName
+      ? parsed.data.runName
+      : `Certification Run — ${new Date().toISOString()}`;
     const { runId, summary, adminPackage } = await runFullCertification({
       runName,
       triggeredBy: caller.id,
     });
     res.json({ success: true, runId, summary, adminPackage });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "certification run failed" });
+    res.status(500).json({ error: "certification run failed" });
   }
 });
 
@@ -52,7 +79,7 @@ certificationRouter.post("/launch-report", async (req, res): Promise<void> => {
     const adminPackage    = buildAdminCertificationPackage({ domainResults, lawResults, dependencyResults, healthMetrics, launchReadiness });
     res.json({ success: true, launchReadiness, adminPackage });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "launch report failed" });
+    res.status(500).json({ error: "launch report failed" });
   }
 });
 
@@ -76,7 +103,7 @@ certificationRouter.post("/revalidate", async (req, res): Promise<void> => {
       laws:        lawResults,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "revalidation failed" });
+    res.status(500).json({ error: "revalidation failed" });
   }
 });
 
@@ -88,7 +115,7 @@ certificationRouter.get("/results", async (req, res): Promise<void> => {
     const runs = await db.select().from(certificationRuns).orderBy(desc(certificationRuns.createdAt)).limit(10);
     res.json({ success: true, runs, count: runs.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });
 
@@ -107,7 +134,7 @@ certificationRouter.get("/domains", async (req, res): Promise<void> => {
     }
     res.json({ success: true, domains, count: domains.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });
 
@@ -120,7 +147,7 @@ certificationRouter.get("/compliance", async (req, res): Promise<void> => {
     const compliant = results.filter((r) => r.compliant).length;
     res.json({ success: true, results, compliant, total: results.length, complianceRate: results.length > 0 ? compliant / results.length : 0 });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });
 
@@ -135,7 +162,7 @@ certificationRouter.get("/health", async (req, res): Promise<void> => {
       : 0;
     res.json({ success: true, checks, avgScore, count: checks.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });
 
@@ -147,7 +174,7 @@ certificationRouter.get("/registry", async (req, res): Promise<void> => {
     const registry = await db.select().from(certificationRegistry).orderBy(certificationRegistry.domain);
     res.json({ success: true, registry, count: registry.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });
 
@@ -159,7 +186,7 @@ certificationRouter.get("/snapshots", async (req, res): Promise<void> => {
     const snapshots = await db.select().from(certificationSnapshots).orderBy(desc(certificationSnapshots.createdAt)).limit(20);
     res.json({ success: true, snapshots, count: snapshots.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });
 
@@ -171,6 +198,6 @@ certificationRouter.get("/signoffs", async (req, res): Promise<void> => {
     const signoffs = await db.select().from(administratorSignoffs).orderBy(desc(administratorSignoffs.createdAt)).limit(20);
     res.json({ success: true, signoffs, count: signoffs.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });

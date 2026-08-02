@@ -2,13 +2,16 @@
 // Checks every permanent architectural law introduced in Builds 001–045.
 // NEVER modifies platform state. Read-only.
 import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import { listExtensionPoints } from "../cognitive-foundation/extension-points";
 import type { LawComplianceResult } from "./types";
 import { ARCHITECTURAL_LAWS, EXPECTED_EP_COUNT } from "./types";
 
+// H-08 fix: use sql.identifier() instead of template-literal interpolation so
+// the table name is properly quoted, not injected as raw SQL text.
 async function tableExists(tableName: string): Promise<boolean> {
   try {
-    await db.execute(`SELECT 1 FROM ${tableName} LIMIT 1` as any);
+    await db.execute(sql`SELECT 1 FROM ${sql.identifier(tableName)} LIMIT 1`);
     return true;
   } catch {
     return false;

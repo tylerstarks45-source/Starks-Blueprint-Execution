@@ -1,0 +1,199 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+              ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 045C
+
+TITLE
+
+Full Launch Hardening Execution
+
+PHASE
+
+VIII.5 — Production Hardening
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+Complete the production hardening process by executing every
+remaining PRE_LAUNCH remediation under control of the Launch
+Hardening Framework.
+
+Unlike Build 045B, this build begins by importing the COMPLETE
+43-finding audit into the framework.
+
+From that point forward the framework becomes the single source
+of truth for launch readiness.
+
+═══════════════════════════════════════════════════════════════════════
+
+STEP 1
+
+Execute:
+
+POST /api/launch-hardening/import-audit
+
+Populate all remaining findings.
+
+Do NOT create duplicates.
+
+Use the idempotent import already implemented.
+
+═══════════════════════════════════════════════════════════════════════
+
+STEP 2
+
+Allow the framework to:
+
+• rebuild dependency graph
+
+• rebuild regression graph
+
+• rebuild launch confidence
+
+• rebuild remediation ordering
+
+═══════════════════════════════════════════════════════════════════════
+
+STEP 3
+
+Implement every finding currently classified as:
+
+PRE_LAUNCH
+
+Do NOT implement:
+
+POST_LAUNCH
+
+OBSERVATION
+
+═══════════════════════════════════════════════════════════════════════
+
+REMEDIATION RULES
+
+Follow dependency ordering exactly.
+
+Respect regression approvals.
+
+No opportunistic refactoring.
+
+No feature additions.
+
+No architectural redesign.
+
+Only perform deterministic remediation.
+
+═══════════════════════════════════════════════════════════════════════
+
+VERIFICATION
+
+Every completed remediation must:
+
+• pass TypeScript
+
+• pass build
+
+• create verification record
+
+• execute regression review
+
+• update registry
+
+• update launch confidence
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS TARGET
+
+Before:
+
+Launch Status
+
+CONDITIONAL
+
+After:
+
+Launch Status
+
+READY
+
+Remaining findings:
+
+POST_LAUNCH
+
+OBSERVATION
+
+Only.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN
+
+Continue passive reporting only.
+
+No automatic remediation.
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Audit import results
+
+2. Findings imported
+
+3. PRE_LAUNCH findings remediated
+
+4. Verification records
+
+5. Regression approvals
+
+6. Launch confidence before
+
+7. Launch confidence after
+
+8. Remaining POST_LAUNCH findings
+
+9. Remaining OBSERVATION findings
+
+10. Updated registry summary
+
+11. Updated certification status
+
+12. Architecture validation
+
+13. Technical decisions
+
+14. Performance impact
+
+15. Updated Launch Readiness
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+This build should complete every production-critical remediation
+required before public launch.
+
+Do NOT touch POST_LAUNCH improvements.
+
+Those become part of the post-launch roadmap.
+
+When complete:
+
+STOP.
+
+Await final Launch Certification.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 045C
+
+═══════════════════════════════════════════════════════════════════════

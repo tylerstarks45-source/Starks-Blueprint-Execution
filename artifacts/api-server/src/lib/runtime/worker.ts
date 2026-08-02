@@ -171,8 +171,9 @@ export async function loadCredentials(systemInstanceId: number): Promise<Record<
     if (row.encryptedValue) {
       try {
         creds[row.credentialKey] = await decrypt(row.encryptedValue);
-      } catch {
-        // Skip malformed entries — don't crash the worker
+      } catch (err) {
+        // M-08 fix: log decryption failures so they are visible in ops, not silently swallowed
+        logger.warn({ err, credentialKey: row.credentialKey }, "Credential decryption failed — skipping entry");
       }
     }
   }
@@ -275,7 +276,12 @@ async function loadUserCredentialsByUserId(userId: number): Promise<Record<strin
   const creds: Record<string, string> = {};
   for (const row of rows.rows) {
     if (row.encrypted_value) {
-      try { creds[row.credential_key] = await decrypt(row.encrypted_value); } catch { /* skip malformed */ }
+      try {
+        creds[row.credential_key] = await decrypt(row.encrypted_value);
+      } catch (err) {
+        // M-08 fix: log decryption failures so ops can detect corrupt credentials
+        logger.warn({ err, credentialKey: row.credential_key }, "Credential decryption failed — skipping entry");
+      }
     }
   }
   return creds;

@@ -1,5 +1,13 @@
 // ── Build 044: Unified Connections & Integration Hub — REST Routes ─────────
+// SECURITY NOTE (M-14): This router and all underlying hub engines operate on
+// provider METADATA only (names, domains, capability types, health status).
+// No credential values are ever read, written, or returned through this
+// router. Credential management is handled exclusively through the
+// /api/user-credentials and /api/credential-vault routes which use at-rest
+// encryption via lib/crypto.ts. This comment must be kept in sync with any
+// future hub engine changes that add credential-handling logic.
 import { Router } from "express";
+import { z }      from "zod";
 import { db } from "@workspace/db";
 import {
   connectionProviders,
@@ -20,27 +28,38 @@ import type { ConnectionDomain, ProviderType } from "../lib/connections-hub/type
 
 export const connectionsHubRouter = Router();
 
+// M-04: Zod schema for POST /connections/register
+const RegisterProviderSchema = z.object({
+  providerName: z.string().min(1).max(200),
+  domain:       z.string().min(1),     // ConnectionDomain — validated at runtime by DB FK
+  providerType: z.string().min(1),     // ProviderType    — validated at runtime by DB enum
+  baseUrl:      z.string().url().optional(),
+  version:      z.string().max(50).optional(),
+});
+
 // ── POST /connections/register ─────────────────────────────────────────────
 // Register a new provider in the hub.
 connectionsHubRouter.post("/register", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (!userId) return;
   try {
-    const { providerName, domain, providerType, baseUrl, version } = req.body as {
-      providerName: string;
-      domain:       ConnectionDomain;
-      providerType: ProviderType;
-      baseUrl?:     string;
-      version?:     string;
-    };
-    if (!providerName || !domain || !providerType) {
-      res.status(400).json({ error: "providerName, domain, and providerType are required" });
+    // M-04: validate body with Zod before touching the DB
+    const parsed = RegisterProviderSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request body", details: parsed.error.flatten() });
       return;
     }
-    const provider = await registerProvider({ providerName, domain, providerType, baseUrl, version });
+    const { providerName, domain, providerType, baseUrl, version } = parsed.data;
+    const provider = await registerProvider({
+      providerName,
+      domain: domain as ConnectionDomain,
+      providerType: providerType as ProviderType,
+      baseUrl,
+      version,
+    });
     res.json({ success: true, provider });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "registration failed" });
+    res.status(500).json({ error: "registration failed" });
   }
 });
 
@@ -53,7 +72,7 @@ connectionsHubRouter.post("/discover", async (req, res): Promise<void> => {
     const result = await initializeConnectionsHub(caller.id);
     res.json({ success: true, ...result });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "discovery failed" });
+    res.status(500).json({ error: "discovery failed" });
   }
 });
 
@@ -67,7 +86,7 @@ connectionsHubRouter.post("/evaluate", async (req, res): Promise<void> => {
     const recommendations = await generateRecommendations();
     res.json({ success: true, recommendations, count: recommendations.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "evaluation failed" });
+    res.status(500).json({ error: "evaluation failed" });
   }
 });
 
@@ -80,7 +99,7 @@ connectionsHubRouter.post("/refresh", async (req, res): Promise<void> => {
     const seeded = await seedBaselineHealth();
     res.json({ success: true, healthRecordsCreated: seeded });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "refresh failed" });
+    res.status(500).json({ error: "refresh failed" });
   }
 });
 
@@ -93,7 +112,7 @@ connectionsHubRouter.get("/providers", async (req, res): Promise<void> => {
     const providers = await listProviders(domain);
     res.json({ success: true, providers, count: providers.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });
 
@@ -114,7 +133,7 @@ connectionsHubRouter.get("/health", async (req, res): Promise<void> => {
     ).orderBy(desc((await import("@workspace/db/schema")).connectionHealth.measuredAt)).limit(50);
     res.json({ success: true, health: healthRows, count: healthRows.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });
 
@@ -140,7 +159,7 @@ connectionsHubRouter.get("/capabilities", async (req, res): Promise<void> => {
 
     res.json({ success: true, capabilities: caps, count: caps.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });
 
@@ -152,7 +171,7 @@ connectionsHubRouter.get("/registry", async (req, res): Promise<void> => {
     const registry = await db.select().from(connectionRegistry).orderBy(connectionRegistry.domain);
     res.json({ success: true, registry, count: registry.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });
 
@@ -164,7 +183,7 @@ connectionsHubRouter.get("/snapshots", async (req, res): Promise<void> => {
     const snapshots = await db.select().from(connectionSnapshots).orderBy(desc(connectionSnapshots.createdAt)).limit(20);
     res.json({ success: true, snapshots, count: snapshots.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });
 
@@ -177,6 +196,6 @@ connectionsHubRouter.get("/audit", async (req, res): Promise<void> => {
     const audit  = await db.select().from(connectionAudit).orderBy(desc(connectionAudit.createdAt)).limit(isNaN(limit) ? 50 : limit);
     res.json({ success: true, audit, count: audit.length });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "fetch failed" });
+    res.status(500).json({ error: "fetch failed" });
   }
 });

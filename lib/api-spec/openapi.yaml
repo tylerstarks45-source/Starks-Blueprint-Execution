@@ -48,6 +48,14 @@ tags:
     description: Domain search, purchase, and DNS management (Namecheap)
   - name: businesses
     description: Business Import Center — imported and built business profiles
+  - name: operating
+    description: Build 043 - Unified Digital Operating Layer
+  - name: connections
+    description: Build 044 - Unified Connections & Integration Hub
+  - name: certification
+    description: Build 045 - Cognitive Certification & Launch Readiness Framework
+  - name: launch-hardening
+    description: Build 045A - Launch Hardening Framework
 
 paths:
   /healthz:
@@ -3359,6 +3367,377 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+# ─── M-12: Build 043–045A route coverage ─────────────────────────────────────
+# These paths were added in Builds 043–045A (DOL, Connections Hub, Certification,
+# Launch Hardening). All are mounted under /api via the servers.url prefix.
+# Admin-only endpoints are marked with x-admin-only: true for tooling.
+
+  # ── Build 043: Digital Operating Layer ──────────────────────────────────────
+  /operating/status:
+    get:
+      operationId: getOperatingLayerStatus
+      tags: [operating]
+      summary: Get current Digital Operating Layer status (admin only)
+      x-admin-only: true
+      responses:
+        "200":
+          description: Operating layer status snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  snapshot: { type: object, additionalProperties: true }
+                required: [success]
+
+  /operating/sessions:
+    get:
+      operationId: listOperatingSessions
+      tags: [operating]
+      summary: List DOL execution sessions for the authenticated user
+      responses:
+        "200":
+          description: List of execution sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  sessions: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, sessions, count]
+
+  # ── Build 044: Unified Connections & Integration Hub ─────────────────────────
+  /connections/providers:
+    get:
+      operationId: listConnectionProviders
+      tags: [connections]
+      summary: List all known integration providers
+      parameters:
+        - name: domain
+          in: query
+          schema: { type: string }
+          description: Filter by connection domain (e.g. ai, database, social)
+      responses:
+        "200":
+          description: Provider list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  providers: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, providers, count]
+
+  /connections/capabilities:
+    get:
+      operationId: listConnectionCapabilities
+      tags: [connections]
+      summary: List provider capabilities; optionally filter by capability name
+      parameters:
+        - name: providerId
+          in: query
+          schema: { type: integer }
+        - name: capability
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Capability list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  capabilities: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, capabilities, count]
+
+  /connections/registry:
+    get:
+      operationId: getConnectionRegistry
+      tags: [connections]
+      summary: Get the full connection registry ordered by domain
+      responses:
+        "200":
+          description: Connection registry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  registry: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, registry, count]
+
+  /connections/register:
+    post:
+      operationId: registerConnectionProvider
+      tags: [connections]
+      summary: Register a new integration provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                providerName: { type: string }
+                domain: { type: string }
+                providerType: { type: string }
+                baseUrl: { type: string, format: uri }
+                version: { type: string }
+              required: [providerName, domain, providerType]
+      responses:
+        "200":
+          description: Registered provider
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  provider: { type: object, additionalProperties: true }
+                required: [success, provider]
+
+  /connections/discover:
+    post:
+      operationId: discoverConnections
+      tags: [connections]
+      summary: Trigger full provider catalog seeding and capability discovery (admin only)
+      x-admin-only: true
+      responses:
+        "200":
+          description: Discovery result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                required: [success]
+
+  /connections/snapshots:
+    get:
+      operationId: getConnectionSnapshots
+      tags: [connections]
+      summary: List connection hub snapshots (admin only)
+      x-admin-only: true
+      responses:
+        "200":
+          description: Snapshot list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  snapshots: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, snapshots, count]
+
+  /connections/audit:
+    get:
+      operationId: getConnectionAudit
+      tags: [connections]
+      summary: Get connection hub audit log (admin only)
+      x-admin-only: true
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Audit log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  audit: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, audit, count]
+
+  # ── Build 045: Cognitive Certification & Launch Readiness ────────────────────
+  /certification/run:
+    post:
+      operationId: runCertification
+      tags: [certification]
+      summary: Trigger a full certification run (admin only)
+      x-admin-only: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                runName: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: Certification run result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  runId: { type: integer }
+                  summary: { type: object, additionalProperties: true }
+                  adminPackage: { type: object, additionalProperties: true }
+                required: [success, runId]
+        "429":
+          description: Rate limited — too many runs in the last 10 minutes
+
+  /certification/results:
+    get:
+      operationId: getCertificationResults
+      tags: [certification]
+      summary: List the last 10 certification runs (admin only)
+      x-admin-only: true
+      responses:
+        "200":
+          description: Certification run list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  runs: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, runs, count]
+
+  /certification/launch-report:
+    post:
+      operationId: getCertificationLaunchReport
+      tags: [certification]
+      summary: Generate a launch readiness report (admin only)
+      x-admin-only: true
+      responses:
+        "200":
+          description: Launch readiness report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  launchReadiness: { type: object, additionalProperties: true }
+                  adminPackage: { type: object, additionalProperties: true }
+                required: [success, launchReadiness]
+
+  /certification/revalidate:
+    post:
+      operationId: revalidateCertification
+      tags: [certification]
+      summary: Re-run architecture validation (admin only)
+      x-admin-only: true
+      responses:
+        "200":
+          description: Revalidation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  domainCount: { type: integer }
+                  passed: { type: integer }
+                  failed: { type: integer }
+                required: [success]
+
+  # ── Build 045A: Launch Hardening Framework ───────────────────────────────────
+  /launch-hardening/status:
+    get:
+      operationId: getLaunchHardeningStatus
+      tags: [launch-hardening]
+      summary: Get overall launch hardening status (admin only)
+      x-admin-only: true
+      responses:
+        "200":
+          description: Launch hardening status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  status: { type: string }
+                  blockersRemaining: { type: integer }
+                  preLaunchRemaining: { type: integer }
+                required: [success, status]
+
+  /launch-hardening/findings:
+    get:
+      operationId: getLaunchFindings
+      tags: [launch-hardening]
+      summary: List all launch findings (admin only)
+      x-admin-only: true
+      parameters:
+        - name: priority
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Launch findings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  findings: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, findings, count]
+
+  /launch-hardening/blockers:
+    get:
+      operationId: getLaunchBlockers
+      tags: [launch-hardening]
+      summary: List open BLOCKER findings (admin only)
+      x-admin-only: true
+      responses:
+        "200":
+          description: Open blockers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  blockers: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, blockers, count]
+
+  /launch-hardening/snapshots:
+    get:
+      operationId: getLaunchHardeningSnapshots
+      tags: [launch-hardening]
+      summary: List launch hardening snapshots (admin only)
+      x-admin-only: true
+      responses:
+        "200":
+          description: Snapshot history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  snapshots: { type: array, items: { type: object, additionalProperties: true } }
+                  count: { type: integer }
+                required: [success, snapshots, count]
 
 components:
   parameters:

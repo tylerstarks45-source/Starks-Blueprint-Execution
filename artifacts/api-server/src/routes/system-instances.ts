@@ -260,9 +260,15 @@ router.patch("/system-instances/:id", async (req, res): Promise<void> => {
 // Auth-protected. Returns the last 10 platform service health check records,
 // used as a proxy health sparkline in the system detail page.
 
+// H-05 fix: platform-wide service health data (not user-specific) must be
+// restricted to admin callers only, preventing any authenticated user from
+// reading operational metadata (error rates, latency, service status).
 router.get("/system-health/recent", async (req, res): Promise<void> => {
   const caller = await getActiveCallerPayload(req, res);
   if (!caller) return;
+
+  const isAdmin = ADMIN_ROLES.has(caller.role);
+  if (!isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
 
   const rows = await db
     .select({

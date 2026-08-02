@@ -3,12 +3,15 @@
 // consistency, confidence across all 21 certification domains.
 // NEVER modifies platform state. Read-only.
 import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import type { HealthMetrics, CertificationDomain } from "./types";
 import { CERTIFICATION_DOMAINS } from "./types";
 
+// H-08 fix: use sql.identifier() for both table and column names so identifiers
+// are properly quoted rather than interpolated as raw SQL text.
 async function rowCount(table: string): Promise<number> {
   try {
-    const r = await db.execute(`SELECT COUNT(*) AS c FROM ${table}` as any);
+    const r = await db.execute(sql`SELECT COUNT(*) AS c FROM ${sql.identifier(table)}`);
     return parseInt(String((r as any).rows?.[0]?.c ?? (r as any)[0]?.c ?? 0), 10);
   } catch {
     return 0;
@@ -17,7 +20,7 @@ async function rowCount(table: string): Promise<number> {
 
 async function latestTimestampAgeMs(table: string, col = "created_at"): Promise<number> {
   try {
-    const r = await db.execute(`SELECT MAX(${col}) AS t FROM ${table}` as any);
+    const r = await db.execute(sql`SELECT MAX(${sql.identifier(col)}) AS t FROM ${sql.identifier(table)}`);
     const ts = (r as any).rows?.[0]?.t ?? (r as any)[0]?.t;
     if (!ts) return Infinity;
     return Date.now() - new Date(ts).getTime();

@@ -2493,7 +2493,21 @@ router.post("/ai-orchestrator/transcribe", async (req, res) => {
 
   try {
     const multer = await import("multer");
-    const upload = multer.default({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+    // H-06 fix: add fileFilter so only audio/* files (plus raw octet-stream as sent
+    // by some mobile clients) are accepted; any other MIME type is rejected with 400.
+    const upload = multer.default({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype.startsWith("audio/") || file.mimetype === "application/octet-stream") {
+          cb(null, true);
+        } else {
+          // H-06: reject non-audio MIME types; multer will set req.file=undefined
+          // which the existing "No audio file provided" guard below will catch.
+          cb(null, false);
+        }
+      },
+    });
 
     await new Promise<void>((resolve, reject) => {
       upload.single("audio")(req as any, res as any, (err: unknown) => {

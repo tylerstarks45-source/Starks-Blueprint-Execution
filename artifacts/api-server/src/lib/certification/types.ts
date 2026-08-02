@@ -129,7 +129,13 @@ export const ARCHITECTURAL_LAWS: ArchitecturalLaw[] = [
 ];
 
 // ── Expected EP count after Build 045 ────────────────────────────────────
-export const EXPECTED_EP_COUNT = 334;  // updated: Build 045A adds 8 hardening EPs → 334 total
+// H-07 fix: renamed from EXPECTED_EP_COUNT to MINIMUM_EP_COUNT to document that
+// this is a floor (>=), not an exact target. Update after each build that adds new EPs.
+export const MINIMUM_EP_COUNT = 334;   // Build 045A: 334 cumulative EPs across all builds
+// Keep a deprecated alias so any code still referencing the old name compiles and
+// generates a type-level deprecation signal.
+/** @deprecated Use MINIMUM_EP_COUNT */
+export const EXPECTED_EP_COUNT = MINIMUM_EP_COUNT;
 export const EXPECTED_BRAIN_COUNT = 6;
 
 // ── EP IDs ────────────────────────────────────────────────────────────────

@@ -107,6 +107,9 @@ import type { TechnologyRelationshipSummary } from "../technology-relationships/
 import type { TechnologyEvolutionSummary } from "../technology-evolution/types";
 import type { SystemsDynamicsSummary } from "../systems-dynamics/types";
 import type { TradeoffIntelligenceSummary } from "../tradeoff-intelligence/types";
+// H-09 fix: moved from inline import() expressions to top-level type imports
+import type { PortfolioIntelligenceSummary } from "../portfolio-intelligence/types";
+import type { PriorityIntelligenceSummary } from "../priority-intelligence/types";
 import type { UnifiedOrchestrationSummary } from "../unified-orchestration/types";
 
 export * from "./types";
@@ -128,6 +131,24 @@ export * as TaskPlanner from "./task-planner";
 // context, so a bug in this layer can never block a user's request.
 export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<ExecutiveBrainResult> {
   const { userId, message, systemInstanceId } = req;
+
+  // ── A-01 fix: async pre-warm — kick off independent DB-only fetches NOW ─────
+  // The three project scaffold calls below (resolveActiveProject,
+  // resolveGoalForRequest, planTasks) include optional LLM round-trips
+  // (deriveProjectName, deriveGoal, decomposeIntoTasks). By starting these
+  // purely-DB fetches before the scaffold, they execute concurrently with
+  // those LLM calls rather than strictly after them, shaving up to 3 s of
+  // serial latency on cold requests.
+  //
+  // Each pre-warm catches its own errors (fail-open) — a rejection here must
+  // never surface through the await below or crash the EB pipeline.
+  const preWarmGoals      = fetchActiveGoals(userId).catch((): ExecutiveGoal[] => []);
+  const preWarmPlans      = fetchActivePlans(userId).catch((): ExecutivePlan[] => []);
+  const preWarmExecutions = fetchActiveExecutions(userId).catch((): ExecutiveExecution[] => []);
+  const preWarmObservation= fetchObservationSummary(userId).catch((): ObservationSummary | undefined => undefined);
+  const preWarmReflection = fetchReflectionSummary(userId).catch((): ReflectionSummary | undefined => undefined);
+  const preWarmLearning   = fetchLearningSummary(userId).catch((): LearningSummary | undefined => undefined);
+  const preWarmGovernance = fetchGovernanceSummary(userId).catch((): GovernanceSummary | undefined => undefined);
 
   // ── Executive Context Engine (Build 006) ─────────────────────────────────
   // Resolve the current situational context BEFORE any planning or reasoning.
@@ -248,7 +269,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   // Fail-open: an empty array is the fallback; the request always continues.
   let activeGoals: ExecutiveGoal[] = [];
   try {
-    activeGoals = await fetchActiveGoals(userId);
+    // A-01: await the pre-warmed promise (already running concurrently)
+    activeGoals = await preWarmGoals;
   } catch (err) {
     logger.warn({ err }, "Executive Brain: goal fetch failed (ignored)");
   }
@@ -283,7 +305,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   let activePlans: ExecutivePlan[] = [];
   let activePlanId: string | undefined;
   try {
-    activePlans = await fetchActivePlans(userId);
+    // A-01: await the pre-warmed promise (already running concurrently)
+    activePlans = await preWarmPlans;
     activePlanId = await ensurePlanForPrimaryGoal(userId, activeGoals, activePlans, {
       contextSnapshotId,
       judgmentId,
@@ -300,7 +323,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   let activeExecutions: ExecutiveExecution[] = [];
   let activeExecutionId: string | undefined;
   try {
-    activeExecutions = await fetchActiveExecutions(userId);
+    // A-01: await the pre-warmed promise (already running concurrently)
+    activeExecutions = await preWarmExecutions;
     activeExecutionId = await ensureExecutionForActivePlan(userId, activePlans, activeExecutions, {
       contextSnapshotId,
       judgmentId,
@@ -318,7 +342,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   // Fail-open: an observation failure must never block the request path.
   let observationSummary: ObservationSummary | undefined;
   try {
-    observationSummary = await fetchObservationSummary(userId) ?? undefined;
+    // A-01: await the pre-warmed promise (already running concurrently)
+    observationSummary = (await preWarmObservation) ?? undefined;
     // Publish the brain cycle as an observation (fire-and-forget)
     void publishBrainObservation({
       userId,
@@ -342,7 +367,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   // Fail-open: a reflection failure must never block the request path.
   let reflectionSummary: ReflectionSummary | undefined;
   try {
-    reflectionSummary = await fetchReflectionSummary(userId) ?? undefined;
+    // A-01: await the pre-warmed promise (already running concurrently)
+    reflectionSummary = (await preWarmReflection) ?? undefined;
     // Open/reuse a case for this brain cycle (fire-and-forget)
     void ensureCaseForCycle({
       userId,
@@ -365,8 +391,10 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   // Fail-open: a learning failure must never block the request path.
   let learningSummary: LearningSummary | undefined;
   try {
-    learningSummary = await fetchLearningSummary(userId) ?? undefined;
-    triggerLearningCycle(userId); // fire-and-forget, internally throttled
+    // A-01: await the pre-warmed promise (already running concurrently)
+    learningSummary = (await preWarmLearning) ?? undefined;
+    // M-13 fix: attach .catch() so rejections are visible in logs rather than unhandled
+    void Promise.resolve(triggerLearningCycle(userId)).catch((err: unknown) => logger.warn({ err }, "M-13: learning cycle trigger failed (non-fatal)"));
   } catch (err) {
     logger.warn({ err }, "Executive Brain: learning step failed (ignored)");
   }
@@ -379,8 +407,9 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   // Fail-open: a governance failure must never block the request path.
   let governanceSummary: GovernanceSummary | undefined;
   try {
-    governanceSummary = await fetchGovernanceSummary(userId) ?? undefined;
-    triggerGovernanceCycle(userId); // fire-and-forget, internally throttled
+    // A-01: await the pre-warmed promise (already running concurrently)
+    governanceSummary = (await preWarmGovernance) ?? undefined;
+    void Promise.resolve(triggerGovernanceCycle(userId)).catch((err: unknown) => logger.warn({ err }, "M-13: governance cycle trigger failed (non-fatal)"));
   } catch (err) {
     logger.warn({ err }, "Executive Brain: governance step failed (ignored)");
   }
@@ -419,8 +448,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   let technologyEvolutionSummary:    TechnologyEvolutionSummary | undefined;
   let systemsDynamicsSummary:        SystemsDynamicsSummary | undefined;
   let tradeoffIntelligenceSummary:   TradeoffIntelligenceSummary | undefined;
-  let portfolioIntelligenceSummary:  import("../portfolio-intelligence/types").PortfolioIntelligenceSummary | undefined;
-  let priorityIntelligenceSummary:   import("../priority-intelligence/types").PriorityIntelligenceSummary | undefined;
+  let portfolioIntelligenceSummary:  PortfolioIntelligenceSummary | undefined;
+  let priorityIntelligenceSummary:   PriorityIntelligenceSummary | undefined;
   let unifiedOrchestrationSummary:   UnifiedOrchestrationSummary | undefined;
   let unifiedGraphView:              UnifiedGraphView | undefined;
   let operatingLayerSummary:         OperatingLayerSummary | undefined;
@@ -456,16 +485,16 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     priorityIntelligenceSummary     = cycleResult.priorityIntelligenceSummary;
     // Fetch orchestration aggregate summary for advisory (non-blocking, throttled snapshot)
     unifiedOrchestrationSummary     = await fetchOrchestrationSummary(userId) ?? undefined;
-    triggerOrchestrationSnapshot(); // fire-and-forget platform snapshot, every 280 cycles
+    void Promise.resolve(triggerOrchestrationSnapshot()).catch((err: unknown) => logger.warn({ err }, "M-13: orchestration snapshot trigger failed (non-fatal)")); // fire-and-forget, every 280 cycles
     // Build 041: Unified Knowledge Graph — fetch latest view, trigger background rebuild every 290 cycles
     unifiedGraphView = await fetchKnowledgeGraphView(userId) ?? undefined;
-    triggerGraphRebuild(userId); // fire-and-forget graph rebuild, every 290 cycles
+    void Promise.resolve(triggerGraphRebuild(userId)).catch((err: unknown) => logger.warn({ err }, "M-13: graph rebuild trigger failed (non-fatal)")); // fire-and-forget, every 290 cycles
     // Build 043: Unified Digital Operating Layer — fetch latest view, trigger init every 300 cycles
     operatingLayerSummary = await fetchOperatingLayerView(userId) ?? undefined;
-    triggerOperatingLayerInit(userId); // fire-and-forget operating layer init, every 300 cycles
+    void Promise.resolve(triggerOperatingLayerInit(userId)).catch((err: unknown) => logger.warn({ err }, "M-13: operating layer init trigger failed (non-fatal)")); // fire-and-forget, every 300 cycles
     // Build 044: Unified Connections & Integration Hub — fetch latest view, trigger init every 310 cycles
     connectionHubSummary = await fetchConnectionsHubView(userId) ?? undefined;
-    triggerConnectionsHubInit(userId); // fire-and-forget connections hub init, every 310 cycles
+    void Promise.resolve(triggerConnectionsHubInit(userId)).catch((err: unknown) => logger.warn({ err }, "M-13: connections hub init trigger failed (non-fatal)")); // fire-and-forget, every 310 cycles
     // Build 045: Cognitive Certification — fetch latest snapshot passively (never auto-triggers)
     certificationSummary = await fetchCertificationView() ?? undefined;
     notifyCertificationCycle();
@@ -587,8 +616,8 @@ async function buildContextNote(params: {
   technologyEvolutionSummary: TechnologyEvolutionSummary | undefined;
   systemsDynamicsSummary: SystemsDynamicsSummary | undefined;
   tradeoffIntelligenceSummary: TradeoffIntelligenceSummary | undefined;
-  portfolioIntelligenceSummary: import("../portfolio-intelligence/types").PortfolioIntelligenceSummary | undefined;
-  priorityIntelligenceSummary: import("../priority-intelligence/types").PriorityIntelligenceSummary | undefined;
+  portfolioIntelligenceSummary: PortfolioIntelligenceSummary | undefined;
+  priorityIntelligenceSummary: PriorityIntelligenceSummary | undefined;
   unifiedOrchestrationSummary: UnifiedOrchestrationSummary | undefined;
   unifiedGraphView:            UnifiedGraphView | undefined;
   operatingLayerSummary:       OperatingLayerSummary | undefined;
@@ -1252,5 +1281,25 @@ async function buildContextNote(params: {
     logger.warn({ err }, "Executive Brain: cognitive health advisory failed (ignored)");
   }
 
-  return lines.join("\n");
+  // H-03 fix: token budget guard — prevent the context note from exceeding
+  // 12,000 characters so it never crowds out the actual user conversation in
+  // the model's context window. Strategy: keep the header lines (first 40%)
+  // which contain project/goal/task/engine state, and the tail (last 20%)
+  // which contain cognitive health; drop middle advisory lines proportionally.
+  const BUDGET = 12_000;
+  const raw = lines.join("\n");
+  if (raw.length <= BUDGET) return raw;
+
+  const total = lines.length;
+  const keepHead = Math.ceil(total * 0.40);
+  const keepTail = Math.ceil(total * 0.20);
+  const dropped = total - keepHead - keepTail;
+  const truncated = [
+    ...lines.slice(0, keepHead),
+    `[… ${dropped} advisory sections omitted to respect 12 000-character token budget …]`,
+    ...lines.slice(total - keepTail),
+  ].join("\n");
+
+  // Hard-cap at BUDGET even after slice in case head+tail alone exceed it
+  return truncated.length <= BUDGET ? truncated : truncated.slice(0, BUDGET - 1) + "…";
 }

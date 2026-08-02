@@ -39,7 +39,8 @@ router.post("/businesses/:id/analyze", async (req, res) => {
     }
     res.status(201).json({ report });
   } catch (err: any) {
-    res.status(500).json({ error: err.message ?? "Analysis failed" });
+    // H-04 fix: never reflect raw err.message in 500 responses (information leakage)
+    res.status(500).json({ error: "Analysis failed" });
   }
 });
 

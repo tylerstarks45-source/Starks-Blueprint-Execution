@@ -2,6 +2,7 @@
 // Verifies every foundational subsystem is present and correctly registered.
 // NEVER modifies platform state. Read-only.
 import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import { listBrains } from "../cognitive-foundation/brain-registry";
 import { listExtensionPoints } from "../cognitive-foundation/extension-points";
 import type { DomainResult, ValidationFinding, CertificationDomain } from "./types";
@@ -13,9 +14,10 @@ interface TableCheckResult {
 }
 
 // Verify a table exists by attempting a COUNT query.
+// H-08 fix: use sql.identifier() so the table name is properly quoted.
 async function tableExists(tableName: string): Promise<boolean> {
   try {
-    await db.execute(`SELECT 1 FROM ${tableName} LIMIT 1` as any);
+    await db.execute(sql`SELECT 1 FROM ${sql.identifier(tableName)} LIMIT 1`);
     return true;
   } catch {
     return false;

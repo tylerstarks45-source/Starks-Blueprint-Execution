@@ -74,7 +74,8 @@ async function start() {
     // Start the revenue sync worker (polls enabled providers hourly)
     startRevenueSync();
     // Ensure every existing ASH-built system shows up in the Business Portfolio.
-    backfillBuiltBusinesses().catch(() => {});
+    // M-07 fix: log startup failures instead of silently swallowing them
+backfillBuiltBusinesses().catch((err: unknown) => logger.error({ err }, "backfillBuiltBusinesses failed at startup — some imported businesses may be missing health scores"));
   });
 }
 

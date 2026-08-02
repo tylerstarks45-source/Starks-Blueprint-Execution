@@ -22,6 +22,8 @@ import { hasOperationsModeAccess } from "../operations-gate";
 import { distillAshBrain } from "../ash-brain";
 import { runMemoryMaintenance } from "../memory-engine";
 import { initializeBusinessDna, publishBusinessEvent } from "../business-intelligence";
+// A-03 fix: expire stale DOL execution sessions on a regular interval
+import { expireStaleSessionsLocal } from "../digital-operating-layer/dol-session-engine";
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
@@ -1113,6 +1115,23 @@ async function processMemoryMaintenance(): Promise<void> {
   }
 }
 
+// ─── A-03: DOL session expiry ─────────────────────────────────────────────────
+// Scans all "active" DOL execution sessions and expires any whose expiresAt is in
+// the past. Runs every 5 minutes to keep the sessions table clean.
+const DOL_SESSION_EXPIRY_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function processDolSessionExpiry(): Promise<void> {
+  const now = Date.now();
+  if (now - getState("dol_session_expiry") < DOL_SESSION_EXPIRY_INTERVAL_MS) return;
+  try {
+    const expired = await expireStaleSessionsLocal();
+    await setState("dol_session_expiry", now);
+    if (expired > 0) logger.info({ expired }, "A-03: expired stale DOL execution sessions");
+  } catch (err) {
+    logger.warn({ err }, "A-03: DOL session expiry tick failed — will retry next cycle");
+  }
+}
+
 // ─── Main scheduler loop ──────────────────────────────────────────────────────
 
 export function startScheduler(): void {
@@ -1133,6 +1152,7 @@ export function startScheduler(): void {
       await processExpiringCredentialWarnings();
       await processMemoryMaintenance();
       await processBusinessIntelligenceReconciliation();
+      await processDolSessionExpiry(); // A-03: DOL stale session cleanup, every 5 min
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {

@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
 import { usersTable, referralCodesTable, referralEventsTable, whiteLabelConfigsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
@@ -56,8 +56,12 @@ const ResetRequestInput = z.object({
   email: z.string().email(),
 });
 
-function signToken(userId: number, email: string, role: string) {
-  return jwt.sign({ sub: userId, email, role }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+// C-04 fix: tokenVersion is embedded in the JWT so the server can check it
+// against the DB on each authenticated request. Incrementing token_version
+// in the DB (e.g. on logout) invalidates all previously issued tokens for
+// that user — even tokens that have not yet expired.
+function signToken(userId: number, email: string, role: string, tokenVersion: number) {
+  return jwt.sign({ sub: userId, email, role, tokenVersion }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
 }
 
 function userResponse(user: typeof usersTable.$inferSelect) {
@@ -203,7 +207,7 @@ router.post("/auth/register", authLimiter, async (req, res) => {
       notifyEmailFailed();
     });
 
-  const token = signToken(newUser.id, newUser.email, newUser.role ?? "USER");
+  const token = signToken(newUser.id, newUser.email, newUser.role ?? "USER", newUser.tokenVersion ?? 1);
 
   return res.status(201).json({ token, user: userResponse({ ...newUser, creditsBalance: balance }) });
 });
@@ -238,7 +242,7 @@ router.post("/auth/login", authLimiter, async (req, res) => {
     return res.status(403).json({ error: "Account is deactivated." });
   }
 
-  const token = signToken(user.id, user.email, user.role ?? "USER");
+  const token = signToken(user.id, user.email, user.role ?? "USER", user.tokenVersion ?? 1);
 
   return res.json({ token, user: userResponse(user) });
 });
@@ -269,8 +273,25 @@ router.get("/auth/me", async (req, res) => {
   return res.json({ user: userResponse(users[0]) });
 });
 
-// POST /api/auth/logout  (client-side — just confirm)
-router.post("/auth/logout", (_req, res) => {
+// POST /api/auth/logout — C-04 fix: increment token_version to revoke all
+// existing tokens for this user. Future requests with the old token will fail
+// the version check in getActiveCallerPayload, even before expiry.
+router.post("/auth/logout", async (req, res) => {
+  const authHeader = req.headers["authorization"];
+  if (authHeader?.startsWith("Bearer ")) {
+    try {
+      const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as jwt.JwtPayload;
+      const userId = Number(payload["sub"]);
+      if (Number.isFinite(userId) && userId > 0) {
+        await db
+          .update(usersTable)
+          .set({ tokenVersion: sql`token_version + 1` })
+          .where(eq(usersTable.id, userId));
+      }
+    } catch {
+      // Expired/invalid token on logout — still succeed; the token is already dead
+    }
+  }
   res.json({ success: true });
 });
 

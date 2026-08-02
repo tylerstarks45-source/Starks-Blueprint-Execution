@@ -314,8 +314,8 @@ async function batchLoadRelationships(
 ): Promise<GraphRelationship[]> {
   if (artifactIds.length === 0) return [];
 
-  const idSet = sql`${sql.raw("'" + artifactIds.join("','") + "'")}`;
-
+  // C-01 FIX: removed unused `sql.raw()` expression that was a SQL-injection
+  // vector. The queries below already use parameterized sql.join() correctly.
   const dirConditions: SQL[] = [];
   if (direction === "outbound" || direction === "both") {
     dirConditions.push(

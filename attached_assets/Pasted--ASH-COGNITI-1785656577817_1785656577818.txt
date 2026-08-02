@@ -1,0 +1,216 @@
+═══════════════════════════════════════════════════════════════════════
+                ASH COGNITIVE OPERATING SYSTEM
+              ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 045B
+
+TITLE
+
+Critical Launch Remediation
+
+PHASE
+
+VIII.5 — Production Hardening
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+Implement every remediation currently classified as BLOCKER by the
+Launch Hardening Framework.
+
+The framework itself determines:
+
+• remediation order
+
+• dependency order
+
+• regression sequence
+
+• verification requirements
+
+Do NOT bypass the framework.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Resolve every launch-blocking issue while preserving architectural
+integrity.
+
+═══════════════════════════════════════════════════════════════════════
+
+INPUT
+
+Use launch_hardening_registry.
+
+Only findings classified as:
+
+BLOCKER
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENT
+
+Follow the dependency engine exactly.
+
+Follow the regression engine exactly.
+
+Every completed remediation must:
+
+• update registry
+
+• create remediation record
+
+• execute verification
+
+• execute regression review
+
+• update launch confidence
+
+═══════════════════════════════════════════════════════════════════════
+
+DO NOT
+
+Do not fix PRE_LAUNCH findings.
+
+Do not fix POST_LAUNCH findings.
+
+Do not perform opportunistic refactoring.
+
+Do not redesign architecture.
+
+Do not introduce new features.
+
+═══════════════════════════════════════════════════════════════════════
+
+VERIFICATION
+
+Every remediation must pass:
+
+TypeScript
+
+Build
+
+Regression review
+
+Launch verification
+
+No finding may become VERIFIED without a passing verification
+record.
+
+═══════════════════════════════════════════════════════════════════════
+
+EXECUTIVE BRAIN
+
+Update passive Hardening Summary after every completed
+verification.
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS
+
+Launch blockers:
+
+4
+
+Remaining after completion:
+
+0
+
+Launch status should move from:
+
+NOT_READY
+
+to
+
+CONDITIONAL
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1.
+
+Blockers addressed
+
+2.
+
+Files modified
+
+3.
+
+Verification records
+
+4.
+
+Regression results
+
+5.
+
+Launch confidence before
+
+6.
+
+Launch confidence after
+
+7.
+
+Remaining PRE_LAUNCH findings
+
+8.
+
+Remaining POST_LAUNCH findings
+
+9.
+
+Architecture validation
+
+10.
+
+Technical decisions
+
+11.
+
+Performance impact
+
+12.
+
+Risk assessment
+
+13.
+
+Updated launch status
+
+14.
+
+Updated hardening registry summary
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+Use the Launch Hardening Framework exactly as designed.
+
+Do not manually choose remediation order.
+
+Trust the framework.
+
+When complete:
+
+STOP.
+
+Wait for Build 045C.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 045B
+
+═══════════════════════════════════════════════════════════════════════

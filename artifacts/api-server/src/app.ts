@@ -30,7 +30,43 @@ app.use(
     },
   }),
 );
-app.use(cors());
+// ── C-03 fix: CORS allowlist instead of permissive wildcard ────────────────
+// Allow: all *.replit.dev / *.repl.co / *.replit.app preview + production
+//        domains, explicitly listed ALLOWED_ORIGINS, localhost in dev.
+// Non-browser clients (curl, server-to-server) have no Origin — allowed.
+const _extraOrigins = (process.env["ALLOWED_ORIGINS"] ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const _explicitOrigins = new Set<string>(_extraOrigins);
+
+if (process.env["REPLIT_DEV_DOMAIN"]) {
+  _explicitOrigins.add(`https://${process.env["REPLIT_DEV_DOMAIN"]}`);
+}
+if (process.env["NODE_ENV"] !== "production") {
+  for (const lh of ["http://localhost:3000", "http://localhost:5173", "http://localhost:22333", "http://localhost:8080"]) {
+    _explicitOrigins.add(lh);
+  }
+}
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // non-browser / server-to-server
+      if (
+        origin.endsWith(".replit.dev") ||
+        origin.endsWith(".repl.co") ||
+        origin.endsWith(".replit.app") ||
+        _explicitOrigins.has(origin)
+      ) {
+        return callback(null, true);
+      }
+      logger.warn({ origin }, "CORS: rejected unlisted origin");
+      return callback(new Error("CORS: origin not in allowlist"), false);
+    },
+    credentials: true,
+  }),
+);
 
 // Capture raw body for webhook signature verification (Stripe + SendGrid).
 // Also manually parses JSON so req.body is still available in route handlers

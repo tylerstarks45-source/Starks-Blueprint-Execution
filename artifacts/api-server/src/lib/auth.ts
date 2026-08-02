@@ -88,17 +88,36 @@ export async function requireAuthActive(req: Request, res: Response): Promise<nu
   const apiCaller = (req as any).apiKeyCaller as { userId: number } | undefined;
   if (apiCaller) return apiCaller.userId;
 
-  const id = getUserId(req);
-  if (id === null) {
+  const header = req.headers["authorization"];
+  if (!header?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Unauthorized" });
     return null;
   }
+  let payload: import("jsonwebtoken").JwtPayload;
+  try {
+    payload = jwt.verify(header.slice(7), JWT_SECRET) as import("jsonwebtoken").JwtPayload;
+  } catch {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
+  const id = Number(payload.sub);
+  if (!Number.isFinite(id)) {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
+  // C-04 fix: select tokenVersion to validate against JWT claim
   const [user] = await db
-    .select({ active: usersTable.active })
+    .select({ active: usersTable.active, tokenVersion: usersTable.tokenVersion })
     .from(usersTable)
     .where(eq(usersTable.id, id));
   if (!user || user.active === false) {
     res.status(403).json({ error: "Account suspended" });
+    return null;
+  }
+  // Reject tokens that were issued before the last revocation (logout / force-revoke)
+  const jwtVersion = Number(payload["tokenVersion"] ?? 1);
+  if (jwtVersion !== (user.tokenVersion ?? 1)) {
+    res.status(401).json({ error: "Token revoked. Please log in again." });
     return null;
   }
   return id;
@@ -137,12 +156,19 @@ export async function getActiveCallerPayload(
       res.status(401).json({ error: "Unauthorized" });
       return null;
     }
+    // C-04 fix: also fetch tokenVersion to validate JWT was not revoked
     const [user] = await db
-      .select({ active: usersTable.active, role: usersTable.role })
+      .select({ active: usersTable.active, role: usersTable.role, tokenVersion: usersTable.tokenVersion })
       .from(usersTable)
       .where(eq(usersTable.id, id));
     if (!user || user.active === false) {
       res.status(403).json({ error: "Account suspended" });
+      return null;
+    }
+    // Reject tokens issued before the last logout / force-revoke
+    const jwtVersion = Number(payload["tokenVersion"] ?? 1);
+    if (jwtVersion !== (user.tokenVersion ?? 1)) {
+      res.status(401).json({ error: "Token revoked. Please log in again." });
       return null;
     }
     // Return role from DB — not from JWT — so demotions take effect immediately

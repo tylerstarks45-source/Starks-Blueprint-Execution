@@ -48,6 +48,18 @@ Defined in types.ts. Key = code that depends on values:
 - M-13 depends on C-02 (fire-and-forget error handling alongside fatal path work)
 - L-08 depends on M-04 (EP init test after input validation hardening)
 
+## Build 045B: BLOCKER remediation completed
+
+All 4 BLOCKER findings resolved and verified in Build 045B:
+- C-01: removed dead `sql.raw()` line in `artifact-graph.ts`
+- C-02: wrapped 4 unguarded awaits in `executive-brain/index.ts` in try/catch (fatal re-throw; updateProjectRollup non-fatal)
+- C-03: replaced `cors()` with origin allowlist in `app.ts` (*.replit.dev/repl.co/replit.app + ALLOWED_ORIGINS env)
+- C-04: added `token_version` to users table; embedded in JWT at sign; verified in `getActiveCallerPayload`/`requireAuthActive`; incremented on logout
+
+**CRITICAL — C-04 migration note**: Existing sessions are NOT forcibly revoked. Old JWTs without `tokenVersion` claim default to 1, matching the DB default of 1. This is intentional — forced migration would log out all users. New tokens issued post-fix carry `tokenVersion: 1`; logout increments to 2.
+
+**Launch status post-045B**: CONDITIONAL (0 blockers remaining; PRE_LAUNCH items still open)
+
 ## Launch Hardening Law
 
 "No production remediation shall occur without: recorded finding + approved remediation plan + verification + regression review + updated launch readiness status."

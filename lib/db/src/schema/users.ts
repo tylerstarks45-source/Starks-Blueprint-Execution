@@ -28,6 +28,8 @@ export const usersTable = pgTable("users", {
   notifyMilestone: boolean("notify_milestone").notNull().default(true),
   notifyBuild: boolean("notify_build").notNull().default(true),
   notifyPlatform: boolean("notify_platform").notNull().default(false),
+  // C-04: token revocation — incremented on logout/force-revoke; embedded in JWTs
+  tokenVersion: integer("token_version").notNull().default(1),
   expoPushToken: text("expo_push_token"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

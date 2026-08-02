@@ -143,20 +143,49 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     logger.warn({ err }, "Executive Brain: context resolution failed (ignored)");
   }
 
-  const { project, isNew } = await resolveActiveProject({ userId, message, systemInstanceId });
+  // ── C-02 fix: guard all 4 previously-unguarded awaits ─────────────────────
+  // Before this fix, any throw from these 4 awaits became an unhandled rejection
+  // that could crash the Node process. Each is now individually wrapped.
+  // resolveActiveProject / resolveGoalForRequest / planTasks are fatal (re-throw)
+  // — we cannot continue without a project scaffold.
+  // updateProjectRollup is non-fatal (continue) — it is a rollup optimisation.
+  let projectScaffold!: Awaited<ReturnType<typeof resolveActiveProject>>;
+  try {
+    projectScaffold = await resolveActiveProject({ userId, message, systemInstanceId });
+  } catch (err) {
+    logger.error({ err, userId }, "Executive Brain: resolveActiveProject failed — re-throwing to route handler");
+    throw err;
+  }
+  const { project, isNew } = projectScaffold;
 
-  const goal = await resolveGoalForRequest({ projectId: project.id, message, isNewProject: isNew });
+  let goal: Awaited<ReturnType<typeof resolveGoalForRequest>>;
+  try {
+    goal = await resolveGoalForRequest({ projectId: project.id, message, isNewProject: isNew });
+  } catch (err) {
+    logger.error({ err, userId }, "Executive Brain: resolveGoalForRequest failed — re-throwing to route handler");
+    throw err;
+  }
 
-  const tasks = await planTasks({ projectId: project.id, goalId: goal?.id ?? null, message });
+  let tasks: Awaited<ReturnType<typeof planTasks>>;
+  try {
+    tasks = await planTasks({ projectId: project.id, goalId: goal?.id ?? null, message });
+  } catch (err) {
+    logger.error({ err, userId }, "Executive Brain: planTasks failed — re-throwing to route handler");
+    throw err;
+  }
 
   const firstPendingTask = tasks.find((t) => t.status === "pending") ?? tasks[0] ?? null;
   const nextPhase = isNew ? "planning" : (project.currentPhase ?? "execution");
 
-  await updateProjectRollup({
-    projectId: project.id,
-    currentPhase: nextPhase,
-    currentTaskId: firstPendingTask?.id ?? null,
-  });
+  try {
+    await updateProjectRollup({
+      projectId: project.id,
+      currentPhase: nextPhase,
+      currentTaskId: firstPendingTask?.id ?? null,
+    });
+  } catch (err) {
+    logger.warn({ err, userId }, "Executive Brain: updateProjectRollup failed — continuing (non-fatal)");
+  }
 
   // ── Cognitive Orchestration (Build 002) ─────────────────────────────────
   // Reason about which Brains are relevant to this request. Zero-I/O:

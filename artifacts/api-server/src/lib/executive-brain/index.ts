@@ -61,6 +61,9 @@ import type { UPOSSummary } from "./unified-platform-integration";
 // Build 047: Unified Workspace & Project System
 import { fetchUWPSView, triggerUWPSMaintenance, buildUWPSAdvisory } from "./uwps-integration";
 import type { UWPSSummary } from "./uwps-integration";
+// Build 048: Unified Business Asset Framework
+import { fetchUBAFView, triggerUBAFMaintenance, buildUBAFAdvisory } from "./ubaf-integration";
+import type { UBAFSummary } from "./ubaf-integration";
 // Advisory builders (re-exported from Unified Orchestration for buildContextNote)
 import {
   buildBusinessAdvisory,
@@ -159,6 +162,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   const preWarmUPOS       = fetchUPOSView(userId).catch((): UPOSSummary | undefined => undefined);
   // Build 047: pre-warm UWPS summary concurrently with LLM round-trips
   const preWarmUWPS       = fetchUWPSView(userId).catch((): UWPSSummary | undefined => undefined);
+  // Build 048: pre-warm UBAF summary concurrently with LLM round-trips
+  const preWarmUBAF       = fetchUBAFView(userId).catch((): UBAFSummary | undefined => undefined);
 
   // ── Executive Context Engine (Build 006) ─────────────────────────────────
   // Resolve the current situational context BEFORE any planning or reasoning.
@@ -468,6 +473,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   let hardeningSummary:              HardeningSummary | undefined;
   let uposSummary:                   UPOSSummary | undefined;
   let uwpsSummary:                   UWPSSummary | undefined;
+  let ubafSummary:                   UBAFSummary | undefined;
   try {
     const cycleResult: CognitiveCycleResult = await runUnifiedCognitiveCycle(userId);
     businessGraphSummary            = cycleResult.businessGraphSummary;
@@ -519,11 +525,14 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     // Build 047: Unified Workspace & Project System — await pre-warm, trigger maintenance every 330 cycles
     uwpsSummary = await preWarmUWPS ?? undefined;
     void Promise.resolve(triggerUWPSMaintenance(userId)).catch((err: unknown) => logger.warn({ err }, "UWPS: background maintenance trigger failed (non-fatal)")); // fire-and-forget, every 330 cycles
+    // Build 048: Unified Business Asset Framework — await pre-warm, trigger maintenance every 340 cycles
+    ubafSummary = await preWarmUBAF ?? undefined;
+    void Promise.resolve(triggerUBAFMaintenance(userId)).catch((err: unknown) => logger.warn({ err }, "UBAF: background maintenance trigger failed (non-fatal)")); // fire-and-forget, every 340 cycles
   } catch (err) {
     logger.warn({ err }, "Executive Brain: unified cognitive cycle failed (ignored) — all summaries undefined");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, userId });
 
   logger.info(
     {
@@ -592,6 +601,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     hardeningSummary,
     uposSummary,
     uwpsSummary,
+    ubafSummary,
   };
 }
 
@@ -646,9 +656,10 @@ async function buildContextNote(params: {
   hardeningSummary:            HardeningSummary | undefined;
   uposSummary:                 UPOSSummary | undefined;
   uwpsSummary:                 UWPSSummary | undefined;
+  ubafSummary:                 UBAFSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1306,6 +1317,19 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: UWPS advisory failed (ignored)");
+  }
+
+  // ── Build 048: Unified Business Asset Framework advisory ─────────────────
+  // Canonical asset summary: total assets, classes, revenue assets, duplicates, missing classes.
+  // ASH uses this to reason about businesses in canonical terms, not builder-specific terms.
+  try {
+    const ubafAdvisory = buildUBAFAdvisory(ubafSummary ?? null);
+    if (ubafAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(ubafAdvisory, 500));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: UBAF advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

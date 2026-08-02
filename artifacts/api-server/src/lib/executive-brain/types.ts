@@ -143,4 +143,5 @@ export interface ExecutiveBrainResult {
   hardeningSummary?:           import("../launch-hardening/types").HardeningSummary;
   uposSummary?:                import("../unified-platform/types").UPOSSummary;
   uwpsSummary?:                import("../unified-workspace/types").UWPSSummary;
+  ubafSummary?:                import("../unified-asset/types").UBAFSummary;
 }

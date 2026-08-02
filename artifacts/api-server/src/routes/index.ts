@@ -238,5 +238,7 @@ router.use("/platform", unifiedPlatformRouter);
 // Build 047: Unified Workspace & Project System — businesses, projects, assets, health, activity, search
 import { unifiedWorkspaceRouter } from "./unified-workspace";
 router.use("/workspace", unifiedWorkspaceRouter);
+import { unifiedAssetRouter } from "./unified-asset";
+router.use("/assets", unifiedAssetRouter);
 
 export default router;

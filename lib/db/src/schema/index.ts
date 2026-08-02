@@ -117,5 +117,6 @@ export * from "./certification";
 export * from "./launch_hardening";
 export * from "./unified_platform";
 export * from "./unified_workspace";
+export * from "./unified_asset";
 
 export * from "./system_logs";

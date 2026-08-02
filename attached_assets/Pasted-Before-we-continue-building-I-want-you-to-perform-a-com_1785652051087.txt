@@ -1,0 +1,51 @@
+Before we continue building, I want you to perform a complete architectural audit of the ASH Cognitive Operating System.
+
+This is NOT a bug hunt.
+
+This is NOT a refactoring task.
+
+This is NOT permission to change code.
+
+Your only objective is to inspect everything from Build 001 through Build 045 and produce the most detailed engineering audit you are capable of.
+
+I want you to think like a Principal Software Architect reviewing a multi-million dollar software platform before public launch.
+
+DO NOT modify any code.
+
+DO NOT fix anything.
+
+DO NOT refactor anything.
+
+Only inspect and report.
+
+Your report should identify every issue, weakness, inconsistency, redundancy, optimization opportunity, architectural concern, scalability concern, maintainability concern, performance concern, security concern, naming inconsistency, registry inconsistency, dependency issue, unused subsystem, duplicate logic, unnecessary complexity, missing validation, missing monitoring, missing diagnostics, missing fail-open behavior, missing extension points, missing indexes, API inconsistencies, Executive Brain opportunities, database opportunities, orchestration opportunities, Knowledge Graph opportunities, Authority Framework opportunities, Digital Operating Layer opportunities, Connections Hub opportunities, Certification Framework opportunities, and any other improvements you believe would strengthen the platform.
+
+For every finding include:
+
+• Severity (Critical / High / Medium / Low)
+• Why it matters
+• Which build introduced it
+• Which files are affected
+• Recommended solution
+• Estimated implementation complexity
+• Whether it should be fixed before launch or after launch
+
+Do not implement anything.
+
+Do not suggest rebuilding systems that already exist.
+
+Respect every architectural law established across Builds 001–045.
+
+Assume the architecture itself is correct.
+
+Only identify opportunities to strengthen it.
+
+I want a brutally honest engineering audit.
+
+If you believe something is excellent, say so.
+
+If you believe something is weak, explain why.
+
+Do not hold back.
+
+When the audit is complete, stop and wait for further instructions.

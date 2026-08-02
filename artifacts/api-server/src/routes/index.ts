@@ -235,5 +235,8 @@ router.use("/launch-hardening", launchHardeningRouter);
 // Build 046: Unified Platform Operating System — workspace, project, app, command, search, activity, registry
 import { unifiedPlatformRouter } from "./unified-platform";
 router.use("/platform", unifiedPlatformRouter);
+// Build 047: Unified Workspace & Project System — businesses, projects, assets, health, activity, search
+import { unifiedWorkspaceRouter } from "./unified-workspace";
+router.use("/workspace", unifiedWorkspaceRouter);
 
 export default router;

@@ -1,0 +1,500 @@
+═══════════════════════════════════════════════════════════════════════
+                 STARKS GLOBAL GROUP PLATFORM
+                ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 047
+
+TITLE
+
+Unified Workspace & Project System (UWPS)
+
+PHASE
+
+IX — Platform Ecosystem
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Unified Workspace & Project System becomes the permanent home
+for every business, project, application, asset, workflow,
+builder, AI agent, and future object created inside the platform.
+
+Users no longer think in terms of files.
+
+They think in terms of Businesses.
+
+Everything belongs to a Business.
+
+Everything inside a Business belongs to one or more Projects.
+
+Everything inside a Project is composed of Assets.
+
+Applications operate on Assets.
+
+ASH understands all relationships.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Create the permanent organizational model for the entire platform.
+
+═══════════════════════════════════════════════════════════════════════
+HIERARCHY
+═══════════════════════════════════════════════════════════════════════
+
+Organization
+
+↓
+
+Business
+
+↓
+
+Workspace
+
+↓
+
+Project
+
+↓
+
+Application
+
+↓
+
+Asset
+
+↓
+
+Version
+
+↓
+
+Deployment
+
+═══════════════════════════════════════════════════════════════════════
+SUPPORTED ASSET TYPES
+═══════════════════════════════════════════════════════════════════════
+
+Website
+
+Landing Page
+
+SaaS
+
+Workflow
+
+Automation
+
+Knowledge Base
+
+CRM
+
+API
+
+Database
+
+Dashboard
+
+AI Agent
+
+Prompt Library
+
+Documentation
+
+Marketing Campaign
+
+Brand Kit
+
+Logo
+
+Images
+
+Videos
+
+Documents
+
+Source Code
+
+Future Asset Types
+
+═══════════════════════════════════════════════════════════════════════
+NEW OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Business Workspace
+
+Business Project
+
+Asset Collection
+
+Asset Folder
+
+Asset Reference
+
+Asset Dependency
+
+Project Timeline
+
+Project Activity
+
+Project Registry
+
+Workspace Snapshot
+
+Project Health
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement deterministic organization capable of:
+
+• unlimited businesses
+
+• unlimited projects
+
+• unlimited assets
+
+• nested organization
+
+• cross-project references
+
+• dependency tracking
+
+• version ownership
+
+• project health
+
+• project lifecycle
+
+• activity history
+
+• collaboration metadata
+
+• asset lineage
+
+• asset discovery
+
+• asset search
+
+• project templates
+
+═══════════════════════════════════════════════════════════════════════
+CORE ENGINES
+═══════════════════════════════════════════════════════════════════════
+
+1.
+
+Business Organization Engine
+
+Owns every Business.
+
+──────────────────────────────────────────────────────────────────────
+
+2.
+
+Project Lifecycle Engine
+
+Owns project creation, archival,
+templates, cloning, migration.
+
+──────────────────────────────────────────────────────────────────────
+
+3.
+
+Asset Registry Engine
+
+Registers every platform asset.
+
+──────────────────────────────────────────────────────────────────────
+
+4.
+
+Asset Relationship Engine
+
+Maps dependencies between assets.
+
+ASH can traverse these relationships.
+
+──────────────────────────────────────────────────────────────────────
+
+5.
+
+Workspace Activity Engine
+
+Records everything that occurs inside a workspace.
+
+──────────────────────────────────────────────────────────────────────
+
+6.
+
+Project Health Engine
+
+Measures:
+
+Completeness
+
+Activity
+
+Dependency health
+
+Deployment readiness
+
+Documentation coverage
+
+Automation coverage
+
+═══════════════════════════════════════════════════════════════════════
+DATABASE
+═══════════════════════════════════════════════════════════════════════
+
+Create:
+
+business_workspaces
+
+business_projects
+
+project_assets
+
+asset_relationships
+
+asset_versions
+
+project_activity
+
+project_health
+
+project_registry
+
+workspace_snapshots
+
+project_templates
+
+Append-only except registry.
+
+═══════════════════════════════════════════════════════════════════════
+ASH INTEGRATION
+═══════════════════════════════════════════════════════════════════════
+
+ASH always understands:
+
+Current Organization
+
+Current Business
+
+Current Workspace
+
+Current Project
+
+Current Assets
+
+Project Health
+
+Missing Assets
+
+Dependency Graph
+
+Version Status
+
+ASH can answer:
+
+"What is missing from this business?"
+
+"What should I build next?"
+
+"What assets depend on this?"
+
+"Can I safely delete this?"
+
+"What businesses are falling behind?"
+
+═══════════════════════════════════════════════════════════════════════
+REST API
+═══════════════════════════════════════════════════════════════════════
+
+POST /workspace/businesses
+
+POST /workspace/projects
+
+POST /workspace/assets
+
+POST /workspace/templates
+
+GET  /workspace/businesses
+
+GET  /workspace/projects
+
+GET  /workspace/assets
+
+GET  /workspace/activity
+
+GET  /workspace/health
+
+GET  /workspace/registry
+
+GET  /workspace/search
+
+GET  /workspace/snapshots
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ Unified Platform Operating System
+
+✓ Unified Knowledge Graph
+
+✓ Unified Authority Framework
+
+✓ Unified Digital Operating Layer
+
+✓ Unified Connections Hub
+
+✓ Cognitive Operating System
+
+Purely additive.
+
+Do not modify Builds 001–046.
+
+═══════════════════════════════════════════════════════════════════════
+ARCHITECTURAL RULES
+═══════════════════════════════════════════════════════════════════════
+
+Every asset must belong to a Project.
+
+Every project belongs to a Business.
+
+Every business belongs to an Organization.
+
+Applications never own assets.
+
+Projects own assets.
+
+ASH reasons over projects—not individual files.
+
+═══════════════════════════════════════════════════════════════════════
+NEW PERMANENT LAW
+
+Unified Workspace Law
+
+Every object created inside the platform shall belong to a
+Business and Project.
+
+No builder or application may create orphaned assets.
+
+Every asset must maintain:
+
+• owner
+
+• project
+
+• business
+
+• workspace
+
+• version history
+
+• dependency graph
+
+• activity history
+
+• deployment history
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Business hierarchy
+
+✓ Project hierarchy
+
+✓ Asset registry
+
+✓ Asset relationships
+
+✓ Project health
+
+✓ Activity timeline
+
+✓ Executive Brain integration
+
+✓ ASH project awareness
+
+✓ Backward compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Business Model
+
+6. Project Model
+
+7. Asset Registry
+
+8. Asset Relationships
+
+9. Project Health
+
+10. Activity Timeline
+
+11. ASH Integration
+
+12. REST API
+
+13. Technical Decisions
+
+14. Performance Impact
+
+15. Architectural Trade-offs
+
+16. Extension Points Added
+
+17. Unified Workspace Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+The Unified Workspace & Project System is the permanent home of
+everything users build.
+
+Future builders never create their own project structures.
+
+They simply create and manipulate assets within this shared
+workspace model.
+
+This architecture allows ASH to understand an entire business
+instead of isolated applications, making cross-builder reasoning,
+automation, and long-term business management possible.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 048.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 047
+
+═══════════════════════════════════════════════════════════════════════

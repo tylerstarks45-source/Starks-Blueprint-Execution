@@ -65,6 +65,7 @@ import { declareConnectionsHubExtensionPoints } from "../connections-hub/hub-ext
 import { declareCertificationExtensionPoints }   from "../certification/cert-extension-points";
 import { declareLaunchHardeningExtensionPoints } from "../launch-hardening/lh-extension-points";
 import { declareUPOSExtensionPoints }            from "../unified-platform/upos-extension-points";
+import { declareUWPSExtensionPoints }            from "../unified-workspace/uwps-extension-points";
 
 let initialized = false;
 
@@ -125,6 +126,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareCertificationExtensionPoints();         // Build 045:  eight cognitive certification & launch readiness seams
       declareLaunchHardeningExtensionPoints();       // Build 045A: eight launch hardening framework seams
       declareUPOSExtensionPoints();                  // Build 046: eight unified platform OS seams
+      declareUWPSExtensionPoints();                  // Build 047: eight unified workspace & project seams
       registerCoreBrains();
       initialized = true;
 

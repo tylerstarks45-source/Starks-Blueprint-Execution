@@ -142,4 +142,5 @@ export interface ExecutiveBrainResult {
   certificationSummary?:       import("../certification/types").CertificationSummary;
   hardeningSummary?:           import("../launch-hardening/types").HardeningSummary;
   uposSummary?:                import("../unified-platform/types").UPOSSummary;
+  uwpsSummary?:                import("../unified-workspace/types").UWPSSummary;
 }

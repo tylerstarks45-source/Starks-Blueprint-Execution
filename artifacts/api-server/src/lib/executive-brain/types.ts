@@ -140,4 +140,5 @@ export interface ExecutiveBrainResult {
   operatingLayerSummary?:      import("../digital-operating-layer/types").OperatingLayerSummary;
   connectionHubSummary?:       import("../connections-hub/types").ConnectionHubSummary;
   certificationSummary?:       import("../certification/types").CertificationSummary;
+  hardeningSummary?:           import("../launch-hardening/types").HardeningSummary;
 }

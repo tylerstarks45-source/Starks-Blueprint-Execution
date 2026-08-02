@@ -230,5 +230,7 @@ import { connectionsHubRouter } from "./connections-hub";
 router.use("/connections", connectionsHubRouter);
 import { certificationRouter } from "./certification";
 router.use("/certification", certificationRouter);
+import { launchHardeningRouter } from "./launch-hardening";
+router.use("/launch-hardening", launchHardeningRouter);
 
 export default router;

@@ -52,6 +52,9 @@ import type { ConnectionHubSummary } from "./connections-hub-integration";
 // Build 045: Cognitive Certification & Launch Readiness Framework
 import { fetchCertificationView, notifyCertificationCycle, buildCertificationAdvisory } from "./certification-integration";
 import type { CertificationSummary } from "./certification-integration";
+// Build 045A: Launch Hardening Framework
+import { fetchHardeningView, notifyHardeningCycle, buildHardeningAdvisory } from "./launch-hardening-integration";
+import type { HardeningSummary } from "./launch-hardening-integration";
 // Advisory builders (re-exported from Unified Orchestration for buildContextNote)
 import {
   buildBusinessAdvisory,
@@ -394,6 +397,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   let operatingLayerSummary:         OperatingLayerSummary | undefined;
   let connectionHubSummary:          ConnectionHubSummary | undefined;
   let certificationSummary:          CertificationSummary | undefined;
+  let hardeningSummary:              HardeningSummary | undefined;
   try {
     const cycleResult: CognitiveCycleResult = await runUnifiedCognitiveCycle(userId);
     businessGraphSummary            = cycleResult.businessGraphSummary;
@@ -436,11 +440,14 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     // Build 045: Cognitive Certification — fetch latest snapshot passively (never auto-triggers)
     certificationSummary = await fetchCertificationView() ?? undefined;
     notifyCertificationCycle();
+    // Build 045A: Launch Hardening — fetch latest snapshot passively (never auto-triggers)
+    hardeningSummary = await fetchHardeningView() ?? undefined;
+    notifyHardeningCycle();
   } catch (err) {
     logger.warn({ err }, "Executive Brain: unified cognitive cycle failed (ignored) — all summaries undefined");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, userId });
 
   logger.info(
     {
@@ -506,6 +513,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     operatingLayerSummary,
     connectionHubSummary,
     certificationSummary,
+    hardeningSummary,
   };
 }
 
@@ -557,9 +565,10 @@ async function buildContextNote(params: {
   operatingLayerSummary:       OperatingLayerSummary | undefined;
   connectionHubSummary:        ConnectionHubSummary | undefined;
   certificationSummary:        CertificationSummary | undefined;
+  hardeningSummary:            HardeningSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1178,6 +1187,19 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: certification advisory failed (ignored)");
+  }
+
+  // ── Build 045A: Launch Hardening Framework advisory ───────────────────────
+  // Hardening Summary, Remaining Blockers, Verification Status,
+  // Regression Warnings, Launch Confidence — passive snapshot read only.
+  try {
+    const hardeningAdvisory = buildHardeningAdvisory(hardeningSummary ?? null);
+    if (hardeningAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(hardeningAdvisory, 500));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: hardening advisory failed (ignored)");
   }
 
   // ── Cognitive health advisory (Build 001) ────────────────────────────────

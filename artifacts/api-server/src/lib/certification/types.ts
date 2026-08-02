@@ -129,7 +129,7 @@ export const ARCHITECTURAL_LAWS: ArchitecturalLaw[] = [
 ];
 
 // ── Expected EP count after Build 045 ────────────────────────────────────
-export const EXPECTED_EP_COUNT = 326;
+export const EXPECTED_EP_COUNT = 334;  // updated: Build 045A adds 8 hardening EPs → 334 total
 export const EXPECTED_BRAIN_COUNT = 6;
 
 // ── EP IDs ────────────────────────────────────────────────────────────────

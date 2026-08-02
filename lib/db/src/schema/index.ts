@@ -118,5 +118,6 @@ export * from "./launch_hardening";
 export * from "./unified_platform";
 export * from "./unified_workspace";
 export * from "./unified_asset";
+export * from "./unified_builder_runtime";
 
 export * from "./system_logs";

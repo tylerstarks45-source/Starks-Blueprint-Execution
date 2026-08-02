@@ -240,5 +240,7 @@ import { unifiedWorkspaceRouter } from "./unified-workspace";
 router.use("/workspace", unifiedWorkspaceRouter);
 import { unifiedAssetRouter } from "./unified-asset";
 router.use("/assets", unifiedAssetRouter);
+import { unifiedBuilderRuntimeRouter } from "./unified-builder-runtime";
+router.use("/runtime", unifiedBuilderRuntimeRouter);
 
 export default router;

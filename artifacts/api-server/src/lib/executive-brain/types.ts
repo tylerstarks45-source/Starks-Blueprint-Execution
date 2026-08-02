@@ -144,4 +144,5 @@ export interface ExecutiveBrainResult {
   uposSummary?:                import("../unified-platform/types").UPOSSummary;
   uwpsSummary?:                import("../unified-workspace/types").UWPSSummary;
   ubafSummary?:                import("../unified-asset/types").UBAFSummary;
+  ubreSummary?:                import("../unified-builder-runtime/types").UBRESummary;
 }

@@ -120,5 +120,6 @@ export * from "./unified_workspace";
 export * from "./unified_asset";
 export * from "./unified_builder_runtime";
 export * from "./unified_application_framework";
+export * from "./unified_visual_component_framework";
 
 export * from "./system_logs";

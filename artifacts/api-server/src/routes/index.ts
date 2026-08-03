@@ -244,5 +244,7 @@ import { unifiedBuilderRuntimeRouter } from "./unified-builder-runtime";
 router.use("/runtime", unifiedBuilderRuntimeRouter);
 import { unifiedApplicationFrameworkRouter } from "./unified-application-framework";
 router.use("/applications", unifiedApplicationFrameworkRouter);
+import { unifiedVisualComponentFrameworkRouter } from "./unified-visual-component-framework";
+router.use("/components", unifiedVisualComponentFrameworkRouter);
 
 export default router;

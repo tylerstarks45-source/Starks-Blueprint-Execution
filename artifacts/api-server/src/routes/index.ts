@@ -246,5 +246,7 @@ import { unifiedApplicationFrameworkRouter } from "./unified-application-framewo
 router.use("/applications", unifiedApplicationFrameworkRouter);
 import { unifiedVisualComponentFrameworkRouter } from "./unified-visual-component-framework";
 router.use("/components", unifiedVisualComponentFrameworkRouter);
+import { universalCanvasEngineRouter } from "./universal-canvas-engine";
+router.use("/canvas", universalCanvasEngineRouter);
 
 export default router;

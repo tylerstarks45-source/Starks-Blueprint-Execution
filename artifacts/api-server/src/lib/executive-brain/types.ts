@@ -147,4 +147,5 @@ export interface ExecutiveBrainResult {
   ubreSummary?:                import("../unified-builder-runtime/types").UBRESummary;
   uafSummary?:                 import("../unified-application-framework/types").UAFSummary;
   uvcfSummary?:                import("../unified-visual-component-framework/types").UVCFSummary;
+  uceSummary?:                 import("../universal-canvas-engine/types").UCESummary;
 }

@@ -73,6 +73,9 @@ import type { UAFSummary } from "./uaf-integration";
 // Build 051: Unified Visual Component Framework
 import { fetchUVCFView, triggerUVCFMaintenance, buildUVCFAdvisory } from "./uvcf-integration";
 import type { UVCFSummary } from "./uvcf-integration";
+// Build 052: Universal Canvas Engine
+import { fetchUCEView, triggerUCEMaintenance, buildUCEAdvisory } from "./uce-integration";
+import type { UCESummary } from "./uce-integration";
 // Advisory builders (re-exported from Unified Orchestration for buildContextNote)
 import {
   buildBusinessAdvisory,
@@ -179,6 +182,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   const preWarmUAF        = fetchUAFView(userId).catch((): UAFSummary | undefined => undefined);
   // Build 051: pre-warm UVCF summary concurrently with LLM round-trips
   const preWarmUVCF       = fetchUVCFView(userId).catch((): UVCFSummary | undefined => undefined);
+  // Build 052: pre-warm UCE summary concurrently with LLM round-trips
+  const preWarmUCE        = fetchUCEView(userId).catch((): UCESummary | undefined => undefined);
 
   // ── Executive Context Engine (Build 006) ─────────────────────────────────
   // Resolve the current situational context BEFORE any planning or reasoning.
@@ -492,6 +497,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   let ubreSummary:                   UBRESummary | undefined;
   let uafSummary:                    UAFSummary | undefined;
   let uvcfSummary:                   UVCFSummary | undefined;
+  let uceSummary:                    UCESummary | undefined;
   try {
     const cycleResult: CognitiveCycleResult = await runUnifiedCognitiveCycle(userId);
     businessGraphSummary            = cycleResult.businessGraphSummary;
@@ -555,11 +561,14 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     // Build 051: Unified Visual Component Framework — await pre-warm, trigger maintenance every 370 cycles
     uvcfSummary = await preWarmUVCF ?? undefined;
     void Promise.resolve(triggerUVCFMaintenance(userId)).catch((err: unknown) => logger.warn({ err }, "UVCF: background maintenance trigger failed (non-fatal)")); // fire-and-forget, every 370 cycles
+    // Build 052: Universal Canvas Engine — await pre-warm, trigger maintenance every 380 cycles
+    uceSummary = await preWarmUCE ?? undefined;
+    void Promise.resolve(triggerUCEMaintenance(userId)).catch((err: unknown) => logger.warn({ err }, "UCE: background maintenance trigger failed (non-fatal)")); // fire-and-forget, every 380 cycles
   } catch (err) {
     logger.warn({ err }, "Executive Brain: unified cognitive cycle failed (ignored) — all summaries undefined");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, uceSummary, userId });
 
   logger.info(
     {
@@ -689,9 +698,10 @@ async function buildContextNote(params: {
   ubreSummary:                 UBRESummary | undefined;
   uafSummary:                  UAFSummary | undefined;
   uvcfSummary:                 UVCFSummary | undefined;
+  uceSummary:                  UCESummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, uceSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1375,6 +1385,19 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: UBRE advisory failed (ignored)");
+  }
+
+  // ── Build 052: Universal Canvas Engine advisory ──────────────────────────
+  // Canvas surface summary: total canvases, active sessions, renderers, modes.
+  // ASH uses this to understand what is on canvas, what is selected, and what editing operations are available.
+  try {
+    const uceAdvisory = buildUCEAdvisory(uceSummary ?? null);
+    if (uceAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(uceAdvisory, 500));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: UCE advisory failed (ignored)");
   }
 
   // ── Build 051: Unified Visual Component Framework advisory ───────────────

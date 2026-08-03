@@ -1,0 +1,454 @@
+═══════════════════════════════════════════════════════════════════════
+                 STARKS GLOBAL GROUP PLATFORM
+                ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 052
+
+TITLE
+
+Universal Canvas Engine (UCE)
+
+PHASE
+
+IX — Platform Ecosystem
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+PURPOSE
+
+The Universal Canvas Engine establishes the shared visual editing
+surface used by every builder inside the platform.
+
+The canvas is not specific to websites.
+
+The canvas is not specific to workflows.
+
+The canvas represents a universal editing environment capable of
+hosting any visual business asset.
+
+Builders provide asset-specific behavior.
+
+The canvas provides interaction.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Create one deterministic visual editing engine for the platform.
+
+═══════════════════════════════════════════════════════════════════════
+
+SUPPORTED CANVAS MODES
+
+Website Layout
+
+Workflow Graph
+
+Automation Graph
+
+Dashboard Layout
+
+Application Layout
+
+Database Diagram
+
+Knowledge Map
+
+Business Process Map
+
+AI Agent Flow
+
+Future Modes
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW OBJECTS
+
+Canvas
+
+Canvas Layer
+
+Canvas Node
+
+Canvas Group
+
+Canvas Selection
+
+Canvas Viewport
+
+Canvas History
+
+Canvas Guide
+
+Canvas Grid
+
+Canvas Snapshot
+
+Canvas Registry
+
+Canvas Session
+
+═══════════════════════════════════════════════════════════════════════
+
+OBJECTIVES
+
+Implement deterministic canvas infrastructure capable of:
+
+• pan
+
+• zoom
+
+• infinite workspace
+
+• multi-select
+
+• drag
+
+• resize
+
+• rotate
+
+• alignment guides
+
+• snapping
+
+• grouping
+
+• layering
+
+• clipboard
+
+• keyboard shortcuts
+
+• undo
+
+• redo
+
+• viewport persistence
+
+• minimap
+
+• selection model
+
+• context menus
+
+• keyboard navigation
+
+• accessibility
+
+• multi-user readiness
+
+═══════════════════════════════════════════════════════════════════════
+
+CORE ENGINES
+
+1.
+
+Viewport Engine
+
+Owns zoom, pan,
+camera position,
+saved views.
+
+──────────────────────────────────────────────────────────────────────
+
+2.
+
+Selection Engine
+
+Owns deterministic selection behavior.
+
+──────────────────────────────────────────────────────────────────────
+
+3.
+
+Layout Engine
+
+Alignment
+
+Distribution
+
+Snap
+
+Grid
+
+Guides
+
+Margins
+
+Padding
+
+──────────────────────────────────────────────────────────────────────
+
+4.
+
+Interaction Engine
+
+Mouse
+
+Keyboard
+
+Touch
+
+Clipboard
+
+Shortcuts
+
+Context menus
+
+──────────────────────────────────────────────────────────────────────
+
+5.
+
+History Engine
+
+Canvas operations only.
+
+Integrates with UBRE history.
+
+──────────────────────────────────────────────────────────────────────
+
+6.
+
+Rendering Engine
+
+Provides builder-independent rendering contracts.
+
+Builders render through the engine.
+
+═══════════════════════════════════════════════════════════════════════
+
+DATABASE
+
+Create:
+
+canvas_registry
+
+canvas_sessions
+
+canvas_views
+
+canvas_history
+
+canvas_layers
+
+canvas_guides
+
+canvas_snapshots
+
+canvas_preferences
+
+canvas_diagnostics
+
+canvas_renderers
+
+Append-only except registry.
+
+Verify schema names before creation.
+
+═══════════════════════════════════════════════════════════════════════
+
+ASH INTEGRATION
+
+ASH understands:
+
+Current selection
+
+Canvas structure
+
+Viewport
+
+Visible assets
+
+Hidden assets
+
+Layer hierarchy
+
+Editing operations
+
+Clipboard state
+
+ASH can answer:
+
+"What is selected?"
+
+"What changed?"
+
+"Center on this."
+
+"Show hidden layers."
+
+"Align these."
+
+"Find overlapping objects."
+
+"Optimize this layout."
+
+═══════════════════════════════════════════════════════════════════════
+
+REST API
+
+POST /canvas/session
+
+POST /canvas/selection
+
+POST /canvas/history
+
+POST /canvas/layout
+
+GET  /canvas
+
+GET  /canvas/views
+
+GET  /canvas/layers
+
+GET  /canvas/registry
+
+GET  /canvas/history
+
+GET  /canvas/preferences
+
+GET  /canvas/renderers
+
+GET  /canvas/diagnostics
+
+GET  /canvas/search
+
+═══════════════════════════════════════════════════════════════════════
+
+ENGINEERING REQUIREMENTS
+
+Reuse:
+
+✓ UVCF
+
+✓ UAF
+
+✓ UBRE
+
+✓ UBAF
+
+✓ UWPS
+
+✓ UPOS
+
+✓ Executive Brain
+
+Purely additive.
+
+No builder may implement its own canvas.
+
+═══════════════════════════════════════════════════════════════════════
+
+NEW PERMANENT LAW
+
+Universal Canvas Law
+
+Every visual builder shall render through the Universal Canvas
+Engine.
+
+Builders define objects.
+
+The canvas defines interaction.
+
+ASH reasons over the canvas, not builder-specific rendering.
+
+═══════════════════════════════════════════════════════════════════════
+
+SUCCESS CRITERIA
+
+✓ Shared Canvas
+
+✓ Infinite Workspace
+
+✓ Shared Interaction
+
+✓ Shared Selection
+
+✓ Shared Layout Engine
+
+✓ Shared Rendering
+
+✓ Executive Brain Integration
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Viewport Model
+
+6. Selection Model
+
+7. Rendering Model
+
+8. Interaction Model
+
+9. Layout Model
+
+10. Executive Brain Integration
+
+11. REST API
+
+12. Technical Decisions
+
+13. Performance Impact
+
+14. Architectural Trade-offs
+
+15. Extension Points Added
+
+16. Universal Canvas Engine Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+The Universal Canvas Engine becomes the shared editing surface
+for every visual builder inside the platform.
+
+After Build 052 the platform possesses:
+
+• Brain
+• Platform OS
+• Workspace
+• Asset Framework
+• Builder Runtime
+• Application Framework
+• Visual Component Framework
+• Universal Canvas Engine
+
+From Build 053 onward we begin building the first true business
+applications.
+
+The Website Builder will inherit every foundational layer created
+through Builds 046–052 instead of implementing its own editing,
+runtime, components, or canvas.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 053.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 052
+
+═══════════════════════════════════════════════════════════════════════

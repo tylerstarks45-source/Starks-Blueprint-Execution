@@ -71,6 +71,7 @@ import { declareUBREExtensionPoints }            from "../unified-builder-runtim
 import { declareUAFExtensionPoints }             from "../unified-application-framework/uaf-extension-points";
 import { declareUVCFExtensionPoints }            from "../unified-visual-component-framework/uvcf-extension-points";
 import { declareUCEExtensionPoints }             from "../universal-canvas-engine/uce-extension-points";
+import { declareBEBExtensionPoints }             from "../business-experience-builder/beb-extension-points";
 
 let initialized = false;
 
@@ -137,6 +138,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareUAFExtensionPoints();                   // Build 050: eight unified application framework seams
       declareUVCFExtensionPoints();                  // Build 051: eight unified visual component framework seams
       declareUCEExtensionPoints();                   // Build 052: eight universal canvas engine seams
+      declareBEBExtensionPoints();                   // Build 053: eight business experience builder seams
       registerCoreBrains();
       initialized = true;
 

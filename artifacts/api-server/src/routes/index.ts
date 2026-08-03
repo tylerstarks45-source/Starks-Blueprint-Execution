@@ -248,5 +248,7 @@ import { unifiedVisualComponentFrameworkRouter } from "./unified-visual-componen
 router.use("/components", unifiedVisualComponentFrameworkRouter);
 import { universalCanvasEngineRouter } from "./universal-canvas-engine";
 router.use("/canvas", universalCanvasEngineRouter);
+import { businessExperienceBuilderRouter } from "./business-experience-builder";
+router.use("/experiences", businessExperienceBuilderRouter);
 
 export default router;

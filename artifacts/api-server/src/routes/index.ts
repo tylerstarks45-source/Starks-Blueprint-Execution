@@ -252,5 +252,7 @@ import { businessExperienceBuilderRouter } from "./business-experience-builder";
 router.use("/experiences", businessExperienceBuilderRouter);
 import ucieRouter from "./unified-customer-intelligence";
 router.use("/customers", ucieRouter);
+import ubpeRouter from "./unified-business-process";
+router.use("/processes", ubpeRouter);
 
 export default router;

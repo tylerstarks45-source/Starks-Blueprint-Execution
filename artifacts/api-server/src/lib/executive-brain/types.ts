@@ -150,4 +150,5 @@ export interface ExecutiveBrainResult {
   uceSummary?:                 import("../universal-canvas-engine/types").UCESummary;
   bebSummary?:                 import("../business-experience-builder/types").BEBSummary;
   ucieSummary?:                import("../unified-customer-intelligence/types").UCIESummary;
+  ubpeSummary?:                import("../unified-business-process/types").UBPESummary;
 }

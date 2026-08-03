@@ -242,5 +242,7 @@ import { unifiedAssetRouter } from "./unified-asset";
 router.use("/assets", unifiedAssetRouter);
 import { unifiedBuilderRuntimeRouter } from "./unified-builder-runtime";
 router.use("/runtime", unifiedBuilderRuntimeRouter);
+import { unifiedApplicationFrameworkRouter } from "./unified-application-framework";
+router.use("/applications", unifiedApplicationFrameworkRouter);
 
 export default router;

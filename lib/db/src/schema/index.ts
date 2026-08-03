@@ -119,5 +119,6 @@ export * from "./unified_platform";
 export * from "./unified_workspace";
 export * from "./unified_asset";
 export * from "./unified_builder_runtime";
+export * from "./unified_application_framework";
 
 export * from "./system_logs";

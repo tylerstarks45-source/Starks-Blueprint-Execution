@@ -68,6 +68,7 @@ import { declareUPOSExtensionPoints }            from "../unified-platform/upos-
 import { declareUWPSExtensionPoints }            from "../unified-workspace/uwps-extension-points";
 import { declareUBAFExtensionPoints }            from "../unified-asset/ubaf-extension-points";
 import { declareUBREExtensionPoints }            from "../unified-builder-runtime/ubre-extension-points";
+import { declareUAFExtensionPoints }             from "../unified-application-framework/uaf-extension-points";
 
 let initialized = false;
 
@@ -131,6 +132,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareUWPSExtensionPoints();                  // Build 047: eight unified workspace & project seams
       declareUBAFExtensionPoints();                  // Build 048: eight unified business asset framework seams
       declareUBREExtensionPoints();                  // Build 049: eight unified builder runtime seams
+      declareUAFExtensionPoints();                   // Build 050: eight unified application framework seams
       registerCoreBrains();
       initialized = true;
 

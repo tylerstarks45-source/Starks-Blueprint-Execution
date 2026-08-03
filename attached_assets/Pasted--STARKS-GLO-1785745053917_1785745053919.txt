@@ -1,0 +1,468 @@
+═══════════════════════════════════════════════════════════════════════
+                 STARKS GLOBAL GROUP PLATFORM
+                ENGINEERING BUILD SPECIFICATION
+═══════════════════════════════════════════════════════════════════════
+
+BUILD: 050
+
+TITLE
+
+Unified Application Framework (UAF)
+
+PHASE
+
+IX — Platform Ecosystem
+
+STATUS
+
+ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════
+
+The Unified Application Framework establishes the canonical
+architecture for every application that can run inside the
+Starks Global Group Platform.
+
+Website Builder is an application.
+
+CRM is an application.
+
+Automation Builder is an application.
+
+AI Agent Builder is an application.
+
+Dashboard is an application.
+
+Every application shares the same lifecycle,
+registration model,
+permissions,
+navigation,
+menus,
+commands,
+settings,
+capabilities,
+and runtime contracts.
+
+Applications no longer invent their own architecture.
+
+═══════════════════════════════════════════════════════════════════════
+
+MISSION
+
+Create one deterministic application framework for the entire
+platform.
+
+═══════════════════════════════════════════════════════════════════════
+APPLICATION MODEL
+═══════════════════════════════════════════════════════════════════════
+
+Application
+
+↓
+
+Pages
+
+↓
+
+Panels
+
+↓
+
+Views
+
+↓
+
+Widgets
+
+↓
+
+Commands
+
+↓
+
+Capabilities
+
+↓
+
+Assets
+
+↓
+
+Services
+
+═══════════════════════════════════════════════════════════════════════
+SUPPORTED APPLICATIONS
+═══════════════════════════════════════════════════════════════════════
+
+Dashboard
+
+Website Builder
+
+Application Builder
+
+Workflow Builder
+
+Automation Builder
+
+CRM
+
+Database Builder
+
+Knowledge Builder
+
+AI Agent Builder
+
+Marketplace
+
+Settings
+
+Developer Center
+
+Admin Center
+
+Future Applications
+
+═══════════════════════════════════════════════════════════════════════
+NEW OBJECTS
+═══════════════════════════════════════════════════════════════════════
+
+Application Manifest
+
+Application Page
+
+Application View
+
+Application Panel
+
+Application Widget
+
+Application Command
+
+Application Capability
+
+Application Service
+
+Application Registry
+
+Application Snapshot
+
+═══════════════════════════════════════════════════════════════════════
+OBJECTIVES
+═══════════════════════════════════════════════════════════════════════
+
+Implement deterministic application architecture capable of:
+
+• application registration
+
+• page registration
+
+• view registration
+
+• widget registration
+
+• command registration
+
+• capability declaration
+
+• application lifecycle
+
+• application health
+
+• application diagnostics
+
+• navigation metadata
+
+• menu metadata
+
+• settings metadata
+
+• extension metadata
+
+• version compatibility
+
+═══════════════════════════════════════════════════════════════════════
+CORE ENGINES
+═══════════════════════════════════════════════════════════════════════
+
+1. Application Registry Engine
+
+Owns every application.
+
+──────────────────────────────────────────────────────────────────────
+
+2. Manifest Engine
+
+Creates immutable application manifests.
+
+──────────────────────────────────────────────────────────────────────
+
+3. Capability Engine
+
+Declares what every application can do.
+
+──────────────────────────────────────────────────────────────────────
+
+4. Navigation Engine
+
+Registers pages, panels, menus, routes,
+and contextual navigation.
+
+──────────────────────────────────────────────────────────────────────
+
+5. Lifecycle Engine
+
+Tracks install, enable, disable,
+upgrade, compatibility,
+and deprecation.
+
+──────────────────────────────────────────────────────────────────────
+
+6. Diagnostics Engine
+
+Measures:
+
+Application Health
+
+Availability
+
+Compatibility
+
+Runtime Status
+
+Dependency Health
+
+═══════════════════════════════════════════════════════════════════════
+DATABASE
+═══════════════════════════════════════════════════════════════════════
+
+Create:
+
+platform_app_manifests
+
+platform_pages
+
+platform_views
+
+platform_panels
+
+platform_widgets
+
+platform_services
+
+application_capabilities
+
+application_registry
+
+application_snapshots
+
+application_diagnostics
+
+Append-only except registry.
+
+Check ALL existing schema names before creating new tables.
+Avoid collisions with Build 044 (diagnostics),
+Build 046 (applications),
+Build 049 (runtime).
+
+═══════════════════════════════════════════════════════════════════════
+ASH INTEGRATION
+═══════════════════════════════════════════════════════════════════════
+
+ASH understands every application.
+
+ASH always knows:
+
+• active application
+
+• active page
+
+• active panel
+
+• available widgets
+
+• available commands
+
+• available capabilities
+
+• supported assets
+
+• required permissions
+
+Users may speak to ASH from ANY application.
+
+ASH never depends on page-specific logic.
+
+Applications expose capabilities.
+
+ASH consumes capabilities.
+
+═══════════════════════════════════════════════════════════════════════
+REST API
+═══════════════════════════════════════════════════════════════════════
+
+POST /applications/register
+
+POST /applications/manifest
+
+POST /applications/pages
+
+POST /applications/capabilities
+
+GET  /applications
+
+GET  /applications/pages
+
+GET  /applications/widgets
+
+GET  /applications/services
+
+GET  /applications/registry
+
+GET  /applications/health
+
+GET  /applications/search
+
+GET  /applications/snapshots
+
+GET  /applications/diagnostics
+
+═══════════════════════════════════════════════════════════════════════
+ENGINEERING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Reuse:
+
+✓ UPOS
+
+✓ UWPS
+
+✓ UBAF
+
+✓ UBRE
+
+✓ Executive Brain
+
+✓ Authority Framework
+
+✓ Digital Operating Layer
+
+✓ Unified Connections Hub
+
+Purely additive.
+
+Do not modify previous builds.
+
+Respect all permanent architectural laws.
+
+═══════════════════════════════════════════════════════════════════════
+NEW PERMANENT LAW
+
+Unified Application Law
+
+Every application inside the platform shall register through
+the Unified Application Framework.
+
+Applications own user experiences.
+
+The platform owns infrastructure.
+
+ASH owns orchestration.
+
+═══════════════════════════════════════════════════════════════════════
+SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+✓ Canonical Application Model
+
+✓ Shared Navigation
+
+✓ Shared Widgets
+
+✓ Shared Commands
+
+✓ Shared Application Registry
+
+✓ Shared Lifecycle
+
+✓ Executive Brain Integration
+
+✓ Backward Compatibility
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION REPORT
+
+Return:
+
+1. Executive Summary
+
+2. Files Created
+
+3. Files Modified
+
+4. Database Schema
+
+5. Application Manifest Model
+
+6. Navigation Model
+
+7. Widget Model
+
+8. Capability Model
+
+9. Lifecycle Model
+
+10. Executive Brain Integration
+
+11. REST API
+
+12. Technical Decisions
+
+13. Performance Impact
+
+14. Architectural Trade-offs
+
+15. Extension Points Added
+
+16. Unified Application Framework Score
+
+═══════════════════════════════════════════════════════════════════════
+
+CHIEF ARCHITECT NOTE
+
+This build completes the Platform Architecture.
+
+After Build 050 the platform has:
+
+• Brain
+
+• Operating System
+
+• Workspace
+
+• Assets
+
+• Builder Runtime
+
+• Application Framework
+
+From Build 051 onward we begin building
+real user-facing applications.
+
+The first application shall be the
+Unified Visual Component Framework,
+followed by the Universal Canvas Engine,
+followed by the Website Builder.
+
+When implementation is complete:
+
+STOP.
+
+Wait for Build 051.
+
+═══════════════════════════════════════════════════════════════════════
+
+END BUILD 050
+
+═══════════════════════════════════════════════════════════════════════

@@ -250,5 +250,7 @@ import { universalCanvasEngineRouter } from "./universal-canvas-engine";
 router.use("/canvas", universalCanvasEngineRouter);
 import { businessExperienceBuilderRouter } from "./business-experience-builder";
 router.use("/experiences", businessExperienceBuilderRouter);
+import ucieRouter from "./unified-customer-intelligence";
+router.use("/customers", ucieRouter);
 
 export default router;

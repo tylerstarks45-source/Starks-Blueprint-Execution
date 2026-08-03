@@ -123,5 +123,6 @@ export * from "./unified_application_framework";
 export * from "./unified_visual_component_framework";
 export * from "./universal_canvas_engine";
 export * from "./business_experience_builder";
+export * from "./unified_customer_intelligence";
 
 export * from "./system_logs";

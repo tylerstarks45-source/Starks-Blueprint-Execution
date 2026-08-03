@@ -79,6 +79,9 @@ import type { UCESummary } from "./uce-integration";
 // Build 053: Business Experience Builder
 import { fetchBEBView, triggerBEBMaintenance, buildBEBAdvisory } from "./beb-integration";
 import type { BEBSummary } from "./beb-integration";
+// Build 054: Unified Customer Intelligence Engine
+import { fetchUCIEView, triggerUCIEMaintenance, buildUCIEAdvisory } from "./ucie-integration";
+import type { UCIESummary } from "./ucie-integration";
 // Advisory builders (re-exported from Unified Orchestration for buildContextNote)
 import {
   buildBusinessAdvisory,
@@ -189,6 +192,8 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   const preWarmUCE        = fetchUCEView(userId).catch((): UCESummary | undefined => undefined);
   // Build 053: pre-warm BEB summary concurrently with LLM round-trips
   const preWarmBEB        = fetchBEBView(userId).catch((): BEBSummary | undefined => undefined);
+  // Build 054: pre-warm UCIE summary concurrently with LLM round-trips
+  const preWarmUCIE       = fetchUCIEView(userId).catch((): UCIESummary | undefined => undefined);
 
   // ── Executive Context Engine (Build 006) ─────────────────────────────────
   // Resolve the current situational context BEFORE any planning or reasoning.
@@ -504,6 +509,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   let uvcfSummary:                   UVCFSummary | undefined;
   let uceSummary:                    UCESummary | undefined;
   let bebSummary:                    BEBSummary | undefined;
+  let ucieSummary:                   UCIESummary | undefined;
   try {
     const cycleResult: CognitiveCycleResult = await runUnifiedCognitiveCycle(userId);
     businessGraphSummary            = cycleResult.businessGraphSummary;
@@ -573,11 +579,14 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     // Build 053: Business Experience Builder — await pre-warm, trigger maintenance every 390 cycles
     bebSummary = await preWarmBEB ?? undefined;
     void Promise.resolve(triggerBEBMaintenance(userId)).catch((err: unknown) => logger.warn({ err }, "BEB: background maintenance trigger failed (non-fatal)")); // fire-and-forget, every 390 cycles
+    // Build 054: Unified Customer Intelligence Engine — await pre-warm, trigger maintenance every 400 cycles
+    ucieSummary = await preWarmUCIE ?? undefined;
+    void Promise.resolve(triggerUCIEMaintenance(userId)).catch((err: unknown) => logger.warn({ err }, "UCIE: background maintenance trigger failed (non-fatal)")); // fire-and-forget, every 400 cycles
   } catch (err) {
     logger.warn({ err }, "Executive Brain: unified cognitive cycle failed (ignored) — all summaries undefined");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, uceSummary, bebSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, uceSummary, bebSummary, ucieSummary, userId });
 
   logger.info(
     {
@@ -709,9 +718,10 @@ async function buildContextNote(params: {
   uvcfSummary:                 UVCFSummary | undefined;
   uceSummary:                  UCESummary | undefined;
   bebSummary:                  BEBSummary | undefined;
+  ucieSummary:                 UCIESummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, uceSummary, bebSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, uceSummary, bebSummary, ucieSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1395,6 +1405,19 @@ async function buildContextNote(params: {
     }
   } catch (err) {
     logger.warn({ err }, "Executive Brain: UBRE advisory failed (ignored)");
+  }
+
+  // ── Build 054: Unified Customer Intelligence Engine advisory ─────────────
+  // Customer summary: total customers, active, organizations, interactions, lifecycle stages, health, LTV, duplicates.
+  // ASH uses this to answer "who are my best customers?", "which leads need follow-up?", "who is at risk?".
+  try {
+    const ucieAdvisory = buildUCIEAdvisory(ucieSummary ?? null);
+    if (ucieAdvisory) {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      lines.push(clip(ucieAdvisory, 500));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Executive Brain: UCIE advisory failed (ignored)");
   }
 
   // ── Build 053: Business Experience Builder advisory ──────────────────────

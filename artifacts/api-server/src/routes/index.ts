@@ -256,5 +256,7 @@ import ubpeRouter from "./unified-business-process";
 router.use("/processes", ubpeRouter);
 import urcmpRouter from "./unified-revenue-commerce";
 router.use("/commerce", urcmpRouter);
+import ueciosRouter from "./unified-external-capability";
+router.use("/capabilities", ueciosRouter);
 
 export default router;

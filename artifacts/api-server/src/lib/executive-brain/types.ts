@@ -152,4 +152,5 @@ export interface ExecutiveBrainResult {
   ucieSummary?:                import("../unified-customer-intelligence/types").UCIESummary;
   ubpeSummary?:                import("../unified-business-process/types").UBPESummary;
   urcmpSummary?:               import("../unified-revenue-commerce/types").URCMPSummary;
+  ueciosSummary?:              import("../unified-external-capability/types").UECIOSSummary;
 }

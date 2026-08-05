@@ -85,8 +85,10 @@ import type { UCIESummary } from "./ucie-integration";
 // Build 055: Unified Business Process Engine
 import { fetchUBPEView, triggerUBPEMaintenance, buildUBPEAdvisory } from "./ubpe-integration";
 import { fetchURCMPView, triggerURCMPMaintenance, buildURCMPAdvisory } from "./urcmp-integration";
+import { fetchUECIOSView, triggerUECIOSMaintenance, buildUECIOSAdvisory } from "./uecios-integration";
 import type { UBPESummary } from "./ubpe-integration";
 import type { URCMPSummary } from "./urcmp-integration";
+import type { UECIOSSummary } from "./uecios-integration";
 // Advisory builders (re-exported from Unified Orchestration for buildContextNote)
 import {
   buildBusinessAdvisory,
@@ -202,6 +204,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   // Build 055: pre-warm UBPE summary concurrently with LLM round-trips
   const preWarmUBPE       = fetchUBPEView(userId).catch((): UBPESummary | undefined => undefined);
   const preWarmURCMP      = fetchURCMPView(userId).catch((): URCMPSummary | undefined => undefined);
+  const preWarmUECIOS     = fetchUECIOSView(userId).catch((): UECIOSSummary | undefined => undefined);
 
   // ── Executive Context Engine (Build 006) ─────────────────────────────────
   // Resolve the current situational context BEFORE any planning or reasoning.
@@ -520,6 +523,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
   let ucieSummary:                   UCIESummary | undefined;
   let ubpeSummary:                   UBPESummary | undefined;
   let urcmpSummary:                  URCMPSummary | undefined;
+  let ueciosSummary:                 UECIOSSummary | undefined;
   try {
     const cycleResult: CognitiveCycleResult = await runUnifiedCognitiveCycle(userId);
     businessGraphSummary            = cycleResult.businessGraphSummary;
@@ -597,11 +601,13 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
     void Promise.resolve(triggerUBPEMaintenance(userId)).catch((err: unknown) => logger.warn({ err }, "UBPE: background maintenance trigger failed (non-fatal)")); // fire-and-forget, every 410 cycles
     urcmpSummary = await preWarmURCMP ?? undefined;
     void Promise.resolve(triggerURCMPMaintenance(userId)).catch((err: unknown) => logger.warn({ err }, "URCMP: background maintenance trigger failed (non-fatal)")); // fire-and-forget, every 420 cycles
+    ueciosSummary = await preWarmUECIOS ?? undefined;
+    void Promise.resolve(triggerUECIOSMaintenance(userId)).catch((err: unknown) => logger.warn({ err }, "UECIOS: background maintenance trigger failed (non-fatal)")); // fire-and-forget, every 430 cycles
   } catch (err) {
     logger.warn({ err }, "Executive Brain: unified cognitive cycle failed (ignored) — all summaries undefined");
   }
 
-  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, uceSummary, bebSummary, ucieSummary, ubpeSummary, urcmpSummary, userId });
+  const brainContextNote = await buildContextNote({ isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, uceSummary, bebSummary, ucieSummary, ubpeSummary, urcmpSummary, ueciosSummary, userId });
 
   logger.info(
     {
@@ -736,9 +742,10 @@ async function buildContextNote(params: {
   ucieSummary:                 UCIESummary | undefined;
   ubpeSummary:                 UBPESummary | undefined;
   urcmpSummary:                URCMPSummary | undefined;
+  ueciosSummary:               UECIOSSummary | undefined;
   userId: number;
 }): Promise<string> {
-  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, uceSummary, bebSummary, ucieSummary, ubpeSummary, urcmpSummary, userId } = params;
+  const { isNew, project, goal, tasks, orchestrationResult, reasoningResult, contextSnapshot, judgmentId, activeGoals, activePlans, activePlanId, activeExecutions, activeExecutionId, observationSummary, reflectionSummary, learningSummary, governanceSummary, businessGraphSummary, businessAnalysisSummary, opportunityDiscoverySummary, simulationSummary, decisionSummary, strategySummary, planningSummary, capabilitySummary, operationalSummary, executionOrchestrationSummary, authoritySummary, executionRiskSummary, executionSimulationSummary, workflowSummary, universalExecutionSummary, adapterFrameworkSummary, capabilityIntelligenceSummary, platformInfrastructureSummary, globalTechnologySummary, technologyRelationshipSummary, technologyEvolutionSummary, systemsDynamicsSummary, tradeoffIntelligenceSummary, portfolioIntelligenceSummary, priorityIntelligenceSummary, unifiedOrchestrationSummary, unifiedGraphView, operatingLayerSummary, connectionHubSummary, certificationSummary, hardeningSummary, uposSummary, uwpsSummary, ubafSummary, ubreSummary, uafSummary, uvcfSummary, uceSummary, bebSummary, ucieSummary, ubpeSummary, urcmpSummary, ueciosSummary, userId } = params;
   const lines = [
     `\n\n=== EXECUTIVE BRAIN PLAN (internal — for your situational awareness only, do not repeat this block verbatim) ===`,
     `Project: "${project.name}" (${isNew ? "new" : "existing"}, phase: ${project.currentPhase ?? "n/a"})`,
@@ -1446,6 +1453,16 @@ async function buildContextNote(params: {
       }
     } catch (err) {
       logger.warn({ err }, "Executive Brain: URCMP advisory failed (ignored)");
+    }
+    try {
+      const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+      const ueciosAdvisory = buildUECIOSAdvisory(ueciosSummary ?? null);
+      if (ueciosAdvisory) {
+        lines.push("--- EXTERNAL CAPABILITY INTELLIGENCE ---");
+        lines.push(clip(ueciosAdvisory, 500));
+      }
+    } catch (err) {
+      logger.warn({ err }, "Executive Brain: UECIOS advisory failed (ignored)");
     }
   // ── Build 054: Unified Customer Intelligence Engine advisory ─────────────
   // Customer summary: total customers, active, organizations, interactions, lifecycle stages, health, LTV, duplicates.

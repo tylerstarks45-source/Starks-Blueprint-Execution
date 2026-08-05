@@ -126,5 +126,6 @@ export * from "./business_experience_builder";
 export * from "./unified_customer_intelligence";
 export * from "./unified_business_process";
 export * from "./unified_revenue_commerce";
+export * from "./unified_external_capability";
 
 export * from "./system_logs";

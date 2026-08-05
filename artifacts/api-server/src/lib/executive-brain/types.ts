@@ -151,4 +151,5 @@ export interface ExecutiveBrainResult {
   bebSummary?:                 import("../business-experience-builder/types").BEBSummary;
   ucieSummary?:                import("../unified-customer-intelligence/types").UCIESummary;
   ubpeSummary?:                import("../unified-business-process/types").UBPESummary;
+  urcmpSummary?:               import("../unified-revenue-commerce/types").URCMPSummary;
 }

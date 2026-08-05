@@ -74,6 +74,7 @@ import { declareUCEExtensionPoints }             from "../universal-canvas-engin
 import { declareBEBExtensionPoints }             from "../business-experience-builder/beb-extension-points";
 import { declareUCIEExtensionPoints }            from "../unified-customer-intelligence/ucie-extension-points";
 import { declareUBPEExtensionPoints }            from "../unified-business-process/ubpe-extension-points";
+import { declareURCMPExtensionPoints }           from "../unified-revenue-commerce/urcmp-extension-points.js";
 
 let initialized = false;
 
@@ -143,6 +144,7 @@ export function initializeCognitiveFoundation(): CognitiveFoundationSummary {
       declareBEBExtensionPoints();                   // Build 053: eight business experience builder seams
       declareUCIEExtensionPoints();                  // Build 054: eight unified customer intelligence seams
       declareUBPEExtensionPoints();                  // Build 055: eight unified business process seams
+      declareURCMPExtensionPoints();                 // Build 056: eight unified revenue, commerce & monetization seams
       registerCoreBrains();
       initialized = true;
 

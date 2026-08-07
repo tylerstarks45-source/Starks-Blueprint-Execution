@@ -105,3 +105,4 @@
 - [Cognitive Foundation registries](cognitive-foundation.md) — in-process brain/capability/extension-point registries in api-server; future Brains register at boot; consumers read the registry, never hardcode lists.
 - [Executive Context Engine](executive-context-engine.md) — Build 006: 4 new tables, 6 modules, 18 API routes, 6 extension points; db project-references require `pnpm --filter @workspace/db exec tsc` after schema changes; types.ts stays self-contained (no re-export from @workspace/db).
 - [Unified External Capability & Integration Operating System](unified-external-capability.md) — Build 057: 26 tables, 8 EPs, 430 total EPs; uecios_domains+uecios_capabilities (naming collisions); 42 providers; UECIOS_THROTTLE_CYCLES=430; Unified External Capability Law.
+- [Unified AI Routing Law](unified-ai-routing-law.md) — PERMANENT DIRECTIVE: OpenRouter only via lib/openrouter.ts + lib/models.ts; no bypasses, no duplicates, no direct provider calls.

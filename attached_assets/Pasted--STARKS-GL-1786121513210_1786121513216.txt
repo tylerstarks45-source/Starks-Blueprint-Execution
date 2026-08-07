@@ -1,0 +1,210 @@
+═══════════════════════════════════════════════════════════════════════
+
+                STARKS GLOBAL GROUP PLATFORM
+
+             PERMANENT ARCHITECTURAL DIRECTIVE
+
+═══════════════════════════════════════════════════════════════════════
+
+This is NOT a new build.
+
+This is a permanent engineering directive that applies to every
+future build.
+
+═══════════════════════════════════════════════════════════════════════
+
+AI ROUTING POLICY
+
+═══════════════════════════════════════════════════════════════════════
+
+ASH's primary AI routing platform SHALL remain OpenRouter.
+
+The platform has already been integrated.
+
+The OpenRouter API key already exists.
+
+The OpenRouter configuration already exists.
+
+DO NOT replace it.
+
+DO NOT migrate away from it.
+
+DO NOT create duplicate AI routing systems.
+
+DO NOT hard-code OpenAI as ASH's primary provider.
+
+═══════════════════════════════════════════════════════════════════════
+
+REQUIRED ACTIONS
+
+═══════════════════════════════════════════════════════════════════════
+
+Before implementing any future AI-related code:
+
+1.
+
+Audit the existing AI implementation.
+
+Determine:
+
+• where OpenRouter is configured
+
+• where API keys are loaded
+
+• where model routing occurs
+
+• where model selection occurs
+
+• where provider selection occurs
+
+• which services already use OpenRouter
+
+2.
+
+Reuse the existing implementation.
+
+Never duplicate it.
+
+3.
+
+If OpenAI SDKs exist:
+
+Treat them only as implementation libraries if they are already
+being used through OpenRouter compatibility.
+
+Do NOT bypass OpenRouter.
+
+4.
+
+All future AI requests shall continue using the existing
+OpenRouter routing architecture.
+
+═══════════════════════════════════════════════════════════════════════
+
+MODEL SELECTION
+
+═══════════════════════════════════════════════════════════════════════
+
+ASH SHALL continue selecting the most appropriate AI model
+for each task.
+
+Examples:
+
+Reasoning
+
+Coding
+
+Vision
+
+Image generation
+
+Long-context analysis
+
+Planning
+
+Business analysis
+
+Creative writing
+
+Data extraction
+
+Summarization
+
+Translation
+
+Classification
+
+Future AI capabilities
+
+Model selection shall remain dynamic.
+
+It shall NOT be hard-coded to one model.
+
+═══════════════════════════════════════════════════════════════════════
+
+API KEYS
+
+═══════════════════════════════════════════════════════════════════════
+
+Reuse the existing stored API key.
+
+Never duplicate API keys.
+
+Never create additional OpenRouter credentials.
+
+Never overwrite existing credentials.
+
+Use the current secure credential loading mechanism already
+implemented within the platform.
+
+═══════════════════════════════════════════════════════════════════════
+
+COMPATIBILITY
+
+═══════════════════════════════════════════════════════════════════════
+
+All future AI engines shall remain compatible with:
+
+Executive Brain
+
+Unified Platform OS
+
+Business Domains
+
+Builder Runtime
+
+External Capability Operating System
+
+Dashboard
+
+ASH Conversation Engine
+
+Founder Administration
+
+═══════════════════════════════════════════════════════════════════════
+
+PERMANENT LAW
+
+═══════════════════════════════════════════════════════════════════════
+
+Unified AI Routing Law
+
+ASH shall access AI models through a unified routing layer.
+
+OpenRouter is the platform's primary AI routing provider.
+
+Business domains SHALL request AI capabilities.
+
+The routing layer SHALL determine which model is most appropriate.
+
+No business domain may directly hard-code a specific AI provider
+unless explicitly required for a specialized capability and approved
+by the Founder.
+
+═══════════════════════════════════════════════════════════════════════
+
+VERIFICATION REQUIRED
+
+═══════════════════════════════════════════════════════════════════════
+
+Before completing the next build, verify:
+
+✓ Existing OpenRouter integration reused
+
+✓ Existing API key reused
+
+✓ Existing routing logic reused
+
+✓ No duplicate AI routing introduced
+
+✓ No direct provider bypass created
+
+✓ Dynamic model selection preserved
+
+Report findings in the implementation report.
+
+═══════════════════════════════════════════════════════════════════════
+
+END DIRECTIVE
+
+═══════════════════════════════════════════════════════════════════════

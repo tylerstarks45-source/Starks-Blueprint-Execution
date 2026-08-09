@@ -103,6 +103,7 @@ const AdminDashboardLayout = () => {
   return (
     <AdminErrorBoundary>
     <AdminDataProvider>
+      <div className="pt-6 pb-24 px-4 sm:px-6 lg:px-8 container mx-auto max-w-[1400px]">
       <div className="space-y-6 animate-in fade-in duration-500 relative z-10">
 
         {/* Tab navigation */}
@@ -282,6 +283,7 @@ const AdminDashboardLayout = () => {
           </div>
         )}
 
+      </div>
       </div>
     </AdminDataProvider>
     </AdminErrorBoundary>

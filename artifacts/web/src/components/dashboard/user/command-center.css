@@ -1,0 +1,103 @@
+/* ── Command Center Dashboard — Global Keyframes ─────────────────────── */
+
+/* Circular orbit — elements use --orbit-r (radius) and animation-delay for phase offset */
+@keyframes cc-orbit-cw {
+  from { transform: translate(-50%,-50%) rotate(0deg)   translateX(var(--orbit-r)) rotate(0deg);   }
+  to   { transform: translate(-50%,-50%) rotate(360deg) translateX(var(--orbit-r)) rotate(-360deg); }
+}
+@keyframes cc-orbit-ccw {
+  from { transform: translate(-50%,-50%) rotate(0deg)    translateX(var(--orbit-r)) rotate(0deg);  }
+  to   { transform: translate(-50%,-50%) rotate(-360deg) translateX(var(--orbit-r)) rotate(360deg);}
+}
+
+/* Reactor rings */
+@keyframes cc-ring-cw  { to { transform: rotate(360deg);  } }
+@keyframes cc-ring-ccw { to { transform: rotate(-360deg); } }
+
+/* Core pulse */
+@keyframes cc-core-pulse {
+  0%,100% { box-shadow: 0 0 40px 10px rgba(251,191,36,0.5),  0 0 80px 20px rgba(251,191,36,0.25),  inset 0 0 30px rgba(251,191,36,0.4);  }
+  50%      { box-shadow: 0 0 70px 20px rgba(251,191,36,0.85), 0 0 120px 40px rgba(251,191,36,0.45), inset 0 0 50px rgba(251,191,36,0.65); }
+}
+
+/* General glow breathing */
+@keyframes cc-glow {
+  0%,100% { opacity: 0.6; }
+  50%      { opacity: 1.0; }
+}
+
+/* Scan line sweeping down */
+@keyframes cc-scan {
+  0%   { top: -4px; opacity: 0; }
+  10%  { opacity: 0.5; }
+  90%  { opacity: 0.3; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Audio waveform bars */
+@keyframes cc-wave {
+  0%,100% { transform: scaleY(0.3); }
+  50%      { transform: scaleY(1.0); }
+}
+
+/* Eye blink */
+@keyframes cc-blink {
+  0%,92%,100% { transform: scaleY(1); }
+  96%         { transform: scaleY(0.05); }
+}
+
+/* Star twinkling */
+@keyframes cc-star {
+  0%,100% { opacity: 0.2; }
+  50%      { opacity: 1;   }
+}
+
+/* Floating for idle nodes */
+@keyframes cc-float {
+  0%,100% { transform: translateY(0px);  }
+  50%     { transform: translateY(-6px); }
+}
+
+/* Particle drift */
+@keyframes cc-particle {
+  0%   { transform: translate(0,0) scale(1);   opacity: 0.8; }
+  100% { transform: translate(var(--px, 20px), var(--py, -40px)) scale(0); opacity: 0; }
+}
+
+/* Reactor halo spin */
+@keyframes cc-halo {
+  to { transform: rotate(360deg); }
+}
+
+/* Progress fill */
+@keyframes cc-progress {
+  from { stroke-dashoffset: 314; }
+}
+
+/* Shimmer sweep */
+@keyframes cc-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+/* Vault panel open — top */
+@keyframes vault-top    { from { transform: translateY(0); } to { transform: translateY(-100%); } }
+@keyframes vault-bottom { from { transform: translateY(0); } to { transform: translateY(100%);  } }
+@keyframes vault-left   { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes vault-right  { from { transform: translateX(0); } to { transform: translateX(100%);  } }
+
+/* Vault gear spin */
+@keyframes vault-gear { to { transform: rotate(360deg); } }
+
+/* Icon node pulse on hover-active state */
+@keyframes cc-node-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,200,255,0.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(0,200,255,0);  }
+}
+
+/* Circuit trace  */
+@keyframes cc-trace {
+  0%   { stroke-dashoffset: 500; opacity: 0.3; }
+  50%  { opacity: 1; }
+  100% { stroke-dashoffset: 0;   opacity: 0.3; }
+}

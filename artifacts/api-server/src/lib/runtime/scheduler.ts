@@ -1,6 +1,7 @@
 import { pool, db, usersTable, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable, abTestsTable, abVariantsTable, emailSequencesTable, emailSequenceStepsTable, emailSubscribersTable, emailDeliveriesTable, scheduledPostsTable } from "@workspace/db";
 import { eq, and, lte, sql, gt } from "drizzle-orm";
 import { logger } from "../logger";
+import { runIfLockAcquired, SCHEDULER_LOCK_KEY } from "./single-runner";
 import { getConnector } from "../connectors/registry";
 import { decrypt } from "../crypto";
 import { complete } from "../openrouter";
@@ -52,7 +53,7 @@ async function loadSchedulerState(): Promise<void> {
     for (const row of rows.rows) {
       stateCache.set(row.task_key, new Date(row.last_run_at).getTime());
     }
-    logger.info({ keys: rows.rowCount }, "Scheduler state loaded from DB");
+    logger.debug({ keys: rows.rowCount }, "Scheduler state loaded from DB");
   } catch (err) {
     logger.warn({ err }, "Failed to load scheduler state from DB — all tasks will start fresh");
   }
@@ -1138,21 +1139,30 @@ export function startScheduler(): void {
   if (running) return;
   running = true;
 
+  async function tick(): Promise<void> {
+    // Another replica may have run tasks since our last tick; refresh the cache
+    // so a task it already ran is not run again here.
+    await loadSchedulerState();
+    await processDueTasks();
+    await processABTests();
+    await processWeeklyDigest();
+    await processEmailSequences();
+    await processDuePosts();
+    await processHealthMonitoring();
+    await processHungJobWatchdog();
+    await processImprovementPasses();
+    await processBrainDistillation();
+    await processExpiringCredentialWarnings();
+    await processMemoryMaintenance();
+    await processBusinessIntelligenceReconciliation();
+    await processDolSessionExpiry(); // A-03: DOL stale session cleanup, every 5 min
+  }
+
   async function loop(): Promise<void> {
     try {
-      await processDueTasks();
-      await processABTests();
-      await processWeeklyDigest();
-      await processEmailSequences();
-      await processDuePosts();
-      await processHealthMonitoring();
-      await processHungJobWatchdog();
-      await processImprovementPasses();
-      await processBrainDistillation();
-      await processExpiringCredentialWarnings();
-      await processMemoryMaintenance();
-      await processBusinessIntelligenceReconciliation();
-      await processDolSessionExpiry(); // A-03: DOL stale session cleanup, every 5 min
+      // Only one replica runs a tick at a time; the others skip it.
+      const outcome = await runIfLockAcquired(SCHEDULER_LOCK_KEY, tick);
+      if (!outcome.ran) logger.debug("Scheduler tick skipped: another instance holds the lock");
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {

@@ -11,9 +11,9 @@ import { runResearchEngine } from "../lib/research-engine/index";
 import {
   runOpportunityScan,
   buildOpportunityResearchNote,
-  topicForDay,
+  topicAt,
+  OPPORTUNITY_TOPIC_STATE_KEY,
   opportunityTag,
-  OPPORTUNITY_SCAN_INTERVAL_MS,
   OPPORTUNITY_SCAN_STATE_KEY,
   OPPORTUNITY_TOPICS,
 } from "../lib/research-engine/opportunity-scan";
@@ -41,31 +41,35 @@ const harness = () => {
 };
 
 describe("runOpportunityScan", () => {
-  it("rotates through every topic, one per day", () => {
-    const keys = new Set(Array.from({ length: OPPORTUNITY_TOPICS.length }, (_, i) => topicForDay(i * OPPORTUNITY_SCAN_INTERVAL_MS).key));
+  it("covers every topic once per rotation", () => {
+    const keys = new Set(OPPORTUNITY_TOPICS.map((_, i) => topicAt(i).key));
     expect(keys.size).toBe(OPPORTUNITY_TOPICS.length);
+    expect(topicAt(OPPORTUNITY_TOPICS.length).key).toBe(topicAt(0).key);
   });
 
   it("researches today's topic as fresh tagged trend research, at most once a day", async () => {
     const h = harness();
     const now = Date.now();
     const res = await runOpportunityScan({ now, ...h });
-    expect(res).toMatchObject({ ran: true, topic: topicForDay(now).key });
+    expect(res).toMatchObject({ ran: true, topic: topicAt(0).key });
     expect(vi.mocked(runResearchEngine).mock.calls[0]![0]).toMatchObject({
-      userId: founder, researchType: "trend", projectId: null, forceFresh: true, knowledgeTag: opportunityTag(topicForDay(now).key),
+      userId: founder, researchType: "trend", projectId: null, forceFresh: true, knowledgeTag: opportunityTag(topicAt(0).key),
     });
     expect(h.state.get(OPPORTUNITY_SCAN_STATE_KEY)).toBe(now);
+    expect(h.state.get(OPPORTUNITY_TOPIC_STATE_KEY)).toBe(1);
 
     expect(await runOpportunityScan({ now: now + 1000, ...h })).toMatchObject({ ran: false, reason: "not_due" });
     expect(runResearchEngine).toHaveBeenCalledTimes(1);
   });
 
-  it("restores the previous run time on failure so the next tick retries", async () => {
+  it.each(["failed", "skipped"])("retries the same topic next tick when research is %s", async (knowledgeAction) => {
     const h = harness();
     h.state.set(OPPORTUNITY_SCAN_STATE_KEY, 5);
-    vi.mocked(runResearchEngine).mockResolvedValueOnce({ sessionId: 1, knowledgeAction: "failed" } as never);
-    expect(await runOpportunityScan({ now: Date.now(), ...h })).toMatchObject({ ran: false, reason: "failed" });
+    h.state.set(OPPORTUNITY_TOPIC_STATE_KEY, 3);
+    vi.mocked(runResearchEngine).mockResolvedValueOnce({ sessionId: 1, knowledgeAction } as never);
+    expect(await runOpportunityScan({ now: Date.now(), ...h })).toMatchObject({ ran: false, reason: "failed", topic: topicAt(3).key });
     expect(h.state.get(OPPORTUNITY_SCAN_STATE_KEY)).toBe(5);
+    expect(h.state.get(OPPORTUNITY_TOPIC_STATE_KEY)).toBe(3);
   });
 });
 

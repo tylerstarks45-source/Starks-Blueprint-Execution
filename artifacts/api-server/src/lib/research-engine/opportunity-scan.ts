@@ -1,5 +1,5 @@
 // Daily web research on current ways to earn money online. Rotates through
-// OPPORTUNITY_TOPICS (one per day), runs the existing research engine under the
+// OPPORTUNITY_TOPICS (advancing only after a topic is saved), runs the existing research engine under the
 // platform founder account, and keeps one refreshed Knowledge Memory entry per
 // topic. ASH chat reads the newest entries when a request is about earning money.
 import { db, usersTable, ashKnowledgeEntriesTable } from "@workspace/db";
@@ -10,6 +10,8 @@ import { OPPORTUNITY_TAG_PREFIX, categoryForResearchType } from "./knowledge-loo
 
 export const OPPORTUNITY_SCAN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 export const OPPORTUNITY_SCAN_STATE_KEY = "opportunity_scan";
+// Index of the next topic, kept in scheduler state so a failed or delayed day never skips a topic.
+export const OPPORTUNITY_TOPIC_STATE_KEY = "opportunity_scan:topic";
 
 export const OPPORTUNITY_TOPICS = [
   { key: "digital_products", objective: "Online income: which digital products (templates, courses, ebooks, presets, printables) are selling well right now, on which marketplaces, at what prices, and what new niches are emerging." },
@@ -21,7 +23,7 @@ export const OPPORTUNITY_TOPICS = [
   { key: "freelance_marketplaces", objective: "Online income: in-demand freelance and remote skills on Upwork, Fiverr and similar marketplaces right now, rates, and skills losing demand to AI." },
 ] as const;
 
-export const topicForDay = (now: number) => OPPORTUNITY_TOPICS[Math.floor(now / OPPORTUNITY_SCAN_INTERVAL_MS) % OPPORTUNITY_TOPICS.length]!;
+export const topicAt = (index: number) => OPPORTUNITY_TOPICS[Math.abs(Math.trunc(index)) % OPPORTUNITY_TOPICS.length]!;
 export const opportunityTag = (key: string) => `${OPPORTUNITY_TAG_PREFIX}${key}`;
 
 async function founderUserId(): Promise<number | null> {
@@ -39,7 +41,8 @@ export async function runOpportunityScan(opts: {
   const userId = await founderUserId();
   if (!userId) return { ran: false, reason: "no_founder_account" };
 
-  const topic = topicForDay(opts.now);
+  const topicIndex = opts.lastRun(OPPORTUNITY_TOPIC_STATE_KEY);
+  const topic = topicAt(topicIndex);
   await opts.markRun(OPPORTUNITY_SCAN_STATE_KEY, opts.now);
   try {
     const result = await runResearchEngine({
@@ -50,7 +53,9 @@ export async function runOpportunityScan(opts: {
       forceFresh: true,
       knowledgeTag: opportunityTag(topic.key),
     });
-    if (result.knowledgeAction === "failed") throw new Error("research run failed");
+    // Nothing saved (failed, or too low-confidence to keep): retry this topic next tick.
+    if (result.knowledgeAction !== "created" && result.knowledgeAction !== "updated") throw new Error(`research not saved (${result.knowledgeAction})`);
+    await opts.markRun(OPPORTUNITY_TOPIC_STATE_KEY, (topicIndex + 1) % OPPORTUNITY_TOPICS.length);
     return { ran: true, topic: topic.key };
   } catch (err) {
     await opts.markRun(OPPORTUNITY_SCAN_STATE_KEY, previous);
@@ -64,6 +69,15 @@ const MONEY_INTENT = /\b(money|income|revenue|earn|earning|profit|wealth|rich|si
 /** Prompt section with the newest opportunity research, only for money-related requests. */
 export async function buildOpportunityResearchNote(goalText: string | null | undefined, limit = 3): Promise<string> {
   if (!goalText || !MONEY_INTENT.test(goalText)) return "";
+  try {
+    return await opportunityNote(limit);
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, "Opportunity research note unavailable");
+    return "";
+  }
+}
+
+async function opportunityNote(limit: number): Promise<string> {
   const userId = await founderUserId();
   if (!userId) return "";
   const rows = await db

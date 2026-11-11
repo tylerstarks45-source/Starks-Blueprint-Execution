@@ -124,7 +124,6 @@ import type {
   GetLaunchFindingsParams,
   GetLaunchHardeningSnapshots200,
   GetLaunchHardeningStatus200,
-  GetOperatingLayerStatus200,
   GetPlatformActivity200,
   GetPlatformActivityParams,
   GetPlatformContext200,
@@ -151,7 +150,6 @@ import type {
   ListConnectionProvidersParams,
   ListNotificationsParams,
   ListOpenrouterUsageParams,
-  ListOperatingSessions200,
   ListPlatformApplications200,
   ListPlatformCommands200,
   ListPlatformCommandsParams,
@@ -12035,160 +12033,6 @@ export function useGetPlatformSnapshots<TData = Awaited<ReturnType<typeof getPla
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPlatformSnapshotsQueryOptions(params,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getGetOperatingLayerStatusUrl = () => {
-
-
-
-
-  return `/api/operating/status`
-}
-
-/**
- * @summary Get current Digital Operating Layer status (admin only)
- */
-export const getOperatingLayerStatus = async ( options?: RequestInit): Promise<GetOperatingLayerStatus200> => {
-
-  return customFetch<GetOperatingLayerStatus200>(getGetOperatingLayerStatusUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetOperatingLayerStatusQueryKey = () => {
-    return [
-    `/api/operating/status`
-    ] as const;
-    }
-
-
-export const getGetOperatingLayerStatusQueryOptions = <TData = Awaited<ReturnType<typeof getOperatingLayerStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperatingLayerStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetOperatingLayerStatusQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOperatingLayerStatus>>> = ({ signal }) => getOperatingLayerStatus({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOperatingLayerStatus>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetOperatingLayerStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getOperatingLayerStatus>>>
-export type GetOperatingLayerStatusQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Get current Digital Operating Layer status (admin only)
- */
-
-export function useGetOperatingLayerStatus<TData = Awaited<ReturnType<typeof getOperatingLayerStatus>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperatingLayerStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetOperatingLayerStatusQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getListOperatingSessionsUrl = () => {
-
-
-
-
-  return `/api/operating/sessions`
-}
-
-/**
- * @summary List DOL execution sessions for the authenticated user
- */
-export const listOperatingSessions = async ( options?: RequestInit): Promise<ListOperatingSessions200> => {
-
-  return customFetch<ListOperatingSessions200>(getListOperatingSessionsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListOperatingSessionsQueryKey = () => {
-    return [
-    `/api/operating/sessions`
-    ] as const;
-    }
-
-
-export const getListOperatingSessionsQueryOptions = <TData = Awaited<ReturnType<typeof listOperatingSessions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOperatingSessions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListOperatingSessionsQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOperatingSessions>>> = ({ signal }) => listOperatingSessions({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOperatingSessions>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListOperatingSessionsQueryResult = NonNullable<Awaited<ReturnType<typeof listOperatingSessions>>>
-export type ListOperatingSessionsQueryError = ErrorType<unknown>
-
-
-/**
- * @summary List DOL execution sessions for the authenticated user
- */
-
-export function useListOperatingSessions<TData = Awaited<ReturnType<typeof listOperatingSessions>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOperatingSessions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListOperatingSessionsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -2527,7 +2527,7 @@ export type GetPlatformRuntime200 = {
   sessionCount: number;
 };
 
-export type GetPlatformContext200Context = { [key: string]: unknown };
+export type GetPlatformContext200Context = { [key: string]: unknown } | null;
 
 export type GetPlatformContext200 = {
   success: boolean;
@@ -2599,21 +2599,6 @@ export type GetPlatformSnapshots200SnapshotsItem = { [key: string]: unknown };
 export type GetPlatformSnapshots200 = {
   success: boolean;
   snapshots: GetPlatformSnapshots200SnapshotsItem[];
-  count: number;
-};
-
-export type GetOperatingLayerStatus200Snapshot = { [key: string]: unknown };
-
-export type GetOperatingLayerStatus200 = {
-  success: boolean;
-  snapshot?: GetOperatingLayerStatus200Snapshot;
-};
-
-export type ListOperatingSessions200SessionsItem = { [key: string]: unknown };
-
-export type ListOperatingSessions200 = {
-  success: boolean;
-  sessions: ListOperatingSessions200SessionsItem[];
   count: number;
 };
 
@@ -2734,11 +2719,15 @@ export type RevalidateCertification200 = {
 };
 
 export type GetLaunchHardeningStatus200 = {
-  success: boolean;
-  status: string;
-  blockersRemaining?: number;
-  preLaunchRemaining?: number;
-};
+  launchStatus: string;
+  launchConfidence: number;
+  totalFindings?: number;
+  blockersRemaining: number;
+  prelaunchRemaining?: number;
+  verifiedFixed?: number;
+  unverifiedFixed?: string[];
+  [key: string]: unknown;
+ };
 
 export type GetLaunchFindingsParams = {
 priority?: string;
@@ -2748,24 +2737,24 @@ status?: string;
 export type GetLaunchFindings200FindingsItem = { [key: string]: unknown };
 
 export type GetLaunchFindings200 = {
-  success: boolean;
   findings: GetLaunchFindings200FindingsItem[];
-  count: number;
+  total: number;
 };
 
 export type GetLaunchBlockers200BlockersItem = { [key: string]: unknown };
 
 export type GetLaunchBlockers200 = {
-  success: boolean;
+  blockersRemaining: number;
+  launchStatus: string;
+  launchConfidence?: number;
   blockers: GetLaunchBlockers200BlockersItem[];
-  count: number;
+  unverifiedFixed?: string[];
 };
 
 export type GetLaunchHardeningSnapshots200SnapshotsItem = { [key: string]: unknown };
 
 export type GetLaunchHardeningSnapshots200 = {
-  success: boolean;
   snapshots: GetLaunchHardeningSnapshots200SnapshotsItem[];
-  count: number;
+  total: number;
 };
 

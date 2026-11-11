@@ -8,7 +8,9 @@
 import type { GetLaunchBlockers200BlockersItem } from './getLaunchBlockers200BlockersItem';
 
 export type GetLaunchBlockers200 = {
-  success: boolean;
+  blockersRemaining: number;
+  launchStatus: string;
+  launchConfidence?: number;
   blockers: GetLaunchBlockers200BlockersItem[];
-  count: number;
+  unverifiedFixed?: string[];
 };

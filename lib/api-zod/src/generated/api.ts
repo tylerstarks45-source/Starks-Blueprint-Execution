@@ -3500,7 +3500,7 @@ export const GetPlatformRuntimeResponse = zod.object({
  */
 export const GetPlatformContextResponse = zod.object({
   "success": zod.boolean(),
-  "context": zod.record(zod.string(), zod.unknown()).optional()
+  "context": zod.record(zod.string(), zod.unknown()).nullish()
 })
 
 
@@ -3572,25 +3572,6 @@ export const GetPlatformSnapshotsQueryParams = zod.object({
 export const GetPlatformSnapshotsResponse = zod.object({
   "success": zod.boolean(),
   "snapshots": zod.array(zod.record(zod.string(), zod.unknown())),
-  "count": zod.number()
-})
-
-
-/**
- * @summary Get current Digital Operating Layer status (admin only)
- */
-export const GetOperatingLayerStatusResponse = zod.object({
-  "success": zod.boolean(),
-  "snapshot": zod.record(zod.string(), zod.unknown()).optional()
-})
-
-
-/**
- * @summary List DOL execution sessions for the authenticated user
- */
-export const ListOperatingSessionsResponse = zod.object({
-  "success": zod.boolean(),
-  "sessions": zod.array(zod.record(zod.string(), zod.unknown())),
   "count": zod.number()
 })
 
@@ -3737,10 +3718,13 @@ export const RevalidateCertificationResponse = zod.object({
  * @summary Get overall launch hardening status (admin only)
  */
 export const GetLaunchHardeningStatusResponse = zod.object({
-  "success": zod.boolean(),
-  "status": zod.string(),
-  "blockersRemaining": zod.number().optional(),
-  "preLaunchRemaining": zod.number().optional()
+  "launchStatus": zod.string(),
+  "launchConfidence": zod.number(),
+  "totalFindings": zod.number().optional(),
+  "blockersRemaining": zod.number(),
+  "prelaunchRemaining": zod.number().optional(),
+  "verifiedFixed": zod.number().optional(),
+  "unverifiedFixed": zod.array(zod.string()).optional()
 })
 
 
@@ -3753,9 +3737,8 @@ export const GetLaunchFindingsQueryParams = zod.object({
 })
 
 export const GetLaunchFindingsResponse = zod.object({
-  "success": zod.boolean(),
   "findings": zod.array(zod.record(zod.string(), zod.unknown())),
-  "count": zod.number()
+  "total": zod.number()
 })
 
 
@@ -3763,9 +3746,11 @@ export const GetLaunchFindingsResponse = zod.object({
  * @summary List open BLOCKER findings (admin only)
  */
 export const GetLaunchBlockersResponse = zod.object({
-  "success": zod.boolean(),
+  "blockersRemaining": zod.number(),
+  "launchStatus": zod.string(),
+  "launchConfidence": zod.number().optional(),
   "blockers": zod.array(zod.record(zod.string(), zod.unknown())),
-  "count": zod.number()
+  "unverifiedFixed": zod.array(zod.string()).optional()
 })
 
 
@@ -3773,9 +3758,8 @@ export const GetLaunchBlockersResponse = zod.object({
  * @summary List launch hardening snapshots (admin only)
  */
 export const GetLaunchHardeningSnapshotsResponse = zod.object({
-  "success": zod.boolean(),
   "snapshots": zod.array(zod.record(zod.string(), zod.unknown())),
-  "count": zod.number()
+  "total": zod.number()
 })
 
 

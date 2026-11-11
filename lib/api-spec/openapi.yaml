@@ -3560,7 +3560,7 @@ paths:
                 type: object
                 properties:
                   success: { type: boolean }
-                  context: { type: object, additionalProperties: true }
+                  context: { type: object, additionalProperties: true, nullable: true }
                 required: [success]
     patch:
       operationId: updatePlatformContext
@@ -3685,42 +3685,6 @@ paths:
                 required: [success, snapshots, count]
 
   # ── Build 043: Digital Operating Layer ──────────────────────────────────────
-  /operating/status:
-    get:
-      operationId: getOperatingLayerStatus
-      tags: [operating]
-      summary: Get current Digital Operating Layer status (admin only)
-      x-admin-only: true
-      responses:
-        "200":
-          description: Operating layer status snapshot
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success: { type: boolean }
-                  snapshot: { type: object, additionalProperties: true }
-                required: [success]
-
-  /operating/sessions:
-    get:
-      operationId: listOperatingSessions
-      tags: [operating]
-      summary: List DOL execution sessions for the authenticated user
-      responses:
-        "200":
-          description: List of execution sessions
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success: { type: boolean }
-                  sessions: { type: array, items: { type: object, additionalProperties: true } }
-                  count: { type: integer }
-                required: [success, sessions, count]
-
   # ── Build 044: Unified Connections & Integration Hub ─────────────────────────
   /connections/providers:
     get:
@@ -3979,12 +3943,16 @@ paths:
             application/json:
               schema:
                 type: object
+                additionalProperties: true
                 properties:
-                  success: { type: boolean }
-                  status: { type: string }
+                  launchStatus: { type: string }
+                  launchConfidence: { type: number }
+                  totalFindings: { type: integer }
                   blockersRemaining: { type: integer }
-                  preLaunchRemaining: { type: integer }
-                required: [success, status]
+                  prelaunchRemaining: { type: integer }
+                  verifiedFixed: { type: integer }
+                  unverifiedFixed: { type: array, items: { type: string } }
+                required: [launchStatus, launchConfidence, blockersRemaining]
 
   /launch-hardening/findings:
     get:
@@ -4007,10 +3975,9 @@ paths:
               schema:
                 type: object
                 properties:
-                  success: { type: boolean }
                   findings: { type: array, items: { type: object, additionalProperties: true } }
-                  count: { type: integer }
-                required: [success, findings, count]
+                  total: { type: integer }
+                required: [findings, total]
 
   /launch-hardening/blockers:
     get:
@@ -4026,10 +3993,12 @@ paths:
               schema:
                 type: object
                 properties:
-                  success: { type: boolean }
+                  blockersRemaining: { type: integer }
+                  launchStatus: { type: string }
+                  launchConfidence: { type: number }
                   blockers: { type: array, items: { type: object, additionalProperties: true } }
-                  count: { type: integer }
-                required: [success, blockers, count]
+                  unverifiedFixed: { type: array, items: { type: string } }
+                required: [blockersRemaining, launchStatus, blockers]
 
   /launch-hardening/snapshots:
     get:
@@ -4045,10 +4014,9 @@ paths:
               schema:
                 type: object
                 properties:
-                  success: { type: boolean }
                   snapshots: { type: array, items: { type: object, additionalProperties: true } }
-                  count: { type: integer }
-                required: [success, snapshots, count]
+                  total: { type: integer }
+                required: [snapshots, total]
 
 components:
   parameters:

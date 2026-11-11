@@ -8,7 +8,6 @@
 import type { GetLaunchHardeningSnapshots200SnapshotsItem } from './getLaunchHardeningSnapshots200SnapshotsItem';
 
 export type GetLaunchHardeningSnapshots200 = {
-  success: boolean;
   snapshots: GetLaunchHardeningSnapshots200SnapshotsItem[];
-  count: number;
+  total: number;
 };

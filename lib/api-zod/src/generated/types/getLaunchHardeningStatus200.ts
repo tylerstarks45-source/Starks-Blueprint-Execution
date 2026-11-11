@@ -7,8 +7,12 @@
  */
 
 export type GetLaunchHardeningStatus200 = {
-  success: boolean;
-  status: string;
-  blockersRemaining?: number;
-  preLaunchRemaining?: number;
-};
+  launchStatus: string;
+  launchConfidence: number;
+  totalFindings?: number;
+  blockersRemaining: number;
+  prelaunchRemaining?: number;
+  verifiedFixed?: number;
+  unverifiedFixed?: string[];
+  [key: string]: unknown;
+ };

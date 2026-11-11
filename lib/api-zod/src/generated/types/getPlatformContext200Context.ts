@@ -6,4 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetPlatformContext200Context = { [key: string]: unknown };
+export type GetPlatformContext200Context = { [key: string]: unknown } | null;

@@ -8,7 +8,6 @@
 import type { GetLaunchFindings200FindingsItem } from './getLaunchFindings200FindingsItem';
 
 export type GetLaunchFindings200 = {
-  success: boolean;
   findings: GetLaunchFindings200FindingsItem[];
-  count: number;
+  total: number;
 };

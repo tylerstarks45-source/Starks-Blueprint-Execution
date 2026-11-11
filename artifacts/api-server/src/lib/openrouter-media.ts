@@ -136,6 +136,9 @@ const AURA_VOICES: Record<string, string> = {
   onyx: "aura-2-orion-en",
   nova: "aura-2-luna-en",
   shimmer: "aura-2-asteria-en",
+  ash: "aura-2-apollo-en",
+  coral: "aura-2-cora-en",
+  sage: "aura-2-athena-en",
 };
 export const speechVoice = (voice: string): string =>
   voice.startsWith("aura-2-") ? voice : AURA_VOICES[voice.toLowerCase()] ?? AURA_VOICES.onyx;

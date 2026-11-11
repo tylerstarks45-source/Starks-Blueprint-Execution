@@ -28,8 +28,10 @@ fi
 use_db "$RESTORE_TARGET_URL"
 psql_() { psql --quiet --no-psqlrc --set=ON_ERROR_STOP=1 "$@"; }
 
-safety="${SAFETY_BACKUP_DIR:-backups}/pre-restore-$target_db-$(date -u +%Y%m%dT%H%M%SZ).dump"
-mkdir -p "$(dirname "$safety")"
+safety_dir="${SAFETY_BACKUP_DIR:-backups}"
+mkdir -p "$safety_dir"
+# Unique name: never overwrite an earlier safety backup (e.g. on a quick retry after a failed restore).
+safety=$(mktemp --suffix=.dump "$safety_dir/pre-restore-$target_db-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
 pg_dump --format=custom --no-owner --no-privileges --file="$safety"
 echo "Safety backup of $target_db: $safety" >&2
 

@@ -13,14 +13,18 @@ export const securityHeaders: RequestHandler = helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 });
 
+// Explicit list of routes that spend AI credits or provider quota. Kept narrow so
+// non-spending writes under the same prefixes (generated-file CRUD, build-step
+// management, connector actions) are not throttled. /executive-brain/stream is
+// omitted on purpose: it forwards to /ai-orchestrator/stream with the caller's
+// token, so counting both would charge one turn twice.
 const EXPENSIVE_AI_PATHS: RegExp[] = [
-  /^\/ai-orchestrator\//,
-  /^\/executive-brain\/stream$/,
+  /^\/ai-orchestrator\/(chat|stream|execute|transcribe|step-recovery|brain\/distill|search|image)$/,
   /^\/dashboard\/chat$/,
-  /^\/build-engine\//,
-  /^\/browser-agent\//,
-  /^\/research\//,
-  /^\/media-gen\//,
+  /^\/build-engine\/(analyze|execute-step)$/,
+  /^\/browser-agent\/(run|credential-fetch)$/,
+  /^\/research\/[^/]+$/,
+  /^\/media-gen\/(image|video|music|tts)$/,
   /^\/openrouter\/complete$/,
   /^\/ai\/(openrouter|testing)\//,
   /\/generate(-variants)?$/,
@@ -86,7 +90,11 @@ export const redactServerErrors: RequestHandler = (req, res, next) => {
   res.json = (body?: unknown) => {
     if (res.statusCode >= 500 && body && typeof body === "object" && !Array.isArray(body)) {
       const b = body as Record<string, unknown>;
-      const { stack: _stack, ...rest } = b;
+      // `stack` and `details` (raw upstream/provider responses) never reach clients on 5xx.
+      const { stack: _stack, details, ...rest } = b;
+      if (details !== undefined) {
+        logger.warn({ path: req.path, status: res.statusCode, details }, "Stripped error details from response");
+      }
       if (typeof b["error"] === "string" && isSensitiveErrorMessage(b["error"])) {
         logger.warn({ path: req.path, status: res.statusCode, original: b["error"] }, "Redacted internal error message from response");
         if (/OPENROUTER_API_KEY/.test(b["error"])) {

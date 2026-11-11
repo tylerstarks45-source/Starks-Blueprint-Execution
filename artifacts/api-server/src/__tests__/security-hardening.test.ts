@@ -42,7 +42,15 @@ describe("security headers", () => {
 describe("AI rate limiter", () => {
   it("classifies expensive AI endpoints", () => {
     expect(isExpensiveAiRequest("POST", "/ai-orchestrator/chat")).toBe(true);
-    expect(isExpensiveAiRequest("POST", "/executive-brain/stream")).toBe(true);
+    expect(isExpensiveAiRequest("POST", "/ai-orchestrator/stream")).toBe(true);
+    expect(isExpensiveAiRequest("POST", "/build-engine/execute-step")).toBe(true);
+    // Forwarded to /ai-orchestrator/stream, which is the one that is counted.
+    expect(isExpensiveAiRequest("POST", "/executive-brain/stream")).toBe(false);
+    // Non-spending writes under AI prefixes.
+    expect(isExpensiveAiRequest("POST", "/ai-orchestrator/files")).toBe(false);
+    expect(isExpensiveAiRequest("PUT", "/ai-orchestrator/files/12")).toBe(false);
+    expect(isExpensiveAiRequest("POST", "/build-engine/skip-step")).toBe(false);
+    expect(isExpensiveAiRequest("POST", "/ai-orchestrator/connector-action")).toBe(false);
     expect(isExpensiveAiRequest("POST", "/landing-pages/generate")).toBe(true);
     expect(isExpensiveAiRequest("POST", "/media-gen/image")).toBe(true);
     expect(isExpensiveAiRequest("GET", "/ai-orchestrator/brain")).toBe(false);
@@ -96,6 +104,14 @@ describe("error redaction", () => {
     })).get("/x");
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ error: "Internal server error" });
+  });
+
+  it("strips raw provider details from 5xx bodies", async () => {
+    const res = await request(miniApp((_req, res) => {
+      res.status(502).json({ error: "Image generation failed", details: '{"error":"invalid key sk-or-123"}' });
+    })).get("/x");
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual({ error: "Image generation failed" });
   });
 
   it("keeps safe, user-facing 5xx messages and leaves 4xx untouched", async () => {

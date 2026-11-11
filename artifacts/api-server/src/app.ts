@@ -4,12 +4,14 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { apiKeyMiddleware } from "./middlewares/apiKey";
+import { createAiRateLimiter, jsonErrorHandler, redactServerErrors, securityHeaders } from "./middlewares/security";
 
 const app: Express = express();
 
 // Replit routes through a reverse proxy — trust the X-Forwarded-For header so
 // rate limiters and IP-based logic see the real client IP instead of the proxy.
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
 
 app.use(
   pinoHttp({
@@ -30,6 +32,8 @@ app.use(
     },
   }),
 );
+app.use(securityHeaders);
+
 // ── C-03 fix: CORS allowlist instead of permissive wildcard ────────────────
 // Allow: all *.replit.dev / *.repl.co / *.replit.app preview + production
 //        domains, explicitly listed ALLOWED_ORIGINS, localhost in dev.
@@ -105,7 +109,11 @@ app.use((req, _res, next) => {
 // Validate X-API-Key before routing — injects req.apiKeyCaller, enforces
 // rate limits, and writes usage events. Must run before the route handlers.
 app.use("/api", apiKeyMiddleware);
+app.use("/api", createAiRateLimiter());
+app.use("/api", redactServerErrors);
 
 app.use("/api", router);
+
+app.use(jsonErrorHandler);
 
 export default app;

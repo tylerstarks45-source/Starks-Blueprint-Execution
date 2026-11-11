@@ -151,20 +151,6 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        <Pressable style={styles.demo}>
-          <Text style={[styles.demoText, { color: colors.mutedForeground }]}>
-            Demo:{" "}
-            <Text
-              style={{ color: colors.primary }}
-              onPress={() => {
-                setEmail("admin@starksglobalgroup.net");
-                setPassword("Starks@Admin2024!");
-              }}
-            >
-              Use admin credentials
-            </Text>
-          </Text>
-        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -193,6 +179,4 @@ const styles = StyleSheet.create({
   btnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   signupBtn: { height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   signupBtnText: { fontSize: 16, fontWeight: "600" },
-  demo: { alignItems: "center" },
-  demoText: { fontSize: 13 },
 });

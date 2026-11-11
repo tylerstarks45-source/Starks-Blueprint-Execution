@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { publicErrorMessage } from "../middlewares/security";
 import { serialize } from "../lib/serialize";
 import { eq, count, sql, and, or, isNull } from "drizzle-orm";
 import { randomBytes } from "crypto";
@@ -2166,8 +2167,9 @@ Return ONLY valid JSON: {"emails":[{"stepNumber":1,"delayDays":0,"subject":"subj
 
     send({ type: "done", content: displayContent, structuredData, activatedSkills });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "ASH request failed";
+    const message = publicErrorMessage(err, "ASH request failed");
     const code = (err as { code?: string })?.code;
+    req.log.error({ err }, "AI orchestrator stream error");
     send({ type: "error", message, ...(code ? { code } : {}) });
   } finally {
     clearInterval(keepAlive);

@@ -207,9 +207,11 @@ router.get("/businesses/:id/conflicts", async (req, res): Promise<void> => {
 // Cross-Business Analysis (Business Context Isolation): explicit, opt-in
 // endpoint only — a user must actively request this. Never surfaced or
 // aggregated implicitly by any per-business route above.
-// M-11 fix: renamed from /businesses/cross-business-summary to eliminate path-conflict
-// with the /businesses/:id route in businessesRouter when registration order changes.
-router.get("/businesses/summary/cross-business", async (req, res): Promise<void> => {
+// M-11 fix: canonical path is /businesses/summary/cross-business, which can't be
+// shadowed by /businesses/:id. The legacy /businesses/cross-business-summary path
+// is still served (it is the path in openapi.yaml and the generated client) and
+// relies on this router being mounted before businessesRouter.
+router.get(["/businesses/summary/cross-business", "/businesses/cross-business-summary"], async (req, res): Promise<void> => {
   const caller = await getActiveCallerPayload(req, res);
   if (!caller) return;
   const summary = await assembleCrossBusinessSummary(caller.id);

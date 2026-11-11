@@ -150,7 +150,7 @@ router.use(analyticsRouter);
 router.use(socialRouter);
 router.use(socialOAuthRouter);
 // businessIntelligenceRouter must be mounted before businessesRouter: it
-// defines GET /businesses/cross-business-summary, which would otherwise be
+// serves the legacy GET /businesses/cross-business-summary path, which would otherwise be
 // shadowed by businesses.ts's GET /businesses/:id (Express would match
 // "cross-business-summary" as :id and never reach the BI handler).
 router.use(businessIntelligenceRouter);

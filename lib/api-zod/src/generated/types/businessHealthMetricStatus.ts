@@ -13,4 +13,5 @@ export const BusinessHealthMetricStatus = {
   healthy: 'healthy',
   degraded: 'degraded',
   critical: 'critical',
+  unknown: 'unknown',
 } as const;

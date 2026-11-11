@@ -19,7 +19,9 @@ export const HEALTH_DIMENSIONS = [
 ] as const;
 export type HealthDimension = (typeof HEALTH_DIMENSIONS)[number];
 
-export const HEALTH_STATUSES = ["healthy", "degraded", "critical"] as const;
+// Dimension/overall scores are null when there is no signal to measure them
+// from; "unknown" is the status when no dimension could be measured.
+export const HEALTH_STATUSES = ["healthy", "degraded", "critical", "unknown"] as const;
 export type HealthStatusLevel = (typeof HEALTH_STATUSES)[number];
 
 export interface HealthIssue {
@@ -33,16 +35,16 @@ export interface HealthIssue {
 export const systemHealthScoresTable = pgTable("system_health_scores", {
   id: serial("id").primaryKey(),
   systemInstanceId: integer("system_instance_id").notNull().references(() => systemInstancesTable.id, { onDelete: "cascade" }),
-  overallScore: integer("overall_score").notNull(),
+  overallScore: integer("overall_score"),
   status: text("status").notNull().default("healthy"),
-  connectionScore: integer("connection_score").notNull(),
-  hostingScore: integer("hosting_score").notNull(),
-  apiScore: integer("api_score").notNull(),
-  seoScore: integer("seo_score").notNull(),
-  performanceScore: integer("performance_score").notNull(),
-  securityScore: integer("security_score").notNull(),
-  revenueScore: integer("revenue_score").notNull(),
-  automationScore: integer("automation_score").notNull(),
+  connectionScore: integer("connection_score"),
+  hostingScore: integer("hosting_score"),
+  apiScore: integer("api_score"),
+  seoScore: integer("seo_score"),
+  performanceScore: integer("performance_score"),
+  securityScore: integer("security_score"),
+  revenueScore: integer("revenue_score"),
+  automationScore: integer("automation_score"),
   issues: jsonb("issues").notNull().default([]).$type<HealthIssue[]>(),
   computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

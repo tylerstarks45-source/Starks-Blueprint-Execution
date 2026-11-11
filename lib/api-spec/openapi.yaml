@@ -6829,26 +6829,26 @@ components:
         systemInstanceId:
           type: integer
         overallScore:
-          type: integer
+          type: [integer, "null"]
         status:
           type: string
-          enum: [healthy, degraded, critical]
+          enum: [healthy, degraded, critical, unknown]
         connectionScore:
-          type: integer
+          type: [integer, "null"]
         hostingScore:
-          type: integer
+          type: [integer, "null"]
         apiScore:
-          type: integer
+          type: [integer, "null"]
         seoScore:
-          type: integer
+          type: [integer, "null"]
         performanceScore:
-          type: integer
+          type: [integer, "null"]
         securityScore:
-          type: integer
+          type: [integer, "null"]
         revenueScore:
-          type: integer
+          type: [integer, "null"]
         automationScore:
-          type: integer
+          type: [integer, "null"]
         issues:
           type: array
           items:
@@ -6865,26 +6865,26 @@ components:
         businessId:
           type: integer
         overallScore:
-          type: integer
+          type: [integer, "null"]
         status:
           type: string
-          enum: [healthy, degraded, critical]
+          enum: [healthy, degraded, critical, unknown]
         connectionScore:
-          type: integer
+          type: [integer, "null"]
         hostingScore:
-          type: integer
+          type: [integer, "null"]
         apiScore:
-          type: integer
+          type: [integer, "null"]
         seoScore:
-          type: integer
+          type: [integer, "null"]
         performanceScore:
-          type: integer
+          type: [integer, "null"]
         securityScore:
-          type: integer
+          type: [integer, "null"]
         revenueScore:
-          type: integer
+          type: [integer, "null"]
         automationScore:
-          type: integer
+          type: [integer, "null"]
         issues:
           type: array
           items:
@@ -6964,7 +6964,7 @@ components:
       type: object
       properties:
         overallScore:
-          type: integer
+          type: [integer, "null"]
         status:
           type: string
         selfHealActionsTaken:

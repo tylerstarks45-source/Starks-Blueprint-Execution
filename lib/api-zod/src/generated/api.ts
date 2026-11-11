@@ -3721,10 +3721,19 @@ export const GetLaunchHardeningStatusResponse = zod.object({
   "launchStatus": zod.string(),
   "launchConfidence": zod.number(),
   "totalFindings": zod.number().optional(),
+  "criticalOpen": zod.number().optional(),
+  "highOpen": zod.number().optional(),
+  "mediumOpen": zod.number().optional(),
+  "lowOpen": zod.number().optional(),
   "blockersRemaining": zod.number(),
   "prelaunchRemaining": zod.number().optional(),
   "verifiedFixed": zod.number().optional(),
-  "unverifiedFixed": zod.array(zod.string()).optional()
+  "deferredCount": zod.number().optional(),
+  "acceptedRiskCount": zod.number().optional(),
+  "unverifiedFixed": zod.array(zod.string()).optional(),
+  "safeRemediationOrder": zod.array(zod.string()).optional(),
+  "independentWorkSets": zod.array(zod.array(zod.string())).optional(),
+  "highRegressionCount": zod.number().optional()
 })
 
 

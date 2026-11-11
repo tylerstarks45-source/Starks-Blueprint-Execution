@@ -2722,12 +2722,20 @@ export type GetLaunchHardeningStatus200 = {
   launchStatus: string;
   launchConfidence: number;
   totalFindings?: number;
+  criticalOpen?: number;
+  highOpen?: number;
+  mediumOpen?: number;
+  lowOpen?: number;
   blockersRemaining: number;
   prelaunchRemaining?: number;
   verifiedFixed?: number;
+  deferredCount?: number;
+  acceptedRiskCount?: number;
   unverifiedFixed?: string[];
-  [key: string]: unknown;
- };
+  safeRemediationOrder?: string[];
+  independentWorkSets?: string[][];
+  highRegressionCount?: number;
+};
 
 export type GetLaunchFindingsParams = {
 priority?: string;

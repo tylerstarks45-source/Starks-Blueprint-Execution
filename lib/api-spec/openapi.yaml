@@ -3943,15 +3943,23 @@ paths:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
                 properties:
                   launchStatus: { type: string }
                   launchConfidence: { type: number }
                   totalFindings: { type: integer }
+                  criticalOpen: { type: integer }
+                  highOpen: { type: integer }
+                  mediumOpen: { type: integer }
+                  lowOpen: { type: integer }
                   blockersRemaining: { type: integer }
                   prelaunchRemaining: { type: integer }
                   verifiedFixed: { type: integer }
+                  deferredCount: { type: integer }
+                  acceptedRiskCount: { type: integer }
                   unverifiedFixed: { type: array, items: { type: string } }
+                  safeRemediationOrder: { type: array, items: { type: string } }
+                  independentWorkSets: { type: array, items: { type: array, items: { type: string } } }
+                  highRegressionCount: { type: integer }
                 required: [launchStatus, launchConfidence, blockersRemaining]
 
   /launch-hardening/findings:

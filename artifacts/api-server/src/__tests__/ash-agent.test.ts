@@ -118,6 +118,31 @@ describe("POST /api/ash/agent", () => {
     ]);
   });
 
+  it("rejects invalid workspace tool arguments and drops undeclared fields", async () => {
+    fetchSpy
+      .mockResolvedValueOnce(
+        reply({
+          content: null,
+          tool_calls: [
+            call("c1", "generate_video", { prompt: "ad", aspectRatio: "4:3" }),
+            call("c2", "image", { prompt: "logo", userId: 999, url: "http://evil" }),
+            call("c3", "schedule_post", { platform: "twitter", content: "hi" }),
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(reply({ content: "Done." }));
+    const res = await ask("make stuff");
+    expect(res.body.structuredData.calls).toEqual([{ type: "image", prompt: "logo" }]);
+    expect(res.body.steps).toEqual([
+      { tool: "generate_video", ok: false },
+      { tool: "image", ok: true },
+      { tool: "schedule_post", ok: false },
+    ]);
+    const toolMsgs = sentBody(1).messages.filter((m: { role: string }) => m.role === "tool");
+    expect(toolMsgs[0].content).toContain("aspectRatio must be one of");
+    expect(toolMsgs[2].content).toContain("Missing scheduledAt");
+  });
+
   it("requires login", async () => {
     const res = await request(app).post("/api/ash/agent").send({ message: "hi" });
     expect(res.status).toBe(401);

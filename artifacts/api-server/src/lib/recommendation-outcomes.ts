@@ -3,7 +3,7 @@
 // recommendation targets; after MEASURE_AFTER_MS the scheduler reads the score
 // again and records whether it moved. Distillation turns those results into
 // "recommendation_category" lessons so ASH favors what has measurably worked.
-import { db, businessHealthScoresTable, businessRecommendationsTable, ashLessonsTable, type BusinessRecommendation } from "@workspace/db";
+import { db, businessHealthScoresTable, businessRecommendationsTable, ashLessonsTable, type AshLesson, type BusinessRecommendation } from "@workspace/db";
 import { and, asc, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { updateRecommendation } from "./governance/writes/recommendations-writes";
@@ -160,4 +160,38 @@ export async function distillRecommendationLessons(now = new Date()): Promise<st
     written.push(`recommendation_category::${r.category.toLowerCase()}`);
   }
   return written;
+}
+
+/** All measured-outcome lessons, keyed by recommendation category. */
+export async function getRecommendationLessons(): Promise<Map<string, AshLesson>> {
+  const rows = await db.select().from(ashLessonsTable).where(eq(ashLessonsTable.scopeType, "recommendation_category"));
+  return new Map(rows.map((l) => [l.scopeKey, l]));
+}
+
+export interface ConfidenceCalibration {
+  aiConfidence: number;
+  confidence: number;
+  lessonOutcome: string | null;
+  measuredSuccessRate: number | null;
+}
+
+/**
+ * Pull the model's confidence toward the measured success rate of its category.
+ * The pull grows with the lesson's own confidence (max 50% weight), so thin
+ * evidence barely moves it and "emerging" lessons (confidence < 25) never do.
+ */
+export function calibrateConfidence(aiConfidence: number, lesson: AshLesson | undefined): ConfidenceCalibration {
+  if (!lesson || lesson.sampleSize === 0 || lesson.confidence < 25) {
+    return { aiConfidence, confidence: aiConfidence, lessonOutcome: lesson?.outcome ?? null, measuredSuccessRate: null };
+  }
+  const successRate = lesson.successCount / lesson.sampleSize;
+  const weight = Math.min(0.5, lesson.confidence / 200);
+  const confidence = Math.max(0, Math.min(100, Math.round(aiConfidence * (1 - weight) + 100 * successRate * weight)));
+  return { aiConfidence, confidence, lessonOutcome: lesson.outcome, measuredSuccessRate: Math.round(successRate * 100) };
+}
+
+export function formatRecommendationLessons(lessons: Map<string, AshLesson>): string {
+  if (lessons.size === 0) return "";
+  const lines = [...lessons.values()].map((l) => `- ${l.scopeKey} [${l.outcome.toUpperCase()}, ${l.confidence}% confidence]: ${l.summary}`);
+  return `\n\n=== MEASURED RESULTS OF PAST RECOMMENDATIONS ===\nHow applied recommendations of each category actually moved business scores two weeks later, across the platform. Favor categories that measurably worked.\n${lines.join("\n")}`;
 }

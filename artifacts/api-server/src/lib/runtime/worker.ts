@@ -14,6 +14,7 @@ import { OutOfCreditsError } from "../credits";
 import { chainFor } from "../models";
 import { getRevenueSummaryForInstance, revenueContextLine } from "../revenue-summary";
 import { retrieveRelevantLessons, formatLessonsForPrompt } from "../ash-brain";
+import { getRecommendationLessons, calibrateConfidence, formatRecommendationLessons } from "../recommendation-outcomes";
 import { notifyUser } from "../notify";
 import { sendPushNotification } from "../push";
 import { sendAutomationPausedEmail } from "../email";
@@ -584,7 +585,8 @@ async function handleBusinessImprovementPass(payload: Record<string, unknown>): 
     businessType: business.businessType,
     goalText: `${business.name} ${business.revenueModel ?? ""} ${business.notes ?? ""}`,
   });
-  const learnedPatternsNote = formatLessonsForPrompt(learnedLessons);
+  const outcomeLessons = await getRecommendationLessons();
+  const learnedPatternsNote = formatLessonsForPrompt(learnedLessons) + formatRecommendationLessons(outcomeLessons);
 
   const prompt = `You are running a scheduled AI Improvement Engine pass for a business on the SBEP platform.
 
@@ -676,7 +678,8 @@ Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY
     const category: RecommendationCategory = RECOMMENDATION_CATEGORY_SET.has(item.category as RecommendationCategory)
       ? (item.category as RecommendationCategory)
       : "automation";
-    const confidence = Math.max(0, Math.min(100, Math.round(Number(item.confidence) || 50)));
+    const calibration = calibrateConfidence(Math.max(0, Math.min(100, Math.round(Number(item.confidence) || 50))), outcomeLessons.get(category));
+    const confidence = calibration.confidence;
     const suggestedToolId = item.suggestedToolSlug
       ? (toolByName.get(item.suggestedToolSlug.toLowerCase()) ?? null)
       : null;
@@ -691,7 +694,7 @@ Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY
       status: "new",
       sourceType: "improvement_pass",
       suggestedToolId,
-      payload: { rawSuggestedToolSlug: item.suggestedToolSlug ?? null },
+      payload: { rawSuggestedToolSlug: item.suggestedToolSlug ?? null, calibration },
     });
     inserted++;
   }

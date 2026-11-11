@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { and, eq } from "drizzle-orm";
-import { db, usersTable, businessesTable, businessHealthScoresTable, businessRecommendationsTable, ashLessonsTable } from "@workspace/db";
+import { db, usersTable, businessesTable, businessHealthScoresTable, businessRecommendationsTable, ashLessonsTable, type AshLesson } from "@workspace/db";
 import app from "../app";
 import {
   MEASURE_AFTER_MS,
   measureRecommendationOutcomes,
   distillRecommendationLessons,
   verdictFor,
+  calibrateConfidence,
   type RecommendationOutcome,
 } from "../lib/recommendation-outcomes";
 
@@ -104,5 +105,22 @@ describe("recommendation outcome measurement", () => {
       .where(and(eq(ashLessonsTable.scopeType, "recommendation_category"), eq(ashLessonsTable.scopeKey, category)));
     expect(lesson).toMatchObject({ sampleSize: 3, successCount: 2 });
     expect(lesson.summary).toContain("2 of 3");
+  });
+});
+
+describe("calibrateConfidence", () => {
+  const lesson = (sampleSize: number, successCount: number, confidence: number) =>
+    ({ sampleSize, successCount, confidence, outcome: "proven" }) as AshLesson;
+
+  it("leaves the model's confidence alone without trustworthy evidence", () => {
+    expect(calibrateConfidence(70, undefined).confidence).toBe(70);
+    expect(calibrateConfidence(70, lesson(2, 2, 20)).confidence).toBe(70);
+  });
+
+  it("pulls confidence toward the measured success rate, weighted by lesson confidence", () => {
+    // 10% success, lesson confidence 100 → 50% weight: 80*0.5 + 10*0.5 = 45
+    expect(calibrateConfidence(80, lesson(10, 1, 100))).toMatchObject({ confidence: 45, aiConfidence: 80, measuredSuccessRate: 10 });
+    // 90% success, lesson confidence 50 → 25% weight: 40*0.75 + 90*0.25 = 52.5 → 53
+    expect(calibrateConfidence(40, lesson(10, 9, 50)).confidence).toBe(53);
   });
 });

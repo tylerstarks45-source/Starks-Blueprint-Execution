@@ -667,6 +667,10 @@ router.post("/media-gen/tts", async (req, res): Promise<void> => {
         message: "Generated using the built-in voice. Connect ElevenLabs in the Connections Hub for premium ultra-realistic voices.",
       });
     } catch (err) {
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({ error: "Out of credits" });
+        return;
+      }
       req.log.error({ err }, "Built-in TTS fallback failed");
       res.json({
         status: "needs_credentials",

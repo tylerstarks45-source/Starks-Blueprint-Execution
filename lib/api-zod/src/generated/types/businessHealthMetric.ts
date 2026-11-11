@@ -11,16 +11,16 @@ import type { HealthIssue } from './healthIssue';
 export interface BusinessHealthMetric {
   id: number;
   businessId: number;
-  overallScore: number;
+  overallScore: number | null;
   status: BusinessHealthMetricStatus;
-  connectionScore: number;
-  hostingScore: number;
-  apiScore: number;
-  seoScore: number;
-  performanceScore: number;
-  securityScore: number;
-  revenueScore: number;
-  automationScore: number;
+  connectionScore: number | null;
+  hostingScore: number | null;
+  apiScore: number | null;
+  seoScore: number | null;
+  performanceScore: number | null;
+  securityScore: number | null;
+  revenueScore: number | null;
+  automationScore: number | null;
   issues: HealthIssue[];
   computedAt: string;
 }

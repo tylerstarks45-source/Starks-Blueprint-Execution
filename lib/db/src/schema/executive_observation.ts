@@ -253,7 +253,7 @@ export const observationSignalsTable = pgTable(
   (t) => [
     index("obs_signal_obs_id_idx").on(t.observationId),
     index("obs_signal_user_id_idx").on(t.userId),
-    index("obs_signal_type_idx").on(t.signalType),
+    index("obs_signal_signal_type_idx").on(t.signalType),
     index("obs_signal_strength_idx").on(t.strength),
     index("obs_signal_emitted_at_idx").on(t.emittedAt),
   ],

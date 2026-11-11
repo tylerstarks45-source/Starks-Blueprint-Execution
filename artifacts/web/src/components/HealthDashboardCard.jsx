@@ -22,6 +22,7 @@ const STATUS_META = {
   healthy: { label: 'Healthy', dot: 'bg-emerald-400', text: 'text-emerald-400', ring: 'ring-emerald-400/30' },
   degraded: { label: 'Degraded', dot: 'bg-amber-400', text: 'text-amber-400', ring: 'ring-amber-400/30' },
   critical: { label: 'Critical', dot: 'bg-rose-400', text: 'text-rose-400', ring: 'ring-rose-400/30' },
+  unknown: { label: 'Not enough data', dot: 'bg-zinc-500', text: 'text-zinc-400', ring: 'ring-zinc-500/30' },
 };
 
 const SEVERITY_META = {
@@ -123,7 +124,7 @@ export default function HealthDashboardCard({ systemInstanceId, businessId, clas
         <>
           <div className="flex items-center gap-4 mb-5">
             <div className={`w-16 h-16 rounded-2xl border flex flex-col items-center justify-center ring-1 ${statusMeta.ring} border-white/10 bg-white/5`}>
-              <span className={`text-lg font-bold font-mono ${scoreColor(latest.overallScore)}`}>{latest.overallScore}%</span>
+              <span className={`text-lg font-bold font-mono ${scoreColor(latest.overallScore)}`}>{latest.overallScore == null ? '—' : `${latest.overallScore}%`}</span>
             </div>
             <div className="min-w-0">
               <span className={`inline-flex items-center gap-1.5 text-xs font-semibold font-mono ${statusMeta.text}`}>
@@ -140,8 +141,8 @@ export default function HealthDashboardCard({ systemInstanceId, businessId, clas
 
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 mb-4">
             {DIMENSIONS.map((d) => (
-              <div key={d.key} className="text-center">
-                <div className={`text-sm font-bold font-mono ${scoreColor(latest[d.key])}`}>{latest[d.key]}</div>
+              <div key={d.key} className="text-center" title={latest[d.key] == null ? 'Not measured — no data source connected for this dimension yet' : undefined}>
+                <div className={`text-sm font-bold font-mono ${scoreColor(latest[d.key])}`}>{latest[d.key] ?? '—'}</div>
                 <div className="text-[9px] text-muted-foreground/50 font-mono mt-0.5 leading-tight">{d.label}</div>
               </div>
             ))}

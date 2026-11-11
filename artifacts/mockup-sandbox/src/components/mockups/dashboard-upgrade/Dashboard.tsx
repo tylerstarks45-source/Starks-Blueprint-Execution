@@ -190,7 +190,7 @@ export function Dashboard() {
                 <div style={{ width: 4, height: 16, borderRadius: 2, background: '#34d399' }} />
                 <span style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>AI Credits</span>
               </div>
-              <div style={{ display: 'flex', align: 'center', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
                   <svg viewBox="0 0 80 80" style={{ transform: 'rotate(-90deg)' }}>
                     <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />

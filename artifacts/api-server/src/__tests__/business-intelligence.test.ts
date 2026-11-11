@@ -589,8 +589,11 @@ describe("Business Intelligence Engine — HTTP routes (conflict decisions)", ()
   // mount order). If that regresses, GetBusinessParams' numeric :id parse fails
   // and this request comes back as a 400 { error } instead of the real summary
   // payload below — so asserting the full success shape is sufficient to catch it.
-  it("GET /businesses/cross-business-summary reaches the BI handler and is not shadowed by GET /businesses/:id", async () => {
-    const res = await request(app).get("/api/businesses/cross-business-summary").set(routeAuth());
+  it.each([
+    "/api/businesses/summary/cross-business",
+    "/api/businesses/cross-business-summary",
+  ])("GET %s reaches the BI handler and is not shadowed by GET /businesses/:id", async (path) => {
+    const res = await request(app).get(path).set(routeAuth());
     expect(res.status).toBe(200);
     expect(res.body.businessCount).toBeGreaterThanOrEqual(1);
     expect(Array.isArray(res.body.businesses)).toBe(true);

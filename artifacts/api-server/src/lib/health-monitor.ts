@@ -6,7 +6,6 @@ import {
   scheduledTasksTable,
   runtimeJobsTable,
   systemRevenueProvidersTable,
-  publishedContentTable,
   systemHealthScoresTable,
   businessHealthMetricsTable,
   businessesTable,
@@ -28,30 +27,33 @@ import { actorFor, type GovernedWriteContext } from "./governance/types";
 // network calls on the periodic tick). Root-cause research for novel
 // failures is explicitly out of scope for this task; these dimensions exist
 // to surface "here's what's wrong" plus feed the self-healing whitelist.
+// A dimension with no underlying signal is null ("not measured") rather than
+// a neutral-looking default, so a business with no data never reads healthy.
 
-function ratioScore(ok: number, total: number, neutralWhenEmpty = 85): number {
-  if (total === 0) return neutralWhenEmpty;
+function ratioScore(ok: number, total: number): number | null {
+  if (total === 0) return null;
   return Math.round((ok / total) * 100);
 }
 
-function statusToLevel(score: number): HealthStatusLevel {
+export function statusToLevel(score: number | null): HealthStatusLevel {
+  if (score == null) return "unknown";
   if (score < 50) return "critical";
   if (score < 75) return "degraded";
   return "healthy";
 }
 
-interface ScoreSet {
-  connectionScore: number;
-  hostingScore: number;
-  apiScore: number;
-  seoScore: number;
-  performanceScore: number;
-  securityScore: number;
-  revenueScore: number;
-  automationScore: number;
+export interface ScoreSet {
+  connectionScore: number | null;
+  hostingScore: number | null;
+  apiScore: number | null;
+  seoScore: number | null;
+  performanceScore: number | null;
+  securityScore: number | null;
+  revenueScore: number | null;
+  automationScore: number | null;
 }
 
-function buildIssues(scores: ScoreSet, extra: HealthIssue[] = []): HealthIssue[] {
+export function buildIssues(scores: ScoreSet, extra: HealthIssue[] = []): HealthIssue[] {
   const issues: HealthIssue[] = [...extra];
   const dims: [keyof ScoreSet, HealthIssue["dimension"]][] = [
     ["connectionScore", "connection"],
@@ -65,7 +67,7 @@ function buildIssues(scores: ScoreSet, extra: HealthIssue[] = []): HealthIssue[]
   ];
   for (const [key, dimension] of dims) {
     const score = scores[key];
-    if (score >= 75) continue;
+    if (score == null || score >= 75) continue;
     issues.push({
       dimension,
       severity: score < 50 ? "high" : "low",
@@ -77,8 +79,9 @@ function buildIssues(scores: ScoreSet, extra: HealthIssue[] = []): HealthIssue[]
   return issues;
 }
 
-function overall(scores: ScoreSet): number {
-  const vals = Object.values(scores);
+export function overall(scores: ScoreSet): number | null {
+  const vals = Object.values(scores).filter((v): v is number => v != null);
+  if (vals.length === 0) return null;
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }
 
@@ -138,10 +141,13 @@ export async function computeSystemHealth(systemInstanceId: number) {
     .from(systemConnectorsTable)
     .where(eq(systemConnectorsTable.systemInstanceId, systemInstanceId));
   const connectedCount = connectors.filter((c) => c.status === "connected").length;
-  const connectionScore = ratioScore(connectedCount, connectors.length, 90);
+  const connectionScore = ratioScore(connectedCount, connectors.length);
 
   const hostingScore =
-    instance.healthStatus === "healthy" ? 100 : instance.healthStatus === "degraded" ? 55 : instance.healthStatus === "unknown" ? 75 : 20;
+    instance.healthStatus === "healthy" ? 100
+      : instance.healthStatus === "degraded" ? 55
+        : instance.healthStatus === "unknown" ? null
+          : 20;
 
   const recentJobs = await db
     .select()
@@ -150,43 +156,39 @@ export async function computeSystemHealth(systemInstanceId: number) {
     .orderBy(desc(runtimeJobsTable.queuedAt))
     .limit(20);
   const settledJobs = recentJobs.filter((j) => j.status === "completed" || j.status === "failed");
-  const apiScore = ratioScore(settledJobs.filter((j) => j.status === "completed").length, settledJobs.length, 90);
+  const apiScore = ratioScore(settledJobs.filter((j) => j.status === "completed").length, settledJobs.length);
 
   const stuckOrFailed = recentJobs.filter((j) => j.status === "failed" || j.status === "active").length;
 
-  const content = await db
-    .select({ id: publishedContentTable.id })
-    .from(publishedContentTable)
-    .where(eq(publishedContentTable.systemInstanceId, systemInstanceId))
-    .limit(5);
-  const seoScore = content.length > 0 ? 85 : 65;
+  // Whether content exists says nothing about search performance; SEO stays
+  // unmeasured until a real crawl/search-console signal is wired in.
+  const seoScore: number | null = null;
 
   const scheduled = await db
     .select()
     .from(scheduledTasksTable)
     .where(eq(scheduledTasksTable.systemInstanceId, systemInstanceId));
-  const avgFailures = scheduled.length
-    ? scheduled.reduce((sum, t) => sum + (t.failureCount ?? 0), 0) / scheduled.length
-    : 0;
-  const performanceScore = Math.max(10, Math.round(100 - Math.min(80, avgFailures * 20)));
+  const performanceScore = scheduled.length
+    ? Math.max(10, Math.round(100 - Math.min(80, (scheduled.reduce((sum, t) => sum + (t.failureCount ?? 0), 0) / scheduled.length) * 20)))
+    : null;
 
   const errorConnectors = connectors.filter((c) => c.status === "error").length;
-  const securityScore = Math.max(10, 100 - errorConnectors * 15);
+  const securityScore = connectors.length ? Math.max(10, 100 - errorConnectors * 15) : null;
 
   const revenueProviders = await db
     .select()
     .from(systemRevenueProvidersTable)
     .where(eq(systemRevenueProvidersTable.systemInstanceId, systemInstanceId));
   const revenueScore = revenueProviders.length === 0
-    ? 60
+    ? null
     : revenueProviders.every((p) => p.syncStatus === "idle" || p.syncStatus === "success")
       ? 90
       : 55;
 
   const enabledScheduled = scheduled.filter((t) => t.enabled);
   const automationScore = enabledScheduled.length
-    ? ratioScore(enabledScheduled.filter((t) => t.lastRunStatus === "success" || t.lastRunStatus === null).length, enabledScheduled.length, 85)
-    : 80;
+    ? ratioScore(enabledScheduled.filter((t) => t.lastRunStatus === "success" || t.lastRunStatus === null).length, enabledScheduled.length)
+    : null;
 
   const scores: ScoreSet = {
     connectionScore,
@@ -223,7 +225,7 @@ export async function computeSystemHealth(systemInstanceId: number) {
     systemInstanceId,
     eventType: "health_check",
     status: "success",
-    message: `Recomputed health for system instance ${systemInstanceId}: ${overallScore}/100 (${status})`,
+    message: `Recomputed health for system instance ${systemInstanceId}: ${overallScore ?? "not measured"}${overallScore == null ? "" : "/100"} (${status})`,
     metadata: { overallScore, status, issueCount: issues.length },
   });
 
@@ -260,14 +262,15 @@ export async function computeBusinessHealth(businessId: number) {
     .from(businessConnectionsTable)
     .where(eq(businessConnectionsTable.businessId, businessId));
   const connectedCount = connections.filter((c) => c.status === "connected").length;
-  const connectionScore = ratioScore(connectedCount, connections.length, 85);
+  const connectionScore = ratioScore(connectedCount, connections.length);
 
   // If the business is backed by a system instance, borrow that system's
-  // hosting/api/automation signals rather than re-deriving them.
-  let hostingScore = business.websiteUrl ? 80 : 60;
-  let apiScore = 85;
-  let automationScore = 80;
-  let performanceScore = 80;
+  // hosting/api/automation signals rather than re-deriving them. Without one
+  // there is nothing to measure them from.
+  let hostingScore: number | null = null;
+  let apiScore: number | null = null;
+  let automationScore: number | null = null;
+  let performanceScore: number | null = null;
   let extraIssues: HealthIssue[] = [];
 
   if (business.systemInstanceId) {
@@ -290,9 +293,9 @@ export async function computeBusinessHealth(businessId: number) {
     .orderBy(desc(businessHealthScoresTable.createdAt))
     .limit(1);
 
-  const seoScore = latestAi?.seoScore ?? 65;
-  const revenueScore = latestAi?.growthScore ?? 60;
-  const securityScore = connections.some((c) => c.status === "error") ? 55 : 90;
+  const seoScore = latestAi?.seoScore ?? null;
+  const revenueScore = latestAi?.growthScore ?? null;
+  const securityScore = connections.length === 0 ? null : connections.some((c) => c.status === "error") ? 55 : 90;
 
   const scores: ScoreSet = {
     connectionScore,
@@ -325,7 +328,7 @@ export async function computeBusinessHealth(businessId: number) {
     systemInstanceId: business.systemInstanceId ?? null,
     eventType: "health_check",
     status: "success",
-    message: `Recomputed health for business ${businessId}: ${overallScore}/100 (${status})`,
+    message: `Recomputed health for business ${businessId}: ${overallScore ?? "not measured"}${overallScore == null ? "" : "/100"} (${status})`,
     metadata: { overallScore, status, issueCount: issues.length },
   });
 

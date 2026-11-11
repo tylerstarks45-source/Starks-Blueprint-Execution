@@ -6830,25 +6830,34 @@ components:
           type: integer
         overallScore:
           type: integer
+          nullable: true
         status:
           type: string
-          enum: [healthy, degraded, critical]
+          enum: [healthy, degraded, critical, unknown]
         connectionScore:
           type: integer
+          nullable: true
         hostingScore:
           type: integer
+          nullable: true
         apiScore:
           type: integer
+          nullable: true
         seoScore:
           type: integer
+          nullable: true
         performanceScore:
           type: integer
+          nullable: true
         securityScore:
           type: integer
+          nullable: true
         revenueScore:
           type: integer
+          nullable: true
         automationScore:
           type: integer
+          nullable: true
         issues:
           type: array
           items:
@@ -6866,25 +6875,34 @@ components:
           type: integer
         overallScore:
           type: integer
+          nullable: true
         status:
           type: string
-          enum: [healthy, degraded, critical]
+          enum: [healthy, degraded, critical, unknown]
         connectionScore:
           type: integer
+          nullable: true
         hostingScore:
           type: integer
+          nullable: true
         apiScore:
           type: integer
+          nullable: true
         seoScore:
           type: integer
+          nullable: true
         performanceScore:
           type: integer
+          nullable: true
         securityScore:
           type: integer
+          nullable: true
         revenueScore:
           type: integer
+          nullable: true
         automationScore:
           type: integer
+          nullable: true
         issues:
           type: array
           items:
@@ -6965,6 +6983,7 @@ components:
       properties:
         overallScore:
           type: integer
+          nullable: true
         status:
           type: string
         selfHealActionsTaken:

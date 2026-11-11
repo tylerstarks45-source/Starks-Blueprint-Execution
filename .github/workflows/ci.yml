@@ -42,7 +42,7 @@ jobs:
           # Client tools must match the server major version (newer pg_dump emits settings PG16 rejects).
           mkdir -p "$RUNNER_TEMP/pg16"
           for t in pg_dump pg_restore psql; do
-            printf '#!/bin/sh\nexec docker run --rm -i --network host -v "$PWD:$PWD" -v /tmp:/tmp -w "$PWD" postgres:16 %s "$@"\n' "$t" > "$RUNNER_TEMP/pg16/$t"
+            printf '#!/bin/sh\nexec docker run --rm -i --network host -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD -e PGDATABASE -e PGSSLMODE -v "$PWD:$PWD" -v /tmp:/tmp -w "$PWD" postgres:16 %s "$@"\n' "$t" > "$RUNNER_TEMP/pg16/$t"
             chmod +x "$RUNNER_TEMP/pg16/$t"
           done
           export PATH="$RUNNER_TEMP/pg16:$PATH"

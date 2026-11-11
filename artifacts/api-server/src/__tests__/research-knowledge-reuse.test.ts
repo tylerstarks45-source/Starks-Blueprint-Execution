@@ -300,4 +300,15 @@ describe("Research & Knowledge Engine — per-business weekly updates (forceFres
 
     await db.delete(businessesTable).where(eq(businessesTable.ownerId, testUserId));
   });
+
+  it("interactive research never picks a weekly entry to overwrite", async () => {
+    await db.insert(ashKnowledgeEntriesTable).values({
+      userId: testUserId, ownerUserId: testUserId, category: "market_research",
+      title: "Ecommerce shop market trends", content: "Ecommerce shop market trends and competitors", tags: ["market", "business_update"],
+    });
+    const objective = "Ecommerce shop market trends and competitors";
+    expect(await findExistingEntryForTopic({ userId: testUserId, researchType: "market", objective })).toBeNull();
+    await db.update(ashKnowledgeEntriesTable).set({ tags: ["market"] }).where(eq(ashKnowledgeEntriesTable.userId, testUserId));
+    expect(await findExistingEntryForTopic({ userId: testUserId, researchType: "market", objective })).not.toBeNull();
+  });
 });

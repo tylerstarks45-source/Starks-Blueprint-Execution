@@ -110,7 +110,9 @@ export async function findExistingEntryForTopic(params: {
   researchType: AshResearchType;
   objective: string;
 }): Promise<AshKnowledgeEntry | null> {
-  const rows = await entriesForCategory(params.userId, params.researchType);
+  // Per-business weekly entries may be read (reused) but are only ever rewritten by weekly research.
+  const rows = (await entriesForCategory(params.userId, params.researchType))
+    .filter((e) => !(Array.isArray(e.tags) && e.tags.includes(BUSINESS_UPDATE_TAG)));
   const best = bestMatch(rows, params.objective, { minRelevance: REUSE_RELEVANCE_THRESHOLD });
   return best?.entry ?? null;
 }

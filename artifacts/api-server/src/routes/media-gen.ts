@@ -83,6 +83,10 @@ async function saveMediaFile(
   return row!.id;
 }
 
+// Pixel sizes are model-specific (gpt-image-1 rejects 1792x1024); OpenRouter
+// clamps a normalized aspect ratio to whatever the model supports.
+const ASPECT_FOR_SIZE = { "1024x1024": "1:1", "1792x1024": "16:9", "1024x1792": "9:16" } as const;
+
 // ─── POST /api/media-gen/image ────────────────────────────────────────────────
 
 router.post("/media-gen/image", async (req, res): Promise<void> => {
@@ -109,7 +113,7 @@ router.post("/media-gen/image", async (req, res): Promise<void> => {
 
     let image: { b64: string; revisedPrompt?: string };
     try {
-      image = await generateImage({ prompt: enhancedPrompt, size, userId });
+      image = await generateImage({ prompt: enhancedPrompt, aspectRatio: ASPECT_FOR_SIZE[size], userId });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({ error: "Out of credits" });

@@ -63,9 +63,11 @@ describe("openrouter media", () => {
 
   it("generates images via /images and returns base64", async () => {
     fetchSpy.mockResolvedValueOnce(json({ data: [{ b64_json: "aGk=" }], usage: { cost: 0.04 } }));
-    const image = await generateImage({ prompt: "a fox", size: "1024x1024", userId });
+    const image = await generateImage({ prompt: "a fox", aspectRatio: "16:9", userId });
     expect(image.b64).toBe("aGk=");
-    expect(fetchSpy.mock.calls[0]![0]).toBe("https://openrouter.ai/api/v1/images");
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe("https://openrouter.ai/api/v1/images");
+    expect(JSON.parse(String(init!.body))).toEqual({ model: MEDIA_MODELS.image, prompt: "a fox", n: 1, aspect_ratio: "16:9" });
   });
 
   it("blocks callers with no credits before calling the provider", async () => {

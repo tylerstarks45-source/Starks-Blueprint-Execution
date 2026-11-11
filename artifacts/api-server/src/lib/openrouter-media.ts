@@ -116,10 +116,10 @@ export function synthesizeSpeech(opts: { text: string; voice: string; userId?: n
   });
 }
 
-export function generateImage(opts: { prompt: string; size?: string; userId?: number }): Promise<{ b64: string; revisedPrompt?: string }> {
+export function generateImage(opts: { prompt: string; aspectRatio?: string; userId?: number }): Promise<{ b64: string; revisedPrompt?: string }> {
   const model = MEDIA_MODELS.image;
   return run("image", model, opts.userId, async () => {
-    const res = await post("/images", { model, prompt: opts.prompt, n: 1, ...(opts.size ? { size: opts.size } : {}) });
+    const res = await post("/images", { model, prompt: opts.prompt, n: 1, ...(opts.aspectRatio ? { aspect_ratio: opts.aspectRatio } : {}) });
     const data = (await res.json()) as { data?: Array<{ b64_json?: string; revised_prompt?: string }>; usage?: { cost?: number } };
     const image = data.data?.[0];
     if (!image?.b64_json) throw new MediaProviderError(502);

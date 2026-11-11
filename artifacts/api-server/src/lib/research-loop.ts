@@ -1,5 +1,5 @@
 import { complete } from "./openrouter";
-import { MODELS } from "./models";
+import { MODELS, chainFor } from "./models";
 import { logEvent } from "./log-event";
 import { logger } from "./logger";
 
@@ -59,7 +59,7 @@ export async function runRootCauseResearch(input: RootCauseResearchInput): Promi
 
     const searchResult = await complete({
       prompt: searchQuery,
-      model: RESEARCH_MODEL,
+      models: chainFor("research"),
     }).catch((err) => {
       logger.warn({ err }, "Research loop: web search step failed, continuing with base knowledge only");
       return { content: "[Web search unavailable — using base knowledge only]", model: RESEARCH_MODEL, promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: null };

@@ -19,7 +19,7 @@ import {
 import { broadcastSequenceStep } from "./email-marketing";
 import { requireAuthActive, getTokenPayload, isAdminRole } from "../lib/auth";
 import { complete } from "../lib/openrouter";
-import { MODELS } from "../lib/models";
+import { chainFor } from "../lib/models";
 import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector, listConnectors } from "../lib/connectors/registry";
 import { z } from "zod";
@@ -69,7 +69,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
   "marketOpportunity": "1 sentence on the business opportunity or relevance"
 }`,
       prompt: `Research this for a business automation context: ${parsed.data.query}`,
-      model: MODELS.research,
+      models: chainFor("research"),
       userId,
     });
 

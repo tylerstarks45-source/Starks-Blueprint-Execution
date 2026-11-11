@@ -35,6 +35,12 @@ describe("OpenRouter model IDs", () => {
     expect(CHAINS.research.length).toBeGreaterThan(1);
   });
 
+  it("research calls use the fallback chain, not a single model", () => {
+    const offenders = sourceFiles(join(__dirname, ".."))
+      .filter((f) => /model:\s*(MODELS\.research|RESEARCH_MODEL|PERPLEXITY_MODEL)\s*,\s*\n?\s*(userId|\}|\))/.test(readFileSync(f, "utf8")));
+    expect(offenders).toEqual([]);
+  });
+
   it("no server source file names a retired ID", () => {
     const offenders = sourceFiles(join(__dirname, ".."))
       .filter((f) => RETIRED_IDS.some((id) => readFileSync(f, "utf8").includes(id)));

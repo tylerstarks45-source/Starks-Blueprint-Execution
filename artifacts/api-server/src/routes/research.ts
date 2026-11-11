@@ -3,13 +3,12 @@ import { and, desc, like } from "drizzle-orm";
 import { db, userMemoryTable, blueprintsTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { complete, streamCompletion } from "../lib/openrouter";
-import { MODELS } from "../lib/models";
+import { MODELS, chainFor } from "../lib/models";
 import { z } from "zod";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-const PERPLEXITY_MODEL = MODELS.research;
 const ANALYSIS_MODEL = MODELS.utility;
 
 // ─── Tool input schemas ───────────────────────────────────────────────────────
@@ -545,7 +544,7 @@ router.post("/research/:tool", async (req, res): Promise<void> => {
         try {
           const result = await complete({
             prompt: query,
-            model: PERPLEXITY_MODEL,
+            models: chainFor("research"),
             userId,
           });
           return `### Research: "${query}"\n${result.content}`;

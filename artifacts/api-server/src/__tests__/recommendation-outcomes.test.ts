@@ -23,6 +23,7 @@ describe("recommendation outcome measurement", () => {
   let userId = 0;
   let token = "";
   let businessId = 0;
+  let otherUserIds: number[] = [];
 
   beforeAll(async () => {
     const reg = await request(app).post("/api/auth/register").send({ email: EMAIL, password: PASSWORD, name: "Outcome Test" });
@@ -36,7 +37,7 @@ describe("recommendation outcome measurement", () => {
 
   afterAll(async () => {
     await db.delete(ashLessonsTable).where(and(eq(ashLessonsTable.scopeType, "recommendation_category"), eq(ashLessonsTable.scopeKey, category)));
-    if (userId) await db.delete(usersTable).where(eq(usersTable.id, userId));
+    for (const id of [userId, ...otherUserIds].filter(Boolean)) await db.delete(usersTable).where(eq(usersTable.id, id));
   });
 
   async function addScore(seo: number, at: Date) {
@@ -83,11 +84,25 @@ describe("recommendation outcome measurement", () => {
 
     // Distill from this category only, renamed so other test data can't affect it.
     await db.update(businessRecommendationsTable).set({ category }).where(eq(businessRecommendationsTable.id, rec.id));
-    const ids = await distillRecommendationLessons();
-    expect(ids).toContain(`recommendation_category::${category}`);
+    // One owner's result alone is never published as a shared lesson.
+    expect(await distillRecommendationLessons()).not.toContain(`recommendation_category::${category}`);
+
+    const others = await db.insert(usersTable).values([1, 2].map((i) => ({
+      email: `rec_outcomes_other${i}_${Date.now()}@test.internal`, role: "USER", membershipStatus: "active", membershipTier: "free",
+    }))).returning({ id: usersTable.id });
+    otherUserIds = others.map((u) => u.id);
+    for (const [i, u] of others.entries()) {
+      const [b] = await db.insert(businessesTable).values({ ownerId: u.id, name: `Other ${i}`, businessType: "saas" }).returning({ id: businessesTable.id });
+      const delta = i === 0 ? 6 : -1;
+      await db.insert(businessRecommendationsTable).values({
+        businessId: b.id, ownerUserId: u.id, category, title: "Other rec", status: "applied", resolvedAt: new Date(),
+        payload: { outcome: { metric: "seoScore", baseline: 50, baselineAt: new Date().toISOString(), result: { value: 50 + delta, delta, verdict: verdictFor(delta), measuredAt: new Date().toISOString() } } },
+      });
+    }
+    expect(await distillRecommendationLessons()).toContain(`recommendation_category::${category}`);
     const [lesson] = await db.select().from(ashLessonsTable)
       .where(and(eq(ashLessonsTable.scopeType, "recommendation_category"), eq(ashLessonsTable.scopeKey, category)));
-    expect(lesson).toMatchObject({ sampleSize: 1, successCount: 1, outcome: "emerging" });
-    expect(lesson.summary).toContain("1 of 1");
+    expect(lesson).toMatchObject({ sampleSize: 3, successCount: 2 });
+    expect(lesson.summary).toContain("2 of 3");
   });
 });

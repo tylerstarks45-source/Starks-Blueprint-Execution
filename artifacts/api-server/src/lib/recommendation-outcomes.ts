@@ -14,6 +14,9 @@ export const MEASURE_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
 // Score points a metric must move before we call it a change rather than noise.
 export const CHANGE_THRESHOLD = 3;
 const MAX_PER_TICK = 200;
+// Lessons are shared across all users, so a category needs results from this
+// many different owners before one is published (no single account's trend).
+export const MIN_OWNERS_PER_LESSON = 3;
 
 type HealthMetric = "overallHealth" | "growthScore" | "seoScore" | "marketingScore" | "automationScore" | "contentScore";
 
@@ -124,6 +127,7 @@ export async function distillRecommendationLessons(now = new Date()): Promise<st
     FROM business_recommendations
     WHERE status = 'applied' AND payload -> 'outcome' -> 'result' IS NOT NULL
     GROUP BY category
+    HAVING COUNT(DISTINCT owner_user_id) >= ${MIN_OWNERS_PER_LESSON}
   `)).rows as unknown as CategoryRow[];
 
   const written: string[] = [];

@@ -18,9 +18,9 @@ import {
   SOCIAL_PLATFORMS,
 } from "@workspace/db";
 import { broadcastSequenceStep } from "./email-marketing";
-import { requireAuthActive, getTokenPayload, isAdminRole } from "../lib/auth";
+import { requireAuthActive, getTokenPayload, isAdminRole, isFounderAdmin } from "../lib/auth";
 import { complete } from "../lib/openrouter";
-import { MODELS, chainForAgentMode } from "../lib/models";
+import { MODELS, chainForAgentMode, resolveAgentMode } from "../lib/models";
 import { OutOfCreditsError } from "../lib/credits";
 import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector, listConnectors } from "../lib/connectors/registry";
@@ -713,11 +713,18 @@ router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
 
   try {
     const { message, history, mode } = parsed.data;
+    // Same tier gate as /ai-orchestrator/chat: higher modes use the flagship model.
+    const [caller] = await db
+      .select({ role: usersTable.role, membershipTier: usersTable.membershipTier })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+    const { mode: effectiveMode } = resolveAgentMode(mode, caller?.membershipTier, isFounderAdmin(caller?.role));
     const result = await runAshAgent({
       userId,
       systemPrompt: ASH_AGENT_PROMPT,
       messages: [...history, { role: "user", content: message }],
-      models: chainForAgentMode(mode),
+      models: chainForAgentMode(effectiveMode),
     });
     res.json({
       content: result.content,

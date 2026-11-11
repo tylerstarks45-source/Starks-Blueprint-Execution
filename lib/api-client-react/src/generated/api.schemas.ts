@@ -2040,15 +2040,24 @@ export const SystemHealthScoreStatus = {
 export interface SystemHealthScore {
   id: number;
   systemInstanceId: number;
+  /** @nullable */
   overallScore: number | null;
   status: SystemHealthScoreStatus;
+  /** @nullable */
   connectionScore: number | null;
+  /** @nullable */
   hostingScore: number | null;
+  /** @nullable */
   apiScore: number | null;
+  /** @nullable */
   seoScore: number | null;
+  /** @nullable */
   performanceScore: number | null;
+  /** @nullable */
   securityScore: number | null;
+  /** @nullable */
   revenueScore: number | null;
+  /** @nullable */
   automationScore: number | null;
   issues: HealthIssue[];
   computedAt: string;
@@ -2067,15 +2076,24 @@ export const BusinessHealthMetricStatus = {
 export interface BusinessHealthMetric {
   id: number;
   businessId: number;
+  /** @nullable */
   overallScore: number | null;
   status: BusinessHealthMetricStatus;
+  /** @nullable */
   connectionScore: number | null;
+  /** @nullable */
   hostingScore: number | null;
+  /** @nullable */
   apiScore: number | null;
+  /** @nullable */
   seoScore: number | null;
+  /** @nullable */
   performanceScore: number | null;
+  /** @nullable */
   securityScore: number | null;
+  /** @nullable */
   revenueScore: number | null;
+  /** @nullable */
   automationScore: number | null;
   issues: HealthIssue[];
   computedAt: string;
@@ -2113,6 +2131,7 @@ export interface BusinessMonitoringResponse {
 }
 
 export interface RecomputeHealthResponse {
+  /** @nullable */
   overallScore: number | null;
   status: string;
   selfHealActionsTaken: number;
@@ -2393,5 +2412,360 @@ export const GetBusinessRecommendationsStatus = {
 export type ListApprovalsParams = {
 status?: string;
 businessId?: number;
+};
+
+export type CreatePlatformWorkspaceBodyWorkspaceType = typeof CreatePlatformWorkspaceBodyWorkspaceType[keyof typeof CreatePlatformWorkspaceBodyWorkspaceType];
+
+
+export const CreatePlatformWorkspaceBodyWorkspaceType = {
+  personal: 'personal',
+  team: 'team',
+  organization: 'organization',
+} as const;
+
+export type CreatePlatformWorkspaceBodyConfiguration = { [key: string]: unknown };
+
+export type CreatePlatformWorkspaceBody = {
+  /** @maxLength 200 */
+  workspaceName: string;
+  workspaceType?: CreatePlatformWorkspaceBodyWorkspaceType;
+  configuration?: CreatePlatformWorkspaceBodyConfiguration;
+};
+
+export type CreatePlatformWorkspace200Workspace = { [key: string]: unknown };
+
+export type CreatePlatformWorkspace200 = {
+  success: boolean;
+  workspace: CreatePlatformWorkspace200Workspace;
+};
+
+export type CreatePlatformProjectBodyProjectType = typeof CreatePlatformProjectBodyProjectType[keyof typeof CreatePlatformProjectBodyProjectType];
+
+
+export const CreatePlatformProjectBodyProjectType = {
+  website: 'website',
+  crm: 'crm',
+  automation: 'automation',
+  dashboard: 'dashboard',
+  custom: 'custom',
+} as const;
+
+export type CreatePlatformProjectBodyMetadata = { [key: string]: unknown };
+
+export type CreatePlatformProjectBody = {
+  workspaceId?: number;
+  appId?: string;
+  /** @maxLength 200 */
+  projectName: string;
+  projectType: CreatePlatformProjectBodyProjectType;
+  metadata?: CreatePlatformProjectBodyMetadata;
+};
+
+export type CreatePlatformProject200Project = { [key: string]: unknown };
+
+export type CreatePlatformProject200 = {
+  success: boolean;
+  project: CreatePlatformProject200Project;
+};
+
+export type ListPlatformApplications200ApplicationsItem = { [key: string]: unknown };
+
+export type ListPlatformApplications200 = {
+  success: boolean;
+  applications: ListPlatformApplications200ApplicationsItem[];
+  count: number;
+};
+
+export type RegisterPlatformApplicationBody = {
+  appId: string;
+  appName: string;
+  appDomain: string;
+  version?: string;
+  description?: string;
+};
+
+export type RegisterPlatformApplication200App = { [key: string]: unknown };
+
+export type RegisterPlatformApplication200 = {
+  success: boolean;
+  app: RegisterPlatformApplication200App;
+};
+
+export type ListPlatformCommandsParams = {
+appId?: string;
+};
+
+export type ListPlatformCommands200CommandsItem = { [key: string]: unknown };
+
+export type ListPlatformCommands200 = {
+  success: boolean;
+  commands: ListPlatformCommands200CommandsItem[];
+  count: number;
+};
+
+export type RegisterPlatformCommandsBodyCommandsItem = { [key: string]: unknown };
+
+export type RegisterPlatformCommandsBody = {
+  appId: string;
+  /** @minItems 1 */
+  commands: RegisterPlatformCommandsBodyCommandsItem[];
+};
+
+export type RegisterPlatformCommands200 = {
+  success: boolean;
+  registered: number;
+};
+
+export type GetPlatformRuntime200Runtime = { [key: string]: unknown };
+
+export type GetPlatformRuntime200SessionsItem = { [key: string]: unknown };
+
+export type GetPlatformRuntime200 = {
+  success: boolean;
+  runtime: GetPlatformRuntime200Runtime;
+  sessions: GetPlatformRuntime200SessionsItem[];
+  sessionCount: number;
+};
+
+export type GetPlatformContext200Context = { [key: string]: unknown };
+
+export type GetPlatformContext200 = {
+  success: boolean;
+  context?: GetPlatformContext200Context;
+};
+
+export type UpdatePlatformContextBody = {
+  currentPage?: string;
+  currentAppId?: string;
+  currentProjectId?: number;
+  currentWorkspaceId?: number;
+  currentOrgId?: number;
+  permissions?: string[];
+};
+
+export type UpdatePlatformContext200Context = { [key: string]: unknown };
+
+export type UpdatePlatformContext200 = {
+  success: boolean;
+  context: UpdatePlatformContext200Context;
+};
+
+export type GetPlatformSearchParams = {
+/**
+ * Search query
+ */
+q: string;
+/**
+ * Comma-separated list of result kinds (application,command,project,workspace)
+ */
+kinds?: string;
+limit?: number;
+};
+
+export type GetPlatformSearch200ResultsItem = { [key: string]: unknown };
+
+export type GetPlatformSearch200 = {
+  success: boolean;
+  results: GetPlatformSearch200ResultsItem[];
+  count: number;
+};
+
+export type GetPlatformActivityParams = {
+limit?: number;
+};
+
+export type GetPlatformActivity200ActivityItem = { [key: string]: unknown };
+
+export type GetPlatformActivity200 = {
+  success: boolean;
+  activity: GetPlatformActivity200ActivityItem[];
+  count: number;
+};
+
+export type GetPlatformRegistry200RegistryItem = { [key: string]: unknown };
+
+export type GetPlatformRegistry200 = {
+  success: boolean;
+  registry: GetPlatformRegistry200RegistryItem[];
+  count: number;
+};
+
+export type GetPlatformSnapshotsParams = {
+limit?: number;
+};
+
+export type GetPlatformSnapshots200SnapshotsItem = { [key: string]: unknown };
+
+export type GetPlatformSnapshots200 = {
+  success: boolean;
+  snapshots: GetPlatformSnapshots200SnapshotsItem[];
+  count: number;
+};
+
+export type GetOperatingLayerStatus200Snapshot = { [key: string]: unknown };
+
+export type GetOperatingLayerStatus200 = {
+  success: boolean;
+  snapshot?: GetOperatingLayerStatus200Snapshot;
+};
+
+export type ListOperatingSessions200SessionsItem = { [key: string]: unknown };
+
+export type ListOperatingSessions200 = {
+  success: boolean;
+  sessions: ListOperatingSessions200SessionsItem[];
+  count: number;
+};
+
+export type ListConnectionProvidersParams = {
+/**
+ * Filter by connection domain (e.g. ai, database, social)
+ */
+domain?: string;
+};
+
+export type ListConnectionProviders200ProvidersItem = { [key: string]: unknown };
+
+export type ListConnectionProviders200 = {
+  success: boolean;
+  providers: ListConnectionProviders200ProvidersItem[];
+  count: number;
+};
+
+export type ListConnectionCapabilitiesParams = {
+providerId?: number;
+capability?: string;
+};
+
+export type ListConnectionCapabilities200CapabilitiesItem = { [key: string]: unknown };
+
+export type ListConnectionCapabilities200 = {
+  success: boolean;
+  capabilities: ListConnectionCapabilities200CapabilitiesItem[];
+  count: number;
+};
+
+export type GetConnectionRegistry200RegistryItem = { [key: string]: unknown };
+
+export type GetConnectionRegistry200 = {
+  success: boolean;
+  registry: GetConnectionRegistry200RegistryItem[];
+  count: number;
+};
+
+export type RegisterConnectionProviderBody = {
+  providerName: string;
+  domain: string;
+  providerType: string;
+  baseUrl?: string;
+  version?: string;
+};
+
+export type RegisterConnectionProvider200Provider = { [key: string]: unknown };
+
+export type RegisterConnectionProvider200 = {
+  success: boolean;
+  provider: RegisterConnectionProvider200Provider;
+};
+
+export type DiscoverConnections200 = {
+  success: boolean;
+};
+
+export type GetConnectionSnapshots200SnapshotsItem = { [key: string]: unknown };
+
+export type GetConnectionSnapshots200 = {
+  success: boolean;
+  snapshots: GetConnectionSnapshots200SnapshotsItem[];
+  count: number;
+};
+
+export type GetConnectionAuditParams = {
+limit?: number;
+};
+
+export type GetConnectionAudit200AuditItem = { [key: string]: unknown };
+
+export type GetConnectionAudit200 = {
+  success: boolean;
+  audit: GetConnectionAudit200AuditItem[];
+  count: number;
+};
+
+export type RunCertificationBody = {
+  /** @maxLength 200 */
+  runName?: string;
+};
+
+export type RunCertification200Summary = { [key: string]: unknown };
+
+export type RunCertification200AdminPackage = { [key: string]: unknown };
+
+export type RunCertification200 = {
+  success: boolean;
+  runId: number;
+  summary?: RunCertification200Summary;
+  adminPackage?: RunCertification200AdminPackage;
+};
+
+export type GetCertificationResults200RunsItem = { [key: string]: unknown };
+
+export type GetCertificationResults200 = {
+  success: boolean;
+  runs: GetCertificationResults200RunsItem[];
+  count: number;
+};
+
+export type GetCertificationLaunchReport200LaunchReadiness = { [key: string]: unknown };
+
+export type GetCertificationLaunchReport200AdminPackage = { [key: string]: unknown };
+
+export type GetCertificationLaunchReport200 = {
+  success: boolean;
+  launchReadiness: GetCertificationLaunchReport200LaunchReadiness;
+  adminPackage?: GetCertificationLaunchReport200AdminPackage;
+};
+
+export type RevalidateCertification200 = {
+  success: boolean;
+  domainCount?: number;
+  passed?: number;
+  failed?: number;
+};
+
+export type GetLaunchHardeningStatus200 = {
+  success: boolean;
+  status: string;
+  blockersRemaining?: number;
+  preLaunchRemaining?: number;
+};
+
+export type GetLaunchFindingsParams = {
+priority?: string;
+status?: string;
+};
+
+export type GetLaunchFindings200FindingsItem = { [key: string]: unknown };
+
+export type GetLaunchFindings200 = {
+  success: boolean;
+  findings: GetLaunchFindings200FindingsItem[];
+  count: number;
+};
+
+export type GetLaunchBlockers200BlockersItem = { [key: string]: unknown };
+
+export type GetLaunchBlockers200 = {
+  success: boolean;
+  blockers: GetLaunchBlockers200BlockersItem[];
+  count: number;
+};
+
+export type GetLaunchHardeningSnapshots200SnapshotsItem = { [key: string]: unknown };
+
+export type GetLaunchHardeningSnapshots200 = {
+  success: boolean;
+  snapshots: GetLaunchHardeningSnapshots200SnapshotsItem[];
+  count: number;
 };
 

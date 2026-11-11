@@ -58,7 +58,7 @@ describe("openrouter media", () => {
     expect([...audio]).toEqual([1, 2, 3]);
     const [url, init] = fetchSpy.mock.calls[0]!;
     expect(url).toBe("https://openrouter.ai/api/v1/audio/speech");
-    expect(JSON.parse(String(init!.body))).toMatchObject({ model: MEDIA_MODELS.speech, input: "hi", voice: "alloy", response_format: "mp3" });
+    expect(JSON.parse(String(init!.body))).toMatchObject({ model: MEDIA_MODELS.speech, input: "hi", voice: "aura-2-thalia-en", response_format: "mp3" });
   });
 
   it("bills speech by input length", async () => {
@@ -69,7 +69,7 @@ describe("openrouter media", () => {
     before = await balance(userId);
     await synthesizeSpeech({ text: "ok", voice: "alloy", userId });
     const short = before - (await balance(userId));
-    expect(long).toBe(3); // 4000 chars = $0.06 = 3 credits at 50/$
+    expect(long).toBe(6); // 4000 chars = $0.12 = 6 credits at 50/$
     expect(long).toBeGreaterThan(short);
   });
 

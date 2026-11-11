@@ -19,6 +19,7 @@ archive="${1:?usage: RESTORE_TARGET_URL=<url> CONFIRM_RESTORE=<db> restore.sh <a
 source "$(dirname "$0")/lib.sh"
 
 target_db=$(db_name "$RESTORE_TARGET_URL")
+[[ -n "$target_db" ]] || { echo "RESTORE_TARGET_URL must name a database" >&2; exit 1; }
 if [[ "${CONFIRM_RESTORE:-}" != "$target_db" ]]; then
   echo "This replaces all data in database '$target_db'. Take a backup first, then re-run with CONFIRM_RESTORE=$target_db." >&2
   exit 1

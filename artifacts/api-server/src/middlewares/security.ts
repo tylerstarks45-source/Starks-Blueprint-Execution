@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler, Request, RequestHandler } from "express";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import helmet from "helmet";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { getUserId } from "../lib/auth";
@@ -15,10 +16,9 @@ export const securityHeaders: RequestHandler = helmet({
 
 // Explicit list of routes that spend AI credits or provider quota. Kept narrow so
 // non-spending writes under the same prefixes (generated-file CRUD, build-step
-// management, connector actions) are not throttled. /executive-brain/stream is
-// omitted on purpose: it forwards to /ai-orchestrator/stream with the caller's
-// token, so counting both would charge one turn twice.
+// management, connector actions) are not throttled.
 const EXPENSIVE_AI_PATHS: RegExp[] = [
+  /^\/executive-brain\/stream$/,
   /^\/ai-orchestrator\/(chat|stream|execute|transcribe|step-recovery|brain\/distill|search|image)$/,
   /^\/dashboard\/chat$/,
   /^\/build-engine\/(analyze|execute-step)$/,
@@ -32,7 +32,25 @@ const EXPENSIVE_AI_PATHS: RegExp[] = [
 
 export function isExpensiveAiRequest(method: string, path: string): boolean {
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") return false;
-  return EXPENSIVE_AI_PATHS.some((re) => re.test(path));
+  // Express routing is case-insensitive and ignores a trailing slash; match the same way.
+  const normalized = path.toLowerCase().replace(/\/+$/, "");
+  return EXPENSIVE_AI_PATHS.some((re) => re.test(normalized));
+}
+
+// Per-process secret for in-process forwards (executive-brain -> ai-orchestrator) so a
+// turn already counted on the outer request is not counted again on the forwarded one.
+export const INTERNAL_FORWARD_HEADER = "x-internal-forward";
+const internalForwardToken = Buffer.from(randomBytes(32).toString("hex"));
+
+export function internalForwardHeaders(): Record<string, string> {
+  return { [INTERNAL_FORWARD_HEADER]: internalForwardToken.toString() };
+}
+
+function isInternalForward(req: Request): boolean {
+  const value = req.headers[INTERNAL_FORWARD_HEADER];
+  if (typeof value !== "string") return false;
+  const given = Buffer.from(value);
+  return given.length === internalForwardToken.length && timingSafeEqual(given, internalForwardToken);
 }
 
 function rateLimitKey(req: Request): string {
@@ -48,7 +66,7 @@ export function createAiRateLimiter(limitPerMinute = Number(process.env["AI_RATE
     standardHeaders: "draft-8",
     legacyHeaders: false,
     keyGenerator: rateLimitKey,
-    skip: (req) => !isExpensiveAiRequest(req.method, req.path),
+    skip: (req) => isInternalForward(req) || !isExpensiveAiRequest(req.method, req.path),
     handler: (_req, res) => {
       res.status(429).json({ error: "Too many AI requests. Please wait a moment and try again.", code: "rate_limited" });
     },

@@ -10,6 +10,8 @@ import app from "../app";
 import {
   createAiRateLimiter,
   isExpensiveAiRequest,
+  internalForwardHeaders,
+  INTERNAL_FORWARD_HEADER,
   isSensitiveErrorMessage,
   jsonErrorHandler,
   publicErrorMessage,
@@ -44,8 +46,10 @@ describe("AI rate limiter", () => {
     expect(isExpensiveAiRequest("POST", "/ai-orchestrator/chat")).toBe(true);
     expect(isExpensiveAiRequest("POST", "/ai-orchestrator/stream")).toBe(true);
     expect(isExpensiveAiRequest("POST", "/build-engine/execute-step")).toBe(true);
-    // Forwarded to /ai-orchestrator/stream, which is the one that is counted.
-    expect(isExpensiveAiRequest("POST", "/executive-brain/stream")).toBe(false);
+    expect(isExpensiveAiRequest("POST", "/executive-brain/stream")).toBe(true);
+    // Express matches these to the same handlers.
+    expect(isExpensiveAiRequest("POST", "/media-gen/image/")).toBe(true);
+    expect(isExpensiveAiRequest("POST", "/Media-Gen/Image")).toBe(true);
     // Non-spending writes under AI prefixes.
     expect(isExpensiveAiRequest("POST", "/ai-orchestrator/files")).toBe(false);
     expect(isExpensiveAiRequest("PUT", "/ai-orchestrator/files/12")).toBe(false);
@@ -70,6 +74,16 @@ describe("AI rate limiter", () => {
     expect(limited.body.code).toBe("rate_limited");
     // Non-AI routes are not counted against the AI budget.
     expect((await request(mini).post("/businesses")).status).toBe(200);
+  });
+
+  it("does not count in-process forwards carrying the server's token, but counts forged ones", async () => {
+    const mini = express();
+    mini.use(createAiRateLimiter(1));
+    mini.post("/ai-orchestrator/stream", (_req, res) => { res.json({ ok: true }); });
+
+    expect((await request(mini).post("/ai-orchestrator/stream")).status).toBe(200);
+    expect((await request(mini).post("/ai-orchestrator/stream").set(internalForwardHeaders())).status).toBe(200);
+    expect((await request(mini).post("/ai-orchestrator/stream").set(INTERNAL_FORWARD_HEADER, "forged")).status).toBe(429);
   });
 });
 

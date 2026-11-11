@@ -5,8 +5,8 @@
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from "vitest";
 import { db, usersTable, openrouterUsageTable, creditTransactionsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { transcribeAudio, synthesizeSpeech, generateImage, audioFormatFor, speechCostUsd } from "../lib/openrouter-media";
-import { OutOfCreditsError, creditsForUsd } from "../lib/credits";
+import { transcribeAudio, synthesizeSpeech, generateImage, audioFormatFor } from "../lib/openrouter-media";
+import { OutOfCreditsError } from "../lib/credits";
 import { MEDIA_MODELS } from "../lib/models";
 
 let userId: number;
@@ -69,7 +69,7 @@ describe("openrouter media", () => {
     before = await balance(userId);
     await synthesizeSpeech({ text: "ok", voice: "alloy", userId });
     const short = before - (await balance(userId));
-    expect(long).toBe(creditsForUsd(speechCostUsd("x".repeat(4000))));
+    expect(long).toBe(3); // 4000 chars = $0.06 = 3 credits at 50/$
     expect(long).toBeGreaterThan(short);
   });
 

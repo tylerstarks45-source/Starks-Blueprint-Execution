@@ -12,9 +12,11 @@ const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const FALLBACK_USD = { transcription: 0.01, speech: 0.015, image: 0.04 } as const;
 // The speech endpoint returns raw audio with no usage block, so bill by input length
 // at the common $15 per million characters TTS rate.
-const SPEECH_USD_PER_CHAR = 15 / 1_000_000;
+const SPEECH_USD_PER_MILLION_CHARS = 15;
 const MIN_SPEECH_USD = 0.001;
-export const speechCostUsd = (text: string): number => Math.max(MIN_SPEECH_USD, text.length * SPEECH_USD_PER_CHAR);
+// Multiply before dividing: 4000 * (15 / 1e6) is 0.060000000000000005, which rounds up a credit.
+export const speechCostUsd = (text: string): number =>
+  Math.max(MIN_SPEECH_USD, (text.length * SPEECH_USD_PER_MILLION_CHARS) / 1_000_000);
 type MediaKind = keyof typeof FALLBACK_USD;
 
 export class MediaProviderError extends Error {

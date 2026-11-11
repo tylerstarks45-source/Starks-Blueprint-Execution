@@ -176,6 +176,8 @@ describe("route authorization sweep", () => {
         ["get", `/api/business-graph/kpis/${kpiId}/history`],
         ["post", `/api/business-graph/kpis/${kpiId}/record`],
         ["get", `/api/api/business-graph/businesses/${biz.id}/nodes`],
+        ["get", `/api/business-graph/businesses/${biz.id}.0/nodes`],
+        ["get", `/api/business-graph/businesses/${biz.id}abc/nodes`],
       ] as const) {
         const res = await asOther(method, url).send({ name: "x", kpiType: "revenue", value: 1 });
         expect(res.status, `${method.toUpperCase()} ${url}`).toBe(404);

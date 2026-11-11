@@ -43,7 +43,9 @@ async function requireOwnedBusiness(req: Request, res: Response, next: NextFunct
 }
 
 router.use("/businesses/:id", (req, res, next) => {
-  requireOwnedBusiness(req, res, next, Number(req.params["id"])).catch(next);
+  // Digits only: Number("1e2") is 100 but the handlers parseInt it to 1.
+  const raw = String(req.params["id"]);
+  requireOwnedBusiness(req, res, next, /^\d{1,15}$/.test(raw) ? Number(raw) : null).catch(next);
 });
 router.use("/nodes/:id", (req, res, next) => {
   getNode(String(req.params["id"]))

@@ -68,14 +68,13 @@ async function main() {
       description: tool.description ?? null,
       affiliateLink: link || null,
       signupUrl: link || null,
-      activeStatus: true,
     };
 
     let toolId = toolIdByName.get(tool.name);
     if (toolId) {
       await db.update(toolsTable).set(values).where(eq(toolsTable.id, toolId));
     } else {
-      const [inserted] = await db.insert(toolsTable).values(values).returning({ id: toolsTable.id });
+      const [inserted] = await db.insert(toolsTable).values({ ...values, activeStatus: true }).returning({ id: toolsTable.id });
       toolId = inserted.id;
       toolIdByName.set(tool.name, toolId);
     }
@@ -87,11 +86,11 @@ async function main() {
         .from(affiliateLinksTable)
         .where(eq(affiliateLinksTable.toolId, toolId))
         .limit(1);
-      const linkValues = { toolId, url: link, campaign: extractCampaign(link), active: true };
+      const linkValues = { toolId, url: link, campaign: extractCampaign(link) };
       if (existingLink) {
         await db.update(affiliateLinksTable).set(linkValues).where(eq(affiliateLinksTable.id, existingLink.id));
       } else {
-        await db.insert(affiliateLinksTable).values(linkValues);
+        await db.insert(affiliateLinksTable).values({ ...linkValues, active: true });
       }
       linkCount++;
     }

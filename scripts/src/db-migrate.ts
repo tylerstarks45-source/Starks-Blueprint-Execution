@@ -9,19 +9,23 @@ import { db, pool } from "@workspace/db";
 const migrationsFolder = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../lib/db/drizzle");
 
 async function main() {
-  const { rows } = await pool.query<{ has_users: boolean; has_journal: boolean }>(`
-    SELECT to_regclass('public.users') IS NOT NULL AS has_users,
+  // The API scheduler creates scheduler_state on boot (CREATE TABLE IF NOT EXISTS), and
+  // the baseline creates it the same way, so that table alone does not count as an
+  // existing schema.
+  const { rows } = await pool.query<{ app_tables: number; has_journal: boolean }>(`
+    SELECT (SELECT count(*)::int FROM pg_tables
+             WHERE schemaname = 'public' AND tablename <> 'scheduler_state') AS app_tables,
            to_regclass('drizzle.__drizzle_migrations') IS NOT NULL AS has_journal
   `);
-  const { has_users, has_journal } = rows[0];
+  const { app_tables, has_journal } = rows[0];
   let applied = 0;
   if (has_journal) {
     const res = await pool.query<{ n: string }>(`SELECT count(*)::text AS n FROM drizzle.__drizzle_migrations`);
     applied = Number(res.rows[0].n);
   }
-  if (has_users && applied === 0) {
+  if (app_tables > 0 && applied === 0) {
     console.error(
-      "This database already has the schema but no migration history (it was created with drizzle-kit push).\n" +
+      `This database already has ${app_tables} application tables but no migration history (it was created with drizzle-kit push).\n` +
         "Run `pnpm --filter @workspace/scripts run db:baseline` once to mark the baseline as applied, then re-run migrate.",
     );
     process.exit(1);

@@ -35,6 +35,6 @@ CI fails if the schema and migrations disagree.
 
 ## Seed data
 
-- `seed-tools`: tool categories, tools and affiliate links from `artifacts/web/src/config/toolAffiliateLinks.js`. It now upserts by tool name. The previous version deleted every tool first, which fails, or orphans data, once users have tool selections or credentials.
+- `seed-tools`: tool categories, tools and affiliate links from `artifacts/web/src/config/toolAffiliateLinks.js`. It now upserts by tool name. The previous version deleted every tool first, which fails, or orphans data, once users have tool selections or credentials. Re-runs refresh descriptive fields (category, description, links) but never change `activeStatus` or a link's `active` flag, so admin deactivations survive.
 - `seed-skills`: inserts missing skills by slug.
 - Blueprints are not seeded. The repo has no source data for them (they're created by admins in the app), so a new environment needs an export from production.

@@ -9063,7 +9063,7 @@ CREATE TABLE "system_logs" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "scheduler_state" (
+CREATE TABLE IF NOT EXISTS "scheduler_state" (
 	"task_key" text PRIMARY KEY NOT NULL,
 	"last_run_at" timestamp with time zone DEFAULT now() NOT NULL
 );

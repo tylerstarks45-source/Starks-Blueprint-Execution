@@ -86,5 +86,12 @@ describe("openrouter media", () => {
     expect(audioFormatFor("audio/webm;codecs=opus")).toBe("webm");
     expect(audioFormatFor("audio/mp4")).toBe("m4a");
     expect(audioFormatFor("audio/mpeg")).toBe("mp3");
+    const octet = "application/octet-stream";
+    expect(audioFormatFor(octet, Buffer.from("RIFF\0\0\0\0WAVEfmt "))).toBe("wav");
+    expect(audioFormatFor(octet, Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x01]))).toBe("webm");
+    expect(audioFormatFor(octet, Buffer.from("\0\0\0\x20ftypM4A "))).toBe("m4a");
+    expect(audioFormatFor(octet, Buffer.from("ID3\x04"))).toBe("mp3");
+    expect(audioFormatFor(octet, Buffer.from([0xff, 0xf1, 0x50]))).toBe("aac");
+    expect(audioFormatFor(octet, Buffer.from("????"))).toBe("m4a");
   });
 });

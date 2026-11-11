@@ -2525,7 +2525,7 @@ router.post("/ai-orchestrator/transcribe", async (req, res) => {
 
     let text: string;
     try {
-      text = await transcribeAudio({ audio: file.buffer, format: audioFormatFor(file.mimetype), userId });
+      text = await transcribeAudio({ audio: file.buffer, format: audioFormatFor(file.mimetype, file.buffer), userId });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({ error: "Out of credits." });

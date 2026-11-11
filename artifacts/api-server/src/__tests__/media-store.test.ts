@@ -59,11 +59,14 @@ describe("generated media storage", () => {
     expect((await request(app).get(res.body.url)).status).toBe(404);
   });
 
-  it("uses APP_URL for absolute links", async () => {
+  it("uses APP_URL, then REPLIT_DOMAINS, for absolute links", async () => {
     const { mediaUrlFor } = await import("../lib/media-store");
     process.env["APP_URL"] = "https://starksglobalgroup.net/";
     expect(mediaUrlFor("ab")).toBe("https://starksglobalgroup.net/api/media/blob/ab");
     delete process.env["APP_URL"];
+    process.env["REPLIT_DOMAINS"] = "sbep.replit.app,other.example";
+    expect(mediaUrlFor("ab")).toBe("https://sbep.replit.app/api/media/blob/ab");
+    delete process.env["REPLIT_DOMAINS"];
   });
 
   it("404s on unknown or malformed tokens", async () => {

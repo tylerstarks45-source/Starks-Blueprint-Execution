@@ -5,10 +5,17 @@ import { eq } from "drizzle-orm";
 
 export const SERVABLE_MEDIA_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "audio/mpeg"]);
 
-/** Absolute when APP_URL is set, so social platforms can fetch it; relative otherwise. */
+// Social publishers fetch these URLs, so prefer an absolute base: APP_URL, then the
+// first domain Replit assigns the deployment. Relative only when neither is set (local/CI).
+function publicBaseUrl(): string {
+  const appUrl = process.env["APP_URL"]?.trim();
+  if (appUrl) return appUrl.replace(/\/+$/, "");
+  const replitDomain = process.env["REPLIT_DOMAINS"]?.split(",")[0]?.trim();
+  return replitDomain ? `https://${replitDomain}` : "";
+}
+
 export function mediaUrlFor(token: string): string {
-  const base = (process.env["APP_URL"] ?? "").replace(/\/+$/, "");
-  return `${base}/api/media/blob/${token}`;
+  return `${publicBaseUrl()}/api/media/blob/${token}`;
 }
 
 export async function storeMedia(userId: number, data: Buffer, mimeType: string): Promise<string> {

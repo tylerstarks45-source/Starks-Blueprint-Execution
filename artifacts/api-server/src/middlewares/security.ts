@@ -111,7 +111,8 @@ export const redactServerErrors: RequestHandler = (req, res, next) => {
       // `stack` and `details` (raw upstream/provider responses) never reach clients on 5xx.
       const { stack: _stack, details, ...rest } = b;
       if (details !== undefined) {
-        logger.warn({ path: req.path, status: res.statusCode, details }, "Stripped error details from response");
+        // Provider bodies can echo credentials, so only the size is logged.
+        logger.warn({ path: req.path, status: res.statusCode, detailsLength: JSON.stringify(details)?.length ?? 0 }, "Stripped error details from response");
       }
       if (typeof b["error"] === "string" && isSensitiveErrorMessage(b["error"])) {
         logger.warn({ path: req.path, status: res.statusCode, original: b["error"] }, "Redacted internal error message from response");

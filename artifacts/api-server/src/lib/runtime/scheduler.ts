@@ -50,8 +50,11 @@ async function loadSchedulerState(): Promise<void> {
     const rows = await pool.query<{ task_key: string; last_run_at: Date }>(
       `SELECT task_key, last_run_at FROM scheduler_state`,
     );
+    // Keep the newer of the cached and stored timestamps: a local run whose
+    // state write failed must not be rolled back to the older DB value.
     for (const row of rows.rows) {
-      stateCache.set(row.task_key, new Date(row.last_run_at).getTime());
+      const stored = new Date(row.last_run_at).getTime();
+      stateCache.set(row.task_key, Math.max(stored, stateCache.get(row.task_key) ?? 0));
     }
     logger.debug({ keys: rows.rowCount }, "Scheduler state loaded from DB");
   } catch (err) {

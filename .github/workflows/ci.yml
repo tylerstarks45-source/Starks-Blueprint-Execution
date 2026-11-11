@@ -39,8 +39,13 @@ jobs:
         run: pnpm --filter @workspace/scripts run seed && pnpm --filter @workspace/scripts run seed
       - name: Backup/restore drill
         run: |
-          sudo apt-get install -y -q postgresql-client-16
-          export PATH=/usr/lib/postgresql/16/bin:$PATH
+          # Client tools must match the server major version (newer pg_dump emits settings PG16 rejects).
+          mkdir -p "$RUNNER_TEMP/pg16"
+          for t in pg_dump pg_restore psql; do
+            printf '#!/bin/sh\nexec docker run --rm -i --network host -v "$PWD:$PWD" -v /tmp:/tmp -w "$PWD" postgres:16 %s "$@"\n' "$t" > "$RUNNER_TEMP/pg16/$t"
+            chmod +x "$RUNNER_TEMP/pg16/$t"
+          done
+          export PATH="$RUNNER_TEMP/pg16:$PATH"
           pnpm --filter @workspace/scripts run db:drill
       - name: Schema and migrations are in sync
         run: |

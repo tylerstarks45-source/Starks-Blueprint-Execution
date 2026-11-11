@@ -28,21 +28,17 @@ fi
 use_db "$RESTORE_TARGET_URL"
 psql_() { psql --quiet --no-psqlrc --set=ON_ERROR_STOP=1 "$@"; }
 
-has_tables=$(psql_ -Atc "SELECT count(*) FROM pg_tables WHERE schemaname IN ('public', 'drizzle')")
-safety=""
-if [[ "$has_tables" -gt 0 ]]; then
-  safety="${SAFETY_BACKUP_DIR:-backups}/pre-restore-$target_db-$(date -u +%Y%m%dT%H%M%SZ).dump"
-  mkdir -p "$(dirname "$safety")"
-  pg_dump --format=custom --no-owner --no-privileges --file="$safety"
-  echo "Safety backup of $target_db: $safety" >&2
-fi
+safety="${SAFETY_BACKUP_DIR:-backups}/pre-restore-$target_db-$(date -u +%Y%m%dT%H%M%SZ).dump"
+mkdir -p "$(dirname "$safety")"
+pg_dump --format=custom --no-owner --no-privileges --file="$safety"
+echo "Safety backup of $target_db: $safety" >&2
 
 psql_ --single-transaction -c "SET client_min_messages = warning" \
   -c "DROP SCHEMA IF EXISTS drizzle CASCADE" -c "DROP SCHEMA IF EXISTS public CASCADE" -c "CREATE SCHEMA public"
 
 if ! pg_restore --no-owner --no-privileges --single-transaction --exit-on-error --dbname="$PGDATABASE" "$archive"; then
   echo "RESTORE FAILED: $target_db is now empty." >&2
-  [[ -n "$safety" ]] && echo "Put the previous data back with: RESTORE_TARGET_URL=... CONFIRM_RESTORE=$target_db $0 $safety" >&2
+  echo "Put the previous data back with: RESTORE_TARGET_URL=... CONFIRM_RESTORE=$target_db $0 $safety" >&2
   exit 1
 fi
 echo "Restored $archive into $target_db" >&2

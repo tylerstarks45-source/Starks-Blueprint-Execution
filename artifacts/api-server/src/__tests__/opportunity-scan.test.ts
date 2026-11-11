@@ -13,6 +13,8 @@ import {
   buildOpportunityResearchNote,
   topicAt,
   OPPORTUNITY_TOPIC_STATE_KEY,
+  OPPORTUNITY_SCAN_INTERVAL_MS,
+  OPPORTUNITY_SCAN_RETRY_MS,
   opportunityTag,
   OPPORTUNITY_SCAN_STATE_KEY,
   OPPORTUNITY_TOPICS,
@@ -62,14 +64,27 @@ describe("runOpportunityScan", () => {
     expect(runResearchEngine).toHaveBeenCalledTimes(1);
   });
 
-  it.each(["failed", "skipped"])("retries the same topic next tick when research is %s", async (knowledgeAction) => {
+  it("keeps the topic after a failed run and retries it in an hour, not every tick", async () => {
     const h = harness();
+    const now = Date.now();
     h.state.set(OPPORTUNITY_SCAN_STATE_KEY, 5);
     h.state.set(OPPORTUNITY_TOPIC_STATE_KEY, 3);
-    vi.mocked(runResearchEngine).mockResolvedValueOnce({ sessionId: 1, knowledgeAction } as never);
-    expect(await runOpportunityScan({ now: Date.now(), ...h })).toMatchObject({ ran: false, reason: "failed", topic: topicAt(3).key });
-    expect(h.state.get(OPPORTUNITY_SCAN_STATE_KEY)).toBe(5);
+    vi.mocked(runResearchEngine).mockResolvedValueOnce({ sessionId: 1, knowledgeAction: "failed" } as never);
+    expect(await runOpportunityScan({ now, ...h })).toMatchObject({ ran: false, reason: "failed", topic: topicAt(3).key });
     expect(h.state.get(OPPORTUNITY_TOPIC_STATE_KEY)).toBe(3);
+    expect(await runOpportunityScan({ now: now + 60_000, ...h })).toMatchObject({ ran: false, reason: "not_due" });
+    expect(h.state.get(OPPORTUNITY_SCAN_STATE_KEY)! + OPPORTUNITY_SCAN_INTERVAL_MS).toBe(now + OPPORTUNITY_SCAN_RETRY_MS);
+    expect(vi.mocked(runResearchEngine)).toHaveBeenCalledTimes(1);
+  });
+
+  it("moves on after a low-confidence run instead of paying to repeat it", async () => {
+    const h = harness();
+    const now = Date.now();
+    h.state.set(OPPORTUNITY_TOPIC_STATE_KEY, 3);
+    vi.mocked(runResearchEngine).mockResolvedValueOnce({ sessionId: 1, knowledgeAction: "skipped" } as never);
+    expect(await runOpportunityScan({ now, ...h })).toMatchObject({ ran: true, reason: "low_confidence", topic: topicAt(3).key });
+    expect(h.state.get(OPPORTUNITY_TOPIC_STATE_KEY)).toBe(4);
+    expect(h.state.get(OPPORTUNITY_SCAN_STATE_KEY)).toBe(now);
   });
 });
 

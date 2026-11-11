@@ -12,6 +12,8 @@ export const OPPORTUNITY_SCAN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 export const OPPORTUNITY_SCAN_STATE_KEY = "opportunity_scan";
 // Index of the next topic, kept in scheduler state so a failed or delayed day never skips a topic.
 export const OPPORTUNITY_TOPIC_STATE_KEY = "opportunity_scan:topic";
+// After an errored run, try again in an hour rather than every scheduler tick.
+export const OPPORTUNITY_SCAN_RETRY_MS = 60 * 60 * 1000;
 
 export const OPPORTUNITY_TOPICS = [
   { key: "digital_products", objective: "Online income: which digital products (templates, courses, ebooks, presets, printables) are selling well right now, on which marketplaces, at what prices, and what new niches are emerging." },
@@ -53,12 +55,13 @@ export async function runOpportunityScan(opts: {
       forceFresh: true,
       knowledgeTag: opportunityTag(topic.key),
     });
-    // Nothing saved (failed, or too low-confidence to keep): retry this topic next tick.
-    if (result.knowledgeAction !== "created" && result.knowledgeAction !== "updated") throw new Error(`research not saved (${result.knowledgeAction})`);
+    if (result.knowledgeAction === "failed") throw new Error("research run failed");
+    // A completed run advances the rotation even if its findings were too low-confidence to save
+    // ("skipped"); repeating the same paid research would most likely skip again.
     await opts.markRun(OPPORTUNITY_TOPIC_STATE_KEY, (topicIndex + 1) % OPPORTUNITY_TOPICS.length);
-    return { ran: true, topic: topic.key };
+    return { ran: true, topic: topic.key, reason: result.knowledgeAction === "skipped" ? "low_confidence" : undefined };
   } catch (err) {
-    await opts.markRun(OPPORTUNITY_SCAN_STATE_KEY, previous);
+    await opts.markRun(OPPORTUNITY_SCAN_STATE_KEY, Math.max(previous, opts.now - OPPORTUNITY_SCAN_INTERVAL_MS + OPPORTUNITY_SCAN_RETRY_MS));
     logger.warn({ topic: topic.key, err: err instanceof Error ? err.message : String(err) }, "Opportunity scan failed");
     return { ran: false, topic: topic.key, reason: "failed" };
   }

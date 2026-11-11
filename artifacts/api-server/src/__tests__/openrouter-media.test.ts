@@ -5,8 +5,8 @@
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from "vitest";
 import { db, usersTable, openrouterUsageTable, creditTransactionsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { transcribeAudio, synthesizeSpeech, generateImage, audioFormatFor } from "../lib/openrouter-media";
-import { OutOfCreditsError } from "../lib/credits";
+import { transcribeAudio, synthesizeSpeech, generateImage, audioFormatFor, speechCostUsd } from "../lib/openrouter-media";
+import { OutOfCreditsError, creditsForUsd } from "../lib/credits";
 import { MEDIA_MODELS } from "../lib/models";
 
 let userId: number;
@@ -61,6 +61,18 @@ describe("openrouter media", () => {
     expect(JSON.parse(String(init!.body))).toMatchObject({ model: MEDIA_MODELS.speech, input: "hi", voice: "alloy", response_format: "mp3" });
   });
 
+  it("bills speech by input length", async () => {
+    fetchSpy.mockImplementation(async () => new Response(new Uint8Array([1]), { status: 200 }));
+    let before = await balance(userId);
+    await synthesizeSpeech({ text: "x".repeat(4000), voice: "alloy", userId });
+    const long = before - (await balance(userId));
+    before = await balance(userId);
+    await synthesizeSpeech({ text: "ok", voice: "alloy", userId });
+    const short = before - (await balance(userId));
+    expect(long).toBe(creditsForUsd(speechCostUsd("x".repeat(4000))));
+    expect(long).toBeGreaterThan(short);
+  });
+
   it("generates images via /images and returns base64", async () => {
     fetchSpy.mockResolvedValueOnce(json({ data: [{ b64_json: "aGk=" }], usage: { cost: 0.04 } }));
     const image = await generateImage({ prompt: "a fox", aspectRatio: "16:9", userId });
@@ -86,5 +98,12 @@ describe("openrouter media", () => {
     expect(audioFormatFor("audio/webm;codecs=opus")).toBe("webm");
     expect(audioFormatFor("audio/mp4")).toBe("m4a");
     expect(audioFormatFor("audio/mpeg")).toBe("mp3");
+    const octet = "application/octet-stream";
+    expect(audioFormatFor(octet, Buffer.from("RIFF\0\0\0\0WAVEfmt "))).toBe("wav");
+    expect(audioFormatFor(octet, Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x01]))).toBe("webm");
+    expect(audioFormatFor(octet, Buffer.from("\0\0\0\x20ftypM4A "))).toBe("m4a");
+    expect(audioFormatFor(octet, Buffer.from("ID3\x04"))).toBe("mp3");
+    expect(audioFormatFor(octet, Buffer.from([0xff, 0xf1, 0x50]))).toBe("aac");
+    expect(audioFormatFor(octet, Buffer.from("????"))).toBe("m4a");
   });
 });

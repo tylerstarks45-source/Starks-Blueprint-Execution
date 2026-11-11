@@ -10,6 +10,11 @@ const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
 // Used when OpenRouter does not report a cost for the call.
 const FALLBACK_USD = { transcription: 0.01, speech: 0.015, image: 0.04 } as const;
+// The speech endpoint returns raw audio with no usage block, so bill by input length
+// at the common $15 per million characters TTS rate.
+const SPEECH_USD_PER_CHAR = 15 / 1_000_000;
+const MIN_SPEECH_USD = 0.001;
+export const speechCostUsd = (text: string): number => Math.max(MIN_SPEECH_USD, text.length * SPEECH_USD_PER_CHAR);
 type MediaKind = keyof typeof FALLBACK_USD;
 
 export class MediaProviderError extends Error {
@@ -77,9 +82,28 @@ async function run<T>(kind: MediaKind, model: string, userId: number | undefined
   }
 }
 
-/** Maps an uploaded audio MIME type to OpenRouter's `input_audio.format`. */
-export function audioFormatFor(mimeType: string | undefined): string {
+/** Container format from the file's leading bytes, for uploads sent as octet-stream. */
+function sniffAudioFormat(audio: Buffer): string | null {
+  const ascii = (start: number, end: number) => audio.subarray(start, end).toString("latin1");
+  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WAVE") return "wav";
+  if (audio.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))) return "webm";
+  if (ascii(0, 4) === "OggS") return "ogg";
+  if (ascii(0, 4) === "fLaC") return "flac";
+  if (ascii(4, 8) === "ftyp") return "m4a";
+  if (ascii(0, 3) === "ID3" || (audio[0] === 0xff && ((audio[1] ?? 0) & 0xe0) === 0xe0)) {
+    // 0xFFF1/0xFFF9 is an ADTS AAC frame; other 0xFFEx/0xFFFx syncs are MPEG audio.
+    return ((audio[1] ?? 0) & 0xf6) === 0xf0 ? "aac" : "mp3";
+  }
+  return null;
+}
+
+/** Maps an uploaded audio MIME type (or, failing that, its bytes) to OpenRouter's `input_audio.format`. */
+export function audioFormatFor(mimeType: string | undefined, audio?: Buffer): string {
   const m = (mimeType ?? "").toLowerCase();
+  if (!m.startsWith("audio/") && audio) {
+    const sniffed = sniffAudioFormat(audio);
+    if (sniffed) return sniffed;
+  }
   if (m.includes("webm")) return "webm";
   if (m.includes("ogg")) return "ogg";
   if (m.includes("wav")) return "wav";
@@ -112,7 +136,7 @@ export function synthesizeSpeech(opts: { text: string; voice: string; userId?: n
       response_format: "mp3",
       ...(opts.instructions ? { instructions: opts.instructions } : {}),
     });
-    return { value: Buffer.from(await res.arrayBuffer()) };
+    return { value: Buffer.from(await res.arrayBuffer()), usd: speechCostUsd(opts.text) };
   });
 }
 

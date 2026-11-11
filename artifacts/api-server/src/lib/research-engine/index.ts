@@ -47,11 +47,13 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
 
   try {
     // Step 0: knowledge-first lookup.
-    const { reusable } = await findReusableKnowledge({
-      userId: request.userId,
-      researchType: request.researchType,
-      objective: request.objective,
-    });
+    const { reusable } = request.forceFresh
+      ? { reusable: null }
+      : await findReusableKnowledge({
+          userId: request.userId,
+          researchType: request.researchType,
+          objective: request.objective,
+        });
 
     if (reusable) {
       await db.update(ashResearchSessionsTable).set({
@@ -99,11 +101,13 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
     // something already in Knowledge Memory? Checked regardless of the
     // step-0 staleness gate above — a stale-but-matching entry should be
     // UPDATED with this fresher research, not duplicated.
-    const existingEntry = await findExistingEntryForTopic({
-      userId: request.userId,
-      researchType: request.researchType,
-      objective: request.objective,
-    });
+    const existingEntry = request.forceFresh
+      ? null
+      : await findExistingEntryForTopic({
+          userId: request.userId,
+          researchType: request.researchType,
+          objective: request.objective,
+        });
 
     // Step 7: save (insert) or update when appropriate.
     const { entry: knowledgeEntry, action } = await saveOrUpdateKnowledgeMemory({

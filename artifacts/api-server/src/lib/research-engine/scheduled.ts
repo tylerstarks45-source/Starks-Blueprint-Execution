@@ -46,13 +46,20 @@ export async function runScheduledResearch(opts: {
   let ran = 0;
   let failed = 0;
   for (const b of due) {
-    // Mark first so a failing business is retried next week, not every tick.
-    await opts.markRun(researchStateKey(b.id), opts.now);
+    const key = researchStateKey(b.id);
+    const previous = opts.lastRun(key);
+    // Mark first so a concurrent tick can't start the same business twice.
+    await opts.markRun(key, opts.now);
     try {
-      await runResearchEngine({ userId: b.ownerId, projectId: null, researchType: "market", objective: researchObjective(b) });
+      // forceFresh: a weekly update must gather new findings, and must not reuse
+      // or overwrite knowledge from the owner's other businesses.
+      const result = await runResearchEngine({ userId: b.ownerId, projectId: null, researchType: "market", objective: researchObjective(b), forceFresh: true });
+      if (result.knowledgeAction === "failed") throw new Error("research run failed");
       ran++;
     } catch (err) {
       failed++;
+      // Retry on the next daily tick instead of waiting a week.
+      await opts.markRun(key, previous);
       if (err instanceof OutOfCreditsError) logger.info({ businessId: b.id }, "Scheduled research skipped: owner out of credits");
       else logger.warn({ businessId: b.id, err: err instanceof Error ? err.message : String(err) }, "Scheduled research failed");
     }

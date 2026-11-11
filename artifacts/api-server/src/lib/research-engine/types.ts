@@ -12,6 +12,8 @@ export interface ResearchRequest {
   projectId: number | null;
   researchType: AshResearchType;
   objective: string; // what the user actually wants to know
+  /** Always gather new findings and save them as a new entry (dated updates, e.g. weekly research). */
+  forceFresh?: boolean;
 }
 
 export interface ResearchPlanStep {

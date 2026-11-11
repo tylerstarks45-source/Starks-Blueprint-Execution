@@ -4,7 +4,10 @@
 // All routes require authentication.
 // Business Graph contains business reality. Executive Cognition reasons over it.
 
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
+import { eq } from "drizzle-orm";
+import { db } from "@workspace/db";
+import { businessKpisTable } from "@workspace/db/schema";
 import { requireAuthActive } from "../lib/auth";
 import {
   getBusiness, listUserBusinesses,
@@ -26,6 +29,32 @@ import { assembleBizGraphSummary } from "../lib/business-graph/business-context"
 import { logger } from "../lib/logger";
 
 const router = Router();
+
+// Every business-, node- and KPI-scoped route is limited to the caller's own businesses.
+async function requireOwnedBusiness(req: Request, res: Response, next: NextFunction, businessId: number | null | undefined): Promise<void> {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+  const business = businessId != null && Number.isInteger(businessId) ? await getBusiness(businessId) : null;
+  if (!business || business.ownerId !== userId) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  next();
+}
+
+router.use("/businesses/:id", (req, res, next) => {
+  requireOwnedBusiness(req, res, next, Number(req.params["id"])).catch(next);
+});
+router.use("/nodes/:id", (req, res, next) => {
+  getNode(String(req.params["id"]))
+    .then((node) => requireOwnedBusiness(req, res, next, node?.businessId))
+    .catch(next);
+});
+router.use("/kpis/:id", (req, res, next) => {
+  db.select({ businessId: businessKpisTable.businessId }).from(businessKpisTable).where(eq(businessKpisTable.id, String(req.params["id"]))).limit(1)
+    .then(([kpi]) => requireOwnedBusiness(req, res, next, kpi?.businessId))
+    .catch(next);
+});
 
 // ── GET /api/business-graph/businesses ────────────────────────────────────────
 

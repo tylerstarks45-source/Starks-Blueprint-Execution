@@ -18,6 +18,7 @@ import {
 } from "@workspace/db";
 import { broadcastSequenceStep } from "./email-marketing";
 import { requireAuthActive, getTokenPayload, isAdminRole } from "../lib/auth";
+import { deleteMediaForContent } from "../lib/media-store";
 import { complete } from "../lib/openrouter";
 import { MODELS } from "../lib/models";
 import { decrypt } from "../lib/crypto";
@@ -244,7 +245,7 @@ router.delete("/ai-orchestrator/files/:id", async (req, res): Promise<void> => {
   }
 
   const [existing] = await db
-    .select({ id: generatedFilesTable.id, userId: generatedFilesTable.userId })
+    .select({ id: generatedFilesTable.id, userId: generatedFilesTable.userId, content: generatedFilesTable.content })
     .from(generatedFilesTable)
     .where(eq(generatedFilesTable.id, fileId));
 
@@ -263,6 +264,8 @@ router.delete("/ai-orchestrator/files/:id", async (req, res): Promise<void> => {
   await db
     .delete(generatedFilesTable)
     .where(eq(generatedFilesTable.id, fileId));
+  // Blob URLs are public, so the bytes must go too.
+  await deleteMediaForContent(existing.content);
 
   res.status(204).end();
 });

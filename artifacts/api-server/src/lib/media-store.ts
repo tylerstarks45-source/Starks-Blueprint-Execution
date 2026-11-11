@@ -1,6 +1,7 @@
 // Durable storage for generated media bytes, served at /api/media/blob/:token.
 import { randomBytes } from "node:crypto";
 import { db, mediaBlobsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 export const SERVABLE_MEDIA_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "audio/mpeg"]);
 
@@ -15,4 +16,12 @@ export async function storeMedia(userId: number, data: Buffer, mimeType: string)
   const token = randomBytes(16).toString("hex");
   await db.insert(mediaBlobsTable).values({ token, userId, mimeType, byteSize: data.length, data });
   return mediaUrlFor(token);
+}
+
+const BLOB_URL_RE = /\/api\/media\/blob\/([0-9a-f]{32})$/;
+
+/** Removes the stored bytes behind a generated file's content URL, if it points at one. */
+export async function deleteMediaForContent(content: string): Promise<void> {
+  const token = BLOB_URL_RE.exec(content)?.[1];
+  if (token) await db.delete(mediaBlobsTable).where(eq(mediaBlobsTable.token, token));
 }

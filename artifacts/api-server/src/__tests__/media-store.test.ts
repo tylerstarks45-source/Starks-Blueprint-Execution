@@ -53,6 +53,10 @@ describe("generated media storage", () => {
 
     const gallery = await request(app).get("/api/media-gen/gallery").set("Authorization", `Bearer ${token}`);
     expect(gallery.body[0].content).toBe(res.body.url);
+
+    const del = await request(app).delete(`/api/ai-orchestrator/files/${gallery.body[0].id}`).set("Authorization", `Bearer ${token}`);
+    expect(del.status).toBe(204);
+    expect((await request(app).get(res.body.url)).status).toBe(404);
   });
 
   it("uses APP_URL for absolute links", async () => {

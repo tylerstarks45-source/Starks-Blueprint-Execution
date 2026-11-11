@@ -60,9 +60,11 @@ export async function runAshAgent(opts: {
       const spec = getTool(call.function.name);
       let args: Record<string, unknown>;
       try {
-        args = JSON.parse(call.function.arguments || "{}") as Record<string, unknown>;
+        const parsed: unknown = JSON.parse(call.function.arguments || "{}");
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw new Error("not an object");
+        args = parsed as Record<string, unknown>;
       } catch {
-        messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: "Arguments were not valid JSON" }) });
+        messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: "Arguments must be a JSON object" }) });
         steps.push({ tool: call.function.name, ok: false });
         continue;
       }

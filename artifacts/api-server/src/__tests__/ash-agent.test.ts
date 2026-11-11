@@ -143,6 +143,18 @@ describe("POST /api/ash/agent", () => {
     expect(toolMsgs[2].content).toContain("Missing scheduledAt");
   });
 
+  it("reports null or non-object arguments back to the model", async () => {
+    fetchSpy
+      .mockResolvedValueOnce(
+        reply({ content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "image", arguments: "null" } }, { id: "c2", type: "function", function: { name: "list_businesses", arguments: "[1]" } }] }),
+      )
+      .mockResolvedValueOnce(reply({ content: "Sorry." }));
+    const res = await ask("logo");
+    expect(res.status).toBe(200);
+    expect(res.body.steps).toEqual([{ tool: "image", ok: false }, { tool: "list_businesses", ok: false }]);
+    expect(sentBody(1).messages.filter((m: { role: string }) => m.role === "tool")[0].content).toContain("must be a JSON object");
+  });
+
   it("requires login", async () => {
     const res = await request(app).post("/api/ash/agent").send({ message: "hi" });
     expect(res.status).toBe(401);

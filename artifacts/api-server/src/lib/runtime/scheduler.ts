@@ -1192,3 +1192,5 @@ export function stopScheduler(): void {
   running = false;
   logger.info("Scheduler stopped");
 }
+
+export const __schedulerStateForTests = { ensureSchedulerStateTable, loadSchedulerState, getState, setState };

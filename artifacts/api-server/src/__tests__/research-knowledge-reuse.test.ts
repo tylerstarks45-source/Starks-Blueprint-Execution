@@ -280,6 +280,11 @@ describe("Research & Knowledge Engine — per-business weekly updates (forceFres
     const a1 = await run(a!.id);
     queueFullResearchRun(summary("B week 1"));
     const b1 = await run(b!.id);
+    const [unrelated] = await db
+      .insert(ashKnowledgeEntriesTable)
+      .values({ userId: testUserId, businessId: a!.id, ownerUserId: testUserId, category: "market_research", title: "A pricing study", content: "keep me", tags: ["market"] })
+      .returning({ id: ashKnowledgeEntriesTable.id });
+
     queueFullResearchRun(summary("A week 2"));
     const a2 = await run(a!.id);
 
@@ -290,7 +295,8 @@ describe("Research & Knowledge Engine — per-business weekly updates (forceFres
     expect(b1.knowledgeEntryId).not.toBe(a1.knowledgeEntryId);
 
     const rows = await db.select().from(ashKnowledgeEntriesTable).where(eq(ashKnowledgeEntriesTable.userId, testUserId));
-    expect(rows.map((r) => [r.businessId, r.title]).sort()).toEqual([[a!.id, "A week 2"], [b!.id, "B week 1"]].sort());
+    expect(rows.map((r) => [r.businessId, r.title]).sort()).toEqual([[a!.id, "A pricing study"], [a!.id, "A week 2"], [b!.id, "B week 1"]].sort());
+    expect(rows.find((r) => r.id === unrelated!.id)!.content).toBe("keep me");
 
     await db.delete(businessesTable).where(eq(businessesTable.ownerId, testUserId));
   });

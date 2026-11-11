@@ -1,5 +1,5 @@
 import { db, ashKnowledgeEntriesTable, type AshKnowledgeEntry, type AshResearchType } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { scoreRelevance } from "../memory-engine/relevance";
 import type { AshKnowledgeCategory } from "@workspace/db";
 
@@ -123,7 +123,10 @@ async function entriesForCategory(userId: number, researchType: AshResearchType)
     .where(and(eq(ashKnowledgeEntriesTable.userId, userId), eq(ashKnowledgeEntriesTable.category, category)));
 }
 
-/** The most recent entry of this research type saved for a specific business. */
+/** Tag on entries written by per-business weekly research; only those are ever replaced. */
+export const BUSINESS_UPDATE_TAG = "business_update";
+
+/** The most recent per-business update entry of this research type. */
 export async function findBusinessEntry(params: {
   userId: number;
   businessId: number;
@@ -136,6 +139,7 @@ export async function findBusinessEntry(params: {
       eq(ashKnowledgeEntriesTable.userId, params.userId),
       eq(ashKnowledgeEntriesTable.businessId, params.businessId),
       eq(ashKnowledgeEntriesTable.category, categoryForResearchType(params.researchType)),
+      sql`${ashKnowledgeEntriesTable.tags} @> ${JSON.stringify([BUSINESS_UPDATE_TAG])}::jsonb`,
     ))
     .orderBy(desc(ashKnowledgeEntriesTable.updatedAt))
     .limit(1);

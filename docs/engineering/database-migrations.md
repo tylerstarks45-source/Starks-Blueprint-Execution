@@ -16,7 +16,7 @@ pnpm --filter @workspace/scripts run seed   # tool catalog + skills; safe to re-
 
 Do this once, in order:
 
-1. Back up the database.
+1. Back up the database: `pnpm --filter @workspace/scripts run db:backup` (see `backup-restore.md`).
 2. Apply `lib/db/manual-migrations/0001_health_unmeasured_and_signal_index.sql` (idempotent) so the database matches the baseline.
 3. `pnpm --filter @workspace/scripts run db:baseline`: records `0000_baseline` as applied without running it.
 4. `pnpm --filter @workspace/scripts run db:migrate`: should report nothing to apply.

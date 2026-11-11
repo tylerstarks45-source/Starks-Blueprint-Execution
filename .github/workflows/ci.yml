@@ -37,6 +37,11 @@ jobs:
         run: pnpm --filter @workspace/scripts run db:migrate
       - name: Seed (run twice to prove idempotency)
         run: pnpm --filter @workspace/scripts run seed && pnpm --filter @workspace/scripts run seed
+      - name: Backup/restore drill
+        run: |
+          sudo apt-get install -y -q postgresql-client-16
+          export PATH=/usr/lib/postgresql/16/bin:$PATH
+          pnpm --filter @workspace/scripts run db:drill
       - name: Schema and migrations are in sync
         run: |
           (cd lib/db && pnpm exec drizzle-kit generate --config ./drizzle.config.ts)

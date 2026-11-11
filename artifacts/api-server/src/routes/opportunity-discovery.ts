@@ -3,6 +3,8 @@
 // REST API for the Opportunity Discovery Engine.
 // Reports and opportunities are immutable after POST /discover.
 
+import { executiveOpportunitiesTable } from "@workspace/db";
+import { requireBusinessOwner, businessIdParam, businessIdOfRecord, requireSelfParam } from "../lib/route-ownership";
 import { Router } from "express";
 import { requireAuthActive } from "../lib/auth";
 import {
@@ -15,6 +17,10 @@ import {
 import { getBusiness } from "../lib/business-graph/business-registry";
 
 const router = Router();
+
+// Tenant isolation: every business-scoped route is limited to the caller's own businesses.
+router.use("/businesses/:id", requireBusinessOwner(businessIdParam("id")));
+router.use("/opportunities/:id", requireBusinessOwner(businessIdOfRecord(executiveOpportunitiesTable, "id")));
 
 // ── POST /api/opportunity-discovery/businesses/:id/discover ──────────────────
 // Run a full opportunity discovery run.

@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "db:migrate": "tsx ./src/db-migrate.ts",
+    "db:baseline": "tsx ./src/db-baseline.ts",
+    "seed": "pnpm run seed-tools && pnpm run seed-skills",
     "seed-tools": "tsx ./src/seed-tools.ts",
     "migrate-credentials": "tsx ./src/migrate-credentials.ts",
     "rotate-credentials": "tsx ./src/rotate-credentials.ts",

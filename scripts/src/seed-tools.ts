@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { db, toolsTable, toolCategoriesTable, affiliateLinksTable } from "@workspace/db";
 import { toolAffiliateLinks } from "../../artifacts/web/src/config/toolAffiliateLinks.js";
 
@@ -42,12 +43,8 @@ async function main() {
     }
   }
 
-  // 2. Clear out stale tools + affiliate links (no FK dependents exist pre-launch)
-  await db.delete(affiliateLinksTable);
-  await db.delete(toolsTable);
-  console.log("  cleared existing tools + affiliate_links");
-
-  // 3. Insert every tool from the canonical config with its real affiliate link
+  // 2. Upsert every tool from the canonical config by name. Non-destructive:
+  // tools are referenced by user selections, credentials and recommendations.
   const entries = Object.values(toolAffiliateLinks) as Array<{
     name: string;
     category: string;
@@ -56,38 +53,50 @@ async function main() {
     description?: string;
   }>;
 
+  const existingTools = await db.select({ id: toolsTable.id, name: toolsTable.name }).from(toolsTable);
+  const toolIdByName = new Map(existingTools.map((t) => [t.name, t.id]));
+
   let toolCount = 0;
   let linkCount = 0;
 
   for (const tool of entries) {
     const link = tool.affiliate_link || tool.cta_link || "";
     const categoryId = catByName.get(tool.category) ?? catByName.get("AI Tools")!;
+    const values = {
+      categoryId,
+      name: tool.name,
+      description: tool.description ?? null,
+      affiliateLink: link || null,
+      signupUrl: link || null,
+    };
 
-    const [inserted] = await db
-      .insert(toolsTable)
-      .values({
-        categoryId,
-        name: tool.name,
-        description: tool.description ?? null,
-        affiliateLink: link || null,
-        signupUrl: link || null,
-        activeStatus: true,
-      })
-      .returning();
+    let toolId = toolIdByName.get(tool.name);
+    if (toolId) {
+      await db.update(toolsTable).set(values).where(eq(toolsTable.id, toolId));
+    } else {
+      const [inserted] = await db.insert(toolsTable).values({ ...values, activeStatus: true }).returning({ id: toolsTable.id });
+      toolId = inserted.id;
+      toolIdByName.set(tool.name, toolId);
+    }
     toolCount++;
 
     if (link) {
-      await db.insert(affiliateLinksTable).values({
-        toolId: inserted.id,
-        url: link,
-        campaign: extractCampaign(link),
-        active: true,
-      });
+      const [existingLink] = await db
+        .select({ id: affiliateLinksTable.id })
+        .from(affiliateLinksTable)
+        .where(eq(affiliateLinksTable.toolId, toolId))
+        .limit(1);
+      const linkValues = { toolId, url: link, campaign: extractCampaign(link) };
+      if (existingLink) {
+        await db.update(affiliateLinksTable).set(linkValues).where(eq(affiliateLinksTable.id, existingLink.id));
+      } else {
+        await db.insert(affiliateLinksTable).values({ ...linkValues, active: true });
+      }
       linkCount++;
     }
   }
 
-  console.log(`Done. Inserted ${toolCount} tools and ${linkCount} affiliate links across ${catByName.size} categories.`);
+  console.log(`Done. Upserted ${toolCount} tools and ${linkCount} affiliate links across ${catByName.size} categories.`);
   process.exit(0);
 }
 

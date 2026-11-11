@@ -15,8 +15,8 @@ export type ModelChain = string[];
 // Media models (OpenRouter /audio/transcriptions, /audio/speech, /images).
 export const MEDIA_MODELS = {
   transcription: "openai/whisper-large-v3",
-  speech: "openai/gpt-4o-mini-tts-2025-12-15",
-  image: "openai/gpt-image-1",
+  speech: "deepgram/aura-2",
+  image: "openai/gpt-image-2",
 } as const;
 
 // Canonical model IDs used across the platform. Keep these as the ONLY place

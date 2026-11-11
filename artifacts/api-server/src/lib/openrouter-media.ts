@@ -11,10 +11,10 @@ const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 // Used when OpenRouter does not report a cost for the call.
 const FALLBACK_USD = { transcription: 0.01, speech: 0.015, image: 0.04 } as const;
 // The speech endpoint returns raw audio with no usage block, so bill by input length
-// at the common $15 per million characters TTS rate.
-const SPEECH_USD_PER_MILLION_CHARS = 15;
+// at Deepgram Aura-2's $30 per million characters.
+const SPEECH_USD_PER_MILLION_CHARS = 30;
 const MIN_SPEECH_USD = 0.001;
-// Multiply before dividing: 4000 * (15 / 1e6) is 0.060000000000000005, which rounds up a credit.
+// Multiply before dividing to avoid float error that rounds up a credit.
 export const speechCostUsd = (text: string): number =>
   Math.max(MIN_SPEECH_USD, (text.length * SPEECH_USD_PER_MILLION_CHARS) / 1_000_000);
 type MediaKind = keyof typeof FALLBACK_USD;
@@ -128,13 +128,25 @@ export function transcribeAudio(opts: { audio: Buffer; format: string; userId?: 
   });
 }
 
+// Callers use OpenAI voice names; Aura-2 has its own catalog. Aura-2 names pass through.
+const AURA_VOICES: Record<string, string> = {
+  alloy: "aura-2-thalia-en",
+  echo: "aura-2-arcas-en",
+  fable: "aura-2-draco-en",
+  onyx: "aura-2-orion-en",
+  nova: "aura-2-luna-en",
+  shimmer: "aura-2-asteria-en",
+};
+export const speechVoice = (voice: string): string =>
+  voice.startsWith("aura-2-") ? voice : AURA_VOICES[voice.toLowerCase()] ?? AURA_VOICES.onyx;
+
 export function synthesizeSpeech(opts: { text: string; voice: string; userId?: number; instructions?: string }): Promise<Buffer> {
   const model = MEDIA_MODELS.speech;
   return run("speech", model, opts.userId, async () => {
     const res = await post("/audio/speech", {
       model,
       input: opts.text,
-      voice: opts.voice,
+      voice: speechVoice(opts.voice),
       response_format: "mp3",
       ...(opts.instructions ? { instructions: opts.instructions } : {}),
     });

@@ -55,7 +55,7 @@ describe("runScheduledResearch", () => {
     const calls = vi.mocked(runResearchEngine).mock.calls.map((c) => c[0]);
     const mine = calls.filter((c) => c.userId === operator || c.userId === free);
     expect(mine).toHaveLength(1);
-    expect(mine[0]).toMatchObject({ userId: operator, researchType: "market", projectId: null, forceFresh: true });
+    expect(mine[0]).toMatchObject({ userId: operator, researchType: "market", projectId: null, forceFresh: true, businessId: biz["Ops On"] });
     expect(mine[0]!.objective).toContain("Ops On (ecommerce)");
     expect(state.get(researchStateKey(biz["Ops On"]!))).toBe(now);
 

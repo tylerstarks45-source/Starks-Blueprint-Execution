@@ -14,6 +14,8 @@ export interface ResearchRequest {
   objective: string; // what the user actually wants to know
   /** Always gather new findings and save them as a new entry (dated updates, e.g. weekly research). */
   forceFresh?: boolean;
+  /** Business the research is about. With forceFresh, the business's previous entry is replaced. */
+  businessId?: number | null;
 }
 
 export interface ResearchPlanStep {

@@ -53,7 +53,7 @@ export async function runScheduledResearch(opts: {
     try {
       // forceFresh: a weekly update must gather new findings, and must not reuse
       // or overwrite knowledge from the owner's other businesses.
-      const result = await runResearchEngine({ userId: b.ownerId, projectId: null, researchType: "market", objective: researchObjective(b), forceFresh: true });
+      const result = await runResearchEngine({ userId: b.ownerId, projectId: null, researchType: "market", objective: researchObjective(b), forceFresh: true, businessId: b.id });
       if (result.knowledgeAction === "failed") throw new Error("research run failed");
       ran++;
     } catch (err) {

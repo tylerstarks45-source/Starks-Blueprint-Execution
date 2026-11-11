@@ -1,5 +1,5 @@
 import { db, ashKnowledgeEntriesTable, type AshKnowledgeEntry, type AshResearchType } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { scoreRelevance } from "../memory-engine/relevance";
 import type { AshKnowledgeCategory } from "@workspace/db";
 
@@ -121,4 +121,23 @@ async function entriesForCategory(userId: number, researchType: AshResearchType)
     .select()
     .from(ashKnowledgeEntriesTable)
     .where(and(eq(ashKnowledgeEntriesTable.userId, userId), eq(ashKnowledgeEntriesTable.category, category)));
+}
+
+/** The most recent entry of this research type saved for a specific business. */
+export async function findBusinessEntry(params: {
+  userId: number;
+  businessId: number;
+  researchType: AshResearchType;
+}): Promise<AshKnowledgeEntry | null> {
+  const [row] = await db
+    .select()
+    .from(ashKnowledgeEntriesTable)
+    .where(and(
+      eq(ashKnowledgeEntriesTable.userId, params.userId),
+      eq(ashKnowledgeEntriesTable.businessId, params.businessId),
+      eq(ashKnowledgeEntriesTable.category, categoryForResearchType(params.researchType)),
+    ))
+    .orderBy(desc(ashKnowledgeEntriesTable.updatedAt))
+    .limit(1);
+  return row ?? null;
 }

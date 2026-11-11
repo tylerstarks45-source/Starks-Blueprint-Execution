@@ -1,7 +1,7 @@
 import { db, ashResearchSessionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../logger";
-import { findReusableKnowledge, findExistingEntryForTopic } from "./knowledge-lookup";
+import { findReusableKnowledge, findExistingEntryForTopic, findBusinessEntry } from "./knowledge-lookup";
 import { generateResearchPlan } from "./planner";
 import { gatherInformation } from "./gatherer";
 import { removeDuplicateFindings } from "./deduper";
@@ -101,8 +101,12 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
     // something already in Knowledge Memory? Checked regardless of the
     // step-0 staleness gate above — a stale-but-matching entry should be
     // UPDATED with this fresher research, not duplicated.
+    // forceFresh never matches by topic (that could hit another business's entry);
+    // it replaces only this business's own previous entry.
     const existingEntry = request.forceFresh
-      ? null
+      ? request.businessId
+        ? await findBusinessEntry({ userId: request.userId, businessId: request.businessId, researchType: request.researchType })
+        : null
       : await findExistingEntryForTopic({
           userId: request.userId,
           researchType: request.researchType,
@@ -117,6 +121,7 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
       summary,
       sources,
       existingEntryId: existingEntry?.id ?? null,
+      businessId: request.businessId ?? null,
     });
 
     await db.update(ashResearchSessionsTable).set({

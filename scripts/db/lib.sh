@@ -2,7 +2,12 @@
 _db_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # use_db <url>: point libpq (PG* env vars) at <url> for the current shell.
-use_db() { eval "$(node "$_db_lib_dir/pgenv.mjs" "$1")"; }
+# The URL goes to node via the environment, not argv. Fails on an invalid URL.
+use_db() {
+  local exports
+  exports="$(PGENV_URL="$1" node "$_db_lib_dir/pgenv.mjs")" || return 1
+  eval "$exports"
+}
 
 # db_name <url>: database name in <url>.
 db_name() { local u="${1%%\?*}"; echo "${u##*/}"; }

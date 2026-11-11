@@ -1,3 +1,4 @@
+import { runAshAgent } from "../lib/ash-agent";
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, desc, and } from "drizzle-orm";
@@ -19,7 +20,8 @@ import {
 import { broadcastSequenceStep } from "./email-marketing";
 import { requireAuthActive, getTokenPayload, isAdminRole } from "../lib/auth";
 import { complete } from "../lib/openrouter";
-import { MODELS } from "../lib/models";
+import { MODELS, chainForAgentMode } from "../lib/models";
+import { OutOfCreditsError } from "../lib/credits";
 import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector, listConnectors } from "../lib/connectors/registry";
 import { z } from "zod";
@@ -679,6 +681,58 @@ router.post("/ai-orchestrator/platform-action", async (req, res): Promise<void> 
   }
 
   res.status(400).json({ error: "Unknown tool" });
+});
+
+// ─── POST /api/ai-orchestrator/agent (alias /api/ash/agent) — ASH with native tool calling
+// Same contract as the chat routes' SBEP_DATA: workspace actions come back as
+// structuredData {action: "tool_calls", calls}.
+const ASH_AGENT_PROMPT = `You are ASH, the AI business operator of the STARKS platform.
+Use tools to ground every answer in the user's real data: call list_businesses / get_business_context / get_portfolio_summary before giving business-specific advice, and research for anything time-sensitive.
+Never invent metrics; if a value isn't measured, say so.
+Use workspace tools (image, file, schedule_post, connector_action, ...) only when the user asks for that output or clearly wants it produced.
+Be direct and concise.`;
+
+router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const schema = z.object({
+    message: z.string().min(1).max(8000),
+    history: z
+      .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(8000) }))
+      .max(20)
+      .optional()
+      .default([]),
+    mode: z.string().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+
+  try {
+    const { message, history, mode } = parsed.data;
+    const result = await runAshAgent({
+      userId,
+      systemPrompt: ASH_AGENT_PROMPT,
+      messages: [...history, { role: "user", content: message }],
+      models: chainForAgentMode(mode),
+    });
+    res.json({
+      content: result.content,
+      structuredData: result.clientCalls.length ? { action: "tool_calls", calls: result.clientCalls } : null,
+      steps: result.steps,
+      model: result.model,
+    });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({ error: "Out of credits" });
+      return;
+    }
+    req.log.error({ err: err instanceof Error ? err.message : String(err) }, "ASH agent failed");
+    res.status(502).json({ error: "ASH is unavailable right now" });
+  }
 });
 
 export default router;

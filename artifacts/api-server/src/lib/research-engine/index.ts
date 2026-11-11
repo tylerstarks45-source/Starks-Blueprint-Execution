@@ -1,7 +1,7 @@
 import { db, ashResearchSessionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../logger";
-import { findReusableKnowledge, findExistingEntryForTopic, findBusinessEntry, BUSINESS_UPDATE_TAG } from "./knowledge-lookup";
+import { findReusableKnowledge, findExistingEntryForTopic, findBusinessEntry, findTaggedEntry, BUSINESS_UPDATE_TAG } from "./knowledge-lookup";
 import { generateResearchPlan } from "./planner";
 import { gatherInformation } from "./gatherer";
 import { removeDuplicateFindings } from "./deduper";
@@ -106,7 +106,9 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
     const existingEntry = request.forceFresh
       ? request.businessId
         ? await findBusinessEntry({ userId: request.userId, businessId: request.businessId, researchType: request.researchType })
-        : null
+        : request.knowledgeTag
+          ? await findTaggedEntry({ userId: request.userId, tag: request.knowledgeTag, researchType: request.researchType })
+          : null
       : await findExistingEntryForTopic({
           userId: request.userId,
           researchType: request.researchType,
@@ -115,11 +117,15 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
 
     // Step 7: save (insert) or update when appropriate.
     const isBusinessUpdate = Boolean(request.forceFresh && request.businessId);
+    const extraTags = [
+      ...(isBusinessUpdate ? [BUSINESS_UPDATE_TAG] : []),
+      ...(request.knowledgeTag ? [request.knowledgeTag] : []),
+    ];
     const { entry: knowledgeEntry, action } = await saveOrUpdateKnowledgeMemory({
       userId: request.userId,
       sourceProjectId: request.projectId,
       researchType: request.researchType,
-      summary: isBusinessUpdate ? { ...summary, tags: [...summary.tags, BUSINESS_UPDATE_TAG] } : summary,
+      summary: extraTags.length ? { ...summary, tags: [...new Set([...summary.tags, ...extraTags])] } : summary,
       sources,
       existingEntryId: existingEntry?.id ?? null,
       businessId: request.businessId ?? null,

@@ -16,6 +16,8 @@ export interface ResearchRequest {
   forceFresh?: boolean;
   /** Business the research is about. With forceFresh, the business's previous entry is replaced. */
   businessId?: number | null;
+  /** With forceFresh and no businessId: replace the previous entry carrying this tag instead of inserting a new one. */
+  knowledgeTag?: string;
 }
 
 export interface ResearchPlanStep {

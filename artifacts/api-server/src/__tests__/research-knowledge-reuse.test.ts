@@ -301,6 +301,24 @@ describe("Research & Knowledge Engine — per-business weekly updates (forceFres
     await db.delete(businessesTable).where(eq(businessesTable.ownerId, testUserId));
   });
 
+  it("tagged scheduled research replaces only its own topic entry and is never overwritten interactively", async () => {
+    const summary = (title: string) => ({ title, summary: `${title} summary`, keyFindings: ["x"], tags: ["trend"], confidenceScore: 80 });
+    const run = (tag: string) =>
+      runResearchEngine({ userId: testUserId, projectId: null, researchType: "trend", objective: "Online income opportunities right now", forceFresh: true, knowledgeTag: tag });
+    queueFullResearchRun(summary("Digital products v1"));
+    const d1 = await run("online_opportunity:digital_products");
+    queueFullResearchRun(summary("Micro SaaS v1"));
+    const m1 = await run("online_opportunity:micro_saas");
+    queueFullResearchRun(summary("Digital products v2"));
+    const d2 = await run("online_opportunity:digital_products");
+    expect(d2.knowledgeEntryId).toBe(d1.knowledgeEntryId);
+    expect(m1.knowledgeEntryId).not.toBe(d1.knowledgeEntryId);
+    const rows = await db.select().from(ashKnowledgeEntriesTable).where(eq(ashKnowledgeEntriesTable.userId, testUserId));
+    expect(rows.map((r) => r.title).sort()).toEqual(["Digital products v2", "Micro SaaS v1"]);
+    expect(rows.find((r) => r.id === d2.knowledgeEntryId)!.tags).toContain("online_opportunity:digital_products");
+    expect(await findExistingEntryForTopic({ userId: testUserId, researchType: "trend", objective: "Online income opportunities right now" })).toBeNull();
+  });
+
   it("interactive research never picks a weekly entry to overwrite", async () => {
     await db.insert(ashKnowledgeEntriesTable).values({
       userId: testUserId, ownerUserId: testUserId, category: "market_research",

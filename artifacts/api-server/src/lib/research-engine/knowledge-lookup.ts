@@ -112,7 +112,7 @@ export async function findExistingEntryForTopic(params: {
 }): Promise<AshKnowledgeEntry | null> {
   // Per-business weekly entries may be read (reused) but are only ever rewritten by weekly research.
   const rows = (await entriesForCategory(params.userId, params.researchType))
-    .filter((e) => !(Array.isArray(e.tags) && e.tags.includes(BUSINESS_UPDATE_TAG)));
+    .filter((e) => !(Array.isArray(e.tags) && e.tags.some((t) => isScheduledTag(String(t)))));
   const best = bestMatch(rows, params.objective, { minRelevance: REUSE_RELEVANCE_THRESHOLD });
   return best?.entry ?? null;
 }
@@ -127,6 +127,28 @@ async function entriesForCategory(userId: number, researchType: AshResearchType)
 
 /** Tag on entries written by per-business weekly research; only those are ever replaced. */
 export const BUSINESS_UPDATE_TAG = "business_update";
+/** Prefix of the per-topic tag on entries written by the daily online-opportunity scan. */
+export const OPPORTUNITY_TAG_PREFIX = "online_opportunity:";
+const isScheduledTag = (t: string) => t === BUSINESS_UPDATE_TAG || t.startsWith(OPPORTUNITY_TAG_PREFIX);
+
+/** The most recent entry of this research type carrying `tag`. */
+export async function findTaggedEntry(params: {
+  userId: number;
+  tag: string;
+  researchType: AshResearchType;
+}): Promise<AshKnowledgeEntry | null> {
+  const [row] = await db
+    .select()
+    .from(ashKnowledgeEntriesTable)
+    .where(and(
+      eq(ashKnowledgeEntriesTable.userId, params.userId),
+      eq(ashKnowledgeEntriesTable.category, categoryForResearchType(params.researchType)),
+      sql`${ashKnowledgeEntriesTable.tags} @> ${JSON.stringify([params.tag])}::jsonb`,
+    ))
+    .orderBy(desc(ashKnowledgeEntriesTable.updatedAt))
+    .limit(1);
+  return row ?? null;
+}
 
 /** The most recent per-business update entry of this research type. */
 export async function findBusinessEntry(params: {

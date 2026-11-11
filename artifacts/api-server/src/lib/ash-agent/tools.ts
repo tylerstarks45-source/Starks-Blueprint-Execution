@@ -4,7 +4,7 @@
 // model. Every server tool is scoped to the calling user. "client" tools are
 // the existing workspace actions the web app already executes from
 // SBEP_DATA {"action":"tool_calls"} blocks; the loop forwards them unchanged.
-import { db, businessesTable } from "@workspace/db";
+import { db, businessesTable, SOCIAL_PLATFORMS } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { ToolDefinition } from "../openrouter";
 import { complete } from "../openrouter";
@@ -21,6 +21,8 @@ interface ToolSpec {
   parameters: JsonSchema;
   kind: "server" | "client";
   run?: (userId: number, args: Args) => Promise<unknown>;
+  // Client tools whose workspace call has a different shape than their arguments.
+  toClientCall?: (args: Args) => Record<string, unknown>;
 }
 
 const obj = (properties: Record<string, JsonSchema>, required: string[] = []): JsonSchema => ({
@@ -125,10 +127,12 @@ const SPECS: ToolSpec[] = [
     name: "schedule_post",
     description: "Add a social post to the user's Content Calendar.",
     parameters: obj(
-      { platform: str("twitter, linkedin, instagram, facebook, tiktok"), content: str("Post text"), scheduledAt: str("ISO 8601 time"), linkUrl: str("Optional link") },
+      { platform: { type: "string", enum: [...SOCIAL_PLATFORMS] }, content: str("Post text"), scheduledAt: str("ISO 8601 time"), linkUrl: str("Optional link") },
       ["platform", "content", "scheduledAt"],
     ),
     kind: "client",
+    // The workspace schedules posts through platform_action / schedule_social_post.
+    toClientCall: (a) => ({ type: "platform_action", tool: "schedule_social_post", params: a }),
   },
 ];
 

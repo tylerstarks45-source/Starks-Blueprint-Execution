@@ -67,7 +67,7 @@ export async function runAshAgent(opts: {
         continue;
       }
       if (spec.kind === "client") {
-        clientCalls.push({ ...args, type: spec.name });
+        clientCalls.push(spec.toClientCall ? (spec.toClientCall(args) as ClientToolCall) : { ...args, type: spec.name });
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ status: "queued", note: "Runs in the user's workspace after this reply." }) });
         steps.push({ tool: spec.name, ok: true });
         continue;

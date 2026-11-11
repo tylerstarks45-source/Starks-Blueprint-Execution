@@ -108,6 +108,16 @@ describe("POST /api/ash/agent", () => {
     expect(sentBody(6).tools).toBeUndefined();
   });
 
+  it("sends schedule_post as the platform_action the workspace runs", async () => {
+    fetchSpy
+      .mockResolvedValueOnce(reply({ content: null, tool_calls: [call("c1", "schedule_post", { platform: "twitter", content: "hi", scheduledAt: "2030-01-01T00:00:00Z" })] }))
+      .mockResolvedValueOnce(reply({ content: "Scheduled." }));
+    const res = await ask("post hi tomorrow");
+    expect(res.body.structuredData.calls).toEqual([
+      { type: "platform_action", tool: "schedule_social_post", params: { platform: "twitter", content: "hi", scheduledAt: "2030-01-01T00:00:00Z" } },
+    ]);
+  });
+
   it("requires login", async () => {
     const res = await request(app).post("/api/ash/agent").send({ message: "hi" });
     expect(res.status).toBe(401);

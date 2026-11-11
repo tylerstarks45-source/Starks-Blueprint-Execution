@@ -91,7 +91,7 @@ const SPECS: ToolSpec[] = [
   {
     name: "generate_video",
     description: "Generate a short video in the user's workspace.",
-    parameters: obj({ prompt: str("Scene description"), aspectRatio: { type: "string", enum: ["16:9", "9:16", "1:1"] }, durationSeconds: int("Length in seconds") }, ["prompt"]),
+    parameters: obj({ prompt: str("Scene description"), aspectRatio: { type: "string", enum: ["16:9", "9:16"] }, durationSeconds: int("Length in seconds") }, ["prompt"]),
     kind: "client",
   },
   {

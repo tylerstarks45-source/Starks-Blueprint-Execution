@@ -172,33 +172,33 @@ router.use(executivePlanRouter);
 // Build 010: Executive Execution Engine — state machine, coordinator, steps, history, recovery, adapters
 router.use(executiveExecutionRouter);
 // Build 011: Executive Observation Engine — ingest, chains, signals, trends, anomalies, correlations
-router.use("/api/executive-observation", executiveObservationRouter);
+router.use(["/executive-observation", "/api/executive-observation"], executiveObservationRouter);
 // Build 012: Executive Reflection Engine — cases, timelines, reports, factors, scores, evidence
-router.use("/api/executive-reflection", executiveReflectionRouter);
+router.use(["/executive-reflection", "/api/executive-reflection"], executiveReflectionRouter);
 // Build 013: Executive Principle Learning Engine — principles, patterns, graph, reports
-router.use("/api/executive-learning", executiveLearningRouter);
+router.use(["/executive-learning", "/api/executive-learning"], executiveLearningRouter);
 // Build 014: Executive Governance & Adaptation Engine — policies, profiles, plans, rollback
-router.use("/api/executive-governance", executiveGovernanceRouter);
+router.use(["/executive-governance", "/api/executive-governance"], executiveGovernanceRouter);
 // Build 015: Business Graph Engine — nodes, edges, KPIs, health, dependencies
-router.use("/api/business-graph", businessGraphRouter);
+router.use(["/business-graph", "/api/business-graph"], businessGraphRouter);
 // Build 016: Business Analysis Engine — reports, findings, bottlenecks, constraints, leverage
-router.use("/api/business-analysis", businessAnalysisRouter);
+router.use(["/business-analysis", "/api/business-analysis"], businessAnalysisRouter);
 // Build 017: Opportunity Discovery Engine — ranked opportunities, evidence, scores
-router.use("/api/opportunity-discovery", opportunityDiscoveryRouter);
+router.use(["/opportunity-discovery", "/api/opportunity-discovery"], opportunityDiscoveryRouter);
 // Build 018: Future State Simulation Engine — scenarios, branches, outcomes, projections
-router.use("/api/future-simulation", futureSimulationRouter);
+router.use(["/future-simulation", "/api/future-simulation"], futureSimulationRouter);
 // Build 019: Decision Intelligence Engine — evaluate, compare, select, justify
-router.use("/api/decision-intelligence", decisionIntelligenceRouter);
+router.use(["/decision-intelligence", "/api/decision-intelligence"], decisionIntelligenceRouter);
 // Build 020: Executive Strategy Engine — form strategy, pillars, objectives, dependencies, constraints
-router.use("/api/executive-strategy", executiveStrategyRouter);
+router.use(["/executive-strategy", "/api/executive-strategy"], executiveStrategyRouter);
 // Build 021: Strategic Planning Engine — programmes, initiatives, milestones, sequences, readiness
-router.use("/api/strategic-planning", strategicPlanningRouter);
+router.use(["/strategic-planning", "/api/strategic-planning"], strategicPlanningRouter);
 // Build 022: Capability Planning Engine — domains, requirements, gaps, readiness, dependencies
-router.use("/api/capability-planning", capabilityPlanningRouter);
+router.use(["/capability-planning", "/api/capability-planning"], capabilityPlanningRouter);
 // Build 023: Operational Planning Engine — phases, work packages, dependencies, sequences, readiness
-router.use("/api/operational-planning", operationalPlanningRouter);
+router.use(["/operational-planning", "/api/operational-planning"], operationalPlanningRouter);
 // Build 024: Execution Orchestration Engine — assignments, owners, queues, policies, readiness
-router.use("/api/execution-orchestration", executionOrchestrationRouter);
+router.use(["/execution-orchestration", "/api/execution-orchestration"], executionOrchestrationRouter);
 // Build 025: Authority Resolution Engine — requirements, grants, scopes, decisions, registry
 router.use(authorityResolutionRouter);
 // Build 026: Execution Risk Assessment Engine — risk profiles, mitigations, safety scores, registry

@@ -151,8 +151,9 @@ router.post("/businesses/:id/recommendations/:recId/apply", async (req, res): Pr
   }
 
   const ctx: GovernedWriteContext = { ownerUserId: caller.id, sourceEngine: "business_intelligence.recommendations", actor: actorFor("user", caller.id), businessId: business.id };
-  const payload = before.status === "applied" ? before.payload : await payloadWithBaseline(before);
-  const row = await updateRecommendation(db, ctx, before, { status: "applied", resolvedAt: before.resolvedAt ?? new Date(), payload });
+  const reapply = before.status === "applied";
+  const payload = reapply ? before.payload : await payloadWithBaseline(before);
+  const row = await updateRecommendation(db, ctx, before, { status: "applied", resolvedAt: reapply ? before.resolvedAt : new Date(), payload });
 
   res.json(serialize(row));
 });

@@ -68,12 +68,13 @@ describe("recommendation outcome measurement", () => {
     expect((again.payload as { outcome: RecommendationOutcome }).outcome.baselineAt).toBe(outcome.baselineAt);
 
     const later = new Date(Date.now() + MEASURE_AFTER_MS + DAY);
-    // No score since the baseline yet: stays pending.
-    await measureRecommendationOutcomes(later);
+    // Only a score from before day 14 exists: stays pending, the early score is not the result.
+    await addScore(70, new Date(Date.now() + 1000));
+    expect((await measureRecommendationOutcomes(later)).measured).toBe(0);
     const [pending] = await db.select().from(businessRecommendationsTable).where(eq(businessRecommendationsTable.id, rec.id));
     expect((pending.payload as { outcome: RecommendationOutcome }).outcome.result).toBeUndefined();
 
-    await addScore(55, new Date(Date.now() + 1000));
+    await addScore(55, new Date(Date.now() + MEASURE_AFTER_MS + 1000));
     // Too early: nothing measured.
     expect((await measureRecommendationOutcomes(new Date())).measured).toBe(0);
     await measureRecommendationOutcomes(later);

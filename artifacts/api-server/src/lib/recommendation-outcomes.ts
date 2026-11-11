@@ -4,7 +4,7 @@
 // again and records whether it moved. Distillation turns those results into
 // "recommendation_category" lessons so ASH favors what has measurably worked.
 import { db, businessHealthScoresTable, businessRecommendationsTable, ashLessonsTable, type BusinessRecommendation } from "@workspace/db";
-import { and, desc, eq, gt, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { updateRecommendation } from "./governance/writes/recommendations-writes";
 import { actorFor } from "./governance/types";
@@ -44,12 +44,12 @@ export function verdictFor(delta: number): OutcomeVerdict {
   return "unchanged";
 }
 
-async function latestScore(businessId: number, after?: Date) {
+async function latestScore(businessId: number, notBefore?: Date) {
   const [row] = await db
     .select()
     .from(businessHealthScoresTable)
-    .where(after
-      ? and(eq(businessHealthScoresTable.businessId, businessId), gt(businessHealthScoresTable.createdAt, after))
+    .where(notBefore
+      ? and(eq(businessHealthScoresTable.businessId, businessId), gte(businessHealthScoresTable.createdAt, notBefore))
       : eq(businessHealthScoresTable.businessId, businessId))
     .orderBy(desc(businessHealthScoresTable.createdAt))
     .limit(1);
@@ -66,26 +66,33 @@ export async function payloadWithBaseline(rec: BusinessRecommendation, now = new
   return { ...payload, outcome };
 }
 
-/** Record results for applied recommendations whose measurement window has passed. */
-export async function measureRecommendationOutcomes(now = new Date()): Promise<{ measured: number; pending: number }> {
+/**
+ * Record results for applied recommendations whose measurement window has
+ * passed. Only a score taken at least MEASURE_AFTER_MS after the baseline counts,
+ * and only recommendations that already have one are selected, so ones still
+ * waiting for a score never crowd out ones that can be measured.
+ */
+export async function measureRecommendationOutcomes(now = new Date()): Promise<{ measured: number }> {
+  const windowEnd = sql`(${businessRecommendationsTable.payload} -> 'outcome' ->> 'baselineAt')::timestamptz + make_interval(secs => ${MEASURE_AFTER_MS / 1000})`;
   const due = await db
     .select()
     .from(businessRecommendationsTable)
     .where(and(
       eq(businessRecommendationsTable.status, "applied"),
-      lte(businessRecommendationsTable.resolvedAt, new Date(now.getTime() - MEASURE_AFTER_MS)),
       sql`${businessRecommendationsTable.payload} ? 'outcome'`,
       isNull(sql`${businessRecommendationsTable.payload} -> 'outcome' -> 'result'`),
+      sql`${windowEnd} <= ${now.toISOString()}::timestamptz`,
+      sql`EXISTS (SELECT 1 FROM business_health_scores h WHERE h.business_id = ${businessRecommendationsTable.businessId} AND h.created_at >= ${windowEnd})`,
     ))
+    .orderBy(asc(businessRecommendationsTable.id))
     .limit(MAX_PER_TICK);
 
   let measured = 0;
-  let pending = 0;
   for (const rec of due) {
     const payload = rec.payload as Record<string, unknown> & { outcome: RecommendationOutcome };
     const outcome = payload.outcome;
-    const score = await latestScore(rec.businessId, new Date(outcome.baselineAt));
-    if (!score) { pending++; continue; }
+    const score = await latestScore(rec.businessId, new Date(new Date(outcome.baselineAt).getTime() + MEASURE_AFTER_MS));
+    if (!score) continue;
     const value = score[outcome.metric];
     const delta = value - outcome.baseline;
     const result = { value, delta, verdict: verdictFor(delta), measuredAt: now.toISOString() };
@@ -101,7 +108,7 @@ export async function measureRecommendationOutcomes(now = new Date()): Promise<{
       logger.warn({ err, recommendationId: rec.id }, "Recording recommendation outcome failed");
     }
   }
-  return { measured, pending };
+  return { measured };
 }
 
 interface CategoryRow { category: string; total: number; improved: number; declined: number; avg_delta: number }

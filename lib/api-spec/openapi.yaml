@@ -6829,35 +6829,26 @@ components:
         systemInstanceId:
           type: integer
         overallScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         status:
           type: string
           enum: [healthy, degraded, critical, unknown]
         connectionScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         hostingScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         apiScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         seoScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         performanceScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         securityScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         revenueScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         automationScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         issues:
           type: array
           items:
@@ -6874,35 +6865,26 @@ components:
         businessId:
           type: integer
         overallScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         status:
           type: string
           enum: [healthy, degraded, critical, unknown]
         connectionScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         hostingScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         apiScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         seoScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         performanceScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         securityScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         revenueScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         automationScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         issues:
           type: array
           items:
@@ -6982,8 +6964,7 @@ components:
       type: object
       properties:
         overallScore:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         status:
           type: string
         selfHealActionsTaken:

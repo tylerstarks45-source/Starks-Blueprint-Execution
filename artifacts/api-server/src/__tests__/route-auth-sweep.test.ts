@@ -140,4 +140,49 @@ describe("route authorization sweep", () => {
     }
     expect(allowed).toEqual([]);
   }, 300_000);
+
+  it("keeps business-graph data scoped to the business owner", async () => {
+    const { db, usersTable, businessesTable } = await import("@workspace/db");
+    const { eq, inArray } = await import("drizzle-orm");
+    const [owner] = await db
+      .insert(usersTable)
+      .values({ email: `auth_sweep_owner_${Date.now()}@test.internal`, role: "USER", membershipStatus: "active", membershipTier: "starter" })
+      .returning({ id: usersTable.id });
+    const ownerToken = jwt.sign({ sub: owner.id, email: "", role: "USER", tokenVersion: 1 }, process.env["SESSION_SECRET"]!);
+    const [biz] = await db.insert(businessesTable).values({ ownerId: owner.id, name: "Graph Owner Co", businessType: "saas" }).returning({ id: businessesTable.id });
+    try {
+      const asOwner = (method: "get" | "post" | "patch", url: string) => (request(app) as any)[method](url).set("Authorization", `Bearer ${ownerToken}`);
+      const asOther = (method: "get" | "post" | "patch", url: string) => (request(app) as any)[method](url).set("Authorization", `Bearer ${userToken}`);
+
+      const node = await asOwner("post", `/api/business-graph/businesses/${biz.id}/nodes`).send({ nodeType: "product", name: "Core product" });
+      expect(node.status).toBe(201);
+      const kpi = await asOwner("post", `/api/business-graph/businesses/${biz.id}/kpis`).send({ name: "MRR", kpiType: "revenue" });
+      expect(kpi.status).toBe(201);
+      const nodeId = node.body.node.id;
+      const kpiId = kpi.body.kpi.id;
+
+      expect((await asOwner("get", `/api/business-graph/businesses/${biz.id}/nodes`)).status).toBe(200);
+      expect((await asOwner("get", `/api/business-graph/nodes/${nodeId}`)).status).toBe(200);
+      expect((await asOwner("get", `/api/business-graph/kpis/${kpiId}/history`)).status).toBe(200);
+
+      for (const [method, url] of [
+        ["get", `/api/business-graph/businesses/${biz.id}/nodes`],
+        ["get", `/api/business-graph/businesses/${biz.id}/kpis`],
+        ["get", `/api/business-graph/businesses/${biz.id}/edges`],
+        ["get", `/api/business-graph/businesses/${biz.id}/snapshots`],
+        ["post", `/api/business-graph/businesses/${biz.id}/kpis`],
+        ["get", `/api/business-graph/nodes/${nodeId}`],
+        ["patch", `/api/business-graph/nodes/${nodeId}`],
+        ["get", `/api/business-graph/kpis/${kpiId}/history`],
+        ["post", `/api/business-graph/kpis/${kpiId}/record`],
+        ["get", `/api/api/business-graph/businesses/${biz.id}/nodes`],
+      ] as const) {
+        const res = await asOther(method, url).send({ name: "x", kpiType: "revenue", value: 1 });
+        expect(res.status, `${method.toUpperCase()} ${url}`).toBe(404);
+      }
+    } finally {
+      await db.delete(businessesTable).where(eq(businessesTable.id, biz.id));
+      await db.delete(usersTable).where(inArray(usersTable.id, [owner.id]));
+    }
+  });
 });

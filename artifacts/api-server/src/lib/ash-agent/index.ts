@@ -3,7 +3,7 @@
 // tool_calls the web app already knows how to run.
 import { complete, type ChatMessage } from "../openrouter";
 import { logger } from "../logger";
-import { ASH_TOOLS, getTool } from "./tools";
+import { ASH_TOOLS, getTool, checkToolArgs } from "./tools";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { chainForAgentMode, resolveAgentMode } from "../models";
@@ -72,6 +72,14 @@ export async function runAshAgent(opts: {
         continue;
       }
       if (spec.kind === "client") {
+        // These run in the user's workspace, so only schema-valid, declared fields go out.
+        const checked = checkToolArgs(spec.name, args);
+        if (!checked.ok) {
+          messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: checked.error }) });
+          steps.push({ tool: spec.name, ok: false });
+          continue;
+        }
+        args = checked.args;
         clientCalls.push(spec.toClientCall ? (spec.toClientCall(args) as ClientToolCall) : { ...args, type: spec.name });
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ status: "queued", note: "Runs in the user's workspace after this reply." }) });
         steps.push({ tool: spec.name, ok: true });

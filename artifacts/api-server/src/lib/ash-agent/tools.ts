@@ -146,3 +146,36 @@ export const ASH_TOOLS: ToolDefinition[] = SPECS.map((s) => ({
 export function getTool(name: string): ToolSpec | undefined {
   return BY_NAME.get(name);
 }
+
+type Checked = { ok: true; args: Args } | { ok: false; error: string };
+
+const TYPE_CHECKS: Record<string, (v: unknown) => boolean> = {
+  string: (v) => typeof v === "string",
+  integer: (v) => Number.isInteger(v),
+  number: (v) => typeof v === "number" && Number.isFinite(v),
+  boolean: (v) => typeof v === "boolean",
+  array: Array.isArray,
+  object: (v) => typeof v === "object" && v !== null && !Array.isArray(v),
+};
+
+/** Enforces a tool's top-level schema: required fields, types and enums; drops undeclared fields. */
+export function checkToolArgs(name: string, args: Args): Checked {
+  const spec = getTool(name);
+  if (!spec) return { ok: false, error: `Unknown tool ${name}` };
+  const properties = (spec.parameters["properties"] ?? {}) as Record<string, JsonSchema>;
+  const required = (spec.parameters["required"] ?? []) as string[];
+  const out: Args = {};
+  for (const [key, prop] of Object.entries(properties)) {
+    const value = args[key];
+    if (value === undefined || value === null) {
+      if (required.includes(key)) return { ok: false, error: `Missing ${key}` };
+      continue;
+    }
+    const check = TYPE_CHECKS[prop["type"] as string];
+    if (check && !check(value)) return { ok: false, error: `${key} must be ${prop["type"] as string}` };
+    const allowed = prop["enum"] as unknown[] | undefined;
+    if (allowed && !allowed.includes(value)) return { ok: false, error: `${key} must be one of ${allowed.join(", ")}` };
+    out[key] = value;
+  }
+  return { ok: true, args: out };
+}

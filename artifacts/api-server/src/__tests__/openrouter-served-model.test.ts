@@ -36,4 +36,16 @@ describe("usage is logged under the model OpenRouter actually served", () => {
     expect(text).toBe("ok");
     expect((await rowsFor(served)).length).toBe(1);
   });
+
+  it("streamCompletion() stopped after the first chunk", async () => {
+    const served = servedModel("early-stop");
+    const sse = [
+      `data: ${JSON.stringify({ model: served, choices: [{ delta: { content: "o" } }] })}`,
+      `data: ${JSON.stringify({ model: served, choices: [{ delta: { content: "k" } }] })}`,
+      "data: [DONE]", "",
+    ].join("\n\n");
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(sse, { status: 200 }));
+    for await (const _chunk of streamCompletion({ prompt: "hi", models: ["primary/model", served] })) break;
+    expect((await rowsFor(served)).length).toBe(1);
+  });
 });

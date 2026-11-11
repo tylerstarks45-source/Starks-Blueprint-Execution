@@ -107,10 +107,10 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
             usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
           };
 
+          if (parsed.model) servedModel = parsed.model;
+          if (parsed.usage) finalUsage = parsed.usage;
           const delta = parsed.choices?.[0]?.delta?.content ?? "";
           if (delta) { fullContent += delta; yield delta; }
-          if (parsed.usage) finalUsage = parsed.usage;
-          if (parsed.model) servedModel = parsed.model;
         } catch { /* skip malformed SSE lines */ }
       }
     }

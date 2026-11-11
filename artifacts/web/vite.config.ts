@@ -32,15 +32,20 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
-        navigateFallback: "/offline.html",
-        navigateFallbackDenylist: [/^\/api\//],
+        // No navigateFallback: it registers a NavigationRoute that answers every
+        // non-precached navigation (all SPA deep links) with offline.html even when
+        // online. Navigations go network-first instead; offline.html is served only
+        // when the network request fails.
+        navigateFallback: null,
         runtimeCaching: [
           {
-            urlPattern: ({ request }) => request.mode === "navigate",
+            urlPattern: ({ request, url }) =>
+              request.mode === "navigate" && !url.pathname.startsWith("/api/"),
             handler: "NetworkFirst",
             options: {
               cacheName: "pages-cache",
               networkTimeoutSeconds: 3,
+              precacheFallback: { fallbackURL: "/offline.html" },
             },
           },
         ],

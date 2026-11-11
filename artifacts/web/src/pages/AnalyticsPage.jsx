@@ -76,7 +76,7 @@ const PERIODS = [
 ];
 
 export default function AnalyticsPage() {
-  const { user } = useContext(AuthContext);
+  const { currentUser: user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [period, setPeriod] = useState(30);
   const [activeTab, setActiveTab] = useState('revenue');

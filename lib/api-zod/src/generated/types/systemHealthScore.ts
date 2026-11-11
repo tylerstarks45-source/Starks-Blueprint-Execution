@@ -11,16 +11,16 @@ import type { SystemHealthScoreStatus } from './systemHealthScoreStatus';
 export interface SystemHealthScore {
   id: number;
   systemInstanceId: number;
-  overallScore: number;
+  overallScore: number | null;
   status: SystemHealthScoreStatus;
-  connectionScore: number;
-  hostingScore: number;
-  apiScore: number;
-  seoScore: number;
-  performanceScore: number;
-  securityScore: number;
-  revenueScore: number;
-  automationScore: number;
+  connectionScore: number | null;
+  hostingScore: number | null;
+  apiScore: number | null;
+  seoScore: number | null;
+  performanceScore: number | null;
+  securityScore: number | null;
+  revenueScore: number | null;
+  automationScore: number | null;
   issues: HealthIssue[];
   computedAt: string;
 }

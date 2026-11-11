@@ -4,6 +4,9 @@ import { Cpu } from 'lucide-react';
 const MODEL_LABELS = {
   'openai/gpt-4o-mini':               'GPT-4o Mini',
   'openai/gpt-4o':                    'GPT-4o',
+  'anthropic/claude-sonnet-5.5':      'Claude Sonnet 5.5',
+  'anthropic/claude-opus-5.5':        'Claude Opus 5.5',
+  'perplexity/sonar-pro':             'Perplexity Sonar Pro',
   'anthropic/claude-3-5-sonnet':      'Claude 3.5 Sonnet',
   'anthropic/claude-opus-4':          'Claude Opus 4',
   'anthropic/claude-3-haiku':         'Claude Haiku',

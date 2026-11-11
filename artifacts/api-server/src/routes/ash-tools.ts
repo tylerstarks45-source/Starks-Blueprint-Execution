@@ -265,7 +265,7 @@ router.delete("/ai-orchestrator/files/:id", async (req, res): Promise<void> => {
     .delete(generatedFilesTable)
     .where(eq(generatedFilesTable.id, fileId));
   // Blob URLs are public, so the bytes must go too.
-  await deleteMediaForContent(existing.content);
+  await deleteMediaForContent(existing.content, existing.userId);
 
   res.status(204).end();
 });

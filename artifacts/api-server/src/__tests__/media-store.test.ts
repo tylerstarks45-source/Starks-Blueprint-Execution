@@ -69,6 +69,20 @@ describe("generated media storage", () => {
     delete process.env["REPLIT_DOMAINS"];
   });
 
+  it("deleting a file that points at another account's blob leaves the blob alone", async () => {
+    const [other] = await db
+      .insert(usersTable)
+      .values({ email: `media_other_${Date.now()}@test.internal`, role: "USER", membershipStatus: "active", membershipTier: "starter" })
+      .returning({ id: usersTable.id });
+    const { storeMedia } = await import("../lib/media-store");
+    const url = await storeMedia(other.id, png, "image/png");
+    const [file] = await db.insert(generatedFilesTable).values({ userId, name: "x", fileType: "image", content: url }).returning({ id: generatedFilesTable.id });
+    expect((await request(app).delete(`/api/ai-orchestrator/files/${file!.id}`).set("Authorization", `Bearer ${token}`)).status).toBe(204);
+    expect((await request(app).get(url)).status).toBe(200);
+    await db.delete(mediaBlobsTable).where(eq(mediaBlobsTable.userId, other.id));
+    await db.delete(usersTable).where(eq(usersTable.id, other.id));
+  });
+
   it("404s on unknown or malformed tokens", async () => {
     expect((await request(app).get(`/api/media/blob/${"0".repeat(32)}`)).status).toBe(404);
     expect((await request(app).get("/api/media/blob/not-a-token")).status).toBe(404);

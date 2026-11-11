@@ -26,7 +26,8 @@ const MAX_RESULT_CHARS = 12_000;
 
 function toResult(value: unknown): string {
   const text = JSON.stringify(value) ?? "null";
-  return text.length > MAX_RESULT_CHARS ? `${text.slice(0, MAX_RESULT_CHARS)}…(truncated)` : text;
+  // Keep oversized results valid JSON: a cut-off object would be unparseable.
+  return text.length > MAX_RESULT_CHARS ? JSON.stringify({ truncated: true, partial: text.slice(0, MAX_RESULT_CHARS) }) : text;
 }
 
 export async function runAshAgent(opts: {

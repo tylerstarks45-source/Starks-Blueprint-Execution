@@ -174,8 +174,12 @@ export async function adjustWalletCredits(
 }
 
 // Deduct credits for AI usage: consumes monthly credits first, wallet second.
-export async function deductForUsage(userId: number, tokens: number, model: string): Promise<number> {
-  const credits = creditsForTokens(tokens);
+export function creditsForUsd(usd: number): number {
+  return Math.max(1, Math.ceil(usd * BASE_CREDITS_PER_DOLLAR));
+}
+
+export async function deductForUsage(userId: number, tokens: number, model: string, creditsOverride?: number): Promise<number> {
+  const credits = creditsOverride ?? creditsForTokens(tokens);
   let lastErr: unknown;
 
   for (let attempt = 1; attempt <= 3; attempt++) {

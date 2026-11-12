@@ -273,8 +273,9 @@ export default function CommandCenterDashboard() {
       {/* ── Bottom metrics ── */}
       <div className="relative z-10 flex gap-2 px-2 pb-2 pt-1 shrink-0" style={{ height: 155 }}>
         <PerformancePanel data={perfData} />
-        <GlassPanel className="flex-1 p-2.5 flex flex-col">
+        <GlassPanel className="flex-1 p-2.5 flex flex-col gap-1">
           <BrainLevelsPanel data={brain} compact />
+          <a href="/ash-guide" className="text-[8px] font-mono uppercase tracking-widest text-cyan-300/60 hover:text-cyan-200 self-end">How to use ASH →</a>
         </GlassPanel>
         <ActiveTasksPanel systems={systems} />
       </div>

@@ -58,7 +58,8 @@ export async function runOpportunityScan(opts: {
     if (result.knowledgeAction === "failed") throw new Error("research run failed");
     // A completed run advances the rotation even if its findings were too low-confidence to save
     // ("skipped"); repeating the same paid research would most likely skip again.
-    await opts.markRun(OPPORTUNITY_TOPIC_STATE_KEY, (topicIndex + 1) % OPPORTUNITY_TOPICS.length);
+    // Monotonic counter (topicAt wraps it): the scheduler merges replicas' state with max(), so a value that wraps back to 0 would be lost.
+    await opts.markRun(OPPORTUNITY_TOPIC_STATE_KEY, topicIndex + 1);
     return { ran: true, topic: topic.key, reason: result.knowledgeAction === "skipped" ? "low_confidence" : undefined };
   } catch (err) {
     await opts.markRun(OPPORTUNITY_SCAN_STATE_KEY, Math.max(previous, opts.now - OPPORTUNITY_SCAN_INTERVAL_MS + OPPORTUNITY_SCAN_RETRY_MS));

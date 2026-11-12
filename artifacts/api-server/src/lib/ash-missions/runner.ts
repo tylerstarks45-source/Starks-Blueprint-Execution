@@ -8,7 +8,7 @@ import { OutOfCreditsError, DailyAiLimitError } from "../credits";
 import { logger } from "../logger";
 import { runAshAgent, type AgentStep } from "../ash-agent";
 import { MISSION_TOOL_NAMES } from "../ash-agent/tools";
-import { getEffectiveControl } from "../ash-control/policy";
+import { getEffectiveControl, toolActionKind } from "../ash-control/policy";
 import { logEntry, withLog } from "./index";
 
 const POLL_MS = 20_000;
@@ -53,9 +53,15 @@ async function finish(m: AshMission, patch: Partial<AshMission>): Promise<void> 
   }).where(eq(ashMissionsTable.id, m.id));
 }
 
-// Tools that failed and weren't retried successfully later in the same turn.
+// Calls that failed and weren't retried successfully (same tool, same arguments) later in the same turn.
+const sameCall = (a: AgentStep, b: AgentStep) => a.tool === b.tool && a.args === b.args;
 const unresolvedFailures = (steps: AgentStep[]) =>
-  [...new Set(steps.filter((s, i) => !s.ok && !steps.slice(i + 1).some((t) => t.tool === s.tool && t.ok)).map((s) => s.tool))];
+  [...new Set(steps.filter((s, i) => !s.ok && !steps.slice(i + 1).some((t) => sameCall(t, s) && t.ok)).map((s) => s.tool))];
+
+/** A step that stopped partway: carries the step list with notes of what already succeeded, so the retry doesn't redo it. */
+class StepIncomplete extends Error {
+  constructor(message: string, readonly steps: MissionStep[]) { super(message); }
+}
 
 function parsePlan(text: string): string[] {
   const match = text.match(/\{[\s\S]*\}/);
@@ -129,7 +135,12 @@ async function runStep(m: AshMission): Promise<Partial<AshMission>> {
       log: withLog(m.log, ...toolLog, logEntry("owner", `Needs the owner: ${ownerAsk.note!}`)) };
   }
   const failed = unresolvedFailures(result.steps);
-  if (failed.length) throw new Error(`Step not finished: ${failed.join(", ")} failed`);
+  if (failed.length) {
+    const doneNotes = result.steps.filter((s) => s.ok && s.args != null && toolActionKind(s.tool) !== "read")
+      .map((s) => `Already done in an earlier attempt, do not repeat: ${s.tool} ${s.args!.slice(0, 200)}`);
+    const steps = m.steps.map((s, i) => (i === idx ? { ...s, notes: [...(s.notes ?? []), ...doneNotes].slice(-20) } : s));
+    throw new StepIncomplete(`Step not finished: ${failed.join(", ")} failed`, steps);
+  }
   const steps = m.steps.map((s, i) => (i === idx ? { ...s, status: "done" as const, result: result.content.slice(0, 1500) } : s));
   const allDone = steps.every((s) => s.status !== "pending");
   return {
@@ -152,10 +163,11 @@ export async function runMissionOnce(m: AshMission): Promise<void> {
     }
     const failures = m.failureCount + 1;
     const message = err instanceof Error ? err.message : String(err);
+    const keep = err instanceof StepIncomplete ? { steps: err.steps } : {};
     logger.warn({ missionId: m.id, err: message }, "ASH mission step failed");
     await finish(m, failures >= MAX_FAILURES
-      ? { status: "failed", failureCount: failures, waitingFor: "Failed 3 times in a row. Resume to retry.", log: withLog(m.log, logEntry("error", `Failed: ${message.slice(0, 300)}`)) }
-      : { failureCount: failures, nextRunAt: new Date(Date.now() + 60_000 * 2 ** failures), log: withLog(m.log, logEntry("error", `Retrying after error: ${message.slice(0, 300)}`)) });
+      ? { ...keep, status: "failed", failureCount: failures, waitingFor: "Failed 3 times in a row. Resume to retry.", log: withLog(m.log, logEntry("error", `Failed: ${message.slice(0, 300)}`)) }
+      : { ...keep, failureCount: failures, nextRunAt: new Date(Date.now() + 60_000 * 2 ** failures), log: withLog(m.log, logEntry("error", `Retrying after error: ${message.slice(0, 300)}`)) });
   }
 }
 

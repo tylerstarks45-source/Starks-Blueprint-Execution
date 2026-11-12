@@ -26,6 +26,8 @@ export interface AgentStep {
   /** Set when ASH Control queued this call for the owner's approval. */
   approvalId?: number;
   note?: string;
+  /** JSON arguments of a server tool call, so a failure is only cleared by a successful retry of the same call. */
+  args?: string;
 }
 
 export interface AgentControl {
@@ -205,11 +207,11 @@ export async function runAshAgent(opts: {
         }
         const value = await spec.run!(opts.userId, args);
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult(value) });
-        steps.push({ tool: spec.name, ok: !isErrorResult(value), ...(spec.name === "request_owner_action" ? { note: String(args["message"] ?? "") } : {}) });
+        steps.push({ tool: spec.name, ok: !isErrorResult(value), args: JSON.stringify(args), ...(spec.name === "request_owner_action" ? { note: String(args["message"] ?? "") } : {}) });
       } catch (err) {
         logger.warn({ tool: spec.name, err: err instanceof Error ? err.message : String(err) }, "ASH tool failed");
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: "Tool failed" }) });
-        steps.push({ tool: spec.name, ok: false });
+        steps.push({ tool: spec.name, ok: false, args: JSON.stringify(args) });
       }
     }
   }

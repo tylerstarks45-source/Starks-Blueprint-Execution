@@ -290,4 +290,16 @@ describe("missions", () => {
       expect.stringContaining("Already done"), expect.stringContaining("rejected"),
     ]);
   });
+  it("keeps a step open when one of several same-tool calls failed, and remembers the ones that succeeded", async () => {
+    await setLevel("copilot");
+    const id = await plannedMission("Save two drafts", ["Save both drafts"]);
+    const call = (name: string, businessId: number) => ({ id: `c-${name}`, type: "function" as const, function: { name: "register_asset", arguments: JSON.stringify({ name, classKey: "document", businessId }) } });
+    mockComplete
+      .mockResolvedValueOnce({ content: "", model: "test", ...usage, toolCalls: [call("Lost draft", 999999999), call("Saved draft", bizId)] })
+      .mockResolvedValueOnce(reply("Saved."));
+    const m = await runDue(id);
+    expect(m.steps[0]!.status).toBe("pending");
+    expect(m.failureCount).toBe(1);
+    expect(m.steps[0]!.notes).toEqual([expect.stringContaining("Saved draft")]);
+  });
 });

@@ -22,10 +22,11 @@ let otherId: number;
 let bizId: number;
 const token = (id: number) => jwt.sign({ sub: id, email: "", role: "USER", tokenVersion: 1 }, process.env["SESSION_SECRET"]!);
 const as = (id: number) => ({ Authorization: `Bearer ${token(id)}` });
+const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: null };
 const toolCall = (name: string, args: Record<string, unknown>) => ({
-  content: "", model: "test", toolCalls: [{ id: `c-${Math.random()}`, type: "function" as const, function: { name, arguments: JSON.stringify(args) } }],
+  content: "", model: "test", ...usage, toolCalls: [{ id: `c-${Math.random()}`, type: "function" as const, function: { name, arguments: JSON.stringify(args) } }],
 });
-const reply = (content: string) => ({ content, model: "test" });
+const reply = (content: string) => ({ content, model: "test", ...usage });
 const setLevel = (level: string, extra: Record<string, unknown> = {}) =>
   request(app).put("/api/ash-control").set(as(ownerId)).send({ level, approvalRequired: ["spend", "delete", "legal"], ...extra });
 const ownerBusinesses = () => db.select().from(businessesTable).where(eq(businessesTable.ownerId, ownerId));

@@ -7,3 +7,16 @@ export * from "./generated/types";
 // `export *` above ambiguous (TS2308). Prefer the zod path objects here; the
 // query-param zod objects are uniquely named `*QueryParams` and remain exported.
 export { GetSystemLogsParams, GetBusinessLogsParams, GetBusinessRecommendationsParams } from "./generated/api";
+
+// Same collision for operations whose request body is declared inline in
+// openapi.yaml: the zod body schema (generated/api) and the TS body type
+// (generated/types) share a name. Prefer the zod schema; `z.infer` gives the type.
+export {
+  CreatePlatformProjectBody,
+  CreatePlatformWorkspaceBody,
+  RegisterConnectionProviderBody,
+  RegisterPlatformApplicationBody,
+  RegisterPlatformCommandsBody,
+  RunCertificationBody,
+  UpdatePlatformContextBody,
+} from "./generated/api";

@@ -53,6 +53,13 @@ jobs:
           git status --porcelain lib/db/drizzle
           test -z "$(git status --porcelain lib/db/drizzle)" || { echo "Schema changed without a migration: run drizzle-kit generate in lib/db and commit the result."; exit 1; }
 
+      - name: Generated API clients match openapi.yaml
+        run: |
+          (cd lib/api-spec && pnpm exec orval --config ./orval.config.ts)
+          paths="lib/api-client-react/src/generated lib/api-zod/src/generated"
+          git status --porcelain $paths
+          test -z "$(git status --porcelain $paths)" || { echo "openapi.yaml changed without regenerating clients: run 'pnpm --filter @workspace/api-spec run codegen' and commit the result."; exit 1; }
+
       - run: pnpm run typecheck
       - name: API tests
         run: pnpm --filter @workspace/api-server exec vitest run

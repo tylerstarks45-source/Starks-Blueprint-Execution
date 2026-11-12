@@ -11,15 +11,24 @@ import type { HealthIssue } from './healthIssue';
 export interface BusinessHealthMetric {
   id: number;
   businessId: number;
+  /** @nullable */
   overallScore: number | null;
   status: BusinessHealthMetricStatus;
+  /** @nullable */
   connectionScore: number | null;
+  /** @nullable */
   hostingScore: number | null;
+  /** @nullable */
   apiScore: number | null;
+  /** @nullable */
   seoScore: number | null;
+  /** @nullable */
   performanceScore: number | null;
+  /** @nullable */
   securityScore: number | null;
+  /** @nullable */
   revenueScore: number | null;
+  /** @nullable */
   automationScore: number | null;
   issues: HealthIssue[];
   computedAt: string;

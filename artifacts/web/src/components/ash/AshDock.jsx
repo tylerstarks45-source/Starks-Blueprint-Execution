@@ -129,6 +129,8 @@ export default function AshDock() {
       }
       const content = data.content || (actions.length ? 'Done.' : '…');
       setMessages((m) => [...m, { role: 'assistant', content, actions }]);
+      // ASH's tools may have created businesses, streams or assets; let open pages refresh.
+      window.dispatchEvent(new Event('empire:changed'));
       if (speak) say(content);
     } catch (err) {
       if (ownerRef.current !== owner) return;

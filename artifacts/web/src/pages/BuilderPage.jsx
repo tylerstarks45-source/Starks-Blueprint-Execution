@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import BrainLevelsPanel, { useBrainActivity } from '@/components/ash/BrainLevelsPanel.jsx';
 import { GUIDE_SECTIONS } from '@/lib/ashGuide.js';
+import EmpireSummary from '@/components/empire/EmpireSummary.jsx';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -17,7 +18,7 @@ import {
   CloudUpload, Package, Hash, Database, Star, Info,
   RefreshCw, Pencil, Trash2, Film, Music, Share2, Mic2,
   LayoutTemplate, Unlock, Mic, MicOff, Volume2, VolumeX, PhoneCall, PhoneOff,
-  Monitor, Briefcase, Mail, WifiOff,
+  Monitor, Briefcase, Mail, WifiOff, Crown,
 } from 'lucide-react';
 import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx';
 import BrowserView from '@/components/builder/BrowserView.jsx';
@@ -5295,8 +5296,9 @@ const BuilderPage = () => {
           </div>
 
           {/* Resource tabs */}
-          <div className="grid grid-cols-4 border-b border-cyan-500/8 shrink-0 p-1 gap-0.5">
+          <div className="grid grid-cols-5 border-b border-cyan-500/8 shrink-0 p-1 gap-0.5">
             {[
+              { id: 'empire',     label: 'Empire',   icon: Crown },
               { id: 'blueprints', label: 'BPs',      icon: Grid3x3 },
               { id: 'tools',      label: 'Tools',    icon: Layers },
               { id: 'files',      label: 'Apps',     icon: FolderOpen },
@@ -5769,7 +5771,29 @@ const BuilderPage = () => {
             )}
 
             {/* ── PLATFORM CONTEXT ── */}
-            {rightPanel === 'platform' && (
+            {rightPanel === 'empire' && (
+              <div className="p-3 flex flex-col gap-3">
+                <div className="rounded-lg border border-white/6 bg-white/2 p-2.5">
+                  <EmpireSummary compact />
+                </div>
+                <p className="text-[9px] uppercase tracking-widest text-white/30 font-mono font-bold">Ask ASH to</p>
+                {[
+                  'Show me my empire',
+                  'Start a new business for me and add its usual income streams',
+                  'Add an income stream to my newest business',
+                  'Save what we just built to the Asset Vault',
+                ].map((ex) => (
+                  <button key={ex} type="button" onClick={() => setInput(ex)} className="text-left text-[10px] font-mono text-cyan-300/70 hover:text-cyan-200">→ {ex}</button>
+                ))}
+                <div className="grid grid-cols-2 gap-1.5 pt-1">
+                  {[['/empire', 'Command Center'], ['/income-streams', 'Income Streams'], ['/asset-vault', 'Asset Vault'], ['/business-types', 'Business Types']].map(([to, l]) => (
+                    <button key={to} type="button" onClick={() => navigate(to)} className="text-[9px] font-mono px-2 py-1.5 rounded-md border border-white/8 text-white/55 hover:text-white hover:bg-white/5">{l} →</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+                        {rightPanel === 'platform' && (
               <div className="p-3 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <p className="text-[9px] uppercase tracking-widest text-white/30 font-mono font-bold flex items-center gap-1.5">

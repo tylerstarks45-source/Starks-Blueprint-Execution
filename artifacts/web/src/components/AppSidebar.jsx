@@ -1,10 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Layers, Bot, Mail, Globe, Link2, Plug, Share2,
   ShoppingBag, BookOpen, CreditCard, ShieldCheck, ChevronLeft, ChevronRight,
   LogOut, X, Settings, Globe2, Zap, Users, Calendar, Building2, ScrollText,
-  Brain, TrendingUp, Sparkles, BarChart3, GraduationCap,
+  Brain, TrendingUp, Sparkles, BarChart3, GraduationCap, Crown, Coins, Archive,
+  Shapes, Film, LineChart, Database, FlaskConical, ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useClient } from '@/contexts/ClientContext.jsx';
@@ -16,42 +17,67 @@ const NAV_GROUPS = [
   {
     group: null,
     items: [
-      { label: 'Dashboard',     path: '/dashboard',    icon: LayoutDashboard },
-      { label: 'My Systems',    path: '/systems',      icon: Layers },
-      { label: 'My Businesses', path: '/business-portfolio', icon: Building2 },
-      { label: 'ASH Brain',     path: '/ash-brain',    icon: Brain },
+      { label: 'Dashboard',       path: '/dashboard', icon: LayoutDashboard },
+      { label: 'Empire Command',  path: '/empire',    icon: Crown },
+    ],
+  },
+  {
+    group: 'COMMAND',
+    items: [
+      { label: 'My Businesses',  path: '/business-portfolio', icon: Building2 },
+      { label: 'Income Streams', path: '/income-streams',     icon: Coins },
+      { label: 'My Systems',     path: '/systems',            icon: Layers },
+      { label: 'Activity Logs',  path: '/logs',               icon: ScrollText },
+    ],
+  },
+  {
+    group: 'CREATE',
+    items: [
+      { label: 'Asset Vault',    path: '/asset-vault',    icon: Archive },
+      { label: 'Business Types', path: '/business-types', icon: Shapes },
+      { label: 'Landing Pages',  path: '/landing-pages',  icon: Globe },
+      { label: 'Media Studio',   path: '/media',          icon: Film },
+      { label: 'Blueprints',     path: '/blueprints',     icon: BookOpen },
+    ],
+  },
+  {
+    group: 'GROWTH',
+    items: [
+      { label: 'Email',            path: '/email-marketing', icon: Mail },
+      { label: 'Social',           path: '/social-accounts', icon: Share2 },
+      { label: 'Content Calendar', path: '/social',          icon: Calendar },
+      { label: 'Affiliates',       path: '/affiliate-links', icon: Link2 },
+    ],
+  },
+  {
+    group: 'FINANCE',
+    items: [
+      { label: 'Revenue Analytics', path: '/analytics', icon: LineChart },
+      { label: 'Credits',           path: '/credits',   icon: CreditCard },
+    ],
+  },
+  {
+    group: 'INTELLIGENCE',
+    items: [
+      { label: 'ASH Brain',        path: '/ash-brain',        icon: Brain },
       { label: 'ASH Intelligence', path: '/ash-intelligence', icon: Sparkles },
-      { label: 'Stats',         path: '/stats',        icon: BarChart3 },
-      { label: 'ASH Guide',     path: '/ash-guide',    icon: GraduationCap },
-      { label: 'Logs',          path: '/logs',         icon: ScrollText },
+      { label: 'Memory',           path: '/memory',           icon: Database },
+      { label: 'Research Lab',     path: '/research-lab',     icon: FlaskConical },
+      { label: 'Stats',            path: '/stats',            icon: BarChart3 },
+      { label: 'ASH Guide',        path: '/ash-guide',        icon: GraduationCap },
     ],
   },
   {
-    group: 'REVENUE',
+    group: 'CONNECTIONS',
     items: [
-      { label: 'Email',         path: '/email-marketing', icon: Mail },
-      { label: 'Landing Pages', path: '/landing-pages',  icon: Globe },
-      { label: 'Domains',       path: '/domains',         icon: Globe2 },
-      { label: 'Affiliates',    path: '/affiliate-links', icon: Link2 },
-    ],
-  },
-  {
-    group: 'CONNECT',
-    items: [
-      { label: 'Connections',   path: '/connections',      icon: Plug },
-      { label: 'Social',        path: '/social-accounts',  icon: Share2 },
-      { label: 'Content Calendar', path: '/social',        icon: Calendar },
-    ],
-  },
-  {
-    group: 'EXPLORE',
-    items: [
-      { label: 'Marketplace',   path: '/marketplace',  icon: ShoppingBag },
-      { label: 'Blueprints',    path: '/blueprints',   icon: BookOpen },
-      { label: 'Credits',       path: '/credits',      icon: CreditCard },
+      { label: 'Connections', path: '/connections', icon: Plug },
+      { label: 'Domains',     path: '/domains',     icon: Globe2 },
+      { label: 'Marketplace', path: '/marketplace', icon: ShoppingBag },
     ],
   },
 ];
+
+const COLLAPSED_GROUPS_KEY = 'sbep_nav_collapsed_groups';
 
 const AGENCY_TIERS = new Set(['operator', 'empire', 'pro', 'enterprise']);
 
@@ -73,6 +99,16 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
 
   const isActive = (path) =>
     location.pathname === path || location.pathname.startsWith(`${path}/`);
+
+  const [closedGroups, setClosedGroups] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(COLLAPSED_GROUPS_KEY) || '[]')); } catch { return new Set(); }
+  });
+  const toggleGroup = (name) => setClosedGroups((prev) => {
+    const next = new Set(prev);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify([...next]));
+    return next;
+  });
 
   useEffect(() => {
     const handler = (e) => {
@@ -174,12 +210,21 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
         {NAV_GROUPS.map((grp, gi) => (
           <React.Fragment key={gi}>
             {grp.group && !collapsed && (
-              <p className="px-2 pt-4 pb-1 text-[9px] font-mono font-semibold tracking-[0.15em] text-white/25 uppercase select-none">
+              <button
+                type="button"
+                onClick={() => toggleGroup(grp.group)}
+                aria-expanded={!closedGroups.has(grp.group)}
+                className="w-full flex items-center justify-between px-2 pt-4 pb-1 text-[9px] font-mono font-semibold tracking-[0.15em] text-white/25 hover:text-white/50 uppercase select-none"
+              >
                 {grp.group}
-              </p>
+                <ChevronDown className={`w-3 h-3 transition-transform ${closedGroups.has(grp.group) ? '-rotate-90' : ''}`} />
+              </button>
             )}
             {grp.group && collapsed && <div className="h-2" />}
-            {grp.items.map((item) => {
+            {grp.items
+              // A closed group still shows the page you're on.
+              .filter((item) => collapsed || !grp.group || !closedGroups.has(grp.group) || isActive(item.path))
+              .map((item) => {
               const active = isActive(item.path);
               return (
                 <Link

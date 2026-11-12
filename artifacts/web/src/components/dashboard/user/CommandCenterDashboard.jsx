@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import ASHReactor from './ASHReactor.jsx';
 import ASHAssistantPanel from './ASHAssistantPanel.jsx';
 import BrainLevelsPanel, { useBrainActivity, overallLevel } from '@/components/ash/BrainLevelsPanel.jsx';
+import EmpireSummary from '@/components/empire/EmpireSummary.jsx';
 import bgUrl from '@/assets/cc-background.jpg';
 import './command-center.css';
 
@@ -68,8 +68,8 @@ function TopBar({ userName }) {
             { label: '⚙ Builder',    path: '/builder'     },
             { label: '⊞ Marketplace', path: '/marketplace' },
             { label: '⬡ Analytics',  path: '/analytics'   },
-            { label: '⌖ Operations', path: '/operations'  },
-            { label: '◎ Finance',    path: '/finance'     },
+            { label: '♛ Empire',     path: '/empire'      },
+            { label: '◎ Income',     path: '/income-streams' },
             { label: '⚙ Settings',   path: '/settings'    },
           ].map(({ label, path, active }) => (
             <a key={label} href={path ?? '#'}
@@ -105,55 +105,6 @@ function TopBar({ userName }) {
   );
 }
 
-/* ── Custom recharts tooltip ─────────────────────────────────────────── */
-const PerfTip = ({ active, payload }) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="text-[9px] font-mono px-2 py-1 rounded"
-      style={{ background: 'rgba(0,5,20,0.92)', border: '1px solid rgba(0,200,255,0.25)', color: '#00c8ff' }}>
-      {payload[0].value}%
-    </div>
-  );
-};
-
-/* ── Performance chart ───────────────────────────────────────────────── */
-function PerformancePanel({ data }) {
-  const chartData = data?.length ? data
-    : Array.from({ length: 20 }, (_, i) => ({ val: Math.round(78 + Math.sin(i * 0.7) * 13 + Math.random() * 7) }));
-  return (
-    <GlassPanel className="flex-1 p-2.5 flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <p className="text-[8px] uppercase tracking-[0.2em] font-bold" style={{ color: 'rgba(0,200,255,0.55)' }}>
-          System Performance
-        </p>
-        <span className="text-[8px] text-white/25 uppercase tracking-wider">Real Time</span>
-      </div>
-      <div style={{ height: 58 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor="#00c8ff" stopOpacity={0.45} />
-                <stop offset="100%" stopColor="#00c8ff" stopOpacity={0}    />
-              </linearGradient>
-            </defs>
-            <Area type="monotone" dataKey="val" stroke="#00c8ff" strokeWidth={1.5} fill="url(#pg)" dot={false} />
-            <Tooltip content={<PerfTip />} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="flex justify-around pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        {[['CPU','98%','#00c8ff'],['MEMORY','96%','#8b5cf6'],['NETWORK','98%','#22c55e'],['STABILITY','100%','#f59e0b']].map(([l,v,c]) => (
-          <div key={l} className="text-center">
-            <p className="text-sm font-black font-mono" style={{ color: c, textShadow: `0 0 8px ${c}60` }}>{v}</p>
-            <p className="text-[7px] uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.3)' }}>{l}</p>
-          </div>
-        ))}
-      </div>
-    </GlassPanel>
-  );
-}
-
 /* ── Active tasks ────────────────────────────────────────────────────── */
 function ActiveTasksPanel({ systems }) {
   const tasks = systems.slice(0,5).map(s => ({
@@ -161,16 +112,11 @@ function ActiveTasksPanel({ systems }) {
     color: {active:'#22c55e',building:'#f59e0b',completed:'#3b82f6',paused:'#8b5cf6',failed:'#ef4444',pending:'#6b7280'}[s.buildStatus]??'#6b7280',
     label: {active:'In Progress',building:'In Progress',completed:'Completed',paused:'Paused',failed:'Failed',pending:'Pending'}[s.buildStatus]??'Pending',
   }));
-  if (!tasks.length) [
-    {name:'Revenue Optimization',color:'#22c55e',label:'In Progress'},
-    {name:'AI Content Generation',color:'#f59e0b',label:'In Progress'},
-    {name:'System Sync',color:'#3b82f6',label:'Completed'},
-    {name:'Marketplace Update',color:'#8b5cf6',label:'Pending'},
-  ].forEach(t => tasks.push(t));
   return (
     <GlassPanel className="flex-1 p-2.5 flex flex-col gap-1.5">
       <p className="text-[8px] uppercase tracking-[0.2em] font-bold" style={{ color:'rgba(0,200,255,0.55)' }}>Active Tasks</p>
       <div className="flex-1 space-y-1.5 overflow-y-auto">
+        {!tasks.length && <p className="text-[9px] text-white/35">No systems yet. Ask ASH to build one.</p>}
         {tasks.map((t,i) => (
           <div key={i} className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background:t.color, boxShadow:`0 0 4px ${t.color}` }} />
@@ -192,7 +138,6 @@ function ActiveTasksPanel({ systems }) {
 export default function CommandCenterDashboard() {
   const { currentUser } = useAuth();
   const [systems,   setSystems]   = useState([]);
-  const [perfData,  setPerfData]  = useState([]);
   const [ashOpen,   setAshOpen]   = useState(false);
   const brain = useBrainActivity();
 
@@ -201,9 +146,6 @@ export default function CommandCenterDashboard() {
       .then(r => r.json())
       .then(d => setSystems(Array.isArray(d) ? d : (d.data ?? [])))
       .catch(() => {});
-    setPerfData(Array.from({length:20}, (_, i) => ({
-      val: Math.round(80 + Math.sin(i * 0.65) * 12 + Math.random() * 6),
-    })));
   }, []);
 
   const userName     = currentUser?.name?.split(' ')[0] ?? currentUser?.email?.split('@')[0] ?? 'Tyler';
@@ -273,7 +215,9 @@ export default function CommandCenterDashboard() {
 
       {/* ── Bottom metrics ── */}
       <div className="relative z-10 flex gap-2 px-2 pb-2 pt-1 shrink-0" style={{ height: 155 }}>
-        <PerformancePanel data={perfData} />
+        <GlassPanel className="flex-1 p-2.5">
+          <EmpireSummary compact />
+        </GlassPanel>
         <GlassPanel className="flex-1 p-2.5 flex flex-col gap-1">
           <BrainLevelsPanel data={brain} compact />
           <Link to="/ash-guide" className="absolute top-2.5 right-14 z-10 leading-none text-[8px] font-mono uppercase tracking-widest text-cyan-300/70 hover:text-cyan-200">How to use ASH →</Link>

@@ -55,8 +55,11 @@ async function upsertMany(tx: Tx, userId: number, inputs: AssetInput[]): Promise
       created++;
     } else if (Array.isArray(prev.tags) && prev.tags.includes(OWNER_EDITED_TAG)) {
       // The owner changed this asset in the vault; their name, status and business win over the source.
-      if ((prev.externalUrl ?? null) !== (a.externalUrl ?? null)) {
-        await tx.update(canonicalAssets).set({ externalUrl: a.externalUrl ?? null, updatedAt: new Date() }).where(eq(canonicalAssets.id, prev.id));
+      // A source that exists again un-deletes the row; otherwise only the URL follows the source.
+      const revived = prev.status === "deleted";
+      if (revived || (prev.externalUrl ?? null) !== (a.externalUrl ?? null)) {
+        await tx.update(canonicalAssets).set({ externalUrl: a.externalUrl ?? null, ...(revived ? { status } : {}), updatedAt: new Date() })
+          .where(eq(canonicalAssets.id, prev.id));
       }
     } else if (prev.canonicalName !== a.name || (prev.externalUrl ?? null) !== (a.externalUrl ?? null) || prev.status !== status
       // Keep a business the owner assigned by hand; only fill it when unset.
@@ -87,31 +90,32 @@ const SYNCED_SOURCES = ["landing_pages", "user_domains", "system_instances", "em
 
 /** Pull the user's existing landing pages, domains, systems and email lists into the vault. */
 export async function syncUserAssets(userId: number): Promise<{ created: number }> {
-  const [businesses, pages, domains, systems, lists] = await Promise.all([
-    db.select({ id: businessesTable.id, systemInstanceId: businessesTable.systemInstanceId }).from(businessesTable).where(eq(businessesTable.ownerId, userId)),
-    db.select({ id: landingPagesTable.id, title: landingPagesTable.title, publicUrl: landingPagesTable.publicUrl, isPublished: landingPagesTable.isPublished, systemInstanceId: landingPagesTable.systemInstanceId })
-      .from(landingPagesTable).where(eq(landingPagesTable.userId, userId)),
-    db.select({ id: userDomainsTable.id, domain: userDomainsTable.domain, status: userDomainsTable.status, linkedPageId: userDomainsTable.linkedPageId })
-      .from(userDomainsTable).where(eq(userDomainsTable.userId, userId)),
-    db.select({ id: systemInstancesTable.id, name: systemInstancesTable.name, buildStatus: systemInstancesTable.buildStatus })
-      .from(systemInstancesTable).where(eq(systemInstancesTable.userId, userId)),
-    db.select({ id: emailListsTable.id, name: emailListsTable.name, description: emailListsTable.description })
-      .from(emailListsTable).where(eq(emailListsTable.userId, userId)),
-  ]);
-  const bizByInstance = new Map(businesses.filter((b) => b.systemInstanceId != null).map((b) => [b.systemInstanceId!, b.id]));
-  const pageBiz = new Map(pages.map((p) => [p.id, p.systemInstanceId != null ? bizByInstance.get(p.systemInstanceId) ?? null : null]));
-  const inputs: AssetInput[] = [
-    ...pages.map((p) => ({ userId, classKey: "page", name: p.title, builderSource: "landing_pages", builderObjectId: String(p.id),
-      externalUrl: p.publicUrl, businessId: pageBiz.get(p.id) ?? null, status: p.isPublished ? "active" : "draft" })),
-    ...domains.map((d) => ({ userId, classKey: "domain", name: d.domain, builderSource: "user_domains", builderObjectId: String(d.id),
-      externalUrl: `https://${d.domain}`, businessId: d.linkedPageId != null ? pageBiz.get(d.linkedPageId) ?? null : null,
-      status: d.status === "active" ? "active" : "draft" })),
-    ...systems.map((s) => ({ userId, classKey: "application", name: s.name, builderSource: "system_instances", builderObjectId: String(s.id),
-      businessId: bizByInstance.get(s.id) ?? null, status: s.buildStatus === "archived" ? "archived" : ["active", "built", "running"].includes(s.buildStatus) ? "active" : "draft" })),
-    ...lists.map((l) => ({ userId, classKey: "email_list", name: l.name, description: l.description, builderSource: "email_lists", builderObjectId: String(l.id) })),
-  ];
+  // Lock before reading sources so an older snapshot can't overwrite or delete newer rows.
   const created = await db.transaction(async (tx) => {
     await lockUser(tx, userId);
+    const [businesses, pages, domains, systems, lists] = await Promise.all([
+      tx.select({ id: businessesTable.id, systemInstanceId: businessesTable.systemInstanceId }).from(businessesTable).where(eq(businessesTable.ownerId, userId)),
+      tx.select({ id: landingPagesTable.id, title: landingPagesTable.title, publicUrl: landingPagesTable.publicUrl, isPublished: landingPagesTable.isPublished, systemInstanceId: landingPagesTable.systemInstanceId })
+        .from(landingPagesTable).where(eq(landingPagesTable.userId, userId)),
+      tx.select({ id: userDomainsTable.id, domain: userDomainsTable.domain, status: userDomainsTable.status, linkedPageId: userDomainsTable.linkedPageId })
+        .from(userDomainsTable).where(eq(userDomainsTable.userId, userId)),
+      tx.select({ id: systemInstancesTable.id, name: systemInstancesTable.name, buildStatus: systemInstancesTable.buildStatus })
+        .from(systemInstancesTable).where(eq(systemInstancesTable.userId, userId)),
+      tx.select({ id: emailListsTable.id, name: emailListsTable.name, description: emailListsTable.description })
+        .from(emailListsTable).where(eq(emailListsTable.userId, userId)),
+    ]);
+    const bizByInstance = new Map(businesses.filter((b) => b.systemInstanceId != null).map((b) => [b.systemInstanceId!, b.id]));
+    const pageBiz = new Map(pages.map((p) => [p.id, p.systemInstanceId != null ? bizByInstance.get(p.systemInstanceId) ?? null : null]));
+    const inputs: AssetInput[] = [
+      ...pages.map((p) => ({ userId, classKey: "page", name: p.title, builderSource: "landing_pages", builderObjectId: String(p.id),
+        externalUrl: p.publicUrl, businessId: pageBiz.get(p.id) ?? null, status: p.isPublished ? "active" : "draft" })),
+      ...domains.map((d) => ({ userId, classKey: "domain", name: d.domain, builderSource: "user_domains", builderObjectId: String(d.id),
+        externalUrl: `https://${d.domain}`, businessId: d.linkedPageId != null ? pageBiz.get(d.linkedPageId) ?? null : null,
+        status: d.status === "active" ? "active" : "draft" })),
+      ...systems.map((s) => ({ userId, classKey: "application", name: s.name, builderSource: "system_instances", builderObjectId: String(s.id),
+        businessId: bizByInstance.get(s.id) ?? null, status: s.buildStatus === "archived" ? "archived" : ["active", "built", "running"].includes(s.buildStatus) ? "active" : "draft" })),
+      ...lists.map((l) => ({ userId, classKey: "email_list", name: l.name, description: l.description, builderSource: "email_lists", builderObjectId: String(l.id) })),
+    ];
     const n = await upsertMany(tx, userId, inputs);
     // Source objects that no longer exist are removed from the vault.
     for (const source of SYNCED_SOURCES) {

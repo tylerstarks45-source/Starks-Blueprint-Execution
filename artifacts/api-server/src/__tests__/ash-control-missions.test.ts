@@ -302,4 +302,21 @@ describe("missions", () => {
     expect(m.failureCount).toBe(1);
     expect(m.steps[0]!.notes).toEqual([expect.stringContaining("Saved draft")]);
   });
+  it("resuming a paused mission whose approval is still pending keeps it waiting", async () => {
+    await setLevel("advisor");
+    const id = await plannedMission("Save a draft", ["Save the draft"]);
+    mockComplete
+      .mockResolvedValueOnce(toolCall("register_asset", { name: "Paused draft", classKey: "document", businessId: bizId }))
+      .mockResolvedValueOnce(reply("Queued."));
+    const m = await runDue(id);
+    expect(m.status).toBe("waiting_approval");
+    await request(app).post(`/api/missions/${id}/pause`).set(as(ownerId));
+    const resumed = await request(app).post(`/api/missions/${id}/resume`).set(as(ownerId));
+    expect(resumed.body.status).toBe("waiting_approval");
+    expect(resumed.body.approvalId).toBe(m.approvalId);
+    await request(app).post(`/api/approvals/${m.approvalId}/approve`).set(as(ownerId));
+    const [after] = await db.select().from(ashMissionsTable).where(eq(ashMissionsTable.id, id));
+    expect(after!.status).toBe("running");
+    expect(after!.steps[0]!.status).toBe("pending");
+  });
 });

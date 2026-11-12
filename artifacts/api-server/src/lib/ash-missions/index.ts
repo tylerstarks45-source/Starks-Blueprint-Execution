@@ -58,10 +58,17 @@ export async function ownerMissionAction(userId: number, id: number, action: Own
   if (action === "pause") Object.assign(patch, { status: "paused" });
   if (action === "cancel") Object.assign(patch, { status: "cancelled", completedAt: new Date(), waitingFor: null });
   if (action === "resume") {
+    // Actions still waiting in the inbox keep the mission waiting; the step must not run again without the owner's decision.
+    const pending = await db.select({ id: pendingApprovalsTable.id }).from(pendingApprovalsTable)
+      .where(and(eq(pendingApprovalsTable.userId, userId), eq(pendingApprovalsTable.status, "pending"), missionApproval(id)))
+      .orderBy(asc(pendingApprovalsTable.id));
     Object.assign(patch, {
-      status: m.steps.length ? "running" : "planning",
+      ...(pending.length
+        ? { status: "waiting_approval", approvalId: pending[0]!.id,
+          waitingFor: pending.length > 1 ? `${pending.length} actions waiting in your Approvals inbox` : "Your approval in the Approvals inbox" }
+        : { status: m.steps.length ? "running" : "planning", waitingFor: null, approvalId: null }),
       // Keep any lease: a step still running from before the pause must finish before another claim.
-      waitingFor: null, approvalId: null, failureCount: 0, nextRunAt: new Date(),
+      failureCount: 0, nextRunAt: new Date(),
       maxStepRuns: m.stepRuns >= m.maxStepRuns ? m.maxStepRuns + 20 : m.maxStepRuns,
     });
   }

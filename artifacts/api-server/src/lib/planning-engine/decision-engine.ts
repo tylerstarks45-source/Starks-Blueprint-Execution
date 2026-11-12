@@ -29,6 +29,7 @@ export async function evaluateExecutionDecision(params: {
   task: AshTask;
   goal: AshGoal | null;
   connectedCredentialCount: number;
+  userId?: number;
 }): Promise<DecisionEvaluation> {
   const { task, goal } = params;
 
@@ -71,10 +72,12 @@ async function deriveDecision(params: {
   task: AshTask;
   goal: AshGoal | null;
   connectedCredentialCount: number;
+  userId?: number;
 }): Promise<DecisionEvaluation> {
-  const { task, goal, connectedCredentialCount } = params;
+  const { task, goal, connectedCredentialCount, userId } = params;
   try {
     const result = await complete({
+      userId,
       systemPrompt:
         "You are a Decision Engine for an autonomous business-building AI platform, deciding whether to proceed with " +
         "one task right now. Evaluate goal alignment, required resources, available tools, project state, risks, and " +

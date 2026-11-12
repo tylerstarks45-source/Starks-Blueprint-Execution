@@ -62,7 +62,7 @@ async function createProject(params: {
   systemInstanceId?: number;
 }): Promise<AshProject> {
   const { userId, message, systemInstanceId } = params;
-  const name = await deriveProjectName(message);
+  const name = await deriveProjectName(message, params.userId);
 
   const [project] = await db
     .insert(ashProjectsTable)
@@ -82,9 +82,10 @@ async function createProject(params: {
 
 // Short, best-effort naming call — falls back to a truncated slice of the
 // message if the model call fails, so project creation never blocks on AI.
-async function deriveProjectName(message: string): Promise<string> {
+async function deriveProjectName(message: string, userId: number): Promise<string> {
   try {
     const result = await complete({
+      userId,
       systemPrompt:
         "You name business/software projects. Reply with ONLY a short project name (2-6 words), no quotes, no punctuation at the end.",
       prompt: `Name a project for this request:\n\n${message.slice(0, 500)}`,

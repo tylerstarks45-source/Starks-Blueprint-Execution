@@ -18,8 +18,9 @@ export async function planMilestonesForGoal(params: {
   goalId: number | null;
   objective: string;
   isNewProject: boolean;
+  userId?: number;
 }): Promise<AshMilestone[]> {
-  const { projectId, goalId, objective, isNewProject } = params;
+  const { projectId, goalId, objective, isNewProject, userId } = params;
 
   // Continuing an existing project: reuse its current milestone set rather
   // than re-planning from scratch on every turn.
@@ -30,7 +31,7 @@ export async function planMilestonesForGoal(params: {
 
   if (objective.length < MILESTONE_THRESHOLD_CHARS) return [];
 
-  const generated = await generateMilestones(objective);
+  const generated = await generateMilestones(objective, userId);
   if (generated.length === 0) return [];
 
   const inserted: AshMilestone[] = [];
@@ -52,9 +53,10 @@ export async function planMilestonesForGoal(params: {
   return inserted;
 }
 
-async function generateMilestones(objective: string): Promise<GeneratedMilestone[]> {
+async function generateMilestones(objective: string, userId?: number): Promise<GeneratedMilestone[]> {
   try {
     const result = await complete({
+      userId,
       systemPrompt:
         "You break a large objective into 2-5 sequential milestones (phases) for a business-building platform. " +
         'Reply with ONLY a JSON array, no markdown, no prose: ' +

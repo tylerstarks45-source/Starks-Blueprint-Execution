@@ -396,7 +396,9 @@ export async function inferMissingDnaFields(businessId: number): Promise<void> {
       ? claims.map((c) => `${c.fieldKey}: ${JSON.stringify(c.currentValue)}`).join("\n")
       : "(no confirmed facts yet)";
 
+    const [owner] = await db.select({ ownerId: businessesTable.ownerId }).from(businessesTable).where(eq(businessesTable.id, businessId));
     const result = await complete({
+      userId: owner?.ownerId,
       systemPrompt:
         "You infer likely business facts from what's already known about a business, for an AI business-operations assistant. " +
         "Only infer a field when the given evidence or well-established patterns for this kind of business reasonably support it — " +

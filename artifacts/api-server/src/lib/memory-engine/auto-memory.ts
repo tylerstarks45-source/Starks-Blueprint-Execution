@@ -30,7 +30,7 @@ export async function captureAutoMemory(params: {
 
   let items: ExtractedMemoryItem[];
   try {
-    items = await extractMemoryItems(userMessage, assistantReply);
+    items = await extractMemoryItems(userMessage, assistantReply, userId);
   } catch (err) {
     logger.warn({ err, userId }, "Memory Engine: auto-memory extraction failed, skipping");
     return;
@@ -46,8 +46,9 @@ export async function captureAutoMemory(params: {
   }
 }
 
-async function extractMemoryItems(userMessage: string, assistantReply: string): Promise<ExtractedMemoryItem[]> {
+async function extractMemoryItems(userMessage: string, assistantReply: string, userId: number): Promise<ExtractedMemoryItem[]> {
   const result = await complete({
+    userId,
     systemPrompt:
       "You extract durable, worth-remembering facts from one turn of a chat with a business-building AI assistant. " +
       "Ignore small talk, greetings, and anything purely transient (e.g. \"ok\", \"thanks\", one-off status questions). " +

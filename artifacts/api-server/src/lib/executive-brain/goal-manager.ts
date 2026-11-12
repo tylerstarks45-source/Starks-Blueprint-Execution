@@ -22,8 +22,9 @@ export async function resolveGoalForRequest(params: {
   projectId: number;
   message: string;
   isNewProject: boolean;
+  userId?: number;
 }): Promise<AshGoal> {
-  const { projectId, message, isNewProject } = params;
+  const { projectId, message, isNewProject, userId } = params;
 
   // Continuing an existing project: reuse its most recent active goal unless
   // none exists yet.
@@ -37,7 +38,7 @@ export async function resolveGoalForRequest(params: {
     if (activeGoal) return activeGoal;
   }
 
-  const derived = await deriveGoal(message);
+  const derived = await deriveGoal(message, userId);
   const [goal] = await db
     .insert(ashGoalsTable)
     .values({
@@ -53,9 +54,10 @@ export async function resolveGoalForRequest(params: {
   return goal;
 }
 
-async function deriveGoal(message: string): Promise<DerivedGoal> {
+async function deriveGoal(message: string, userId?: number): Promise<DerivedGoal> {
   try {
     const result = await complete({
+      userId,
       systemPrompt:
         "You extract a single actionable goal from a user request for a business-building platform. " +
         "Reply with ONLY a JSON object, no markdown, no prose: " +

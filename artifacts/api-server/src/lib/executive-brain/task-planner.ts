@@ -39,11 +39,12 @@ export async function planTasks(params: {
   projectId: number;
   goalId: number | null;
   message: string;
+  userId?: number;
 }): Promise<AshTask[]> {
-  const { projectId, goalId, message } = params;
+  const { projectId, goalId, message, userId } = params;
 
   const planned = message.length >= DECOMPOSE_THRESHOLD_CHARS
-    ? await decomposeIntoTasks(message)
+    ? await decomposeIntoTasks(message, userId)
     : [{ description: message.slice(0, 500), priority: "medium" as const, assignedEngine: guessEngine(message), dependsOnIndexes: [] }];
 
   // Insert sequentially so earlier tasks get real ids before later ones
@@ -71,10 +72,11 @@ export async function planTasks(params: {
   return inserted;
 }
 
-async function decomposeIntoTasks(message: string): Promise<PlannedTask[]> {
+async function decomposeIntoTasks(message: string, userId?: number): Promise<PlannedTask[]> {
   try {
     const engineList = ASH_TASK_ENGINES.join(", ");
     const result = await complete({
+      userId,
       systemPrompt:
         `You break a user's request into an ordered list of concrete tasks for an execution platform. ` +
         `Each task must be assigned to exactly one engine from: ${engineList}. ` +

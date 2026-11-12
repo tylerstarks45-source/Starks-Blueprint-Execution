@@ -1,5 +1,5 @@
 import { db, pool, systemActivityEventsTable, ashMissionsTable, type PendingApproval } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { getTool, checkToolArgs } from "./ash-agent/tools";
 
 // ─── Autonomous action executor ───────────────────────────────────────────────
@@ -70,14 +70,14 @@ async function runApprovedAshTool(approval: PendingApproval, payload: ActionPayl
     return { executed: true, reversible: false, detail: JSON.stringify(result ?? null).slice(0, 500) };
   };
   const missionId = Number(payload["missionId"]);
-  if (!Number.isInteger(missionId)) return run();
-  // Hold the mission row (the lock cancel takes) while the action runs: a cancel either lands first and stops it, or waits for it.
-  return db.transaction(async (tx) => {
-    const [m] = await tx.select({ status: ashMissionsTable.status }).from(ashMissionsTable)
-      .where(and(eq(ashMissionsTable.id, missionId), eq(ashMissionsTable.userId, approval.userId))).for("update");
-    if (!m || m.status === "cancelled") return { executed: false, reversible: false, detail: "The mission behind this action was cancelled." };
-    return run();
-  });
+  if (Number.isInteger(missionId)) {
+    // An UPDATE waits for an in-flight cancel to commit and re-checks the status, so a cancel that got there first wins.
+    const live = await db.update(ashMissionsTable).set({ updatedAt: new Date() })
+      .where(and(eq(ashMissionsTable.id, missionId), eq(ashMissionsTable.userId, approval.userId), ne(ashMissionsTable.status, "cancelled")))
+      .returning({ id: ashMissionsTable.id });
+    if (!live.length) return { executed: false, reversible: false, detail: "The mission behind this action was cancelled." };
+  }
+  return run();
 }
 
 async function promoteAbVariant(approval: PendingApproval, payload: ActionPayload): Promise<ExecutionResult> {

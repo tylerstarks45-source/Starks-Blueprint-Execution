@@ -237,7 +237,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
 
   let goal: Awaited<ReturnType<typeof resolveGoalForRequest>>;
   try {
-    goal = await resolveGoalForRequest({ projectId: project.id, message, isNewProject: isNew });
+    goal = await resolveGoalForRequest({ projectId: project.id, message, isNewProject: isNew, userId });
   } catch (err) {
     logger.error({ err, userId }, "Executive Brain: resolveGoalForRequest failed — re-throwing to route handler");
     throw err;
@@ -245,7 +245,7 @@ export async function runExecutiveBrain(req: ExecutiveBrainRequest): Promise<Exe
 
   let tasks: Awaited<ReturnType<typeof planTasks>>;
   try {
-    tasks = await planTasks({ projectId: project.id, goalId: goal?.id ?? null, message });
+    tasks = await planTasks({ projectId: project.id, goalId: goal?.id ?? null, message, userId });
   } catch (err) {
     logger.error({ err, userId }, "Executive Brain: planTasks failed — re-throwing to route handler");
     throw err;

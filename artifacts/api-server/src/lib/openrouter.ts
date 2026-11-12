@@ -1,8 +1,7 @@
 import { logger } from "./logger";
-import { db, usersTable } from "@workspace/db";
+import { db } from "@workspace/db";
 import { openrouterUsageTable, creditUsageEventsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import { getBalance, deductForUsage, creditsForTokens, OutOfCreditsError } from "./credits";
+import { deductForUsage, creditsForTokens, assertCanSpendAi } from "./credits";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const DEFAULT_MODEL = "openai/gpt-4o-mini";
@@ -65,17 +64,11 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
 
   // Credit check — same logic as complete()
   if (request.userId != null) {
-    const [userRow] = await db
-      .select({ role: usersTable.role })
-      .from(usersTable)
-      .where(eq(usersTable.id, request.userId));
-    const isFounder = userRow?.role === "FOUNDER_ADMIN";
-    if (!isFounder) {
-      const bal = await getBalance(request.userId);
-      if (bal.total <= 0) {
-        logger.warn({ userId: request.userId }, "Blocked streaming call: out of credits");
-        throw new OutOfCreditsError();
-      }
+    try {
+      await assertCanSpendAi(request.userId);
+    } catch (err) {
+      logger.warn({ userId: request.userId, reason: (err as Error).name }, "Blocked streaming call: credit check failed");
+      throw err;
     }
   }
 
@@ -213,17 +206,11 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
   // FOUNDER_ADMIN bypasses the block so real-world testing is never interrupted,
   // but usage is still logged and deducted so analytics remain accurate.
   if (request.userId != null) {
-    const [userRow] = await db
-      .select({ role: usersTable.role })
-      .from(usersTable)
-      .where(eq(usersTable.id, request.userId));
-    const isFounder = userRow?.role === "FOUNDER_ADMIN";
-    if (!isFounder) {
-      const bal = await getBalance(request.userId);
-      if (bal.total <= 0) {
-        logger.warn({ userId: request.userId }, "Blocked OpenRouter call: out of credits");
-        throw new OutOfCreditsError();
-      }
+    try {
+      await assertCanSpendAi(request.userId);
+    } catch (err) {
+      logger.warn({ userId: request.userId, reason: (err as Error).name }, "Blocked OpenRouter call: credit check failed");
+      throw err;
     }
   }
 

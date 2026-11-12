@@ -31,9 +31,10 @@ function fallbackPlan(researchType: AshResearchType, objective: string): Researc
   };
 }
 
-export async function generateResearchPlan(researchType: AshResearchType, objective: string): Promise<ResearchPlan> {
+export async function generateResearchPlan(researchType: AshResearchType, objective: string, userId?: number): Promise<ResearchPlan> {
   try {
     const result = await complete({
+      userId,
       systemPrompt: `You are ASH's Research & Knowledge Engine planner. Given a research objective, produce 2-4 specific, non-redundant web search queries that together cover it thoroughly for ${RESEARCH_TYPE_LABEL[researchType]}.
 Return ONLY valid JSON: { "steps": [ { "query": "...", "purpose": "..." } ] }. No markdown, no extra text.`,
       prompt: `Research type: ${researchType}\nObjective: ${objective}`,

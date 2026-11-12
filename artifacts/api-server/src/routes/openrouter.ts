@@ -32,6 +32,10 @@ router.post("/openrouter/complete", async (req, res): Promise<void> => {
       res.status(402).json({ error: message, code: "out_of_credits" });
       return;
     }
+    if ((err as { code?: string })?.code === "daily_ai_limit") {
+      res.status(429).json({ error: message, code: "daily_ai_limit" });
+      return;
+    }
     res.status(400).json({ error: message });
   }
 });

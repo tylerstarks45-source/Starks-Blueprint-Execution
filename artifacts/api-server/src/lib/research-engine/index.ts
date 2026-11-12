@@ -77,7 +77,7 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
     }
 
     // Steps 1-2: plan.
-    const plan = await generateResearchPlan(request.researchType, request.objective);
+    const plan = await generateResearchPlan(request.researchType, request.objective, request.userId);
     await db.update(ashResearchSessionsTable).set({ plan }).where(eq(ashResearchSessionsTable.id, session.id));
 
     // Step 3: gather (reuses the existing search primitive, see gatherer.ts).
@@ -92,6 +92,7 @@ export async function runResearchEngine(request: ResearchRequest): Promise<Resea
 
     // Step 6: structured summary.
     const summary = await generateStructuredSummary({
+      userId: request.userId,
       researchType: request.researchType,
       objective: request.objective,
       findings: dedupedFindings,

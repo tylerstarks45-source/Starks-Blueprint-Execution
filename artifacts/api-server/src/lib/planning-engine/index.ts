@@ -43,7 +43,7 @@ export async function runPlanningEngine(params: {
 
   // 1. Milestones/phases (large objectives only; no-op for short chat turns).
   let milestones = await safeStep(
-    () => planMilestonesForGoal({ projectId: project.id, goalId: goal?.id ?? null, objective: project.objective ?? "", isNewProject }),
+    () => planMilestonesForGoal({ projectId: project.id, goalId: goal?.id ?? null, objective: project.objective ?? "", isNewProject, userId }),
     [],
     "milestone planning",
   );
@@ -75,7 +75,7 @@ export async function runPlanningEngine(params: {
   if (nextTask) {
     const connectedCredentialCount = await safeStep(() => countConnectedCredentials(userId), 0, "credential count");
     decision = await safeStep(
-      () => evaluateExecutionDecision({ task: nextTask, goal, connectedCredentialCount }),
+      () => evaluateExecutionDecision({ task: nextTask, goal, connectedCredentialCount, userId }),
       null,
       "decision evaluation",
     );

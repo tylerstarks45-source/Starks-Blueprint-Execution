@@ -157,6 +157,7 @@ router.post("/subscriptions/checkout", async (req, res): Promise<void> => {
 
 // POST /api/stripe/webhook — raw body captured in app.ts before JSON parser
 router.post("/stripe/webhook", async (req, res): Promise<void> => {
+  let verified = false;
   try {
     const stripe = await getUncachableStripeClient();
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -199,370 +200,391 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
       event = req.body;
     }
 
-    // Idempotency guard — Stripe retries/replays the same event id; apply each only once.
-    if (event.id) {
-      const [inserted] = await db
-        .insert(processedStripeEventsTable)
-        .values({ eventId: String(event.id) })
-        .onConflictDoNothing()
-        .returning();
-      if (!inserted) {
-        req.log.info({ eventId: event.id }, "Duplicate Stripe event ignored");
-        res.json({ received: true, duplicate: true });
-        return;
+    // Claim the event and apply it in ONE transaction: if anything fails the
+    // claim rolls back with the partial writes, so Stripe's retry re-applies
+    // the event cleanly; a concurrent duplicate waits on the unique key and
+    // then sees the committed claim.
+    verified = true;
+    // Best-effort side effects (notifications, referral rewards) run only after
+    // the transaction commits. A failed statement inside the transaction aborts
+    // it, so nothing that may fail non-fatally is allowed to run on `tx`.
+    const afterCommit: Array<() => Promise<unknown>> = [];
+    const duplicate = await db.transaction(async (tx) => {
+      if (event.id) {
+        const [inserted] = await tx
+          .insert(processedStripeEventsTable)
+          .values({ eventId: String(event.id) })
+          .onConflictDoNothing()
+          .returning();
+        if (!inserted) return true;
       }
-    }
 
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object as any;
-      let userId = Number(session.metadata?.userId) || 0;
-      const tier = session.metadata?.tier as string;
-      const customerId = session.customer as string;
-      const subscriptionId = session.subscription as string;
-      const amountTotal: number = session.amount_total ?? 0;
+      if (event.type === "checkout.session.completed") {
+        const session = event.data.object as any;
+        let userId = Number(session.metadata?.userId) || 0;
+        const tier = session.metadata?.tier as string;
+        const customerId = session.customer as string;
+        const subscriptionId = session.subscription as string;
+        const amountTotal: number = session.amount_total ?? 0;
 
-      // Fallback: if no userId in metadata, look up user by Stripe customer email.
-      // This handles payments made outside the normal logged-in checkout flow.
-      let resolvedStripeEmail: string | null = null;
-      if (!userId && customerId) {
-        try {
-          const stripeCust = await stripe.customers.retrieve(customerId);
-          if (stripeCust && !("deleted" in stripeCust) && stripeCust.email) {
-            resolvedStripeEmail = stripeCust.email;
-            const [found] = await db
-              .select({ id: usersTable.id })
-              .from(usersTable)
-              .where(eq(usersTable.email, stripeCust.email));
-            if (found) {
-              userId = found.id;
-              req.log.info({ userId, email: resolvedStripeEmail, customerId }, "Resolved userId from Stripe customer email (no metadata userId)");
-            } else {
-              req.log.warn({ email: resolvedStripeEmail, customerId }, "checkout.session.completed: Stripe customer email not found in users table — manual provisioning required");
+        // Fallback: if no userId in metadata, look up user by Stripe customer email.
+        // This handles payments made outside the normal logged-in checkout flow.
+        let resolvedStripeEmail: string | null = null;
+        if (!userId && customerId) {
+          try {
+            const stripeCust = await stripe.customers.retrieve(customerId);
+            if (stripeCust && !("deleted" in stripeCust) && stripeCust.email) {
+              resolvedStripeEmail = stripeCust.email;
+              const email = stripeCust.email;
+              // Savepoint: a failed lookup must not abort the outer transaction.
+              const [found] = await tx.transaction((sp) =>
+                sp.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)),
+              );
+              if (found) {
+                userId = found.id;
+                req.log.info({ userId, email: resolvedStripeEmail, customerId }, "Resolved userId from Stripe customer email (no metadata userId)");
+              } else {
+                req.log.warn({ email: resolvedStripeEmail, customerId }, "checkout.session.completed: Stripe customer email not found in users table — manual provisioning required");
+              }
             }
+          } catch (lookupErr) {
+            req.log.warn({ lookupErr, customerId }, "Could not resolve userId from Stripe customer");
           }
-        } catch (lookupErr) {
-          req.log.warn({ lookupErr, customerId }, "Could not resolve userId from Stripe customer");
         }
-      }
 
-      // If we still have no userId after all resolution attempts and this was a real
-      // (non-$0) charge, proactively alert all SUPER_ADMIN users so they can manually
-      // provision the customer before a chargeback or support ticket arrives.
-      if (!userId && amountTotal > 0 && session.payment_status === "paid") {
-        const emailPart = resolvedStripeEmail ? ` (${resolvedStripeEmail})` : "";
-        req.log.warn(
-          { customerId, email: resolvedStripeEmail, amountTotal, sessionId: session.id },
-          "checkout.session.completed: real payment received but userId unresolvable — notifying admins",
-        );
-        try {
-          const superAdmins = await db
-            .select({ id: usersTable.id })
-            .from(usersTable)
-            .where(eq(usersTable.role, "SUPER_ADMIN"));
-
-          // Derive the tier from the subscription items if available, otherwise fall
-          // back to session metadata (may be undefined for external payments).
-          let sessionTier: string | null = tier ?? null;
-          if (!sessionTier && subscriptionId) {
+        // If we still have no userId after all resolution attempts and this was a real
+        // (non-$0) charge, proactively alert all SUPER_ADMIN users so they can manually
+        // provision the customer before a chargeback or support ticket arrives.
+        if (!userId && amountTotal > 0 && session.payment_status === "paid") {
+          const emailPart = resolvedStripeEmail ? ` (${resolvedStripeEmail})` : "";
+          req.log.warn(
+            { customerId, email: resolvedStripeEmail, amountTotal, sessionId: session.id },
+            "checkout.session.completed: real payment received but userId unresolvable — notifying admins",
+          );
+          afterCommit.push(async () => {
             try {
-              const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
-              const priceId = stripeSub.items.data[0]?.price?.id;
-              sessionTier = priceId ? getTierFromPriceId(priceId) : null;
-            } catch { /* non-fatal */ }
-          }
+              const superAdmins = await db
+                .select({ id: usersTable.id })
+                .from(usersTable)
+                .where(eq(usersTable.role, "SUPER_ADMIN"));
 
-          for (const admin of superAdmins) {
-            await notifyUser({
-              userId: admin.id,
-              title: "⚠️ Unprovisioned Stripe Payment",
-              message: `A payment of $${(amountTotal / 100).toFixed(2)} was received but the user could not be identified. Stripe customer: ${customerId ?? "unknown"}${emailPart}. Manual provisioning required.`,
-              notificationType: "error",
-              linkUrl: "/admin/stripe",
-              dedupeKey: `unprovisioned_payment_${customerId ?? session.id}`,
-              metadata: {
-                sessionId: session.id,
-                customerId: customerId ?? null,
-                stripeEmail: resolvedStripeEmail,
-                tier: sessionTier,
-                amountTotal,
-                subscriptionId: subscriptionId ?? null,
-              },
-            });
-          }
-        } catch (notifyErr) {
-          req.log.warn({ notifyErr }, "Failed to notify admins of unprovisioned Stripe payment");
-        }
-      }
+              // Derive the tier from the subscription items if available, otherwise fall
+              // back to session metadata (may be undefined for external payments).
+              let sessionTier: string | null = tier ?? null;
+              if (!sessionTier && subscriptionId) {
+                try {
+                  const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+                  const priceId = stripeSub.items.data[0]?.price?.id;
+                  sessionTier = priceId ? getTierFromPriceId(priceId) : null;
+                } catch { /* non-fatal */ }
+              }
 
-      if (session.metadata?.kind === "blueprint_purchase") {
-        const blueprintId = Number(session.metadata?.blueprintId);
-        if (userId && blueprintId) {
-          const [bp] = await db.select().from(blueprintsTable).where(eq(blueprintsTable.id, blueprintId));
-          if (bp) {
-            const priceCredits = bp.priceCredits ?? 0;
-            const creatorShare = Math.floor(priceCredits * 0.7);
-
-            // Insert purchase record — idempotent via unique constraint
-            const [purchase] = await db
-              .insert(blueprintPurchasesTable)
-              .values({
-                blueprintId,
-                buyerUserId: userId,
-                authorUserId: bp.authorUserId ?? null,
-                priceCredits,
-                creatorShareCredits: creatorShare,
-              })
-              .onConflictDoNothing()
-              .returning();
-
-            if (purchase) {
-              // Pay creator 70%
-              if (bp.authorUserId && creatorShare > 0) {
-                await adjustWalletCredits(bp.authorUserId, creatorShare, {
-                  reason: `Blueprint sale (Stripe card): "${bp.name}"`,
+              for (const admin of superAdmins) {
+                await notifyUser({
+                  userId: admin.id,
+                  title: "⚠️ Unprovisioned Stripe Payment",
+                  message: `A payment of $${(amountTotal / 100).toFixed(2)} was received but the user could not be identified. Stripe customer: ${customerId ?? "unknown"}${emailPart}. Manual provisioning required.`,
+                  notificationType: "error",
+                  linkUrl: "/admin/stripe",
+                  dedupeKey: `unprovisioned_payment_${customerId ?? session.id}`,
+                  metadata: {
+                    sessionId: session.id,
+                    customerId: customerId ?? null,
+                    stripeEmail: resolvedStripeEmail,
+                    tier: sessionTier,
+                    amountTotal,
+                    subscriptionId: subscriptionId ?? null,
+                  },
                 });
               }
-              // Increment salesCount
-              await db
-                .update(blueprintsTable)
-                .set({ salesCount: (bp.salesCount ?? 0) + 1 })
-                .where(eq(blueprintsTable.id, blueprintId));
-              // Notify creator
-              if (bp.authorUserId) {
-                await db.insert(notificationsTable).values({
-                  userId: bp.authorUserId,
-                  title: "Blueprint Sold!",
-                  message: `Your blueprint "${bp.name}" was purchased via card. You earned ${creatorShare} credits.`,
-                  notificationType: "success",
-                  read: false,
-                }).catch(() => {});
+            } catch (notifyErr) {
+              req.log.warn({ notifyErr }, "Failed to notify admins of unprovisioned Stripe payment");
+            }
+          });
+        }
+
+        if (session.metadata?.kind === "blueprint_purchase") {
+          const blueprintId = Number(session.metadata?.blueprintId);
+          if (userId && blueprintId) {
+            const [bp] = await tx.select().from(blueprintsTable).where(eq(blueprintsTable.id, blueprintId));
+            if (bp) {
+              const priceCredits = bp.priceCredits ?? 0;
+              const creatorShare = Math.floor(priceCredits * 0.7);
+
+              // Insert purchase record — idempotent via unique constraint
+              const [purchase] = await tx
+                .insert(blueprintPurchasesTable)
+                .values({
+                  blueprintId,
+                  buyerUserId: userId,
+                  authorUserId: bp.authorUserId ?? null,
+                  priceCredits,
+                  creatorShareCredits: creatorShare,
+                })
+                .onConflictDoNothing()
+                .returning();
+
+              if (purchase) {
+                // Pay creator 70%
+                if (bp.authorUserId && creatorShare > 0) {
+                  await adjustWalletCredits(bp.authorUserId, creatorShare, {
+                    reason: `Blueprint sale (Stripe card): "${bp.name}"`,
+                  }, tx);
+                }
+                // Increment salesCount
+                await tx
+                  .update(blueprintsTable)
+                  .set({ salesCount: (bp.salesCount ?? 0) + 1 })
+                  .where(eq(blueprintsTable.id, blueprintId));
+                // Notify creator
+                if (bp.authorUserId) {
+                  const authorUserId = bp.authorUserId;
+                  afterCommit.push(() => db.insert(notificationsTable).values({
+                    userId: authorUserId,
+                    title: "Blueprint Sold!",
+                    message: `Your blueprint "${bp.name}" was purchased via card. You earned ${creatorShare} credits.`,
+                    notificationType: "success",
+                    read: false,
+                  }));
+                }
+                req.log.info({ userId, blueprintId, priceCredits }, "Blueprint purchase fulfilled via Stripe");
+              } else {
+                req.log.info({ userId, blueprintId }, "Blueprint already purchased — Stripe duplicate event ignored");
               }
-              req.log.info({ userId, blueprintId, priceCredits }, "Blueprint purchase fulfilled via Stripe");
-            } else {
-              req.log.info({ userId, blueprintId }, "Blueprint already purchased — Stripe duplicate event ignored");
             }
           }
-        }
-      } else if (session.metadata?.kind === "wallet_purchase") {
-        const credits = Number(session.metadata?.credits);
-        if (userId && credits > 0) {
-          await adjustWalletCredits(userId, credits, { reason: `Wallet top-up: ${credits} credits` });
-          req.log.info({ userId, credits }, "Wallet top-up completed");
-        }
-      } else if (userId && tier) {
-        const priceId = getPriceId(tier);
-        const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
-        if (sub) {
-          await db.update(subscriptionsTable)
-            .set({ stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId, tier, status: "active", stripePriceId: priceId })
-            .where(eq(subscriptionsTable.userId, userId));
-        } else {
-          await db.insert(subscriptionsTable).values({
-            userId, stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId,
-            tier, status: "active", stripePriceId: priceId,
-          });
-        }
-        await db.update(usersTable)
-          .set({ membershipTier: tier, membershipStatus: "active" })
-          .where(eq(usersTable.id, userId));
-        await adjustCredits(userId, tierAllotment(tier), "tier_grant", { reason: `${tier} plan credits` });
-        req.log.info({ userId, tier }, "Stripe webhook: subscription activated");
-
-        // Referral reward — award referrer on first-ever subscription activation
-        // 500 bonus credits + 20% of first month as wallet credits (fire-and-forget)
-        ;(async () => {
-          try {
-            const [signupEvent] = await db
-              .select()
-              .from(referralEventsTable)
-              .where(
-                and(
-                  eq(referralEventsTable.referredUserId, userId),
-                  eq(referralEventsTable.eventType, "signup"),
-                ),
-              );
-            if (!signupEvent) return;
-
-            // Ensure this is the first conversion (idempotency)
-            const [alreadyConverted] = await db
-              .select({ id: referralEventsTable.id })
-              .from(referralEventsTable)
-              .where(
-                and(
-                  eq(referralEventsTable.referrerId, signupEvent.referrerId),
-                  eq(referralEventsTable.referredUserId, userId),
-                  eq(referralEventsTable.eventType, "conversion"),
-                ),
-              );
-            if (alreadyConverted) return;
-
-            const amountCents = Number(session.amount_total ?? 0) ||
-              (TIER_CONFIG[tier]?.amount ?? 0);
-            const bonusCredits = 500;
-            const revenueShareCredits = Math.round(amountCents * 0.20 / 100 * 50);
-            const totalCredits = bonusCredits + revenueShareCredits;
-
-            await adjustCredits(signupEvent.referrerId, bonusCredits, "signup_grant", {
-              reason: `Referral bonus — ${tier} plan signup`,
-            });
-            await adjustWalletCredits(signupEvent.referrerId, revenueShareCredits, {
-              reason: `Referral revenue share — 20% of ${tier} first month`,
-            });
-
-            await db.insert(referralEventsTable).values({
-              referrerId: signupEvent.referrerId,
-              referredUserId: userId,
-              eventType: "conversion",
-              creditsAwarded: totalCredits,
-            });
-
-            await db
-              .update(referralCodesTable)
-              .set({ conversions: sql`${referralCodesTable.conversions} + 1` })
-              .where(eq(referralCodesTable.userId, signupEvent.referrerId));
-
-            await db.insert(notificationsTable).values({
-              userId: signupEvent.referrerId,
-              title: "Referral Earned!",
-              message: `Your referral subscribed to the ${tier} plan. You earned ${bonusCredits} bonus credits + ${revenueShareCredits} wallet credits!`,
-              notificationType: "success",
-              read: false,
-            }).catch(() => {});
-
-            req.log.info({ referrerId: signupEvent.referrerId, userId, tier, totalCredits }, "Referral reward awarded");
-          } catch (err) {
-            req.log.warn({ err, userId, tier }, "Failed to process referral reward");
+        } else if (session.metadata?.kind === "wallet_purchase") {
+          const credits = Number(session.metadata?.credits);
+          if (userId && credits > 0) {
+            await adjustWalletCredits(userId, credits, { reason: `Wallet top-up: ${credits} credits` }, tx);
+            req.log.info({ userId, credits }, "Wallet top-up completed");
           }
-        })();
+        } else if (userId && tier) {
+          const priceId = getPriceId(tier);
+          const [sub] = await tx.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+          if (sub) {
+            await tx.update(subscriptionsTable)
+              .set({ stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId, tier, status: "active", stripePriceId: priceId })
+              .where(eq(subscriptionsTable.userId, userId));
+          } else {
+            await tx.insert(subscriptionsTable).values({
+              userId, stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId,
+              tier, status: "active", stripePriceId: priceId,
+            });
+          }
+          await tx.update(usersTable)
+            .set({ membershipTier: tier, membershipStatus: "active" })
+            .where(eq(usersTable.id, userId));
+          await adjustCredits(userId, tierAllotment(tier), "tier_grant", { reason: `${tier} plan credits` }, tx);
+          req.log.info({ userId, tier }, "Stripe webhook: subscription activated");
+
+          // Referral reward — award referrer on first-ever subscription activation
+          // 500 bonus credits + 20% of first month as wallet credits (after commit)
+          afterCommit.push(async () => {
+            try {
+              const [signupEvent] = await db
+                .select()
+                .from(referralEventsTable)
+                .where(
+                  and(
+                    eq(referralEventsTable.referredUserId, userId),
+                    eq(referralEventsTable.eventType, "signup"),
+                  ),
+                );
+              if (!signupEvent) return;
+
+              // Ensure this is the first conversion (idempotency)
+              const [alreadyConverted] = await db
+                .select({ id: referralEventsTable.id })
+                .from(referralEventsTable)
+                .where(
+                  and(
+                    eq(referralEventsTable.referrerId, signupEvent.referrerId),
+                    eq(referralEventsTable.referredUserId, userId),
+                    eq(referralEventsTable.eventType, "conversion"),
+                  ),
+                );
+              if (alreadyConverted) return;
+
+              const amountCents = Number(session.amount_total ?? 0) ||
+                (TIER_CONFIG[tier]?.amount ?? 0);
+              const bonusCredits = 500;
+              const revenueShareCredits = Math.round(amountCents * 0.20 / 100 * 50);
+              const totalCredits = bonusCredits + revenueShareCredits;
+
+              await adjustCredits(signupEvent.referrerId, bonusCredits, "signup_grant", {
+                reason: `Referral bonus — ${tier} plan signup`,
+              });
+              await adjustWalletCredits(signupEvent.referrerId, revenueShareCredits, {
+                reason: `Referral revenue share — 20% of ${tier} first month`,
+              });
+
+              await db.insert(referralEventsTable).values({
+                referrerId: signupEvent.referrerId,
+                referredUserId: userId,
+                eventType: "conversion",
+                creditsAwarded: totalCredits,
+              });
+
+              await db
+                .update(referralCodesTable)
+                .set({ conversions: sql`${referralCodesTable.conversions} + 1` })
+                .where(eq(referralCodesTable.userId, signupEvent.referrerId));
+
+              await db.insert(notificationsTable).values({
+                userId: signupEvent.referrerId,
+                title: "Referral Earned!",
+                message: `Your referral subscribed to the ${tier} plan. You earned ${bonusCredits} bonus credits + ${revenueShareCredits} wallet credits!`,
+                notificationType: "success",
+                read: false,
+              }).catch(() => {});
+
+              req.log.info({ referrerId: signupEvent.referrerId, userId, tier, totalCredits }, "Referral reward awarded");
+            } catch (err) {
+              req.log.warn({ err, userId, tier }, "Failed to process referral reward");
+            }
+          });
+        }
       }
-    }
 
-    if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.paused") {
-      const sub = event.data.object as any;
-      const userId = Number(sub.metadata?.userId);
-      if (userId) {
-        await db.update(subscriptionsTable).set({ status: "inactive", tier: "free" }).where(eq(subscriptionsTable.userId, userId));
-        await db.update(usersTable).set({ membershipTier: "free", membershipStatus: "active" }).where(eq(usersTable.id, userId));
-        req.log.info({ userId }, "Subscription cancelled — user downgraded to free tier");
+      if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.paused") {
+        const sub = event.data.object as any;
+        const userId = Number(sub.metadata?.userId);
+        if (userId) {
+          await tx.update(subscriptionsTable).set({ status: "inactive", tier: "free" }).where(eq(subscriptionsTable.userId, userId));
+          await tx.update(usersTable).set({ membershipTier: "free", membershipStatus: "active" }).where(eq(usersTable.id, userId));
+          req.log.info({ userId }, "Subscription cancelled — user downgraded to free tier");
+        }
       }
-    }
 
-    if (event.type === "invoice.payment_succeeded") {
-      const invoice = event.data.object as any;
-      const billingReason: string = invoice.billing_reason ?? "";
+      if (event.type === "invoice.payment_succeeded") {
+        const invoice = event.data.object as any;
+        const billingReason: string = invoice.billing_reason ?? "";
 
-      // subscription_create is handled by checkout.session.completed — skip to avoid double credit grant.
-      // subscription_update tier changes are handled by customer.subscription.updated.
-      // Only grant fresh credits on subscription_cycle (monthly/annual renewals).
-      const isRenewal = billingReason === "subscription_cycle";
+        // subscription_create is handled by checkout.session.completed — skip to avoid double credit grant.
+        // subscription_update tier changes are handled by customer.subscription.updated.
+        // Only grant fresh credits on subscription_cycle (monthly/annual renewals).
+        const isRenewal = billingReason === "subscription_cycle";
 
-      const userId = Number(invoice.subscription_details?.metadata?.userId);
-      if (userId) {
-        await db.update(subscriptionsTable).set({ status: "active" }).where(eq(subscriptionsTable.userId, userId));
-        await db.update(usersTable).set({ membershipStatus: "active" }).where(eq(usersTable.id, userId));
+        const userId = Number(invoice.subscription_details?.metadata?.userId);
+        if (userId) {
+          await tx.update(subscriptionsTable).set({ status: "active" }).where(eq(subscriptionsTable.userId, userId));
+          await tx.update(usersTable).set({ membershipStatus: "active" }).where(eq(usersTable.id, userId));
 
-        if (isRenewal) {
-          // Look up the user's current tier from the subscriptions table — most authoritative source.
-          const [sub] = await db
-            .select({ tier: subscriptionsTable.tier })
-            .from(subscriptionsTable)
+          if (isRenewal) {
+            // Look up the user's current tier from the subscriptions table — most authoritative source.
+            const [sub] = await tx
+              .select({ tier: subscriptionsTable.tier })
+              .from(subscriptionsTable)
+              .where(eq(subscriptionsTable.userId, userId));
+            const currentTier = sub?.tier ?? "free";
+            const allotment = tierAllotment(currentTier);
+            await adjustCredits(userId, allotment, "tier_grant", {
+              reason: `Monthly renewal — ${currentTier} plan (${allotment} credits)`,
+            }, tx);
+            req.log.info({ userId, tier: currentTier, allotment, billingReason }, "Monthly credit renewal granted");
+          } else {
+            req.log.info({ userId, billingReason }, "Invoice paid — status re-activated (credits not re-granted)");
+          }
+        }
+      }
+
+      if (event.type === "customer.subscription.updated") {
+        const stripeSub = event.data.object as any;
+        const customerId = stripeSub.customer as string;
+        const stripeStatus: string = stripeSub.status ?? "active";
+
+        // Resolve the new price ID from the first subscription item.
+        const newPriceId: string | undefined = stripeSub.items?.data?.[0]?.price?.id;
+        const newTier = newPriceId ? getTierFromPriceId(newPriceId) : null;
+
+        // Map Stripe subscription status to our internal status.
+        //   active / trialing          → "active"
+        //   past_due / unpaid          → "past_due"  (keep access; billing team follows up)
+        //   canceled / incomplete_expired / paused → "inactive"
+        //   incomplete                 → skip (checkout not finished yet)
+        if (stripeStatus === "incomplete") {
+          return false;
+        }
+        const dbStatus =
+          ["active", "trialing"].includes(stripeStatus)        ? "active"   :
+          ["past_due", "unpaid"].includes(stripeStatus)        ? "past_due" :
+                                                                 "inactive";
+
+        // Look up the subscription record by Stripe customer ID — this is
+        // more reliable than subscription metadata because the session metadata
+        // is set on checkout.session, not on the subscription object itself.
+        const [existingSub] = await tx
+          .select()
+          .from(subscriptionsTable)
+          .where(eq(subscriptionsTable.stripeCustomerId, customerId));
+
+        if (existingSub) {
+          const userId = existingSub.userId!;
+
+          // Always sync status. Only change tier when the price maps to a known
+          // tier (ignore plan changes to unrecognised prices, e.g. grandfathered).
+          const subPatch: Record<string, string | null> = { status: dbStatus };
+          const userPatch: Record<string, string> = {
+            membershipStatus: dbStatus === "active" ? "active" : "inactive",
+          };
+
+          let lostOperationsAccess = false;
+          if (newTier && newTier !== existingSub.tier) {
+            subPatch.tier        = newTier;
+            subPatch.stripePriceId = newPriceId ?? null;
+            userPatch.membershipTier = newTier;
+            // Detect a downgrade that removes ASH Operations Mode so we can warn
+            // the user their autonomous automations will stop.
+            lostOperationsAccess =
+              hasOperationsModeAccess(existingSub.tier) && !hasOperationsModeAccess(newTier);
+            req.log.info({ userId, from: existingSub.tier, to: newTier, stripeStatus, lostOperationsAccess },
+              "Subscription tier changed");
+          }
+
+          await tx.update(subscriptionsTable)
+            .set(subPatch)
             .where(eq(subscriptionsTable.userId, userId));
-          const currentTier = sub?.tier ?? "free";
-          const allotment = tierAllotment(currentTier);
-          await adjustCredits(userId, allotment, "tier_grant", {
-            reason: `Monthly renewal — ${currentTier} plan (${allotment} credits)`,
-          });
-          req.log.info({ userId, tier: currentTier, allotment, billingReason }, "Monthly credit renewal granted");
+          await tx.update(usersTable)
+            .set(userPatch)
+            .where(eq(usersTable.id, userId));
+
+          // Tier-change grace notification: tell the user what their plan change
+          // means for their running automations, with a one-click path to restore.
+          if (lostOperationsAccess) {
+            afterCommit.push(() => notifyUser({
+              userId,
+              notificationType: "warn",
+              title: "ASH Operations Mode paused after plan change",
+              message: `Your plan changed to ${newTier}, which doesn't include ASH Operations Mode. Your businesses stay saved, but continuous monitoring, content, and scheduling automation are paused. Upgrade to Operator or Empire to resume.`,
+              linkUrl: "/pricing",
+              dedupeKey: "operations_access_lost",
+            }));
+          }
+
+          req.log.info({ userId, stripeStatus, dbStatus, newTier }, "Subscription updated");
         } else {
-          req.log.info({ userId, billingReason }, "Invoice paid — status re-activated (credits not re-granted)");
+          req.log.warn({ customerId }, "customer.subscription.updated: no matching subscription record found");
         }
       }
+
+      return false;
+    });
+
+    if (duplicate) {
+      req.log.info({ eventId: event.id }, "Duplicate Stripe event ignored");
+      res.json({ received: true, duplicate: true });
+      return;
     }
 
-    if (event.type === "customer.subscription.updated") {
-      const stripeSub = event.data.object as any;
-      const customerId = stripeSub.customer as string;
-      const stripeStatus: string = stripeSub.status ?? "active";
-
-      // Resolve the new price ID from the first subscription item.
-      const newPriceId: string | undefined = stripeSub.items?.data?.[0]?.price?.id;
-      const newTier = newPriceId ? getTierFromPriceId(newPriceId) : null;
-
-      // Map Stripe subscription status to our internal status.
-      //   active / trialing          → "active"
-      //   past_due / unpaid          → "past_due"  (keep access; billing team follows up)
-      //   canceled / incomplete_expired / paused → "inactive"
-      //   incomplete                 → skip (checkout not finished yet)
-      if (stripeStatus === "incomplete") {
-        res.json({ received: true });
-        return;
-      }
-      const dbStatus =
-        ["active", "trialing"].includes(stripeStatus)        ? "active"   :
-        ["past_due", "unpaid"].includes(stripeStatus)        ? "past_due" :
-                                                               "inactive";
-
-      // Look up the subscription record by Stripe customer ID — this is
-      // more reliable than subscription metadata because the session metadata
-      // is set on checkout.session, not on the subscription object itself.
-      const [existingSub] = await db
-        .select()
-        .from(subscriptionsTable)
-        .where(eq(subscriptionsTable.stripeCustomerId, customerId));
-
-      if (existingSub) {
-        const userId = existingSub.userId!;
-
-        // Always sync status. Only change tier when the price maps to a known
-        // tier (ignore plan changes to unrecognised prices, e.g. grandfathered).
-        const subPatch: Record<string, string | null> = { status: dbStatus };
-        const userPatch: Record<string, string> = {
-          membershipStatus: dbStatus === "active" ? "active" : "inactive",
-        };
-
-        let lostOperationsAccess = false;
-        if (newTier && newTier !== existingSub.tier) {
-          subPatch.tier        = newTier;
-          subPatch.stripePriceId = newPriceId ?? null;
-          userPatch.membershipTier = newTier;
-          // Detect a downgrade that removes ASH Operations Mode so we can warn
-          // the user their autonomous automations will stop.
-          lostOperationsAccess =
-            hasOperationsModeAccess(existingSub.tier) && !hasOperationsModeAccess(newTier);
-          req.log.info({ userId, from: existingSub.tier, to: newTier, stripeStatus, lostOperationsAccess },
-            "Subscription tier changed");
-        }
-
-        await db.update(subscriptionsTable)
-          .set(subPatch)
-          .where(eq(subscriptionsTable.userId, userId));
-        await db.update(usersTable)
-          .set(userPatch)
-          .where(eq(usersTable.id, userId));
-
-        // Tier-change grace notification: tell the user what their plan change
-        // means for their running automations, with a one-click path to restore.
-        if (lostOperationsAccess) {
-          await notifyUser({
-            userId,
-            notificationType: "warn",
-            title: "ASH Operations Mode paused after plan change",
-            message: `Your plan changed to ${newTier}, which doesn't include ASH Operations Mode. Your businesses stay saved, but continuous monitoring, content, and scheduling automation are paused. Upgrade to Operator or Empire to resume.`,
-            linkUrl: "/pricing",
-            dedupeKey: "operations_access_lost",
-          });
-        }
-
-        req.log.info({ userId, stripeStatus, dbStatus, newTier }, "Subscription updated");
-      } else {
-        req.log.warn({ customerId }, "customer.subscription.updated: no matching subscription record found");
-      }
+    for (const job of afterCommit) {
+      void job().catch((err) => req.log.warn({ err }, "Stripe post-commit follow-up failed"));
     }
-
     res.json({ received: true });
   } catch (err: any) {
     req.log.error({ err }, "Stripe webhook error");
-    res.status(400).json({ error: "Webhook processing failed" });
+    // Signature/parse failures are 400; processing failures are 500 so Stripe retries.
+    res.status(verified ? 500 : 400).json({ error: "Webhook processing failed" });
   }
 });
 

@@ -8,6 +8,11 @@ import { authHeaders } from '@/lib/ashApi.js';
 const HIDDEN_ON = ['/login', '/signup', '/password-reset', '/verify-email'];
 const MAX_STORED = 40;
 
+const store = {
+  get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+  set(key, value) { try { localStorage.setItem(key, value); } catch { /* storage blocked or full */ } },
+};
+
 const pageLabel = (path) => (path === '/' ? 'home' : path.replace(/^\//, '').split('/')[0].replace(/-/g, ' '));
 
 const forSpeech = (text) => text
@@ -33,24 +38,44 @@ export default function AshDock() {
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
-  const [speak, setSpeak] = useState(() => localStorage.getItem('ash_dock_voice') === '1');
+  const [speak, setSpeak] = useState(() => store.get('ash_dock_voice') === '1');
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
   const audioRef = useRef(null);
   const endRef = useRef(null);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const ownerRef = useRef(storageKey);
+  ownerRef.current = storageKey;
 
   useEffect(() => {
     if (!storageKey) return;
-    try { setMessages(JSON.parse(localStorage.getItem(storageKey) || '[]')); } catch { setMessages([]); }
+    try { setMessages(JSON.parse(store.get(storageKey) || '[]')); } catch { setMessages([]); }
   }, [storageKey]);
 
   useEffect(() => {
-    if (storageKey) localStorage.setItem(storageKey, JSON.stringify(messages.slice(-MAX_STORED)));
+    if (storageKey) store.set(storageKey, JSON.stringify(messages.slice(-MAX_STORED)));
   }, [messages, storageKey]);
 
-  useEffect(() => { localStorage.setItem('ash_dock_voice', speak ? '1' : '0'); }, [speak]);
+  useEffect(() => {
+    store.set('ash_dock_voice', speak ? '1' : '0');
+    if (!speak) audioRef.current?.pause();
+  }, [speak]);
+
+  const stopCapture = useCallback(() => {
+    const mr = recorderRef.current;
+    recorderRef.current = null;
+    if (mr) {
+      mr.onstop = null;
+      if (mr.state !== 'inactive') mr.stop();
+      mr.stream?.getTracks().forEach((t) => t.stop());
+    }
+    audioRef.current?.pause();
+    setRecording(false);
+  }, []);
+
+  // Never keep the mic or speech running for a different (or no) account.
+  useEffect(() => stopCapture, [storageKey, isAuthenticated, stopCapture]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, open, busy]);
 
   useEffect(() => {
@@ -66,7 +91,7 @@ export default function AshDock() {
     const clean = forSpeech(text);
     if (!clean) return;
     try {
-      const voice = localStorage.getItem('sbep_voice_preset') ?? 'warm narrator';
+      const voice = store.get('sbep_voice_preset') ?? 'warm narrator';
       const res = await fetch('/api/media-gen/tts', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ text: clean, voice }) });
       const data = await res.json();
       if (!data.audioBase64) return;
@@ -79,13 +104,15 @@ export default function AshDock() {
   const send = useCallback(async (raw) => {
     const text = (raw ?? '').trim();
     if (!text || busy) return;
+    const owner = storageKey;
     const page = location.pathname.replace(/[^\w\-/]/g, '') || '/';
     const history = messagesRef.current.slice(-12).map(({ role, content }) => ({ role, content: content.slice(0, 8000) }));
     setMessages((m) => [...m, { role: 'user', content: text, page }]);
     setInput('');
     setBusy(true);
     try {
-      const res = await fetch('/api/ash/agent', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ message: text, history, page }) });
+      const res = await fetch('/api/ash/agent', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ message: text, history, page, surface: 'dock' }) });
+      if (ownerRef.current !== owner) return;
       if (res.status === 402) { toast.error('Out of credits — top up to keep talking to ASH'); return; }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'ASH is unavailable');
@@ -95,19 +122,18 @@ export default function AshDock() {
         if (call.type === 'navigate' && typeof call.path === 'string' && call.path.startsWith('/')) {
           navigate(call.path);
           actions.push({ label: `Opened ${pageLabel(call.path)}`, path: call.path });
-        } else {
-          actions.push({ label: `Run "${call.type}" in the Builder`, path: '/builder' });
         }
       }
       const content = data.content || (actions.length ? 'Done.' : '…');
       setMessages((m) => [...m, { role: 'assistant', content, actions }]);
       if (speak) say(content);
     } catch (err) {
+      if (ownerRef.current !== owner) return;
       setMessages((m) => [...m, { role: 'assistant', content: `Sorry, I hit a problem: ${err.message}`, error: true }]);
     } finally {
       setBusy(false);
     }
-  }, [busy, location.pathname, navigate, say, speak]);
+  }, [busy, location.pathname, navigate, say, speak, storageKey]);
 
   const startRecording = async () => {
     try {
@@ -125,7 +151,7 @@ export default function AshDock() {
           form.append('audio', blob, mime === 'audio/webm' ? 'voice.webm' : 'voice.ogg');
           const res = await fetch('/api/ai-orchestrator/transcribe', {
             method: 'POST',
-            headers: { Authorization: `Bearer ${localStorage.getItem('sbep_auth_token') ?? ''}` },
+            headers: { Authorization: `Bearer ${store.get('sbep_auth_token') ?? ''}` },
             body: form,
           });
           const data = await res.json();

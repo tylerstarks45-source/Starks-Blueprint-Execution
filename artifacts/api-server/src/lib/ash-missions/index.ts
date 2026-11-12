@@ -49,37 +49,41 @@ const FROM: Record<OwnerMissionAction, string[]> = {
 
 export async function ownerMissionAction(userId: number, id: number, action: OwnerMissionAction, note?: string):
   Promise<{ mission: AshMission } | { error: string; status: number }> {
-  const m = await getMission(userId, id);
-  if (!m) return { error: "Not found", status: 404 };
-  if (!FROM[action].includes(m.status)) return { error: `Can't ${action} a ${m.status.replace("_", " ")} mission`, status: 409 };
-  const entries = [logEntry("owner", `Owner ${action === "pause" ? "paused" : action === "resume" ? "resumed" : "cancelled"} the mission`)];
-  if (note?.trim()) entries.push(logEntry("owner", `Owner note: ${note.trim().slice(0, 1000)}`));
-  const patch: Partial<AshMission> = { log: withLog(m.log, ...entries), updatedAt: new Date() };
-  if (action === "pause") Object.assign(patch, { status: "paused" });
-  if (action === "cancel") Object.assign(patch, { status: "cancelled", completedAt: new Date(), waitingFor: null });
-  if (action === "resume") {
-    // Actions still waiting in the inbox keep the mission waiting; the step must not run again without the owner's decision.
-    const pending = await db.select({ id: pendingApprovalsTable.id }).from(pendingApprovalsTable)
-      .where(and(eq(pendingApprovalsTable.userId, userId), eq(pendingApprovalsTable.status, "pending"), missionApproval(id)))
-      .orderBy(asc(pendingApprovalsTable.id));
-    Object.assign(patch, {
-      ...(pending.length
-        ? { status: "waiting_approval", approvalId: pending[0]!.id,
-          waitingFor: pending.length > 1 ? `${pending.length} actions waiting in your Approvals inbox` : "Your approval in the Approvals inbox" }
-        : { status: m.steps.length ? "running" : "planning", waitingFor: null, approvalId: null }),
-      // Keep any lease: a step still running from before the pause must finish before another claim.
-      failureCount: 0, nextRunAt: new Date(),
-      maxStepRuns: m.stepRuns >= m.maxStepRuns ? m.maxStepRuns + 20 : m.maxStepRuns,
-    });
-  }
-  const [row] = await db.update(ashMissionsTable).set(patch)
-    .where(and(eq(ashMissionsTable.id, id), inArray(ashMissionsTable.status, FROM[action]))).returning();
-  if (!row) return { error: "Mission changed, try again", status: 409 };
-  if (action === "cancel") {
-    await db.update(pendingApprovalsTable).set({ status: "rejected", resolvedAt: new Date() })
-      .where(and(eq(pendingApprovalsTable.userId, userId), eq(pendingApprovalsTable.status, "pending"), missionApproval(id)));
-  }
-  return { mission: row };
+  // Same row lock as onApprovalResolved, so a decision landing mid-resume is never missed.
+  return db.transaction(async (tx) => {
+    const [m] = await tx.select().from(ashMissionsTable)
+      .where(and(eq(ashMissionsTable.id, id), eq(ashMissionsTable.userId, userId))).for("update");
+    if (!m) return { error: "Not found", status: 404 };
+    if (!FROM[action].includes(m.status)) return { error: `Can't ${action} a ${m.status.replace("_", " ")} mission`, status: 409 };
+    const entries = [logEntry("owner", `Owner ${action === "pause" ? "paused" : action === "resume" ? "resumed" : "cancelled"} the mission`)];
+    if (note?.trim()) entries.push(logEntry("owner", `Owner note: ${note.trim().slice(0, 1000)}`));
+    const patch: Partial<AshMission> = { log: withLog(m.log, ...entries), updatedAt: new Date() };
+    if (action === "pause") Object.assign(patch, { status: "paused" });
+    if (action === "cancel") Object.assign(patch, { status: "cancelled", completedAt: new Date(), waitingFor: null });
+    if (action === "resume") {
+      // Actions still waiting in the inbox keep the mission waiting; the step must not run again without the owner's decision.
+      const pending = await tx.select({ id: pendingApprovalsTable.id }).from(pendingApprovalsTable)
+        .where(and(eq(pendingApprovalsTable.userId, userId), eq(pendingApprovalsTable.status, "pending"), missionApproval(id)))
+        .orderBy(asc(pendingApprovalsTable.id));
+      Object.assign(patch, {
+        ...(pending.length
+          ? { status: "waiting_approval", approvalId: pending[0]!.id,
+            waitingFor: pending.length > 1 ? `${pending.length} actions waiting in your Approvals inbox` : "Your approval in the Approvals inbox" }
+          : { status: m.steps.length ? "running" : "planning", waitingFor: null, approvalId: null }),
+        // Keep any lease: a step still running from before the pause must finish before another claim.
+        failureCount: 0, nextRunAt: new Date(),
+        maxStepRuns: m.stepRuns >= m.maxStepRuns ? m.maxStepRuns + 20 : m.maxStepRuns,
+      });
+    }
+    const [row] = await tx.update(ashMissionsTable).set(patch)
+      .where(and(eq(ashMissionsTable.id, id), inArray(ashMissionsTable.status, FROM[action]))).returning();
+    if (!row) return { error: "Mission changed, try again", status: 409 };
+    if (action === "cancel") {
+      await tx.update(pendingApprovalsTable).set({ status: "rejected", resolvedAt: new Date() })
+        .where(and(eq(pendingApprovalsTable.userId, userId), eq(pendingApprovalsTable.status, "pending"), missionApproval(id)));
+    }
+    return { mission: row };
+  });
 }
 
 const missionApproval = (missionId: number) => sql`${pendingApprovalsTable.payload}->>'missionId' = ${String(missionId)}`;

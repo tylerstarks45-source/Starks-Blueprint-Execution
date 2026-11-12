@@ -8,7 +8,7 @@ import { notifyUser } from "./notify";
 // business's approvals queue. Approved actions are carried out by
 // executeApprovedAction() in lib/approval-executor.ts.
 export async function createPendingApproval(input: {
-  businessId: number;
+  businessId: number | null;
   userId: number;
   category: ApprovalCategory;
   riskLevel: ApprovalRiskLevel;
@@ -34,7 +34,7 @@ export async function createPendingApproval(input: {
     title: "ASH needs your approval",
     message: input.title,
     notificationType: "approval_pending",
-    linkUrl: `/business/${input.businessId}`,
+    linkUrl: input.businessId != null && input.category !== "ashAction" ? `/business/${input.businessId}` : "/approvals",
   });
 
   return approval;

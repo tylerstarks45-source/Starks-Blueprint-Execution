@@ -4,7 +4,10 @@
 import { complete, type ChatMessage } from "../openrouter";
 import { logger } from "../logger";
 import { OutOfCreditsError } from "../credits";
-import { ASH_TOOLS, getTool, checkToolArgs } from "./tools";
+import { ASH_TOOLS, ALL_TOOL_DEFS, getTool, checkToolArgs } from "./tools";
+import { decide, toolActionKind } from "../ash-control/policy";
+import { createPendingApproval } from "../approvals";
+import { ownedBusinessIds } from "../empire/assets";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { chainForAgentMode, resolveAgentMode } from "../models";
@@ -20,6 +23,57 @@ export interface AgentStep {
   tool: string;
   ok: boolean;
   specialist?: string;
+  /** Set when ASH Control queued this call for the owner's approval. */
+  approvalId?: number;
+  note?: string;
+}
+
+export interface AgentControl {
+  /** The owner asked for this in a live chat turn. */
+  interactive: boolean;
+  missionId?: number;
+  businessId?: number | null;
+}
+
+function describeCall(tool: string, args: Record<string, unknown>): string {
+  const q = (k: string) => (typeof args[k] === "string" ? `"${String(args[k]).slice(0, 80)}"` : "");
+  switch (tool) {
+    case "create_business": return `Create business ${q("name")}`;
+    case "add_income_stream": return `Add income stream ${q("title")}`;
+    case "register_asset": return `Save asset ${q("name")} to the vault`;
+    case "schedule_post": return `Schedule a post on ${String(args["platform"] ?? "social")}`;
+    case "connector_action": return `Run ${String(args["action"] ?? "an action")} on ${String(args["connectorId"] ?? "a connected service")}`;
+    default: return `Run ${tool.replace(/_/g, " ")}`;
+  }
+}
+
+/** Applies the owner's ASH Control settings to one tool call. */
+async function gate(userId: number, control: AgentControl, spec: { name: string; kind: string }, args: Record<string, unknown>):
+  Promise<{ allowed: true } | { allowed: false; result: unknown; step: AgentStep }> {
+  const kind = toolActionKind(spec.name);
+  if (kind === "read") return { allowed: true };
+  const argBiz = Number.isInteger(args["businessId"]) ? Number(args["businessId"]) : null;
+  const candidate = argBiz ?? control.businessId ?? null;
+  const businessId = candidate != null && (await ownedBusinessIds(userId, [candidate])).has(candidate) ? candidate : null;
+  const d = await decide({ userId, businessId, kind, interactive: control.interactive, clientTool: spec.kind === "client" });
+  if (d.decision === "allow") return { allowed: true };
+  if (d.decision === "block") {
+    return { allowed: false, result: { status: "not_allowed", reason: d.reason, note: "Describe what you would do instead, or ask the owner to change ASH Control." }, step: { tool: spec.name, ok: false } };
+  }
+  const approval = await createPendingApproval({
+    businessId,
+    userId,
+    category: "ashAction",
+    riskLevel: kind === "spend" || kind === "delete" || kind === "legal" ? "high" : "low",
+    title: describeCall(spec.name, args),
+    description: d.reason,
+    payload: { action: "ash_tool", tool: spec.name, args, ...(control.missionId != null ? { missionId: control.missionId } : {}) },
+  });
+  return {
+    allowed: false,
+    result: { status: "awaiting_approval", approvalId: approval!.id, reason: d.reason, note: "Queued in the owner's Approvals inbox. It runs when they approve." },
+    step: { tool: spec.name, ok: true, approvalId: approval!.id },
+  };
 }
 
 export interface AgentResult {
@@ -45,10 +99,12 @@ export async function runAshAgent(opts: {
   maxSteps?: number;
   /** Restrict the agent to these tools (used for specialists). */
   toolNames?: readonly string[];
+  control?: AgentControl;
 }): Promise<AgentResult> {
   const maxSteps = opts.maxSteps ?? 6;
+  const control: AgentControl = opts.control ?? { interactive: true };
   const allowed = opts.toolNames ? new Set(opts.toolNames) : null;
-  const toolset = allowed ? ASH_TOOLS.filter((t) => allowed.has(t.function.name)) : ASH_TOOLS;
+  const toolset = allowed ? ALL_TOOL_DEFS.filter((t) => allowed.has(t.function.name)) : ASH_TOOLS;
   const messages: ChatMessage[] = [...opts.messages];
   const clientCalls: ClientToolCall[] = [];
   const steps: AgentStep[] = [];
@@ -89,6 +145,12 @@ export async function runAshAgent(opts: {
           continue;
         }
         args = checked.args;
+        const g = await gate(opts.userId, control, spec, args);
+        if (!g.allowed) {
+          messages.push({ role: "tool", tool_call_id: call.id, content: toResult(g.result) });
+          steps.push(g.step);
+          continue;
+        }
         clientCalls.push(spec.toClientCall ? (spec.toClientCall(args) as ClientToolCall) : { ...args, type: spec.name });
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ status: "queued", note: "Runs in the user's workspace after this reply." }) });
         steps.push({ tool: spec.name, ok: true });
@@ -112,6 +174,7 @@ export async function runAshAgent(opts: {
             models: opts.models,
             maxSteps: SPECIALIST_MAX_STEPS,
             toolNames: specialist.tools,
+            control,
           });
           messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ specialist: specialist.title, report: report.content }) });
           steps.push({ tool: spec.name, ok: true, specialist: key });
@@ -124,9 +187,22 @@ export async function runAshAgent(opts: {
         continue;
       }
       try {
+        const checked = checkToolArgs(spec.name, args);
+        if (!checked.ok) {
+          messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: checked.error }) });
+          steps.push({ tool: spec.name, ok: false });
+          continue;
+        }
+        args = checked.args;
+        const g = await gate(opts.userId, control, spec, args);
+        if (!g.allowed) {
+          messages.push({ role: "tool", tool_call_id: call.id, content: toResult(g.result) });
+          steps.push(g.step);
+          continue;
+        }
         const value = await spec.run!(opts.userId, args);
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult(value) });
-        steps.push({ tool: spec.name, ok: true });
+        steps.push({ tool: spec.name, ok: true, ...(spec.name === "request_owner_action" ? { note: String(args["message"] ?? "") } : {}) });
       } catch (err) {
         logger.warn({ tool: spec.name, err: err instanceof Error ? err.message : String(err) }, "ASH tool failed");
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: "Tool failed" }) });
@@ -140,6 +216,7 @@ export const ASH_AGENT_PROMPT = `You are ASH, the AI business operator of the ST
 Use tools to ground every answer in the user's real data: call list_businesses / get_business_context / get_portfolio_summary before giving business-specific advice, and research for anything time-sensitive.
 Never invent metrics; if a value isn't measured, say so.
 For the user's empire (all businesses, income streams, assets, verified vs projected revenue) call get_empire_overview. When the user asks you to start a business, add an income stream or save an asset, do it with create_business / add_income_stream / register_asset instead of telling them how. Never present projected revenue as earned.
+For multi-step goals the owner wants carried out over time ("build me 3 income streams", "launch a store"), call start_mission so you keep working on it in the background; list_missions shows progress. The owner controls how much you may do alone (get_ash_control). When a tool returns awaiting_approval, tell the owner it's waiting in their Approvals inbox; when it returns not_allowed, explain and suggest the steps instead.
 For in-depth or cross-functional questions (a growth plan, pricing review, launch plan), call consult_specialist for the relevant specialists (finance, marketing, operations, research, strategy), then combine their reports into one answer.
 Use navigate when the user asks to go to a page (e.g. "take me to my stats" → /stats).
 Use workspace tools (image, file, schedule_post, connector_action, ...) only when the user asks for that output or clearly wants it produced.

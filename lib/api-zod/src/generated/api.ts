@@ -3290,7 +3290,7 @@ export const ListApprovalsQueryParams = zod.object({
 
 export const ListApprovalsResponseItem = zod.object({
   "id": zod.number(),
-  "businessId": zod.number(),
+  "businessId": zod.number().nullable(),
   "userId": zod.number(),
   "category": zod.string(),
   "riskLevel": zod.enum(['low', 'high']),
@@ -3317,7 +3317,7 @@ export const ApprovePendingApprovalParams = zod.object({
 
 export const ApprovePendingApprovalResponse = zod.object({
   "id": zod.number(),
-  "businessId": zod.number(),
+  "businessId": zod.number().nullable(),
   "userId": zod.number(),
   "category": zod.string(),
   "riskLevel": zod.enum(['low', 'high']),
@@ -3343,7 +3343,7 @@ export const RejectPendingApprovalParams = zod.object({
 
 export const RejectPendingApprovalResponse = zod.object({
   "id": zod.number(),
-  "businessId": zod.number(),
+  "businessId": zod.number().nullable(),
   "userId": zod.number(),
   "category": zod.string(),
   "riskLevel": zod.enum(['low', 'high']),
@@ -3369,7 +3369,7 @@ export const RevertPendingApprovalParams = zod.object({
 
 export const RevertPendingApprovalResponse = zod.object({
   "id": zod.number(),
-  "businessId": zod.number(),
+  "businessId": zod.number().nullable(),
   "userId": zod.number(),
   "category": zod.string(),
   "riskLevel": zod.enum(['low', 'high']),

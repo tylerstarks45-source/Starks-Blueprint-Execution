@@ -132,3 +132,4 @@ export * from "./system_logs";
 export * from "./scheduler_state";
 export * from "./media_blobs";
 export * from "./empire";
+export * from "./ash_control";

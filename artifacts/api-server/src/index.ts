@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { setKeyRotatedAt } from "./lib/crypto";
 import { startWorker, stopWorker } from "./lib/runtime/worker";
 import { startScheduler, stopScheduler } from "./lib/runtime/scheduler";
+import { startMissionRunner, stopMissionRunner } from "./lib/ash-missions/runner";
 import { startRevenueSync, stopRevenueSync } from "./lib/revenue/sync";
 import { checkEnv } from "./lib/env-check";
 import { pool } from "@workspace/db";
@@ -91,6 +92,8 @@ async function start() {
     startWorker();
     // Start the scheduler loop (polls DB every 60s for due scheduled tasks)
     startScheduler();
+    // ASH missions: long-running goals worked on in the background
+    startMissionRunner();
     // Start the revenue sync worker (polls enabled providers hourly)
     startRevenueSync();
     // Ensure every existing ASH-built system shows up in the Business Portfolio.
@@ -111,7 +114,7 @@ backfillBuiltBusinesses().catch((err: unknown) => logger.error({ err }, "backfil
       process.exit(1);
     }, 25_000).unref();
     const httpClosed = new Promise<void>((resolve) => server.close(() => resolve()));
-    Promise.all([httpClosed, stopWorker(), stopScheduler(), stopRevenueSync()])
+    Promise.all([httpClosed, stopWorker(), stopScheduler(), stopRevenueSync(), stopMissionRunner()])
       .then(() => pool.end())
       .catch((err) => logger.error({ err }, "Error during shutdown"))
       .finally(() => process.exit(0));

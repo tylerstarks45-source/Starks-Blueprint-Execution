@@ -1976,7 +1976,8 @@ export type PendingApprovalUndoPayload = { [key: string]: unknown } | null;
 
 export interface PendingApproval {
   id: number;
-  businessId: number;
+  /** @nullable */
+  businessId: number | null;
   userId: number;
   category: string;
   riskLevel: PendingApprovalRiskLevel;

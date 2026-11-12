@@ -12,6 +12,8 @@ export const APPROVAL_CATEGORIES = [
   "schedulePosts",
   "autoFixLowRisk",
   "autoFixHighRisk",
+  // An ASH tool call held back by the owner's ASH Control settings.
+  "ashAction",
 ] as const;
 export type ApprovalCategory = (typeof APPROVAL_CATEGORIES)[number];
 
@@ -28,7 +30,8 @@ export type ApprovalStatus = (typeof APPROVAL_STATUSES)[number];
 // table is for actions that need a human in the loop.
 export const pendingApprovalsTable = pgTable("pending_approvals", {
   id: serial("id").primaryKey(),
-  businessId: integer("business_id").notNull().references(() => businessesTable.id, { onDelete: "cascade" }),
+  // Null for empire-level ASH actions that aren't tied to one business yet.
+  businessId: integer("business_id").references(() => businessesTable.id, { onDelete: "cascade" }),
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   category: text("category").notNull(),
   riskLevel: text("risk_level").notNull().default("high"),

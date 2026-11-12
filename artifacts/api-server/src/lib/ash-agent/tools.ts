@@ -16,6 +16,8 @@ import { getEmpireOverview } from "../empire/overview";
 import { listBusinessTypes, STREAM_TYPES } from "../empire/business-types";
 import { createEmpireBusiness, createIncomeStream } from "../empire/actions";
 import { registerAsset, syncUserAssets, ownedBusinessIds } from "../empire/assets";
+import { createMission, listMissions } from "../ash-missions";
+import { getEffectiveControl } from "../ash-control/policy";
 
 // Pages ASH can send the user to (the web app's authenticated routes).
 const APP_PAGES = [
@@ -23,7 +25,7 @@ const APP_PAGES = [
   "/memory", "/media", "/library", "/analytics", "/logs", "/email-marketing", "/landing-pages", "/domains",
   "/affiliate-links", "/connections", "/social-accounts", "/social", "/clients", "/credits", "/refer", "/settings",
   "/marketplace", "/blueprints", "/empire", "/income-streams", "/asset-vault", "/business-types", "/research-lab",
-  "/ash-guide", "/business-import",
+  "/ash-guide", "/business-import", "/missions", "/approvals", "/ash-control",
 ] as const;
 
 type Args = Record<string, unknown>;
@@ -35,6 +37,8 @@ interface ToolSpec {
   parameters: JsonSchema;
   // "delegate" tools are run by the agent loop itself (a nested specialist agent).
   kind: "server" | "client" | "delegate";
+  // Only offered to background missions (never in chat).
+  missionOnly?: boolean;
   run?: (userId: number, args: Args) => Promise<unknown>;
   // Client tools whose workspace call has a different shape than their arguments.
   toClientCall?: (args: Args) => Record<string, unknown>;
@@ -130,6 +134,41 @@ const SPECS: ToolSpec[] = [
       const assetId = await registerAsset({ userId, businessId, classKey: String(a["classKey"]).slice(0, 40), name: String(a["name"]).slice(0, 200), description: a["description"] ? String(a["description"]).slice(0, 2000) : null, externalUrl: url, builderSource: "ash", builderObjectId: `ash-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
       return { saved: true, assetId };
     },
+  },
+  {
+    name: "get_ash_control",
+    description: "How much the owner lets you do on your own (advisor, copilot, operator, autopilot), spending limits and which kinds of action always need their approval. Optional businessId for that business's setting.",
+    parameters: obj({ businessId: int("Business id") }),
+    kind: "server",
+    run: (userId, a) => getEffectiveControl(userId, a["businessId"] != null ? Number(a["businessId"]) : null),
+  },
+  {
+    name: "start_mission",
+    description: "Start a long-running mission: a goal you keep working on in the background over hours or days (e.g. 'build me 3 income streams'), step by step, pausing for the owner's approval when their settings require it. Use for multi-step goals the owner wants done, not quick questions.",
+    parameters: obj({ goal: str("The goal in the owner's words, with any constraints"), businessId: int("Business id, if the mission is for one business") }, ["goal"]),
+    kind: "server",
+    run: async (userId, a) => {
+      const r = await createMission(userId, { goal: String(a["goal"]), businessId: a["businessId"] != null ? Number(a["businessId"]) : null });
+      return "error" in r ? r : { missionId: r.mission.id, status: r.mission.status, note: "ASH works on this in the background. Progress is on the Missions page (/missions)." };
+    },
+  },
+  {
+    name: "list_missions",
+    description: "The owner's missions with status, current step and what each is waiting for.",
+    parameters: obj({}),
+    kind: "server",
+    run: async (userId) => (await listMissions(userId, 20)).map((m) => ({
+      id: m.id, goal: m.goal, status: m.status, businessId: m.businessId, waitingFor: m.waitingFor,
+      stepsDone: m.steps.filter((x) => x.status === "done").length, steps: m.steps.length,
+    })),
+  },
+  {
+    name: "request_owner_action",
+    description: "Pause this mission until the owner does something only they can do (log in, pay, verify identity, accept terms, provide an API key). Say exactly what they need to do.",
+    parameters: obj({ message: str("What the owner needs to do, and why") }, ["message"]),
+    kind: "server",
+    missionOnly: true,
+    run: async () => ({ status: "waiting_owner" }),
   },
   {
     name: "research",
@@ -231,10 +270,20 @@ export { APP_PAGES };
 
 const BY_NAME = new Map(SPECS.map((s) => [s.name, s]));
 
-export const ASH_TOOLS: ToolDefinition[] = SPECS.map((s) => ({
+const toDef = (s: ToolSpec): ToolDefinition => ({
   type: "function",
   function: { name: s.name, description: s.description, parameters: s.parameters },
-}));
+});
+
+/** Tools offered in chat. */
+export const ASH_TOOLS: ToolDefinition[] = SPECS.filter((s) => !s.missionOnly).map(toDef);
+/** Every tool, for callers that pass an explicit toolNames list. */
+export const ALL_TOOL_DEFS: ToolDefinition[] = SPECS.map(toDef);
+
+// Background missions can't run workspace (client) tools or start more missions.
+export const MISSION_TOOL_NAMES: readonly string[] = SPECS
+  .filter((s) => s.kind !== "client" && s.name !== "start_mission")
+  .map((s) => s.name);
 
 export function getTool(name: string): ToolSpec | undefined {
   return BY_NAME.get(name);

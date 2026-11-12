@@ -160,6 +160,7 @@ export default function AshDock() {
       chunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = async () => {
+        const owner = ownerRef.current;
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: mr.mimeType });
         setTranscribing(true);
@@ -172,7 +173,9 @@ export default function AshDock() {
             body: form,
           });
           const data = await res.json();
-          if (data.text) send(data.text);
+          // The account may have changed while transcribing; never send into another user's chat.
+          if (ownerRef.current !== owner) return;
+          if (data.text) sendRef.current(data.text);
           else toast.error('I couldn\'t hear that — try again or type it');
         } catch {
           toast.error('Transcription failed — please type your message');

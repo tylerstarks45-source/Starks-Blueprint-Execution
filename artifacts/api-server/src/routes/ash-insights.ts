@@ -108,7 +108,7 @@ router.get("/ai-orchestrator/brain-activity", async (req, res): Promise<void> =>
         sub("learning", "Learning", "Lessons learned from measured results (platform-wide)", lsTotal, lsWeek, lsLast, 5),
       ],
       persona: { familiarity: style ? familiarity(style) : 0, messages: style?.messages ?? 0 },
-      health: { overall: health.overall, counts: health.counts, brains: health.brains },
+      health: { generatedAt: health.generatedAt, overall: health.overall, counts: health.counts, brains: health.brains },
       dailyUsage: daily,
     });
   } catch (err) {

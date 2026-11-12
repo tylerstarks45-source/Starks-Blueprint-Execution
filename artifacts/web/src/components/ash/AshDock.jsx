@@ -45,6 +45,8 @@ export default function AshDock() {
   const endRef = useRef(null);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const speakRef = useRef(speak);
+  speakRef.current = speak;
   const ownerRef = useRef(storageKey);
   ownerRef.current = storageKey;
 
@@ -94,7 +96,8 @@ export default function AshDock() {
       const voice = store.get('sbep_voice_preset') ?? 'warm narrator';
       const res = await fetch('/api/media-gen/tts', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ text: clean, voice }) });
       const data = await res.json();
-      if (!data.audioBase64) return;
+      if (!speakRef.current) return;
+      if (!data.audioBase64) { toast.error(data.message || data.error || 'Voice replies are unavailable right now'); return; }
       audioRef.current?.pause();
       audioRef.current = new Audio(`data:${data.mimeType ?? 'audio/mpeg'};base64,${data.audioBase64}`);
       await audioRef.current.play();

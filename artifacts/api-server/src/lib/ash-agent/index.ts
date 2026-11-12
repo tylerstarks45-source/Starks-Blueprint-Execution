@@ -4,6 +4,10 @@
 import { complete, type ChatMessage } from "../openrouter";
 import { logger } from "../logger";
 import { ASH_TOOLS, getTool, checkToolArgs } from "./tools";
+import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { chainForAgentMode, resolveAgentMode } from "../models";
+import { isFounderAdmin } from "../auth";
 
 export interface ClientToolCall {
   type: string;
@@ -94,4 +98,33 @@ export async function runAshAgent(opts: {
       }
     }
   }
+}
+
+export const ASH_AGENT_PROMPT = `You are ASH, the AI business operator of the STARKS platform.
+Use tools to ground every answer in the user's real data: call list_businesses / get_business_context / get_portfolio_summary before giving business-specific advice, and research for anything time-sensitive.
+Never invent metrics; if a value isn't measured, say so.
+Use workspace tools (image, file, schedule_post, connector_action, ...) only when the user asks for that output or clearly wants it produced.
+Be direct and concise.`;
+
+/** One ASH turn for a user, with the membership-tier gate on agent mode. */
+export async function runAshTurn(opts: {
+  userId: number;
+  message: string;
+  history: Array<{ role: "user" | "assistant"; content: string }>;
+  mode?: string;
+  systemPrompt?: string;
+}): Promise<AgentResult> {
+  // Higher modes use the flagship model, so gate them like /ai-orchestrator/chat.
+  const [caller] = await db
+    .select({ role: usersTable.role, membershipTier: usersTable.membershipTier })
+    .from(usersTable)
+    .where(eq(usersTable.id, opts.userId))
+    .limit(1);
+  const { mode } = resolveAgentMode(opts.mode, caller?.membershipTier, isFounderAdmin(caller?.role));
+  return runAshAgent({
+    userId: opts.userId,
+    systemPrompt: opts.systemPrompt ?? ASH_AGENT_PROMPT,
+    messages: [...opts.history, { role: "user", content: opts.message }],
+    models: chainForAgentMode(mode),
+  });
 }

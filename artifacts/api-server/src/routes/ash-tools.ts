@@ -1,4 +1,4 @@
-import { runAshAgent } from "../lib/ash-agent";
+import { runAshTurn } from "../lib/ash-agent";
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, desc, and } from "drizzle-orm";
@@ -689,11 +689,6 @@ router.post("/ai-orchestrator/platform-action", async (req, res): Promise<void> 
 // ─── POST /api/ai-orchestrator/agent (alias /api/ash/agent) — ASH with native tool calling
 // Same contract as the chat routes' SBEP_DATA: workspace actions come back as
 // structuredData {action: "tool_calls", calls}.
-const ASH_AGENT_PROMPT = `You are ASH, the AI business operator of the STARKS platform.
-Use tools to ground every answer in the user's real data: call list_businesses / get_business_context / get_portfolio_summary before giving business-specific advice, and research for anything time-sensitive.
-Never invent metrics; if a value isn't measured, say so.
-Use workspace tools (image, file, schedule_post, connector_action, ...) only when the user asks for that output or clearly wants it produced.
-Be direct and concise.`;
 
 router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
@@ -715,20 +710,7 @@ router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
   }
 
   try {
-    const { message, history, mode } = parsed.data;
-    // Same tier gate as /ai-orchestrator/chat: higher modes use the flagship model.
-    const [caller] = await db
-      .select({ role: usersTable.role, membershipTier: usersTable.membershipTier })
-      .from(usersTable)
-      .where(eq(usersTable.id, userId))
-      .limit(1);
-    const { mode: effectiveMode } = resolveAgentMode(mode, caller?.membershipTier, isFounderAdmin(caller?.role));
-    const result = await runAshAgent({
-      userId,
-      systemPrompt: ASH_AGENT_PROMPT,
-      messages: [...history, { role: "user", content: message }],
-      models: chainForAgentMode(effectiveMode),
-    });
+    const result = await runAshTurn({ userId, ...parsed.data });
     res.json({
       content: result.content,
       structuredData: result.clientCalls.length ? { action: "tool_calls", calls: result.clientCalls } : null,

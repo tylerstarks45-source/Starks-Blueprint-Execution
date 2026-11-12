@@ -98,23 +98,23 @@ async function start() {
 backfillBuiltBusinesses().catch((err: unknown) => logger.error({ err }, "backfillBuiltBusinesses failed at startup — some imported businesses may be missing health scores"));
   });
 
-  // Graceful shutdown: stop background loops, finish in-flight requests,
-  // close the DB pool. Forced exit after 10s so a deploy never hangs.
+  // Graceful shutdown: stop accepting requests, let the background tick in
+  // progress finish (so nothing is left half-done, e.g. a post stuck in
+  // "publishing"), then close the DB pool. Forced exit after 25s.
   let shuttingDown = false;
   const shutdown = (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info({ signal }, "Shutting down");
-    stopWorker();
-    stopScheduler();
-    stopRevenueSync();
     setTimeout(() => {
       logger.error("Shutdown timed out — forcing exit");
       process.exit(1);
-    }, 10_000).unref();
-    server.close(() => {
-      pool.end().finally(() => process.exit(0));
-    });
+    }, 25_000).unref();
+    const httpClosed = new Promise<void>((resolve) => server.close(() => resolve()));
+    Promise.all([httpClosed, stopWorker(), stopScheduler(), stopRevenueSync()])
+      .then(() => pool.end())
+      .catch((err) => logger.error({ err }, "Error during shutdown"))
+      .finally(() => process.exit(0));
   };
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));

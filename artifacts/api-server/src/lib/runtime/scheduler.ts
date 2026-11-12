@@ -27,6 +27,7 @@ import { expireStaleSessionsLocal } from "../digital-operating-layer/dol-session
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
+let inFlight: Promise<void> = Promise.resolve();
 
 // ─── Persistent scheduler state ───────────────────────────────────────────────
 // Each sub-task's "last ran at" timestamp is stored in a small DB table so it
@@ -1139,6 +1140,8 @@ export function startScheduler(): void {
   running = true;
 
   async function loop(): Promise<void> {
+    let done!: () => void;
+    inFlight = new Promise<void>((r) => (done = r));
     try {
       await processDueTasks();
       await processABTests();
@@ -1156,6 +1159,7 @@ export function startScheduler(): void {
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {
+      done();
       if (running) setTimeout(loop, POLL_INTERVAL_MS);
     }
   }
@@ -1175,7 +1179,9 @@ export function startScheduler(): void {
   logger.info({ pollIntervalMs: POLL_INTERVAL_MS }, "Scheduler started");
 }
 
-export function stopScheduler(): void {
+// Resolves once the tick in progress (if any) has finished.
+export function stopScheduler(): Promise<void> {
   running = false;
   logger.info("Scheduler stopped");
+  return inFlight;
 }

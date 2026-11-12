@@ -9,6 +9,7 @@ import type { RevenueProvider } from "./types";
 
 const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 let running = false;
+let inFlight: Promise<void> = Promise.resolve();
 
 // Parse stored credentialKey column — either JSON map (new) or plain key name (legacy).
 // Returns { providerKeyName → decryptedValue }.
@@ -179,11 +180,14 @@ export function startRevenueSync(): void {
   running = true;
 
   async function loop(): Promise<void> {
+    let done!: () => void;
+    inFlight = new Promise<void>((r) => (done = r));
     try {
       await runSyncCycle();
     } catch (err) {
       logger.error({ err }, "Revenue sync loop error");
     } finally {
+      done();
       if (running) setTimeout(loop, POLL_INTERVAL_MS);
     }
   }
@@ -192,7 +196,9 @@ export function startRevenueSync(): void {
   logger.info({ pollIntervalMs: POLL_INTERVAL_MS }, "Revenue sync worker started");
 }
 
-export function stopRevenueSync(): void {
+// Resolves once the tick in progress (if any) has finished.
+export function stopRevenueSync(): Promise<void> {
   running = false;
   logger.info("Revenue sync worker stopped");
+  return inFlight;
 }

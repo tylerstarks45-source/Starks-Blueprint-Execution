@@ -1,6 +1,9 @@
 import { sql, eq, desc } from "drizzle-orm";
 import { db, usersTable, creditTransactionsTable } from "@workspace/db";
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type DbExecutor = typeof db | Tx;
+
 // ── Tier allotments (monthly credits that reset each billing cycle) ───────────
 // Temporary Phase 1 allocations — final pricing to be set after real-usage data.
 export const TIER_ALLOTMENTS: Record<string, number> = {
@@ -118,8 +121,10 @@ export async function adjustCredits(
   delta: number,
   type: CreditTxType,
   opts?: { reason?: string; model?: string; tokens?: number },
+  exec?: DbExecutor,
 ): Promise<number> {
-  const [updated] = await db
+  if (!exec) return db.transaction((tx) => adjustCredits(userId, delta, type, opts, tx));
+  const [updated] = await exec
     .update(usersTable)
     .set({ creditsBalance: sql`${usersTable.creditsBalance} + ${delta}` })
     .where(eq(usersTable.id, userId))
@@ -127,7 +132,7 @@ export async function adjustCredits(
 
   const balanceAfter = updated?.b ?? 0;
 
-  await db.insert(creditTransactionsTable).values({
+  await exec.insert(creditTransactionsTable).values({
     userId,
     amount: delta,
     balanceAfter,
@@ -145,8 +150,10 @@ export async function adjustWalletCredits(
   userId: number,
   delta: number,
   opts?: { reason?: string },
+  exec?: DbExecutor,
 ): Promise<number> {
-  const [updated] = await db
+  if (!exec) return db.transaction((tx) => adjustWalletCredits(userId, delta, opts, tx));
+  const [updated] = await exec
     .update(usersTable)
     .set({ walletBalance: sql`${usersTable.walletBalance} + ${delta}` })
     .where(eq(usersTable.id, userId))
@@ -155,12 +162,12 @@ export async function adjustWalletCredits(
   const walletAfter = updated?.w ?? 0;
 
   // Record as a purchase type so it appears in transaction history
-  const [monthlyRow] = await db
+  const [monthlyRow] = await exec
     .select({ b: usersTable.creditsBalance })
     .from(usersTable)
     .where(eq(usersTable.id, userId));
 
-  await db.insert(creditTransactionsTable).values({
+  await exec.insert(creditTransactionsTable).values({
     userId,
     amount: delta,
     balanceAfter: (monthlyRow?.b ?? 0) + walletAfter,

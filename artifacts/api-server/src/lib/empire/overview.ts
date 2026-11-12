@@ -1,13 +1,14 @@
 import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import {
   db, businessesTable, businessHealthScoresTable, systemActivityEventsTable, revenueStreams, canonicalAssets, pendingApprovalsTable,
-  systemRevenueProvidersTable, userAffiliateLinksTable,
+  systemRevenueProvidersTable,
 } from "@workspace/db";
 import { listBusinessTypes, typeNameFor } from "./business-types";
 
 // Empire Command Center data. Verified revenue comes only from the
-// system_activity_events revenue ledger rows written by provider sync or
-// affiliate postbacks (revenue_provider set); hand-logged amounts are excluded. Income-stream estimates are reported separately as projections
+// system_activity_events revenue rows written by authenticated provider sync
+// (revenue_provider set). Hand-logged amounts and unauthenticated affiliate
+// pixel/postback conversions are excluded. Income-stream estimates are reported separately as projections
 // and never added to verified totals.
 
 const DAY = 86_400_000;
@@ -26,7 +27,7 @@ export async function getEmpireOverview(userId: number) {
   const instanceIds = businesses.map((b) => b.systemInstanceId).filter((x): x is number => x != null);
   const since30 = new Date(Date.now() - 30 * DAY);
 
-  const [types, streams, assets, approvals, health, revenue, activity, providerRows, affiliateRows] = await Promise.all([
+  const [types, streams, assets, approvals, health, revenue, activity, providerRows] = await Promise.all([
     listBusinessTypes(userId),
     db.select({ businessId: revenueStreams.businessId, status: revenueStreams.status, estimated: revenueStreams.estimatedMonthlyRevenue })
       .from(revenueStreams).where(eq(revenueStreams.userId, userId)),
@@ -63,12 +64,8 @@ export async function getEmpireOverview(userId: number) {
       ? db.selectDistinct({ systemInstanceId: systemRevenueProvidersTable.systemInstanceId }).from(systemRevenueProvidersTable)
         .where(and(inArray(systemRevenueProvidersTable.systemInstanceId, instanceIds), eq(systemRevenueProvidersTable.enabled, true)))
       : Promise.resolve([] as { systemInstanceId: number }[]),
-    instanceIds.length
-      ? db.selectDistinct({ systemInstanceId: userAffiliateLinksTable.systemInstanceId }).from(userAffiliateLinksTable)
-        .where(inArray(userAffiliateLinksTable.systemInstanceId, instanceIds))
-      : Promise.resolve([] as { systemInstanceId: number | null }[]),
   ]);
-  const connected = new Set<number>([...providerRows, ...affiliateRows].map((r) => r.systemInstanceId).filter((x): x is number => x != null));
+  const connected = new Set<number>(providerRows.map((r) => r.systemInstanceId));
 
   const revByInstance = new Map(revenue.map((r) => [r.systemInstanceId, { lifetime: Number(r.lifetime), last30: Number(r.last30) }]));
   const assetsBy = new Map(assets.map((a) => [a.businessId, Number(a.count)]));

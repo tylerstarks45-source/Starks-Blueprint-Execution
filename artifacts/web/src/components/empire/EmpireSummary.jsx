@@ -33,7 +33,7 @@ export default function EmpireSummary({ compact = false }) {
           ))}
         </div>
       )}
-      {t && <p className="text-[8px] text-white/30">Projected = estimates. Verified = recorded sales only.</p>}
+      {t && <p className="text-[8px] text-white/30">Projected = estimates. Verified = synced provider sales only.</p>}
     </div>
   );
 }

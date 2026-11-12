@@ -78,7 +78,7 @@ export default function IncomeStreamsPage() {
             </div>
           )}
         </Card>
-        <p className="text-xs text-white/35">Verified revenue per business is on the <Link to="/empire" className="text-cyan-300/80 hover:underline">Empire Command Center</Link>. It comes from connected stores, payments and affiliate postbacks only.</p>
+        <p className="text-xs text-white/35">Verified revenue per business is on the <Link to="/empire" className="text-cyan-300/80 hover:underline">Empire Command Center</Link>. It comes only from sales synced from connected payment providers (Stripe, Gumroad, PayPal).</p>
       </div>
       {dialog === 'new' && <StreamDialog businesses={businesses} businessId={businessId || undefined} onClose={() => setDialog(null)} />}
       {dialog?.stream && <StreamDialog businesses={businesses} stream={dialog.stream} onClose={() => setDialog(null)} />}

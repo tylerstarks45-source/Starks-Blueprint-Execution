@@ -49,7 +49,7 @@ export default function EmpirePage() {
                 value={t.businessesWithRevenueTracking ? centsUsd(t.verifiedRevenueCents.last30) : 'Not tracked yet'}
                 hint={t.businessesWithRevenueTracking
                   ? `${centsUsd(t.verifiedRevenueCents.lifetime)} all time, from recorded sales on ${t.businessesWithRevenueTracking} of ${t.businesses} businesses`
-                  : 'Connect a store, payment or affiliate source to a business to record real sales.'} />
+                  : 'Connect a Stripe, Gumroad or PayPal revenue source to a business to record real sales.'} />
               <Stat icon={TrendingUp} tone="text-amber-200" label="Projected (per month)" value={usd(t.projectedMonthlyUsd)}
                 hint="Estimates set on income streams. Never counted as earned." />
             </div>

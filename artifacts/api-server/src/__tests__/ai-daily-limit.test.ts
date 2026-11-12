@@ -69,7 +69,9 @@ describe("assertCanSpendAi", () => {
     await spend(userId, 40);
     const err = await assertCanSpendAi(userId).catch((e) => e);
     expect(err).toBeInstanceOf(DailyAiLimitError);
-    expect(err.code).toBe("out_of_credits"); // routes map this to HTTP 402
+    // Must not look like an empty balance: top-up prompts would be misleading.
+    expect(err).not.toBeInstanceOf(OutOfCreditsError);
+    expect(err.code).toBe("daily_ai_limit");
 
     process.env.AI_DAILY_CREDIT_LIMIT = "0";
     await expect(assertCanSpendAi(userId)).resolves.toBeUndefined();

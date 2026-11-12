@@ -238,8 +238,10 @@ export class OutOfCreditsError extends Error {
   }
 }
 
-export class DailyAiLimitError extends OutOfCreditsError {
-  readonly reason = "daily_limit" as const;
+// Deliberately not an OutOfCreditsError: buying credits doesn't lift the cap,
+// so callers must not show top-up prompts for it (HTTP 429, not 402).
+export class DailyAiLimitError extends Error {
+  code = "daily_ai_limit" as const;
   constructor(limit: number) {
     super(`You've reached today's AI usage limit of ${limit} credits. It resets at midnight UTC.`);
     this.name = "DailyAiLimitError";

@@ -924,6 +924,10 @@ PACING:
       res.status(402).json({ error: message, code: "out_of_credits" });
       return;
     }
+    if ((err as { code?: string })?.code === "daily_ai_limit") {
+      res.status(429).json({ error: message, code: "daily_ai_limit" });
+      return;
+    }
     req.log.error({ err }, "AI orchestrator chat error");
     res.status(500).json({ error: message });
   }

@@ -180,6 +180,10 @@ If a tool has no affiliate link in the catalog, say "Available on marketplace" i
       res.status(402).json({ error: "Out of AI credits.", code });
       return;
     }
+    if (code === "daily_ai_limit") {
+      res.status(429).json({ error: err.message, code });
+      return;
+    }
     req.log.error({ err }, "Dashboard chat error");
     res.status(500).json({ error: "AI chat failed. Please try again." });
   }

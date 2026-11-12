@@ -85,6 +85,7 @@ export async function notifyOutOfCredits(userId: number, whatPaused: string): Pr
 
 const POLL_INTERVAL_MS = 5_000;
 let running = false;
+let inFlight: Promise<void> = Promise.resolve();
 
 // ─── Per-job execution timeout ────────────────────────────────────────────────
 // Each handler runs inside Promise.race with a deadline. The timeout fires
@@ -872,11 +873,14 @@ export function startWorker(): void {
   running = true;
 
   async function loop(): Promise<void> {
+    let done!: () => void;
+    inFlight = new Promise<void>((r) => (done = r));
     try {
       await processJob();
     } catch (err) {
       logger.error({ err }, "Worker loop error");
     } finally {
+      done();
       if (running) setTimeout(loop, POLL_INTERVAL_MS);
     }
   }
@@ -892,7 +896,9 @@ export function startWorker(): void {
   logger.info({ pollIntervalMs: POLL_INTERVAL_MS }, "Runtime worker started");
 }
 
-export function stopWorker(): void {
+// Resolves once the tick in progress (if any) has finished.
+export function stopWorker(): Promise<void> {
   running = false;
   logger.info("Runtime worker stopped");
+  return inFlight;
 }

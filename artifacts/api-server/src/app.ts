@@ -1,10 +1,10 @@
-import express, { type Express } from "express";
+import express, { type Express, type ErrorRequestHandler } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { apiKeyMiddleware } from "./middlewares/apiKey";
-import { createAiRateLimiter, jsonErrorHandler, redactServerErrors, securityHeaders } from "./middlewares/security";
+import { createAiRateLimiter, redactServerErrors, securityHeaders } from "./middlewares/security";
 
 const app: Express = express();
 
@@ -44,6 +44,10 @@ const _extraOrigins = (process.env["ALLOWED_ORIGINS"] ?? "")
   .filter(Boolean);
 const _explicitOrigins = new Set<string>(_extraOrigins);
 
+for (const base of [process.env["APP_URL"], process.env["APP_BASE_URL"]]) {
+  if (!base) continue;
+  try { _explicitOrigins.add(new URL(base).origin); } catch { /* ignore malformed */ }
+}
 if (process.env["REPLIT_DEV_DOMAIN"]) {
   _explicitOrigins.add(`https://${process.env["REPLIT_DEV_DOMAIN"]}`);
 }
@@ -114,6 +118,29 @@ app.use("/api", redactServerErrors);
 
 app.use("/api", router);
 
-app.use(jsonErrorHandler);
+app.use("/api", (_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+// Last-resort error handler: always JSON, never a stack trace.
+const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const e = err as { status?: number; statusCode?: number; type?: string; message?: string };
+  if (e?.message?.startsWith("CORS:")) {
+    res.status(403).json({ error: "Origin not allowed" });
+    return;
+  }
+  const status = e?.status ?? e?.statusCode;
+  if (typeof status === "number" && status >= 400 && status < 500) {
+    const message = e.type === "entity.parse.failed" ? "Malformed JSON body"
+      : e.type === "entity.too.large" ? "Request body too large"
+      : "Bad request";
+    res.status(status).json({ error: message });
+    return;
+  }
+  req.log?.error({ err }, "Unhandled request error");
+  res.status(500).json({ error: "Internal server error" });
+};
+app.use(errorHandler);
 
 export default app;

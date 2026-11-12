@@ -41,6 +41,7 @@ import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
 import { complete, streamCompletion } from "../lib/openrouter";
 import { MODELS, chainFor, chainForAgentMode, depthNoteForAgentMode, resolveAgentMode } from "../lib/models";
 import { buildLearnedPatternsNote, getBrainOverview, distillAshBrain } from "../lib/ash-brain";
+import { buildOpportunityResearchNote } from "../lib/research-engine/opportunity-scan";
 import { hasCredits } from "../lib/credits";
 import { requireAuthActive, requireAdmin, isFounderAdmin } from "../lib/auth";
 import { encrypt, decrypt } from "../lib/crypto";
@@ -856,7 +857,7 @@ PACING:
     const learnedPatternsNote = await buildLearnedPatternsNote({
       businessType: parsed.data.businessType,
       goalText: `${parsed.data.message} ${parsed.data.revenueGoal ?? ""}`,
-    });
+    }) + await buildOpportunityResearchNote(parsed.data.message);
 
     const completionArgs = {
       systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + connectedToolsNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + learnedPatternsNote + depthNote + planModeNote + beginnerNote + chatOnlyNote,
@@ -1253,7 +1254,7 @@ Do NOT invent IDs — only use exact integer IDs shown above.`;
     const learnedPatternsNote = await buildLearnedPatternsNote({
       businessType: parsed.data.businessType,
       goalText: `${parsed.data.message} ${parsed.data.revenueGoal ?? ""}`,
-    });
+    }) + await buildOpportunityResearchNote(parsed.data.message);
 
     const systemPrompt = buildSystemPrompt(blueprintKB, toolKB) +
       storedCredNote + connectedToolsNote + skillAdditions + memoryNote + platformStateNote +

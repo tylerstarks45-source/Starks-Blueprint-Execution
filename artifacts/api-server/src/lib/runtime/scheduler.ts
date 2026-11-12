@@ -22,6 +22,7 @@ import { createPendingApproval } from "../approvals";
 import { hasOperationsModeAccess } from "../operations-gate";
 import { distillAshBrain } from "../ash-brain";
 import { runScheduledResearch } from "../research-engine/scheduled";
+import { runOpportunityScan } from "../research-engine/opportunity-scan";
 import { runMemoryMaintenance } from "../memory-engine";
 import { initializeBusinessDna, publishBusinessEvent } from "../business-intelligence";
 // A-03 fix: expire stale DOL execution sessions on a regular interval
@@ -1059,6 +1060,15 @@ async function processScheduledResearch(): Promise<void> {
   }
 }
 
+async function processOpportunityScan(): Promise<void> {
+  try {
+    const result = await runOpportunityScan({ now: Date.now(), lastRun: getState, markRun: setState });
+    if (result.reason !== "not_due") logger.info(result, "Opportunity scan tick complete");
+  } catch (err) {
+    logger.warn({ err }, "Opportunity scan tick failed");
+  }
+}
+
 // ─── Credential-expiry warnings ───────────────────────────────────────────────
 // Proactively warn users before a connected credential expires so their
 // automations don't silently break. Skips keys that auto-refresh on their own
@@ -1175,6 +1185,7 @@ export function startScheduler(): void {
     await processImprovementPasses();
     await processBrainDistillation();
     await processScheduledResearch();
+    await processOpportunityScan();
     await processExpiringCredentialWarnings();
     await processMemoryMaintenance();
     await processBusinessIntelligenceReconciliation();

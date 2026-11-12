@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { toast } from 'sonner';
@@ -78,6 +78,13 @@ export default function MissionsPage() {
     try { await controlApi.missionAction(m.id, action, note); missions.reload(); notifyEmpireChanged(); } catch (err) { toast.error(err.message); } finally { setBusy(null); }
   };
   const rows = missions.data ?? [];
+  const active = rows.some((m) => ['planning', 'running', 'waiting_approval'].includes(m.status));
+  const { reload } = missions;
+  useEffect(() => {
+    if (!active) return undefined;
+    const t = setInterval(reload, 10000);
+    return () => clearInterval(t);
+  }, [active, reload]);
   const nameFor = (id) => businesses.find((b) => b.id === id)?.name;
 
   return (

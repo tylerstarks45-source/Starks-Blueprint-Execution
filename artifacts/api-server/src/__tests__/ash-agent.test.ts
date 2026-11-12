@@ -160,4 +160,46 @@ describe("POST /api/ash/agent", () => {
     expect(res.status).toBe(401);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it("delegates to a specialist with its own prompt and read-only tools, and feeds the report back", async () => {
+    fetchSpy
+      .mockResolvedValueOnce(reply({ content: null, tool_calls: [call("d1", "consult_specialist", { specialist: "marketing", task: "Grow sales", businessId: ownBiz })] }))
+      .mockResolvedValueOnce(reply({ content: null, tool_calls: [call("s1", "image", { prompt: "ad" }), call("s2", "list_businesses", {})] }))
+      .mockResolvedValueOnce(reply({ content: "Marketing report: focus on SEO." }))
+      .mockResolvedValueOnce(reply({ content: "Plan: focus on SEO first." }));
+
+    const res = await ask("Build me a growth plan");
+    expect(res.status).toBe(200);
+    expect(res.body.content).toBe("Plan: focus on SEO first.");
+    expect(res.body.structuredData).toBeNull();
+    expect(res.body.steps).toEqual([{ tool: "consult_specialist", ok: true, specialist: "marketing" }]);
+
+    const nested = sentBody(1);
+    expect(JSON.stringify(nested.messages)).toContain("marketing specialist");
+    expect(JSON.stringify(nested.messages)).toContain(`Business id: ${ownBiz}`);
+    const names = nested.tools.map((t: { function: { name: string } }) => t.function.name);
+    expect([...names].sort()).toEqual(["get_business_context", "get_learned_patterns", "list_businesses", "research"]);
+    expect(names).not.toContain("image");
+    expect(names).not.toContain("consult_specialist");
+
+    const nestedTools = sentBody(2).messages.filter((m: { role: string }) => m.role === "tool");
+    expect(nestedTools[0].content).toContain("Unknown tool image");
+    expect(nestedTools[1].content).toContain("Own Shop");
+    expect(nestedTools[1].content).not.toContain("Someone Else Co");
+
+    const back = sentBody(3).messages.filter((m: { role: string }) => m.role === "tool");
+    expect(back[0].tool_call_id).toBe("d1");
+    expect(back[0].content).toContain("Marketing report: focus on SEO.");
+  });
+
+  it("rejects an unknown specialist without running a nested agent", async () => {
+    fetchSpy
+      .mockResolvedValueOnce(reply({ content: null, tool_calls: [call("d1", "consult_specialist", { specialist: "legal", task: "x" })] }))
+      .mockResolvedValueOnce(reply({ content: "ok" }));
+    const res = await ask("help");
+    expect(res.status).toBe(200);
+    expect(res.body.steps).toEqual([{ tool: "consult_specialist", ok: false }]);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(sentBody(1).messages.find((m: { role: string }) => m.role === "tool").content).toContain("specialist must be one of");
+  });
 });

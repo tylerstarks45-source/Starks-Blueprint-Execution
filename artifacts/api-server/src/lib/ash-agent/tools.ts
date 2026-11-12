@@ -11,6 +11,7 @@ import { complete } from "../openrouter";
 import { MODELS } from "../models";
 import { assembleBusinessContextPackage, assembleCrossBusinessSummary } from "../business-intelligence/context";
 import { buildLearnedPatternsNote } from "../ash-brain";
+import { SPECIALIST_KEYS } from "./specialists";
 
 type Args = Record<string, unknown>;
 type JsonSchema = Record<string, unknown>;
@@ -19,7 +20,8 @@ interface ToolSpec {
   name: string;
   description: string;
   parameters: JsonSchema;
-  kind: "server" | "client";
+  // "delegate" tools are run by the agent loop itself (a nested specialist agent).
+  kind: "server" | "client" | "delegate";
   run?: (userId: number, args: Args) => Promise<unknown>;
   // Client tools whose workspace call has a different shape than their arguments.
   toClientCall?: (args: Args) => Record<string, unknown>;
@@ -83,6 +85,20 @@ const SPECS: ToolSpec[] = [
     run: async (_userId, a) => ({
       note: await buildLearnedPatternsNote({ businessType: (a["businessType"] as string) ?? null, goalText: (a["goal"] as string) ?? null }),
     }),
+  },
+  {
+    name: "consult_specialist",
+    description:
+      "Delegate a focused sub-task to a specialist agent (finance, marketing, operations, research, strategy) that investigates with its own tools and reports back. Use for in-depth or multi-domain questions; call several specialists for cross-functional plans.",
+    parameters: obj(
+      {
+        specialist: { type: "string", enum: [...SPECIALIST_KEYS] },
+        task: str("What the specialist should work out, with any context it needs"),
+        businessId: int("Optional business id from list_businesses"),
+      },
+      ["specialist", "task"],
+    ),
+    kind: "delegate",
   },
   {
     name: "image",

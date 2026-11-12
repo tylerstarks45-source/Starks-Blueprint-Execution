@@ -3,11 +3,13 @@
 // tool_calls the web app already knows how to run.
 import { complete, type ChatMessage } from "../openrouter";
 import { logger } from "../logger";
+import { OutOfCreditsError } from "../credits";
 import { ASH_TOOLS, getTool, checkToolArgs } from "./tools";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { chainForAgentMode, resolveAgentMode } from "../models";
 import { isFounderAdmin } from "../auth";
+import { SPECIALISTS, SPECIALIST_MAX_STEPS, type SpecialistKey } from "./specialists";
 
 export interface ClientToolCall {
   type: string;
@@ -17,6 +19,7 @@ export interface ClientToolCall {
 export interface AgentStep {
   tool: string;
   ok: boolean;
+  specialist?: string;
 }
 
 export interface AgentResult {
@@ -40,15 +43,19 @@ export async function runAshAgent(opts: {
   messages: ChatMessage[];
   models: string[];
   maxSteps?: number;
+  /** Restrict the agent to these tools (used for specialists). */
+  toolNames?: readonly string[];
 }): Promise<AgentResult> {
   const maxSteps = opts.maxSteps ?? 6;
+  const allowed = opts.toolNames ? new Set(opts.toolNames) : null;
+  const toolset = allowed ? ASH_TOOLS.filter((t) => allowed.has(t.function.name)) : ASH_TOOLS;
   const messages: ChatMessage[] = [...opts.messages];
   const clientCalls: ClientToolCall[] = [];
   const steps: AgentStep[] = [];
 
   for (let round = 0; ; round++) {
     // Last round: no tools, so the model must answer with what it has.
-    const tools = round < maxSteps ? ASH_TOOLS : undefined;
+    const tools = round < maxSteps && toolset.length ? toolset : undefined;
     const result = await complete({ systemPrompt: opts.systemPrompt, messages, tools, models: opts.models, userId: opts.userId });
     const calls = result.toolCalls ?? [];
     if (calls.length === 0) {
@@ -57,7 +64,7 @@ export async function runAshAgent(opts: {
 
     messages.push({ role: "assistant", content: result.content || null, tool_calls: calls });
     for (const call of calls) {
-      const spec = getTool(call.function.name);
+      const spec = allowed && !allowed.has(call.function.name) ? undefined : getTool(call.function.name);
       let args: Record<string, unknown>;
       try {
         const parsed: unknown = JSON.parse(call.function.arguments || "{}");
@@ -87,6 +94,35 @@ export async function runAshAgent(opts: {
         steps.push({ tool: spec.name, ok: true });
         continue;
       }
+      if (spec.kind === "delegate") {
+        const checked = checkToolArgs(spec.name, args);
+        const key = checked.ok ? (checked.args["specialist"] as SpecialistKey) : undefined;
+        if (!checked.ok || !key) {
+          messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: checked.ok ? "Unknown specialist" : checked.error }) });
+          steps.push({ tool: spec.name, ok: false });
+          continue;
+        }
+        const specialist = SPECIALISTS[key];
+        const businessId = checked.args["businessId"];
+        try {
+          const report = await runAshAgent({
+            userId: opts.userId,
+            systemPrompt: specialist.prompt,
+            messages: [{ role: "user", content: `${String(checked.args["task"])}${businessId != null ? `\n(Business id: ${String(businessId)})` : ""}` }],
+            models: opts.models,
+            maxSteps: SPECIALIST_MAX_STEPS,
+            toolNames: specialist.tools,
+          });
+          messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ specialist: specialist.title, report: report.content }) });
+          steps.push({ tool: spec.name, ok: true, specialist: key });
+        } catch (err) {
+          if (err instanceof OutOfCreditsError) throw err;
+          logger.warn({ specialist: key, err: err instanceof Error ? err.message : String(err) }, "ASH specialist failed");
+          messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: "Specialist unavailable" }) });
+          steps.push({ tool: spec.name, ok: false, specialist: key });
+        }
+        continue;
+      }
       try {
         const value = await spec.run!(opts.userId, args);
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult(value) });
@@ -103,6 +139,7 @@ export async function runAshAgent(opts: {
 export const ASH_AGENT_PROMPT = `You are ASH, the AI business operator of the STARKS platform.
 Use tools to ground every answer in the user's real data: call list_businesses / get_business_context / get_portfolio_summary before giving business-specific advice, and research for anything time-sensitive.
 Never invent metrics; if a value isn't measured, say so.
+For in-depth or cross-functional questions (a growth plan, pricing review, launch plan), call consult_specialist for the relevant specialists (finance, marketing, operations, research, strategy), then combine their reports into one answer.
 Use workspace tools (image, file, schedule_post, connector_action, ...) only when the user asks for that output or clearly wants it produced.
 Be direct and concise.`;
 

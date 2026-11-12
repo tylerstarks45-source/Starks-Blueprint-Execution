@@ -14,8 +14,9 @@ import { z } from "zod/v4";
 // (business_recommendations.category, pending_approvals.category).
 
 // What a lesson is scoped to. "niche" = businesses.businessType,
-// "blueprint_category" = blueprint_categories.name, "tool" = tools.name.
-export const ASH_LESSON_SCOPE_TYPES = ["niche", "blueprint_category", "tool"] as const;
+// "blueprint_category" = blueprint_categories.name, "tool" = tools.name,
+// "recommendation_category" = business_recommendations.category (measured results).
+export const ASH_LESSON_SCOPE_TYPES = ["niche", "blueprint_category", "tool", "recommendation_category"] as const;
 export type AshLessonScopeType = (typeof ASH_LESSON_SCOPE_TYPES)[number];
 
 // Distilled verdict for a scope, derived from sample size + success ratio.

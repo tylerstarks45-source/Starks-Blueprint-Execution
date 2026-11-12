@@ -1030,6 +1030,20 @@ async function processImprovementPasses(): Promise<void> {
 
 const BRAIN_DISTILL_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+const RECOMMENDATION_OUTCOME_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+async function processRecommendationOutcomes(): Promise<void> {
+  const now = Date.now();
+  if (now - getState("recommendation_outcomes") < RECOMMENDATION_OUTCOME_INTERVAL_MS) return;
+  await setState("recommendation_outcomes", now);
+  try {
+    const result = await measureRecommendationOutcomes(new Date(now));
+    logger.info(result, "Recommendation outcome tick complete");
+  } catch (err) {
+    logger.warn({ err }, "Recommendation outcome tick failed");
+  }
+}
+
 async function processBrainDistillation(): Promise<void> {
   const now = Date.now();
   if (now - getState("brain_distill") < BRAIN_DISTILL_INTERVAL_MS) return;
@@ -1186,6 +1200,7 @@ export function startScheduler(): void {
     await processBrainDistillation();
     await processScheduledResearch();
     await processOpportunityScan();
+    await processRecommendationOutcomes();
     await processExpiringCredentialWarnings();
     await processMemoryMaintenance();
     await processBusinessIntelligenceReconciliation();

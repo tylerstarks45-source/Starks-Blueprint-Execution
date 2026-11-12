@@ -235,10 +235,11 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
             const stripeCust = await stripe.customers.retrieve(customerId);
             if (stripeCust && !("deleted" in stripeCust) && stripeCust.email) {
               resolvedStripeEmail = stripeCust.email;
-              const [found] = await db
-                .select({ id: usersTable.id })
-                .from(usersTable)
-                .where(eq(usersTable.email, stripeCust.email));
+              const email = stripeCust.email;
+              // Savepoint: a failed lookup must not abort the outer transaction.
+              const [found] = await tx.transaction((sp) =>
+                sp.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)),
+              );
               if (found) {
                 userId = found.id;
                 req.log.info({ userId, email: resolvedStripeEmail, customerId }, "Resolved userId from Stripe customer email (no metadata userId)");
@@ -260,44 +261,46 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
             { customerId, email: resolvedStripeEmail, amountTotal, sessionId: session.id },
             "checkout.session.completed: real payment received but userId unresolvable — notifying admins",
           );
-          try {
-            const superAdmins = await db
-              .select({ id: usersTable.id })
-              .from(usersTable)
-              .where(eq(usersTable.role, "SUPER_ADMIN"));
+          afterCommit.push(async () => {
+            try {
+              const superAdmins = await db
+                .select({ id: usersTable.id })
+                .from(usersTable)
+                .where(eq(usersTable.role, "SUPER_ADMIN"));
 
-            // Derive the tier from the subscription items if available, otherwise fall
-            // back to session metadata (may be undefined for external payments).
-            let sessionTier: string | null = tier ?? null;
-            if (!sessionTier && subscriptionId) {
-              try {
-                const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
-                const priceId = stripeSub.items.data[0]?.price?.id;
-                sessionTier = priceId ? getTierFromPriceId(priceId) : null;
-              } catch { /* non-fatal */ }
-            }
+              // Derive the tier from the subscription items if available, otherwise fall
+              // back to session metadata (may be undefined for external payments).
+              let sessionTier: string | null = tier ?? null;
+              if (!sessionTier && subscriptionId) {
+                try {
+                  const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+                  const priceId = stripeSub.items.data[0]?.price?.id;
+                  sessionTier = priceId ? getTierFromPriceId(priceId) : null;
+                } catch { /* non-fatal */ }
+              }
 
-            for (const admin of superAdmins) {
-              await notifyUser({
-                userId: admin.id,
-                title: "⚠️ Unprovisioned Stripe Payment",
-                message: `A payment of $${(amountTotal / 100).toFixed(2)} was received but the user could not be identified. Stripe customer: ${customerId ?? "unknown"}${emailPart}. Manual provisioning required.`,
-                notificationType: "error",
-                linkUrl: "/admin/stripe",
-                dedupeKey: `unprovisioned_payment_${customerId ?? session.id}`,
-                metadata: {
-                  sessionId: session.id,
-                  customerId: customerId ?? null,
-                  stripeEmail: resolvedStripeEmail,
-                  tier: sessionTier,
-                  amountTotal,
-                  subscriptionId: subscriptionId ?? null,
-                },
-              });
+              for (const admin of superAdmins) {
+                await notifyUser({
+                  userId: admin.id,
+                  title: "⚠️ Unprovisioned Stripe Payment",
+                  message: `A payment of $${(amountTotal / 100).toFixed(2)} was received but the user could not be identified. Stripe customer: ${customerId ?? "unknown"}${emailPart}. Manual provisioning required.`,
+                  notificationType: "error",
+                  linkUrl: "/admin/stripe",
+                  dedupeKey: `unprovisioned_payment_${customerId ?? session.id}`,
+                  metadata: {
+                    sessionId: session.id,
+                    customerId: customerId ?? null,
+                    stripeEmail: resolvedStripeEmail,
+                    tier: sessionTier,
+                    amountTotal,
+                    subscriptionId: subscriptionId ?? null,
+                  },
+                });
+              }
+            } catch (notifyErr) {
+              req.log.warn({ notifyErr }, "Failed to notify admins of unprovisioned Stripe payment");
             }
-          } catch (notifyErr) {
-            req.log.warn({ notifyErr }, "Failed to notify admins of unprovisioned Stripe payment");
-          }
+          });
         }
 
         if (session.metadata?.kind === "blueprint_purchase") {
@@ -549,14 +552,14 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
           // Tier-change grace notification: tell the user what their plan change
           // means for their running automations, with a one-click path to restore.
           if (lostOperationsAccess) {
-            await notifyUser({
+            afterCommit.push(() => notifyUser({
               userId,
               notificationType: "warn",
               title: "ASH Operations Mode paused after plan change",
               message: `Your plan changed to ${newTier}, which doesn't include ASH Operations Mode. Your businesses stay saved, but continuous monitoring, content, and scheduling automation are paused. Upgrade to Operator or Empire to resume.`,
               linkUrl: "/pricing",
               dedupeKey: "operations_access_lost",
-            });
+            }));
           }
 
           req.log.info({ userId, stripeStatus, dbStatus, newTier }, "Subscription updated");

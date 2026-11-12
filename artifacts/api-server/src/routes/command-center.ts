@@ -8,7 +8,7 @@ import { requireAuthActive } from "../lib/auth";
 import { runAshTurn } from "../lib/ash-agent";
 import { synthesizeSpeech } from "../lib/openrouter-media";
 import { assembleCrossBusinessSummary } from "../lib/business-intelligence/context";
-import { OutOfCreditsError } from "../lib/credits";
+import { OutOfCreditsError, DailyAiLimitError } from "../lib/credits";
 
 const router: IRouter = Router();
 
@@ -73,7 +73,7 @@ router.post("/command-center/turn", async (req, res): Promise<void> => {
         speech = { audioBase64: audio.toString("base64"), mimeType: "audio/mpeg", voice };
       } catch (err) {
         // The text answer is still useful; the client shows it as a caption.
-        speechError = err instanceof OutOfCreditsError ? "out_of_credits" : "unavailable";
+        speechError = err instanceof OutOfCreditsError ? "out_of_credits" : err instanceof DailyAiLimitError ? "daily_ai_limit" : "unavailable";
       }
     }
     res.json({
@@ -87,6 +87,10 @@ router.post("/command-center/turn", async (req, res): Promise<void> => {
       model: result.model,
     });
   } catch (err) {
+    if (err instanceof DailyAiLimitError) {
+      res.status(429).json({ error: err.message, code: "daily_ai_limit" });
+      return;
+    }
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "Out of credits" });
       return;

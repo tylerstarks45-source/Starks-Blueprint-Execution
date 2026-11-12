@@ -28,7 +28,7 @@ import { requireAuthActive, getTokenPayload, isAdminRole, isFounderAdmin } from 
 import { deleteMediaForContent } from "../lib/media-store";
 import { complete } from "../lib/openrouter";
 import { MODELS, chainFor, chainForAgentMode, resolveAgentMode } from "../lib/models";
-import { OutOfCreditsError } from "../lib/credits";
+import { OutOfCreditsError, DailyAiLimitError } from "../lib/credits";
 import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector, listConnectors } from "../lib/connectors/registry";
 import { z } from "zod";
@@ -738,6 +738,10 @@ router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
       model: result.model,
     });
   } catch (err) {
+    if (err instanceof DailyAiLimitError) {
+      res.status(429).json({ error: err.message, code: "daily_ai_limit" });
+      return;
+    }
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "Out of credits" });
       return;

@@ -1,4 +1,4 @@
-import { OutOfCreditsError } from "../lib/credits";
+import { OutOfCreditsError, DailyAiLimitError } from "../lib/credits";
 import { transcribeAudio, audioFormatFor } from "../lib/openrouter-media";
 import { Router, type IRouter } from "express";
 import { publicErrorMessage } from "../middlewares/security";
@@ -2534,6 +2534,10 @@ router.post("/ai-orchestrator/transcribe", async (req, res) => {
     try {
       text = await transcribeAudio({ audio: file.buffer, format: audioFormatFor(file.mimetype, file.buffer), userId });
     } catch (err) {
+      if (err instanceof DailyAiLimitError) {
+        res.status(429).json({ error: err.message, code: "daily_ai_limit" });
+        return;
+      }
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({ error: "Out of credits." });
         return;

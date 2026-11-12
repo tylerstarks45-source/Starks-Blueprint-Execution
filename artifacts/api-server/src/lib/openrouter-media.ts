@@ -1,9 +1,8 @@
 // Speech-to-text, text-to-speech and image generation through OpenRouter's media
 // endpoints, with the same credit gate, deduction and usage logging as chat completions.
-import { db, usersTable, openrouterUsageTable, creditUsageEventsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, openrouterUsageTable, creditUsageEventsTable } from "@workspace/db";
 import { logger } from "./logger";
-import { getBalance, deductForUsage, creditsForUsd, OutOfCreditsError } from "./credits";
+import { deductForUsage, creditsForUsd, assertCanSpendAi } from "./credits";
 import { MEDIA_MODELS } from "./models";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
@@ -27,9 +26,7 @@ export class MediaProviderError extends Error {
 
 async function assertCanSpend(userId: number | undefined): Promise<void> {
   if (userId == null) return;
-  const [row] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId));
-  if (row?.role === "FOUNDER_ADMIN") return;
-  if ((await getBalance(userId)).total <= 0) throw new OutOfCreditsError();
+  await assertCanSpendAi(userId);
 }
 
 async function post(path: string, body: unknown): Promise<Response> {

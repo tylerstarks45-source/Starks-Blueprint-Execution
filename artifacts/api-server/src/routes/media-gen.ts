@@ -1,4 +1,4 @@
-import { OutOfCreditsError } from "../lib/credits";
+import { OutOfCreditsError, DailyAiLimitError } from "../lib/credits";
 import { Router, type IRouter } from "express";
 import { requireAuthActive } from "../lib/auth";
 import { z } from "zod";
@@ -116,6 +116,10 @@ router.post("/media-gen/image", async (req, res): Promise<void> => {
     try {
       image = await generateImage({ prompt: enhancedPrompt, aspectRatio: ASPECT_FOR_SIZE[size], userId });
     } catch (err) {
+      if (err instanceof DailyAiLimitError) {
+        res.status(429).json({ error: err.message, code: "daily_ai_limit" });
+        return;
+      }
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({ error: "Out of credits" });
         return;
@@ -672,6 +676,10 @@ router.post("/media-gen/tts", async (req, res): Promise<void> => {
         message: "Generated using the built-in voice. Connect ElevenLabs in the Connections Hub for premium ultra-realistic voices.",
       });
     } catch (err) {
+      if (err instanceof DailyAiLimitError) {
+        res.status(429).json({ error: err.message, code: "daily_ai_limit" });
+        return;
+      }
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({ error: "Out of credits" });
         return;

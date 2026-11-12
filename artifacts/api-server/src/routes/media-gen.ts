@@ -7,6 +7,7 @@ import { eq, and, inArray, desc } from "drizzle-orm";
 import { decrypt } from "../lib/crypto";
 import { randomUUID } from "crypto";
 import { generateImage, synthesizeSpeech } from "../lib/openrouter-media";
+import { storeMedia } from "../lib/media-store";
 
 const OPENAI_TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"] as const;
 type OpenAiTtsVoice = (typeof OPENAI_TTS_VOICES)[number];
@@ -123,7 +124,7 @@ router.post("/media-gen/image", async (req, res): Promise<void> => {
       res.status(502).json({ error: "Image generation failed" });
       return;
     }
-    const imageUrl = `data:image/png;base64,${image.b64}`;
+    const imageUrl = await storeMedia(userId, Buffer.from(image.b64, "base64"), "image/png");
     const revisedPrompt = image.revisedPrompt;
 
     // Save URL to generated_files so it appears in the media gallery

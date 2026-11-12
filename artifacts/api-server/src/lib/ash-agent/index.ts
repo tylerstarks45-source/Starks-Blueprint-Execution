@@ -243,11 +243,12 @@ export async function runAshTurn(opts: {
     .where(eq(usersTable.id, opts.userId))
     .limit(1);
   const { mode } = resolveAgentMode(opts.mode, caller?.membershipTier, isFounderAdmin(caller?.role));
-  return runAshAgent({
+  const result = await runAshAgent({
     userId: opts.userId,
     systemPrompt: opts.systemPrompt ?? ASH_AGENT_PROMPT,
     messages: [...opts.history, { role: "user", content: opts.message }],
     models: chainForAgentMode(mode),
     ...(opts.toolNames ? { toolNames: opts.toolNames } : {}),
   });
+  return { ...result, steps: result.steps.map(({ args: _args, ...step }) => step) };
 }

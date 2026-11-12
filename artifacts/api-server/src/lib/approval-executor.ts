@@ -61,6 +61,12 @@ async function runApprovedAshTool(approval: PendingApproval, payload: ActionPayl
   }
   const checked = checkToolArgs(tool.name, (payload["args"] ?? {}) as Record<string, unknown>);
   if (!checked.ok) return { executed: false, reversible: false, detail: checked.error };
+  const missionId = Number(payload["missionId"]);
+  if (Number.isInteger(missionId)) {
+    const [m] = await db.select({ status: ashMissionsTable.status }).from(ashMissionsTable)
+      .where(and(eq(ashMissionsTable.id, missionId), eq(ashMissionsTable.userId, approval.userId)));
+    if (!m || m.status === "cancelled") return { executed: false, reversible: false, detail: "The mission behind this action was cancelled." };
+  }
   const result = await tool.run(approval.userId, checked.args);
   if (result && typeof result === "object" && "error" in result) {
     return { executed: false, reversible: false, detail: String((result as { error: unknown }).error) };

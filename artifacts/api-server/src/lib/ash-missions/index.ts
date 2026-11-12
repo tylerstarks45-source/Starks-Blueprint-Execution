@@ -1,7 +1,7 @@
 // ASH missions: long-running goals ASH works on in the background, one step
 // per run, persisted so they survive restarts. The runner lives in runner.ts.
-import { db, ashMissionsTable, type AshMission, type MissionLogEntry, type PendingApproval } from "@workspace/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { db, ashMissionsTable, pendingApprovalsTable, type AshMission, type MissionLogEntry, type PendingApproval } from "@workspace/db";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { ownedBusinessIds } from "../empire/assets";
 
 const MAX_LOG = 200;
@@ -67,8 +67,15 @@ export async function ownerMissionAction(userId: number, id: number, action: Own
   }
   const [row] = await db.update(ashMissionsTable).set(patch)
     .where(and(eq(ashMissionsTable.id, id), inArray(ashMissionsTable.status, FROM[action]))).returning();
-  return row ? { mission: row } : { error: "Mission changed, try again", status: 409 };
+  if (!row) return { error: "Mission changed, try again", status: 409 };
+  if (action === "cancel") {
+    await db.update(pendingApprovalsTable).set({ status: "rejected", resolvedAt: new Date() })
+      .where(and(eq(pendingApprovalsTable.userId, userId), eq(pendingApprovalsTable.status, "pending"), missionApproval(id)));
+  }
+  return { mission: row };
 }
+
+const missionApproval = (missionId: number) => sql`${pendingApprovalsTable.payload}->>'missionId' = ${String(missionId)}`;
 
 /** Records the owner's decision on an approval a mission raised, and resumes the mission if it was waiting on it. */
 export async function onApprovalResolved(approval: PendingApproval, approved: boolean, detail?: string): Promise<void> {

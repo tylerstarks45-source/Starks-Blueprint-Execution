@@ -101,7 +101,8 @@ beforeAll(async () => {
     .returning({ id: usersTable.id });
   userId = u.id;
   userToken = jwt.sign({ sub: userId, email: "", role: "USER", tokenVersion: 1 }, process.env["SESSION_SECRET"]!);
-});
+  // Importing the whole app is slow on a cold transform cache.
+}, 120_000);
 
 afterAll(async () => {
   const { db, usersTable } = await import("@workspace/db");

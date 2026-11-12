@@ -80,7 +80,7 @@ ASH-managed systems keep running unattended via three always-on loops, all confi
 
 ## Seeded Data
 
-- 1 SUPER_ADMIN: `admin@starksglobalgroup.net` / `Starks@Admin2024!`
+- 1 SUPER_ADMIN: `admin@starksglobalgroup.net` (password is not stored in the repo; set or reset it with `POST /api/auth/admin-bootstrap` using an `ADMIN_BOOTSTRAP_TOKEN` stored in Replit Secrets)
 - 8 blueprints across 6 categories
 - 17 tools across 8 categories
 - 6 blueprint categories, 8 tool categories

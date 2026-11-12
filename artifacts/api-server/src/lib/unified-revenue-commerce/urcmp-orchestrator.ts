@@ -6,22 +6,22 @@ import {
   commerceRegistry,
   commerceSnapshots,
 } from "@workspace/db/schema";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import type { URCMPSummary } from "./types.js";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-async function count(table: string, where?: string): Promise<number> {
-  const clause = where ? `WHERE ${where}` : "";
-  const result = await db.execute(sql.raw(`SELECT COUNT(*) AS cnt FROM ${table} ${clause}`));
+async function count(table: string, where?: SQL): Promise<number> {
+  const clause = where ? sql` WHERE ${where}` : sql``;
+  const result = await db.execute(sql`SELECT COUNT(*) AS cnt FROM ${sql.identifier(table)}${clause}`);
   return Number(((result as any).rows ?? [])[0]?.cnt ?? 0);
 }
 
-async function sumColumn(table: string, column: string, where?: string): Promise<number> {
-  const clause = where ? `WHERE ${where}` : "";
+async function sumColumn(table: string, column: string, where?: SQL): Promise<number> {
+  const clause = where ? sql` WHERE ${where}` : sql``;
   const result = await db.execute(
-    sql.raw(`SELECT COALESCE(SUM(${column}), 0) AS total FROM ${table} ${clause}`)
+    sql`SELECT COALESCE(SUM(${sql.identifier(column)}), 0) AS total FROM ${sql.identifier(table)}${clause}`
   );
   return Number(((result as any).rows ?? [])[0]?.total ?? 0);
 }
@@ -29,11 +29,11 @@ async function sumColumn(table: string, column: string, where?: string): Promise
 // ─── Catalog Health Engine ────────────────────────────────────────────────────
 
 async function computeCatalogHealthScore(businessId?: number): Promise<number> {
-  const bCond = businessId ? `business_id = ${businessId}` : "1=1";
+  const bCond = businessId ? sql`business_id = ${businessId}` : sql`TRUE`;
   const catalogs  = await count("commerce_catalogs",  bCond);
-  const products  = await count("commerce_products",  `${bCond} AND status = 'active'`);
-  const services  = await count("commerce_services",  `${bCond} AND status = 'available'`);
-  const offers    = await count("commerce_offers",    `${bCond} AND status = 'active'`);
+  const products  = await count("commerce_products",  sql`${bCond} AND status = 'active'`);
+  const services  = await count("commerce_services",  sql`${bCond} AND status = 'available'`);
+  const offers    = await count("commerce_offers",    sql`${bCond} AND status = 'active'`);
 
   if (catalogs === 0) return 0;
   let score = 0;
@@ -48,9 +48,9 @@ async function computeCatalogHealthScore(businessId?: number): Promise<number> {
 }
 
 async function computePricingCompletenessScore(businessId?: number): Promise<number> {
-  const bCond = businessId ? `business_id = ${businessId}` : "1=1";
+  const bCond = businessId ? sql`business_id = ${businessId}` : sql`TRUE`;
   const models  = await count("pricing_models", bCond);
-  const offers  = await count("commerce_offers", `${bCond} AND price IS NOT NULL`);
+  const offers  = await count("commerce_offers", sql`${bCond} AND price IS NOT NULL`);
   const total   = await count("commerce_offers", bCond);
   if (models === 0 && total === 0) return 0;
   let score = 0;
@@ -62,10 +62,10 @@ async function computePricingCompletenessScore(businessId?: number): Promise<num
 }
 
 async function computeCheckoutReadinessScore(businessId?: number): Promise<number> {
-  const bCond = businessId ? `business_id = ${businessId}` : "1=1";
+  const bCond = businessId ? sql`business_id = ${businessId}` : sql`TRUE`;
   const profiles = await count("checkout_profiles", bCond);
   if (profiles === 0) return 0;
-  const ready = await count("checkout_profiles", `${bCond} AND status = 'ready'`);
+  const ready = await count("checkout_profiles", sql`${bCond} AND status = 'ready'`);
   return Math.min(100, Math.round((ready / profiles) * 100));
 }
 
@@ -84,27 +84,27 @@ async function computeMonetizationScore(
 // ─── Governance Engine ────────────────────────────────────────────────────────
 
 async function findMissingMonetization(businessId?: number): Promise<string[]> {
-  const bCond = businessId ? `business_id = ${businessId}` : "1=1";
+  const bCond = businessId ? sql`business_id = ${businessId}` : sql`TRUE`;
   const missing: string[] = [];
-  const subscriptions = await count("subscription_contracts", `${bCond} AND status = 'active'`);
+  const subscriptions = await count("subscription_contracts", sql`${bCond} AND status = 'active'`);
   if (subscriptions === 0) missing.push("No active subscription revenue stream");
   const offers = await count("commerce_offers", bCond);
   if (offers === 0) missing.push("No offers configured — customers cannot purchase");
   const pricing = await count("pricing_models", bCond);
   if (pricing === 0) missing.push("No pricing models defined");
-  const streams = await count("revenue_streams", `${bCond} AND status = 'active'`);
+  const streams = await count("revenue_streams", sql`${bCond} AND status = 'active'`);
   if (streams === 0) missing.push("No active revenue streams tracked");
   return missing;
 }
 
 async function findOpenOpportunities(businessId?: number): Promise<string[]> {
-  const bCond = businessId ? `business_id = ${businessId}` : "1=1";
+  const bCond = businessId ? sql`business_id = ${businessId}` : sql`TRUE`;
   const opps: string[] = [];
   const bundles = await count("commerce_bundles", bCond);
   if (bundles === 0) opps.push("No product bundles — bundle upsell opportunity");
-  const quotes = await count("quotes", `${bCond} AND status = 'draft'`);
+  const quotes = await count("quotes", sql`${bCond} AND status = 'draft'`);
   if (quotes > 0) opps.push(`${quotes} draft quote(s) not yet sent`);
-  const abandoned = await count("shopping_carts", `${bCond} AND status = 'abandoned'`);
+  const abandoned = await count("shopping_carts", sql`${bCond} AND status = 'abandoned'`);
   if (abandoned > 0) opps.push(`${abandoned} abandoned cart(s) — re-engagement opportunity`);
   return opps;
 }
@@ -113,7 +113,7 @@ async function findOpenOpportunities(businessId?: number): Promise<string[]> {
 
 export async function buildURCMPSummary(userId?: number): Promise<URCMPSummary> {
   try {
-    const bCond = userId ? `user_id = ${userId}` : "1=1";
+    const bCond = userId ? sql`user_id = ${userId}` : sql`TRUE`;
 
     const [
       totalCatalogs,
@@ -142,15 +142,15 @@ export async function buildURCMPSummary(userId?: number): Promise<URCMPSummary> 
       count("commerce_variants", bCond),
       count("pricing_models", bCond),
       count("subscription_contracts", bCond),
-      count("subscription_contracts", `${bCond} AND status = 'active'`),
+      count("subscription_contracts", sql`${bCond} AND status = 'active'`),
       count("contracts", bCond),
       count("quotes", bCond),
       count("proposals", bCond),
       count("invoice_profiles", bCond),
-      count("revenue_streams", `${bCond} AND status = 'active'`),
-      sumColumn("revenue_streams", "estimated_monthly_revenue", `${bCond} AND status = 'active'`),
-      count("commerce_diagnostics", `${bCond} AND is_resolved = false`),
-      count("commerce_diagnostics", `${bCond} AND severity = 'critical' AND is_resolved = false`),
+      count("revenue_streams", sql`${bCond} AND status = 'active'`),
+      sumColumn("revenue_streams", "estimated_monthly_revenue", sql`${bCond} AND status = 'active'`),
+      count("commerce_diagnostics", sql`${bCond} AND is_resolved = false`),
+      count("commerce_diagnostics", sql`${bCond} AND severity = 'critical' AND is_resolved = false`),
     ]);
 
     const businessId = undefined; // summary is user-scoped

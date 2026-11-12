@@ -1,13 +1,13 @@
 // Build 057 — UECIOS Orchestrator
 import { db } from "@workspace/db";
 import { providerSnapshots } from "@workspace/db/schema";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import type { UECIOSSummary } from "./types.js";
 
-async function count(table: string, where?: string): Promise<number> {
-  const clause = where ? `WHERE ${where}` : "";
-  const result = await db.execute(sql.raw(`SELECT COUNT(*) AS cnt FROM ${table} ${clause}`));
+async function count(table: string, where?: SQL): Promise<number> {
+  const clause = where ? sql` WHERE ${where}` : sql``;
+  const result = await db.execute(sql`SELECT COUNT(*) AS cnt FROM ${sql.identifier(table)}${clause}`);
   return Number(((result as any).rows ?? [])[0]?.cnt ?? 0);
 }
 
@@ -66,17 +66,17 @@ export async function buildUECIOSSummary(_userId?: number): Promise<UECIOSSummar
       criticalDiagnostics,
     ] = await Promise.all([
       count("capability_providers"),
-      count("capability_providers", "status = 'active'"),
-      count("provider_connections",  "status = 'connected'"),
-      count("capability_providers",  "existing_connector = true"),
-      count("provider_health",       "health_status = 'healthy'"),
-      count("provider_health",       "health_status = 'degraded'"),
-      count("provider_credentials",  "status = 'expired'"),
-      count("provider_sync_jobs",    "status = 'pending'"),
+      count("capability_providers", sql`status = 'active'`),
+      count("provider_connections",  sql`status = 'connected'`),
+      count("capability_providers",  sql`existing_connector = true`),
+      count("provider_health",       sql`health_status = 'healthy'`),
+      count("provider_health",       sql`health_status = 'degraded'`),
+      count("provider_credentials",  sql`status = 'expired'`),
+      count("provider_sync_jobs",    sql`status = 'pending'`),
       count("uecios_capabilities"),
-      count("provider_connections",  "status = 'connected'"),
-      count("provider_recommendations", "status = 'open'"),
-      count("provider_diagnostics",  "severity = 'critical' AND is_resolved = false"),
+      count("provider_connections",  sql`status = 'connected'`),
+      count("provider_recommendations", sql`status = 'open'`),
+      count("provider_diagnostics",  sql`severity = 'critical' AND is_resolved = false`),
     ]);
 
     const coveredResult = await db.execute(sql`

@@ -22,6 +22,15 @@ export const GUIDE_SECTIONS = [
     link: { to: '/empire', label: 'Empire Command Center' },
   },
   {
+    id: 'control',
+    title: 'ASH Control, missions and approvals',
+    where: 'ASH Control, Missions, Approvals',
+    summary: 'Choose how much ASH does on her own: Advisor (she suggests), Co-pilot (she builds in your account and asks before anything goes live), Operator (she runs things within your rules) or Autopilot (she runs everything within your spending limits). Set it for your whole empire or per business. Give ASH a mission and she plans it and keeps working on it in the background. Anything your settings hold back waits in the Approvals inbox.',
+    tips: ['Approving an item runs it right away; rejecting it tells ASH to find another way', 'When a mission needs something only you can do (a login, a payment), it says so and waits', 'Missions use your AI credits; pause or cancel them any time'],
+    examples: ['Start a mission: build 3 income streams for my SaaS', 'What missions are you working on?', 'What control level am I giving you?'],
+    link: { to: '/missions', label: 'Missions' },
+  },
+  {
     id: 'navigate',
     title: 'Page commands',
     where: 'ASH dock or Builder',

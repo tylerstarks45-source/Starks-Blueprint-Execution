@@ -5,7 +5,7 @@ import {
   ShoppingBag, BookOpen, CreditCard, ShieldCheck, ChevronLeft, ChevronRight,
   LogOut, X, Settings, Globe2, Zap, Users, Calendar, Building2, ScrollText,
   Brain, TrendingUp, Sparkles, BarChart3, GraduationCap, Crown, Coins, Archive,
-  Shapes, Film, LineChart, Database, FlaskConical, ChevronDown,
+  Shapes, Film, LineChart, Database, FlaskConical, ChevronDown, Target, Inbox, SlidersHorizontal,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useClient } from '@/contexts/ClientContext.jsx';
@@ -19,6 +19,9 @@ const NAV_GROUPS = [
     items: [
       { label: 'Dashboard',       path: '/dashboard', icon: LayoutDashboard },
       { label: 'Empire Command',  path: '/empire',    icon: Crown },
+      { label: 'Missions',        path: '/missions',  icon: Target },
+      { label: 'Approvals',       path: '/approvals', icon: Inbox },
+      { label: 'ASH Control',     path: '/ash-control', icon: SlidersHorizontal },
     ],
   },
   {

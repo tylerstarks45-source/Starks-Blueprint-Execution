@@ -157,6 +157,7 @@ router.post("/subscriptions/checkout", async (req, res): Promise<void> => {
 
 // POST /api/stripe/webhook — raw body captured in app.ts before JSON parser
 router.post("/stripe/webhook", async (req, res): Promise<void> => {
+  let claimedEventId: string | null = null;
   try {
     const stripe = await getUncachableStripeClient();
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -211,6 +212,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
         res.json({ received: true, duplicate: true });
         return;
       }
+      claimedEventId = String(event.id);
     }
 
     if (event.type === "checkout.session.completed") {
@@ -562,6 +564,16 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
     res.json({ received: true });
   } catch (err: any) {
     req.log.error({ err }, "Stripe webhook error");
+    if (claimedEventId) {
+      // Processing failed after the event was claimed: release it so Stripe's
+      // retry is applied instead of being dropped as a duplicate.
+      await db
+        .delete(processedStripeEventsTable)
+        .where(eq(processedStripeEventsTable.eventId, claimedEventId))
+        .catch((releaseErr) => req.log.error({ err: releaseErr, eventId: claimedEventId }, "Failed to release Stripe event claim"));
+      res.status(500).json({ error: "Webhook processing failed" });
+      return;
+    }
     res.status(400).json({ error: "Webhook processing failed" });
   }
 });

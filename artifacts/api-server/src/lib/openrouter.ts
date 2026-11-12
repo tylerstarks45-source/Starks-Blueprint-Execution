@@ -81,6 +81,8 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
   let buffer = "";
   let fullContent = "";
   let finalUsage: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null = null;
+  // With a `models` chain OpenRouter may answer from a fallback; bill and log the model that served it.
+  let servedModel: string | undefined;
   let success = true;
   let errorMessage: string | null = null;
 
@@ -101,12 +103,14 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
         try {
           const parsed = JSON.parse(data) as {
             choices?: Array<{ delta?: { content?: string } }>;
+            model?: string;
             usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
           };
 
+          if (parsed.model) servedModel = parsed.model;
+          if (parsed.usage) finalUsage = parsed.usage;
           const delta = parsed.choices?.[0]?.delta?.content ?? "";
           if (delta) { fullContent += delta; yield delta; }
-          if (parsed.usage) finalUsage = parsed.usage;
         } catch { /* skip malformed SSE lines */ }
       }
     }
@@ -118,10 +122,11 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
     try { reader.releaseLock(); } catch { /* ignore */ }
 
     const totalTokens = finalUsage?.total_tokens ?? Math.ceil(fullContent.length / 3);
+    const billedModel = servedModel ?? model;
 
     if (request.userId != null && fullContent.length > 0) {
       try {
-        await deductForUsage(request.userId, totalTokens, model);
+        await deductForUsage(request.userId, totalTokens, billedModel);
         // Phase 3: log granular credit usage event
         db.insert(creditUsageEventsTable).values({
           userId: request.userId,
@@ -129,7 +134,7 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
           eventType: "ai_call",
           creditsConsumed: creditsForTokens(totalTokens),
           tokensUsed: totalTokens,
-          model,
+          model: billedModel,
         }).catch(() => { /* non-critical */ });
       } catch (err) {
         logger.error({ alert: "CREDIT_DEDUCTION_FAILED", err, userId: request.userId }, "Streaming credit deduction failed");
@@ -140,7 +145,7 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
       await db.insert(openrouterUsageTable).values({
         userId: request.userId ?? null,
         systemInstanceId: request.systemInstanceId ?? null,
-        model,
+        model: billedModel,
         promptTokens: finalUsage?.prompt_tokens ?? 0,
         completionTokens: finalUsage?.completion_tokens ?? 0,
         totalTokens,
@@ -284,7 +289,7 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
       await db.insert(openrouterUsageTable).values({
         userId: request.userId ?? null,
         systemInstanceId: request.systemInstanceId ?? null,
-        model,
+        model: result?.model ?? model,
         promptTokens: result?.promptTokens ?? 0,
         completionTokens: result?.completionTokens ?? 0,
         totalTokens: result?.totalTokens ?? 0,

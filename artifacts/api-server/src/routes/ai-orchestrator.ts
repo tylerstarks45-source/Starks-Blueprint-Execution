@@ -1045,7 +1045,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
   "marketOpportunity": "1 sentence on the business opportunity or relevance"
 }`,
     prompt: `Research this for a business automation context: ${query}`,
-    model: MODELS.research,
+    models: chainFor("research"),
     userId,
   });
 

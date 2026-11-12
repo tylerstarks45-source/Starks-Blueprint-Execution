@@ -1,5 +1,5 @@
 import { complete } from "../../openrouter";
-import { MODELS } from "../../models";
+import { chainFor } from "../../models";
 import type { SearchProvider, SearchProviderResponse } from "../types";
 
 // ─── Existing Search (Perplexity via OpenRouter) ───────────────────────────
@@ -15,7 +15,7 @@ export const perplexitySearchProvider: SearchProvider = {
     return Boolean(process.env.OPENROUTER_API_KEY);
   },
   async search(query, opts): Promise<SearchProviderResponse> {
-    const result = await complete({ prompt: query, model: MODELS.research, userId: opts?.userId });
+    const result = await complete({ prompt: query, models: chainFor("research"), userId: opts?.userId });
     return { content: result.content, provider: "perplexity" };
   },
 };

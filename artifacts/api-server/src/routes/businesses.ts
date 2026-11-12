@@ -9,6 +9,8 @@ import {
   businessOperationsSettingsTable,
   systemActivityEventsTable,
   userCredentialsTable,
+  revenueStreams,
+  canonicalAssets,
   DEFAULT_OPERATIONS_PERMISSIONS,
 } from "@workspace/db";
 import { getActiveCallerPayload, validateClientWorkspaceId } from "../lib/auth";
@@ -208,7 +210,14 @@ router.delete("/businesses/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  await db.delete(businessesTable).where(eq(businessesTable.id, params.data.id));
+  await db.transaction(async (tx) => {
+    // revenue_streams and canonical_assets have no FK to businesses: drop the
+    // business's streams and move its assets to "unassigned" in the vault.
+    await tx.delete(revenueStreams).where(and(eq(revenueStreams.businessId, params.data.id), eq(revenueStreams.userId, caller.id)));
+    await tx.update(canonicalAssets).set({ businessId: null, updatedAt: new Date() })
+      .where(and(eq(canonicalAssets.businessId, params.data.id), eq(canonicalAssets.userId, caller.id)));
+    await tx.delete(businessesTable).where(eq(businessesTable.id, params.data.id));
+  });
   res.sendStatus(204);
 });
 

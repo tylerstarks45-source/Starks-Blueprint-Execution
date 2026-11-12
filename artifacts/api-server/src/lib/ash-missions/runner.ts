@@ -99,6 +99,7 @@ async function runStep(m: AshMission): Promise<Partial<AshMission>> {
   if (m.stepRuns >= m.maxStepRuns) {
     return { status: "paused", waitingFor: "Step budget used up. Resume to let ASH keep going.", log: withLog(m.log, logEntry("status", "Paused: step budget used up")) };
   }
+  const notes = m.steps[idx]!.notes ?? [];
   const done = m.steps.map((s, i) => `${i + 1}. [${s.status}] ${s.title}${s.result ? ` → ${s.result.slice(0, 300)}` : ""}`).join("\n");
   const recent = (m.log ?? []).slice(-8).map((e) => `- ${e.kind}: ${e.message.slice(0, 300)}`).join("\n");
   const result = await runAshAgent({
@@ -106,7 +107,7 @@ async function runStep(m: AshMission): Promise<Partial<AshMission>> {
     systemPrompt: `You are ASH working on a long-running mission for the owner, in the background (the owner isn't watching). Do only the current step, using tools. Never invent results. If the step needs something only the owner can do (log in, pay, verify identity, accept terms), call request_owner_action. Finish with a 1-3 sentence summary of what you did.\n${await levelNote(m)}`,
     messages: [{
       role: "user",
-      content: `Mission goal: ${m.goal}${m.businessId != null ? `\nBusiness id: ${m.businessId}` : ""}\n\nPlan:\n${done}\n\nRecent activity:\n${recent || "- none"}\n\nCurrent step ${idx + 1}: ${m.steps[idx]!.title}`,
+      content: `Mission goal: ${m.goal}${m.businessId != null ? `\nBusiness id: ${m.businessId}` : ""}\n\nPlan:\n${done}\n\nRecent activity:\n${recent || "- none"}\n\nCurrent step ${idx + 1}: ${m.steps[idx]!.title}${notes.length ? `\nAlready handled in this step:\n${notes.map((n) => `- ${n}`).join("\n")}` : ""}`,
     }],
     models: chainForAgentMode("business"),
     maxSteps: 6,
@@ -115,11 +116,12 @@ async function runStep(m: AshMission): Promise<Partial<AshMission>> {
   });
   const toolLog = result.steps.filter((s) => s.tool !== "request_owner_action")
     .map((s) => logEntry("tool", `${s.tool}${s.approvalId ? " → queued for approval" : s.ok ? "" : " failed"}`));
-  const approval = result.steps.find((s) => s.approvalId != null);
+  const approvals = result.steps.filter((s) => s.approvalId != null);
+  const approval = approvals[0];
   const ownerAsk = result.steps.find((s) => s.tool === "request_owner_action" && s.note);
   const base = { stepRuns: m.stepRuns + 1, failureCount: 0 };
   if (approval) {
-    return { ...base, status: "waiting_approval", approvalId: approval.approvalId!, waitingFor: "Your approval in the Approvals inbox",
+    return { ...base, status: "waiting_approval", approvalId: approval.approvalId!, waitingFor: approvals.length > 1 ? `${approvals.length} actions waiting in your Approvals inbox` : "Your approval in the Approvals inbox",
       log: withLog(m.log, ...toolLog, logEntry("approval", `Waiting for approval: ${result.content.slice(0, 500)}`)) };
   }
   if (ownerAsk) {

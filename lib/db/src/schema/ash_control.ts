@@ -50,6 +50,8 @@ export interface MissionStep {
   title: string;
   status: "pending" | "done" | "skipped";
   result?: string;
+  /** What already happened in this step (approved/rejected actions), so ASH doesn't redo it. */
+  notes?: string[];
 }
 
 export interface MissionLogEntry {

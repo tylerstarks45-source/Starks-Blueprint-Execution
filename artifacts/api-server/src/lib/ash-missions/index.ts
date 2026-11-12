@@ -86,10 +86,23 @@ export async function onApprovalResolved(approval: PendingApproval, approved: bo
   const message = approved
     ? `Owner approved "${approval.title}"${detail ? ` — ${detail.slice(0, 300)}` : ""}`
     : `Owner rejected "${approval.title}". Find another way or skip it.`;
-  const waiting = m.status === "waiting_approval" && m.approvalId === approval.id;
-  await db.update(ashMissionsTable).set({
-    log: withLog(m.log, logEntry("approval", message)),
-    updatedAt: new Date(),
-    ...(waiting ? { status: "running", approvalId: null, waitingFor: null, nextRunAt: new Date() } : {}),
-  }).where(eq(ashMissionsTable.id, m.id));
+  const note = approved
+    ? `Already done (owner approved, do not repeat): ${approval.title}`
+    : `Owner rejected, do not retry: ${approval.title}`;
+  const idx = m.steps.findIndex((s) => s.status === "pending");
+  const steps = idx < 0 ? m.steps : m.steps.map((s, i) => (i === idx ? { ...s, notes: [...(s.notes ?? []), note].slice(-20) } : s));
+  // One step can queue several actions; keep waiting until all of them are decided.
+  const [next] = await db.select({ id: pendingApprovalsTable.id }).from(pendingApprovalsTable)
+    .where(and(eq(pendingApprovalsTable.userId, approval.userId), eq(pendingApprovalsTable.status, "pending"),
+      ne(pendingApprovalsTable.id, approval.id), missionApproval(m.id)))
+    .orderBy(asc(pendingApprovalsTable.id)).limit(1);
+  const base = { log: withLog(m.log, logEntry("approval", message)), steps, updatedAt: new Date() };
+  if (m.status !== "waiting_approval") {
+    await db.update(ashMissionsTable).set(base).where(eq(ashMissionsTable.id, m.id));
+    return;
+  }
+  await db.update(ashMissionsTable).set(next
+    ? { ...base, approvalId: next.id }
+    : { ...base, status: "running", approvalId: null, waitingFor: null, nextRunAt: new Date() })
+    .where(and(eq(ashMissionsTable.id, m.id), eq(ashMissionsTable.status, "waiting_approval")));
 }

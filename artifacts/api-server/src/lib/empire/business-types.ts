@@ -64,11 +64,19 @@ export async function resolveBusinessType(ownerId: number, key: string): Promise
   const [c] = await db.select().from(customBusinessTypesTable)
     .where(and(eq(customBusinessTypesTable.ownerId, ownerId), eq(customBusinessTypesTable.key, key)));
   if (c) return { key: c.key, name: c.name, category: c.category, description: c.description ?? "", baseType: "custom", streamTypes: c.streamTypes, assetClasses: c.assetClasses, builtin: false };
+  if (key === "custom") return GENERIC_CUSTOM;
   // Legacy business_type values are valid registry keys too.
   if ((BUSINESS_TYPES as readonly string[]).includes(key)) return { ...BUILTIN_BUSINESS_TYPES.find((b) => b.baseType === key)!, key };
   return null;
 }
 
+const GENERIC_CUSTOM: BusinessTypeDef = {
+  key: "custom", name: "Custom", category: "custom", description: "", baseType: "custom", streamTypes: [], assetClasses: [], builtin: true,
+};
+
 export function typeNameFor(types: BusinessTypeDef[], typeKey: string | null, businessType: string): string {
-  return types.find((x) => x.key === (typeKey ?? businessType))?.name ?? types.find((x) => x.baseType === businessType)?.name ?? businessType;
+  const exact = types.find((x) => x.key === (typeKey ?? businessType));
+  if (exact) return exact.name;
+  if (businessType === "custom") return GENERIC_CUSTOM.name;
+  return types.find((x) => x.baseType === businessType)?.name ?? businessType;
 }

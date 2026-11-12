@@ -2,7 +2,7 @@
 // to. The profile is a cheap rolling summary of how the user writes, kept in
 // the existing user_memory table (key ASH_STYLE_KEY), so no new storage.
 import { db, userMemoryTable } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 export const ASH_PERSONALITY = `Personality: you are ASH, a sharp, warm, confident executive partner with a dry sense of humour. You are candid (you say when an idea is weak), optimistic about what the user can build, and you celebrate real wins. You speak as "I", never as "the AI".`;
 
@@ -73,15 +73,22 @@ export async function loadStyleProfile(userId: number): Promise<StyleProfile | n
   }
 }
 
-export async function recordUserMessage(userId: number, message: string, previous: StyleProfile | null): Promise<void> {
-  const next = updateProfile(previous ?? emptyProfile(), message);
-  const value = JSON.stringify(next);
-  if (previous) {
-    await db
-      .update(userMemoryTable)
-      .set({ memoryValue: value })
-      .where(and(eq(userMemoryTable.userId, userId), eq(userMemoryTable.memoryKey, ASH_STYLE_KEY)));
-  } else {
-    await db.insert(userMemoryTable).values({ userId, memoryKey: ASH_STYLE_KEY, memoryValue: value, category: "ai_preference", tags: ["ash_style"] });
-  }
+// Advisory-lock namespace for per-user style profile updates.
+const STYLE_LOCK_NS = 0x5a5e;
+
+/** Read-modify-write under a per-user transaction lock so overlapping chats
+ *  neither lose messages nor insert duplicate profile rows. */
+export async function recordUserMessage(userId: number, message: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${STYLE_LOCK_NS}, ${userId})`);
+    const where = and(eq(userMemoryTable.userId, userId), eq(userMemoryTable.memoryKey, ASH_STYLE_KEY));
+    const [row] = await tx.select({ value: userMemoryTable.memoryValue }).from(userMemoryTable).where(where).limit(1);
+    let previous = emptyProfile();
+    if (row) {
+      try { previous = { ...previous, ...(JSON.parse(row.value) as Partial<StyleProfile>) }; } catch { /* reset corrupt profile */ }
+    }
+    const value = JSON.stringify(updateProfile(previous, message));
+    if (row) await tx.update(userMemoryTable).set({ memoryValue: value }).where(where);
+    else await tx.insert(userMemoryTable).values({ userId, memoryKey: ASH_STYLE_KEY, memoryValue: value, category: "ai_preference", tags: ["ash_style"] });
+  });
 }

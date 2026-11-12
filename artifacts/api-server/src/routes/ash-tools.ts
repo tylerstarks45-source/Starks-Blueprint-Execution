@@ -1,5 +1,10 @@
 import { runAshAgent } from "../lib/ash-agent";
 import { loadStyleProfile, personaNote, recordUserMessage } from "../lib/ash-agent/persona";
+import { ASH_TOOLS, getTool } from "../lib/ash-agent/tools";
+
+// The global dock can only run navigation; workspace actions need the Builder.
+const DOCK_TOOLS = ASH_TOOLS.map((t) => t.function.name).filter((n) => getTool(n)?.kind !== "client" || n === "navigate");
+const DOCK_NOTE = "\n\nYou are in the quick-access dock, which cannot run workspace actions (images, video, audio, files, connector actions, scheduled posts). For those, call navigate with /builder and tell the user to ask you there.";
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, desc, and } from "drizzle-orm";
@@ -708,6 +713,7 @@ router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
       .default([]),
     mode: z.string().optional(),
     page: z.string().max(200).regex(/^\/[\w\-/]*$/).optional(),
+    surface: z.enum(["dock"]).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
@@ -716,7 +722,7 @@ router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
   }
 
   try {
-    const { message, history, mode, page } = parsed.data;
+    const { message, history, mode, page, surface } = parsed.data;
     const style = await loadStyleProfile(userId).catch(() => null);
     // Same tier gate as /ai-orchestrator/chat: higher modes use the flagship model.
     const [caller] = await db
@@ -727,11 +733,12 @@ router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
     const { mode: effectiveMode } = resolveAgentMode(mode, caller?.membershipTier, isFounderAdmin(caller?.role));
     const result = await runAshAgent({
       userId,
-      systemPrompt: ASH_AGENT_PROMPT + personaNote(style) + (page ? `\n\nThe user is currently on the ${page} page of the platform.` : ""),
+      systemPrompt: ASH_AGENT_PROMPT + personaNote(style) + (page ? `\n\nThe user is currently on the ${page} page of the platform.` : "") + (surface === "dock" ? DOCK_NOTE : ""),
+      ...(surface === "dock" ? { toolNames: DOCK_TOOLS } : {}),
       messages: [...history, { role: "user", content: message }],
       models: chainForAgentMode(effectiveMode),
     });
-    recordUserMessage(userId, message, style).catch((err) =>
+    recordUserMessage(userId, message).catch((err) =>
       req.log.warn({ err: err instanceof Error ? err.message : String(err) }, "ASH style profile update failed"),
     );
     res.json({

@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, usersTable, businessesTable, userMemoryTable, openrouterUsageTable, creditTransactionsTable } from "@workspace/db";
 import app from "../app";
-import { ASH_STYLE_KEY, emptyProfile, familiarity, personaNote, updateProfile } from "../lib/ash-agent/persona";
+import { ASH_STYLE_KEY, emptyProfile, familiarity, loadStyleProfile, personaNote, recordUserMessage, updateProfile } from "../lib/ash-agent/persona";
 import { level } from "../routes/ash-insights";
 
 const fetchSpy = vi.spyOn(globalThis, "fetch");
@@ -114,10 +114,32 @@ describe("POST /api/ash/agent personality + page context", () => {
     expect(JSON.stringify(res.body)).toContain("/stats");
   });
 
+  it("dock surface only offers navigation among client tools", async () => {
+    fetchSpy.mockResolvedValueOnce(reply({ role: "assistant", content: "Sure." }));
+    const res = await request(app).post("/api/ash/agent").set("Authorization", `Bearer ${token}`).send({ message: "hi", surface: "dock" });
+    expect(res.status).toBe(200);
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]!.body));
+    const names = body.tools.map((t: { function: { name: string } }) => t.function.name);
+    expect(names).toContain("navigate");
+    expect(names).toContain("list_businesses");
+    expect(names).not.toContain("image");
+    expect(body.messages[0].content).toContain("quick-access dock");
+  });
+
   it("rejects a malformed page value", async () => {
     const res = await request(app).post("/api/ash/agent").set("Authorization", `Bearer ${token}`).send({ message: "hi", page: "javascript:alert(1)" });
     expect(res.status).toBe(400);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("style profile writes", () => {
+  it("overlapping updates keep every message in a single row", async () => {
+    const before = (await loadStyleProfile(otherId))?.messages ?? 0;
+    await Promise.all(Array.from({ length: 5 }, () => recordUserMessage(otherId, "hello there")));
+    const rows = await db.select().from(userMemoryTable).where(and(eq(userMemoryTable.userId, otherId), eq(userMemoryTable.memoryKey, ASH_STYLE_KEY)));
+    expect(rows).toHaveLength(1);
+    expect(JSON.parse(rows[0]!.memoryValue).messages).toBe(before + 5);
   });
 });
 
@@ -138,6 +160,7 @@ describe("insight endpoints", () => {
     );
     expect(res.body.persona.messages).toBeGreaterThanOrEqual(1);
     expect(res.body.health).toHaveProperty("overall");
+    expect(typeof res.body.health.generatedAt).toBe("string");
     expect(Array.isArray(res.body.health.brains)).toBe(true);
   });
 

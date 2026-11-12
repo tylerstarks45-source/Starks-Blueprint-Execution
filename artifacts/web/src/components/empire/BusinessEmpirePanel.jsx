@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Coins, Archive, Plus, ExternalLink, Shapes } from 'lucide-react';
 import { empireApi, usd, label } from '@/lib/empireApi.js';
 import { Badge, btn, input, Spinner } from './ui.jsx';
-import { useEmpire, useBusinessTypes, notifyEmpireChanged } from './useEmpireData.js';
+import { useEmpire, useBusinessTypes, useOverview, notifyEmpireChanged } from './useEmpireData.js';
 import StreamDialog from './StreamDialog.jsx';
 import AssetDialog from './AssetDialog.jsx';
 
@@ -17,12 +17,19 @@ export default function BusinessEmpirePanel({ business }) {
   const { data: typeData } = useBusinessTypes();
   const [dialog, setDialog] = useState(null);
   const [savingType, setSavingType] = useState(false);
-  const typeKey = business.typeKey ?? business.businessType;
+  // /api/businesses/:id doesn't return typeKey, so the saved registry type comes from the empire overview.
+  const overview = useOverview();
+  const savedTypeKey = overview.data?.businesses.find((b) => b.id === business.id)?.typeKey ?? business.typeKey ?? business.businessType;
+  const [typeKey, setTypeKey] = useState(savedTypeKey);
+  useEffect(() => { setTypeKey(savedTypeKey); }, [savedTypeKey]);
 
   const changeType = async (e) => {
+    const next = e.target.value;
+    const prev = typeKey;
+    setTypeKey(next);
     setSavingType(true);
-    try { await empireApi.setBusinessType(business.id, e.target.value); toast.success('Business type updated'); notifyEmpireChanged(); }
-    catch (err) { toast.error(err.message); } finally { setSavingType(false); }
+    try { await empireApi.setBusinessType(business.id, next); toast.success('Business type updated'); notifyEmpireChanged(); }
+    catch (err) { setTypeKey(prev); toast.error(err.message); } finally { setSavingType(false); }
   };
 
   const projected = (streams.data ?? []).reduce((s, r) => s + (r.estimatedMonthlyRevenue ?? 0), 0);
@@ -34,7 +41,7 @@ export default function BusinessEmpirePanel({ business }) {
         <Shapes className="w-4 h-4 text-cyan-300" />
         <span className="text-xs text-white/50">Business type</span>
         <select className={`${input} !w-auto !py-1 text-xs`} value={typeKey} onChange={changeType} disabled={savingType || !typeData} aria-label="Business type">
-          {(typeData?.types ?? [{ key: typeKey, name: label(typeKey) }]).map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
+          {(typeData?.types?.some((t) => t.key === typeKey) ? typeData.types : [...(typeData?.types ?? []), { key: typeKey, name: label(typeKey) }]).map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
         </select>
         {savingType && <Spinner />}
         <Link to="/business-types" className="text-xs text-cyan-300/80 hover:text-cyan-200">Manage types →</Link>

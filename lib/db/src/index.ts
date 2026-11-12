@@ -13,4 +13,21 @@ if (!process.env.DATABASE_URL) {
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle(pool, { schema });
 
+// Readiness probe on its own short-lived connection with hard timeouts, so a
+// stalled database can never tie up connections in the shared pool.
+export async function probeDatabase(timeoutMs = 3000): Promise<void> {
+  const client = new pg.Client({
+    connectionString: process.env.DATABASE_URL,
+    connectionTimeoutMillis: timeoutMs,
+    query_timeout: timeoutMs,
+    statement_timeout: timeoutMs,
+  });
+  try {
+    await client.connect();
+    await client.query("select 1");
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
 export * from "./schema";

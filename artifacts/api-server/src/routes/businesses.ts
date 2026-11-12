@@ -15,7 +15,8 @@ import { getActiveCallerPayload, validateClientWorkspaceId } from "../lib/auth";
 import { requireOperationsTier } from "../lib/operations-gate";
 import { enqueue } from "../lib/runtime/jobs";
 import { logger } from "../lib/logger";
-import { initializeBusinessDna, publishBusinessEvent } from "../lib/business-intelligence";
+import { publishBusinessEvent } from "../lib/business-intelligence";
+import { afterBusinessCreated } from "../lib/empire/after-create";
 import {
   ListBusinessesResponse,
   CreateBusinessBody,
@@ -101,22 +102,7 @@ router.post("/businesses", async (req, res): Promise<void> => {
     })
     .returning();
 
-  // Fire-and-forget: kick off ASH's first health analysis pass. Never blocks
-  // or fails the create response — this mirrors ensureBuiltBusiness's approach
-  // for built businesses.
-  enqueue("business_health_analysis", { businessId: row.id, userId: caller.id }, { priority: 5 }).catch((err) => {
-    logger.warn({ err, businessId: row.id }, "Failed to enqueue initial business health analysis (non-fatal)");
-  });
-  // The BI initialization imports current records first; it is deliberately
-  // non-blocking so business creation retains its established behavior.
-  initializeBusinessDna(row.id).catch((err) => logger.warn({ err, businessId: row.id }, "Business Intelligence: DNA initialization failed (non-fatal)"));
-  publishBusinessEvent({
-    businessId: row.id,
-    eventType: "business.created",
-    source: "businesses_route",
-    payload: { description: `Business "${row.name}" was created.`, relatedObjects: { businessId: row.id } },
-    dedupeKey: `business.created:${row.id}`,
-  }).catch((err) => logger.warn({ err, businessId: row.id }, "Business Intelligence: timeline event failed (non-fatal)"));
+  afterBusinessCreated(row, caller.id);
 
   res.status(201).json(UpdateBusinessResponse.parse(serialize(row)));
 });

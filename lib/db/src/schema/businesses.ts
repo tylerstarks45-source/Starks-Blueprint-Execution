@@ -32,6 +32,8 @@ export const businessesTable = pgTable("businesses", {
   ownerId: integer("owner_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   businessType: text("business_type").notNull().default("custom"),
+  // Business Type Registry key (built-in or custom_business_types.key); null = businessType.
+  typeKey: text("type_key"),
   revenueModel: text("revenue_model"),
   websiteUrl: text("website_url"),
   origin: text("origin").notNull().default("imported"),

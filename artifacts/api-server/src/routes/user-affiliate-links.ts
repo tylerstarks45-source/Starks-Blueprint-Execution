@@ -96,6 +96,7 @@ async function handleConversion(
     await db.insert(systemActivityEventsTable).values({
       systemInstanceId: link.systemInstanceId,
       eventType: "revenue",
+      revenueProvider: "affiliate",
       amountCents,
       description: `Affiliate conversion — ${currency.toUpperCase()} ${(amountCents / 100).toFixed(2)} via link #${link.id}${orderId ? ` (order ${orderId})` : ""}`,
       metadata: JSON.stringify({ conversionId: conversion.id, linkId: link.id, orderId, currency }),

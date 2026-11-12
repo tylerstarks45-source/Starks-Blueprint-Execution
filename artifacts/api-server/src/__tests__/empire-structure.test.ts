@@ -116,7 +116,8 @@ describe("empire structure", () => {
   it("reports verified revenue from the ledger only, and projections separately", async () => {
     const [inst] = await db.insert(systemInstancesTable).values({ userId: ownerId, name: "Alpha system" }).returning({ id: systemInstancesTable.id });
     await db.update(businessesTable).set({ systemInstanceId: inst.id }).where(inArray(businessesTable.id, [bizA]));
-    await db.insert(systemActivityEventsTable).values({ systemInstanceId: inst.id, eventType: "revenue", description: "Stripe sale", amountCents: 4200 });
+    await db.insert(systemActivityEventsTable).values({ systemInstanceId: inst.id, eventType: "revenue", revenueProvider: "stripe", description: "Stripe sale", amountCents: 4200 });
+    await db.insert(systemActivityEventsTable).values({ systemInstanceId: inst.id, eventType: "revenue", description: "Hand-logged", amountCents: 999 });
 
     const res = await request(app).get("/api/empire/overview").set(as(ownerId));
     expect(res.status).toBe(200);

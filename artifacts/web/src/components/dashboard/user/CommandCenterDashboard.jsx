@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import ASHReactor from './ASHReactor.jsx';
@@ -275,7 +276,7 @@ export default function CommandCenterDashboard() {
         <PerformancePanel data={perfData} />
         <GlassPanel className="flex-1 p-2.5 flex flex-col gap-1">
           <BrainLevelsPanel data={brain} compact />
-          <a href="/ash-guide" className="text-[8px] font-mono uppercase tracking-widest text-cyan-300/60 hover:text-cyan-200 self-end">How to use ASH →</a>
+          <Link to="/ash-guide" className="absolute top-2.5 right-14 z-10 leading-none text-[8px] font-mono uppercase tracking-widest text-cyan-300/70 hover:text-cyan-200">How to use ASH →</Link>
         </GlassPanel>
         <ActiveTasksPanel systems={systems} />
       </div>

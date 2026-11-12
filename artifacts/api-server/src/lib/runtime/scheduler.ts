@@ -22,6 +22,7 @@ import { createPendingApproval } from "../approvals";
 import { hasOperationsModeAccess } from "../operations-gate";
 import { distillAshBrain } from "../ash-brain";
 import { runScheduledResearch } from "../research-engine/scheduled";
+import { measureRecommendationOutcomes } from "../recommendation-outcomes";
 import { runOpportunityScan } from "../research-engine/opportunity-scan";
 import { runMemoryMaintenance } from "../memory-engine";
 import { initializeBusinessDna, publishBusinessEvent } from "../business-intelligence";

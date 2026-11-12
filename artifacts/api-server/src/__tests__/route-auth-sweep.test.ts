@@ -88,6 +88,8 @@ let userId: number;
 let userToken: string;
 
 beforeAll(async () => {
+  // The sweep fires hundreds of anonymous requests; keep the AI rate limiter from masking missing auth with 429s.
+  process.env["AI_RATE_LIMIT_PER_MINUTE"] = "100000";
   app = (await import("../app")).default;
   routerProto.use = originalUse;
   collect((app as any).router.stack, "", routes);

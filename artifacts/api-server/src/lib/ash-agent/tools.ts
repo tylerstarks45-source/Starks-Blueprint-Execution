@@ -8,7 +8,7 @@ import { db, businessesTable, SOCIAL_PLATFORMS } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { ToolDefinition } from "../openrouter";
 import { complete } from "../openrouter";
-import { MODELS } from "../models";
+import { chainFor } from "../models";
 import { assembleBusinessContextPackage, assembleCrossBusinessSummary } from "../business-intelligence/context";
 import { buildLearnedPatternsNote } from "../ash-brain";
 import { SPECIALIST_KEYS } from "./specialists";
@@ -79,7 +79,7 @@ const SPECS: ToolSpec[] = [
       const r = await complete({
         systemPrompt: "You are a business research assistant. Give concise, factual findings with sources where known.",
         prompt: String(a["query"] ?? ""),
-        model: MODELS.research,
+        models: chainFor("research"),
         userId,
       });
       return { summary: r.content };

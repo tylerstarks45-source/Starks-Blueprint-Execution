@@ -140,7 +140,11 @@ const SPECS: ToolSpec[] = [
     description: "How much the owner lets you do on your own (advisor, copilot, operator, autopilot), spending limits and which kinds of action always need their approval. Optional businessId for that business's setting.",
     parameters: obj({ businessId: int("Business id") }),
     kind: "server",
-    run: (userId, a) => getEffectiveControl(userId, a["businessId"] != null ? Number(a["businessId"]) : null),
+    run: async (userId, a) => {
+      const id = a["businessId"] != null ? Number(a["businessId"]) : null;
+      if (id != null && !(await ownedBusinessIds(userId, [id])).has(id)) return { error: "Business not found" };
+      return getEffectiveControl(userId, id);
+    },
   },
   {
     name: "start_mission",

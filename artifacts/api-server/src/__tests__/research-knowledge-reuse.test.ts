@@ -256,3 +256,59 @@ describe("Research & Knowledge Engine — knowledge-first reuse", () => {
     expect(unchanged.confidenceScore).toBe(85); // untouched
   });
 });
+
+describe("Research & Knowledge Engine — per-business weekly updates (forceFresh + businessId)", () => {
+  afterEach(async () => {
+    await db.delete(ashResearchSessionsTable).where(eq(ashResearchSessionsTable.userId, testUserId));
+    await db.delete(ashKnowledgeEntriesTable).where(eq(ashKnowledgeEntriesTable.userId, testUserId));
+  });
+
+  it("replaces only the same business's previous entry", async () => {
+    const { businessesTable } = await import("@workspace/db");
+    const [a, b] = await db
+      .insert(businessesTable)
+      .values([
+        { ownerId: testUserId, name: "Shop A", businessType: "ecommerce", status: "active" },
+        { ownerId: testUserId, name: "Shop B", businessType: "ecommerce", status: "active" },
+      ])
+      .returning({ id: businessesTable.id });
+    const summary = (title: string) => ({ title, summary: `${title} summary`, keyFindings: ["x"], tags: ["market"], confidenceScore: 80 });
+    const run = (businessId: number) =>
+      runResearchEngine({ userId: testUserId, projectId: null, researchType: "market", objective: "Weekly update for ecommerce shop", forceFresh: true, businessId });
+
+    queueFullResearchRun(summary("A week 1"));
+    const a1 = await run(a!.id);
+    queueFullResearchRun(summary("B week 1"));
+    const b1 = await run(b!.id);
+    const [unrelated] = await db
+      .insert(ashKnowledgeEntriesTable)
+      .values({ userId: testUserId, businessId: a!.id, ownerUserId: testUserId, category: "market_research", title: "A pricing study", content: "keep me", tags: ["market"] })
+      .returning({ id: ashKnowledgeEntriesTable.id });
+
+    queueFullResearchRun(summary("A week 2"));
+    const a2 = await run(a!.id);
+
+    expect(a1.knowledgeAction).toBe("created");
+    expect(b1.knowledgeAction).toBe("created");
+    expect(a2.knowledgeAction).toBe("updated");
+    expect(a2.knowledgeEntryId).toBe(a1.knowledgeEntryId);
+    expect(b1.knowledgeEntryId).not.toBe(a1.knowledgeEntryId);
+
+    const rows = await db.select().from(ashKnowledgeEntriesTable).where(eq(ashKnowledgeEntriesTable.userId, testUserId));
+    expect(rows.map((r) => [r.businessId, r.title]).sort()).toEqual([[a!.id, "A pricing study"], [a!.id, "A week 2"], [b!.id, "B week 1"]].sort());
+    expect(rows.find((r) => r.id === unrelated!.id)!.content).toBe("keep me");
+
+    await db.delete(businessesTable).where(eq(businessesTable.ownerId, testUserId));
+  });
+
+  it("interactive research never picks a weekly entry to overwrite", async () => {
+    await db.insert(ashKnowledgeEntriesTable).values({
+      userId: testUserId, ownerUserId: testUserId, category: "market_research",
+      title: "Ecommerce shop market trends", content: "Ecommerce shop market trends and competitors", tags: ["market", "business_update"],
+    });
+    const objective = "Ecommerce shop market trends and competitors";
+    expect(await findExistingEntryForTopic({ userId: testUserId, researchType: "market", objective })).toBeNull();
+    await db.update(ashKnowledgeEntriesTable).set({ tags: ["market"] }).where(eq(ashKnowledgeEntriesTable.userId, testUserId));
+    expect(await findExistingEntryForTopic({ userId: testUserId, researchType: "market", objective })).not.toBeNull();
+  });
+});

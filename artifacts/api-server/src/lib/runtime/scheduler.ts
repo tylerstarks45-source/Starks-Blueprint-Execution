@@ -21,6 +21,7 @@ import { OutOfCreditsError } from "../credits";
 import { createPendingApproval } from "../approvals";
 import { hasOperationsModeAccess } from "../operations-gate";
 import { distillAshBrain } from "../ash-brain";
+import { runScheduledResearch } from "../research-engine/scheduled";
 import { runMemoryMaintenance } from "../memory-engine";
 import { initializeBusinessDna, publishBusinessEvent } from "../business-intelligence";
 // A-03 fix: expire stale DOL execution sessions on a regular interval
@@ -1041,6 +1042,23 @@ async function processBrainDistillation(): Promise<void> {
   }
 }
 
+// ─── Scheduled research tick ─────────────────────────────────────────────────
+// Daily check; each Operations Mode business gets market research once a week.
+
+const SCHEDULED_RESEARCH_TICK_MS = 24 * 60 * 60 * 1000;
+
+async function processScheduledResearch(): Promise<void> {
+  const now = Date.now();
+  if (now - getState("scheduled_research") < SCHEDULED_RESEARCH_TICK_MS) return;
+  await setState("scheduled_research", now);
+  try {
+    const result = await runScheduledResearch({ now, lastRun: getState, markRun: setState });
+    logger.info(result, "Scheduled research tick complete");
+  } catch (err) {
+    logger.warn({ err }, "Scheduled research tick failed");
+  }
+}
+
 // ─── Credential-expiry warnings ───────────────────────────────────────────────
 // Proactively warn users before a connected credential expires so their
 // automations don't silently break. Skips keys that auto-refresh on their own
@@ -1156,6 +1174,7 @@ export function startScheduler(): void {
     await processHungJobWatchdog();
     await processImprovementPasses();
     await processBrainDistillation();
+    await processScheduledResearch();
     await processExpiringCredentialWarnings();
     await processMemoryMaintenance();
     await processBusinessIntelligenceReconciliation();

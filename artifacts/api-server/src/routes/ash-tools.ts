@@ -1,3 +1,4 @@
+import { runAshAgent } from "../lib/ash-agent";
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, desc, and } from "drizzle-orm";
@@ -17,10 +18,11 @@ import {
   SOCIAL_PLATFORMS,
 } from "@workspace/db";
 import { broadcastSequenceStep } from "./email-marketing";
-import { requireAuthActive, getTokenPayload, isAdminRole } from "../lib/auth";
+import { requireAuthActive, getTokenPayload, isAdminRole, isFounderAdmin } from "../lib/auth";
 import { deleteMediaForContent } from "../lib/media-store";
 import { complete } from "../lib/openrouter";
-import { chainFor } from "../lib/models";
+import { MODELS, chainFor, chainForAgentMode, resolveAgentMode } from "../lib/models";
+import { OutOfCreditsError } from "../lib/credits";
 import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector, listConnectors } from "../lib/connectors/registry";
 import { z } from "zod";
@@ -682,6 +684,65 @@ router.post("/ai-orchestrator/platform-action", async (req, res): Promise<void> 
   }
 
   res.status(400).json({ error: "Unknown tool" });
+});
+
+// ─── POST /api/ai-orchestrator/agent (alias /api/ash/agent) — ASH with native tool calling
+// Same contract as the chat routes' SBEP_DATA: workspace actions come back as
+// structuredData {action: "tool_calls", calls}.
+const ASH_AGENT_PROMPT = `You are ASH, the AI business operator of the STARKS platform.
+Use tools to ground every answer in the user's real data: call list_businesses / get_business_context / get_portfolio_summary before giving business-specific advice, and research for anything time-sensitive.
+Never invent metrics; if a value isn't measured, say so.
+Use workspace tools (image, file, schedule_post, connector_action, ...) only when the user asks for that output or clearly wants it produced.
+Be direct and concise.`;
+
+router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const schema = z.object({
+    message: z.string().min(1).max(8000),
+    history: z
+      .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(8000) }))
+      .max(20)
+      .optional()
+      .default([]),
+    mode: z.string().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+
+  try {
+    const { message, history, mode } = parsed.data;
+    // Same tier gate as /ai-orchestrator/chat: higher modes use the flagship model.
+    const [caller] = await db
+      .select({ role: usersTable.role, membershipTier: usersTable.membershipTier })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+    const { mode: effectiveMode } = resolveAgentMode(mode, caller?.membershipTier, isFounderAdmin(caller?.role));
+    const result = await runAshAgent({
+      userId,
+      systemPrompt: ASH_AGENT_PROMPT,
+      messages: [...history, { role: "user", content: message }],
+      models: chainForAgentMode(effectiveMode),
+    });
+    res.json({
+      content: result.content,
+      structuredData: result.clientCalls.length ? { action: "tool_calls", calls: result.clientCalls } : null,
+      steps: result.steps,
+      model: result.model,
+    });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({ error: "Out of credits" });
+      return;
+    }
+    req.log.error({ err: err instanceof Error ? err.message : String(err) }, "ASH agent failed");
+    res.status(502).json({ error: "ASH is unavailable right now" });
+  }
 });
 
 export default router;

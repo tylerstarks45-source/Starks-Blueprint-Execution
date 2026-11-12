@@ -7,6 +7,22 @@ import { getBalance, deductForUsage, creditsForTokens, OutOfCreditsError } from 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const DEFAULT_MODEL = "openai/gpt-4o-mini";
 
+export interface ToolDefinition {
+  type: "function";
+  function: { name: string; description: string; parameters: Record<string, unknown> };
+}
+
+export interface ToolCall {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+}
+
+export type ChatMessage =
+  | { role: "system" | "user"; content: string }
+  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
+  | { role: "tool"; tool_call_id: string; content: string };
+
 interface CompletionRequest {
   model?: string;
   // Ordered best-first fallback chain. When provided, OpenRouter's native model
@@ -14,7 +30,11 @@ interface CompletionRequest {
   // rate-limited primary silently drops to the next-best model instead of failing.
   // Prefer this over `model` for user-facing calls (see lib/models.ts).
   models?: string[];
-  prompt: string;
+  prompt?: string;
+  // Full conversation; replaces `prompt` when set. `systemPrompt` is still prepended.
+  messages?: ChatMessage[];
+  // Native function calling (complete() only). Calls come back in `toolCalls`.
+  tools?: ToolDefinition[];
   systemPrompt?: string;
   userId?: number;
   systemInstanceId?: number;
@@ -28,6 +48,7 @@ interface CompletionResult {
   completionTokens: number;
   totalTokens: number;
   estimatedCost: string | null;
+  toolCalls?: ToolCall[];
 }
 
 // ─── Streaming completion (async generator) ──────────────────────────────────
@@ -40,7 +61,7 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
   const model = chain?.[0] ?? request.model ?? DEFAULT_MODEL;
   const messages: Array<{ role: string; content: string }> = [];
   if (request.systemPrompt) messages.push({ role: "system", content: request.systemPrompt });
-  messages.push({ role: "user", content: request.prompt });
+  messages.push({ role: "user", content: request.prompt ?? "" });
 
   // Credit check — same logic as complete()
   if (request.userId != null) {
@@ -174,7 +195,9 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
   if (request.systemPrompt) {
     messages.push({ role: "system", content: request.systemPrompt });
   }
-  if (request.imageBase64) {
+  if (request.messages) {
+    messages.push(...request.messages);
+  } else if (request.imageBase64) {
     messages.push({
       role: "user",
       content: [
@@ -219,7 +242,12 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
         "HTTP-Referer": process.env.APP_URL ?? "https://sbep.replit.app",
         "X-Title": "SBEP - Starks Blueprint Execution Platform",
       },
-      body: JSON.stringify({ model, ...(chain ? { models: chain } : {}), messages }),
+      body: JSON.stringify({
+        model,
+        ...(chain ? { models: chain } : {}),
+        messages,
+        ...(request.tools?.length ? { tools: request.tools, tool_choice: "auto" } : {}),
+      }),
     });
 
     if (!response.ok) {
@@ -228,12 +256,13 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
     }
 
     const data = await response.json() as {
-      choices: Array<{ message: { content: string } }>;
+      choices: Array<{ message: { content: string | null; tool_calls?: ToolCall[] } }>;
       model: string;
       usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
     };
 
     const content = data.choices[0]?.message?.content ?? "";
+    const toolCalls = data.choices[0]?.message?.tool_calls;
     const usage = data.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
 
     result = {
@@ -243,6 +272,7 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
       completionTokens: usage.completion_tokens,
       totalTokens: usage.total_tokens,
       estimatedCost: null,
+      ...(toolCalls?.length ? { toolCalls } : {}),
     };
 
     logger.info({ model: result.model, totalTokens: result.totalTokens }, "OpenRouter completion succeeded");

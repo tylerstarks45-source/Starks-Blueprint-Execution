@@ -60,7 +60,8 @@ export async function ownerMissionAction(userId: number, id: number, action: Own
   if (action === "resume") {
     Object.assign(patch, {
       status: m.steps.length ? "running" : "planning",
-      waitingFor: null, approvalId: null, failureCount: 0, nextRunAt: new Date(), leaseUntil: null,
+      // Keep any lease: a step still running from before the pause must finish before another claim.
+      waitingFor: null, approvalId: null, failureCount: 0, nextRunAt: new Date(),
       maxStepRuns: m.stepRuns >= m.maxStepRuns ? m.maxStepRuns + 20 : m.maxStepRuns,
     });
   }

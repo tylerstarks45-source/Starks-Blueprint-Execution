@@ -876,6 +876,8 @@ export function startWorker(): void {
   running = true;
 
   async function loop(): Promise<void> {
+    // A poll already scheduled when stopWorker() ran must not claim a new job.
+    if (!running) return;
     let done!: () => void;
     inFlight = new Promise<void>((r) => (done = r));
     try {

@@ -6,7 +6,7 @@ import { complete } from "../openrouter";
 import { chainFor, chainForAgentMode } from "../models";
 import { OutOfCreditsError, DailyAiLimitError } from "../credits";
 import { logger } from "../logger";
-import { runAshAgent } from "../ash-agent";
+import { runAshAgent, type AgentStep } from "../ash-agent";
 import { MISSION_TOOL_NAMES } from "../ash-agent/tools";
 import { getEffectiveControl } from "../ash-control/policy";
 import { logEntry, withLog } from "./index";
@@ -52,6 +52,10 @@ async function finish(m: AshMission, patch: Partial<AshMission>): Promise<void> 
     ...(patch.steps ? { steps: patch.steps } : {}),
   }).where(eq(ashMissionsTable.id, m.id));
 }
+
+// Tools that failed and weren't retried successfully later in the same turn.
+const unresolvedFailures = (steps: AgentStep[]) =>
+  [...new Set(steps.filter((s, i) => !s.ok && !steps.slice(i + 1).some((t) => t.tool === s.tool && t.ok)).map((s) => s.tool))];
 
 function parsePlan(text: string): string[] {
   const match = text.match(/\{[\s\S]*\}/);
@@ -122,6 +126,8 @@ async function runStep(m: AshMission): Promise<Partial<AshMission>> {
     return { ...base, status: "waiting_owner", waitingFor: ownerAsk.note!.slice(0, 1000),
       log: withLog(m.log, ...toolLog, logEntry("owner", `Needs the owner: ${ownerAsk.note!}`)) };
   }
+  const failed = unresolvedFailures(result.steps);
+  if (failed.length) throw new Error(`Step not finished: ${failed.join(", ")} failed`);
   const steps = m.steps.map((s, i) => (i === idx ? { ...s, status: "done" as const, result: result.content.slice(0, 1500) } : s));
   const allDone = steps.every((s) => s.status !== "pending");
   return {

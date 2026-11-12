@@ -85,6 +85,9 @@ export interface AgentResult {
 
 const MAX_RESULT_CHARS = 12_000;
 
+const isErrorResult = (v: unknown) =>
+  typeof v === "object" && v !== null && !Array.isArray(v) && (v as { error?: unknown }).error != null;
+
 function toResult(value: unknown): string {
   const text = JSON.stringify(value) ?? "null";
   // Keep oversized results valid JSON: a cut-off object would be unparseable.
@@ -202,7 +205,7 @@ export async function runAshAgent(opts: {
         }
         const value = await spec.run!(opts.userId, args);
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult(value) });
-        steps.push({ tool: spec.name, ok: true, ...(spec.name === "request_owner_action" ? { note: String(args["message"] ?? "") } : {}) });
+        steps.push({ tool: spec.name, ok: !isErrorResult(value), ...(spec.name === "request_owner_action" ? { note: String(args["message"] ?? "") } : {}) });
       } catch (err) {
         logger.warn({ tool: spec.name, err: err instanceof Error ? err.message : String(err) }, "ASH tool failed");
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: "Tool failed" }) });

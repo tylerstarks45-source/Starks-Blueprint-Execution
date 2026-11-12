@@ -1,3 +1,5 @@
+import { OutOfCreditsError } from "../lib/credits";
+import { transcribeAudio, audioFormatFor } from "../lib/openrouter-media";
 import { Router, type IRouter } from "express";
 import { publicErrorMessage } from "../middlewares/security";
 import { serialize } from "../lib/serialize";
@@ -2523,33 +2525,20 @@ router.post("/ai-orchestrator/transcribe", async (req, res) => {
       return;
     }
 
-    const apiKey = process.env["OPENROUTER_API_KEY"];
-    if (!apiKey) {
-      res.status(503).json({ error: "AI service not configured." });
-      return;
-    }
-
-    const form = new FormData();
-    const blob = new Blob([file.buffer as unknown as ArrayBuffer], { type: file.mimetype || "audio/m4a" });
-    form.append("file", blob, file.originalname || "audio.m4a");
-    form.append("model", "openai/whisper-1");
-
-    const response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: form,
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      req.log.warn({ status: response.status, err: errText }, "Transcription service error");
+    let text: string;
+    try {
+      text = await transcribeAudio({ audio: file.buffer, format: audioFormatFor(file.mimetype, file.buffer), userId });
+    } catch (err) {
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({ error: "Out of credits." });
+        return;
+      }
+      req.log.warn({ err: err instanceof Error ? err.message : String(err) }, "Transcription service error");
       res.status(502).json({ error: "Transcription service unavailable. Please type your message instead." });
       return;
     }
-
-    const result = (await response.json()) as { text: string };
-    req.log.info({ userId, chars: result.text?.length ?? 0 }, "Voice transcription completed");
-    res.json({ text: result.text ?? "" });
+    req.log.info({ userId, chars: text.length }, "Voice transcription completed");
+    res.json({ text });
   } catch (err) {
     req.log.error({ err }, "Transcribe endpoint error");
     res.status(500).json({ error: "Transcription failed. Please type your message instead." });

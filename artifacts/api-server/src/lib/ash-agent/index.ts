@@ -3,7 +3,9 @@
 // tool_calls the web app already knows how to run.
 import { complete, type ChatMessage } from "../openrouter";
 import { logger } from "../logger";
+import { OutOfCreditsError } from "../credits";
 import { ASH_TOOLS, getTool, checkToolArgs } from "./tools";
+import { SPECIALISTS, SPECIALIST_MAX_STEPS, type SpecialistKey } from "./specialists";
 
 export interface ClientToolCall {
   type: string;
@@ -13,6 +15,7 @@ export interface ClientToolCall {
 export interface AgentStep {
   tool: string;
   ok: boolean;
+  specialist?: string;
 }
 
 export interface AgentResult {
@@ -36,15 +39,19 @@ export async function runAshAgent(opts: {
   messages: ChatMessage[];
   models: string[];
   maxSteps?: number;
+  /** Restrict the agent to these tools (used for specialists). */
+  toolNames?: readonly string[];
 }): Promise<AgentResult> {
   const maxSteps = opts.maxSteps ?? 6;
+  const allowed = opts.toolNames ? new Set(opts.toolNames) : null;
+  const toolset = allowed ? ASH_TOOLS.filter((t) => allowed.has(t.function.name)) : ASH_TOOLS;
   const messages: ChatMessage[] = [...opts.messages];
   const clientCalls: ClientToolCall[] = [];
   const steps: AgentStep[] = [];
 
   for (let round = 0; ; round++) {
     // Last round: no tools, so the model must answer with what it has.
-    const tools = round < maxSteps ? ASH_TOOLS : undefined;
+    const tools = round < maxSteps && toolset.length ? toolset : undefined;
     const result = await complete({ systemPrompt: opts.systemPrompt, messages, tools, models: opts.models, userId: opts.userId });
     const calls = result.toolCalls ?? [];
     if (calls.length === 0) {
@@ -53,7 +60,7 @@ export async function runAshAgent(opts: {
 
     messages.push({ role: "assistant", content: result.content || null, tool_calls: calls });
     for (const call of calls) {
-      const spec = getTool(call.function.name);
+      const spec = allowed && !allowed.has(call.function.name) ? undefined : getTool(call.function.name);
       let args: Record<string, unknown>;
       try {
         const parsed: unknown = JSON.parse(call.function.arguments || "{}");
@@ -81,6 +88,35 @@ export async function runAshAgent(opts: {
         clientCalls.push(spec.toClientCall ? (spec.toClientCall(args) as ClientToolCall) : { ...args, type: spec.name });
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ status: "queued", note: "Runs in the user's workspace after this reply." }) });
         steps.push({ tool: spec.name, ok: true });
+        continue;
+      }
+      if (spec.kind === "delegate") {
+        const checked = checkToolArgs(spec.name, args);
+        const key = checked.ok ? (checked.args["specialist"] as SpecialistKey) : undefined;
+        if (!checked.ok || !key) {
+          messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: checked.ok ? "Unknown specialist" : checked.error }) });
+          steps.push({ tool: spec.name, ok: false });
+          continue;
+        }
+        const specialist = SPECIALISTS[key];
+        const businessId = checked.args["businessId"];
+        try {
+          const report = await runAshAgent({
+            userId: opts.userId,
+            systemPrompt: specialist.prompt,
+            messages: [{ role: "user", content: `${String(checked.args["task"])}${businessId != null ? `\n(Business id: ${String(businessId)})` : ""}` }],
+            models: opts.models,
+            maxSteps: SPECIALIST_MAX_STEPS,
+            toolNames: specialist.tools,
+          });
+          messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ specialist: specialist.title, report: report.content }) });
+          steps.push({ tool: spec.name, ok: true, specialist: key });
+        } catch (err) {
+          if (err instanceof OutOfCreditsError) throw err;
+          logger.warn({ specialist: key, err: err instanceof Error ? err.message : String(err) }, "ASH specialist failed");
+          messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: "Specialist unavailable" }) });
+          steps.push({ tool: spec.name, ok: false, specialist: key });
+        }
         continue;
       }
       try {

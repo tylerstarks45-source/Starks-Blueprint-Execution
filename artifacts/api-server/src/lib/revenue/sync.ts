@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { decrypt } from "../crypto";
 import { getRevenueProvider } from "./registry";
 import { logger } from "../logger";
+import { runIfLockAcquired, REVENUE_SYNC_LOCK_KEY } from "../runtime/single-runner";
 import { checkMilestones } from "../milestones";
 import { sendPushNotification } from "../push";
 import type { RevenueProvider } from "./types";
@@ -180,7 +181,8 @@ export function startRevenueSync(): void {
 
   async function loop(): Promise<void> {
     try {
-      await runSyncCycle();
+      const outcome = await runIfLockAcquired(REVENUE_SYNC_LOCK_KEY, runSyncCycle);
+      if (!outcome.ran) logger.debug("Revenue sync skipped: another instance holds the lock");
     } catch (err) {
       logger.error({ err }, "Revenue sync loop error");
     } finally {

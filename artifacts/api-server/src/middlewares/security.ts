@@ -21,6 +21,8 @@ const EXPENSIVE_AI_PATHS: RegExp[] = [
   /^\/executive-brain\/stream$/,
   /^\/ai-orchestrator\/(chat|stream|execute|transcribe|step-recovery|brain\/distill|search|image)$/,
   /^\/dashboard\/chat$/,
+  /^\/(ai-orchestrator|ash)\/agent$/,
+  /^\/command-center\/turn$/,
   /^\/build-engine\/(analyze|execute-step)$/,
   /^\/browser-agent\/(run|credential-fetch)$/,
   /^\/research\/[^/]+$/,

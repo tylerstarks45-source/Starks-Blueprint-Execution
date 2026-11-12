@@ -1,4 +1,10 @@
-import { runAshTurn } from "../lib/ash-agent";
+import { runAshTurn, ASH_AGENT_PROMPT } from "../lib/ash-agent";
+import { loadStyleProfile, personaNote, recordUserMessage } from "../lib/ash-agent/persona";
+import { ASH_TOOLS, getTool } from "../lib/ash-agent/tools";
+
+// The global dock can only run navigation; workspace actions need the Builder.
+const DOCK_TOOLS = ASH_TOOLS.map((t) => t.function.name).filter((n) => getTool(n)?.kind !== "client" || n === "navigate");
+const DOCK_NOTE = "\n\nYou are in the quick-access dock, which cannot run workspace actions (images, video, audio, files, connector actions, scheduled posts). For those, call navigate with /builder and tell the user to ask you there.";
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, desc, and } from "drizzle-orm";
@@ -702,6 +708,8 @@ router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
       .optional()
       .default([]),
     mode: z.string().optional(),
+    page: z.string().max(200).regex(/^\/[\w\-/]*$/).optional(),
+    surface: z.enum(["dock"]).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
@@ -710,7 +718,19 @@ router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
   }
 
   try {
-    const result = await runAshTurn({ userId, ...parsed.data });
+    const { message, history, mode, page, surface } = parsed.data;
+    const style = await loadStyleProfile(userId).catch(() => null);
+    const result = await runAshTurn({
+      userId,
+      message,
+      history,
+      mode,
+      systemPrompt: ASH_AGENT_PROMPT + personaNote(style) + (page ? `\n\nThe user is currently on the ${page} page of the platform.` : "") + (surface === "dock" ? DOCK_NOTE : ""),
+      ...(surface === "dock" ? { toolNames: DOCK_TOOLS } : {}),
+    });
+    recordUserMessage(userId, message).catch((err) =>
+      req.log.warn({ err: err instanceof Error ? err.message : String(err) }, "ASH style profile update failed"),
+    );
     res.json({
       content: result.content,
       structuredData: result.clientCalls.length ? { action: "tool_calls", calls: result.clientCalls } : null,

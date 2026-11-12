@@ -13,6 +13,14 @@ import { assembleBusinessContextPackage, assembleCrossBusinessSummary } from "..
 import { buildLearnedPatternsNote } from "../ash-brain";
 import { SPECIALIST_KEYS } from "./specialists";
 
+// Pages ASH can send the user to (the web app's authenticated routes).
+const APP_PAGES = [
+  "/dashboard", "/builder", "/workspace", "/systems", "/business-portfolio", "/ash-intelligence", "/ash-brain", "/stats",
+  "/memory", "/media", "/library", "/analytics", "/logs", "/email-marketing", "/landing-pages", "/domains",
+  "/affiliate-links", "/connections", "/social-accounts", "/social", "/clients", "/credits", "/refer", "/settings",
+  "/marketplace", "/blueprints",
+] as const;
+
 type Args = Record<string, unknown>;
 type JsonSchema = Record<string, unknown>;
 
@@ -101,6 +109,12 @@ const SPECS: ToolSpec[] = [
     kind: "delegate",
   },
   {
+    name: "navigate",
+    description: "Take the user to another page of the platform (only when they ask to go somewhere or it clearly helps).",
+    parameters: obj({ path: { type: "string", enum: [...APP_PAGES] } }, ["path"]),
+    kind: "client",
+  },
+  {
     name: "image",
     description: "Generate an image in the user's workspace.",
     parameters: obj({ prompt: str("Detailed visual description") }, ["prompt"]),
@@ -151,6 +165,8 @@ const SPECS: ToolSpec[] = [
     toClientCall: (a) => ({ type: "platform_action", tool: "schedule_social_post", params: a }),
   },
 ];
+
+export { APP_PAGES };
 
 const BY_NAME = new Map(SPECS.map((s) => [s.name, s]));
 

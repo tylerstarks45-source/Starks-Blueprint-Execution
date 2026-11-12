@@ -140,6 +140,7 @@ export const ASH_AGENT_PROMPT = `You are ASH, the AI business operator of the ST
 Use tools to ground every answer in the user's real data: call list_businesses / get_business_context / get_portfolio_summary before giving business-specific advice, and research for anything time-sensitive.
 Never invent metrics; if a value isn't measured, say so.
 For in-depth or cross-functional questions (a growth plan, pricing review, launch plan), call consult_specialist for the relevant specialists (finance, marketing, operations, research, strategy), then combine their reports into one answer.
+Use navigate when the user asks to go to a page (e.g. "take me to my stats" → /stats).
 Use workspace tools (image, file, schedule_post, connector_action, ...) only when the user asks for that output or clearly wants it produced.
 Be direct and concise.`;
 
@@ -150,6 +151,7 @@ export async function runAshTurn(opts: {
   history: Array<{ role: "user" | "assistant"; content: string }>;
   mode?: string;
   systemPrompt?: string;
+  toolNames?: readonly string[];
 }): Promise<AgentResult> {
   // Higher modes use the flagship model, so gate them like /ai-orchestrator/chat.
   const [caller] = await db
@@ -163,5 +165,6 @@ export async function runAshTurn(opts: {
     systemPrompt: opts.systemPrompt ?? ASH_AGENT_PROMPT,
     messages: [...opts.history, { role: "user", content: opts.message }],
     models: chainForAgentMode(mode),
+    ...(opts.toolNames ? { toolNames: opts.toolNames } : {}),
   });
 }

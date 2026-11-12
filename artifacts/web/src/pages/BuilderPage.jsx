@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import BrainLevelsPanel, { useBrainActivity } from '@/components/ash/BrainLevelsPanel.jsx';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -2596,6 +2597,8 @@ const BuilderPage = () => {
     setIsRecording(false);
   }, [isRecording]);
 
+  const brainActivity = useBrainActivity();
+
   // ASH Workspace state
   const [generatedFiles, setGeneratedFiles] = useState([]);
   const [ashMemory, setAshMemory] = useState([]);
@@ -4297,6 +4300,9 @@ const BuilderPage = () => {
                 <button onClick={() => navigate('/memory')} className="text-[8px] text-primary/55 hover:text-primary font-mono transition-colors">
                   Manage →
                 </button>
+              </div>
+              <div className="mx-2 mb-2 p-2 rounded-lg border border-white/6 bg-white/2">
+                <BrainLevelsPanel data={brainActivity} compact />
               </div>
               {ashMemory.length === 0 ? (
                 <div className="px-3 py-6 text-center">

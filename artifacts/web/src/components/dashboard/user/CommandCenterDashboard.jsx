@@ -3,6 +3,7 @@ import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import ASHReactor from './ASHReactor.jsx';
 import ASHAssistantPanel from './ASHAssistantPanel.jsx';
+import BrainLevelsPanel, { useBrainActivity, overallLevel } from '@/components/ash/BrainLevelsPanel.jsx';
 import bgUrl from '@/assets/cc-background.jpg';
 import './command-center.css';
 
@@ -152,45 +153,6 @@ function PerformancePanel({ data }) {
   );
 }
 
-/* ── Global ops map ──────────────────────────────────────────────────── */
-function GlobalOpsPanel() {
-  const dots = [
-    ...Array.from({length:20},(_, i)=>({x:8+Math.random()*18,  y:16+Math.random()*24, b:Math.random()>0.4})),
-    ...Array.from({length:12},(_, i)=>({x:20+Math.random()*10, y:44+Math.random()*24, b:Math.random()>0.5})),
-    ...Array.from({length:18},(_, i)=>({x:42+Math.random()*10, y:12+Math.random()*20, b:Math.random()>0.3})),
-    ...Array.from({length:14},(_, i)=>({x:44+Math.random()*10, y:36+Math.random()*26, b:Math.random()>0.55})),
-    ...Array.from({length:26},(_, i)=>({x:58+Math.random()*22, y:12+Math.random()*30, b:Math.random()>0.35})),
-    ...Array.from({length:8 },(_, i)=>({x:76+Math.random()*12, y:52+Math.random()*18, b:Math.random()>0.5})),
-  ];
-  return (
-    <GlassPanel className="flex-1 p-2.5 flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <p className="text-[8px] uppercase tracking-[0.2em] font-bold" style={{ color: 'rgba(0,200,255,0.55)' }}>Global Operations</p>
-      </div>
-      <div className="relative rounded-lg overflow-hidden flex-1"
-        style={{ background: 'rgba(0,8,28,0.6)', minHeight: 60 }}>
-        {dots.map((d, i) => (
-          <div key={i} className="absolute rounded-full"
-            style={{
-              left: `${d.x}%`, top: `${d.y}%`,
-              width: d.b ? 2.5 : 1.5, height: d.b ? 2.5 : 1.5,
-              background: d.b ? '#00c8ff' : 'rgba(0,200,255,0.2)',
-              boxShadow: d.b ? '0 0 4px #00c8ff' : 'none',
-              animation: d.b ? `cc-star ${1.5+Math.random()*3}s ease-in-out ${Math.random()*3}s infinite` : 'none',
-            }} />
-        ))}
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-center">
-          <p className="text-2xl font-black font-mono" style={{ color:'#00c8ff', textShadow:'0 0 20px rgba(0,200,255,0.8)' }}>128</p>
-          <p className="text-[7px] uppercase tracking-widest text-white/30">Countries Active</p>
-        </div>
-      </div>
-      <p className="text-center text-[8px] uppercase tracking-widest" style={{ color:'rgba(0,200,255,0.45)' }}>
-        ● All Systems Operational
-      </p>
-    </GlassPanel>
-  );
-}
-
 /* ── Active tasks ────────────────────────────────────────────────────── */
 function ActiveTasksPanel({ systems }) {
   const tasks = systems.slice(0,5).map(s => ({
@@ -231,6 +193,7 @@ export default function CommandCenterDashboard() {
   const [systems,   setSystems]   = useState([]);
   const [perfData,  setPerfData]  = useState([]);
   const [ashOpen,   setAshOpen]   = useState(false);
+  const brain = useBrainActivity();
 
   useEffect(() => {
     fetch('/api/system-instances?limit=20&sort=updatedAt&order=desc', { headers: authHeaders() })
@@ -283,7 +246,7 @@ export default function CommandCenterDashboard() {
               {label:'Projects',  val:totalSystems, color:'#00c8ff'},
               {label:'Building',  val:building,     color:'#f59e0b'},
               {label:'Live',      val:active,        color:'#22c55e'},
-              {label:'AI Active', val:'100%',        color:'#8b5cf6'},
+              {label:'ASH Brain', val:brain ? `${overallLevel(brain)}%` : '—', color:'#8b5cf6'},
             ].map(({label,val,color}) => (
               <GlassPanel key={label} noBrackets className="flex-1 py-1.5 px-2 text-center">
                 <p className="text-base font-black font-mono" style={{ color, textShadow:`0 0 10px ${color}55` }}>{val}</p>
@@ -310,7 +273,9 @@ export default function CommandCenterDashboard() {
       {/* ── Bottom metrics ── */}
       <div className="relative z-10 flex gap-2 px-2 pb-2 pt-1 shrink-0" style={{ height: 155 }}>
         <PerformancePanel data={perfData} />
-        <GlobalOpsPanel />
+        <GlassPanel className="flex-1 p-2.5 flex flex-col">
+          <BrainLevelsPanel data={brain} compact />
+        </GlassPanel>
         <ActiveTasksPanel systems={systems} />
       </div>
 

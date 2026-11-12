@@ -4,6 +4,8 @@
 // Prerequisite chain: business → analyse → discover → simulate → decide →
 //   strategise → plan
 // ─────────────────────────────────────────────────────────────────────────────
+import { strategicPrograms, strategicInitiatives } from "@workspace/db";
+import { requireBusinessOwner, businessIdParam, businessIdOfRecord, requireSelfParam } from "../lib/route-ownership";
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { requireAuthActive } from "../lib/auth";
@@ -30,6 +32,12 @@ import {
 } from "../lib/strategic-planning/planning-registry";
 
 const router = Router();
+
+// Tenant isolation: every business-scoped route is limited to the caller's own businesses.
+router.param("businessId", (req, res, next) => requireBusinessOwner(businessIdParam("businessId"))(req, res, next));
+router.use("/programs/:businessId/:programId", requireBusinessOwner(businessIdOfRecord(strategicPrograms, "programId")));
+router.use("/initiatives/:businessId/:initiativeId", requireBusinessOwner(businessIdOfRecord(strategicInitiatives, "initiativeId")));
+router.use("/summary/:userId", requireSelfParam("userId"));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 // ── POST /plan/:businessId ─────────────────────────────────────────────────────

@@ -1,5 +1,7 @@
 // ─── Build 019: Decision Intelligence REST Routes ─────────────────────────────
 
+import { executiveDecisionsTable } from "@workspace/db";
+import { requireBusinessOwner, businessIdParam, businessIdOfRecord, requireSelfParam } from "../lib/route-ownership";
 import { Router } from "express";
 import { requireAuthActive } from "../lib/auth";
 import {
@@ -17,6 +19,10 @@ import {
 } from "../lib/decision-intelligence/decision-registry";
 
 const router = Router();
+
+// Tenant isolation: every business-scoped route is limited to the caller's own businesses.
+router.param("businessId", (req, res, next) => requireBusinessOwner(businessIdParam("businessId"))(req, res, next));
+router.use("/decisions/:businessId/:decisionId", requireBusinessOwner(businessIdOfRecord(executiveDecisionsTable, "decisionId")));
 
 // ── POST /decide/:businessId — Full decision run ───────────────────────────
 

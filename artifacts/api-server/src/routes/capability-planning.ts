@@ -4,6 +4,8 @@
 // Prerequisite chain: business → analyse → discover → simulate → decide →
 //   strategise → plan → assess-capabilities
 // ─────────────────────────────────────────────────────────────────────────────
+import { capabilityDomains } from "@workspace/db";
+import { requireBusinessOwner, businessIdParam, businessIdOfRecord, requireSelfParam } from "../lib/route-ownership";
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { requireAuthActive } from "../lib/auth";
@@ -24,6 +26,11 @@ import {
 } from "../lib/capability-planning/capability-registry";
 
 const router = Router();
+
+// Tenant isolation: every business-scoped route is limited to the caller's own businesses.
+router.param("businessId", (req, res, next) => requireBusinessOwner(businessIdParam("businessId"))(req, res, next));
+router.use("/domains/:businessId/:domainId", requireBusinessOwner(businessIdOfRecord(capabilityDomains, "domainId")));
+router.use("/summary/:userId", requireSelfParam("userId"));
 
 // Coerce Express param (string | string[]) → string
 const p = (v: string | string[] | undefined): string =>

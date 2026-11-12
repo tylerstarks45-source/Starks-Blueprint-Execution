@@ -1,4 +1,5 @@
-import { db, pool, systemActivityEventsTable, type PendingApproval } from "@workspace/db";
+import { db, pool, systemActivityEventsTable, ashMissionsTable, type PendingApproval } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
 import { getTool, checkToolArgs } from "./ash-agent/tools";
 
 // ─── Autonomous action executor ───────────────────────────────────────────────

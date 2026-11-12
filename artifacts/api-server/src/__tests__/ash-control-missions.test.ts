@@ -232,4 +232,62 @@ describe("missions", () => {
     expect(after!.status).toBe("paused");
     expect(after!.leaseUntil).toBeNull();
   });
+  const plannedMission = async (goal: string, steps: string[]) => {
+    const created = await request(app).post("/api/missions").set(as(ownerId)).send({ goal, businessId: bizId });
+    mockComplete.mockResolvedValueOnce(reply(JSON.stringify({ steps })));
+    await runDue(created.body.id);
+    return created.body.id as number;
+  };
+
+  it("retries a step whose tool failed instead of marking it done", async () => {
+    await setLevel("copilot");
+    const id = await plannedMission("Check settings", ["Read ASH Control"]);
+    mockComplete
+      .mockResolvedValueOnce(toolCall("get_ash_control", { businessId: 999999999 }))
+      .mockResolvedValueOnce(reply("Checked."));
+    const m = await runDue(id);
+    expect(m.steps[0]!.status).toBe("pending");
+    expect(m.failureCount).toBe(1);
+    expect(m.status).toBe("running");
+  });
+
+  it("rejects a cancelled mission's pending approvals so they can't run later", async () => {
+    await setLevel("advisor");
+    const id = await plannedMission("Save a draft", ["Save the draft"]);
+    mockComplete
+      .mockResolvedValueOnce(toolCall("register_asset", { name: "Cancelled draft", classKey: "document", businessId: bizId }))
+      .mockResolvedValueOnce(reply("Queued."));
+    const m = await runDue(id);
+    expect(m.status).toBe("waiting_approval");
+    expect((await request(app).post(`/api/missions/${id}/cancel`).set(as(ownerId))).body.status).toBe("cancelled");
+    const [a] = await db.select().from(pendingApprovalsTable).where(eq(pendingApprovalsTable.id, m.approvalId!));
+    expect(a!.status).toBe("rejected");
+    expect((await request(app).post(`/api/approvals/${m.approvalId}/approve`).set(as(ownerId))).status).not.toBe(200);
+  });
+
+  it("waits for every approval a step queued and remembers them for the retry", async () => {
+    await setLevel("advisor");
+    const id = await plannedMission("Save two drafts", ["Save both drafts"]);
+    const call = (name: string) => ({ id: `c-${name}`, type: "function" as const, function: { name: "register_asset", arguments: JSON.stringify({ name, classKey: "document", businessId: bizId }) } });
+    mockComplete
+      .mockResolvedValueOnce({ content: "", model: "test", ...usage, toolCalls: [call("Draft A"), call("Draft B")] })
+      .mockResolvedValueOnce(reply("Queued both."));
+    let m = await runDue(id);
+    expect(m.status).toBe("waiting_approval");
+    const ids = (await db.select().from(pendingApprovalsTable).where(eq(pendingApprovalsTable.userId, ownerId)))
+      .filter((a) => a.status === "pending" && (a.payload as { missionId?: number }).missionId === id).map((a) => a.id).sort((x, y) => x - y);
+    expect(ids).toHaveLength(2);
+
+    await request(app).post(`/api/approvals/${ids[0]}/approve`).set(as(ownerId));
+    [m] = await db.select().from(ashMissionsTable).where(eq(ashMissionsTable.id, id)) as [typeof m];
+    expect(m.status).toBe("waiting_approval");
+    expect(m.approvalId).toBe(ids[1]);
+
+    await request(app).post(`/api/approvals/${ids[1]}/reject`).set(as(ownerId));
+    [m] = await db.select().from(ashMissionsTable).where(eq(ashMissionsTable.id, id)) as [typeof m];
+    expect(m.status).toBe("running");
+    expect(m.steps[0]!.notes).toEqual([
+      expect.stringContaining("Already done"), expect.stringContaining("rejected"),
+    ]);
+  });
 });

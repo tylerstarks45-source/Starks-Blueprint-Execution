@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 import {
   db, canonicalAssets, businessesTable, landingPagesTable, userDomainsTable, systemInstancesTable, emailListsTable,
 } from "@workspace/db";
@@ -27,6 +27,8 @@ export interface AssetInput {
   status?: string;
 }
 
+export const OWNER_EDITED_TAG = "owner_edited";
+
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "asset";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -35,7 +37,8 @@ async function upsertMany(tx: Tx, userId: number, inputs: AssetInput[]): Promise
   if (!inputs.length) return 0;
   const existing = await tx
     .select({ id: canonicalAssets.id, builderSource: canonicalAssets.builderSource, builderObjectId: canonicalAssets.builderObjectId,
-      businessId: canonicalAssets.businessId, canonicalName: canonicalAssets.canonicalName, externalUrl: canonicalAssets.externalUrl, status: canonicalAssets.status })
+      businessId: canonicalAssets.businessId, canonicalName: canonicalAssets.canonicalName, externalUrl: canonicalAssets.externalUrl, status: canonicalAssets.status,
+      tags: canonicalAssets.tags })
     .from(canonicalAssets)
     .where(and(eq(canonicalAssets.userId, userId), isNotNull(canonicalAssets.builderSource)));
   const byKey = new Map(existing.map((e) => [`${e.builderSource}:${e.builderObjectId}`, e]));
@@ -50,6 +53,11 @@ async function upsertMany(tx: Tx, userId: number, inputs: AssetInput[]): Promise
         externalUrl: a.externalUrl ?? null, status,
       });
       created++;
+    } else if (Array.isArray(prev.tags) && prev.tags.includes(OWNER_EDITED_TAG)) {
+      // The owner changed this asset in the vault; their name, status and business win over the source.
+      if ((prev.externalUrl ?? null) !== (a.externalUrl ?? null)) {
+        await tx.update(canonicalAssets).set({ externalUrl: a.externalUrl ?? null, updatedAt: new Date() }).where(eq(canonicalAssets.id, prev.id));
+      }
     } else if (prev.canonicalName !== a.name || (prev.externalUrl ?? null) !== (a.externalUrl ?? null) || prev.status !== status
       // Keep a business the owner assigned by hand; only fill it when unset.
       || (prev.businessId == null && a.businessId != null)) {
@@ -74,6 +82,8 @@ export async function registerAsset(input: AssetInput): Promise<number> {
     return row!.id;
   });
 }
+
+const SYNCED_SOURCES = ["landing_pages", "user_domains", "system_instances", "email_lists"] as const;
 
 /** Pull the user's existing landing pages, domains, systems and email lists into the vault. */
 export async function syncUserAssets(userId: number): Promise<{ created: number }> {
@@ -102,7 +112,15 @@ export async function syncUserAssets(userId: number): Promise<{ created: number 
   ];
   const created = await db.transaction(async (tx) => {
     await lockUser(tx, userId);
-    return upsertMany(tx, userId, inputs);
+    const n = await upsertMany(tx, userId, inputs);
+    // Source objects that no longer exist are removed from the vault.
+    for (const source of SYNCED_SOURCES) {
+      const live = inputs.filter((i) => i.builderSource === source).map((i) => i.builderObjectId);
+      await tx.update(canonicalAssets).set({ status: "deleted", updatedAt: new Date() }).where(and(
+        eq(canonicalAssets.userId, userId), eq(canonicalAssets.builderSource, source), sql`${canonicalAssets.status} <> 'deleted'`,
+        ...(live.length ? [notInArray(canonicalAssets.builderObjectId, live)] : [])));
+    }
+    return n;
   });
   return { created };
 }

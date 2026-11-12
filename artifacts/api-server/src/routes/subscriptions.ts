@@ -205,6 +205,10 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
     // the event cleanly; a concurrent duplicate waits on the unique key and
     // then sees the committed claim.
     verified = true;
+    // Best-effort side effects (notifications, referral rewards) run only after
+    // the transaction commits. A failed statement inside the transaction aborts
+    // it, so nothing that may fail non-fatally is allowed to run on `tx`.
+    const afterCommit: Array<() => Promise<unknown>> = [];
     const duplicate = await db.transaction(async (tx) => {
       if (event.id) {
         const [inserted] = await tx
@@ -231,7 +235,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
             const stripeCust = await stripe.customers.retrieve(customerId);
             if (stripeCust && !("deleted" in stripeCust) && stripeCust.email) {
               resolvedStripeEmail = stripeCust.email;
-              const [found] = await tx
+              const [found] = await db
                 .select({ id: usersTable.id })
                 .from(usersTable)
                 .where(eq(usersTable.email, stripeCust.email));
@@ -257,7 +261,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
             "checkout.session.completed: real payment received but userId unresolvable — notifying admins",
           );
           try {
-            const superAdmins = await tx
+            const superAdmins = await db
               .select({ id: usersTable.id })
               .from(usersTable)
               .where(eq(usersTable.role, "SUPER_ADMIN"));
@@ -331,13 +335,14 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
                   .where(eq(blueprintsTable.id, blueprintId));
                 // Notify creator
                 if (bp.authorUserId) {
-                  await tx.insert(notificationsTable).values({
-                    userId: bp.authorUserId,
+                  const authorUserId = bp.authorUserId;
+                  afterCommit.push(() => db.insert(notificationsTable).values({
+                    userId: authorUserId,
                     title: "Blueprint Sold!",
                     message: `Your blueprint "${bp.name}" was purchased via card. You earned ${creatorShare} credits.`,
                     notificationType: "success",
                     read: false,
-                  }).catch(() => {});
+                  }));
                 }
                 req.log.info({ userId, blueprintId, priceCredits }, "Blueprint purchase fulfilled via Stripe");
               } else {
@@ -371,8 +376,8 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
           req.log.info({ userId, tier }, "Stripe webhook: subscription activated");
 
           // Referral reward — award referrer on first-ever subscription activation
-          // 500 bonus credits + 20% of first month as wallet credits (fire-and-forget)
-          ;(async () => {
+          // 500 bonus credits + 20% of first month as wallet credits (after commit)
+          afterCommit.push(async () => {
             try {
               const [signupEvent] = await db
                 .select()
@@ -435,7 +440,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
             } catch (err) {
               req.log.warn({ err, userId, tier }, "Failed to process referral reward");
             }
-          })();
+          });
         }
       }
 
@@ -569,6 +574,9 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
       return;
     }
 
+    for (const job of afterCommit) {
+      void job().catch((err) => req.log.warn({ err }, "Stripe post-commit follow-up failed"));
+    }
     res.json({ received: true });
   } catch (err: any) {
     req.log.error({ err }, "Stripe webhook error");

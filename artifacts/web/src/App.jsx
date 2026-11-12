@@ -74,6 +74,7 @@ const MemoryPage            = lazy(() => import('@/pages/MemoryPage.jsx'));
 const AshIntelligencePage   = lazy(() => import('@/pages/AshIntelligencePage.jsx'));
 const AshBrainPage          = lazy(() => import('@/pages/AshBrainPage.jsx'));
 const StatsPage             = lazy(() => import('@/pages/StatsPage.jsx'));
+const AshGuidePage          = lazy(() => import('@/pages/AshGuidePage.jsx'));
 const LandingPagesPage      = lazy(() => import('@/pages/LandingPagesPage.jsx'));
 const UserLandingPageCanvas = lazy(() => import('@/pages/UserLandingPageCanvas.jsx'));
 const AffiliateLinkManagerPage = lazy(() => import('@/pages/AffiliateLinkManagerPage.jsx'));
@@ -308,6 +309,9 @@ const App = () => {
               } />
               <Route path="/stats" element={
                 <ProtectedRoute><StatsPage /></ProtectedRoute>
+              } />
+              <Route path="/ash-guide" element={
+                <ProtectedRoute><AshGuidePage /></ProtectedRoute>
               } />
               <Route path="/landing-pages" element={
                 <ProtectedRoute><LandingPagesPage /></ProtectedRoute>

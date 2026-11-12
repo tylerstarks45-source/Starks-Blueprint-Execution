@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Layers, Bot, Mail, Globe, Link2, Plug, Share2,
   ShoppingBag, BookOpen, CreditCard, ShieldCheck, ChevronLeft, ChevronRight,
   LogOut, X, Settings, Globe2, Zap, Users, Calendar, Building2, ScrollText,
-  Brain, TrendingUp, Sparkles, BarChart3,
+  Brain, TrendingUp, Sparkles, BarChart3, GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useClient } from '@/contexts/ClientContext.jsx';
@@ -22,6 +22,7 @@ const NAV_GROUPS = [
       { label: 'ASH Brain',     path: '/ash-brain',    icon: Brain },
       { label: 'ASH Intelligence', path: '/ash-intelligence', icon: Sparkles },
       { label: 'Stats',         path: '/stats',        icon: BarChart3 },
+      { label: 'ASH Guide',     path: '/ash-guide',    icon: GraduationCap },
       { label: 'Logs',          path: '/logs',         icon: ScrollText },
     ],
   },

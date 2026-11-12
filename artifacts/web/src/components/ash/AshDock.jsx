@@ -138,6 +138,20 @@ export default function AshDock() {
     }
   }, [busy, location.pathname, navigate, say, speak, storageKey]);
 
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  useEffect(() => {
+    const onAsk = (e) => {
+      const text = typeof e.detail?.text === 'string' ? e.detail.text : '';
+      if (!text) return;
+      setOpen(true);
+      if (e.detail.send) sendRef.current(text);
+      else setInput(text);
+    };
+    window.addEventListener('ash:ask', onAsk);
+    return () => window.removeEventListener('ash:ask', onAsk);
+  }, []);
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });

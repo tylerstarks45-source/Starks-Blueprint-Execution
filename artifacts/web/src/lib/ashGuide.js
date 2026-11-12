@@ -1,0 +1,86 @@
+// Single source for "how to use ASH" content: the ASH Guide page and the
+// Builder's Guide tab both render from this list.
+export const askAsh = (text, { send = false } = {}) =>
+  window.dispatchEvent(new CustomEvent('ash:ask', { detail: { text, send } }));
+
+export const GUIDE_SECTIONS = [
+  {
+    id: 'anywhere',
+    title: 'Talk to ASH on any page',
+    where: 'Every page (bottom-right button)',
+    summary: 'Open the ASH button or press Ctrl/Cmd+J. Type, or press the mic and speak. Turn on the speaker to hear her replies. The conversation follows you from page to page.',
+    tips: ['Ctrl/Cmd+J opens and closes ASH', 'Esc closes the dock', 'Your chat stays when you change pages or reload'],
+    examples: ['What should I focus on today?', 'Summarize how my businesses are doing'],
+  },
+  {
+    id: 'navigate',
+    title: 'Page commands',
+    where: 'ASH dock or Builder',
+    summary: 'Ask ASH to take you somewhere and she opens the page for you.',
+    tips: ['Works with any page in the sidebar'],
+    examples: ['Take me to my stats', 'Open the ASH Brain page', 'Go to my content calendar'],
+    link: { to: '/stats', label: 'Stats' },
+  },
+  {
+    id: 'workspace',
+    title: 'Create things in the Builder',
+    where: 'Builder',
+    summary: 'In the Builder, ASH can generate images, video, music and voice-overs, write files, run actions on your connected apps and schedule social posts. If you ask for these in the dock, she sends you to the Builder.',
+    tips: ['Connect apps on the Connections page first for connector actions', 'Scheduled posts appear in the Content Calendar'],
+    examples: ['Create a logo image for my coffee brand', 'Write a launch email as a file', 'Schedule a post for Friday announcing our sale'],
+    link: { to: '/builder', label: 'Builder' },
+  },
+  {
+    id: 'research',
+    title: 'Live web research',
+    where: 'ASH dock, Builder or Research Lab',
+    summary: 'ASH can search the web for current information and cite where it came from. She also researches a new way to make money online every day, and does weekly market research for businesses with Operations Mode on.',
+    tips: ['Each research run uses credits', 'Ask about making money online to get her latest findings'],
+    examples: ['What are the best online business ideas right now?', 'Research competitors for a meal-prep delivery business'],
+    link: { to: '/research-lab', label: 'Research Lab' },
+  },
+  {
+    id: 'specialists',
+    title: 'Specialist agents',
+    where: 'ASH dock or Builder',
+    summary: 'For deeper questions ASH consults a specialist: Finance, Marketing, Operations, Market research or Strategy. You just ask; she decides when to bring one in.',
+    tips: ['Name the area to steer her, e.g. "as a finance expert"'],
+    examples: ['Ask your finance specialist whether I can afford to hire', 'Get a marketing plan for my newest business'],
+  },
+  {
+    id: 'learning',
+    title: 'Learning from results',
+    where: 'Automatic',
+    summary: 'When you apply one of her recommendations, ASH records the business score, checks it again two weeks later, and learns what actually works. Her confidence in new recommendations goes up or down based on those results.',
+    tips: ['Apply or dismiss recommendations on each business so she can learn', 'A pattern is only treated as proven after several measured results'],
+    examples: ['What have you learned works best for my businesses?'],
+    link: { to: '/business-portfolio', label: 'My Businesses' },
+  },
+  {
+    id: 'personality',
+    title: 'A personality that adapts to you',
+    where: 'Automatic',
+    summary: 'ASH starts as a sharp, warm, honest business partner. As you talk, she picks up how you write (length, tone, emojis, energy) and gradually sounds more like you.',
+    tips: ['The ASH Brain page shows how well she knows you'],
+    examples: ['How would you describe my communication style?'],
+    link: { to: '/ash-brain', label: 'ASH Brain' },
+  },
+  {
+    id: 'memory',
+    title: 'Memory',
+    where: 'Memory page or Builder Memory tab',
+    summary: 'ASH remembers your preferences, goals and decisions and uses them in every answer. You can add, edit or delete memories yourself.',
+    tips: ['Tell her "remember that..." to save something'],
+    examples: ['Remember that I prefer short, direct answers'],
+    link: { to: '/memory', label: 'Memory' },
+  },
+  {
+    id: 'brain',
+    title: 'Brain and stats',
+    where: 'ASH Brain and Stats pages, Dashboard, Builder',
+    summary: 'The ASH Brain page shows which parts of her brain are working (reasoning, memory, knowledge, research, planning, recommendations, learning) with gauges and levels. The Stats page shows everything else: credits, businesses, AI usage, research and posts.',
+    tips: ['Levels reflect real activity over the last 7 days', 'The same levels show on the Dashboard and in the Builder Memory tab'],
+    examples: ['Which parts of your brain have been busiest this week?'],
+    link: { to: '/ash-brain', label: 'ASH Brain' },
+  },
+];

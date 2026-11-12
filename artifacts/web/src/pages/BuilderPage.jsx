@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import BrainLevelsPanel, { useBrainActivity } from '@/components/ash/BrainLevelsPanel.jsx';
+import { GUIDE_SECTIONS } from '@/lib/ashGuide.js';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -4103,6 +4104,7 @@ const BuilderPage = () => {
               { id: 'tasks',  label: 'Tasks',  icon: Activity },
               { id: 'files',  label: 'Files',  icon: FileCode2 },
               { id: 'memory', label: 'Memory', icon: Brain },
+              { id: 'guide',  label: 'Guide',  icon: BookOpen },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -4287,6 +4289,38 @@ const BuilderPage = () => {
                   Open Full Workspace →
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* ── GUIDE PANEL ── */}
+          {leftSideTab === 'guide' && (
+            <div className="flex-1 overflow-y-auto py-1 min-h-0 ash-scroll">
+              <div className="px-2 pt-2 pb-1 flex items-center justify-between">
+                <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono font-bold flex items-center gap-1">
+                  <BookOpen className="w-2.5 h-2.5" /> What ASH can do
+                </p>
+                <button onClick={() => navigate('/ash-guide')} className="text-[8px] text-primary/55 hover:text-primary font-mono transition-colors">
+                  Full guide →
+                </button>
+              </div>
+              <p className="px-2 pb-2 text-[9px] text-white/35 font-mono">Click an example to put it in the chat box.</p>
+              {GUIDE_SECTIONS.map((g) => (
+                <div key={g.id} className="mx-2 mb-2 p-2 rounded-lg border border-white/6 bg-white/2">
+                  <p className="text-[10px] font-semibold text-white/80">{g.title}</p>
+                  <p className="text-[9px] text-white/45 mt-0.5 leading-snug">{g.summary}</p>
+                  {g.examples.map((ex) => (
+                    <button
+                      key={ex}
+                      type="button"
+                      onClick={() => setInput(ex)}
+                      className="mt-1 w-full text-left text-[9px] font-mono text-cyan-300/70 hover:text-cyan-200 truncate"
+                      title={ex}
+                    >
+                      → {ex}
+                    </button>
+                  ))}
+                </div>
+              ))}
             </div>
           )}
 

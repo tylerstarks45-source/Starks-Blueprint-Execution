@@ -1,7 +1,7 @@
 // Background runner for ASH missions. Each run claims a few due missions with a
 // lease (safe across replicas), does one step of each, and writes progress back.
-import { db, ashMissionsTable, type AshMission, type MissionStep } from "@workspace/db";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { db, ashMissionsTable, pendingApprovalsTable, usersTable, type AshMission, type MissionStep } from "@workspace/db";
+import { and, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import { complete } from "../openrouter";
 import { chainFor, chainForAgentMode } from "../models";
 import { OutOfCreditsError, DailyAiLimitError } from "../credits";
@@ -10,7 +10,7 @@ import { notifyAdmins } from "../admin-alerts";
 import { runAshAgent, type AgentStep } from "../ash-agent";
 import { MISSION_TOOL_NAMES } from "../ash-agent/tools";
 import { getEffectiveControl, toolActionKind } from "../ash-control/policy";
-import { logEntry, withLog } from "./index";
+import { logEntry, withLog, onApprovalResolved } from "./index";
 
 const POLL_MS = 20_000;
 const BATCH = 3;
@@ -38,20 +38,31 @@ export async function claimDueMissions(limit = BATCH): Promise<AshMission[]> {
 }
 
 // Writes the run's outcome unless the owner paused/cancelled the mission meanwhile.
-async function finish(m: AshMission, patch: Partial<AshMission>): Promise<void> {
+// Returns false when the owner's status was kept.
+async function finish(m: AshMission, patch: Partial<AshMission>): Promise<boolean> {
   const updated = await db.update(ashMissionsTable)
     .set({ ...patch, leaseUntil: null, updatedAt: new Date() })
     .where(and(eq(ashMissionsTable.id, m.id), inArray(ashMissionsTable.status, ["planning", "running"])))
     .returning({ id: ashMissionsTable.id });
-  if (updated.length) return;
+  if (updated.length) return true;
   // Owner changed the status mid-run: keep their status, record what happened.
   const [current] = await db.select().from(ashMissionsTable).where(eq(ashMissionsTable.id, m.id));
-  if (!current) return;
+  if (!current) return false;
   const newEntries = (patch.log ?? []).slice((m.log ?? []).length);
   await db.update(ashMissionsTable).set({
     leaseUntil: null, updatedAt: new Date(), log: withLog(current.log, ...newEntries),
     ...(patch.steps ? { steps: patch.steps } : {}),
   }).where(eq(ashMissionsTable.id, m.id));
+  return false;
+}
+
+// Approvals the owner decided while the step was still running found the mission "running" and
+// couldn't wake it; replay those decisions now that it waits.
+async function settleEarlyDecisions(m: AshMission, since: Date): Promise<void> {
+  const decided = await db.select().from(pendingApprovalsTable).where(and(
+    eq(pendingApprovalsTable.userId, m.userId), ne(pendingApprovalsTable.status, "pending"),
+    gte(pendingApprovalsTable.createdAt, since), sql`${pendingApprovalsTable.payload}->>'missionId' = ${String(m.id)}`));
+  for (const a of decided) await onApprovalResolved(a, a.status === "approved", a.executedAt ? "done" : undefined);
 }
 
 // Calls that failed and weren't retried successfully (same tool, same arguments) later in the same turn.
@@ -127,21 +138,20 @@ async function runStep(m: AshMission): Promise<Partial<AshMission>> {
   const approval = approvals[0];
   const ownerAsk = result.steps.find((s) => s.tool === "request_owner_action" && s.note);
   const base = { stepRuns: m.stepRuns + 1, failureCount: 0 };
+  // What already succeeded in this attempt, so a resume or retry doesn't redo it.
+  const doneNotes = result.steps.filter((s) => s.ok && s.args != null && s.approvalId == null && toolActionKind(s.tool) !== "read")
+    .map((s) => `Already done in an earlier attempt, do not repeat: ${s.tool} ${s.args!.slice(0, 200)}`);
+  const notedSteps = m.steps.map((s, i) => (i === idx && doneNotes.length ? { ...s, notes: [...(s.notes ?? []), ...doneNotes].slice(-20) } : s));
   if (approval) {
-    return { ...base, status: "waiting_approval", approvalId: approval.approvalId!, waitingFor: approvals.length > 1 ? `${approvals.length} actions waiting in your Approvals inbox` : "Your approval in the Approvals inbox",
+    return { ...base, steps: notedSteps, status: "waiting_approval", approvalId: approval.approvalId!, waitingFor: approvals.length > 1 ? `${approvals.length} actions waiting in your Approvals inbox` : "Your approval in the Approvals inbox",
       log: withLog(m.log, ...toolLog, logEntry("approval", `Waiting for approval: ${result.content.slice(0, 500)}`)) };
   }
   if (ownerAsk) {
-    return { ...base, status: "waiting_owner", waitingFor: ownerAsk.note!.slice(0, 1000),
+    return { ...base, steps: notedSteps, status: "waiting_owner", waitingFor: ownerAsk.note!.slice(0, 1000),
       log: withLog(m.log, ...toolLog, logEntry("owner", `Needs the owner: ${ownerAsk.note!}`)) };
   }
   const failed = unresolvedFailures(result.steps);
-  if (failed.length) {
-    const doneNotes = result.steps.filter((s) => s.ok && s.args != null && toolActionKind(s.tool) !== "read")
-      .map((s) => `Already done in an earlier attempt, do not repeat: ${s.tool} ${s.args!.slice(0, 200)}`);
-    const steps = m.steps.map((s, i) => (i === idx ? { ...s, notes: [...(s.notes ?? []), ...doneNotes].slice(-20) } : s));
-    throw new StepIncomplete(`Step not finished: ${failed.join(", ")} failed`, steps);
-  }
+  if (failed.length) throw new StepIncomplete(`Step not finished: ${failed.join(", ")} failed`, notedSteps);
   const steps = m.steps.map((s, i) => (i === idx ? { ...s, status: "done" as const, result: result.content.slice(0, 1500) } : s));
   const allDone = steps.every((s) => s.status !== "pending");
   return {
@@ -156,7 +166,15 @@ async function runStep(m: AshMission): Promise<Partial<AshMission>> {
 
 export async function runMissionOnce(m: AshMission): Promise<void> {
   try {
-    await finish(m, m.status === "planning" ? await planMission(m) : await runStep(m));
+    const { rows } = await db.execute(sql`select now() as now`);
+    const startedAt = new Date((rows[0] as { now: string | Date }).now);
+    const [owner] = await db.select({ active: usersTable.active }).from(usersTable).where(eq(usersTable.id, m.userId));
+    if (!owner || owner.active === false) {
+      await finish(m, { status: "paused", waitingFor: "The account is suspended.", log: withLog(m.log, logEntry("status", "Paused: the account is suspended")) });
+      return;
+    }
+    const patch = m.status === "planning" ? await planMission(m) : await runStep(m);
+    if (await finish(m, patch) && patch.status === "waiting_approval") await settleEarlyDecisions(m, startedAt);
   } catch (err) {
     if (err instanceof OutOfCreditsError || err instanceof DailyAiLimitError) {
       await finish(m, { status: "paused", waitingFor: err.message, log: withLog(m.log, logEntry("status", `Paused: ${err.message}`)) });

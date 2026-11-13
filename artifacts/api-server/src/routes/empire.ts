@@ -1,14 +1,14 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import {
   db, businessesTable, revenueStreams, canonicalAssets, customBusinessTypesTable, assetBusinessSharesTable,
 } from "@workspace/db";
-import { getActiveCallerPayload } from "../lib/auth";
+import { getActiveCallerPayload, validateClientWorkspaceId } from "../lib/auth";
 import { serialize } from "../lib/serialize";
 import { getEmpireOverview } from "../lib/empire/overview";
 import { listBusinessTypes, resolveBusinessType, slugifyKey, STREAM_TYPES, BUILTIN_BUSINESS_TYPES } from "../lib/empire/business-types";
-import { syncUserAssets, registerAsset, ownedBusinessIds, ASSET_CLASS_LABELS, OWNER_EDITED_TAG } from "../lib/empire/assets";
+import { syncUserAssets, registerAsset, ownedBusinessIds, lockUser, ASSET_CLASS_LABELS, OWNER_EDITED_TAG } from "../lib/empire/assets";
 import { createEmpireBusiness, createIncomeStream } from "../lib/empire/actions";
 
 const router: IRouter = Router();
@@ -41,7 +41,7 @@ router.get("/empire/search", async (req, res): Promise<void> => {
     db.select({ id: revenueStreams.id, title: revenueStreams.title, businessId: revenueStreams.businessId, streamType: revenueStreams.streamType })
       .from(revenueStreams).where(and(eq(revenueStreams.userId, caller.id), ilike(revenueStreams.title, like))).limit(10),
     db.select({ id: canonicalAssets.id, name: canonicalAssets.canonicalName, classKey: canonicalAssets.classKey, businessId: canonicalAssets.businessId, externalUrl: canonicalAssets.externalUrl })
-      .from(canonicalAssets).where(and(eq(canonicalAssets.userId, caller.id), or(ilike(canonicalAssets.canonicalName, like), ilike(canonicalAssets.externalUrl, like)))).limit(10),
+      .from(canonicalAssets).where(and(eq(canonicalAssets.userId, caller.id), ne(canonicalAssets.status, "deleted"), or(ilike(canonicalAssets.canonicalName, like), ilike(canonicalAssets.externalUrl, like)))).limit(10),
   ]);
   res.json({ businesses, streams, assets });
 });
@@ -106,7 +106,7 @@ router.post("/empire/businesses", async (req, res): Promise<void> => {
   if (!caller) return;
   const body = CreateBody.safeParse(req.body);
   if (!body.success) return bad(res, zerr(body.error));
-  const result = await createEmpireBusiness(caller.id, body.data);
+  const result = await createEmpireBusiness(caller.id, { ...body.data, clientWorkspaceId: await validateClientWorkspaceId(req, caller.id) });
   if ("error" in result) return bad(res, result.error ?? "Invalid request");
   res.status(201).json(serialize(result));
 });
@@ -249,11 +249,16 @@ router.patch("/empire/assets/:id", async (req, res): Promise<void> => {
   if (!body.success) return bad(res, zerr(body.error));
   if (body.data.businessId && !(await ownedBusinessIds(caller.id, [body.data.businessId])).has(body.data.businessId)) return bad(res, "Business not found", 404);
   const { name, ...rest } = body.data;
-  const [row] = await db.update(canonicalAssets).set({
+  // Same lock as the vault sync, so a sync running now can't overwrite this edit with its older snapshot.
+  const row = await db.transaction(async (tx) => {
+    await lockUser(tx, caller.id);
+    const [updated] = await tx.update(canonicalAssets).set({
     ...rest, ...(name ? { canonicalName: name } : {}), updatedAt: new Date(),
     tags: sql`case when ${canonicalAssets.tags} @> ${JSON.stringify([OWNER_EDITED_TAG])}::jsonb then ${canonicalAssets.tags} else ${canonicalAssets.tags} || ${JSON.stringify([OWNER_EDITED_TAG])}::jsonb end`,
   })
-    .where(and(eq(canonicalAssets.id, id), eq(canonicalAssets.userId, caller.id))).returning();
+      .where(and(eq(canonicalAssets.id, id), eq(canonicalAssets.userId, caller.id))).returning();
+    return updated;
+  });
   if (!row) return bad(res, "Not found", 404);
   res.json(serialize(row));
 });

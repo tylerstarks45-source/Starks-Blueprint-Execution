@@ -73,7 +73,7 @@ async function upsertMany(tx: Tx, userId: number, inputs: AssetInput[]): Promise
   return created;
 }
 
-const lockUser = (tx: Tx, userId: number) => tx.execute(sql`select pg_advisory_xact_lock(hashtext('empire_asset_vault'), ${userId})`);
+export const lockUser = (tx: Tx, userId: number) => tx.execute(sql`select pg_advisory_xact_lock(hashtext('empire_asset_vault'), ${userId})`);
 
 /** Register (or update) one asset. Idempotent per (user, builderSource, builderObjectId). */
 export async function registerAsset(input: AssetInput): Promise<number> {

@@ -1,3 +1,10 @@
+import { runAshTurn, ASH_AGENT_PROMPT } from "../lib/ash-agent";
+import { loadStyleProfile, personaNote, recordUserMessage } from "../lib/ash-agent/persona";
+import { ASH_TOOLS, getTool } from "../lib/ash-agent/tools";
+
+// The global dock can only run navigation; workspace actions need the Builder.
+const DOCK_TOOLS = ASH_TOOLS.map((t) => t.function.name).filter((n) => getTool(n)?.kind !== "client" || n === "navigate");
+const DOCK_NOTE = "\n\nYou are in the quick-access dock, which cannot run workspace actions (images, video, audio, files, connector actions, scheduled posts). For those, call navigate with /builder and tell the user to ask you there.";
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, desc, and } from "drizzle-orm";
@@ -17,9 +24,11 @@ import {
   SOCIAL_PLATFORMS,
 } from "@workspace/db";
 import { broadcastSequenceStep } from "./email-marketing";
-import { requireAuthActive, getTokenPayload, isAdminRole } from "../lib/auth";
+import { requireAuthActive, getTokenPayload, isAdminRole, isFounderAdmin } from "../lib/auth";
+import { deleteMediaForContent } from "../lib/media-store";
 import { complete } from "../lib/openrouter";
-import { MODELS } from "../lib/models";
+import { MODELS, chainFor, chainForAgentMode, resolveAgentMode } from "../lib/models";
+import { OutOfCreditsError, DailyAiLimitError } from "../lib/credits";
 import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector, listConnectors } from "../lib/connectors/registry";
 import { z } from "zod";
@@ -69,7 +78,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
   "marketOpportunity": "1 sentence on the business opportunity or relevance"
 }`,
       prompt: `Research this for a business automation context: ${parsed.data.query}`,
-      model: MODELS.research,
+      models: chainFor("research"),
       userId,
     });
 
@@ -244,7 +253,7 @@ router.delete("/ai-orchestrator/files/:id", async (req, res): Promise<void> => {
   }
 
   const [existing] = await db
-    .select({ id: generatedFilesTable.id, userId: generatedFilesTable.userId })
+    .select({ id: generatedFilesTable.id, userId: generatedFilesTable.userId, content: generatedFilesTable.content })
     .from(generatedFilesTable)
     .where(eq(generatedFilesTable.id, fileId));
 
@@ -263,6 +272,8 @@ router.delete("/ai-orchestrator/files/:id", async (req, res): Promise<void> => {
   await db
     .delete(generatedFilesTable)
     .where(eq(generatedFilesTable.id, fileId));
+  // Blob URLs are public, so the bytes must go too.
+  await deleteMediaForContent(existing.content, existing.userId);
 
   res.status(204).end();
 });
@@ -679,6 +690,65 @@ router.post("/ai-orchestrator/platform-action", async (req, res): Promise<void> 
   }
 
   res.status(400).json({ error: "Unknown tool" });
+});
+
+// ─── POST /api/ai-orchestrator/agent (alias /api/ash/agent) — ASH with native tool calling
+// Same contract as the chat routes' SBEP_DATA: workspace actions come back as
+// structuredData {action: "tool_calls", calls}.
+
+router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
+  const userId = await requireAuthActive(req, res);
+  if (userId === null) return;
+
+  const schema = z.object({
+    message: z.string().min(1).max(8000),
+    history: z
+      .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(8000) }))
+      .max(20)
+      .optional()
+      .default([]),
+    mode: z.string().optional(),
+    page: z.string().max(200).regex(/^\/[\w\-/]*$/).optional(),
+    surface: z.enum(["dock"]).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+
+  try {
+    const { message, history, mode, page, surface } = parsed.data;
+    const style = await loadStyleProfile(userId).catch(() => null);
+    const result = await runAshTurn({
+      userId,
+      message,
+      history,
+      mode,
+      systemPrompt: ASH_AGENT_PROMPT + personaNote(style) + (page ? `\n\nThe user is currently on the ${page} page of the platform.` : "") + (surface === "dock" ? DOCK_NOTE : ""),
+      ...(surface === "dock" ? { toolNames: DOCK_TOOLS } : {}),
+    });
+    recordUserMessage(userId, message).catch((err) =>
+      req.log.warn({ err: err instanceof Error ? err.message : String(err) }, "ASH style profile update failed"),
+    );
+    res.json({
+      content: result.content,
+      structuredData: result.clientCalls.length ? { action: "tool_calls", calls: result.clientCalls } : null,
+      steps: result.steps,
+      model: result.model,
+    });
+  } catch (err) {
+    if (err instanceof DailyAiLimitError) {
+      res.status(429).json({ error: err.message, code: "daily_ai_limit" });
+      return;
+    }
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({ error: "Out of credits" });
+      return;
+    }
+    req.log.error({ err: err instanceof Error ? err.message : String(err) }, "ASH agent failed");
+    res.status(502).json({ error: "ASH is unavailable right now" });
+  }
 });
 
 export default router;

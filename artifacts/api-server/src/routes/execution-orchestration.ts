@@ -3,6 +3,7 @@
 // 10 endpoints covering orchestration plan/assignments/owners/queues/policies/readiness.
 // All require active authentication.
 // ─────────────────────────────────────────────────────────────────────────────
+import { requireBusinessOwner, businessIdParam, businessIdOfRecord, requireSelfParam } from "../lib/route-ownership";
 import { Router } from "express";
 import { db } from "@workspace/db";
 import {
@@ -20,6 +21,11 @@ import { requireAuthActive } from "../lib/auth";
 import { runExecutionOrchestration } from "../lib/execution-orchestration/execution-orchestration-orchestrator";
 
 const router = Router();
+
+// Tenant isolation: every business-scoped route is limited to the caller's own businesses.
+router.param("businessId", (req, res, next) => requireBusinessOwner(businessIdParam("businessId"))(req, res, next));
+router.use("/reports/:reportId", requireBusinessOwner(businessIdOfRecord(executionReports, "reportId")));
+router.use("/plans/:planId", requireBusinessOwner(businessIdOfRecord(executionPlans, "planId")));
 
 // p() coercion helper
 const p = (v: string | string[] | undefined): string =>

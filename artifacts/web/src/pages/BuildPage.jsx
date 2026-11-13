@@ -90,9 +90,8 @@ const BuildPage = () => {
               method: 'POST',
               headers: authHeaders(),
               body: JSON.stringify({
-                userId: currentUser.id,
                 credentialKey: key,
-                credentialValue: value,
+                encryptedValue: btoa(value.trim()),
               }),
             }).catch(() => null);
           }

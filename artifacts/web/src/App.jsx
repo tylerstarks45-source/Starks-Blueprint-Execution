@@ -11,6 +11,7 @@ import { ClientProvider } from '@/contexts/ClientContext.jsx';
 import { BusinessProvider } from '@/contexts/BusinessContext.jsx';
 import { WhiteLabelProvider, useWhiteLabel } from '@/contexts/WhiteLabelContext.jsx';
 import OutOfCreditsModal from '@/components/OutOfCreditsModal.jsx';
+import AshDock from '@/components/ash/AshDock.jsx';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 
 // Security Routes
@@ -71,6 +72,9 @@ const CreditsPage           = lazy(() => import('@/pages/CreditsPage.jsx'));
 const WorkspacePage         = lazy(() => import('@/pages/WorkspacePage.jsx'));
 const MemoryPage            = lazy(() => import('@/pages/MemoryPage.jsx'));
 const AshIntelligencePage   = lazy(() => import('@/pages/AshIntelligencePage.jsx'));
+const AshBrainPage          = lazy(() => import('@/pages/AshBrainPage.jsx'));
+const StatsPage             = lazy(() => import('@/pages/StatsPage.jsx'));
+const AshGuidePage          = lazy(() => import('@/pages/AshGuidePage.jsx'));
 const LandingPagesPage      = lazy(() => import('@/pages/LandingPagesPage.jsx'));
 const UserLandingPageCanvas = lazy(() => import('@/pages/UserLandingPageCanvas.jsx'));
 const AffiliateLinkManagerPage = lazy(() => import('@/pages/AffiliateLinkManagerPage.jsx'));
@@ -300,6 +304,15 @@ const App = () => {
               <Route path="/ash-intelligence" element={
                 <ProtectedRoute><AshIntelligencePage /></ProtectedRoute>
               } />
+              <Route path="/ash-brain" element={
+                <ProtectedRoute><AshBrainPage /></ProtectedRoute>
+              } />
+              <Route path="/stats" element={
+                <ProtectedRoute><StatsPage /></ProtectedRoute>
+              } />
+              <Route path="/ash-guide" element={
+                <ProtectedRoute><AshGuidePage /></ProtectedRoute>
+              } />
               <Route path="/landing-pages" element={
                 <ProtectedRoute><LandingPagesPage /></ProtectedRoute>
               } />
@@ -356,6 +369,7 @@ const App = () => {
 
           {/* Global credit exhaustion modal — listens for sbep:out-of-credits events */}
           <OutOfCreditsModal />
+          <AshDock />
 
           <Toaster position="bottom-right" />
         </CreditsModalProvider>

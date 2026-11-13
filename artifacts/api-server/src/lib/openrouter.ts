@@ -1,11 +1,26 @@
 import { logger } from "./logger";
-import { db, usersTable } from "@workspace/db";
+import { db } from "@workspace/db";
 import { openrouterUsageTable, creditUsageEventsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import { getBalance, deductForUsage, creditsForTokens, OutOfCreditsError } from "./credits";
+import { deductForUsage, creditsForTokens, assertCanSpendAi } from "./credits";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const DEFAULT_MODEL = "openai/gpt-4o-mini";
+
+export interface ToolDefinition {
+  type: "function";
+  function: { name: string; description: string; parameters: Record<string, unknown> };
+}
+
+export interface ToolCall {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+}
+
+export type ChatMessage =
+  | { role: "system" | "user"; content: string }
+  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
+  | { role: "tool"; tool_call_id: string; content: string };
 
 interface CompletionRequest {
   model?: string;
@@ -14,7 +29,11 @@ interface CompletionRequest {
   // rate-limited primary silently drops to the next-best model instead of failing.
   // Prefer this over `model` for user-facing calls (see lib/models.ts).
   models?: string[];
-  prompt: string;
+  prompt?: string;
+  // Full conversation; replaces `prompt` when set. `systemPrompt` is still prepended.
+  messages?: ChatMessage[];
+  // Native function calling (complete() only). Calls come back in `toolCalls`.
+  tools?: ToolDefinition[];
   systemPrompt?: string;
   userId?: number;
   systemInstanceId?: number;
@@ -28,6 +47,7 @@ interface CompletionResult {
   completionTokens: number;
   totalTokens: number;
   estimatedCost: string | null;
+  toolCalls?: ToolCall[];
 }
 
 // ─── Streaming completion (async generator) ──────────────────────────────────
@@ -40,21 +60,15 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
   const model = chain?.[0] ?? request.model ?? DEFAULT_MODEL;
   const messages: Array<{ role: string; content: string }> = [];
   if (request.systemPrompt) messages.push({ role: "system", content: request.systemPrompt });
-  messages.push({ role: "user", content: request.prompt });
+  messages.push({ role: "user", content: request.prompt ?? "" });
 
   // Credit check — same logic as complete()
   if (request.userId != null) {
-    const [userRow] = await db
-      .select({ role: usersTable.role })
-      .from(usersTable)
-      .where(eq(usersTable.id, request.userId));
-    const isFounder = userRow?.role === "FOUNDER_ADMIN";
-    if (!isFounder) {
-      const bal = await getBalance(request.userId);
-      if (bal.total <= 0) {
-        logger.warn({ userId: request.userId }, "Blocked streaming call: out of credits");
-        throw new OutOfCreditsError();
-      }
+    try {
+      await assertCanSpendAi(request.userId);
+    } catch (err) {
+      logger.warn({ userId: request.userId, reason: (err as Error).name }, "Blocked streaming call: credit check failed");
+      throw err;
     }
   }
 
@@ -81,6 +95,8 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
   let buffer = "";
   let fullContent = "";
   let finalUsage: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null = null;
+  // With a `models` chain OpenRouter may answer from a fallback; bill and log the model that served it.
+  let servedModel: string | undefined;
   let success = true;
   let errorMessage: string | null = null;
 
@@ -101,12 +117,14 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
         try {
           const parsed = JSON.parse(data) as {
             choices?: Array<{ delta?: { content?: string } }>;
+            model?: string;
             usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
           };
 
+          if (parsed.model) servedModel = parsed.model;
+          if (parsed.usage) finalUsage = parsed.usage;
           const delta = parsed.choices?.[0]?.delta?.content ?? "";
           if (delta) { fullContent += delta; yield delta; }
-          if (parsed.usage) finalUsage = parsed.usage;
         } catch { /* skip malformed SSE lines */ }
       }
     }
@@ -118,10 +136,11 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
     try { reader.releaseLock(); } catch { /* ignore */ }
 
     const totalTokens = finalUsage?.total_tokens ?? Math.ceil(fullContent.length / 3);
+    const billedModel = servedModel ?? model;
 
     if (request.userId != null && fullContent.length > 0) {
       try {
-        await deductForUsage(request.userId, totalTokens, model);
+        await deductForUsage(request.userId, totalTokens, billedModel);
         // Phase 3: log granular credit usage event
         db.insert(creditUsageEventsTable).values({
           userId: request.userId,
@@ -129,7 +148,7 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
           eventType: "ai_call",
           creditsConsumed: creditsForTokens(totalTokens),
           tokensUsed: totalTokens,
-          model,
+          model: billedModel,
         }).catch(() => { /* non-critical */ });
       } catch (err) {
         logger.error({ alert: "CREDIT_DEDUCTION_FAILED", err, userId: request.userId }, "Streaming credit deduction failed");
@@ -140,7 +159,7 @@ export async function* streamCompletion(request: CompletionRequest): AsyncGenera
       await db.insert(openrouterUsageTable).values({
         userId: request.userId ?? null,
         systemInstanceId: request.systemInstanceId ?? null,
-        model,
+        model: billedModel,
         promptTokens: finalUsage?.prompt_tokens ?? 0,
         completionTokens: finalUsage?.completion_tokens ?? 0,
         totalTokens,
@@ -169,7 +188,9 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
   if (request.systemPrompt) {
     messages.push({ role: "system", content: request.systemPrompt });
   }
-  if (request.imageBase64) {
+  if (request.messages) {
+    messages.push(...request.messages);
+  } else if (request.imageBase64) {
     messages.push({
       role: "user",
       content: [
@@ -185,17 +206,11 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
   // FOUNDER_ADMIN bypasses the block so real-world testing is never interrupted,
   // but usage is still logged and deducted so analytics remain accurate.
   if (request.userId != null) {
-    const [userRow] = await db
-      .select({ role: usersTable.role })
-      .from(usersTable)
-      .where(eq(usersTable.id, request.userId));
-    const isFounder = userRow?.role === "FOUNDER_ADMIN";
-    if (!isFounder) {
-      const bal = await getBalance(request.userId);
-      if (bal.total <= 0) {
-        logger.warn({ userId: request.userId }, "Blocked OpenRouter call: out of credits");
-        throw new OutOfCreditsError();
-      }
+    try {
+      await assertCanSpendAi(request.userId);
+    } catch (err) {
+      logger.warn({ userId: request.userId, reason: (err as Error).name }, "Blocked OpenRouter call: credit check failed");
+      throw err;
     }
   }
 
@@ -214,7 +229,12 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
         "HTTP-Referer": process.env.APP_URL ?? "https://sbep.replit.app",
         "X-Title": "SBEP - Starks Blueprint Execution Platform",
       },
-      body: JSON.stringify({ model, ...(chain ? { models: chain } : {}), messages }),
+      body: JSON.stringify({
+        model,
+        ...(chain ? { models: chain } : {}),
+        messages,
+        ...(request.tools?.length ? { tools: request.tools, tool_choice: "auto" } : {}),
+      }),
     });
 
     if (!response.ok) {
@@ -223,12 +243,13 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
     }
 
     const data = await response.json() as {
-      choices: Array<{ message: { content: string } }>;
+      choices: Array<{ message: { content: string | null; tool_calls?: ToolCall[] } }>;
       model: string;
       usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
     };
 
     const content = data.choices[0]?.message?.content ?? "";
+    const toolCalls = data.choices[0]?.message?.tool_calls;
     const usage = data.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
 
     result = {
@@ -238,6 +259,7 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
       completionTokens: usage.completion_tokens,
       totalTokens: usage.total_tokens,
       estimatedCost: null,
+      ...(toolCalls?.length ? { toolCalls } : {}),
     };
 
     logger.info({ model: result.model, totalTokens: result.totalTokens }, "OpenRouter completion succeeded");
@@ -284,7 +306,7 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
       await db.insert(openrouterUsageTable).values({
         userId: request.userId ?? null,
         systemInstanceId: request.systemInstanceId ?? null,
-        model,
+        model: result?.model ?? model,
         promptTokens: result?.promptTokens ?? 0,
         completionTokens: result?.completionTokens ?? 0,
         totalTokens: result?.totalTokens ?? 0,

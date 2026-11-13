@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { db, ashProjectsTable, ashTasksTable, businessesTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { logger } from "../lib/logger";
+import { internalForwardHeaders } from "../middlewares/security";
 import { runExecutiveBrain } from "../lib/executive-brain";
 import { listProjects, getProject } from "../lib/executive-brain/project-manager";
 import { listGoals } from "../lib/executive-brain/goal-manager";
@@ -287,6 +288,7 @@ router.post("/executive-brain/stream", async (req, res): Promise<void> => {
       headers: {
         "Content-Type": "application/json",
         Authorization: req.headers["authorization"] ?? "",
+        ...internalForwardHeaders(),
       },
       body: JSON.stringify({ ...parsed.data, message: forwardMessage }),
     });

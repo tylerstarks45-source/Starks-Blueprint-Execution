@@ -74,13 +74,13 @@ export async function getLifecycle(customerId: string) {
 }
 
 export async function getLifecycleSummary(userId: number, businessId?: number) {
-  const conditions = [`user_id = ${userId}`];
-  if (businessId) conditions.push(`business_id = ${businessId}`);
+  const conditions = [sql`user_id = ${userId}`];
+  if (businessId) conditions.push(sql`business_id = ${businessId}`);
 
   const result = await db.execute(sql`
     SELECT current_stage, COUNT(*) AS cnt
       FROM customer_lifecycle
-     WHERE ${sql.raw(conditions.join(" AND "))}
+     WHERE ${sql.join(conditions, sql` AND `)}
      GROUP BY current_stage
   `);
   const breakdown: Record<string, number> = {};

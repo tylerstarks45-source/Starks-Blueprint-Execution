@@ -14,6 +14,7 @@ import { OutOfCreditsError } from "../credits";
 import { chainFor } from "../models";
 import { getRevenueSummaryForInstance, revenueContextLine } from "../revenue-summary";
 import { retrieveRelevantLessons, formatLessonsForPrompt } from "../ash-brain";
+import { getRecommendationLessons, calibrateConfidence, formatRecommendationLessons } from "../recommendation-outcomes";
 import { notifyUser } from "../notify";
 import { sendPushNotification } from "../push";
 import { sendAutomationPausedEmail } from "../email";
@@ -85,6 +86,7 @@ export async function notifyOutOfCredits(userId: number, whatPaused: string): Pr
 
 const POLL_INTERVAL_MS = 5_000;
 let running = false;
+let inFlight: Promise<void> = Promise.resolve();
 
 // ─── Per-job execution timeout ────────────────────────────────────────────────
 // Each handler runs inside Promise.race with a deadline. The timeout fires
@@ -584,7 +586,8 @@ async function handleBusinessImprovementPass(payload: Record<string, unknown>): 
     businessType: business.businessType,
     goalText: `${business.name} ${business.revenueModel ?? ""} ${business.notes ?? ""}`,
   });
-  const learnedPatternsNote = formatLessonsForPrompt(learnedLessons);
+  const outcomeLessons = await getRecommendationLessons();
+  const learnedPatternsNote = formatLessonsForPrompt(learnedLessons) + formatRecommendationLessons(outcomeLessons);
 
   const prompt = `You are running a scheduled AI Improvement Engine pass for a business on the SBEP platform.
 
@@ -676,7 +679,8 @@ Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY
     const category: RecommendationCategory = RECOMMENDATION_CATEGORY_SET.has(item.category as RecommendationCategory)
       ? (item.category as RecommendationCategory)
       : "automation";
-    const confidence = Math.max(0, Math.min(100, Math.round(Number(item.confidence) || 50)));
+    const calibration = calibrateConfidence(Math.max(0, Math.min(100, Math.round(Number(item.confidence) || 50))), outcomeLessons.get(category));
+    const confidence = calibration.confidence;
     const suggestedToolId = item.suggestedToolSlug
       ? (toolByName.get(item.suggestedToolSlug.toLowerCase()) ?? null)
       : null;
@@ -691,7 +695,7 @@ Produce 3-6 concrete, categorized improvement recommendations. Respond with ONLY
       status: "new",
       sourceType: "improvement_pass",
       suggestedToolId,
-      payload: { rawSuggestedToolSlug: item.suggestedToolSlug ?? null },
+      payload: { rawSuggestedToolSlug: item.suggestedToolSlug ?? null, calibration },
     });
     inserted++;
   }
@@ -872,11 +876,16 @@ export function startWorker(): void {
   running = true;
 
   async function loop(): Promise<void> {
+    // A poll already scheduled when stopWorker() ran must not claim a new job.
+    if (!running) return;
+    let done!: () => void;
+    inFlight = new Promise<void>((r) => (done = r));
     try {
       await processJob();
     } catch (err) {
       logger.error({ err }, "Worker loop error");
     } finally {
+      done();
       if (running) setTimeout(loop, POLL_INTERVAL_MS);
     }
   }
@@ -892,7 +901,9 @@ export function startWorker(): void {
   logger.info({ pollIntervalMs: POLL_INTERVAL_MS }, "Runtime worker started");
 }
 
-export function stopWorker(): void {
+// Resolves once the tick in progress (if any) has finished.
+export function stopWorker(): Promise<void> {
   running = false;
   logger.info("Runtime worker stopped");
+  return inFlight;
 }

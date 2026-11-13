@@ -1,5 +1,8 @@
-import { sql, eq, desc } from "drizzle-orm";
+import { sql, eq, desc, and, gte } from "drizzle-orm";
 import { db, usersTable, creditTransactionsTable } from "@workspace/db";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type DbExecutor = typeof db | Tx;
 
 // ── Tier allotments (monthly credits that reset each billing cycle) ───────────
 // Temporary Phase 1 allocations — final pricing to be set after real-usage data.
@@ -118,8 +121,10 @@ export async function adjustCredits(
   delta: number,
   type: CreditTxType,
   opts?: { reason?: string; model?: string; tokens?: number },
+  exec?: DbExecutor,
 ): Promise<number> {
-  const [updated] = await db
+  if (!exec) return db.transaction((tx) => adjustCredits(userId, delta, type, opts, tx));
+  const [updated] = await exec
     .update(usersTable)
     .set({ creditsBalance: sql`${usersTable.creditsBalance} + ${delta}` })
     .where(eq(usersTable.id, userId))
@@ -127,7 +132,7 @@ export async function adjustCredits(
 
   const balanceAfter = updated?.b ?? 0;
 
-  await db.insert(creditTransactionsTable).values({
+  await exec.insert(creditTransactionsTable).values({
     userId,
     amount: delta,
     balanceAfter,
@@ -145,8 +150,10 @@ export async function adjustWalletCredits(
   userId: number,
   delta: number,
   opts?: { reason?: string },
+  exec?: DbExecutor,
 ): Promise<number> {
-  const [updated] = await db
+  if (!exec) return db.transaction((tx) => adjustWalletCredits(userId, delta, opts, tx));
+  const [updated] = await exec
     .update(usersTable)
     .set({ walletBalance: sql`${usersTable.walletBalance} + ${delta}` })
     .where(eq(usersTable.id, userId))
@@ -155,12 +162,12 @@ export async function adjustWalletCredits(
   const walletAfter = updated?.w ?? 0;
 
   // Record as a purchase type so it appears in transaction history
-  const [monthlyRow] = await db
+  const [monthlyRow] = await exec
     .select({ b: usersTable.creditsBalance })
     .from(usersTable)
     .where(eq(usersTable.id, userId));
 
-  await db.insert(creditTransactionsTable).values({
+  await exec.insert(creditTransactionsTable).values({
     userId,
     amount: delta,
     balanceAfter: (monthlyRow?.b ?? 0) + walletAfter,
@@ -174,8 +181,12 @@ export async function adjustWalletCredits(
 }
 
 // Deduct credits for AI usage: consumes monthly credits first, wallet second.
-export async function deductForUsage(userId: number, tokens: number, model: string): Promise<number> {
-  const credits = creditsForTokens(tokens);
+export function creditsForUsd(usd: number): number {
+  return Math.max(1, Math.ceil(usd * BASE_CREDITS_PER_DOLLAR));
+}
+
+export async function deductForUsage(userId: number, tokens: number, model: string, creditsOverride?: number): Promise<number> {
+  const credits = creditsOverride ?? creditsForTokens(tokens);
   let lastErr: unknown;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -236,6 +247,52 @@ export class OutOfCreditsError extends Error {
     super(message);
     this.name = "OutOfCreditsError";
   }
+}
+
+// Deliberately not an OutOfCreditsError: buying credits doesn't lift the cap,
+// so callers must not show top-up prompts for it (HTTP 429, not 402).
+export class DailyAiLimitError extends Error {
+  code = "daily_ai_limit" as const;
+  constructor(limit: number) {
+    super(`You've reached today's AI usage limit of ${limit} credits. It resets at midnight UTC.`);
+    this.name = "DailyAiLimitError";
+  }
+}
+
+// Per-user cap on AI credits spent per UTC day, so a runaway loop or abused
+// account can't burn through the OpenRouter budget. 0 disables the cap.
+export const DEFAULT_DAILY_AI_CREDIT_LIMIT = 2000;
+
+export function dailyAiCreditLimit(): number {
+  const raw = process.env.AI_DAILY_CREDIT_LIMIT;
+  if (raw == null || raw.trim() === "") return DEFAULT_DAILY_AI_CREDIT_LIMIT;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : DEFAULT_DAILY_AI_CREDIT_LIMIT;
+}
+
+export async function aiCreditsUsedToday(userId: number, now = new Date()): Promise<number> {
+  const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const [row] = await db
+    .select({ used: sql<number>`coalesce(sum(-${creditTransactionsTable.amount}), 0)::int` })
+    .from(creditTransactionsTable)
+    .where(and(
+      eq(creditTransactionsTable.userId, userId),
+      eq(creditTransactionsTable.type, "usage"),
+      gte(creditTransactionsTable.createdAt, startOfDay),
+    ));
+  return Number(row?.used ?? 0);
+}
+
+/** Throws OutOfCreditsError / DailyAiLimitError when a user may not start another AI call. Founders are exempt. */
+export async function assertCanSpendAi(userId: number): Promise<void> {
+  const [row] = await db
+    .select({ role: usersTable.role, monthly: usersTable.creditsBalance, wallet: usersTable.walletBalance })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  if (row?.role === "FOUNDER_ADMIN") return;
+  if ((row?.monthly ?? 0) + (row?.wallet ?? 0) <= 0) throw new OutOfCreditsError();
+  const limit = dailyAiCreditLimit();
+  if (limit > 0 && (await aiCreditsUsedToday(userId)) >= limit) throw new DailyAiLimitError(limit);
 }
 
 export class SystemLimitError extends Error {

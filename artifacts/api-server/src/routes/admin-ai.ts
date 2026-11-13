@@ -10,11 +10,11 @@ const router: IRouter = Router();
 const SUPPORTED_MODELS = [
   { id: "openai/gpt-4o-mini",            name: "GPT-4o Mini",          provider: "OpenAI",    context: 128000 },
   { id: "openai/gpt-4o",                 name: "GPT-4o",               provider: "OpenAI",    context: 128000 },
-  { id: "anthropic/claude-3.5-sonnet",   name: "Claude 3.5 Sonnet",    provider: "Anthropic", context: 200000 },
-  { id: "anthropic/claude-3-opus",       name: "Claude 3 Opus",        provider: "Anthropic", context: 200000 },
-  { id: "openai/gpt-4-turbo",            name: "GPT-4 Turbo",          provider: "OpenAI",    context: 128000 },
-  { id: "google/gemini-2.0-flash",       name: "Gemini 2.0 Flash",     provider: "Google",    context: 1000000 },
-  { id: "deepseek/deepseek-r1",          name: "DeepSeek R1",          provider: "DeepSeek",  context: 65536 },
+  { id: "anthropic/claude-sonnet-5.5",   name: "Claude Sonnet 5.5",    provider: "Anthropic", context: 1000000 },
+  { id: "anthropic/claude-opus-5.5",     name: "Claude Opus 5.5",      provider: "Anthropic", context: 1000000 },
+  { id: "openai/gpt-5",                  name: "GPT-5",                provider: "OpenAI",    context: 400000 },
+  { id: "google/gemini-2.5-flash",       name: "Gemini 2.5 Flash",     provider: "Google",    context: 1000000 },
+  { id: "deepseek/deepseek-r1-0528",     name: "DeepSeek R1",          provider: "DeepSeek",  context: 163840 },
 ];
 
 // GET /api/ai/openrouter/models

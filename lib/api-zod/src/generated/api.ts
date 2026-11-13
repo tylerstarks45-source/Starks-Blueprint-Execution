@@ -3386,3 +3386,389 @@ export const RevertPendingApprovalResponse = zod.object({
 })
 
 
+/**
+ * @summary Create a new platform workspace for the authenticated user
+ */
+export const createPlatformWorkspaceBodyWorkspaceNameMax = 200;
+
+
+
+export const CreatePlatformWorkspaceBody = zod.object({
+  "workspaceName": zod.string().max(createPlatformWorkspaceBodyWorkspaceNameMax),
+  "workspaceType": zod.enum(['personal', 'team', 'organization']).optional(),
+  "configuration": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const CreatePlatformWorkspaceResponse = zod.object({
+  "success": zod.boolean(),
+  "workspace": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary Create a new platform project
+ */
+export const createPlatformProjectBodyProjectNameMax = 200;
+
+
+
+export const CreatePlatformProjectBody = zod.object({
+  "workspaceId": zod.number().optional(),
+  "appId": zod.string().optional(),
+  "projectName": zod.string().max(createPlatformProjectBodyProjectNameMax),
+  "projectType": zod.enum(['website', 'crm', 'automation', 'dashboard', 'custom']),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const CreatePlatformProjectResponse = zod.object({
+  "success": zod.boolean(),
+  "project": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary List all registered platform applications
+ */
+export const ListPlatformApplicationsResponse = zod.object({
+  "success": zod.boolean(),
+  "applications": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Register a new application in UPOS (admin only)
+ */
+export const RegisterPlatformApplicationBody = zod.object({
+  "appId": zod.string(),
+  "appName": zod.string(),
+  "appDomain": zod.string(),
+  "version": zod.string().optional(),
+  "description": zod.string().optional()
+})
+
+export const RegisterPlatformApplicationResponse = zod.object({
+  "success": zod.boolean(),
+  "app": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary List all active platform commands; optionally filter by appId
+ */
+export const ListPlatformCommandsQueryParams = zod.object({
+  "appId": zod.coerce.string().optional()
+})
+
+export const ListPlatformCommandsResponse = zod.object({
+  "success": zod.boolean(),
+  "commands": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Register commands for an application (admin only)
+ */
+
+
+
+export const RegisterPlatformCommandsBody = zod.object({
+  "appId": zod.string(),
+  "commands": zod.array(zod.record(zod.string(), zod.unknown())).min(1)
+})
+
+export const RegisterPlatformCommandsResponse = zod.object({
+  "success": zod.boolean(),
+  "registered": zod.number()
+})
+
+
+/**
+ * @summary Get the authenticated user's UPOS runtime state
+ */
+export const GetPlatformRuntimeResponse = zod.object({
+  "success": zod.boolean(),
+  "runtime": zod.record(zod.string(), zod.unknown()),
+  "sessions": zod.array(zod.record(zod.string(), zod.unknown())),
+  "sessionCount": zod.number()
+})
+
+
+/**
+ * @summary Get the user's current UPOS navigation context (ASH always has access to this)
+ */
+export const GetPlatformContextResponse = zod.object({
+  "success": zod.boolean(),
+  "context": zod.record(zod.string(), zod.unknown()).nullish()
+})
+
+
+/**
+ * @summary Update the user's current context (called by each page as it loads)
+ */
+export const UpdatePlatformContextBody = zod.object({
+  "currentPage": zod.string().optional(),
+  "currentAppId": zod.string().optional(),
+  "currentProjectId": zod.number().optional(),
+  "currentWorkspaceId": zod.number().optional(),
+  "currentOrgId": zod.number().optional(),
+  "permissions": zod.array(zod.string()).optional()
+})
+
+export const UpdatePlatformContextResponse = zod.object({
+  "success": zod.boolean(),
+  "context": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary Global unified search across apps, commands, projects, and workspaces
+ */
+export const GetPlatformSearchQueryParams = zod.object({
+  "q": zod.coerce.string().describe('Search query'),
+  "kinds": zod.coerce.string().optional().describe('Comma-separated list of result kinds (application,command,project,workspace)'),
+  "limit": zod.coerce.number().optional()
+})
+
+export const GetPlatformSearchResponse = zod.object({
+  "success": zod.boolean(),
+  "results": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Get the authenticated user's platform activity timeline
+ */
+export const GetPlatformActivityQueryParams = zod.object({
+  "limit": zod.coerce.number().optional()
+})
+
+export const GetPlatformActivityResponse = zod.object({
+  "success": zod.boolean(),
+  "activity": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Get the platform application registry
+ */
+export const GetPlatformRegistryResponse = zod.object({
+  "success": zod.boolean(),
+  "registry": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Get platform runtime snapshots (admin only)
+ */
+export const GetPlatformSnapshotsQueryParams = zod.object({
+  "limit": zod.coerce.number().optional()
+})
+
+export const GetPlatformSnapshotsResponse = zod.object({
+  "success": zod.boolean(),
+  "snapshots": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary List all known integration providers
+ */
+export const ListConnectionProvidersQueryParams = zod.object({
+  "domain": zod.coerce.string().optional().describe('Filter by connection domain (e.g. ai, database, social)')
+})
+
+export const ListConnectionProvidersResponse = zod.object({
+  "success": zod.boolean(),
+  "providers": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary List provider capabilities; optionally filter by capability name
+ */
+export const ListConnectionCapabilitiesQueryParams = zod.object({
+  "providerId": zod.coerce.number().optional(),
+  "capability": zod.coerce.string().optional()
+})
+
+export const ListConnectionCapabilitiesResponse = zod.object({
+  "success": zod.boolean(),
+  "capabilities": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Get the full connection registry ordered by domain
+ */
+export const GetConnectionRegistryResponse = zod.object({
+  "success": zod.boolean(),
+  "registry": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Register a new integration provider
+ */
+export const RegisterConnectionProviderBody = zod.object({
+  "providerName": zod.string(),
+  "domain": zod.string(),
+  "providerType": zod.string(),
+  "baseUrl": zod.string().url().optional(),
+  "version": zod.string().optional()
+})
+
+export const RegisterConnectionProviderResponse = zod.object({
+  "success": zod.boolean(),
+  "provider": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary Trigger full provider catalog seeding and capability discovery (admin only)
+ */
+export const DiscoverConnectionsResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary List connection hub snapshots (admin only)
+ */
+export const GetConnectionSnapshotsResponse = zod.object({
+  "success": zod.boolean(),
+  "snapshots": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Get connection hub audit log (admin only)
+ */
+export const GetConnectionAuditQueryParams = zod.object({
+  "limit": zod.coerce.number().optional()
+})
+
+export const GetConnectionAuditResponse = zod.object({
+  "success": zod.boolean(),
+  "audit": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Trigger a full certification run (admin only)
+ */
+export const runCertificationBodyRunNameMax = 200;
+
+
+
+export const RunCertificationBody = zod.object({
+  "runName": zod.string().max(runCertificationBodyRunNameMax).optional()
+})
+
+export const RunCertificationResponse = zod.object({
+  "success": zod.boolean(),
+  "runId": zod.number(),
+  "summary": zod.record(zod.string(), zod.unknown()).optional(),
+  "adminPackage": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+
+/**
+ * @summary List the last 10 certification runs (admin only)
+ */
+export const GetCertificationResultsResponse = zod.object({
+  "success": zod.boolean(),
+  "runs": zod.array(zod.record(zod.string(), zod.unknown())),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Generate a launch readiness report (admin only)
+ */
+export const GetCertificationLaunchReportResponse = zod.object({
+  "success": zod.boolean(),
+  "launchReadiness": zod.record(zod.string(), zod.unknown()),
+  "adminPackage": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+
+/**
+ * @summary Re-run architecture validation (admin only)
+ */
+export const RevalidateCertificationResponse = zod.object({
+  "success": zod.boolean(),
+  "domainCount": zod.number().optional(),
+  "passed": zod.number().optional(),
+  "failed": zod.number().optional()
+})
+
+
+/**
+ * @summary Get overall launch hardening status (admin only)
+ */
+export const GetLaunchHardeningStatusResponse = zod.object({
+  "launchStatus": zod.string(),
+  "launchConfidence": zod.number(),
+  "totalFindings": zod.number().optional(),
+  "criticalOpen": zod.number().optional(),
+  "highOpen": zod.number().optional(),
+  "mediumOpen": zod.number().optional(),
+  "lowOpen": zod.number().optional(),
+  "blockersRemaining": zod.number(),
+  "prelaunchRemaining": zod.number().optional(),
+  "verifiedFixed": zod.number().optional(),
+  "deferredCount": zod.number().optional(),
+  "acceptedRiskCount": zod.number().optional(),
+  "unverifiedFixed": zod.array(zod.string()).optional(),
+  "safeRemediationOrder": zod.array(zod.string()).optional(),
+  "independentWorkSets": zod.array(zod.array(zod.string())).optional(),
+  "highRegressionCount": zod.number().optional()
+})
+
+
+/**
+ * @summary List all launch findings (admin only)
+ */
+export const GetLaunchFindingsQueryParams = zod.object({
+  "priority": zod.coerce.string().optional(),
+  "status": zod.coerce.string().optional()
+})
+
+export const GetLaunchFindingsResponse = zod.object({
+  "findings": zod.array(zod.record(zod.string(), zod.unknown())),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary List open BLOCKER findings (admin only)
+ */
+export const GetLaunchBlockersResponse = zod.object({
+  "blockersRemaining": zod.number(),
+  "launchStatus": zod.string(),
+  "launchConfidence": zod.number().optional(),
+  "blockers": zod.array(zod.record(zod.string(), zod.unknown())),
+  "unverifiedFixed": zod.array(zod.string()).optional()
+})
+
+
+/**
+ * @summary List launch hardening snapshots (admin only)
+ */
+export const GetLaunchHardeningSnapshotsResponse = zod.object({
+  "snapshots": zod.array(zod.record(zod.string(), zod.unknown())),
+  "total": zod.number()
+})
+
+

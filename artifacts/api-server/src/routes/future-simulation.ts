@@ -3,6 +3,8 @@
 // REST API for the Future State Simulation Engine.
 // Reports and scenarios are immutable after POST /simulate.
 
+import { futureScenariosTable } from "@workspace/db";
+import { requireBusinessOwner, businessIdParam, businessIdOfRecord, requireSelfParam } from "../lib/route-ownership";
 import { Router } from "express";
 import { requireAuthActive } from "../lib/auth";
 import {
@@ -15,6 +17,10 @@ import {
 import { getBusiness } from "../lib/business-graph/business-registry";
 
 const router = Router();
+
+// Tenant isolation: every business-scoped route is limited to the caller's own businesses.
+router.use("/businesses/:id", requireBusinessOwner(businessIdParam("id")));
+router.use("/scenarios/:id", requireBusinessOwner(businessIdOfRecord(futureScenariosTable, "id")));
 
 // ── POST /api/future-simulation/businesses/:id/simulate ──────────────────────
 // Run a full simulation for a business.

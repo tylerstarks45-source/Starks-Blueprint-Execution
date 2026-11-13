@@ -8,6 +8,7 @@
 import type { MonitoringSummary } from './monitoringSummary';
 
 export interface RecomputeHealthResponse {
+  /** @nullable */
   overallScore: number | null;
   status: string;
   selfHealActionsTaken: number;

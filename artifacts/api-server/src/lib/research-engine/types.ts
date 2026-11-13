@@ -12,6 +12,12 @@ export interface ResearchRequest {
   projectId: number | null;
   researchType: AshResearchType;
   objective: string; // what the user actually wants to know
+  /** Always gather new findings and save them as a new entry (dated updates, e.g. weekly research). */
+  forceFresh?: boolean;
+  /** Business the research is about. With forceFresh, the business's previous entry is replaced. */
+  businessId?: number | null;
+  /** With forceFresh and no businessId: replace the previous entry carrying this tag instead of inserting a new one. */
+  knowledgeTag?: string;
 }
 
 export interface ResearchPlanStep {

@@ -19,8 +19,9 @@ export async function generateStructuredSummary(params: {
   researchType: AshResearchType;
   objective: string;
   findings: RawFinding[];
+  userId?: number;
 }): Promise<StructuredSummary> {
-  const { researchType, objective, findings } = params;
+  const { researchType, objective, findings, userId } = params;
   const findingsText = findings.map((f, i) => `### Finding ${i + 1} (query: "${f.query}")\n${f.content}`).join("\n\n");
   const profileInstruction = PROFILE_INSTRUCTIONS[researchType] ?? "";
 
@@ -36,6 +37,7 @@ export async function generateStructuredSummary(params: {
 
   try {
     const result = await complete({
+      userId,
       systemPrompt: `You are ASH's Research & Knowledge Engine summarizer. Turn raw web research into a structured, reusable knowledge object. Be specific and honest — if the research doesn't support a claim, say so rather than inventing detail.
 ${profileInstruction}
 Return ONLY valid JSON shaped exactly like:

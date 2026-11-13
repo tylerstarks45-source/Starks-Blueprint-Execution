@@ -131,7 +131,7 @@ export default function MemoryPage() {
     setSaving(true);
     try {
       const body = {
-        userId: currentUser.id,
+        userId: Number(currentUser.id),
         memoryKey: newKey.trim(),
         memoryValue: newValue,
       };

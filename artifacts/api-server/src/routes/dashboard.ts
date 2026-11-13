@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, gte, sql, inArray } from "drizzle-orm";
+import { eq, and, or, gte, sql, inArray, isNotNull } from "drizzle-orm";
 import {
   db,
   blueprintsTable,
@@ -180,6 +180,10 @@ If a tool has no affiliate link in the catalog, say "Available on marketplace" i
       res.status(402).json({ error: "Out of AI credits.", code });
       return;
     }
+    if (code === "daily_ai_limit") {
+      res.status(429).json({ error: err.message, code });
+      return;
+    }
     req.log.error({ err }, "Dashboard chat error");
     res.status(500).json({ error: "AI chat failed. Please try again." });
   }
@@ -251,12 +255,16 @@ router.get("/dashboard/revenue-summary", async (req, res): Promise<void> => {
       sql`${systemActivityEventsTable.revenueProvider} is not null`,
     );
     if (unlinkedSystemIds.length === 0) return realPart;
-    return sql`(
-      ${systemActivityEventsTable.eventType} = 'revenue' AND (
-        (${systemActivityEventsTable.systemInstanceId} = ANY(${sql.raw(`'{${linkedSystemIds.join(",")}}'::int[]`)}) AND ${systemActivityEventsTable.revenueProvider} IS NOT NULL)
-        OR ${systemActivityEventsTable.systemInstanceId} = ANY(${sql.raw(`'{${unlinkedSystemIds.join(",")}}'::int[]`)})
-      )
-    )`;
+    return and(
+      eq(systemActivityEventsTable.eventType, "revenue"),
+      or(
+        and(
+          inArray(systemActivityEventsTable.systemInstanceId, linkedSystemIds),
+          isNotNull(systemActivityEventsTable.revenueProvider),
+        ),
+        inArray(systemActivityEventsTable.systemInstanceId, unlinkedSystemIds),
+      ),
+    );
   })();
 
   // realRevenueCents: platform-confirmed total across ALL linked systems (for UI badge)

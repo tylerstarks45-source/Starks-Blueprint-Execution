@@ -37,7 +37,7 @@ const router = Router();
 // ─── Plan CRUD ────────────────────────────────────────────────────────────────
 
 /** POST /api/executive-plan — Create a bare plan */
-router.post("/api/executive-plan", async (req, res) => {
+router.post("/executive-plan", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -49,7 +49,7 @@ router.post("/api/executive-plan", async (req, res) => {
 });
 
 /** GET /api/executive-plan — List plans (status/goalId/isAlternative/limit filters) */
-router.get("/api/executive-plan", async (req, res) => {
+router.get("/executive-plan", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -67,7 +67,7 @@ router.get("/api/executive-plan", async (req, res) => {
 });
 
 /** GET /api/executive-plan/active — Active plans only */
-router.get("/api/executive-plan/active", async (req, res) => {
+router.get("/executive-plan/active", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -79,7 +79,7 @@ router.get("/api/executive-plan/active", async (req, res) => {
 });
 
 /** GET /api/executive-plan/diagnostics — Aggregate diagnostics */
-router.get("/api/executive-plan/diagnostics", async (req, res) => {
+router.get("/executive-plan/diagnostics", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -91,7 +91,7 @@ router.get("/api/executive-plan/diagnostics", async (req, res) => {
 });
 
 /** POST /api/executive-plan/generate — Generate a plan from a goal */
-router.post("/api/executive-plan/generate", async (req, res) => {
+router.post("/executive-plan/generate", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -128,7 +128,7 @@ router.post("/api/executive-plan/generate", async (req, res) => {
 });
 
 /** POST /api/executive-plan/generate-alternatives — Generate multiple alternative plans */
-router.post("/api/executive-plan/generate-alternatives", async (req, res) => {
+router.post("/executive-plan/generate-alternatives", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -166,7 +166,7 @@ router.post("/api/executive-plan/generate-alternatives", async (req, res) => {
 });
 
 /** POST /api/executive-plan/compare — Compare plans by ID */
-router.post("/api/executive-plan/compare", async (req, res) => {
+router.post("/executive-plan/compare", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -185,7 +185,7 @@ router.post("/api/executive-plan/compare", async (req, res) => {
 // ─── Plan by ID (must come after all static sub-paths) ───────────────────────
 
 /** GET /api/executive-plan/:id — Retrieve one plan */
-router.get("/api/executive-plan/:id", async (req, res) => {
+router.get("/executive-plan/:id", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -199,7 +199,7 @@ router.get("/api/executive-plan/:id", async (req, res) => {
 });
 
 /** PUT /api/executive-plan/:id — Update a plan */
-router.put("/api/executive-plan/:id", async (req, res) => {
+router.put("/executive-plan/:id", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -214,7 +214,7 @@ router.put("/api/executive-plan/:id", async (req, res) => {
 });
 
 /** DELETE /api/executive-plan/:id — Archive a plan */
-router.delete("/api/executive-plan/:id", async (req, res) => {
+router.delete("/executive-plan/:id", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -229,7 +229,7 @@ router.delete("/api/executive-plan/:id", async (req, res) => {
 });
 
 /** GET /api/executive-plan/:id/milestones — Milestones for a plan */
-router.get("/api/executive-plan/:id/milestones", async (req, res) => {
+router.get("/executive-plan/:id/milestones", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -244,7 +244,7 @@ router.get("/api/executive-plan/:id/milestones", async (req, res) => {
 });
 
 /** GET /api/executive-plan/:id/steps — All steps for a plan */
-router.get("/api/executive-plan/:id/steps", async (req, res) => {
+router.get("/executive-plan/:id/steps", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -259,7 +259,7 @@ router.get("/api/executive-plan/:id/steps", async (req, res) => {
 });
 
 /** GET /api/executive-plan/:id/history — Immutable plan history */
-router.get("/api/executive-plan/:id/history", async (req, res) => {
+router.get("/executive-plan/:id/history", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -277,7 +277,7 @@ router.get("/api/executive-plan/:id/history", async (req, res) => {
 });
 
 /** POST /api/executive-plan/:id/dependencies — Add a dependency */
-router.post("/api/executive-plan/:id/dependencies", async (req, res) => {
+router.post("/executive-plan/:id/dependencies", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -289,7 +289,7 @@ router.post("/api/executive-plan/:id/dependencies", async (req, res) => {
 });
 
 /** GET /api/executive-plan/:id/dependencies — Get dependencies */
-router.get("/api/executive-plan/:id/dependencies", async (req, res) => {
+router.get("/executive-plan/:id/dependencies", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -301,7 +301,7 @@ router.get("/api/executive-plan/:id/dependencies", async (req, res) => {
 });
 
 /** GET /api/executive-plan/:id/dependency-analysis — Run dependency analysis */
-router.get("/api/executive-plan/:id/dependency-analysis", async (req, res) => {
+router.get("/executive-plan/:id/dependency-analysis", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -321,7 +321,7 @@ router.get("/api/executive-plan/:id/dependency-analysis", async (req, res) => {
 });
 
 /** POST /api/executive-plan/:id/metrics — Record a metric */
-router.post("/api/executive-plan/:id/metrics", async (req, res) => {
+router.post("/executive-plan/:id/metrics", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -333,7 +333,7 @@ router.post("/api/executive-plan/:id/metrics", async (req, res) => {
 });
 
 /** GET /api/executive-plan/:id/metrics — Retrieve metrics */
-router.get("/api/executive-plan/:id/metrics", async (req, res) => {
+router.get("/executive-plan/:id/metrics", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -347,7 +347,7 @@ router.get("/api/executive-plan/:id/metrics", async (req, res) => {
 // ─── Milestone sub-routes (separate paths, not under /:id) ───────────────────
 
 /** GET /api/executive-plan/milestones/:milestoneId/children — Child milestones */
-router.get("/api/executive-plan/milestones/:milestoneId/children", async (req, res) => {
+router.get("/executive-plan/milestones/:milestoneId/children", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -359,7 +359,7 @@ router.get("/api/executive-plan/milestones/:milestoneId/children", async (req, r
 });
 
 /** PATCH /api/executive-plan/milestones/:milestoneId — Update milestone status */
-router.patch("/api/executive-plan/milestones/:milestoneId", async (req, res) => {
+router.patch("/executive-plan/milestones/:milestoneId", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -374,7 +374,7 @@ router.patch("/api/executive-plan/milestones/:milestoneId", async (req, res) => 
 });
 
 /** GET /api/executive-plan/milestones/:milestoneId/steps — Steps for a milestone */
-router.get("/api/executive-plan/milestones/:milestoneId/steps", async (req, res) => {
+router.get("/executive-plan/milestones/:milestoneId/steps", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {
@@ -386,7 +386,7 @@ router.get("/api/executive-plan/milestones/:milestoneId/steps", async (req, res)
 });
 
 /** DELETE /api/executive-plan/dependencies/:depId — Remove a dependency */
-router.delete("/api/executive-plan/dependencies/:depId", async (req, res) => {
+router.delete("/executive-plan/dependencies/:depId", async (req, res) => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
   try {

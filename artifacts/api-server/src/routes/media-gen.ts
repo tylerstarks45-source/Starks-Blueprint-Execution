@@ -1,3 +1,4 @@
+import { OutOfCreditsError, DailyAiLimitError } from "../lib/credits";
 import { Router, type IRouter } from "express";
 import { requireAuthActive } from "../lib/auth";
 import { z } from "zod";
@@ -5,7 +6,8 @@ import { db, pool, userCredentialsTable, generatedFilesTable, runtimeJobsTable }
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { decrypt } from "../lib/crypto";
 import { randomUUID } from "crypto";
-import { textToSpeech } from "@workspace/integrations-openai-ai-server/audio";
+import { generateImage, synthesizeSpeech } from "../lib/openrouter-media";
+import { storeMedia } from "../lib/media-store";
 
 const OPENAI_TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"] as const;
 type OpenAiTtsVoice = (typeof OPENAI_TTS_VOICES)[number];
@@ -82,6 +84,10 @@ async function saveMediaFile(
   return row!.id;
 }
 
+// Pixel sizes are model-specific (gpt-image-1 rejects 1792x1024); OpenRouter
+// clamps a normalized aspect ratio to whatever the model supports.
+const ASPECT_FOR_SIZE = { "1024x1024": "1:1", "1792x1024": "16:9", "1024x1792": "9:16" } as const;
+
 // ─── POST /api/media-gen/image ────────────────────────────────────────────────
 
 router.post("/media-gen/image", async (req, res): Promise<void> => {
@@ -101,50 +107,29 @@ router.post("/media-gen/image", async (req, res): Promise<void> => {
   }
 
   const { prompt, style, size } = parsed.data;
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    res.status(503).json({ error: "Image generation not configured" });
-    return;
-  }
-
   try {
     const enhancedPrompt = style && style !== "photorealistic"
       ? `${prompt}, ${style} style, high quality, professional`
       : `${prompt}, photorealistic, ultra-detailed, professional quality`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://starksglobalgroup.net",
-        "X-Title": "SBEP ASH Agent",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "openai/dall-e-3",
-        prompt: enhancedPrompt,
-        n: 1,
-        size,
-        quality: "standard",
-        response_format: "url",
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      req.log.warn({ status: response.status, err: errText }, "OpenRouter image gen failed");
-      res.status(502).json({ error: "Image generation failed", details: errText });
+    let image: { b64: string; revisedPrompt?: string };
+    try {
+      image = await generateImage({ prompt: enhancedPrompt, aspectRatio: ASPECT_FOR_SIZE[size], userId });
+    } catch (err) {
+      if (err instanceof DailyAiLimitError) {
+        res.status(429).json({ error: err.message, code: "daily_ai_limit" });
+        return;
+      }
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({ error: "Out of credits" });
+        return;
+      }
+      req.log.warn({ err: err instanceof Error ? err.message : String(err) }, "OpenRouter image gen failed");
+      res.status(502).json({ error: "Image generation failed" });
       return;
     }
-
-    const data = (await response.json()) as { data?: Array<{ url: string; revised_prompt?: string }> };
-    const imageUrl = data.data?.[0]?.url;
-    const revisedPrompt = data.data?.[0]?.revised_prompt;
-
-    if (!imageUrl) {
-      res.status(502).json({ error: "No image returned" });
-      return;
-    }
+    const imageUrl = await storeMedia(userId, Buffer.from(image.b64, "base64"), "image/png");
+    const revisedPrompt = image.revisedPrompt;
 
     // Save URL to generated_files so it appears in the media gallery
     await saveMediaFile(
@@ -668,7 +653,7 @@ router.post("/media-gen/tts", async (req, res): Promise<void> => {
     // works out-of-the-box without requiring users to bring their own ElevenLabs key.
     try {
       const openAiVoice = mapVoiceStyleToOpenAi(voice);
-      const audioBuffer = await textToSpeech(text, openAiVoice, "mp3");
+      const audioBuffer = await synthesizeSpeech({ text, voice: openAiVoice, userId });
       const base64Audio = audioBuffer.toString("base64");
       const dataUri = `data:audio/mpeg;base64,${base64Audio}`;
 
@@ -682,16 +667,24 @@ router.post("/media-gen/tts", async (req, res): Promise<void> => {
 
       res.json({
         status: "success",
-        provider: "openai",
+        provider: "openrouter",
         audioBase64: base64Audio,
         mimeType: "audio/mpeg",
         voice: openAiVoice,
         characterCount: text.length,
         fileId,
-        message: "Generated using the built-in OpenAI voice. Connect ElevenLabs in the Connections Hub for premium ultra-realistic voices.",
+        message: "Generated using the built-in voice. Connect ElevenLabs in the Connections Hub for premium ultra-realistic voices.",
       });
     } catch (err) {
-      req.log.error({ err }, "OpenAI TTS fallback failed");
+      if (err instanceof DailyAiLimitError) {
+        res.status(429).json({ error: err.message, code: "daily_ai_limit" });
+        return;
+      }
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({ error: "Out of credits" });
+        return;
+      }
+      req.log.error({ err }, "Built-in TTS fallback failed");
       res.json({
         status: "needs_credentials",
         message: "Text-to-speech is temporarily unavailable. Connect an ElevenLabs API key for reliable voice generation.",

@@ -1,5 +1,7 @@
 // ─── Build 020: Executive Strategy REST Routes ────────────────────────────────
 
+import { strategicPillarsTable } from "@workspace/db";
+import { requireBusinessOwner, businessIdParam, businessIdOfRecord, requireSelfParam } from "../lib/route-ownership";
 import { Router } from "express";
 import { requireAuthActive } from "../lib/auth";
 import {
@@ -18,6 +20,10 @@ import {
 } from "../lib/executive-strategy/strategy-registry";
 
 const router = Router();
+
+// Tenant isolation: every business-scoped route is limited to the caller's own businesses.
+router.param("businessId", (req, res, next) => requireBusinessOwner(businessIdParam("businessId"))(req, res, next));
+router.use("/pillars/:businessId/:pillarId", requireBusinessOwner(businessIdOfRecord(strategicPillarsTable, "pillarId")));
 
 // ── POST /strategise/:businessId — Full strategy run ──────────────────────
 

@@ -12,19 +12,28 @@
 
 export type ModelChain = string[];
 
+// Media models (OpenRouter /audio/transcriptions, /audio/speech, /images).
+export const MEDIA_MODELS = {
+  transcription: "openai/whisper-large-v3",
+  speech: "deepgram/aura-2",
+  image: "openai/gpt-image-2",
+} as const;
+
 // Canonical model IDs used across the platform. Keep these as the ONLY place
 // raw OpenRouter model strings live.
 export const MODELS = {
   // Absolute best reasoning / build / deep-analysis model.
-  flagship: "anthropic/claude-opus-4-5",
+  flagship: "anthropic/claude-opus-5.5",
   // Best balance of frontier quality + responsiveness for conversation & planning.
-  reasoning: "anthropic/claude-3-5-sonnet",
+  reasoning: "anthropic/claude-sonnet-5.5",
   // Fast frontier model for snappy iteration — still top-tier, never "budget".
   swift: "openai/gpt-4o",
   // Lightweight — ONLY for trivial internal classification / JSON extraction.
   utility: "openai/gpt-4o-mini",
   // Online-capable research model for live web search.
-  research: "perplexity/llama-3.1-sonar-large-128k-online",
+  research: "perplexity/sonar-pro",
+  // Cheaper online model, used as the research fallback.
+  researchLite: "perplexity/sonar",
 } as const;
 
 // Ordered best-first fallback chains. OpenRouter's native `models` routing tries
@@ -35,7 +44,7 @@ export const CHAINS = {
   reasoning: [MODELS.reasoning, MODELS.swift, MODELS.flagship],
   swift: [MODELS.swift, MODELS.reasoning],
   utility: [MODELS.utility, MODELS.swift],
-  research: [MODELS.research],
+  research: [MODELS.research, MODELS.researchLite],
 } as const satisfies Record<string, ModelChain>;
 
 export type Situation = keyof typeof CHAINS;

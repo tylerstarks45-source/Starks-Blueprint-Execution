@@ -1,4 +1,7 @@
+import { OutOfCreditsError, DailyAiLimitError } from "../lib/credits";
+import { transcribeAudio, audioFormatFor } from "../lib/openrouter-media";
 import { Router, type IRouter } from "express";
+import { publicErrorMessage } from "../middlewares/security";
 import { serialize } from "../lib/serialize";
 import { eq, count, sql, and, or, isNull } from "drizzle-orm";
 import { randomBytes } from "crypto";
@@ -38,6 +41,7 @@ import { computeNextRunAt as _computeNextRunAt } from "./scheduled-tasks";
 import { complete, streamCompletion } from "../lib/openrouter";
 import { MODELS, chainFor, chainForAgentMode, depthNoteForAgentMode, resolveAgentMode } from "../lib/models";
 import { buildLearnedPatternsNote, getBrainOverview, distillAshBrain } from "../lib/ash-brain";
+import { buildOpportunityResearchNote } from "../lib/research-engine/opportunity-scan";
 import { hasCredits } from "../lib/credits";
 import { requireAuthActive, requireAdmin, isFounderAdmin } from "../lib/auth";
 import { encrypt, decrypt } from "../lib/crypto";
@@ -853,7 +857,7 @@ PACING:
     const learnedPatternsNote = await buildLearnedPatternsNote({
       businessType: parsed.data.businessType,
       goalText: `${parsed.data.message} ${parsed.data.revenueGoal ?? ""}`,
-    });
+    }) + await buildOpportunityResearchNote(parsed.data.message);
 
     const completionArgs = {
       systemPrompt: buildSystemPrompt(blueprintKB, toolKB) + storedCredNote + connectedToolsNote + socialNote + skillAdditions + (contextNote ? `\n\n=== USER CONTEXT ===\n${contextNote}` : "") + learnedPatternsNote + depthNote + planModeNote + beginnerNote + chatOnlyNote,
@@ -922,6 +926,10 @@ PACING:
     const message = err instanceof Error ? err.message : "STARK request failed";
     if ((err as { code?: string })?.code === "out_of_credits") {
       res.status(402).json({ error: message, code: "out_of_credits" });
+      return;
+    }
+    if ((err as { code?: string })?.code === "daily_ai_limit") {
+      res.status(429).json({ error: message, code: "daily_ai_limit" });
       return;
     }
     req.log.error({ err }, "AI orchestrator chat error");
@@ -1044,7 +1052,7 @@ Return ONLY valid JSON in this exact format (no markdown, no extra text):
   "marketOpportunity": "1 sentence on the business opportunity or relevance"
 }`,
     prompt: `Research this for a business automation context: ${query}`,
-    model: MODELS.research,
+    models: chainFor("research"),
     userId,
   });
 
@@ -1250,7 +1258,7 @@ Do NOT invent IDs — only use exact integer IDs shown above.`;
     const learnedPatternsNote = await buildLearnedPatternsNote({
       businessType: parsed.data.businessType,
       goalText: `${parsed.data.message} ${parsed.data.revenueGoal ?? ""}`,
-    });
+    }) + await buildOpportunityResearchNote(parsed.data.message);
 
     const systemPrompt = buildSystemPrompt(blueprintKB, toolKB) +
       storedCredNote + connectedToolsNote + skillAdditions + memoryNote + platformStateNote +
@@ -2166,8 +2174,9 @@ Return ONLY valid JSON: {"emails":[{"stepNumber":1,"delayDays":0,"subject":"subj
 
     send({ type: "done", content: displayContent, structuredData, activatedSkills });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "ASH request failed";
+    const message = publicErrorMessage(err, "ASH request failed");
     const code = (err as { code?: string })?.code;
+    req.log.error({ err }, "AI orchestrator stream error");
     send({ type: "error", message, ...(code ? { code } : {}) });
   } finally {
     clearInterval(keepAlive);
@@ -2521,33 +2530,24 @@ router.post("/ai-orchestrator/transcribe", async (req, res) => {
       return;
     }
 
-    const apiKey = process.env["OPENROUTER_API_KEY"];
-    if (!apiKey) {
-      res.status(503).json({ error: "AI service not configured." });
-      return;
-    }
-
-    const form = new FormData();
-    const blob = new Blob([file.buffer as unknown as ArrayBuffer], { type: file.mimetype || "audio/m4a" });
-    form.append("file", blob, file.originalname || "audio.m4a");
-    form.append("model", "openai/whisper-1");
-
-    const response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: form,
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      req.log.warn({ status: response.status, err: errText }, "Transcription service error");
+    let text: string;
+    try {
+      text = await transcribeAudio({ audio: file.buffer, format: audioFormatFor(file.mimetype, file.buffer), userId });
+    } catch (err) {
+      if (err instanceof DailyAiLimitError) {
+        res.status(429).json({ error: err.message, code: "daily_ai_limit" });
+        return;
+      }
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({ error: "Out of credits." });
+        return;
+      }
+      req.log.warn({ err: err instanceof Error ? err.message : String(err) }, "Transcription service error");
       res.status(502).json({ error: "Transcription service unavailable. Please type your message instead." });
       return;
     }
-
-    const result = (await response.json()) as { text: string };
-    req.log.info({ userId, chars: result.text?.length ?? 0 }, "Voice transcription completed");
-    res.json({ text: result.text ?? "" });
+    req.log.info({ userId, chars: text.length }, "Voice transcription completed");
+    res.json({ text });
   } catch (err) {
     req.log.error({ err }, "Transcribe endpoint error");
     res.status(500).json({ error: "Transcription failed. Please type your message instead." });

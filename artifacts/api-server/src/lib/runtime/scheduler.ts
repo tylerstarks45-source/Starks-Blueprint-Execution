@@ -1,6 +1,7 @@
 import { pool, db, usersTable, scheduledTasksTable, systemInstancesTable, systemActivityEventsTable, notificationsTable, publishedContentTable, abTestsTable, abVariantsTable, emailSequencesTable, emailSequenceStepsTable, emailSubscribersTable, emailDeliveriesTable, scheduledPostsTable } from "@workspace/db";
 import { eq, and, lte, sql, gt } from "drizzle-orm";
 import { logger } from "../logger";
+import { runIfLockAcquired, SCHEDULER_LOCK_KEY } from "./single-runner";
 import { getConnector } from "../connectors/registry";
 import { decrypt } from "../crypto";
 import { complete } from "../openrouter";
@@ -20,6 +21,9 @@ import { OutOfCreditsError } from "../credits";
 import { createPendingApproval } from "../approvals";
 import { hasOperationsModeAccess } from "../operations-gate";
 import { distillAshBrain } from "../ash-brain";
+import { runScheduledResearch } from "../research-engine/scheduled";
+import { measureRecommendationOutcomes } from "../recommendation-outcomes";
+import { runOpportunityScan } from "../research-engine/opportunity-scan";
 import { runMemoryMaintenance } from "../memory-engine";
 import { initializeBusinessDna, publishBusinessEvent } from "../business-intelligence";
 // A-03 fix: expire stale DOL execution sessions on a regular interval
@@ -27,6 +31,7 @@ import { expireStaleSessionsLocal } from "../digital-operating-layer/dol-session
 
 const POLL_INTERVAL_MS = 60_000;
 let running = false;
+let inFlight: Promise<void> = Promise.resolve();
 
 // ─── Persistent scheduler state ───────────────────────────────────────────────
 // Each sub-task's "last ran at" timestamp is stored in a small DB table so it
@@ -49,10 +54,13 @@ async function loadSchedulerState(): Promise<void> {
     const rows = await pool.query<{ task_key: string; last_run_at: Date }>(
       `SELECT task_key, last_run_at FROM scheduler_state`,
     );
+    // Keep the newer of the cached and stored timestamps: a local run whose
+    // state write failed must not be rolled back to the older DB value.
     for (const row of rows.rows) {
-      stateCache.set(row.task_key, new Date(row.last_run_at).getTime());
+      const stored = new Date(row.last_run_at).getTime();
+      stateCache.set(row.task_key, Math.max(stored, stateCache.get(row.task_key) ?? 0));
     }
-    logger.info({ keys: rows.rowCount }, "Scheduler state loaded from DB");
+    logger.debug({ keys: rows.rowCount }, "Scheduler state loaded from DB");
   } catch (err) {
     logger.warn({ err }, "Failed to load scheduler state from DB — all tasks will start fresh");
   }
@@ -1023,6 +1031,20 @@ async function processImprovementPasses(): Promise<void> {
 
 const BRAIN_DISTILL_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+const RECOMMENDATION_OUTCOME_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+async function processRecommendationOutcomes(): Promise<void> {
+  const now = Date.now();
+  if (now - getState("recommendation_outcomes") < RECOMMENDATION_OUTCOME_INTERVAL_MS) return;
+  await setState("recommendation_outcomes", now);
+  try {
+    const result = await measureRecommendationOutcomes(new Date(now));
+    logger.info(result, "Recommendation outcome tick complete");
+  } catch (err) {
+    logger.warn({ err }, "Recommendation outcome tick failed");
+  }
+}
+
 async function processBrainDistillation(): Promise<void> {
   const now = Date.now();
   if (now - getState("brain_distill") < BRAIN_DISTILL_INTERVAL_MS) return;
@@ -1033,6 +1055,32 @@ async function processBrainDistillation(): Promise<void> {
     logger.info(result, "ASH brain distillation tick complete");
   } catch (err) {
     logger.warn({ err }, "ASH brain distillation tick failed");
+  }
+}
+
+// ─── Scheduled research tick ─────────────────────────────────────────────────
+// Daily check; each Operations Mode business gets market research once a week.
+
+const SCHEDULED_RESEARCH_TICK_MS = 24 * 60 * 60 * 1000;
+
+async function processScheduledResearch(): Promise<void> {
+  const now = Date.now();
+  if (now - getState("scheduled_research") < SCHEDULED_RESEARCH_TICK_MS) return;
+  await setState("scheduled_research", now);
+  try {
+    const result = await runScheduledResearch({ now, lastRun: getState, markRun: setState });
+    logger.info(result, "Scheduled research tick complete");
+  } catch (err) {
+    logger.warn({ err }, "Scheduled research tick failed");
+  }
+}
+
+async function processOpportunityScan(): Promise<void> {
+  try {
+    const result = await runOpportunityScan({ now: Date.now(), lastRun: getState, markRun: setState });
+    if (result.reason !== "not_due") logger.info(result, "Opportunity scan tick complete");
+  } catch (err) {
+    logger.warn({ err }, "Opportunity scan tick failed");
   }
 }
 
@@ -1138,24 +1186,39 @@ export function startScheduler(): void {
   if (running) return;
   running = true;
 
+  async function tick(): Promise<void> {
+    // Another replica may have run tasks since our last tick; refresh the cache
+    // so a task it already ran is not run again here.
+    await loadSchedulerState();
+    await processDueTasks();
+    await processABTests();
+    await processWeeklyDigest();
+    await processEmailSequences();
+    await processDuePosts();
+    await processHealthMonitoring();
+    await processHungJobWatchdog();
+    await processImprovementPasses();
+    await processBrainDistillation();
+    await processScheduledResearch();
+    await processOpportunityScan();
+    await processRecommendationOutcomes();
+    await processExpiringCredentialWarnings();
+    await processMemoryMaintenance();
+    await processBusinessIntelligenceReconciliation();
+    await processDolSessionExpiry(); // A-03: DOL stale session cleanup, every 5 min
+  }
+
   async function loop(): Promise<void> {
+    let done!: () => void;
+    inFlight = new Promise<void>((r) => (done = r));
     try {
-      await processDueTasks();
-      await processABTests();
-      await processWeeklyDigest();
-      await processEmailSequences();
-      await processDuePosts();
-      await processHealthMonitoring();
-      await processHungJobWatchdog();
-      await processImprovementPasses();
-      await processBrainDistillation();
-      await processExpiringCredentialWarnings();
-      await processMemoryMaintenance();
-      await processBusinessIntelligenceReconciliation();
-      await processDolSessionExpiry(); // A-03: DOL stale session cleanup, every 5 min
+      // Only one replica runs a tick at a time; the others skip it.
+      const outcome = await runIfLockAcquired(SCHEDULER_LOCK_KEY, tick);
+      if (!outcome.ran) logger.debug("Scheduler tick skipped: another instance holds the lock");
     } catch (err) {
       logger.error({ err }, "Scheduler loop error");
     } finally {
+      done();
       if (running) setTimeout(loop, POLL_INTERVAL_MS);
     }
   }
@@ -1175,7 +1238,11 @@ export function startScheduler(): void {
   logger.info({ pollIntervalMs: POLL_INTERVAL_MS }, "Scheduler started");
 }
 
-export function stopScheduler(): void {
+// Resolves once the tick in progress (if any) has finished.
+export function stopScheduler(): Promise<void> {
   running = false;
   logger.info("Scheduler stopped");
+  return inFlight;
 }
+
+export const __schedulerStateForTests = { ensureSchedulerStateTable, loadSchedulerState, getState, setState };

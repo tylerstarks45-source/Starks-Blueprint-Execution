@@ -37,11 +37,28 @@ jobs:
         run: pnpm --filter @workspace/scripts run db:migrate
       - name: Seed (run twice to prove idempotency)
         run: pnpm --filter @workspace/scripts run seed && pnpm --filter @workspace/scripts run seed
+      - name: Backup/restore drill
+        run: |
+          # Client tools must match the server major version (newer pg_dump emits settings PG16 rejects).
+          mkdir -p "$RUNNER_TEMP/pg16"
+          for t in pg_dump pg_restore psql; do
+            printf '#!/bin/sh\nexec docker run --rm -i --network host -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD -e PGDATABASE -e PGSSLMODE -v "$PWD:$PWD" -v /tmp:/tmp -w "$PWD" postgres:16 %s "$@"\n' "$t" > "$RUNNER_TEMP/pg16/$t"
+            chmod +x "$RUNNER_TEMP/pg16/$t"
+          done
+          export PATH="$RUNNER_TEMP/pg16:$PATH"
+          pnpm --filter @workspace/scripts run db:drill
       - name: Schema and migrations are in sync
         run: |
           (cd lib/db && pnpm exec drizzle-kit generate --config ./drizzle.config.ts)
           git status --porcelain lib/db/drizzle
           test -z "$(git status --porcelain lib/db/drizzle)" || { echo "Schema changed without a migration: run drizzle-kit generate in lib/db and commit the result."; exit 1; }
+
+      - name: Generated API clients match openapi.yaml
+        run: |
+          (cd lib/api-spec && pnpm exec orval --config ./orval.config.ts)
+          paths="lib/api-client-react/src/generated lib/api-zod/src/generated"
+          git status --porcelain $paths
+          test -z "$(git status --porcelain $paths)" || { echo "openapi.yaml changed without regenerating clients: run 'pnpm --filter @workspace/api-spec run codegen' and commit the result."; exit 1; }
 
       - run: pnpm run typecheck
       - name: API tests

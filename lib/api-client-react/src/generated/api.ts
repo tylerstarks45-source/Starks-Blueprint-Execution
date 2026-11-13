@@ -86,12 +86,17 @@ import type {
   BusinessTimelineResponse,
   BusinessUpdate,
   BusinessWithConnections,
+  CreatePlatformProject200,
+  CreatePlatformProjectBody,
+  CreatePlatformWorkspace200,
+  CreatePlatformWorkspaceBody,
   CreditBalance,
   CreditCheckoutSession,
   CreditConfig,
   CreditTransaction,
   CrossBusinessSummary,
   CrossSystemActivityEvent,
+  DiscoverConnections200,
   DomainDnsSetupResponse,
   DomainDnsVerifyResponse,
   DomainLinkBody,
@@ -108,6 +113,26 @@ import type {
   GetAdminUsageByUserParams,
   GetBusinessLogsParams,
   GetBusinessRecommendationsParams,
+  GetCertificationLaunchReport200,
+  GetCertificationResults200,
+  GetConnectionAudit200,
+  GetConnectionAuditParams,
+  GetConnectionRegistry200,
+  GetConnectionSnapshots200,
+  GetLaunchBlockers200,
+  GetLaunchFindings200,
+  GetLaunchFindingsParams,
+  GetLaunchHardeningSnapshots200,
+  GetLaunchHardeningStatus200,
+  GetPlatformActivity200,
+  GetPlatformActivityParams,
+  GetPlatformContext200,
+  GetPlatformRegistry200,
+  GetPlatformRuntime200,
+  GetPlatformSearch200,
+  GetPlatformSearchParams,
+  GetPlatformSnapshots200,
+  GetPlatformSnapshotsParams,
   GetSystemLogsParams,
   HealthStatus,
   ListAdminActivityParams,
@@ -119,8 +144,15 @@ import type {
   ListBuildSessionsParams,
   ListBusinessRecommendationsResponse,
   ListBusinessesParams,
+  ListConnectionCapabilities200,
+  ListConnectionCapabilitiesParams,
+  ListConnectionProviders200,
+  ListConnectionProvidersParams,
   ListNotificationsParams,
   ListOpenrouterUsageParams,
+  ListPlatformApplications200,
+  ListPlatformCommands200,
+  ListPlatformCommandsParams,
   ListPlatformUsersParams,
   ListSocialPostsParams,
   ListSystemInstancesParams,
@@ -137,8 +169,17 @@ import type {
   OpenrouterUsageSummary,
   PendingApproval,
   RecomputeHealthResponse,
+  RegisterConnectionProvider200,
+  RegisterConnectionProviderBody,
+  RegisterPlatformApplication200,
+  RegisterPlatformApplicationBody,
+  RegisterPlatformCommands200,
+  RegisterPlatformCommandsBody,
+  RevalidateCertification200,
   RotateKeyBody,
   RotateKeyResult,
+  RunCertification200,
+  RunCertificationBody,
   ScheduledPost,
   ScheduledPostInput,
   ScheduledPostUpdate,
@@ -160,6 +201,8 @@ import type {
   ToolCategoryUpdate,
   ToolInput,
   ToolUpdate,
+  UpdatePlatformContext200,
+  UpdatePlatformContextBody,
   UpgradeRequiredResponse,
   User,
   UserCredentialInput,
@@ -11002,4 +11045,2153 @@ export const useRevertPendingApproval = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getRevertPendingApprovalMutationOptions(options));
     }
+
+export const getCreatePlatformWorkspaceUrl = () => {
+
+
+
+
+  return `/api/platform/workspaces`
+}
+
+/**
+ * @summary Create a new platform workspace for the authenticated user
+ */
+export const createPlatformWorkspace = async (createPlatformWorkspaceBody: CreatePlatformWorkspaceBody, options?: RequestInit): Promise<CreatePlatformWorkspace200> => {
+
+  return customFetch<CreatePlatformWorkspace200>(getCreatePlatformWorkspaceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createPlatformWorkspaceBody,)
+  }
+);}
+
+
+
+
+export const getCreatePlatformWorkspaceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformWorkspace>>, TError,{data: BodyType<CreatePlatformWorkspaceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPlatformWorkspace>>, TError,{data: BodyType<CreatePlatformWorkspaceBody>}, TContext> => {
+
+const mutationKey = ['createPlatformWorkspace'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPlatformWorkspace>>, {data: BodyType<CreatePlatformWorkspaceBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPlatformWorkspace(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePlatformWorkspaceMutationResult = NonNullable<Awaited<ReturnType<typeof createPlatformWorkspace>>>
+    export type CreatePlatformWorkspaceMutationBody = BodyType<CreatePlatformWorkspaceBody>
+    export type CreatePlatformWorkspaceMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new platform workspace for the authenticated user
+ */
+export const useCreatePlatformWorkspace = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformWorkspace>>, TError,{data: BodyType<CreatePlatformWorkspaceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPlatformWorkspace>>,
+        TError,
+        {data: BodyType<CreatePlatformWorkspaceBody>},
+        TContext
+      > => {
+      return useMutation(getCreatePlatformWorkspaceMutationOptions(options));
+    }
+
+export const getCreatePlatformProjectUrl = () => {
+
+
+
+
+  return `/api/platform/projects`
+}
+
+/**
+ * @summary Create a new platform project
+ */
+export const createPlatformProject = async (createPlatformProjectBody: CreatePlatformProjectBody, options?: RequestInit): Promise<CreatePlatformProject200> => {
+
+  return customFetch<CreatePlatformProject200>(getCreatePlatformProjectUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createPlatformProjectBody,)
+  }
+);}
+
+
+
+
+export const getCreatePlatformProjectMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformProject>>, TError,{data: BodyType<CreatePlatformProjectBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPlatformProject>>, TError,{data: BodyType<CreatePlatformProjectBody>}, TContext> => {
+
+const mutationKey = ['createPlatformProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPlatformProject>>, {data: BodyType<CreatePlatformProjectBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPlatformProject(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePlatformProjectMutationResult = NonNullable<Awaited<ReturnType<typeof createPlatformProject>>>
+    export type CreatePlatformProjectMutationBody = BodyType<CreatePlatformProjectBody>
+    export type CreatePlatformProjectMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new platform project
+ */
+export const useCreatePlatformProject = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformProject>>, TError,{data: BodyType<CreatePlatformProjectBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPlatformProject>>,
+        TError,
+        {data: BodyType<CreatePlatformProjectBody>},
+        TContext
+      > => {
+      return useMutation(getCreatePlatformProjectMutationOptions(options));
+    }
+
+export const getListPlatformApplicationsUrl = () => {
+
+
+
+
+  return `/api/platform/applications`
+}
+
+/**
+ * @summary List all registered platform applications
+ */
+export const listPlatformApplications = async ( options?: RequestInit): Promise<ListPlatformApplications200> => {
+
+  return customFetch<ListPlatformApplications200>(getListPlatformApplicationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlatformApplicationsQueryKey = () => {
+    return [
+    `/api/platform/applications`
+    ] as const;
+    }
+
+
+export const getListPlatformApplicationsQueryOptions = <TData = Awaited<ReturnType<typeof listPlatformApplications>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlatformApplicationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlatformApplications>>> = ({ signal }) => listPlatformApplications({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlatformApplications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlatformApplicationsQueryResult = NonNullable<Awaited<ReturnType<typeof listPlatformApplications>>>
+export type ListPlatformApplicationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all registered platform applications
+ */
+
+export function useListPlatformApplications<TData = Awaited<ReturnType<typeof listPlatformApplications>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlatformApplicationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRegisterPlatformApplicationUrl = () => {
+
+
+
+
+  return `/api/platform/applications`
+}
+
+/**
+ * @summary Register a new application in UPOS (admin only)
+ */
+export const registerPlatformApplication = async (registerPlatformApplicationBody: RegisterPlatformApplicationBody, options?: RequestInit): Promise<RegisterPlatformApplication200> => {
+
+  return customFetch<RegisterPlatformApplication200>(getRegisterPlatformApplicationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      registerPlatformApplicationBody,)
+  }
+);}
+
+
+
+
+export const getRegisterPlatformApplicationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerPlatformApplication>>, TError,{data: BodyType<RegisterPlatformApplicationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerPlatformApplication>>, TError,{data: BodyType<RegisterPlatformApplicationBody>}, TContext> => {
+
+const mutationKey = ['registerPlatformApplication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerPlatformApplication>>, {data: BodyType<RegisterPlatformApplicationBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  registerPlatformApplication(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterPlatformApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof registerPlatformApplication>>>
+    export type RegisterPlatformApplicationMutationBody = BodyType<RegisterPlatformApplicationBody>
+    export type RegisterPlatformApplicationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Register a new application in UPOS (admin only)
+ */
+export const useRegisterPlatformApplication = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerPlatformApplication>>, TError,{data: BodyType<RegisterPlatformApplicationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerPlatformApplication>>,
+        TError,
+        {data: BodyType<RegisterPlatformApplicationBody>},
+        TContext
+      > => {
+      return useMutation(getRegisterPlatformApplicationMutationOptions(options));
+    }
+
+export const getListPlatformCommandsUrl = (params?: ListPlatformCommandsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/platform/commands?${stringifiedParams}` : `/api/platform/commands`
+}
+
+/**
+ * @summary List all active platform commands; optionally filter by appId
+ */
+export const listPlatformCommands = async (params?: ListPlatformCommandsParams, options?: RequestInit): Promise<ListPlatformCommands200> => {
+
+  return customFetch<ListPlatformCommands200>(getListPlatformCommandsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlatformCommandsQueryKey = (params?: ListPlatformCommandsParams,) => {
+    return [
+    `/api/platform/commands`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPlatformCommandsQueryOptions = <TData = Awaited<ReturnType<typeof listPlatformCommands>>, TError = ErrorType<unknown>>(params?: ListPlatformCommandsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformCommands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlatformCommandsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlatformCommands>>> = ({ signal }) => listPlatformCommands(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlatformCommands>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlatformCommandsQueryResult = NonNullable<Awaited<ReturnType<typeof listPlatformCommands>>>
+export type ListPlatformCommandsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all active platform commands; optionally filter by appId
+ */
+
+export function useListPlatformCommands<TData = Awaited<ReturnType<typeof listPlatformCommands>>, TError = ErrorType<unknown>>(
+ params?: ListPlatformCommandsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformCommands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlatformCommandsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRegisterPlatformCommandsUrl = () => {
+
+
+
+
+  return `/api/platform/commands`
+}
+
+/**
+ * @summary Register commands for an application (admin only)
+ */
+export const registerPlatformCommands = async (registerPlatformCommandsBody: RegisterPlatformCommandsBody, options?: RequestInit): Promise<RegisterPlatformCommands200> => {
+
+  return customFetch<RegisterPlatformCommands200>(getRegisterPlatformCommandsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      registerPlatformCommandsBody,)
+  }
+);}
+
+
+
+
+export const getRegisterPlatformCommandsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerPlatformCommands>>, TError,{data: BodyType<RegisterPlatformCommandsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerPlatformCommands>>, TError,{data: BodyType<RegisterPlatformCommandsBody>}, TContext> => {
+
+const mutationKey = ['registerPlatformCommands'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerPlatformCommands>>, {data: BodyType<RegisterPlatformCommandsBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  registerPlatformCommands(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterPlatformCommandsMutationResult = NonNullable<Awaited<ReturnType<typeof registerPlatformCommands>>>
+    export type RegisterPlatformCommandsMutationBody = BodyType<RegisterPlatformCommandsBody>
+    export type RegisterPlatformCommandsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Register commands for an application (admin only)
+ */
+export const useRegisterPlatformCommands = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerPlatformCommands>>, TError,{data: BodyType<RegisterPlatformCommandsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerPlatformCommands>>,
+        TError,
+        {data: BodyType<RegisterPlatformCommandsBody>},
+        TContext
+      > => {
+      return useMutation(getRegisterPlatformCommandsMutationOptions(options));
+    }
+
+export const getGetPlatformRuntimeUrl = () => {
+
+
+
+
+  return `/api/platform/runtime`
+}
+
+/**
+ * @summary Get the authenticated user's UPOS runtime state
+ */
+export const getPlatformRuntime = async ( options?: RequestInit): Promise<GetPlatformRuntime200> => {
+
+  return customFetch<GetPlatformRuntime200>(getGetPlatformRuntimeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformRuntimeQueryKey = () => {
+    return [
+    `/api/platform/runtime`
+    ] as const;
+    }
+
+
+export const getGetPlatformRuntimeQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformRuntime>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformRuntime>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformRuntimeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformRuntime>>> = ({ signal }) => getPlatformRuntime({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformRuntime>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformRuntimeQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformRuntime>>>
+export type GetPlatformRuntimeQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the authenticated user's UPOS runtime state
+ */
+
+export function useGetPlatformRuntime<TData = Awaited<ReturnType<typeof getPlatformRuntime>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformRuntime>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformRuntimeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPlatformContextUrl = () => {
+
+
+
+
+  return `/api/platform/context`
+}
+
+/**
+ * @summary Get the user's current UPOS navigation context (ASH always has access to this)
+ */
+export const getPlatformContext = async ( options?: RequestInit): Promise<GetPlatformContext200> => {
+
+  return customFetch<GetPlatformContext200>(getGetPlatformContextUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformContextQueryKey = () => {
+    return [
+    `/api/platform/context`
+    ] as const;
+    }
+
+
+export const getGetPlatformContextQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformContext>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformContext>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformContextQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformContext>>> = ({ signal }) => getPlatformContext({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformContext>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformContextQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformContext>>>
+export type GetPlatformContextQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the user's current UPOS navigation context (ASH always has access to this)
+ */
+
+export function useGetPlatformContext<TData = Awaited<ReturnType<typeof getPlatformContext>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformContext>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformContextQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdatePlatformContextUrl = () => {
+
+
+
+
+  return `/api/platform/context`
+}
+
+/**
+ * @summary Update the user's current context (called by each page as it loads)
+ */
+export const updatePlatformContext = async (updatePlatformContextBody?: UpdatePlatformContextBody, options?: RequestInit): Promise<UpdatePlatformContext200> => {
+
+  return customFetch<UpdatePlatformContext200>(getUpdatePlatformContextUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updatePlatformContextBody,)
+  }
+);}
+
+
+
+
+export const getUpdatePlatformContextMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformContext>>, TError,{data?: BodyType<UpdatePlatformContextBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlatformContext>>, TError,{data?: BodyType<UpdatePlatformContextBody>}, TContext> => {
+
+const mutationKey = ['updatePlatformContext'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlatformContext>>, {data?: BodyType<UpdatePlatformContextBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updatePlatformContext(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlatformContextMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlatformContext>>>
+    export type UpdatePlatformContextMutationBody = BodyType<UpdatePlatformContextBody> | undefined
+    export type UpdatePlatformContextMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update the user's current context (called by each page as it loads)
+ */
+export const useUpdatePlatformContext = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformContext>>, TError,{data?: BodyType<UpdatePlatformContextBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlatformContext>>,
+        TError,
+        {data?: BodyType<UpdatePlatformContextBody>},
+        TContext
+      > => {
+      return useMutation(getUpdatePlatformContextMutationOptions(options));
+    }
+
+export const getGetPlatformSearchUrl = (params: GetPlatformSearchParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/platform/search?${stringifiedParams}` : `/api/platform/search`
+}
+
+/**
+ * @summary Global unified search across apps, commands, projects, and workspaces
+ */
+export const getPlatformSearch = async (params: GetPlatformSearchParams, options?: RequestInit): Promise<GetPlatformSearch200> => {
+
+  return customFetch<GetPlatformSearch200>(getGetPlatformSearchUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformSearchQueryKey = (params?: GetPlatformSearchParams,) => {
+    return [
+    `/api/platform/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPlatformSearchQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformSearch>>, TError = ErrorType<unknown>>(params: GetPlatformSearchParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformSearch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformSearchQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformSearch>>> = ({ signal }) => getPlatformSearch(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformSearch>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformSearchQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformSearch>>>
+export type GetPlatformSearchQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Global unified search across apps, commands, projects, and workspaces
+ */
+
+export function useGetPlatformSearch<TData = Awaited<ReturnType<typeof getPlatformSearch>>, TError = ErrorType<unknown>>(
+ params: GetPlatformSearchParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformSearch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformSearchQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPlatformActivityUrl = (params?: GetPlatformActivityParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/platform/activity?${stringifiedParams}` : `/api/platform/activity`
+}
+
+/**
+ * @summary Get the authenticated user's platform activity timeline
+ */
+export const getPlatformActivity = async (params?: GetPlatformActivityParams, options?: RequestInit): Promise<GetPlatformActivity200> => {
+
+  return customFetch<GetPlatformActivity200>(getGetPlatformActivityUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformActivityQueryKey = (params?: GetPlatformActivityParams,) => {
+    return [
+    `/api/platform/activity`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPlatformActivityQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformActivity>>, TError = ErrorType<unknown>>(params?: GetPlatformActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformActivityQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformActivity>>> = ({ signal }) => getPlatformActivity(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformActivityQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformActivity>>>
+export type GetPlatformActivityQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the authenticated user's platform activity timeline
+ */
+
+export function useGetPlatformActivity<TData = Awaited<ReturnType<typeof getPlatformActivity>>, TError = ErrorType<unknown>>(
+ params?: GetPlatformActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformActivityQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPlatformRegistryUrl = () => {
+
+
+
+
+  return `/api/platform/registry`
+}
+
+/**
+ * @summary Get the platform application registry
+ */
+export const getPlatformRegistry = async ( options?: RequestInit): Promise<GetPlatformRegistry200> => {
+
+  return customFetch<GetPlatformRegistry200>(getGetPlatformRegistryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformRegistryQueryKey = () => {
+    return [
+    `/api/platform/registry`
+    ] as const;
+    }
+
+
+export const getGetPlatformRegistryQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformRegistry>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformRegistry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformRegistryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformRegistry>>> = ({ signal }) => getPlatformRegistry({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformRegistry>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformRegistryQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformRegistry>>>
+export type GetPlatformRegistryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the platform application registry
+ */
+
+export function useGetPlatformRegistry<TData = Awaited<ReturnType<typeof getPlatformRegistry>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformRegistry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformRegistryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPlatformSnapshotsUrl = (params?: GetPlatformSnapshotsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/platform/snapshots?${stringifiedParams}` : `/api/platform/snapshots`
+}
+
+/**
+ * @summary Get platform runtime snapshots (admin only)
+ */
+export const getPlatformSnapshots = async (params?: GetPlatformSnapshotsParams, options?: RequestInit): Promise<GetPlatformSnapshots200> => {
+
+  return customFetch<GetPlatformSnapshots200>(getGetPlatformSnapshotsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformSnapshotsQueryKey = (params?: GetPlatformSnapshotsParams,) => {
+    return [
+    `/api/platform/snapshots`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPlatformSnapshotsQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformSnapshots>>, TError = ErrorType<unknown>>(params?: GetPlatformSnapshotsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformSnapshotsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformSnapshots>>> = ({ signal }) => getPlatformSnapshots(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformSnapshots>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformSnapshotsQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformSnapshots>>>
+export type GetPlatformSnapshotsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get platform runtime snapshots (admin only)
+ */
+
+export function useGetPlatformSnapshots<TData = Awaited<ReturnType<typeof getPlatformSnapshots>>, TError = ErrorType<unknown>>(
+ params?: GetPlatformSnapshotsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformSnapshotsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListConnectionProvidersUrl = (params?: ListConnectionProvidersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/connections/providers?${stringifiedParams}` : `/api/connections/providers`
+}
+
+/**
+ * @summary List all known integration providers
+ */
+export const listConnectionProviders = async (params?: ListConnectionProvidersParams, options?: RequestInit): Promise<ListConnectionProviders200> => {
+
+  return customFetch<ListConnectionProviders200>(getListConnectionProvidersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListConnectionProvidersQueryKey = (params?: ListConnectionProvidersParams,) => {
+    return [
+    `/api/connections/providers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListConnectionProvidersQueryOptions = <TData = Awaited<ReturnType<typeof listConnectionProviders>>, TError = ErrorType<unknown>>(params?: ListConnectionProvidersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConnectionProviders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListConnectionProvidersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listConnectionProviders>>> = ({ signal }) => listConnectionProviders(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listConnectionProviders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListConnectionProvidersQueryResult = NonNullable<Awaited<ReturnType<typeof listConnectionProviders>>>
+export type ListConnectionProvidersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all known integration providers
+ */
+
+export function useListConnectionProviders<TData = Awaited<ReturnType<typeof listConnectionProviders>>, TError = ErrorType<unknown>>(
+ params?: ListConnectionProvidersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConnectionProviders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListConnectionProvidersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListConnectionCapabilitiesUrl = (params?: ListConnectionCapabilitiesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/connections/capabilities?${stringifiedParams}` : `/api/connections/capabilities`
+}
+
+/**
+ * @summary List provider capabilities; optionally filter by capability name
+ */
+export const listConnectionCapabilities = async (params?: ListConnectionCapabilitiesParams, options?: RequestInit): Promise<ListConnectionCapabilities200> => {
+
+  return customFetch<ListConnectionCapabilities200>(getListConnectionCapabilitiesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListConnectionCapabilitiesQueryKey = (params?: ListConnectionCapabilitiesParams,) => {
+    return [
+    `/api/connections/capabilities`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListConnectionCapabilitiesQueryOptions = <TData = Awaited<ReturnType<typeof listConnectionCapabilities>>, TError = ErrorType<unknown>>(params?: ListConnectionCapabilitiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConnectionCapabilities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListConnectionCapabilitiesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listConnectionCapabilities>>> = ({ signal }) => listConnectionCapabilities(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listConnectionCapabilities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListConnectionCapabilitiesQueryResult = NonNullable<Awaited<ReturnType<typeof listConnectionCapabilities>>>
+export type ListConnectionCapabilitiesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List provider capabilities; optionally filter by capability name
+ */
+
+export function useListConnectionCapabilities<TData = Awaited<ReturnType<typeof listConnectionCapabilities>>, TError = ErrorType<unknown>>(
+ params?: ListConnectionCapabilitiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConnectionCapabilities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListConnectionCapabilitiesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetConnectionRegistryUrl = () => {
+
+
+
+
+  return `/api/connections/registry`
+}
+
+/**
+ * @summary Get the full connection registry ordered by domain
+ */
+export const getConnectionRegistry = async ( options?: RequestInit): Promise<GetConnectionRegistry200> => {
+
+  return customFetch<GetConnectionRegistry200>(getGetConnectionRegistryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetConnectionRegistryQueryKey = () => {
+    return [
+    `/api/connections/registry`
+    ] as const;
+    }
+
+
+export const getGetConnectionRegistryQueryOptions = <TData = Awaited<ReturnType<typeof getConnectionRegistry>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConnectionRegistry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetConnectionRegistryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getConnectionRegistry>>> = ({ signal }) => getConnectionRegistry({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getConnectionRegistry>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetConnectionRegistryQueryResult = NonNullable<Awaited<ReturnType<typeof getConnectionRegistry>>>
+export type GetConnectionRegistryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the full connection registry ordered by domain
+ */
+
+export function useGetConnectionRegistry<TData = Awaited<ReturnType<typeof getConnectionRegistry>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConnectionRegistry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetConnectionRegistryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRegisterConnectionProviderUrl = () => {
+
+
+
+
+  return `/api/connections/register`
+}
+
+/**
+ * @summary Register a new integration provider
+ */
+export const registerConnectionProvider = async (registerConnectionProviderBody: RegisterConnectionProviderBody, options?: RequestInit): Promise<RegisterConnectionProvider200> => {
+
+  return customFetch<RegisterConnectionProvider200>(getRegisterConnectionProviderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      registerConnectionProviderBody,)
+  }
+);}
+
+
+
+
+export const getRegisterConnectionProviderMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerConnectionProvider>>, TError,{data: BodyType<RegisterConnectionProviderBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerConnectionProvider>>, TError,{data: BodyType<RegisterConnectionProviderBody>}, TContext> => {
+
+const mutationKey = ['registerConnectionProvider'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerConnectionProvider>>, {data: BodyType<RegisterConnectionProviderBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  registerConnectionProvider(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterConnectionProviderMutationResult = NonNullable<Awaited<ReturnType<typeof registerConnectionProvider>>>
+    export type RegisterConnectionProviderMutationBody = BodyType<RegisterConnectionProviderBody>
+    export type RegisterConnectionProviderMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Register a new integration provider
+ */
+export const useRegisterConnectionProvider = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerConnectionProvider>>, TError,{data: BodyType<RegisterConnectionProviderBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerConnectionProvider>>,
+        TError,
+        {data: BodyType<RegisterConnectionProviderBody>},
+        TContext
+      > => {
+      return useMutation(getRegisterConnectionProviderMutationOptions(options));
+    }
+
+export const getDiscoverConnectionsUrl = () => {
+
+
+
+
+  return `/api/connections/discover`
+}
+
+/**
+ * @summary Trigger full provider catalog seeding and capability discovery (admin only)
+ */
+export const discoverConnections = async ( options?: RequestInit): Promise<DiscoverConnections200> => {
+
+  return customFetch<DiscoverConnections200>(getDiscoverConnectionsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getDiscoverConnectionsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discoverConnections>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof discoverConnections>>, TError,void, TContext> => {
+
+const mutationKey = ['discoverConnections'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof discoverConnections>>, void> = () => {
+
+
+          return  discoverConnections(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DiscoverConnectionsMutationResult = NonNullable<Awaited<ReturnType<typeof discoverConnections>>>
+
+    export type DiscoverConnectionsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Trigger full provider catalog seeding and capability discovery (admin only)
+ */
+export const useDiscoverConnections = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discoverConnections>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof discoverConnections>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDiscoverConnectionsMutationOptions(options));
+    }
+
+export const getGetConnectionSnapshotsUrl = () => {
+
+
+
+
+  return `/api/connections/snapshots`
+}
+
+/**
+ * @summary List connection hub snapshots (admin only)
+ */
+export const getConnectionSnapshots = async ( options?: RequestInit): Promise<GetConnectionSnapshots200> => {
+
+  return customFetch<GetConnectionSnapshots200>(getGetConnectionSnapshotsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetConnectionSnapshotsQueryKey = () => {
+    return [
+    `/api/connections/snapshots`
+    ] as const;
+    }
+
+
+export const getGetConnectionSnapshotsQueryOptions = <TData = Awaited<ReturnType<typeof getConnectionSnapshots>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConnectionSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetConnectionSnapshotsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getConnectionSnapshots>>> = ({ signal }) => getConnectionSnapshots({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getConnectionSnapshots>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetConnectionSnapshotsQueryResult = NonNullable<Awaited<ReturnType<typeof getConnectionSnapshots>>>
+export type GetConnectionSnapshotsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List connection hub snapshots (admin only)
+ */
+
+export function useGetConnectionSnapshots<TData = Awaited<ReturnType<typeof getConnectionSnapshots>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConnectionSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetConnectionSnapshotsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetConnectionAuditUrl = (params?: GetConnectionAuditParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/connections/audit?${stringifiedParams}` : `/api/connections/audit`
+}
+
+/**
+ * @summary Get connection hub audit log (admin only)
+ */
+export const getConnectionAudit = async (params?: GetConnectionAuditParams, options?: RequestInit): Promise<GetConnectionAudit200> => {
+
+  return customFetch<GetConnectionAudit200>(getGetConnectionAuditUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetConnectionAuditQueryKey = (params?: GetConnectionAuditParams,) => {
+    return [
+    `/api/connections/audit`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetConnectionAuditQueryOptions = <TData = Awaited<ReturnType<typeof getConnectionAudit>>, TError = ErrorType<unknown>>(params?: GetConnectionAuditParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConnectionAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetConnectionAuditQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getConnectionAudit>>> = ({ signal }) => getConnectionAudit(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getConnectionAudit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetConnectionAuditQueryResult = NonNullable<Awaited<ReturnType<typeof getConnectionAudit>>>
+export type GetConnectionAuditQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get connection hub audit log (admin only)
+ */
+
+export function useGetConnectionAudit<TData = Awaited<ReturnType<typeof getConnectionAudit>>, TError = ErrorType<unknown>>(
+ params?: GetConnectionAuditParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConnectionAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetConnectionAuditQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRunCertificationUrl = () => {
+
+
+
+
+  return `/api/certification/run`
+}
+
+/**
+ * @summary Trigger a full certification run (admin only)
+ */
+export const runCertification = async (runCertificationBody?: RunCertificationBody, options?: RequestInit): Promise<RunCertification200> => {
+
+  return customFetch<RunCertification200>(getRunCertificationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      runCertificationBody,)
+  }
+);}
+
+
+
+
+export const getRunCertificationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runCertification>>, TError,{data?: BodyType<RunCertificationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runCertification>>, TError,{data?: BodyType<RunCertificationBody>}, TContext> => {
+
+const mutationKey = ['runCertification'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runCertification>>, {data?: BodyType<RunCertificationBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  runCertification(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunCertificationMutationResult = NonNullable<Awaited<ReturnType<typeof runCertification>>>
+    export type RunCertificationMutationBody = BodyType<RunCertificationBody> | undefined
+    export type RunCertificationMutationError = ErrorType<void>
+
+    /**
+ * @summary Trigger a full certification run (admin only)
+ */
+export const useRunCertification = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runCertification>>, TError,{data?: BodyType<RunCertificationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runCertification>>,
+        TError,
+        {data?: BodyType<RunCertificationBody>},
+        TContext
+      > => {
+      return useMutation(getRunCertificationMutationOptions(options));
+    }
+
+export const getGetCertificationResultsUrl = () => {
+
+
+
+
+  return `/api/certification/results`
+}
+
+/**
+ * @summary List the last 10 certification runs (admin only)
+ */
+export const getCertificationResults = async ( options?: RequestInit): Promise<GetCertificationResults200> => {
+
+  return customFetch<GetCertificationResults200>(getGetCertificationResultsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCertificationResultsQueryKey = () => {
+    return [
+    `/api/certification/results`
+    ] as const;
+    }
+
+
+export const getGetCertificationResultsQueryOptions = <TData = Awaited<ReturnType<typeof getCertificationResults>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCertificationResults>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCertificationResultsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCertificationResults>>> = ({ signal }) => getCertificationResults({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCertificationResults>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCertificationResultsQueryResult = NonNullable<Awaited<ReturnType<typeof getCertificationResults>>>
+export type GetCertificationResultsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the last 10 certification runs (admin only)
+ */
+
+export function useGetCertificationResults<TData = Awaited<ReturnType<typeof getCertificationResults>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCertificationResults>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCertificationResultsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetCertificationLaunchReportUrl = () => {
+
+
+
+
+  return `/api/certification/launch-report`
+}
+
+/**
+ * @summary Generate a launch readiness report (admin only)
+ */
+export const getCertificationLaunchReport = async ( options?: RequestInit): Promise<GetCertificationLaunchReport200> => {
+
+  return customFetch<GetCertificationLaunchReport200>(getGetCertificationLaunchReportUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getGetCertificationLaunchReportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getCertificationLaunchReport>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof getCertificationLaunchReport>>, TError,void, TContext> => {
+
+const mutationKey = ['getCertificationLaunchReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getCertificationLaunchReport>>, void> = () => {
+
+
+          return  getCertificationLaunchReport(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GetCertificationLaunchReportMutationResult = NonNullable<Awaited<ReturnType<typeof getCertificationLaunchReport>>>
+
+    export type GetCertificationLaunchReportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate a launch readiness report (admin only)
+ */
+export const useGetCertificationLaunchReport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getCertificationLaunchReport>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof getCertificationLaunchReport>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getGetCertificationLaunchReportMutationOptions(options));
+    }
+
+export const getRevalidateCertificationUrl = () => {
+
+
+
+
+  return `/api/certification/revalidate`
+}
+
+/**
+ * @summary Re-run architecture validation (admin only)
+ */
+export const revalidateCertification = async ( options?: RequestInit): Promise<RevalidateCertification200> => {
+
+  return customFetch<RevalidateCertification200>(getRevalidateCertificationUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRevalidateCertificationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revalidateCertification>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revalidateCertification>>, TError,void, TContext> => {
+
+const mutationKey = ['revalidateCertification'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revalidateCertification>>, void> = () => {
+
+
+          return  revalidateCertification(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevalidateCertificationMutationResult = NonNullable<Awaited<ReturnType<typeof revalidateCertification>>>
+
+    export type RevalidateCertificationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Re-run architecture validation (admin only)
+ */
+export const useRevalidateCertification = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revalidateCertification>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revalidateCertification>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRevalidateCertificationMutationOptions(options));
+    }
+
+export const getGetLaunchHardeningStatusUrl = () => {
+
+
+
+
+  return `/api/launch-hardening/status`
+}
+
+/**
+ * @summary Get overall launch hardening status (admin only)
+ */
+export const getLaunchHardeningStatus = async ( options?: RequestInit): Promise<GetLaunchHardeningStatus200> => {
+
+  return customFetch<GetLaunchHardeningStatus200>(getGetLaunchHardeningStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLaunchHardeningStatusQueryKey = () => {
+    return [
+    `/api/launch-hardening/status`
+    ] as const;
+    }
+
+
+export const getGetLaunchHardeningStatusQueryOptions = <TData = Awaited<ReturnType<typeof getLaunchHardeningStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLaunchHardeningStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLaunchHardeningStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLaunchHardeningStatus>>> = ({ signal }) => getLaunchHardeningStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLaunchHardeningStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLaunchHardeningStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getLaunchHardeningStatus>>>
+export type GetLaunchHardeningStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get overall launch hardening status (admin only)
+ */
+
+export function useGetLaunchHardeningStatus<TData = Awaited<ReturnType<typeof getLaunchHardeningStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLaunchHardeningStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLaunchHardeningStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetLaunchFindingsUrl = (params?: GetLaunchFindingsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/launch-hardening/findings?${stringifiedParams}` : `/api/launch-hardening/findings`
+}
+
+/**
+ * @summary List all launch findings (admin only)
+ */
+export const getLaunchFindings = async (params?: GetLaunchFindingsParams, options?: RequestInit): Promise<GetLaunchFindings200> => {
+
+  return customFetch<GetLaunchFindings200>(getGetLaunchFindingsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLaunchFindingsQueryKey = (params?: GetLaunchFindingsParams,) => {
+    return [
+    `/api/launch-hardening/findings`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetLaunchFindingsQueryOptions = <TData = Awaited<ReturnType<typeof getLaunchFindings>>, TError = ErrorType<unknown>>(params?: GetLaunchFindingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLaunchFindings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLaunchFindingsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLaunchFindings>>> = ({ signal }) => getLaunchFindings(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLaunchFindings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLaunchFindingsQueryResult = NonNullable<Awaited<ReturnType<typeof getLaunchFindings>>>
+export type GetLaunchFindingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all launch findings (admin only)
+ */
+
+export function useGetLaunchFindings<TData = Awaited<ReturnType<typeof getLaunchFindings>>, TError = ErrorType<unknown>>(
+ params?: GetLaunchFindingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLaunchFindings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLaunchFindingsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetLaunchBlockersUrl = () => {
+
+
+
+
+  return `/api/launch-hardening/blockers`
+}
+
+/**
+ * @summary List open BLOCKER findings (admin only)
+ */
+export const getLaunchBlockers = async ( options?: RequestInit): Promise<GetLaunchBlockers200> => {
+
+  return customFetch<GetLaunchBlockers200>(getGetLaunchBlockersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLaunchBlockersQueryKey = () => {
+    return [
+    `/api/launch-hardening/blockers`
+    ] as const;
+    }
+
+
+export const getGetLaunchBlockersQueryOptions = <TData = Awaited<ReturnType<typeof getLaunchBlockers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLaunchBlockers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLaunchBlockersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLaunchBlockers>>> = ({ signal }) => getLaunchBlockers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLaunchBlockers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLaunchBlockersQueryResult = NonNullable<Awaited<ReturnType<typeof getLaunchBlockers>>>
+export type GetLaunchBlockersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List open BLOCKER findings (admin only)
+ */
+
+export function useGetLaunchBlockers<TData = Awaited<ReturnType<typeof getLaunchBlockers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLaunchBlockers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLaunchBlockersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetLaunchHardeningSnapshotsUrl = () => {
+
+
+
+
+  return `/api/launch-hardening/snapshots`
+}
+
+/**
+ * @summary List launch hardening snapshots (admin only)
+ */
+export const getLaunchHardeningSnapshots = async ( options?: RequestInit): Promise<GetLaunchHardeningSnapshots200> => {
+
+  return customFetch<GetLaunchHardeningSnapshots200>(getGetLaunchHardeningSnapshotsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLaunchHardeningSnapshotsQueryKey = () => {
+    return [
+    `/api/launch-hardening/snapshots`
+    ] as const;
+    }
+
+
+export const getGetLaunchHardeningSnapshotsQueryOptions = <TData = Awaited<ReturnType<typeof getLaunchHardeningSnapshots>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLaunchHardeningSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLaunchHardeningSnapshotsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLaunchHardeningSnapshots>>> = ({ signal }) => getLaunchHardeningSnapshots({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLaunchHardeningSnapshots>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLaunchHardeningSnapshotsQueryResult = NonNullable<Awaited<ReturnType<typeof getLaunchHardeningSnapshots>>>
+export type GetLaunchHardeningSnapshotsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List launch hardening snapshots (admin only)
+ */
+
+export function useGetLaunchHardeningSnapshots<TData = Awaited<ReturnType<typeof getLaunchHardeningSnapshots>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLaunchHardeningSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLaunchHardeningSnapshotsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

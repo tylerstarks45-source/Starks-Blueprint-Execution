@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import BrainLevelsPanel, { useBrainActivity } from '@/components/ash/BrainLevelsPanel.jsx';
+import { GUIDE_SECTIONS } from '@/lib/ashGuide.js';
 import AuthLayout from '@/components/AuthLayout.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -126,8 +128,8 @@ const AI_MODES = [
     creditsPerBuild: '10–18 credits',
     description: 'Stronger step-by-step reasoning for multi-step systems and business logic. The right default for most real builds.',
     creditWarning: 'Moderate credit draw for extra reasoning depth. Recommended default for planning and production builds.',
-    model: 'anthropic/claude-3-5-sonnet',
-    modelLabel: 'Claude 3.5 Sonnet',
+    model: 'anthropic/claude-sonnet-5.5',
+    modelLabel: 'Claude Sonnet 5.5',
     speed: '~8 sec / msg',
     useCases: ['Production builds', 'Multi-step systems', 'Business logic', 'Research & planning'],
     icon: Brain,
@@ -146,8 +148,8 @@ const AI_MODES = [
     creditsPerBuild: '25–45 credits',
     description: 'The flagship model at full depth — the most thorough plans, complex automations, and careful analysis on a single track.',
     creditWarning: 'Higher credit draw for maximum reasoning depth. Use when the system is complex and detail really matters.',
-    model: 'anthropic/claude-opus-4',
-    modelLabel: 'Claude Opus 4',
+    model: 'anthropic/claude-opus-5.5',
+    modelLabel: 'Claude Opus 5.5',
     speed: '~15 sec / msg',
     useCases: ['Complex automations', 'Deep research', 'Enterprise systems', 'Revenue optimization'],
     icon: Cpu,
@@ -166,8 +168,8 @@ const AI_MODES = [
     creditsPerBuild: '10–18 credits',
     description: 'ASH explains everything in plain English, walks you through every step, and tells you exactly where to find each piece of info. Perfect if this is your first time.',
     creditWarning: 'Same credit cost as Deep mode. ASH just takes extra time to explain and guide you through each step.',
-    model: 'anthropic/claude-3-5-sonnet',
-    modelLabel: 'Claude 3.5 Sonnet',
+    model: 'anthropic/claude-sonnet-5.5',
+    modelLabel: 'Claude Sonnet 5.5',
     speed: '~10 sec / msg',
     useCases: ['First build ever', 'Learning as you go', 'Step-by-step walkthroughs', 'No tech background'],
     icon: BookOpen,
@@ -186,8 +188,8 @@ const AI_MODES = [
     creditsPerBuild: '80–150 credits',
     description: 'The flagship model at the widest scope — multi-agent orchestration where sub-agents research, plan, build, and validate in parallel across your whole system.',
     creditWarning: 'Highest credit draw for the broadest scope. Reserved for flagship income systems and large multi-agent deployments.',
-    model: 'anthropic/claude-opus-4',
-    modelLabel: 'Claude Opus 4',
+    model: 'anthropic/claude-opus-5.5',
+    modelLabel: 'Claude Opus 5.5',
     speed: '~30+ sec / msg',
     useCases: ['Flagship systems', 'Multi-agent builds', 'Whole-system scope', '$10k+/mo revenue targets'],
     icon: Gauge,
@@ -2596,6 +2598,8 @@ const BuilderPage = () => {
     setIsRecording(false);
   }, [isRecording]);
 
+  const brainActivity = useBrainActivity();
+
   // ASH Workspace state
   const [generatedFiles, setGeneratedFiles] = useState([]);
   const [ashMemory, setAshMemory] = useState([]);
@@ -4100,6 +4104,7 @@ const BuilderPage = () => {
               { id: 'tasks',  label: 'Tasks',  icon: Activity },
               { id: 'files',  label: 'Files',  icon: FileCode2 },
               { id: 'memory', label: 'Memory', icon: Brain },
+              { id: 'guide',  label: 'Guide',  icon: BookOpen },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -4287,6 +4292,38 @@ const BuilderPage = () => {
             </div>
           )}
 
+          {/* ── GUIDE PANEL ── */}
+          {leftSideTab === 'guide' && (
+            <div className="flex-1 overflow-y-auto py-1 min-h-0 ash-scroll">
+              <div className="px-2 pt-2 pb-1 flex items-center justify-between">
+                <p className="text-[9px] uppercase tracking-widest text-white/28 font-mono font-bold flex items-center gap-1">
+                  <BookOpen className="w-2.5 h-2.5" /> What ASH can do
+                </p>
+                <button onClick={() => navigate('/ash-guide')} className="text-[8px] text-primary/55 hover:text-primary font-mono transition-colors">
+                  Full guide →
+                </button>
+              </div>
+              <p className="px-2 pb-2 text-[9px] text-white/35 font-mono">Click an example to put it in the chat box.</p>
+              {GUIDE_SECTIONS.map((g) => (
+                <div key={g.id} className="mx-2 mb-2 p-2 rounded-lg border border-white/6 bg-white/2">
+                  <p className="text-[10px] font-semibold text-white/80">{g.title}</p>
+                  <p className="text-[9px] text-white/45 mt-0.5 leading-snug">{g.summary}</p>
+                  {g.examples.map((ex) => (
+                    <button
+                      key={ex}
+                      type="button"
+                      onClick={() => setInput(ex)}
+                      className="mt-1 w-full text-left text-[9px] font-mono text-cyan-300/70 hover:text-cyan-200 truncate"
+                      title={ex}
+                    >
+                      → {ex}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* ── MEMORY PANEL ── */}
           {leftSideTab === 'memory' && (
             <div className="flex-1 overflow-y-auto py-1 min-h-0 ash-scroll">
@@ -4297,6 +4334,9 @@ const BuilderPage = () => {
                 <button onClick={() => navigate('/memory')} className="text-[8px] text-primary/55 hover:text-primary font-mono transition-colors">
                   Manage →
                 </button>
+              </div>
+              <div className="mx-2 mb-2 p-2 rounded-lg border border-white/6 bg-white/2">
+                <BrainLevelsPanel data={brainActivity} compact />
               </div>
               {ashMemory.length === 0 ? (
                 <div className="px-3 py-6 text-center">

@@ -14,6 +14,7 @@
 import { db, ashLessonsTable, type AshLesson } from "@workspace/db";
 import { pool } from "@workspace/db";
 import { sql, inArray } from "drizzle-orm";
+import { distillRecommendationLessons } from "./recommendation-outcomes";
 import { logger } from "./logger";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -285,6 +286,8 @@ async function runDistillation(): Promise<{ lessons: number; scanned: number }> 
       });
     written++;
   }
+
+  writtenScopeIds.push(...await distillRecommendationLessons(now));
 
   // Prune stale scopes: lessons whose underlying data no longer exists (e.g. a
   // deleted business) must not keep claiming "proven" forever. Delete any row

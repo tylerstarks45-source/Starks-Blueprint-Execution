@@ -23,6 +23,7 @@ export async function recordProjectCompletionLessons(params: {
   try {
     const projectMemory = await listProjectMemory(project.id);
     const summary = await complete({
+      userId,
       systemPrompt:
         "A business-building AI assistant just finished a project for a user. Write a concise project retrospective. " +
         'Reply with ONLY JSON: {"lessonsLearned": string, "successfulStrategies": string, "failuresToAvoid": string, "recommendations": string}. ' +

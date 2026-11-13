@@ -43,6 +43,7 @@ export async function saveOrUpdateKnowledgeMemory(params: {
   sources: ScoredSource[];
   /** id of an existing entry on the same topic (from findExistingEntryForTopic), or null for a genuinely new topic. */
   existingEntryId: number | null;
+  businessId?: number | null;
 }): Promise<KnowledgeWriteResult> {
   if (params.summary.confidenceScore < MIN_CONFIDENCE_TO_SAVE) {
     logger.info(
@@ -90,9 +91,11 @@ async function insertNewEntry(params: {
   researchType: AshResearchType;
   summary: StructuredSummary;
   sources: ScoredSource[];
+  businessId?: number | null;
 }): Promise<AshKnowledgeEntry> {
-  return insertKnowledgeEntry(db, researchKnowledgeContext(params.userId), {
+  return insertKnowledgeEntry(db, researchKnowledgeContext(params.userId, params.businessId), {
     userId: params.userId,
+    businessId: params.businessId ?? null,
     sourceProjectId: params.sourceProjectId,
     category: categoryForResearchType(params.researchType),
     title: params.summary.title,

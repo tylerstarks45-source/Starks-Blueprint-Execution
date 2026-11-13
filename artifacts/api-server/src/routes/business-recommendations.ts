@@ -6,6 +6,7 @@ import { getActiveCallerPayload } from "../lib/auth";
 import { enqueue } from "../lib/runtime/jobs";
 import { findOwnedBusiness } from "../lib/governance/ownership";
 import { updateRecommendation } from "../lib/governance/writes/recommendations-writes";
+import { payloadWithBaseline } from "../lib/recommendation-outcomes";
 import { actorFor, type GovernedWriteContext } from "../lib/governance/types";
 import {
   GetBusinessRecommendationsParams,
@@ -150,7 +151,9 @@ router.post("/businesses/:id/recommendations/:recId/apply", async (req, res): Pr
   }
 
   const ctx: GovernedWriteContext = { ownerUserId: caller.id, sourceEngine: "business_intelligence.recommendations", actor: actorFor("user", caller.id), businessId: business.id };
-  const row = await updateRecommendation(db, ctx, before, { status: "applied", resolvedAt: new Date() });
+  const reapply = before.status === "applied";
+  const payload = reapply ? before.payload : await payloadWithBaseline(before);
+  const row = await updateRecommendation(db, ctx, before, { status: "applied", resolvedAt: reapply ? before.resolvedAt : new Date(), payload });
 
   res.json(serialize(row));
 });

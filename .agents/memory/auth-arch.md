@@ -18,6 +18,6 @@ The `AuthStore` class in pocketbaseClient.js manages this storage and notifies l
 
 **User roles:** USER (default), SUPER_ADMIN. Role stored in users.role column.
 
-**Admin account:** admin@starksglobalgroup.net / Starks@Admin2024! (role=SUPER_ADMIN, tier=empire)
+**Admin account:** admin@starksglobalgroup.net (password never committed; manage via Replit Secrets + `/api/auth/admin-bootstrap`) (role=SUPER_ADMIN, tier=empire)
 
 **Why:** Full PocketBase replacement requires a drop-in auth shim with the same API surface (authStore.model, authStore.isValid, authStore.onChange, authWithPassword, etc.).

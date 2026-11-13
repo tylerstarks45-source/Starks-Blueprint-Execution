@@ -3,6 +3,7 @@
 // 10 endpoints covering plan/phase/work-package/dependency/sequence/readiness.
 // All require active authentication.
 // ─────────────────────────────────────────────────────────────────────────────
+import { requireBusinessOwner, businessIdParam, businessIdOfRecord, requireSelfParam } from "../lib/route-ownership";
 import { Router } from "express";
 import { db } from "@workspace/db";
 import {
@@ -20,6 +21,11 @@ import { requireAuthActive } from "../lib/auth";
 import { runOperationalPlanning } from "../lib/operational-planning/operational-orchestrator";
 
 const router = Router();
+
+// Tenant isolation: every business-scoped route is limited to the caller's own businesses.
+router.param("businessId", (req, res, next) => requireBusinessOwner(businessIdParam("businessId"))(req, res, next));
+router.use("/reports/:reportId", requireBusinessOwner(businessIdOfRecord(operationalReports, "reportId")));
+router.use("/plans/:planId", requireBusinessOwner(businessIdOfRecord(operationalPlans, "planId")));
 
 // p() coercion helper — Express params typed as string | string[]
 const p = (v: string | string[] | undefined): string =>

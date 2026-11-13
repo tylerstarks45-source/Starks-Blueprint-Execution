@@ -3,6 +3,8 @@
 // REST API for the Business Analysis Engine.
 // Reports and findings are immutable — GET only after POST to trigger analysis.
 
+import { businessAnalysisReportsTable } from "@workspace/db";
+import { requireBusinessOwner, businessIdParam, businessIdOfRecord, requireSelfParam } from "../lib/route-ownership";
 import { Router } from "express";
 import { requireAuthActive } from "../lib/auth";
 import {
@@ -17,6 +19,10 @@ import { getBusiness } from "../lib/business-graph/business-registry";
 import { logger } from "../lib/logger";
 
 const router = Router();
+
+// Tenant isolation: every business-scoped route is limited to the caller's own businesses.
+router.use("/businesses/:id", requireBusinessOwner(businessIdParam("id")));
+router.use("/reports/:reportId", requireBusinessOwner(businessIdOfRecord(businessAnalysisReportsTable, "reportId")));
 
 // ── POST /api/business-analysis/businesses/:id/analyze ───────────────────────
 // Run a full analysis for a business. Immutable report is persisted.

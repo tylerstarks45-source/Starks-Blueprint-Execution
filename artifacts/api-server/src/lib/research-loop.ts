@@ -1,4 +1,5 @@
 import { complete } from "./openrouter";
+import { MODELS, chainFor } from "./models";
 import { logEvent } from "./log-event";
 import { logger } from "./logger";
 
@@ -17,8 +18,8 @@ import { logger } from "./logger";
 // query, so rather than bolt on a fragile new browser-automation mode for a
 // job the platform already does well with grounded search, we reuse the
 // established pattern.
-const RESEARCH_MODEL = "perplexity/llama-3.1-sonar-large-128k-online";
-const SYNTHESIS_MODEL = "openai/gpt-4o-mini";
+const RESEARCH_MODEL = MODELS.research;
+const SYNTHESIS_MODEL = MODELS.utility;
 
 export interface RootCauseResearchInput {
   systemInstanceId: number | null;
@@ -58,7 +59,7 @@ export async function runRootCauseResearch(input: RootCauseResearchInput): Promi
 
     const searchResult = await complete({
       prompt: searchQuery,
-      model: RESEARCH_MODEL,
+      models: chainFor("research"),
     }).catch((err) => {
       logger.warn({ err }, "Research loop: web search step failed, continuing with base knowledge only");
       return { content: "[Web search unavailable — using base knowledge only]", model: RESEARCH_MODEL, promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: null };

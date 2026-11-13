@@ -15,7 +15,7 @@ export const launchHardeningRouter = Router();
 // Imports all 43 canonical audit findings, classifies them, builds the
 // dependency graph, and creates the first hardening snapshot. Idempotent.
 launchHardeningRouter.post("/import-audit", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
   try {
     const triggerBuild = (req.body as any)?.triggerBuild ?? "045A";
     const result = await runHardeningImport(String(triggerBuild));
@@ -39,7 +39,7 @@ launchHardeningRouter.post("/import-audit", async (req, res) => {
 // ── POST /launch-hardening/verify ─────────────────────────────────────────
 // Records a verification outcome for a completed remediation.
 launchHardeningRouter.post("/verify", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
   try {
     const { remediationId, findingCode, verificationMethod, verificationResult, verifiedBy, verificationNotes } = (req.body ?? {}) as any;
     if (!remediationId || !findingCode || !verificationMethod || !verificationResult || !verifiedBy) {
@@ -65,7 +65,7 @@ launchHardeningRouter.post("/verify", async (req, res) => {
 // ── POST /launch-hardening/recalculate ────────────────────────────────────
 // Recalculates all finding priorities and creates a new snapshot.
 launchHardeningRouter.post("/recalculate", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
   try {
     const { updated }  = await recalculateAllPriorities();
     const readiness    = await computeLaunchReadiness();
@@ -87,7 +87,7 @@ launchHardeningRouter.post("/recalculate", async (req, res) => {
 // ── GET /launch-hardening/findings ────────────────────────────────────────
 // Returns all findings joined with their registry status, ordered by priority.
 launchHardeningRouter.get("/findings", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
   try {
     const findings  = await db.select().from(launchFindings);
     const registry  = await db.select().from(launchHardeningRegistry);
@@ -119,7 +119,7 @@ launchHardeningRouter.get("/findings", async (req, res) => {
 // ── GET /launch-hardening/blockers ────────────────────────────────────────
 // Returns all BLOCKER findings that are not yet resolved.
 launchHardeningRouter.get("/blockers", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
   try {
     const readiness = await computeLaunchReadiness();
     res.json({
@@ -137,7 +137,7 @@ launchHardeningRouter.get("/blockers", async (req, res) => {
 // ── GET /launch-hardening/registry ────────────────────────────────────────
 // Returns the full hardening registry with current status for each finding.
 launchHardeningRouter.get("/registry", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
   try {
     const registry = await db
       .select()
@@ -153,7 +153,7 @@ launchHardeningRouter.get("/registry", async (req, res) => {
 // ── GET /launch-hardening/regressions ────────────────────────────────────
 // Returns regression analysis records, most recent first.
 launchHardeningRouter.get("/regressions", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
   try {
     const regressions = await db
       .select()
@@ -169,7 +169,7 @@ launchHardeningRouter.get("/regressions", async (req, res) => {
 // ── GET /launch-hardening/snapshots ───────────────────────────────────────
 // Returns the 20 most recent hardening snapshots.
 launchHardeningRouter.get("/snapshots", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
   try {
     const snapshots = await db
       .select()
@@ -185,7 +185,7 @@ launchHardeningRouter.get("/snapshots", async (req, res) => {
 // ── GET /launch-hardening/status ──────────────────────────────────────────
 // Returns a comprehensive launch readiness status — the primary dashboard.
 launchHardeningRouter.get("/status", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
   try {
     const [readiness, safeOrder] = await Promise.all([
       computeLaunchReadiness(),

@@ -6,6 +6,7 @@ import { complete } from "../openrouter";
 import { chainFor, chainForAgentMode } from "../models";
 import { OutOfCreditsError, DailyAiLimitError } from "../credits";
 import { logger } from "../logger";
+import { notifyAdmins } from "../admin-alerts";
 import { runAshAgent, type AgentStep } from "../ash-agent";
 import { MISSION_TOOL_NAMES } from "../ash-agent/tools";
 import { getEffectiveControl, toolActionKind } from "../ash-control/policy";
@@ -165,6 +166,13 @@ export async function runMissionOnce(m: AshMission): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     const keep = err instanceof StepIncomplete ? { steps: err.steps } : {};
     logger.warn({ missionId: m.id, err: message }, "ASH mission step failed");
+    if (failures >= MAX_FAILURES) {
+      void notifyAdmins({
+        title: "ASH mission failed",
+        message: `Mission #${m.id} for user #${m.userId} failed ${failures} times in a row: ${message.slice(0, 200)}`,
+        dedupeKey: `admin_mission_fail_${m.id}`,
+      });
+    }
     await finish(m, failures >= MAX_FAILURES
       ? { ...keep, status: "failed", failureCount: failures, waitingFor: "Failed 3 times in a row. Resume to retry.", log: withLog(m.log, logEntry("error", `Failed: ${message.slice(0, 300)}`)) }
       : { ...keep, failureCount: failures, nextRunAt: new Date(Date.now() + 60_000 * 2 ** failures), log: withLog(m.log, logEntry("error", `Retrying after error: ${message.slice(0, 300)}`)) });

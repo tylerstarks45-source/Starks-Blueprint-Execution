@@ -75,6 +75,67 @@ export function createAiRateLimiter(limitPerMinute = Number(process.env["AI_RATE
   });
 }
 
+// Anonymous write endpoints: contact form, landing-page/opt-in submits, public A/B conversions,
+// affiliate click/conversion beacons, inbound automation webhooks, token-based auth flows.
+const PUBLIC_WRITE_PATHS: RegExp[] = [
+  /^\/contact$/,
+  /^\/(landing-pages|pages)\/[^/]+\/submit$/,
+  /^\/public\//,
+  /^\/affiliate\/[^/]+\/conversion$/,
+  /^\/affiliate-links\/[^/]+\/click$/,
+  /^\/email\/unsubscribe$/,
+  /^\/webhooks\/(?!sendgrid$)[^/]+$/,
+  /^\/auth\/(reset-password|admin-bootstrap)$/,
+];
+
+export function isPublicWriteRequest(method: string, path: string): boolean {
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
+    // Unsubscribe and A/B assignment are GET links that still write.
+    return /^\/(email\/unsubscribe|public\/ab-tests\/[^/]+\/assign)$/.test(path.toLowerCase().replace(/\/+$/, ""));
+  }
+  const normalized = path.toLowerCase().replace(/\/+$/, "");
+  return PUBLIC_WRITE_PATHS.some((re) => re.test(normalized));
+}
+
+const positive = (v: unknown, fallback: number) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
+
+/** Per-IP limit on anonymous form posts and beacons, so bots can't flood leads, emails or webhooks. */
+export function createPublicFormRateLimiter(limitPerMinute = positive(process.env["PUBLIC_FORM_RATE_LIMIT_PER_MINUTE"], 30)): RequestHandler {
+  return rateLimit({
+    windowMs: 60_000,
+    limit: limitPerMinute,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    keyGenerator: (req) => `ip:${ipKeyGenerator(req.ip ?? "unknown")}`,
+    skip: (req) => isInternalForward(req) || !isPublicWriteRequest(req.method, req.path),
+    handler: (_req, res) => {
+      res.status(429).json({ error: "Too many requests. Please wait a minute and try again.", code: "rate_limited" });
+    },
+  });
+}
+
+/**
+ * Overall per-caller ceiling on the whole API (signed-in users keyed by user, others by IP).
+ * Generous enough for dashboards that poll; it only stops scripted floods. Payment-provider
+ * webhooks are exempt: Stripe and SendGrid send bursts from shared IPs and retry on 429.
+ */
+export function createGlobalRateLimiter(limitPerMinute = positive(process.env["API_RATE_LIMIT_PER_MINUTE"], 600)): RequestHandler {
+  return rateLimit({
+    windowMs: 60_000,
+    limit: limitPerMinute,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    keyGenerator: rateLimitKey,
+    skip: (req) => isInternalForward(req) || /^\/(stripe\/webhook|webhooks\/sendgrid|healthz|readyz)$/.test(req.path),
+    handler: (_req, res) => {
+      res.status(429).json({ error: "Too many requests. Please slow down.", code: "rate_limited" });
+    },
+  });
+}
+
 const SENSITIVE_PATTERNS: RegExp[] = [
   /\b[A-Z][A-Z0-9]*_(API_KEY|KEY|SECRET|TOKEN|URL|PASSWORD)\b/,
   /environment variable/i,

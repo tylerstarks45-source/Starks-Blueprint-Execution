@@ -4,7 +4,7 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { apiKeyMiddleware } from "./middlewares/apiKey";
-import { createAiRateLimiter, redactServerErrors, securityHeaders } from "./middlewares/security";
+import { createAiRateLimiter, createGlobalRateLimiter, createPublicFormRateLimiter, redactServerErrors, securityHeaders } from "./middlewares/security";
 
 const app: Express = express();
 
@@ -113,6 +113,8 @@ app.use((req, _res, next) => {
 // Validate X-API-Key before routing — injects req.apiKeyCaller, enforces
 // rate limits, and writes usage events. Must run before the route handlers.
 app.use("/api", apiKeyMiddleware);
+app.use("/api", createGlobalRateLimiter());
+app.use("/api", createPublicFormRateLimiter());
 app.use("/api", createAiRateLimiter());
 app.use("/api", redactServerErrors);
 

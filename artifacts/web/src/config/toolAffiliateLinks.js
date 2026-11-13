@@ -8,7 +8,6 @@ export const toolAffiliateLinks = {
     description: "Create viral AI videos in minutes (no editing needed)",
     features: ["Text-to-Video Generation", "Auto-Captions & B-Roll", "Viral Hook Templates"],
     use_cases: ["TikTok & Reels Growth", "Faceless Channels", "Ad Creative"],
-    social_proof: ["4.8/5 ⭐", "5k+ Active Users"],
     badges: ["🚀 Trending", "✅ Verified"],
     customCTA: "Try Pollo AI Free"
   },
@@ -19,7 +18,6 @@ export const toolAffiliateLinks = {
     description: "Automate your entire social media content calendar with AI",
     features: ["Brand-Aligned Post Generation", "Competitor Analysis", "Auto-Scheduling"],
     use_cases: ["Social Media Management", "Content Repurposing", "Agency Scaling"],
-    social_proof: ["4.9/5 ⭐", "12k+ Agencies"],
     badges: ["⭐ Best Value"],
     customCTA: "Automate Your Socials"
   },
@@ -30,7 +28,6 @@ export const toolAffiliateLinks = {
     description: "Turn text into high-converting video ads that drive sales",
     features: ["AI Voiceovers", "Premium Stock Integration", "Conversion-Optimized Templates"],
     use_cases: ["Facebook/Meta Ads", "E-commerce Promos", "YouTube Pre-rolls"],
-    social_proof: ["4.7/5 ⭐", "3k+ Brands"],
     badges: ["💎 Premium"],
     customCTA: "Create Video Ads"
   },
@@ -41,7 +38,6 @@ export const toolAffiliateLinks = {
     description: "Turn simple text into viral short-form videos automatically",
     features: ["Rapid Rendering Engine", "Engaging Subtitle Styles", "Background Music Sync"],
     use_cases: ["Affiliate Marketing", "Organic Traffic", "List Building"],
-    social_proof: ["4.6/5 ⭐", "10k+ Customers"],
     badges: ["🔥 Popular"],
     customCTA: "Get Lifetime Access"
   },
@@ -52,7 +48,6 @@ export const toolAffiliateLinks = {
     description: "Scale your YouTube channel with AI-optimized scripts and SEO",
     features: ["SEO Title Generator", "Retention-Optimized Scripts", "Competitor Tag Spy"],
     use_cases: ["YouTube Channel Growth", "Search Ranking", "Script Writing"],
-    social_proof: ["4.9/5 ⭐", "Top Creators"],
     badges: ["✅ Verified"],
     customCTA: "Grow Your Channel"
   },
@@ -86,7 +81,6 @@ export const toolAffiliateLinks = {
     description: "Connect your favorite apps and put your workflows on autopilot",
     features: ["Visual Scenario Builder", "1000+ App Integrations", "Advanced Logic & Routing"],
     use_cases: ["Lead Routing", "Data Syncing", "CRM Automation"],
-    social_proof: ["4.8/5 ⭐", "500k+ Users"],
     badges: ["🔥 Popular"],
     customCTA: "Start Automating Free"
   },
@@ -97,7 +91,6 @@ export const toolAffiliateLinks = {
     description: "Connect your SaaS tools and automate data transfer instantly",
     features: ["No-Code App Integration", "Custom API Builder", "Fast Execution Time"],
     use_cases: ["E-commerce Sync", "Marketing Automation", "Custom App Connections"],
-    social_proof: ["4.7/5 ⭐", "G2 High Performer"],
     badges: ["⭐ Best Value"],
     customCTA: "Connect Your Apps"
   },
@@ -108,7 +101,6 @@ export const toolAffiliateLinks = {
     description: "Automate team workflows with human-in-the-loop approvals",
     features: ["Human-in-the-loop Steps", "AI Data Extraction", "Team Collaboration"],
     use_cases: ["Document Approvals", "Client Onboarding", "Invoice Processing"],
-    social_proof: ["4.9/5 ⭐", "Fastest Growing"],
     badges: ["🆕 New"],
     customCTA: "Build Team Workflows"
   },
@@ -121,7 +113,6 @@ export const toolAffiliateLinks = {
     description: "Replace 10+ marketing tools with one ultimate growth platform",
     features: ["Unlimited Funnels & CRM", "Automated SMS/Email", "White-label Dashboard"],
     use_cases: ["Agency SaaS Reselling", "Local Lead Gen", "Client Retention"],
-    social_proof: ["4.9/5 ⭐", "30k+ Agencies"],
     badges: ["💎 Premium"],
     customCTA: "Start 14-Day Trial"
   },
@@ -132,7 +123,6 @@ export const toolAffiliateLinks = {
     description: "Run your entire online business without expensive software stacks",
     features: ["Sales Funnels", "Email Marketing", "Course Hosting"],
     use_cases: ["Selling Courses", "Affiliate Marketing", "Building Email Lists"],
-    social_proof: ["4.8/5 ⭐", "300k+ Users"],
     badges: ["⭐ Best Value"],
     customCTA: "Get Free Account"
   },
@@ -143,7 +133,6 @@ export const toolAffiliateLinks = {
     description: "Build high-converting sales funnels powered by AI copy",
     features: ["Drag-and-Drop Editor", "AI Copywriting Integration", "A/B Split Testing"],
     use_cases: ["High-Ticket Sales", "Webinar Funnels", "Physical Products"],
-    social_proof: ["4.8/5 ⭐", "100k+ Entrepreneurs"],
     badges: ["🔥 Popular"],
     customCTA: "Build Your Funnel"
   },
@@ -154,7 +143,6 @@ export const toolAffiliateLinks = {
     description: "Nurture leads and drive sales with automated email sequences",
     features: ["AI Email Generator", "Marketing Automation", "Website Builder"],
     use_cases: ["Newsletter Growth", "E-commerce Remarketing", "Drip Campaigns"],
-    social_proof: ["4.7/5 ⭐", "350k+ Customers"],
     badges: ["✅ Verified"],
     customCTA: "Start Free Trial"
   },
@@ -165,7 +153,6 @@ export const toolAffiliateLinks = {
     description: "Turn your email list into a predictable revenue machine",
     features: ["Tag-Based Segmentation", "High Deliverability", "Smart Campaigns"],
     use_cases: ["Precision Targeting", "B2B Lead Nurturing", "Automated Sales"],
-    social_proof: ["4.8/5 ⭐", "Top DACH Solution"],
     badges: ["💎 Premium"],
     customCTA: "Optimize Your Emails"
   },
@@ -176,7 +163,6 @@ export const toolAffiliateLinks = {
     description: "Capture more leads with high-converting mobile funnels",
     features: ["Mobile-First Design", "Interactive Quizzes", "Lightning Fast Loading"],
     use_cases: ["Mobile Lead Gen", "Recruiting Funnels", "Qualification Quizzes"],
-    social_proof: ["4.9/5 ⭐", "5k+ Agencies"],
     badges: ["🚀 Trending"],
     customCTA: "Build Mobile Funnel"
   },
@@ -187,7 +173,6 @@ export const toolAffiliateLinks = {
     description: "Build automated sales funnels that convert 24/7",
     features: ["All-in-one Marketing", "Video Hosting", "Mouse Tracking Analytics"],
     use_cases: ["Digital Products", "Coaching Business", "Analytics Tracking"],
-    social_proof: ["4.8/5 ⭐", "10k+ Users"],
     badges: ["✅ Verified"],
     customCTA: "Start Converting"
   },
@@ -200,7 +185,6 @@ export const toolAffiliateLinks = {
     description: "Optimize your website to capture high-intent organic traffic",
     features: ["AI Keyword Clustering", "Content Gap Analysis", "Auto-Optimization Tips"],
     use_cases: ["Organic Growth", "Niche Sites", "Local SEO"],
-    social_proof: ["4.8/5 ⭐", "2k+ SEO Experts"],
     badges: ["🚀 Trending"],
     customCTA: "Boost Your Rankings"
   },
@@ -211,7 +195,6 @@ export const toolAffiliateLinks = {
     description: "Dominate search rankings and capture free organic traffic",
     features: ["One-Click Backlinks", "On-Page Audits", "Rank Tracking"],
     use_cases: ["Link Building", "Site Auditing", "Competitor Tracking"],
-    social_proof: ["4.7/5 ⭐", "Trusted by 5k+"],
     badges: ["⭐ Best Value"],
     customCTA: "Get More Traffic"
   },
@@ -222,7 +205,6 @@ export const toolAffiliateLinks = {
     description: "Automate your SEO strategy to capture massive organic traffic",
     features: ["Programmatic SEO", "AI Article Generation", "Auto-Publishing"],
     use_cases: ["Mass Content Creation", "SaaS SEO", "Directory Sites"],
-    social_proof: ["4.9/5 ⭐", "New Release"],
     badges: ["🆕 New"],
     customCTA: "Scale Your SEO"
   },
@@ -235,7 +217,6 @@ export const toolAffiliateLinks = {
     description: "Deploy an AI agent that knows your business inside and out",
     features: ["Custom Knowledge Base", "Anti-Hallucination Tech", "Website Integration"],
     use_cases: ["Customer Support", "Internal Knowledge Retrieval", "Lead Qualification"],
-    social_proof: ["4.9/5 ⭐", "Used by MIT"],
     badges: ["💎 Premium"],
     customCTA: "Build Your Custom AI"
   },
@@ -246,7 +227,6 @@ export const toolAffiliateLinks = {
     description: "Generate high-converting copy and content in one workspace",
     features: ["Multiple AI Models (GPT-4, Claude)", "Folders & Organization", "Saved Prompts"],
     use_cases: ["Copywriting", "Brainstorming", "Content Strategy"],
-    social_proof: ["4.8/5 ⭐", "10k+ Creators"],
     badges: ["🔥 Popular"],
     customCTA: "Try Magai Today"
   },
@@ -257,7 +237,6 @@ export const toolAffiliateLinks = {
     description: "Automate your daily operations and reclaim your time",
     features: ["Autonomous Agents", "Workflow Execution", "Email Management"],
     use_cases: ["Inbox Zero", "Task Delegation", "Scheduling"],
-    social_proof: ["4.9/5 ⭐", "Early Access"],
     badges: ["🆕 New"],
     customCTA: "Clone Your Workflow"
   },
@@ -268,7 +247,6 @@ export const toolAffiliateLinks = {
     description: "Write and publish complete books and guides in hours",
     features: ["Chapter-by-Chapter Generation", "Formatting Export", "Plagiarism Checker"],
     use_cases: ["Kindle Direct Publishing", "Lead Magnets", "E-book Sales"],
-    social_proof: ["4.7/5 ⭐", "2k+ Authors"],
     badges: ["✅ Verified"],
     customCTA: "Write Your Book"
   },
@@ -279,7 +257,6 @@ export const toolAffiliateLinks = {
     description: "Advanced AI assistant for complex problem solving and coding",
     features: ["Advanced Reasoning", "Code Generation", "Data Analysis"],
     use_cases: ["Software Development", "Research", "Complex Workflows"],
-    social_proof: ["4.9/5 ⭐", "Top Developers"],
     badges: ["🚀 Trending"],
     customCTA: "Try GODII AI"
   },
@@ -292,7 +269,6 @@ export const toolAffiliateLinks = {
     description: "Deploy AI workers to handle your repetitive web tasks",
     features: ["Browser Automation", "Data Extraction", "Multi-Agent Swarms"],
     use_cases: ["Web Scraping", "Outreach Automation", "Market Research"],
-    social_proof: ["4.8/5 ⭐", "High ROI System"],
     badges: ["🚀 Trending"],
     customCTA: "Deploy AI Agents"
   },
@@ -303,7 +279,6 @@ export const toolAffiliateLinks = {
     description: "Launch your own software and digital products in record time",
     features: ["Software Generator", "Website Builder", "Reseller Rights"],
     use_cases: ["SaaS Creation", "Digital Product Launch", "Affiliate Sites"],
-    social_proof: ["4.6/5 ⭐", "Veteran Marketers"],
     badges: ["🔥 Popular"],
     customCTA: "Build Software Fast"
   },
@@ -314,7 +289,6 @@ export const toolAffiliateLinks = {
     description: "Turn your WordPress site into a profitable membership platform",
     features: ["Content Protection", "Sequential Drip", "Payment Integration"],
     use_cases: ["Paid Communities", "Online Courses", "Premium Content"],
-    social_proof: ["4.8/5 ⭐", "Trusted in DACH"],
     badges: ["⭐ Best Value"],
     customCTA: "Start Membership Site"
   },
@@ -325,7 +299,6 @@ export const toolAffiliateLinks = {
     description: "Standardize your operations with a proven quality control workflow",
     features: ["SOP Templates", "Compliance Tracking", "Team Dashboards"],
     use_cases: ["Agency Operations", "Client Fulfillment", "Scaling Teams"],
-    social_proof: ["4.9/5 ⭐", "Enterprise Rated"],
     badges: ["💎 Premium"],
     customCTA: "Standardize Operations"
   },
@@ -336,7 +309,6 @@ export const toolAffiliateLinks = {
     description: "Turn raw business data into predictive growth insights",
     features: ["Data Visualization", "Predictive Analytics", "KPI Dashboards"],
     use_cases: ["Revenue Forecasting", "Churn Reduction", "Financial Planning"],
-    social_proof: ["5.0/5 ⭐", "Elite Founders"],
     badges: ["✅ Verified"],
     customCTA: "Unlock Analytics"
   },
@@ -347,7 +319,6 @@ export const toolAffiliateLinks = {
     description: "Leverage AI to analyze markets and generate trading signals",
     features: ["Algorithmic Signals", "Risk Management", "Market Scanning"],
     use_cases: ["Day Trading", "Crypto Markets", "Passive Income"],
-    social_proof: ["4.5/5 ⭐", "15k+ Traders"],
     badges: ["🔥 Popular"],
     customCTA: "Get Trading Signals"
   },
@@ -358,7 +329,6 @@ export const toolAffiliateLinks = {
     description: "Automate your portfolio with intelligent trade copying",
     features: ["Multi-Account Sync", "Lightning Execution", "Risk Allocation"],
     use_cases: ["Prop Trading", "Fund Management", "Copy Trading"],
-    social_proof: ["4.9/5 ⭐", "Pro Tool"],
     badges: ["💎 Premium"],
     customCTA: "Automate Trades"
   },
@@ -369,7 +339,6 @@ export const toolAffiliateLinks = {
     description: "Generate full-stack web applications from a single prompt",
     features: ["Full-Stack Generation", "Database Setup", "API Integration"],
     use_cases: ["SaaS MVPs", "Internal Tools", "Rapid Prototyping"],
-    social_proof: ["4.8/5 ⭐", "Top Developers"],
     badges: ["🆕 New", "🚀 Trending"],
     customCTA: "Build Your App"
   },
@@ -380,7 +349,6 @@ export const toolAffiliateLinks = {
     description: "All-in-one business management and acceleration suite",
     features: ["Workflow Automation", "Client Portal", "Invoicing"],
     use_cases: ["Agency Management", "Freelance Operations", "Service Businesses"],
-    social_proof: ["4.7/5 ⭐", "Growing Fast"],
     badges: ["⭐ Best Value"],
     customCTA: "Accelerate Business"
   },
@@ -391,7 +359,6 @@ export const toolAffiliateLinks = {
     description: "Advanced statistical analysis system for lottery probability",
     features: ["Pattern Recognition", "Historical Data", "Probability Scoring"],
     use_cases: ["Statistical Analysis", "Number Generation", "Data Tracking"],
-    social_proof: ["4.5/5 ⭐", "Active Community"],
     badges: ["✅ Verified"],
     customCTA: "Analyze Numbers"
   },
@@ -402,7 +369,6 @@ export const toolAffiliateLinks = {
     description: "Strategic planning and operational readiness framework",
     features: ["Strategic Roadmaps", "Resource Allocation", "Readiness Tracking"],
     use_cases: ["Corporate Strategy", "Long-term Planning", "Operational Scaling"],
-    social_proof: ["4.9/5 ⭐", "Enterprise Ready"],
     badges: ["💎 Premium"],
     customCTA: "Plan Strategy"
   },
@@ -413,7 +379,6 @@ export const toolAffiliateLinks = {
     description: "High-ticket affiliate and joint venture networking platform",
     features: ["JV Networking", "High-Ticket Offers", "Partner Matching"],
     use_cases: ["Affiliate Marketing", "Joint Ventures", "Network Expansion"],
-    social_proof: ["4.8/5 ⭐", "Elite Network"],
     badges: ["🔥 Popular"],
     customCTA: "Join Network"
   },
@@ -424,7 +389,6 @@ export const toolAffiliateLinks = {
     description: "Launch and optimize high-ROI ad campaigns with AI automation",
     features: ["AI Ad Copy & Creative", "Automated Bid Optimization", "Multi-Platform Campaigns"],
     use_cases: ["Paid Traffic Scaling", "Lead Generation", "E-commerce Ads"],
-    social_proof: ["4.8/5 ⭐", "Performance Marketers"],
     badges: ["🚀 Trending"],
     customCTA: "Launch AI Ads"
   },
@@ -435,7 +399,6 @@ export const toolAffiliateLinks = {
     description: "Boost conversions with advanced A/B testing and experimentation",
     features: ["A/B & Multivariate Testing", "Personalization Engine", "Privacy-First Analytics"],
     use_cases: ["Conversion Rate Optimization", "Landing Page Testing", "Funnel Optimization"],
-    social_proof: ["4.9/5 ⭐", "2k+ Optimizers"],
     badges: ["💎 Premium"],
     customCTA: "Start Free Trial"
   },
@@ -446,7 +409,6 @@ export const toolAffiliateLinks = {
     description: "Monetize your traffic with a high-paying affiliate CPA network",
     features: ["Exclusive CPA Offers", "Real-Time Tracking", "Fast Payouts"],
     use_cases: ["Affiliate Monetization", "Lead Gen Campaigns", "Traffic Arbitrage"],
-    social_proof: ["4.7/5 ⭐", "Trusted Network"],
     badges: ["⭐ Best Value"],
     customCTA: "Start Earning"
   },
@@ -457,7 +419,6 @@ export const toolAffiliateLinks = {
     description: "Grow recurring revenue with a powerful B2B SaaS affiliate program",
     features: ["Affiliate Program Management", "Automated Payouts", "Marketplace Listing"],
     use_cases: ["SaaS Growth", "Partner Programs", "Recurring Commissions"],
-    social_proof: ["4.8/5 ⭐", "SaaS Founders"],
     badges: ["🆕 New"],
     customCTA: "Grow With Partners"
   },
@@ -468,7 +429,6 @@ export const toolAffiliateLinks = {
     description: "Create and sell premium audio courses and learning experiences",
     features: ["Audio Course Builder", "Mobile Learning App", "Subscription Monetization"],
     use_cases: ["Audio Courses", "Membership Content", "Podcasts Monetization"],
-    social_proof: ["4.7/5 ⭐", "Creators & Coaches"],
     badges: ["🆕 New"],
     customCTA: "Build Audio Courses"
   },
@@ -479,7 +439,6 @@ export const toolAffiliateLinks = {
     description: "All-in-one AI sales engagement and outreach automation platform",
     features: ["Multi-Channel Sequences", "AI Personalization", "Unified Inbox"],
     use_cases: ["Cold Outreach", "Sales Engagement", "Pipeline Building"],
-    social_proof: ["4.8/5 ⭐", "Sales Teams"],
     badges: ["🚀 Trending"],
     customCTA: "Automate Outreach"
   },
@@ -490,7 +449,6 @@ export const toolAffiliateLinks = {
     description: "Build and scale your network marketing business with smart tools",
     features: ["Team Management", "Lead Capture", "Performance Tracking"],
     use_cases: ["Network Marketing", "Team Building", "Downline Growth"],
-    social_proof: ["4.6/5 ⭐", "Network Builders"],
     badges: ["✅ Verified"],
     customCTA: "Scale Your Network"
   }

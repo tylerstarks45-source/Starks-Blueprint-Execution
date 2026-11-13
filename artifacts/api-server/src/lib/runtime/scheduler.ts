@@ -16,6 +16,7 @@ import { loadCredentials as loadSystemCredentials, notifyOutOfCredits } from "./
 import { businessesTable } from "@workspace/db";
 import { enqueue, reclaimHungJobs } from "./jobs";
 import { notifyUser } from "../notify";
+import { notifyAdmins } from "../admin-alerts";
 import { credentialDisplayName } from "../connectors/catalog-map";
 import { OutOfCreditsError } from "../credits";
 import { createPendingApproval } from "../approvals";
@@ -382,7 +383,13 @@ async function handleTaskFailure(
       dedupeKey: `task_disabled_${taskId}`,
     });
 
-    logger.error({ taskId, taskName, attempts: newFailureCount, errorMsg }, "Scheduled task disabled after exhausting retries — user notified");
+    await notifyAdmins({
+      title: `Background task disabled: ${taskName}`,
+      message: `Scheduled task #${taskId} for user #${userId} failed ${newFailureCount} times and was disabled. Last error: ${errorMsg.slice(0, 200)}`,
+      dedupeKey: `admin_task_disabled_${taskId}`,
+      metadata: { taskId, userId, systemInstanceId, error: errorMsg.slice(0, 500) },
+    });
+    logger.error({ taskId, taskName, attempts: newFailureCount, errorMsg }, "Scheduled task disabled after exhausting retries — user and admins notified");
   }
 }
 

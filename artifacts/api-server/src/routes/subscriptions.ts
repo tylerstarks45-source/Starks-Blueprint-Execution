@@ -4,7 +4,8 @@ import { eq, and, sql } from "drizzle-orm";
 import { db, subscriptionsTable, usersTable, processedStripeEventsTable, blueprintsTable, blueprintPurchasesTable, notificationsTable, referralEventsTable, referralCodesTable } from "@workspace/db";
 import { z } from "zod";
 import { getUncachableStripeClient } from "../lib/stripe";
-import { adjustCredits, adjustWalletCredits, tierAllotment } from "../lib/credits";
+import { adjustCredits, adjustWalletCredits, tierAllotment, type DbExecutor } from "../lib/credits";
+import { notifyAdmins } from "../lib/admin-alerts";
 import { requireAuthActive } from "../lib/auth";
 import { notifyUser } from "../lib/notify";
 import { hasOperationsModeAccess } from "../lib/operations-gate";
@@ -156,6 +157,121 @@ router.post("/subscriptions/checkout", async (req, res): Promise<void> => {
 });
 
 // POST /api/stripe/webhook — raw body captured in app.ts before JSON parser
+type StripeClient = Awaited<ReturnType<typeof getUncachableStripeClient>>;
+type AfterCommit = Array<() => Promise<unknown>>;
+const usd = (cents: number) => `$${((cents ?? 0) / 100).toFixed(2)}`;
+
+/** Take back up to `credits` without driving the balance negative. Returns what was taken. */
+async function takeBackCredits(
+  tx: DbExecutor, userId: number, credits: number, pool: "monthly" | "wallet", reason: string,
+): Promise<number> {
+  if (credits <= 0) return 0;
+  const col = pool === "wallet" ? usersTable.walletBalance : usersTable.creditsBalance;
+  const [u] = await tx.select({ b: col }).from(usersTable).where(eq(usersTable.id, userId)).for("update");
+  const amount = Math.min(credits, Math.max(0, u?.b ?? 0));
+  if (amount > 0) {
+    if (pool === "wallet") await adjustWalletCredits(userId, -amount, { reason }, tx);
+    else await adjustCredits(userId, -amount, "admin_adjust", { reason }, tx);
+  }
+  return amount;
+}
+
+/** Who paid, and for what: the Checkout Session behind a one-off charge, else the subscription customer. */
+async function chargeOwner(tx: DbExecutor, stripe: StripeClient, charge: any): Promise<{ userId: number; session: any }> {
+  let session: any = null;
+  if (charge.payment_intent) {
+    const list = await stripe.checkout.sessions.list({ payment_intent: String(charge.payment_intent), limit: 1 });
+    session = list.data?.[0] ?? null;
+  }
+  let userId = Number(session?.metadata?.userId) || 0;
+  if (!userId && charge.customer) {
+    const [sub] = await tx.select({ userId: subscriptionsTable.userId }).from(subscriptionsTable)
+      .where(eq(subscriptionsTable.stripeCustomerId, String(charge.customer)));
+    userId = sub?.userId ?? 0;
+  }
+  return { userId, session };
+}
+
+/**
+ * Undo what a fully refunded or charged-back payment granted: wallet top-ups are taken back,
+ * blueprint purchases are revoked along with the creator's share, and subscription payments
+ * end the plan (back to free), take back that period's credits and cancel the Stripe subscription.
+ */
+async function reverseCharge(
+  tx: DbExecutor, stripe: StripeClient, charge: any, why: "refund" | "chargeback", afterCommit: AfterCommit, log: any,
+): Promise<void> {
+  const label = why === "refund" ? "Refund" : "Chargeback";
+  const { userId, session } = await chargeOwner(tx, stripe, charge);
+  const meta = session?.metadata ?? {};
+  if (!userId) {
+    afterCommit.push(() => notifyAdmins({
+      title: `Stripe ${why} for an unknown customer`,
+      message: `${label} of ${usd(charge.amount)} on charge ${charge.id} couldn't be matched to a user. Review it in Stripe and adjust access manually.`,
+      dedupeKey: `${why}_unmatched_${charge.id}`, linkUrl: "/admin/stripe",
+      metadata: { chargeId: charge.id, customerId: charge.customer ?? null },
+    }));
+    return;
+  }
+
+  let detail: string;
+  if (meta.kind === "wallet_purchase") {
+    const credits = Number(meta.credits) || 0;
+    const taken = await takeBackCredits(tx, userId, credits, "wallet", `${label}: wallet top-up of ${credits} credits`);
+    detail = `took back ${taken} of ${credits} wallet credits`;
+  } else if (meta.kind === "blueprint_purchase") {
+    const blueprintId = Number(meta.blueprintId);
+    const [purchase] = await tx.delete(blueprintPurchasesTable)
+      .where(and(eq(blueprintPurchasesTable.blueprintId, blueprintId), eq(blueprintPurchasesTable.buyerUserId, userId)))
+      .returning();
+    let creatorTaken = 0;
+    if (purchase) {
+      if (purchase.authorUserId) {
+        creatorTaken = await takeBackCredits(tx, purchase.authorUserId, purchase.creatorShareCredits, "wallet",
+          `${label}: blueprint #${blueprintId} sale reversed`);
+      }
+      await tx.update(blueprintsTable)
+        .set({ salesCount: sql`GREATEST(${blueprintsTable.salesCount} - 1, 0)` })
+        .where(eq(blueprintsTable.id, blueprintId));
+    }
+    detail = purchase
+      ? `revoked blueprint #${blueprintId} and took back ${creatorTaken} credits from the creator`
+      : `blueprint #${blueprintId} purchase was already revoked`;
+  } else if (charge.invoice || session?.mode === "subscription" || meta.tier) {
+    const [sub] = await tx.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+    const tier = sub?.tier ?? meta.tier ?? "free";
+    const taken = tier === "free" ? 0
+      : await takeBackCredits(tx, userId, tierAllotment(tier), "monthly", `${label}: ${tier} plan payment`);
+    await tx.update(subscriptionsTable).set({ status: "inactive", tier: "free" }).where(eq(subscriptionsTable.userId, userId));
+    await tx.update(usersTable).set({ membershipTier: "free", membershipStatus: "active" }).where(eq(usersTable.id, userId));
+    const subscriptionId = sub?.stripeSubscriptionId ?? (session?.subscription ? String(session.subscription) : null);
+    if (subscriptionId) {
+      afterCommit.push(async () => {
+        try {
+          await stripe.subscriptions.cancel(subscriptionId);
+        } catch (err: any) {
+          if (err?.code === "resource_missing" || /cancel/i.test(String(err?.message))) return;
+          await notifyAdmins({
+            title: "Couldn't cancel a refunded subscription",
+            message: `User #${userId} was moved to free after a ${why}, but Stripe subscription ${subscriptionId} couldn't be cancelled (${String(err?.message ?? err).slice(0, 150)}). Cancel it in Stripe so they aren't charged again.`,
+            dedupeKey: `${why}_cancel_failed_${subscriptionId}`, linkUrl: "/admin/stripe",
+          });
+        }
+      });
+    }
+    detail = `moved from ${tier} to free and took back ${taken} plan credits`;
+  } else {
+    detail = "no matching purchase found; access unchanged";
+  }
+
+  log.info({ userId, chargeId: charge.id, why, detail }, "Stripe charge reversed");
+  afterCommit.push(() => notifyAdmins({
+    title: `Stripe ${why}: ${usd(charge.amount)}`,
+    message: `${label} on charge ${charge.id} for user #${userId}: ${detail}.`,
+    dedupeKey: `${why}_${charge.id}`, linkUrl: "/admin/stripe",
+    metadata: { chargeId: charge.id, userId },
+  }));
+}
+
 router.post("/stripe/webhook", async (req, res): Promise<void> => {
   let verified = false;
   try {
@@ -566,6 +682,73 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
         } else {
           req.log.warn({ customerId }, "customer.subscription.updated: no matching subscription record found");
         }
+      }
+
+      if (event.type === "charge.refunded") {
+        const charge = event.data.object as any;
+        if ((charge.amount_refunded ?? 0) >= (charge.amount ?? 0)) {
+          await reverseCharge(tx, stripe, charge, "refund", afterCommit, req.log);
+        } else {
+          // Partial refunds are a judgement call (goodwill, pro-rating), so a person decides.
+          afterCommit.push(() => notifyAdmins({
+            title: "Partial Stripe refund: review access",
+            message: `Charge ${charge.id} was partly refunded (${usd(charge.amount_refunded)} of ${usd(charge.amount)}). Plan and credits were left unchanged; adjust them manually if needed.`,
+            dedupeKey: `partial_refund_${charge.id}_${charge.amount_refunded}`, linkUrl: "/admin/stripe",
+          }));
+        }
+      }
+
+      if (event.type === "charge.dispute.created" || event.type === "charge.dispute.closed") {
+        const dispute = event.data.object as any;
+        const charge = typeof dispute.charge === "string" ? await stripe.charges.retrieve(dispute.charge) : dispute.charge;
+        if (event.type === "charge.dispute.closed" && dispute.status === "lost") {
+          await reverseCharge(tx, stripe, charge, "chargeback", afterCommit, req.log);
+        } else {
+          const { userId } = await chargeOwner(tx, stripe, charge);
+          const opened = event.type === "charge.dispute.created";
+          const won = dispute.status === "won";
+          if (userId && (opened || won)) {
+            // Disputed accounts are frozen until the dispute resolves; winning it restores access.
+            await tx.update(usersTable).set({ membershipStatus: opened ? "inactive" : "active" }).where(eq(usersTable.id, userId));
+          }
+          afterCommit.push(() => notifyAdmins({
+            title: opened ? `Stripe dispute opened: ${usd(dispute.amount)}` : `Stripe dispute closed (${dispute.status})`,
+            message: opened
+              ? `A chargeback was opened on charge ${charge?.id} (reason: ${dispute.reason ?? "unknown"}). ${userId ? `User #${userId}'s membership is paused until it resolves.` : "No matching user was found."} Respond in Stripe before the deadline.`
+              : `The dispute on charge ${charge?.id} closed as ${dispute.status}.${userId && won ? ` User #${userId}'s membership was restored.` : ""}`,
+            dedupeKey: `dispute_${dispute.id}_${event.type}`, linkUrl: "/admin/stripe",
+            metadata: { disputeId: dispute.id, chargeId: charge?.id ?? null, userId: userId || null },
+          }));
+        }
+      }
+
+      if (event.type === "invoice.payment_failed") {
+        const invoice = event.data.object as any;
+        let userId = Number(invoice.subscription_details?.metadata?.userId) || 0;
+        if (!userId && invoice.customer) {
+          const [sub] = await tx.select({ userId: subscriptionsTable.userId }).from(subscriptionsTable)
+            .where(eq(subscriptionsTable.stripeCustomerId, String(invoice.customer)));
+          userId = sub?.userId ?? 0;
+        }
+        if (userId) {
+          // Same mapping as customer.subscription.updated → past_due. Stripe keeps retrying the card;
+          // a later invoice.payment_succeeded re-activates, a final failure cancels the subscription.
+          await tx.update(subscriptionsTable).set({ status: "past_due" }).where(eq(subscriptionsTable.userId, userId));
+          await tx.update(usersTable).set({ membershipStatus: "inactive" }).where(eq(usersTable.id, userId));
+          afterCommit.push(() => notifyUser({
+            userId,
+            notificationType: "error",
+            title: "Your payment didn't go through",
+            message: `We couldn't charge your card for ${usd(invoice.amount_due)}. Update your payment method to keep your plan active.`,
+            linkUrl: "/credits",
+            dedupeKey: `payment_failed_${invoice.id}`,
+          }));
+        }
+        afterCommit.push(() => notifyAdmins({
+          title: `Subscription payment failed: ${usd(invoice.amount_due)}`,
+          message: `Invoice ${invoice.id}${userId ? ` for user #${userId}` : ""} failed (attempt ${invoice.attempt_count ?? 1}). Stripe will retry automatically.`,
+          dedupeKey: `admin_payment_failed_${invoice.id}`, linkUrl: "/admin/stripe",
+        }));
       }
 
       return false;

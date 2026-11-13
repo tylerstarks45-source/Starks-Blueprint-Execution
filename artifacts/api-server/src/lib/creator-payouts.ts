@@ -36,21 +36,22 @@ export async function recordCardSaleEarning(tx: DbExecutor, opts: {
 }
 
 /**
- * Reverse the creator's earning for a refunded/charged-back sale. Unpaid earnings are voided;
- * already-paid ones get a negative row that comes out of the creator's next payout.
+ * Reverse the creator's earning for one refunded/charged-back payment (matched by payment
+ * intent or checkout session). Unpaid earnings are voided; already-paid ones get one negative
+ * row that comes out of the creator's next payout. Safe to call again for the same payment.
  * Returns false when the sale has no cash earning (legacy credit-based creator share).
  */
-export async function reverseCardSaleEarning(tx: DbExecutor, blueprintId: number, buyerUserId: number, why: string): Promise<boolean> {
-  const rows = await tx.select().from(creatorEarningsTable).where(and(
-    eq(creatorEarningsTable.blueprintId, blueprintId),
-    eq(creatorEarningsTable.buyerUserId, buyerUserId),
-    sql`${creatorEarningsTable.amountCents} > 0`,
-  )).for("update");
-  if (!rows.length) return false;
-  for (const e of rows) {
+export async function reverseCardSaleEarning(tx: DbExecutor, paymentRefs: string[], why: string): Promise<boolean> {
+  if (!paymentRefs.length) return false;
+  const rows = await tx.select().from(creatorEarningsTable)
+    .where(inArray(creatorEarningsTable.paymentRef, paymentRefs)).for("update");
+  const sales = rows.filter((r) => r.amountCents > 0);
+  if (!sales.length) return false;
+  const clawedBack = new Set(rows.filter((r) => r.amountCents < 0).map((r) => r.paymentRef));
+  for (const e of sales) {
     if (e.status === "pending" || e.status === "available") {
       await tx.update(creatorEarningsTable).set({ status: "reversed", note: why }).where(eq(creatorEarningsTable.id, e.id));
-    } else if (e.status === "paid") {
+    } else if (e.status === "paid" && !clawedBack.has(e.paymentRef)) {
       await tx.insert(creatorEarningsTable).values({
         userId: e.userId, blueprintId: e.blueprintId, buyerUserId: e.buyerUserId, paymentRef: e.paymentRef,
         grossCents: -e.grossCents, amountCents: -e.amountCents, status: "available", availableAt: new Date(), note: why,
@@ -143,12 +144,52 @@ export class PayoutError extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
 
+const transferGroup = (payoutId: number) => `creator-payout-${payoutId}`;
+/** A transfer call never takes this long, so a payout still "processing" after it was interrupted. */
+const STALE_PROCESSING_MS = 15 * 60_000;
+
+async function releasePayout(payoutId: number, error: string) {
+  await db.transaction(async (tx) => {
+    await tx.update(creatorEarningsTable).set({ status: "available", payoutId: null })
+      .where(and(eq(creatorEarningsTable.payoutId, payoutId), eq(creatorEarningsTable.status, "paid")));
+    await tx.update(creatorPayoutsTable).set({ status: "failed", error, completedAt: new Date() })
+      .where(eq(creatorPayoutsTable.id, payoutId));
+  });
+}
+
+/**
+ * Settle payouts left "processing" by a crash or an ambiguous Stripe error: if Stripe has the
+ * transfer it is marked paid, otherwise the earnings go back to the creator's balance.
+ */
+export async function reconcileStalePayouts(userId: number, stripe?: StripeClient): Promise<void> {
+  const stale = await db.select().from(creatorPayoutsTable).where(and(
+    eq(creatorPayoutsTable.userId, userId),
+    eq(creatorPayoutsTable.status, "processing"),
+    lte(creatorPayoutsTable.createdAt, new Date(Date.now() - STALE_PROCESSING_MS)),
+  ));
+  if (!stale.length) return;
+  const client = stripe ?? await getUncachableStripeClient();
+  for (const p of stale) {
+    const found = await client.transfers.list({ transfer_group: transferGroup(p.id), limit: 1 });
+    const transfer = found.data?.[0];
+    if (transfer) {
+      await db.update(creatorPayoutsTable).set({ status: "paid", stripeTransferId: transfer.id, completedAt: new Date() })
+        .where(and(eq(creatorPayoutsTable.id, p.id), eq(creatorPayoutsTable.status, "processing")));
+    } else {
+      await releasePayout(p.id, "Transfer was never created; balance returned");
+    }
+  }
+}
+
 /**
  * Pay the creator's whole available balance to their Connect account. The account row lock
  * serializes withdrawals, and the earnings are claimed before the transfer, so a balance is
- * never paid twice. A failed transfer releases the earnings back to "available".
+ * never paid twice. Only a definite Stripe rejection releases the earnings; if the outcome is
+ * unknown the payout stays "processing" until reconcileStalePayouts checks Stripe.
  */
 export async function withdraw(userId: number, stripe?: StripeClient) {
+  const client = stripe ?? await getUncachableStripeClient();
+  await reconcileStalePayouts(userId, client);
   const claim = await db.transaction(async (tx) => {
     const [account] = await tx.select().from(creatorPayoutAccountsTable)
       .where(eq(creatorPayoutAccountsTable.userId, userId)).for("update");
@@ -166,39 +207,40 @@ export async function withdraw(userId: number, stripe?: StripeClient) {
     const [payout] = await tx.insert(creatorPayoutsTable).values({ userId, amountCents: total }).returning();
     await tx.update(creatorEarningsTable).set({ status: "paid", payoutId: payout!.id })
       .where(inArray(creatorEarningsTable.id, rows.map((r) => r.id)));
-    return { payout: payout!, destination: account.stripeAccountId, ids: rows.map((r) => r.id) };
+    return { payout: payout!, destination: account.stripeAccountId };
   });
 
+  let transfer: { id: string };
   try {
-    const client = stripe ?? await getUncachableStripeClient();
-    const transfer = await client.transfers.create({
+    transfer = await client.transfers.create({
       amount: claim.payout.amountCents,
       currency: "usd",
       destination: claim.destination,
+      transfer_group: transferGroup(claim.payout.id),
       metadata: { creatorPayoutId: String(claim.payout.id), userId: String(userId) },
-    }, { idempotencyKey: `creator-payout-${claim.payout.id}` });
-    const [done] = await db.update(creatorPayoutsTable)
-      .set({ status: "paid", stripeTransferId: transfer.id, completedAt: new Date() })
-      .where(eq(creatorPayoutsTable.id, claim.payout.id)).returning();
-    void notifyUser({
-      userId, notificationType: "success", title: "Payout sent",
-      message: `$${(claim.payout.amountCents / 100).toFixed(2)} is on its way to your bank via Stripe.`,
-      linkUrl: "/creator-payouts",
-    });
-    return done!;
-  } catch (err) {
-    const message = String((err as Error)?.message ?? err).slice(0, 300);
-    await db.transaction(async (tx) => {
-      await tx.update(creatorEarningsTable).set({ status: "available", payoutId: null }).where(inArray(creatorEarningsTable.id, claim.ids));
-      await tx.update(creatorPayoutsTable).set({ status: "failed", error: message, completedAt: new Date() })
-        .where(eq(creatorPayoutsTable.id, claim.payout.id));
-    });
-    logger.error({ userId, payoutId: claim.payout.id, err: message }, "Creator payout transfer failed");
+    }, { idempotencyKey: transferGroup(claim.payout.id) });
+  } catch (err: any) {
+    const message = String(err?.message ?? err).slice(0, 300);
+    const rejected = typeof err?.statusCode === "number" && err.statusCode >= 400 && err.statusCode < 500;
+    logger.error({ userId, payoutId: claim.payout.id, err: message, rejected }, "Creator payout transfer failed");
+    if (rejected) await releasePayout(claim.payout.id, message);
     void notifyAdmins({
-      title: "Creator payout failed",
-      message: `Payout #${claim.payout.id} of $${(claim.payout.amountCents / 100).toFixed(2)} to user #${userId} failed: ${message}`,
+      title: rejected ? "Creator payout failed" : "Creator payout outcome unknown",
+      message: `Payout #${claim.payout.id} of $${(claim.payout.amountCents / 100).toFixed(2)} to user #${userId}: ${message}${rejected ? "" : " It will be checked against Stripe automatically."}`,
       dedupeKey: `creator_payout_fail_${claim.payout.id}`, linkUrl: "/admin/stripe",
     });
-    throw new PayoutError("Stripe couldn't send this payout. Your balance is unchanged; try again later.", 502);
+    throw new PayoutError(rejected
+      ? "Stripe couldn't send this payout. Your balance is unchanged; try again later."
+      : "We couldn't confirm this payout with Stripe yet. It will be checked automatically, so don't withdraw again.", 502);
   }
+
+  const [done] = await db.update(creatorPayoutsTable)
+    .set({ status: "paid", stripeTransferId: transfer.id, completedAt: new Date() })
+    .where(eq(creatorPayoutsTable.id, claim.payout.id)).returning();
+  void notifyUser({
+    userId, notificationType: "success", title: "Payout sent",
+    message: `$${(claim.payout.amountCents / 100).toFixed(2)} is on its way to your bank via Stripe.`,
+    linkUrl: "/creator-payouts",
+  });
+  return done!;
 }

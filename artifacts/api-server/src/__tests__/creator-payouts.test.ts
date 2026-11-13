@@ -1,17 +1,18 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import jwt from "jsonwebtoken";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 const stripeMock = vi.hoisted(() => ({
   transfersCreate: vi.fn(),
+  transfersList: vi.fn(),
   accountsCreate: vi.fn(),
   accountLinksCreate: vi.fn(),
   accountsRetrieve: vi.fn(),
 }));
 vi.mock("../lib/stripe", () => ({
   getUncachableStripeClient: async () => ({
-    transfers: { create: stripeMock.transfersCreate },
+    transfers: { create: stripeMock.transfersCreate, list: stripeMock.transfersList },
     accounts: { create: stripeMock.accountsCreate, retrieve: stripeMock.accountsRetrieve },
     accountLinks: { create: stripeMock.accountLinksCreate },
   }),
@@ -97,7 +98,7 @@ describe("creator payouts (Stripe Connect)", () => {
 
   it("a failed transfer leaves the balance available", async () => {
     await earn(2000, "available");
-    stripeMock.transfersCreate.mockRejectedValueOnce(new Error("insufficient platform balance"));
+    stripeMock.transfersCreate.mockRejectedValueOnce(Object.assign(new Error("insufficient platform balance"), { statusCode: 400 }));
     const res = await post("withdraw", tokenCreator);
     expect(res.status).toBe(502);
     const after = await get(tokenCreator);
@@ -106,17 +107,54 @@ describe("creator payouts (Stripe Connect)", () => {
     expect(failed.some((p) => p.status === "failed")).toBe(true);
   });
 
-  it("refunds void unpaid earnings and claw back paid ones from the next payout", async () => {
+  it("an unknown transfer outcome stays claimed until Stripe is checked", async () => {
+    stripeMock.transfersCreate.mockClear();
+    stripeMock.transfersCreate.mockRejectedValueOnce(new Error("socket hang up"));
+    expect((await post("withdraw", tokenCreator)).status).toBe(502);
+    expect((await get(tokenCreator)).body.balances.availableCents).toBe(0);
+    const [p] = await db.select().from(creatorPayoutsTable)
+      .where(and(eq(creatorPayoutsTable.userId, creator), eq(creatorPayoutsTable.status, "processing")));
+    expect(p).toBeDefined();
+    // Not stale yet: a retry must not pay again.
+    expect((await post("withdraw", tokenCreator)).status).toBe(400);
+    expect(stripeMock.transfersCreate).toHaveBeenCalledTimes(1);
+    // Once stale, a transfer Stripe did create marks the payout paid instead of paying twice.
+    await db.update(creatorPayoutsTable).set({ createdAt: new Date(Date.now() - 3_600_000) }).where(eq(creatorPayoutsTable.id, p!.id));
+    stripeMock.transfersList.mockResolvedValueOnce({ data: [{ id: `tr_${tag}_late` }] });
+    expect((await post("withdraw", tokenCreator)).status).toBe(400);
+    const [settled] = await db.select().from(creatorPayoutsTable).where(eq(creatorPayoutsTable.id, p!.id));
+    expect(settled).toMatchObject({ status: "paid", stripeTransferId: `tr_${tag}_late` });
+    expect(stripeMock.transfersCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("a stale payout Stripe never received returns the balance", async () => {
+    await earn(1500, "available");
+    stripeMock.transfersCreate.mockRejectedValueOnce(new Error("timeout"));
+    await post("withdraw", tokenCreator);
+    await db.update(creatorPayoutsTable).set({ createdAt: new Date(Date.now() - 3_600_000) })
+      .where(and(eq(creatorPayoutsTable.userId, creator), eq(creatorPayoutsTable.status, "processing")));
+    stripeMock.transfersList.mockResolvedValueOnce({ data: [] });
+    stripeMock.transfersCreate.mockResolvedValueOnce({ id: `tr_${tag}_retry` });
+    const res = await post("withdraw", tokenCreator);
+    expect(res.status).toBe(200);
+    expect(res.body.payout).toMatchObject({ amountCents: 1500, status: "paid" });
+  });
+
+  it("refunds void unpaid earnings and claw back paid ones once", async () => {
     await db.delete(creatorEarningsTable).where(eq(creatorEarningsTable.userId, creator));
-    await earn(700, "pending", { buyerUserId: other, blueprintId });
+    await earn(700, "pending", { buyerUserId: other, blueprintId, paymentRef: `pi_${tag}_a` });
     await db.insert(creatorEarningsTable).values({
-      userId: creator, amountCents: 1400, grossCents: 2000, status: "paid", availableAt: new Date(), buyerUserId: other, blueprintId,
+      userId: creator, amountCents: 1400, grossCents: 2000, status: "paid", availableAt: new Date(), buyerUserId: other, blueprintId, paymentRef: `pi_${tag}_b`,
     });
-    expect(await db.transaction((tx) => reverseCardSaleEarning(tx, blueprintId, other, "Refund"))).toBe(true);
+    await earn(900, "available", { buyerUserId: other, blueprintId, paymentRef: `pi_${tag}_c` });
+    expect(await db.transaction((tx) => reverseCardSaleEarning(tx, [`pi_${tag}_a`], "Refund"))).toBe(true);
+    expect(await db.transaction((tx) => reverseCardSaleEarning(tx, [`pi_${tag}_b`], "Refund"))).toBe(true);
+    expect(await db.transaction((tx) => reverseCardSaleEarning(tx, [`pi_${tag}_b`], "Refund again"))).toBe(true);
     const rows = await db.select().from(creatorEarningsTable).where(eq(creatorEarningsTable.userId, creator));
     expect(rows.find((r) => r.amountCents === 700)?.status).toBe("reversed");
-    expect(rows.find((r) => r.amountCents === -1400)?.status).toBe("available");
-    expect(await db.transaction((tx) => reverseCardSaleEarning(tx, blueprintId, creator, "Refund"))).toBe(false);
+    expect(rows.filter((r) => r.amountCents === -1400)).toHaveLength(1);
+    expect(rows.find((r) => r.amountCents === 900)?.status).toBe("available");
+    expect(await db.transaction((tx) => reverseCardSaleEarning(tx, [`pi_${tag}_none`], "Refund"))).toBe(false);
   });
 });
 

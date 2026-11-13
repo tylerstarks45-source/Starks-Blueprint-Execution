@@ -258,10 +258,10 @@ async function reverseCharge(
       .where(and(eq(blueprintPurchasesTable.blueprintId, blueprintId), eq(blueprintPurchasesTable.buyerUserId, userId)))
       .returning();
     let creatorTaken = 0;
-    let cashReversed = false;
+    // Matched by this payment, so it applies even after the blueprint (and its purchase rows) was deleted.
+    const refs = [charge.payment_intent, session?.id].filter(Boolean).map(String);
+    const cashReversed = await reverseCardSaleEarning(tx, refs, `${label}: sale refunded`);
     if (purchase) {
-      const refs = [charge.payment_intent, session?.id].filter(Boolean).map(String);
-      cashReversed = await reverseCardSaleEarning(tx, refs, `${label}: sale refunded`);
       if (!cashReversed && purchase.authorUserId) {
         creatorTaken = await takeBackCredits(tx, purchase.authorUserId, purchase.creatorShareCredits, "wallet",
           `${label}: blueprint #${blueprintId} sale reversed`);
@@ -272,7 +272,7 @@ async function reverseCharge(
     }
     detail = purchase
       ? `revoked blueprint #${blueprintId} and ${cashReversed ? "reversed the creator's cash earning" : `took back ${creatorTaken} credits from the creator`}`
-      : `blueprint #${blueprintId} purchase was already revoked`;
+      : `blueprint #${blueprintId} purchase was already revoked${cashReversed ? "; reversed the creator's cash earning" : ""}`;
   } else if ((chargeSub = await chargeSubscriptionId(stripe, charge, session)) || charge.invoice || session?.mode === "subscription" || meta.tier) {
     const [sub] = await tx.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
     if (chargeSub && sub?.stripeSubscriptionId && chargeSub !== sub.stripeSubscriptionId) {

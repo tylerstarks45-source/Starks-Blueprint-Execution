@@ -6,17 +6,24 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vites
 import request from "supertest";
 import jwt from "jsonwebtoken";
 
-vi.mock("../lib/openrouter", () => ({ complete: vi.fn(), streamCompletion: vi.fn() }));
+// Business DNA inference runs in the background after a business is created; answer it here so it
+// can't take a reply queued for the call under test.
+const { queued } = vi.hoisted(() => ({ queued: vi.fn() }));
+vi.mock("../lib/openrouter", () => ({
+  complete: (opts: { systemPrompt?: string }) => (String(opts?.systemPrompt ?? "").startsWith("You infer likely business facts")
+    ? Promise.resolve({ content: "{}", model: "test", promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: null })
+    : queued(opts)),
+  streamCompletion: vi.fn(),
+}));
 
 import app from "../app";
-import { complete } from "../lib/openrouter";
 import { db, usersTable, businessesTable, ashMissionsTable, ashSpendEventsTable, pendingApprovalsTable } from "@workspace/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { decide } from "../lib/ash-control/policy";
 import { runAshTurn } from "../lib/ash-agent";
 import { claimDueMissions, runMissionOnce } from "../lib/ash-missions/runner";
 
-const mockComplete = vi.mocked(complete);
+const mockComplete = queued;
 let ownerId: number;
 let otherId: number;
 let bizId: number;

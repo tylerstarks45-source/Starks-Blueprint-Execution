@@ -193,6 +193,27 @@ async function chargeOwner(tx: DbExecutor, stripe: StripeClient, charge: any): P
   return { userId, session };
 }
 
+/** The Stripe subscription a charge paid for (via its invoice), or null for one-off payments. */
+async function chargeSubscriptionId(stripe: StripeClient, charge: any, session: any): Promise<string | null> {
+  if (session?.subscription) return String(session.subscription);
+  try {
+    let invoiceId: string | null = typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id ?? null;
+    if (!invoiceId && charge.payment_intent) {
+      const paid = await stripe.invoicePayments.list({
+        payment: { type: "payment_intent", payment_intent: String(charge.payment_intent) }, limit: 1,
+      });
+      const inv = paid.data?.[0]?.invoice;
+      invoiceId = typeof inv === "string" ? inv : inv?.id ?? null;
+    }
+    if (!invoiceId) return null;
+    const invoice: any = await stripe.invoices.retrieve(invoiceId);
+    const sub = invoice.parent?.subscription_details?.subscription ?? invoice.subscription;
+    return sub ? (typeof sub === "string" ? sub : sub.id) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Undo what a fully refunded or charged-back payment granted: wallet top-ups are taken back,
  * blueprint purchases are revoked along with the creator's share, and subscription payments
@@ -215,6 +236,7 @@ async function reverseCharge(
   }
 
   let detail: string;
+  let chargeSub: string | null = null;
   if (meta.kind === "wallet_purchase") {
     const credits = Number(meta.credits) || 0;
     const taken = await takeBackCredits(tx, userId, credits, "wallet", `${label}: wallet top-up of ${credits} credits`);
@@ -227,7 +249,8 @@ async function reverseCharge(
     let creatorTaken = 0;
     let cashReversed = false;
     if (purchase) {
-      cashReversed = await reverseCardSaleEarning(tx, blueprintId, userId, `${label}: sale refunded`);
+      const refs = [charge.payment_intent, session?.id].filter(Boolean).map(String);
+      cashReversed = await reverseCardSaleEarning(tx, refs, `${label}: sale refunded`);
       if (!cashReversed && purchase.authorUserId) {
         creatorTaken = await takeBackCredits(tx, purchase.authorUserId, purchase.creatorShareCredits, "wallet",
           `${label}: blueprint #${blueprintId} sale reversed`);
@@ -239,14 +262,26 @@ async function reverseCharge(
     detail = purchase
       ? `revoked blueprint #${blueprintId} and ${cashReversed ? "reversed the creator's cash earning" : `took back ${creatorTaken} credits from the creator`}`
       : `blueprint #${blueprintId} purchase was already revoked`;
-  } else if (charge.invoice || session?.mode === "subscription" || meta.tier) {
+  } else if ((chargeSub = await chargeSubscriptionId(stripe, charge, session)) || charge.invoice || session?.mode === "subscription" || meta.tier) {
     const [sub] = await tx.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+    if (chargeSub && sub?.stripeSubscriptionId && chargeSub !== sub.stripeSubscriptionId) {
+      // A payment for an earlier subscription: the current plan was paid for separately.
+      detail = `payment belonged to earlier subscription ${chargeSub}; current plan left unchanged`;
+      log.info({ userId, chargeId: charge.id, why, detail }, "Stripe charge reversed");
+      afterCommit.push(() => notifyAdmins({
+        title: `Stripe ${why}: ${usd(charge.amount)}`,
+        message: `${label} on charge ${charge.id} for user #${userId}: ${detail}.`,
+        dedupeKey: `${why}_${charge.id}`, linkUrl: "/admin/stripe",
+        metadata: { chargeId: charge.id, userId },
+      }));
+      return;
+    }
     const tier = sub?.tier ?? meta.tier ?? "free";
     const taken = tier === "free" ? 0
       : await takeBackCredits(tx, userId, tierAllotment(tier), "monthly", `${label}: ${tier} plan payment`);
     await tx.update(subscriptionsTable).set({ status: "inactive", tier: "free" }).where(eq(subscriptionsTable.userId, userId));
     await tx.update(usersTable).set({ membershipTier: "free", membershipStatus: "active" }).where(eq(usersTable.id, userId));
-    const subscriptionId = sub?.stripeSubscriptionId ?? (session?.subscription ? String(session.subscription) : null);
+    const subscriptionId = chargeSub ?? sub?.stripeSubscriptionId ?? (session?.subscription ? String(session.subscription) : null);
     if (subscriptionId) {
       afterCommit.push(async () => {
         try {
@@ -714,9 +749,15 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
           const { userId } = await chargeOwner(tx, stripe, charge);
           const opened = event.type === "charge.dispute.created";
           const won = dispute.status === "won";
-          if (userId && (opened || won)) {
-            // Disputed accounts are frozen until the dispute resolves; winning it restores access.
-            await tx.update(usersTable).set({ membershipStatus: opened ? "inactive" : "active" }).where(eq(usersTable.id, userId));
+          if (userId && opened) {
+            // Disputed accounts lose paid access until the dispute resolves. The plan stays on the
+            // subscription row so winning the dispute can restore it.
+            await tx.update(usersTable).set({ membershipTier: "free", membershipStatus: "inactive" }).where(eq(usersTable.id, userId));
+          } else if (userId && won) {
+            const [sub] = await tx.select({ tier: subscriptionsTable.tier, status: subscriptionsTable.status })
+              .from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+            const tier = sub && ["active", "past_due", "trialing"].includes(sub.status ?? "") ? sub.tier : "free";
+            await tx.update(usersTable).set({ membershipTier: tier ?? "free", membershipStatus: "active" }).where(eq(usersTable.id, userId));
           }
           afterCommit.push(() => notifyAdmins({
             title: opened ? `Stripe dispute opened: ${usd(dispute.amount)}` : `Stripe dispute closed (${dispute.status})`,

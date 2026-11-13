@@ -7,6 +7,8 @@ const stripeMock = vi.hoisted(() => ({
   sessionsList: vi.fn(),
   chargesRetrieve: vi.fn(),
   subscriptionsCancel: vi.fn(),
+  invoicePaymentsList: vi.fn(),
+  invoicesRetrieve: vi.fn(),
 }));
 vi.mock("../lib/stripe", () => ({
   getUncachableStripeClient: async () => ({
@@ -14,6 +16,8 @@ vi.mock("../lib/stripe", () => ({
     checkout: { sessions: { list: stripeMock.sessionsList } },
     charges: { retrieve: stripeMock.chargesRetrieve },
     subscriptions: { cancel: stripeMock.subscriptionsCancel },
+    invoicePayments: { list: stripeMock.invoicePaymentsList },
+    invoices: { retrieve: stripeMock.invoicesRetrieve },
   }),
 }));
 
@@ -115,9 +119,21 @@ describe("Stripe refunds, chargebacks and failed renewals", () => {
     stripeMock.sessionsList.mockResolvedValue({ data: [] });
     await db.update(usersTable).set({ membershipStatus: "active" }).where(eq(usersTable.id, subscriber));
     await send("charge.dispute.created", { id: `dp_${tag}`, charge: charge.id, amount: 2900, reason: "fraudulent", status: "needs_response" });
-    expect((await user(subscriber)).membershipStatus).toBe("inactive");
+    expect(await user(subscriber)).toMatchObject({ membershipStatus: "inactive", membershipTier: "free" });
     await send("charge.dispute.closed", { id: `dp_${tag}`, charge: charge.id, amount: 2900, status: "won" });
-    expect((await user(subscriber)).membershipStatus).toBe("active");
+    expect(await user(subscriber)).toMatchObject({ membershipStatus: "active", membershipTier: "pro" });
+  });
+
+  it("refunding a payment for an earlier subscription leaves the current plan alone", async () => {
+    stripeMock.sessionsList.mockResolvedValueOnce({ data: [] });
+    stripeMock.invoicePaymentsList.mockResolvedValueOnce({ data: [{ invoice: "in_old" }] });
+    stripeMock.invoicesRetrieve.mockResolvedValueOnce({ id: "in_old", parent: { subscription_details: { subscription: "sub_old" } } });
+    const before = await user(subscriber);
+    const res = await send("charge.refunded", { id: `ch_${tag}_old`, amount: 2900, amount_refunded: 2900, customer: `cus_${tag}`, payment_intent: "pi_old" });
+    expect(res.status).toBe(200);
+    const after = await user(subscriber);
+    expect(after).toMatchObject({ membershipTier: "pro", creditsBalance: before.creditsBalance });
+    expect(stripeMock.subscriptionsCancel).not.toHaveBeenCalled();
   });
 
   it("lost chargeback on a subscription ends the plan, takes back credits and cancels in Stripe", async () => {

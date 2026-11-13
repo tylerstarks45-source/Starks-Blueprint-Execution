@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import {
   db, businessesTable, revenueStreams, canonicalAssets, customBusinessTypesTable, assetBusinessSharesTable,
 } from "@workspace/db";
@@ -41,7 +41,7 @@ router.get("/empire/search", async (req, res): Promise<void> => {
     db.select({ id: revenueStreams.id, title: revenueStreams.title, businessId: revenueStreams.businessId, streamType: revenueStreams.streamType })
       .from(revenueStreams).where(and(eq(revenueStreams.userId, caller.id), ilike(revenueStreams.title, like))).limit(10),
     db.select({ id: canonicalAssets.id, name: canonicalAssets.canonicalName, classKey: canonicalAssets.classKey, businessId: canonicalAssets.businessId, externalUrl: canonicalAssets.externalUrl })
-      .from(canonicalAssets).where(and(eq(canonicalAssets.userId, caller.id), or(ilike(canonicalAssets.canonicalName, like), ilike(canonicalAssets.externalUrl, like)))).limit(10),
+      .from(canonicalAssets).where(and(eq(canonicalAssets.userId, caller.id), ne(canonicalAssets.status, "deleted"), or(ilike(canonicalAssets.canonicalName, like), ilike(canonicalAssets.externalUrl, like)))).limit(10),
   ]);
   res.json({ businesses, streams, assets });
 });

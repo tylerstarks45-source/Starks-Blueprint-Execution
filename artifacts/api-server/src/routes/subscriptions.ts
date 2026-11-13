@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getUncachableStripeClient } from "../lib/stripe";
 import { adjustCredits, adjustWalletCredits, tierAllotment, type DbExecutor } from "../lib/credits";
 import { notifyAdmins } from "../lib/admin-alerts";
-import { recordCardSaleEarning, reverseCardSaleEarning, syncAccountStatus } from "../lib/creator-payouts";
+import { recordCardSaleEarning, reverseCardSaleEarning, holdCardSaleEarning, syncAccountStatus } from "../lib/creator-payouts";
 import { requireAuthActive } from "../lib/auth";
 import { notifyUser } from "../lib/notify";
 import { hasOperationsModeAccess } from "../lib/operations-gate";
@@ -761,9 +761,12 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
           if (userId) await restoreMembership(tx, userId);
           await reverseCharge(tx, stripe, charge, "chargeback", afterCommit, req.log);
         } else {
-          const { userId } = await chargeOwner(tx, stripe, charge);
+          const { userId, session } = await chargeOwner(tx, stripe, charge);
           const opened = event.type === "charge.dispute.created";
           const won = dispute.status === "won";
+          // Creator earnings from a disputed sale can't be withdrawn until the dispute resolves.
+          const refs = [charge?.payment_intent, session?.id].filter(Boolean).map(String);
+          if (opened || won) await holdCardSaleEarning(tx, refs, opened);
           if (userId && opened) {
             // Disputed accounts lose paid access until the dispute resolves. The plan stays on the
             // subscription row so winning the dispute can restore it.

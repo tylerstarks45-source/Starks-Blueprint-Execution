@@ -59,10 +59,14 @@ router.post("/approvals/:id/approve", async (req, res): Promise<void> => {
     return;
   }
 
-  // Concurrent approves of one row queue here; the later one then sees it is no longer pending,
-  // so the action runs once.
+  // One approve per row at a time, so the action runs once. A concurrent approve is turned away
+  // instead of waiting, so waiters can't hold every pooled connection while the holder needs one.
   await db.transaction(async (lockTx) => {
-    await lockTx.execute(sql`select pg_advisory_xact_lock(hashtext('approval_approve'), ${params.data.id})`);
+    const { rows } = await lockTx.execute(sql`select pg_try_advisory_xact_lock(hashtext('approval_approve'), ${params.data.id}) as locked`);
+    if (!(rows[0] as { locked: boolean } | undefined)?.locked) {
+      res.status(409).json({ error: "This approval is already being processed" });
+      return;
+    }
     const [existing] = await db
       .select()
       .from(pendingApprovalsTable)

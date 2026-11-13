@@ -309,7 +309,9 @@ describe("missions", () => {
     const turn = await runAshTurn({ userId: ownerId, message: "start Twice Biz", history: [] });
     const approvalId = turn.steps.find((s) => s.tool === "create_business")!.approvalId!;
     const results = await Promise.all([1, 2].map(() => request(app).post(`/api/approvals/${approvalId}/approve`).set(as(ownerId))));
-    expect(results.map((r) => r.status).sort()).toEqual([200, 400]);
+    const statuses = results.map((r) => r.status);
+    expect(statuses.filter((st) => st === 200)).toHaveLength(1);
+    expect(statuses.find((st) => st !== 200)).toBeOneOf([400, 409]);
     expect((await ownerBusinesses()).filter((b) => b.name === "Twice Biz")).toHaveLength(1);
   });
 

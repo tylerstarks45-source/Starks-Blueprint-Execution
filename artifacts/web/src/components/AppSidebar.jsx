@@ -5,8 +5,7 @@ import {
   ShoppingBag, BookOpen, CreditCard, ShieldCheck, ChevronLeft, ChevronRight,
   LogOut, X, Settings, Globe2, Zap, Users, Calendar, Building2, ScrollText,
   Brain, TrendingUp, Sparkles, BarChart3, GraduationCap, Crown, Coins, Archive,
-  Shapes, Film, LineChart, Database, FlaskConical, ChevronDown, Target, Inbox, SlidersHorizontal,
-} from 'lucide-react';
+  Shapes, Film, LineChart, Database, FlaskConical, ChevronDown, Target, Inbox, SlidersHorizontal, Banknote } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useClient } from '@/contexts/ClientContext.jsx';
 import NotificationBell from '@/components/NotificationBell.jsx';
@@ -57,6 +56,7 @@ const NAV_GROUPS = [
     items: [
       { label: 'Revenue Analytics', path: '/analytics', icon: LineChart },
       { label: 'Credits',           path: '/credits',   icon: CreditCard },
+      { label: 'Creator Payouts',   path: '/creator-payouts', icon: Banknote },
     ],
   },
   {

@@ -31,6 +31,15 @@ export const GUIDE_SECTIONS = [
     link: { to: '/missions', label: 'Missions' },
   },
   {
+    id: 'payouts',
+    title: 'Get paid for marketplace sales',
+    where: 'Creator Payouts',
+    summary: 'When someone buys your blueprint by card, you keep 70% as real money. It is held for 14 days in case of refunds, then you can withdraw it to your bank through Stripe. Connecting Stripe (identity and bank details) is a step only you can do.',
+    tips: ['Refunded or charged-back sales are taken back from your balance', 'Sales paid with credits still pay you wallet credits'],
+    examples: ['Open my creator payouts', 'How much have I earned from blueprints?'],
+    link: { to: '/creator-payouts', label: 'Creator Payouts' },
+  },
+  {
     id: 'navigate',
     title: 'Page commands',
     where: 'ASH dock or Builder',

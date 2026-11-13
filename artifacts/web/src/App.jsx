@@ -69,6 +69,7 @@ const BusinessPortfolioPage     = lazy(() => import('@/pages/BusinessPortfolioPa
 const BusinessImportWizardPage  = lazy(() => import('@/pages/BusinessImportWizardPage.jsx'));
 const BusinessCommandCenterPage = lazy(() => import('@/pages/BusinessCommandCenterPage.jsx'));
 const CreditsPage           = lazy(() => import('@/pages/CreditsPage.jsx'));
+const CreatorPayoutsPage    = lazy(() => import('@/pages/CreatorPayoutsPage.jsx'));
 const WorkspacePage         = lazy(() => import('@/pages/WorkspacePage.jsx'));
 const MemoryPage            = lazy(() => import('@/pages/MemoryPage.jsx'));
 const AshIntelligencePage   = lazy(() => import('@/pages/AshIntelligencePage.jsx'));
@@ -298,6 +299,9 @@ const App = () => {
               } />
               <Route path="/credits" element={
                 <ProtectedRoute><CreditsPage /></ProtectedRoute>
+              } />
+              <Route path="/creator-payouts" element={
+                <ProtectedRoute><CreatorPayoutsPage /></ProtectedRoute>
               } />
               <Route path="/workspace" element={
                 <ProtectedRoute><WorkspacePage /></ProtectedRoute>

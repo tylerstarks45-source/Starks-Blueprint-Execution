@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getUncachableStripeClient } from "../lib/stripe";
 import { adjustCredits, adjustWalletCredits, tierAllotment, type DbExecutor } from "../lib/credits";
 import { notifyAdmins } from "../lib/admin-alerts";
+import { recordCardSaleEarning, reverseCardSaleEarning, syncAccountStatus } from "../lib/creator-payouts";
 import { requireAuthActive } from "../lib/auth";
 import { notifyUser } from "../lib/notify";
 import { hasOperationsModeAccess } from "../lib/operations-gate";
@@ -224,8 +225,10 @@ async function reverseCharge(
       .where(and(eq(blueprintPurchasesTable.blueprintId, blueprintId), eq(blueprintPurchasesTable.buyerUserId, userId)))
       .returning();
     let creatorTaken = 0;
+    let cashReversed = false;
     if (purchase) {
-      if (purchase.authorUserId) {
+      cashReversed = await reverseCardSaleEarning(tx, blueprintId, userId, `${label}: sale refunded`);
+      if (!cashReversed && purchase.authorUserId) {
         creatorTaken = await takeBackCredits(tx, purchase.authorUserId, purchase.creatorShareCredits, "wallet",
           `${label}: blueprint #${blueprintId} sale reversed`);
       }
@@ -234,7 +237,7 @@ async function reverseCharge(
         .where(eq(blueprintsTable.id, blueprintId));
     }
     detail = purchase
-      ? `revoked blueprint #${blueprintId} and took back ${creatorTaken} credits from the creator`
+      ? `revoked blueprint #${blueprintId} and ${cashReversed ? "reversed the creator's cash earning" : `took back ${creatorTaken} credits from the creator`}`
       : `blueprint #${blueprintId} purchase was already revoked`;
   } else if (charge.invoice || session?.mode === "subscription" || meta.tier) {
     const [sub] = await tx.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
@@ -441,11 +444,14 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
                 .returning();
 
               if (purchase) {
-                // Pay creator 70%
-                if (bp.authorUserId && creatorShare > 0) {
-                  await adjustWalletCredits(bp.authorUserId, creatorShare, {
-                    reason: `Blueprint sale (Stripe card): "${bp.name}"`,
-                  }, tx);
+                // Card sales pay the creator 70% in real money (Stripe Connect payouts), held
+                // through the refund window; credit-paid sales keep paying wallet credits.
+                let earnedCents = 0;
+                if (bp.authorUserId) {
+                  earnedCents = await recordCardSaleEarning(tx, {
+                    creatorId: bp.authorUserId, blueprintId, buyerUserId: userId,
+                    paymentRef: session.payment_intent ? String(session.payment_intent) : session.id, grossCents: amountTotal,
+                  });
                 }
                 // Increment salesCount
                 await tx
@@ -458,7 +464,8 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
                   afterCommit.push(() => db.insert(notificationsTable).values({
                     userId: authorUserId,
                     title: "Blueprint Sold!",
-                    message: `Your blueprint "${bp.name}" was purchased via card. You earned ${creatorShare} credits.`,
+                    message: `Your blueprint "${bp.name}" was purchased via card. You earned $${(earnedCents / 100).toFixed(2)}, payable from Creator Payouts once the refund window passes.`,
+                    linkUrl: "/creator-payouts",
                     notificationType: "success",
                     read: false,
                   }));
@@ -720,6 +727,10 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
             metadata: { disputeId: dispute.id, chargeId: charge?.id ?? null, userId: userId || null },
           }));
         }
+      }
+
+      if (event.type === "account.updated") {
+        await syncAccountStatus(event.data.object as any, tx);
       }
 
       if (event.type === "invoice.payment_failed") {

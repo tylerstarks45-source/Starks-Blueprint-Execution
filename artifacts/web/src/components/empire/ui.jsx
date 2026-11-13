@@ -32,6 +32,7 @@ export function Badge({ children, tone = 'slate' }) {
     amber: 'border-amber-400/30 text-amber-300 bg-amber-400/10',
     cyan: 'border-cyan-400/30 text-cyan-200 bg-cyan-400/10',
     violet: 'border-violet-400/30 text-violet-200 bg-violet-400/10',
+    rose: 'border-rose-400/30 text-rose-300 bg-rose-400/10',
   };
   return <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border uppercase tracking-wider ${tones[tone]}`}>{children}</span>;
 }

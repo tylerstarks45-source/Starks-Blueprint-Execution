@@ -140,6 +140,17 @@ describe("creator payouts (Stripe Connect)", () => {
     expect(res.body.payout).toMatchObject({ amountCents: 1500, status: "paid" });
   });
 
+  it("checking the balance settles a stale payout without another withdrawal", async () => {
+    await earn(1200, "available");
+    stripeMock.transfersCreate.mockRejectedValueOnce(new Error("timeout"));
+    expect((await post("withdraw", tokenCreator)).status).toBe(502);
+    expect((await get(tokenCreator)).body.balances.availableCents).toBe(0);
+    await db.update(creatorPayoutsTable).set({ createdAt: new Date(Date.now() - 3_600_000) })
+      .where(and(eq(creatorPayoutsTable.userId, creator), eq(creatorPayoutsTable.status, "processing")));
+    stripeMock.transfersList.mockResolvedValueOnce({ data: [] });
+    expect((await get(tokenCreator)).body.balances.availableCents).toBe(1200);
+  });
+
   it("refunds void unpaid earnings and claw back paid ones once", async () => {
     await db.delete(creatorEarningsTable).where(eq(creatorEarningsTable.userId, creator));
     await earn(700, "pending", { buyerUserId: other, blueprintId, paymentRef: `pi_${tag}_a` });

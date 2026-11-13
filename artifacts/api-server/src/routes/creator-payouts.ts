@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { getActiveCallerPayload } from "../lib/auth";
 import { serialize } from "../lib/serialize";
-import { payoutSummary, onboardingLink, refreshAccount, withdraw, PayoutError } from "../lib/creator-payouts";
+import { payoutSummary, onboardingLink, refreshAccount, withdraw, reconcileStalePayouts, PayoutError } from "../lib/creator-payouts";
 
 const router: IRouter = Router();
 
@@ -14,6 +14,8 @@ function appBaseUrl(): string {
 router.get("/creator/payouts", async (req, res): Promise<void> => {
   const caller = await getActiveCallerPayload(req, res);
   if (!caller) return;
+  // Settles payouts stuck in "processing" so the balance recovers without another withdrawal.
+  await reconcileStalePayouts(caller.id).catch((err) => req.log.warn({ err }, "Payout reconciliation failed"));
   res.json(serialize(await payoutSummary(caller.id)));
 });
 

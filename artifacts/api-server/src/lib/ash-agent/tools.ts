@@ -12,13 +12,18 @@ import { chainFor } from "../models";
 import { assembleBusinessContextPackage, assembleCrossBusinessSummary } from "../business-intelligence/context";
 import { buildLearnedPatternsNote } from "../ash-brain";
 import { SPECIALIST_KEYS } from "./specialists";
+import { getEmpireOverview } from "../empire/overview";
+import { listBusinessTypes, STREAM_TYPES } from "../empire/business-types";
+import { createEmpireBusiness, createIncomeStream } from "../empire/actions";
+import { registerAsset, syncUserAssets, ownedBusinessIds } from "../empire/assets";
 
 // Pages ASH can send the user to (the web app's authenticated routes).
 const APP_PAGES = [
   "/dashboard", "/builder", "/workspace", "/systems", "/business-portfolio", "/ash-intelligence", "/ash-brain", "/stats",
   "/memory", "/media", "/library", "/analytics", "/logs", "/email-marketing", "/landing-pages", "/domains",
   "/affiliate-links", "/connections", "/social-accounts", "/social", "/clients", "/credits", "/refer", "/settings",
-  "/marketplace", "/blueprints",
+  "/marketplace", "/blueprints", "/empire", "/income-streams", "/asset-vault", "/business-types", "/research-lab",
+  "/ash-guide", "/business-import",
 ] as const;
 
 type Args = Record<string, unknown>;
@@ -69,6 +74,62 @@ const SPECS: ToolSpec[] = [
     parameters: obj({}),
     kind: "server",
     run: (userId) => assembleCrossBusinessSummary(userId),
+  },
+  {
+    name: "get_empire_overview",
+    description: "The user's whole empire: every business with its type, income streams, assets, pending approvals, verified revenue (null = no revenue source connected) and projected monthly revenue (estimates, never verified).",
+    parameters: obj({}),
+    kind: "server",
+    run: async (userId) => { await syncUserAssets(userId); return getEmpireOverview(userId); },
+  },
+  {
+    name: "list_business_types",
+    description: "Business types the user can create (built-in and their custom types), with each type's usual income streams and assets.",
+    parameters: obj({}),
+    kind: "server",
+    run: (userId) => listBusinessTypes(userId),
+  },
+  {
+    name: "create_business",
+    description: "Create a new business in the user's empire. Use when the user asks you to start or add a business. typeKey comes from list_business_types.",
+    parameters: obj(
+      { name: str("Business name"), typeKey: str("Business type key"), notes: str("Short description of the business"), createDefaultStreams: { type: "boolean", description: "Also add the type's usual income streams as projected" } },
+      ["name", "typeKey"],
+    ),
+    kind: "server",
+    run: async (userId, a) => {
+      const r = await createEmpireBusiness(userId, { name: String(a["name"]).slice(0, 120), typeKey: String(a["typeKey"]), notes: a["notes"] ? String(a["notes"]).slice(0, 5000) : undefined, createDefaultStreams: a["createDefaultStreams"] === true });
+      return "error" in r ? r : { businessId: r.business.id, name: r.business.name, type: r.type.name, streamsCreated: r.streams.length };
+    },
+  },
+  {
+    name: "add_income_stream",
+    description: "Add an income stream to one of the user's businesses. Status 'projected' until it is earning; estimatedMonthlyRevenue is an estimate in USD.",
+    parameters: obj(
+      { businessId: int("Business id"), title: str("Stream name"), streamType: { type: "string", enum: [...STREAM_TYPES] }, status: { type: "string", enum: ["active", "projected"] }, estimatedMonthlyRevenue: { type: "number", description: "Estimated USD per month" } },
+      ["businessId", "title", "streamType"],
+    ),
+    kind: "server",
+    run: async (userId, a) => (await createIncomeStream(userId, {
+      businessId: Number(a["businessId"]), title: String(a["title"]).slice(0, 160), streamType: String(a["streamType"]),
+      status: a["status"] ? String(a["status"]) : undefined, estimatedMonthlyRevenue: typeof a["estimatedMonthlyRevenue"] === "number" ? Math.max(0, a["estimatedMonthlyRevenue"]) : null,
+    })) ?? { error: "Business not found" },
+  },
+  {
+    name: "register_asset",
+    description: "Save something you or the user made (site, page, product, document, agent, automation, account) in the Asset Vault under a business.",
+    parameters: obj(
+      { name: str("Asset name"), classKey: str("Kind: website, page, application, domain, product, service, offer, campaign, brand_asset, document, ai_agent, automation, integration, email_list, other"), businessId: int("Business id"), externalUrl: str("Public URL if any"), description: str("What it is") },
+      ["name", "classKey"],
+    ),
+    kind: "server",
+    run: async (userId, a) => {
+      const businessId = a["businessId"] != null ? Number(a["businessId"]) : null;
+      if (businessId != null && !(await ownedBusinessIds(userId, [businessId])).has(businessId)) return { error: "Business not found" };
+      const url = typeof a["externalUrl"] === "string" && /^https?:\/\//.test(a["externalUrl"]) ? a["externalUrl"].slice(0, 1000) : null;
+      const assetId = await registerAsset({ userId, businessId, classKey: String(a["classKey"]).slice(0, 40), name: String(a["name"]).slice(0, 200), description: a["description"] ? String(a["description"]).slice(0, 2000) : null, externalUrl: url, builderSource: "ash", builderObjectId: `ash-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
+      return { saved: true, assetId };
+    },
   },
   {
     name: "research",

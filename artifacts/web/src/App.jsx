@@ -75,6 +75,10 @@ const AshIntelligencePage   = lazy(() => import('@/pages/AshIntelligencePage.jsx
 const AshBrainPage          = lazy(() => import('@/pages/AshBrainPage.jsx'));
 const StatsPage             = lazy(() => import('@/pages/StatsPage.jsx'));
 const AshGuidePage          = lazy(() => import('@/pages/AshGuidePage.jsx'));
+const EmpirePage            = lazy(() => import('@/pages/EmpirePage.jsx'));
+const IncomeStreamsPage     = lazy(() => import('@/pages/IncomeStreamsPage.jsx'));
+const AssetVaultPage        = lazy(() => import('@/pages/AssetVaultPage.jsx'));
+const BusinessTypesPage     = lazy(() => import('@/pages/BusinessTypesPage.jsx'));
 const LandingPagesPage      = lazy(() => import('@/pages/LandingPagesPage.jsx'));
 const UserLandingPageCanvas = lazy(() => import('@/pages/UserLandingPageCanvas.jsx'));
 const AffiliateLinkManagerPage = lazy(() => import('@/pages/AffiliateLinkManagerPage.jsx'));
@@ -312,6 +316,18 @@ const App = () => {
               } />
               <Route path="/ash-guide" element={
                 <ProtectedRoute><AshGuidePage /></ProtectedRoute>
+              } />
+              <Route path="/empire" element={
+                <ProtectedRoute><EmpirePage /></ProtectedRoute>
+              } />
+              <Route path="/income-streams" element={
+                <ProtectedRoute><IncomeStreamsPage /></ProtectedRoute>
+              } />
+              <Route path="/asset-vault" element={
+                <ProtectedRoute><AssetVaultPage /></ProtectedRoute>
+              } />
+              <Route path="/business-types" element={
+                <ProtectedRoute><BusinessTypesPage /></ProtectedRoute>
               } />
               <Route path="/landing-pages" element={
                 <ProtectedRoute><LandingPagesPage /></ProtectedRoute>

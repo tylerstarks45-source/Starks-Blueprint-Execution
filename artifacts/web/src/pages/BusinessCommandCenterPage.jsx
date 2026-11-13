@@ -6,7 +6,7 @@ import {
   ArrowLeft, Building2, Globe, Wrench, Download, Link2, RefreshCw,
   FileText, TrendingUp, BarChart3, Server, Plug, Sparkles, Bell,
   ListChecks, LineChart as LineChartIcon, Rocket, ExternalLink,
-  ShieldCheck, ScrollText, AlertTriangle,
+  ShieldCheck, ScrollText, AlertTriangle, Coins,
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import AuthLayout from '@/components/AuthLayout.jsx';
@@ -17,6 +17,7 @@ import BusinessIntelligenceConflicts from '@/components/BusinessIntelligenceConf
 import BusinessIntelligenceReviewQueue from '@/components/BusinessIntelligenceReviewQueue.jsx';
 import OperationsModePanel from '@/components/OperationsModePanel.jsx';
 import GrowthRecommendationsPanel from '@/components/GrowthRecommendationsPanel.jsx';
+import BusinessEmpirePanel from '@/components/empire/BusinessEmpirePanel.jsx';
 import { getAuthHeaders } from '@/lib/apiHeaders.js';
 import { useBusiness } from '@/contexts/BusinessContext.jsx';
 
@@ -317,6 +318,10 @@ export default function BusinessCommandCenterPage() {
                 <Link to="/domains" className="text-primary hover:underline">Manage domains</Link>
               </p>
             )}
+          </SectionCard>
+
+          <SectionCard icon={Coins} title="Income Streams & Assets" className="lg:col-span-3">
+            <BusinessEmpirePanel business={business} />
           </SectionCard>
 
           {/* Connections */}

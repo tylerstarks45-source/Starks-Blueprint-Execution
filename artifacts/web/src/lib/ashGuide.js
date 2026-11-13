@@ -13,6 +13,15 @@ export const GUIDE_SECTIONS = [
     examples: ['What should I focus on today?', 'Summarize how my businesses are doing'],
   },
   {
+    id: 'empire',
+    title: 'Your empire: businesses, income streams and assets',
+    where: 'Empire Command Center, Income Streams, Asset Vault, Business Types',
+    summary: 'Run many businesses from one place. Each business has a type, its own income streams and its own assets. ASH can create businesses, add income streams and save what she builds to the Asset Vault for you. Verified revenue (recorded sales) and projected revenue (estimates) are always shown separately.',
+    tips: ['Pages, domains, systems and email lists you create are added to the Asset Vault automatically', 'An asset is only shared with another business when you choose Share', 'Add your own business type on the Business Types page if yours is not listed'],
+    examples: ['Show me my empire', 'Start a print-on-demand business called Northwind Tees and add its usual income streams', 'Add a $29/month membership income stream to my newest business'],
+    link: { to: '/empire', label: 'Empire Command Center' },
+  },
+  {
     id: 'navigate',
     title: 'Page commands',
     where: 'ASH dock or Builder',

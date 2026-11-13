@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql, isNull } from "drizzle-orm";
 import {
   db, businessesTable, businessHealthScoresTable, systemActivityEventsTable, revenueStreams, canonicalAssets, pendingApprovalsTable,
   systemRevenueProvidersTable,
@@ -93,6 +93,10 @@ export async function getEmpireOverview(userId: number) {
     };
   });
 
+  const [empireRow] = await db.select({ n: sql<number>`count(*)::int` }).from(pendingApprovalsTable)
+    .where(and(eq(pendingApprovalsTable.userId, userId), eq(pendingApprovalsTable.status, "pending"), isNull(pendingApprovalsTable.businessId)));
+  const empireApprovals = Number(empireRow?.n ?? 0);
+
   return {
     totals: {
       businesses: rows.length,
@@ -101,7 +105,7 @@ export async function getEmpireOverview(userId: number) {
       activeStreams: liveStreams.filter((s) => s.status === "active").length,
       assets: assets.reduce((s, a) => s + Number(a.count), 0),
       unassignedAssets: assetsBy.get(null) ?? 0,
-      pendingApprovals: rows.reduce((s, r) => s + r.pendingApprovals, 0),
+      pendingApprovals: rows.reduce((s, r) => s + r.pendingApprovals, 0) + empireApprovals,
       verifiedRevenueCents: {
         last30: rows.reduce((s, r) => s + (r.verifiedRevenueCents?.last30 ?? 0), 0),
         lifetime: rows.reduce((s, r) => s + (r.verifiedRevenueCents?.lifetime ?? 0), 0),

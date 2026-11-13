@@ -1,4 +1,6 @@
-import { db, pool, systemActivityEventsTable, type PendingApproval } from "@workspace/db";
+import { db, pool, systemActivityEventsTable, ashMissionsTable, type PendingApproval } from "@workspace/db";
+import { and, eq, ne } from "drizzle-orm";
+import { getTool, checkToolArgs } from "./ash-agent/tools";
 
 // ─── Autonomous action executor ───────────────────────────────────────────────
 //
@@ -29,7 +31,7 @@ export function isExecutableApproval(approval: Pick<PendingApproval, "payload">)
   return typeof action === "string" && KNOWN_ACTIONS.has(action);
 }
 
-const KNOWN_ACTIONS = new Set(["promote_ab_variant"]);
+const KNOWN_ACTIONS = new Set(["promote_ab_variant", "ash_tool"]);
 
 // ─── Execute an approved action ───────────────────────────────────────────────
 
@@ -44,9 +46,38 @@ export async function executeApprovedAction(approval: PendingApproval): Promise<
   switch (action) {
     case "promote_ab_variant":
       return promoteAbVariant(approval, payload);
+    case "ash_tool":
+      return runApprovedAshTool(approval, payload);
     default:
       return { executed: false, reversible: false, detail: `Unknown action: ${action}` };
   }
+}
+
+// A server-side ASH tool call that the owner's ASH Control settings held back.
+// The tool itself re-checks ownership of everything it touches.
+async function runApprovedAshTool(approval: PendingApproval, payload: ActionPayload): Promise<ExecutionResult> {
+  const tool = typeof payload["tool"] === "string" ? getTool(payload["tool"]) : undefined;
+  if (!tool || tool.kind !== "server" || !tool.run) {
+    return { executed: false, reversible: false, detail: "This ASH action can't be run automatically." };
+  }
+  const checked = checkToolArgs(tool.name, (payload["args"] ?? {}) as Record<string, unknown>);
+  if (!checked.ok) return { executed: false, reversible: false, detail: checked.error };
+  const run = async (): Promise<ExecutionResult> => {
+    const result = await tool.run!(approval.userId, checked.args);
+    if (result && typeof result === "object" && "error" in result) {
+      return { executed: false, reversible: false, detail: String((result as { error: unknown }).error) };
+    }
+    return { executed: true, reversible: false, detail: JSON.stringify(result ?? null).slice(0, 500) };
+  };
+  const missionId = Number(payload["missionId"]);
+  if (Number.isInteger(missionId)) {
+    // An UPDATE waits for an in-flight cancel to commit and re-checks the status, so a cancel that got there first wins.
+    const live = await db.update(ashMissionsTable).set({ updatedAt: new Date() })
+      .where(and(eq(ashMissionsTable.id, missionId), eq(ashMissionsTable.userId, approval.userId), ne(ashMissionsTable.status, "cancelled")))
+      .returning({ id: ashMissionsTable.id });
+    if (!live.length) return { executed: false, reversible: false, detail: "The mission behind this action was cancelled." };
+  }
+  return run();
 }
 
 async function promoteAbVariant(approval: PendingApproval, payload: ActionPayload): Promise<ExecutionResult> {

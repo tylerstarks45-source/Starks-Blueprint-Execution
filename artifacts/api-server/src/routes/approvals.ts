@@ -5,6 +5,7 @@ import { db, pendingApprovalsTable } from "@workspace/db";
 import { getActiveCallerPayload } from "../lib/auth";
 import { executeApprovedAction, revertApprovedAction, isExecutableApproval } from "../lib/approval-executor";
 import { logger } from "../lib/logger";
+import { onApprovalResolved } from "../lib/ash-missions";
 import {
   ListApprovalsQueryParams,
   ListApprovalsResponse,
@@ -107,6 +108,9 @@ router.post("/approvals/:id/approve", async (req, res): Promise<void> => {
     .where(eq(pendingApprovalsTable.id, params.data.id))
     .returning();
 
+  await onApprovalResolved(existing, true, executedAt ? "done" : undefined)
+    .catch((err) => logger.warn({ err, approvalId: existing.id }, "Failed to update mission after approval"));
+
   res.json(ApprovePendingApprovalResponse.parse(serialize(row)));
 });
 
@@ -145,6 +149,11 @@ router.post("/approvals/:id/reject", async (req, res): Promise<void> => {
     .set({ status: "rejected", resolvedAt: new Date() })
     .where(eq(pendingApprovalsTable.id, params.data.id))
     .returning();
+
+  if (row) {
+    await onApprovalResolved(row, false)
+      .catch((err) => logger.warn({ err, approvalId: row.id }, "Failed to update mission after rejection"));
+  }
 
   res.json(RejectPendingApprovalResponse.parse(serialize(row)));
 });

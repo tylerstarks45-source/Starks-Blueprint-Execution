@@ -76,6 +76,9 @@ const AshBrainPage          = lazy(() => import('@/pages/AshBrainPage.jsx'));
 const StatsPage             = lazy(() => import('@/pages/StatsPage.jsx'));
 const AshGuidePage          = lazy(() => import('@/pages/AshGuidePage.jsx'));
 const EmpirePage            = lazy(() => import('@/pages/EmpirePage.jsx'));
+const MissionsPage          = lazy(() => import('@/pages/MissionsPage.jsx'));
+const ApprovalsPage         = lazy(() => import('@/pages/ApprovalsPage.jsx'));
+const AshControlPage        = lazy(() => import('@/pages/AshControlPage.jsx'));
 const IncomeStreamsPage     = lazy(() => import('@/pages/IncomeStreamsPage.jsx'));
 const AssetVaultPage        = lazy(() => import('@/pages/AssetVaultPage.jsx'));
 const BusinessTypesPage     = lazy(() => import('@/pages/BusinessTypesPage.jsx'));
@@ -316,6 +319,15 @@ const App = () => {
               } />
               <Route path="/ash-guide" element={
                 <ProtectedRoute><AshGuidePage /></ProtectedRoute>
+              } />
+              <Route path="/missions" element={
+                <ProtectedRoute><MissionsPage /></ProtectedRoute>
+              } />
+              <Route path="/approvals" element={
+                <ProtectedRoute><ApprovalsPage /></ProtectedRoute>
+              } />
+              <Route path="/ash-control" element={
+                <ProtectedRoute><AshControlPage /></ProtectedRoute>
               } />
               <Route path="/empire" element={
                 <ProtectedRoute><EmpirePage /></ProtectedRoute>

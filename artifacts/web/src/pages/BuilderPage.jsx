@@ -5782,11 +5782,13 @@ const BuilderPage = () => {
                   'Start a new business for me and add its usual income streams',
                   'Add an income stream to my newest business',
                   'Save what we just built to the Asset Vault',
+                  'Start a mission: build 3 income streams for my newest business',
+                  'What missions are you working on?',
                 ].map((ex) => (
                   <button key={ex} type="button" onClick={() => setInput(ex)} className="text-left text-[10px] font-mono text-cyan-300/70 hover:text-cyan-200">→ {ex}</button>
                 ))}
                 <div className="grid grid-cols-2 gap-1.5 pt-1">
-                  {[['/empire', 'Command Center'], ['/income-streams', 'Income Streams'], ['/asset-vault', 'Asset Vault'], ['/business-types', 'Business Types']].map(([to, l]) => (
+                  {[['/empire', 'Command Center'], ['/income-streams', 'Income Streams'], ['/asset-vault', 'Asset Vault'], ['/business-types', 'Business Types'], ['/missions', 'Missions'], ['/approvals', 'Approvals'], ['/ash-control', 'ASH Control']].map(([to, l]) => (
                     <button key={to} type="button" onClick={() => navigate(to)} className="text-[9px] font-mono px-2 py-1.5 rounded-md border border-white/8 text-white/55 hover:text-white hover:bg-white/5">{l} →</button>
                   ))}
                 </div>

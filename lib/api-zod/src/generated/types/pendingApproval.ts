@@ -12,7 +12,8 @@ import type { PendingApprovalUndoPayload } from './pendingApprovalUndoPayload';
 
 export interface PendingApproval {
   id: number;
-  businessId: number;
+  /** @nullable */
+  businessId: number | null;
   userId: number;
   category: string;
   riskLevel: PendingApprovalRiskLevel;

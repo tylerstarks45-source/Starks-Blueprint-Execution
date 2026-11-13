@@ -77,6 +77,7 @@ export default function BusinessEmpirePanel({ business }) {
             <p className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-white/60"><Archive className="w-3.5 h-3.5 text-violet-300" /> Assets</p>
             <div className="flex gap-2">
               <Link to={`/asset-vault?businessId=${business.id}`} className={btn}>Vault</Link>
+              <Link to="/ash-control" className={btn}>ASH Control</Link>
               <button type="button" className={btn} onClick={() => setDialog('asset')}><Plus className="w-3.5 h-3.5" /> Add</button>
             </div>
           </div>

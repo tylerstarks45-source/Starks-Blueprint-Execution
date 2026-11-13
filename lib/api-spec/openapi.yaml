@@ -6746,7 +6746,7 @@ components:
         id:
           type: integer
         businessId:
-          type: integer
+          type: ["integer", "null"]
         userId:
           type: integer
         category:

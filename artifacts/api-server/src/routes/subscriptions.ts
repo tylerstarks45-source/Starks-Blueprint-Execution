@@ -214,6 +214,15 @@ async function chargeSubscriptionId(stripe: StripeClient, charge: any, session: 
   }
 }
 
+
+/** Re-derive a user's paid access from their current subscription row. */
+async function restoreMembership(tx: DbExecutor, userId: number): Promise<void> {
+  const [sub] = await tx.select({ tier: subscriptionsTable.tier, status: subscriptionsTable.status })
+    .from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+  const tier = sub && ["active", "past_due", "trialing"].includes(sub.status ?? "") ? sub.tier : "free";
+  await tx.update(usersTable).set({ membershipTier: tier ?? "free", membershipStatus: "active" }).where(eq(usersTable.id, userId));
+}
+
 /**
  * Undo what a fully refunded or charged-back payment granted: wallet top-ups are taken back,
  * blueprint purchases are revoked along with the creator's share, and subscription payments
@@ -744,6 +753,10 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
         const dispute = event.data.object as any;
         const charge = typeof dispute.charge === "string" ? await stripe.charges.retrieve(dispute.charge) : dispute.charge;
         if (event.type === "charge.dispute.closed" && dispute.status === "lost") {
+          // Lift the pause from when the dispute opened; reverseCharge then takes back only what
+          // the disputed charge paid for (it downgrades the plan if that was the current subscription).
+          const { userId } = await chargeOwner(tx, stripe, charge);
+          if (userId) await restoreMembership(tx, userId);
           await reverseCharge(tx, stripe, charge, "chargeback", afterCommit, req.log);
         } else {
           const { userId } = await chargeOwner(tx, stripe, charge);
@@ -754,10 +767,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
             // subscription row so winning the dispute can restore it.
             await tx.update(usersTable).set({ membershipTier: "free", membershipStatus: "inactive" }).where(eq(usersTable.id, userId));
           } else if (userId && won) {
-            const [sub] = await tx.select({ tier: subscriptionsTable.tier, status: subscriptionsTable.status })
-              .from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
-            const tier = sub && ["active", "past_due", "trialing"].includes(sub.status ?? "") ? sub.tier : "free";
-            await tx.update(usersTable).set({ membershipTier: tier ?? "free", membershipStatus: "active" }).where(eq(usersTable.id, userId));
+            await restoreMembership(tx, userId);
           }
           afterCommit.push(() => notifyAdmins({
             title: opened ? `Stripe dispute opened: ${usd(dispute.amount)}` : `Stripe dispute closed (${dispute.status})`,

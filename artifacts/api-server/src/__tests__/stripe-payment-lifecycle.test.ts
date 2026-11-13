@@ -136,6 +136,19 @@ describe("Stripe refunds, chargebacks and failed renewals", () => {
     expect(stripeMock.subscriptionsCancel).not.toHaveBeenCalled();
   });
 
+  it("losing a dispute on an earlier subscription's payment restores the current plan", async () => {
+    const old = { id: `ch_${tag}_old2`, amount: 2900, customer: `cus_${tag}`, payment_intent: "pi_old2" };
+    stripeMock.chargesRetrieve.mockResolvedValueOnce(old).mockResolvedValueOnce(old);
+    stripeMock.sessionsList.mockResolvedValue({ data: [] });
+    stripeMock.invoicePaymentsList.mockResolvedValueOnce({ data: [{ invoice: "in_old2" }] });
+    stripeMock.invoicesRetrieve.mockResolvedValueOnce({ id: "in_old2", parent: { subscription_details: { subscription: "sub_old" } } });
+    await send("charge.dispute.created", { id: `dp3_${tag}`, charge: old.id, amount: 2900, reason: "fraudulent", status: "needs_response" });
+    expect(await user(subscriber)).toMatchObject({ membershipStatus: "inactive", membershipTier: "free" });
+    expect((await send("charge.dispute.closed", { id: `dp3_${tag}`, charge: old.id, amount: 2900, status: "lost" })).status).toBe(200);
+    expect(await user(subscriber)).toMatchObject({ membershipStatus: "active", membershipTier: "pro" });
+    expect(stripeMock.subscriptionsCancel).not.toHaveBeenCalled();
+  });
+
   it("lost chargeback on a subscription ends the plan, takes back credits and cancels in Stripe", async () => {
     stripeMock.subscriptionsCancel.mockResolvedValue({});
     const res = await send("charge.dispute.closed", { id: `dp2_${tag}`, charge: `ch_${tag}_d`, amount: 2900, status: "lost" });

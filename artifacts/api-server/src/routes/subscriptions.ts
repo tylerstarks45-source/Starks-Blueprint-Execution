@@ -797,7 +797,16 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
             .where(eq(subscriptionsTable.stripeCustomerId, String(invoice.customer)));
           userId = sub?.userId ?? 0;
         }
+        const rawSub = invoice.parent?.subscription_details?.subscription ?? invoice.subscription ?? null;
+        const invoiceSub = rawSub ? (typeof rawSub === "string" ? rawSub : rawSub.id) : null;
+        let currentSub: string | null = null;
         if (userId) {
+          const [sub] = await tx.select({ id: subscriptionsTable.stripeSubscriptionId }).from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+          currentSub = sub?.id ?? null;
+        }
+        // Only a failed renewal of the current plan pauses it; standalone or older-subscription invoices don't.
+        const affectsPlan = Boolean(userId && invoiceSub && (!currentSub || currentSub === invoiceSub));
+        if (affectsPlan) {
           // Same mapping as customer.subscription.updated → past_due. Stripe keeps retrying the card;
           // a later invoice.payment_succeeded re-activates, a final failure cancels the subscription.
           await tx.update(subscriptionsTable).set({ status: "past_due" }).where(eq(subscriptionsTable.userId, userId));
@@ -813,7 +822,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
         }
         afterCommit.push(() => notifyAdmins({
           title: `Subscription payment failed: ${usd(invoice.amount_due)}`,
-          message: `Invoice ${invoice.id}${userId ? ` for user #${userId}` : ""} failed (attempt ${invoice.attempt_count ?? 1}). Stripe will retry automatically.`,
+          message: `Invoice ${invoice.id}${userId ? ` for user #${userId}` : ""} failed (attempt ${invoice.attempt_count ?? 1}). Stripe will retry automatically.${userId && !affectsPlan ? " It isn't for the current plan, so access was left unchanged." : ""}`,
           dedupeKey: `admin_payment_failed_${invoice.id}`, linkUrl: "/admin/stripe",
         }));
       }

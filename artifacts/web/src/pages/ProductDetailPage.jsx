@@ -39,7 +39,7 @@ const ProductDetailPage = () => {
               cta_link: pbTool.affiliateLink || pbTool.affiliate_link || getAffiliateLink(pbTool.name) || "#",
               features: pbTool.full_description ? [pbTool.full_description] : [],
               use_cases: pbTool.core_problem ? [pbTool.core_problem] : [],
-              social_proof: ["4.8/5 ⭐", "Verified Users"],
+              social_proof: [],
               badges: pbTool.verified_use_case ? ["✅ Verified"] : [],
               customCTA: "Access Tool"
             };
@@ -88,8 +88,8 @@ const ProductDetailPage = () => {
   }
 
   const price = product.price || (product.badges?.includes('💎 Premium') ? '$99/mo' : 'Free Trial Available');
-  const rating = product.social_proof?.[0]?.split('/')[0] || '4.8';
-  const users = product.social_proof?.[1] || '10,000+ Active Users';
+  const rating = product.social_proof?.[0]?.split('/')[0];
+  const users = product.social_proof?.[1];
 
   const productSchema = {
     "@context": "https://schema.org",
@@ -114,13 +114,6 @@ const ProductDetailPage = () => {
       },
       "availability": "https://schema.org/InStock",
       "url": product.cta_link
-    },
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": rating,
-      "bestRating": "5",
-      "worstRating": "1",
-      "ratingCount": "100"
     }
   };
 
@@ -213,7 +206,7 @@ const ProductDetailPage = () => {
                     <span className="text-sm text-zinc-400 font-bold mb-1 text-shadow-sm">Rating</span>
                     <div className="flex items-center gap-1">
                       <Star className="w-5 h-5 fill-amber-400 text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" />
-                      <span className="text-xl font-extrabold text-foreground text-shadow-sm">{rating}/5</span>
+                      <span className="text-xl font-extrabold text-foreground text-shadow-sm">{rating ? `${rating}/5` : 'Not rated yet'}</span>
                     </div>
                   </div>
                   <div className="w-px h-10 bg-white/20 hidden sm:block"></div>
@@ -221,7 +214,7 @@ const ProductDetailPage = () => {
                     <span className="text-sm text-zinc-400 font-bold mb-1 text-shadow-sm">Trusted By</span>
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="w-5 h-5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]" />
-                      <span className="text-lg font-extrabold text-foreground text-shadow-sm">{users}</span>
+                      <span className="text-lg font-extrabold text-foreground text-shadow-sm">{users || 'New listing'}</span>
                     </div>
                   </div>
                 </div>

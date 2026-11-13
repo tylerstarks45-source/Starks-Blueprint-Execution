@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Send, Volume2, VolumeX, ChevronRight } from 'lucide-react';
 import ashFaceUrl from '@/assets/ash-face.jpg';
 
@@ -86,6 +87,11 @@ export default function ASHAssistantPanel({ userName = 'Tyler', systemStats }) {
     setTimeout(() => speak(greeting), 800);
   }, [userName, speak]);
 
+  const navigate = useNavigate();
+  const historyRef = useRef([]);
+
+  // Same tool-capable agent as the ASH dock: she can look things up, create businesses,
+  // streams and assets, start missions and open pages, all within the user's ASH Control settings.
   const send = async () => {
     if (!message.trim() || sending) return;
     const txt = message.trim();
@@ -93,16 +99,22 @@ export default function ASHAssistantPanel({ userName = 'Tyler', systemStats }) {
     setSending(true);
     setReply('Processing…');
     try {
-      const res  = await fetch('/api/ash/chat', {
+      const res = await fetch('/api/ash/agent', {
         method: 'POST', headers: authHeaders(),
-        body: JSON.stringify({ message: txt, context: 'dashboard' }),
+        body: JSON.stringify({ message: txt, history: historyRef.current.slice(-12), page: '/dashboard', surface: 'dock' }),
       });
-      const data = await res.json();
-      const r    = data.response ?? data.message ?? data.content ?? 'Understood. Processing your request.';
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 402) throw new Error('You are out of AI credits. Top up to keep talking to ASH.');
+      if (!res.ok) throw new Error(data.error || 'ASH is unavailable right now.');
+      const nav = (data.structuredData?.calls ?? []).find((c) => c.type === 'navigate' && typeof c.path === 'string' && c.path.startsWith('/'));
+      const r = data.content || (nav ? 'Done.' : 'Understood.');
+      historyRef.current = [...historyRef.current, { role: 'user', content: txt }, { role: 'assistant', content: r.slice(0, 8000) }];
       setReply(r);
       speak(r);
-    } catch {
-      const fb = 'Connection to core systems interrupted. Please try again.';
+      window.dispatchEvent(new Event('empire:changed'));
+      if (nav) navigate(nav.path);
+    } catch (err) {
+      const fb = err?.message || 'Connection to core systems interrupted. Please try again.';
       setReply(fb); speak(fb);
     } finally { setSending(false); }
   };

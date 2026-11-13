@@ -16,6 +16,7 @@ import { getRevenueSummaryForInstance, revenueContextLine } from "../revenue-sum
 import { retrieveRelevantLessons, formatLessonsForPrompt } from "../ash-brain";
 import { getRecommendationLessons, calibrateConfidence, formatRecommendationLessons } from "../recommendation-outcomes";
 import { notifyUser } from "../notify";
+import { notifyAdmins } from "../admin-alerts";
 import { sendPushNotification } from "../push";
 import { sendAutomationPausedEmail } from "../email";
 import { fetchPage } from "../browser/crawler";
@@ -813,6 +814,14 @@ async function processJob(): Promise<void> {
 
     // Push + in-app notification when all retries are exhausted and job has a system owner
     const finalFailure = job.attempt >= job.maxAttempts;
+    if (finalFailure) {
+      void notifyAdmins({
+        title: `Background job failed: ${job.jobType}`,
+        message: `Job #${job.jobId} (${job.jobType}) failed permanently after ${job.maxAttempts} attempt${job.maxAttempts === 1 ? "" : "s"}. Error: ${error.slice(0, 200)}`,
+        dedupeKey: `admin_job_fail_${job.jobType}`,
+        metadata: { jobId: job.jobId, jobType: job.jobType, systemInstanceId: job.systemInstanceId ?? null, error: error.slice(0, 500) },
+      });
+    }
     if (finalFailure && job.systemInstanceId) {
       (async () => {
         try {

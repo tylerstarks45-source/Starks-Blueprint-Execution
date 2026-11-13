@@ -22,8 +22,8 @@ const ProductCard = ({ product }) => {
 
   // Mock pricing if not available
   const price = product.price || (product.badges?.includes('💎 Premium') ? '$99/mo' : 'Free Trial');
-  const rating = product.social_proof?.[0]?.split('/')[0] || '4.8';
-  const users = product.social_proof?.[1] || '10k+ Users';
+  const rating = product.social_proof?.[0]?.split('/')[0];
+  const users = product.social_proof?.[1];
 
   return (
     <div className="cinematic-card flex flex-col h-full group">
@@ -67,12 +67,14 @@ const ProductCard = ({ product }) => {
 
         {/* Rating & Trust */}
         <div className="flex items-center gap-3 mb-4 text-sm">
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-            <span className="font-bold text-foreground">{rating}</span>
-          </div>
-          <span className="text-muted-foreground">•</span>
-          <span className="text-muted-foreground">{users}</span>
+          {rating && (
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+              <span className="font-bold text-foreground">{rating}</span>
+            </div>
+          )}
+          {rating && users && <span className="text-muted-foreground">•</span>}
+          {users && <span className="text-muted-foreground">{users}</span>}
           {product.badges?.includes('✅ Verified') && (
             <>
               <span className="text-muted-foreground">•</span>

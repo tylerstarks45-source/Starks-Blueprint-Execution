@@ -35,7 +35,7 @@ export default function EmpireSummary({ compact = false }) {
       )}
       {t && <p className="text-[8px] text-white/30">Projected = estimates. Verified = synced provider sales only.</p>}
       <div className="flex gap-3">
-        {[['/missions', 'Missions'], ['/approvals', 'Approvals'], ['/ash-control', 'ASH Control']].map(([to, l]) => (
+        {[['/missions', 'Missions'], ['/approvals', 'Approvals'], ['/ash-control', 'ASH Control'], ['/creator-payouts', 'Payouts']].map(([to, l]) => (
           <Link key={to} to={to} className="text-[8px] font-mono uppercase tracking-widest text-cyan-300/70 hover:text-cyan-200">{l} →</Link>
         ))}
       </div>

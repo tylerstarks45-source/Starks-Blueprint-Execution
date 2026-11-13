@@ -3,7 +3,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import PageMeta from '@/components/PageMeta.jsx';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, Filter, SlidersHorizontal, ShieldCheck, Star, Users, Zap, ArrowRight } from 'lucide-react';
+import { Search, Filter, SlidersHorizontal, ShieldCheck, Star, Zap, ArrowRight } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import ProductCard from '@/components/ProductCard.jsx';
@@ -243,7 +243,6 @@ const MarketplacePage = () => {
         <div className="bg-background/70 backdrop-blur-md border-b border-white/10 py-6">
           <div className="container mx-auto px-4 max-w-7xl">
             <div className="flex flex-wrap justify-center gap-8 md:gap-16 text-sm font-medium text-zinc-200 text-shadow-sm">
-              <div className="flex items-center gap-2"><Users className="w-5 h-5 text-primary" /> 10,000+ Satisfied Customers</div>
               <div className="flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-400" /> 30-Day Money-Back Guarantee</div>
               <div className="flex items-center gap-2"><Zap className="w-5 h-5 text-orange-400" /> Instant Access & Setup</div>
             </div>

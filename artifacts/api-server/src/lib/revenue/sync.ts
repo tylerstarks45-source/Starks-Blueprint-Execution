@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { decrypt } from "../crypto";
 import { getRevenueProvider } from "./registry";
 import { logger } from "../logger";
+import { notifyAdmins } from "../admin-alerts";
 import { runIfLockAcquired, REVENUE_SYNC_LOCK_KEY } from "../runtime/single-runner";
 import { checkMilestones } from "../milestones";
 import { sendPushNotification } from "../push";
@@ -172,6 +173,11 @@ async function runSyncCycle(): Promise<void> {
       }
     } catch (err) {
       logger.error({ providerId: p.id, err }, "Revenue sync: unhandled error");
+      void notifyAdmins({
+        title: "Revenue sync failed",
+        message: `Revenue sync for provider connection #${p.id} (${p.provider}) threw: ${String((err as Error)?.message ?? err).slice(0, 200)}`,
+        dedupeKey: `admin_revenue_sync_${p.id}`,
+      });
     }
   }
 }

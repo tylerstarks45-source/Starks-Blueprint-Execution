@@ -66,13 +66,6 @@ const ToolDetailPage = () => {
       "@type": "Offer",
       "availability": "https://schema.org/InStock",
       "url": tool.affiliate_link || `https://starksglobalgroup.net/tools/${id}`
-    },
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "4.8",
-      "bestRating": "5",
-      "worstRating": "1",
-      "ratingCount": "100"
     }
   };
 

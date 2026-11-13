@@ -50,4 +50,4 @@ Later PRs may need a rebase after earlier ones merge; ask Devin to resolve confl
 - Database: back up production, follow the baseline steps in `database-migrations.md` (`pnpm --filter @workspace/scripts run db:baseline`), then switch `scripts/post-merge.sh` from `pnpm --filter db push` to `pnpm --filter @workspace/scripts run db:migrate` (see `database-migrations.md`). Do not switch before the baseline.
 - Run one real backup + restore drill against a copy of production (#7).
 - Point an uptime monitor at `https://starksglobalgroup.net/api/readyz` (503 = database unreachable).
-- In Stripe, confirm the webhook endpoint and signing secret match `STRIPE_WEBHOOK_SECRET`.
+- In Stripe, confirm the webhook endpoint and signing secret match `STRIPE_WEBHOOK_SECRET`. Subscribe it to the events listed in `REPLIT-HANDOFF.md` (including refunds, disputes and failed invoices) and enable Connect for creator payouts.

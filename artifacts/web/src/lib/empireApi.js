@@ -59,3 +59,10 @@ export const ACTION_KIND_LABELS = {
 export const usd = (n) => (n == null ? '—' : `$${Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
 export const centsUsd = (c) => (c == null ? '—' : `$${(Number(c) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 export const label = (s) => String(s ?? '').replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+
+export const payoutApi = {
+  get: () => call('GET', '/api/creator/payouts'),
+  onboard: () => call('POST', '/api/creator/payouts/onboard'),
+  refresh: () => call('POST', '/api/creator/payouts/refresh'),
+  withdraw: () => call('POST', '/api/creator/payouts/withdraw'),
+};

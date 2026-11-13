@@ -4,7 +4,7 @@ import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import {
   db, businessesTable, revenueStreams, canonicalAssets, customBusinessTypesTable, assetBusinessSharesTable,
 } from "@workspace/db";
-import { getActiveCallerPayload } from "../lib/auth";
+import { getActiveCallerPayload, validateClientWorkspaceId } from "../lib/auth";
 import { serialize } from "../lib/serialize";
 import { getEmpireOverview } from "../lib/empire/overview";
 import { listBusinessTypes, resolveBusinessType, slugifyKey, STREAM_TYPES, BUILTIN_BUSINESS_TYPES } from "../lib/empire/business-types";
@@ -106,7 +106,7 @@ router.post("/empire/businesses", async (req, res): Promise<void> => {
   if (!caller) return;
   const body = CreateBody.safeParse(req.body);
   if (!body.success) return bad(res, zerr(body.error));
-  const result = await createEmpireBusiness(caller.id, body.data);
+  const result = await createEmpireBusiness(caller.id, { ...body.data, clientWorkspaceId: await validateClientWorkspaceId(req, caller.id) });
   if ("error" in result) return bad(res, result.error ?? "Invalid request");
   res.status(201).json(serialize(result));
 });

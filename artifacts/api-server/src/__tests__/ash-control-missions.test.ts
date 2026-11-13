@@ -265,6 +265,47 @@ describe("missions", () => {
     expect((await request(app).post(`/api/approvals/${m.approvalId}/approve`).set(as(ownerId))).status).not.toBe(200);
   });
 
+  it("pauses a suspended account's mission without running it", async () => {
+    await setLevel("copilot");
+    const id = await plannedMission("Suspended work", ["Do the work"]);
+    await db.update(usersTable).set({ active: false }).where(eq(usersTable.id, ownerId));
+    try {
+      mockComplete.mockClear();
+      const m = await runDue(id);
+      expect(m.status).toBe("paused");
+      expect(mockComplete).not.toHaveBeenCalled();
+    } finally {
+      await db.update(usersTable).set({ active: true }).where(eq(usersTable.id, ownerId));
+    }
+  });
+
+  it("stops writing once the owner pauses the mission mid-step", async () => {
+    await setLevel("copilot");
+    const id = await plannedMission("Paused mid-step", ["Save the asset"]);
+    mockComplete
+      .mockImplementationOnce(async () => {
+        await db.update(ashMissionsTable).set({ status: "paused" }).where(eq(ashMissionsTable.id, id));
+        return toolCall("register_asset", { name: "After pause", classKey: "document", businessId: bizId });
+      })
+      .mockResolvedValueOnce(reply("Stopped."));
+    const m = await runDue(id);
+    expect(m.status).toBe("paused");
+    const assets = await request(app).get("/api/empire/assets").set(as(ownerId));
+    expect(JSON.stringify(assets.body)).not.toContain("After pause");
+  });
+
+  it("runs an approved action once even when approve is clicked twice at the same time", async () => {
+    await setLevel("advisor");
+    mockComplete
+      .mockResolvedValueOnce(toolCall("create_business", { name: "Twice Biz", typeKey: "saas" }))
+      .mockResolvedValueOnce(reply("Queued."));
+    const turn = await runAshTurn({ userId: ownerId, message: "start Twice Biz", history: [] });
+    const approvalId = turn.steps.find((s) => s.tool === "create_business")!.approvalId!;
+    const results = await Promise.all([1, 2].map(() => request(app).post(`/api/approvals/${approvalId}/approve`).set(as(ownerId))));
+    expect(results.map((r) => r.status).sort()).toEqual([200, 400]);
+    expect((await ownerBusinesses()).filter((b) => b.name === "Twice Biz")).toHaveLength(1);
+  });
+
   it("waits for every approval a step queued and remembers them for the retry", async () => {
     await setLevel("advisor");
     const id = await plannedMission("Save two drafts", ["Save both drafts"]);

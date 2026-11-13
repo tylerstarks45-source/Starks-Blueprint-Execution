@@ -165,8 +165,9 @@ async function runStep(m: AshMission): Promise<Partial<AshMission>> {
 }
 
 export async function runMissionOnce(m: AshMission): Promise<void> {
-  const startedAt = new Date();
   try {
+    const { rows } = await db.execute(sql`select now() as now`);
+    const startedAt = new Date((rows[0] as { now: string | Date }).now);
     const [owner] = await db.select({ active: usersTable.active }).from(usersTable).where(eq(usersTable.id, m.userId));
     if (!owner || owner.active === false) {
       await finish(m, { status: "paused", waitingFor: "The account is suspended.", log: withLog(m.log, logEntry("status", "Paused: the account is suspended")) });

@@ -174,7 +174,9 @@ export async function runMissionOnce(m: AshMission): Promise<void> {
       return;
     }
     const patch = m.status === "planning" ? await planMission(m) : await runStep(m);
-    if (await finish(m, patch) && patch.status === "waiting_approval") await settleEarlyDecisions(m, startedAt);
+    await finish(m, patch);
+    // Also when the owner paused meanwhile: the step list just written lacks those decisions' notes.
+    if (patch.status === "waiting_approval") await settleEarlyDecisions(m, startedAt);
   } catch (err) {
     if (err instanceof OutOfCreditsError || err instanceof DailyAiLimitError) {
       await finish(m, { status: "paused", waitingFor: err.message, log: withLog(m.log, logEntry("status", `Paused: ${err.message}`)) });

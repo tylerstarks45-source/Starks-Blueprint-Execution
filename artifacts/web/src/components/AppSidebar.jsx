@@ -109,7 +109,7 @@ export default function AppSidebar({ collapsed, onToggle, mobileOpen, onMobileCl
   const toggleGroup = (name) => setClosedGroups((prev) => {
     const next = new Set(prev);
     if (next.has(name)) next.delete(name); else next.add(name);
-    localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify([...next]));
+    try { localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify([...next])); } catch { /* storage unavailable */ }
     return next;
   });
 

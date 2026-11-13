@@ -17,13 +17,13 @@ pnpm --filter @workspace/scripts run seed   # tool catalog + skills; safe to re-
 Do this once, in order:
 
 1. Back up the database: `pnpm --filter @workspace/scripts run db:backup` (see `backup-restore.md`).
-2. Apply `lib/db/manual-migrations/0001_health_unmeasured_and_signal_index.sql` (idempotent) so the database matches the baseline.
-3. `pnpm --filter @workspace/scripts run db:baseline`: records `0000_baseline` as applied without running it.
-4. `pnpm --filter @workspace/scripts run db:migrate`: should report nothing to apply.
+2. Bring the schema up to date. On Replit, `scripts/post-merge.sh` already ran `pnpm --filter db push` after the merge. (Without push, apply `lib/db/manual-migrations/0001_health_unmeasured_and_signal_index.sql` instead; it is idempotent.)
+3. `pnpm --filter @workspace/scripts run db:baseline`: records, in order, every migration whose tables already exist, without running it. It stops at the first migration whose tables are missing.
+4. `pnpm --filter @workspace/scripts run db:migrate`: applies whatever step 3 didn't record (nothing, if push ran).
 
 `db:migrate` refuses to run on a database that has tables but no migration history, so it can never try to re-create existing tables.
 
-After step 3, `scripts/post-merge.sh` can switch from `pnpm --filter db push` to `pnpm --filter @workspace/scripts run db:migrate`. This PR doesn't change that file, because the switch only works once the baseline has been recorded on the Replit database.
+After step 4, change `scripts/post-merge.sh` from `pnpm --filter db push` to `pnpm --filter @workspace/scripts run db:migrate`.
 
 ## Changing the schema
 

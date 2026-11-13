@@ -2,7 +2,7 @@
 
 An AI-powered automation platform for starksglobalgroup.net. Users select blueprints, connect their tools via credential input, and an AI agent builds/runs automated income systems on their behalf. Revenue via subscription tiers.
 
-> **Merging work from GitHub?** Read `docs/engineering/REPLIT-HANDOFF.md` first: owner steps, secrets, database update procedure and rules for further changes.
+> **Merging work from GitHub?** Read `docs/engineering/REPLIT-HANDOFF.md` first and follow its section 0 step by step: it pulls `main` into Replit without losing Replit-side work, updates the existing database safely, and lists the owner-only steps, secrets and rules for further changes.
 
 ## Run & Operate
 

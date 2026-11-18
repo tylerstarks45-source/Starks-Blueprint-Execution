@@ -13,7 +13,7 @@ import app from "../app";
 import { db, usersTable, userCredentialsTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 import { encrypt } from "../lib/crypto";
-import { runIntegrationAction } from "../lib/custom-integrations";
+import { runIntegrationAction, transport, publicLookup } from "../lib/custom-integrations";
 
 let ownerId: number;
 let otherId: number;
@@ -29,8 +29,10 @@ const def = {
   ],
   capabilities: ["Podcast hosting"],
 };
-const fetchSpy = vi.spyOn(globalThis, "fetch");
-const ok = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+const fetchSpy = vi.spyOn(transport, "send");
+const ok = (body: unknown, status = 200) => ({ status, text: JSON.stringify(body) });
+const lookupOnce = (host: string) => new Promise<{ err: Error | null; address: unknown }>((resolve) =>
+  (publicLookup as unknown as (h: string, o: object, cb: (e: Error | null, a: unknown) => void) => void)(host, {}, (err, address) => resolve({ err, address })));
 
 beforeAll(async () => {
   const stamp = Date.now();
@@ -78,7 +80,6 @@ describe("custom integrations", () => {
     expect(t.body.integration.status).toBe("tested");
     const [url, init] = fetchSpy.mock.calls[0]!;
     expect(String(url)).toBe("https://api.acme.example/v1/shows?limit=5");
-    expect((init as RequestInit).redirect).toBe("manual");
     expect(((init as RequestInit).headers as Record<string, string>)["authorization"]).toBe("Bearer sk_owner");
 
     // Other accounts can't see, test, approve or delete it.
@@ -102,10 +103,13 @@ describe("custom integrations", () => {
     expect(await runIntegrationAction(otherId, "acme_podcasts", "listShows", {})).toMatchObject({ error: expect.stringContaining("No custom integration") });
 
     // Redirects aren't followed, and a host that resolves to a private address is refused.
-    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: "http://169.254.169.254/" } }));
+    fetchSpy.mockResolvedValueOnce({ status: 302, text: "" });
     expect(await runIntegrationAction(ownerId, "acme_podcasts", "listShows", {})).toMatchObject({ error: expect.stringContaining("redirect") });
+    expect((await lookupOnce("api.acme.example")).address).toBe("93.184.216.34");
     resolved.address = "10.0.0.5";
-    expect(await runIntegrationAction(ownerId, "acme_podcasts", "listShows", {})).toMatchObject({ error: expect.stringContaining("private") });
+    expect((await lookupOnce("api.acme.example")).err?.message).toContain("private");
+    resolved.address = "::ffff:127.0.0.1";
+    expect((await lookupOnce("api.acme.example")).err?.message).toContain("private");
     expect(fetchSpy).toHaveBeenCalledTimes(3);
 
     // Editing sends it back to draft, so it needs a new test and approval.

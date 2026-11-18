@@ -3,7 +3,8 @@
 // can be called: no arbitrary URLs, hosts or code. Lifecycle: draft -> tested (a read-only GET against
 // the real API succeeded) -> approved (owner) -> usable by ASH. Any edit returns it to draft.
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import https from "node:https";
+import { isIP, type LookupFunction } from "node:net";
 import { z } from "zod";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db, customIntegrationsTable, userCredentialsTable, type CustomIntegration, type CustomIntegrationAction } from "@workspace/db";
@@ -78,13 +79,43 @@ const PRIVATE_V6 = (ip: string) => {
   return v === "::" || v === "::1" || /^f[cd]/.test(v) || /^fe[89ab]/.test(v) || v.startsWith("ff");
 };
 
-/** Rejects hosts that resolve to private, loopback or link-local addresses (DNS rebinding included). */
-async function assertPublicHost(host: string) {
-  const addrs = isIP(host) ? [{ address: host, family: isIP(host) }] : await lookup(host, { all: true });
-  if (!addrs.length || addrs.some((a) => (a.family === 4 ? PRIVATE_V4(a.address) : PRIVATE_V6(a.address)))) {
-    throw new Error("Host resolves to a private address");
-  }
-}
+const isPrivate = (address: string, family: number) => (family === 4 ? PRIVATE_V4(address) : PRIVATE_V6(address));
+
+/** DNS lookup used by the connection itself, so the address checked is the address connected to (no rebinding). */
+export const publicLookup = ((host: string, opts: { all?: boolean }, cb: (err: Error | null, address: unknown, family?: number) => void) => {
+  lookup(host, { all: true }).then((addrs) => {
+    if (!addrs.length || addrs.some((a) => isPrivate(a.address, a.family))) return cb(new Error("Host resolves to a private address"), "", 4);
+    if (opts?.all) return cb(null, addrs);
+    cb(null, addrs[0]!.address, addrs[0]!.family);
+  }, (err: Error) => cb(err, "", 4));
+}) as unknown as LookupFunction;
+
+const MAX_RESPONSE_BYTES = 64 * 1024;
+const TIMEOUT_MS = 10_000;
+
+/** One HTTPS request: no redirects, pinned public DNS, 10 s deadline, response read up to 64 KB then cut off. */
+export const transport = {
+  send(url: URL, init: { method: string; headers: Record<string, string>; body?: string }): Promise<{ status: number; text: string }> {
+    return new Promise((resolve, reject) => {
+      const req = https.request(url, { method: init.method, headers: init.headers, lookup: publicLookup }, (res) => {
+        const chunks: Buffer[] = [];
+        let size = 0;
+        const finish = () => { clearTimeout(timer); resolve({ status: res.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8") }); };
+        res.on("data", (c: Buffer) => {
+          const room = MAX_RESPONSE_BYTES - size;
+          chunks.push(c.length > room ? c.subarray(0, room) : c);
+          size += Math.min(c.length, room);
+          if (size >= MAX_RESPONSE_BYTES) { res.removeAllListeners("end"); res.destroy(); finish(); }
+        });
+        res.on("end", finish);
+        res.on("error", (e) => { clearTimeout(timer); reject(e); });
+      });
+      const timer = setTimeout(() => req.destroy(new Error("Request timed out")), TIMEOUT_MS);
+      req.on("error", (e) => { clearTimeout(timer); reject(e); });
+      req.end(init.body);
+    });
+  },
+};
 
 async function credentialValue(userId: number, key: string): Promise<string | null> {
   const [row] = await db.select({ v: userCredentialsTable.encryptedValue }).from(userCredentialsTable).where(and(
@@ -124,14 +155,15 @@ export async function callAction(userId: number, integ: CustomIntegration, actio
     body = JSON.stringify(params["body"]).slice(0, 100_000);
   }
   try {
-    if (isBlockedUrl(url.toString())) throw new Error("Blocked address");
-    await assertPublicHost(url.hostname);
-    const res = await fetch(url, { method: action.method, headers, body, redirect: "manual", signal: AbortSignal.timeout(10_000) });
+    const host = url.hostname.replace(/^\[|\]$/g, "");
+    if (isBlockedUrl(url.toString()) || (isIP(host) && isPrivate(host, isIP(host)))) throw new Error("Blocked address");
+    const res = await transport.send(url, { method: action.method, headers, body });
     if (res.status >= 300 && res.status < 400) return { ok: false, status: res.status, error: "The API redirected; redirects aren't followed" };
-    const text = (await res.text()).slice(0, 20_000);
+    const text = res.text.slice(0, 20_000);
     let data: unknown = text;
     try { data = JSON.parse(text); } catch { /* keep text */ }
-    return res.ok ? { ok: true, status: res.status, data } : { ok: false, status: res.status, data, error: `HTTP ${res.status}` };
+    const ok = res.status >= 200 && res.status < 300;
+    return ok ? { ok: true, status: res.status, data } : { ok: false, status: res.status, data, error: `HTTP ${res.status}` };
   } catch (err) {
     return { ok: false, status: null, error: err instanceof Error ? err.message : "Request failed" };
   }

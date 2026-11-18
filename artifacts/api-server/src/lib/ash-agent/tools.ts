@@ -13,11 +13,12 @@ import { assembleBusinessContextPackage, assembleCrossBusinessSummary } from "..
 import { buildLearnedPatternsNote } from "../ash-brain";
 import { SPECIALIST_KEYS } from "./specialists";
 import { getEmpireOverview } from "../empire/overview";
-import { listBusinessTypes, STREAM_TYPES } from "../empire/business-types";
+import { listBusinessTypes, STREAM_TYPES, slugifyKey } from "../empire/business-types";
 import { createEmpireBusiness, createIncomeStream } from "../empire/actions";
 import { registerAsset, syncUserAssets, ownedBusinessIds } from "../empire/assets";
 import { createMission, listMissions } from "../ash-missions";
 import { draftIncomePlan } from "../income-missions";
+import { getCapabilityMap, listCapabilityRequests, requestMissingCapabilities } from "../capabilities";
 import { getEffectiveControl } from "../ash-control/policy";
 
 // Pages ASH can send the user to (the web app's authenticated routes).
@@ -160,6 +161,31 @@ const SPECS: ToolSpec[] = [
         planId: p.id, objective: p.objective, options: p.options, plan: p.plan,
         note: `Summarise the comparison and the chosen plan for the owner, say revenue isn't guaranteed, and tell them to review and approve it at /missions?plan=${p.id}. Nothing is built until they approve.`,
       };
+    },
+  },
+  {
+    name: "list_capabilities",
+    description: "What you can do right now for this owner: each capability (payments, email, store, social, domains...) as ready, needs a connection (and which services provide it), owner-only, or missing; plus open capability requests. Check before promising to launch something outside the platform.",
+    parameters: obj({}),
+    kind: "server",
+    run: async (userId) => {
+      const [caps, requests] = await Promise.all([getCapabilityMap(userId), listCapabilityRequests(userId)]);
+      return {
+        capabilities: caps.map((c) => ({ key: c.key, name: c.name, status: c.status, note: c.note })),
+        openRequests: requests.map((r) => ({ id: r.id, capability: r.capability, kind: r.kind, reason: r.reason })),
+      };
+    },
+  },
+  {
+    name: "request_capability",
+    description: "Record that a goal needs something you can't do yet (a service the owner must connect, an owner-only step, or a capability the platform lacks), so it appears on the Capabilities page. Use a capability key from list_capabilities when one fits.",
+    parameters: obj({ capability: str("Capability key, e.g. payments or online_store, or a short snake_case name"), reason: str("What it's needed for") }, ["capability", "reason"]),
+    kind: "server",
+    run: async (userId, a) => {
+      const key = slugifyKey(String(a["capability"] ?? ""));
+      if (!key) return { error: "Name the capability" };
+      const created = await requestMissingCapabilities(userId, [key], { reason: String(a["reason"] ?? "") });
+      return created.length ? { requested: created.map((r) => ({ id: r.id, kind: r.kind, name: r.name })), note: "Shown to the owner on /capabilities." } : { note: "Already available or already requested." };
     },
   },
   {

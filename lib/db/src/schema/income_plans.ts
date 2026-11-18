@@ -32,6 +32,8 @@ export interface IncomePlanDetail {
   risks: string[];
   permissions: string[];
   milestones: string[];
+  /** Capability keys the plan needs (see the API's capability registry). Older plans have none. */
+  capabilities?: string[];
   startupCostCents: number;
   monthlyCostCents: number;
 }

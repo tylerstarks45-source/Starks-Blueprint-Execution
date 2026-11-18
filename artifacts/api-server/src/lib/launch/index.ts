@@ -14,7 +14,7 @@ interface LaunchDef { kind: ToolActionKind; asset: string; label: string; params
 export const LAUNCH_ACTIONS: Record<string, LaunchDef> = {
   "wordpress:createPage": { kind: "publish", asset: "page", label: "Website page (WordPress)", params: "title, content (HTML), status: draft|publish" },
   "wordpress:createPost": { kind: "publish", asset: "page", label: "Blog post (WordPress)", params: "title, content (HTML), excerpt, status: draft|publish" },
-  "shopify:createProduct": { kind: "publish", asset: "product", label: "Store product (Shopify)", params: "title, description, price, sku, vendor, type" },
+  "shopify:createProduct": { kind: "publish", asset: "product", label: "Store product (Shopify)", params: "title, description, price, sku, vendor, type, status: draft|active" },
   "shopify:createCollection": { kind: "publish", asset: "product", label: "Store collection (Shopify)", params: "title, description, published" },
   "beehiiv:createPost": { kind: "publish", asset: "campaign", label: "Newsletter post (Beehiiv)", params: "title, subtitle, contentJson" },
   "beehiiv:sendPost": { kind: "email_customers", asset: "campaign", label: "Send newsletter (Beehiiv)", params: "postId" },

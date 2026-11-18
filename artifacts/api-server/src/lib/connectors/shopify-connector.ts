@@ -68,7 +68,7 @@ export class ShopifyConnector extends BaseConnector {
             body_html: (params["description"] as string) ?? "",
             vendor: (params["vendor"] as string) ?? "SBEP",
             product_type: (params["type"] as string) ?? "Digital",
-            status: "draft",
+            status: params["status"] === "active" ? "active" : "draft",
             variants: [{ price: String((params["price"] as number) ?? 0), sku: (params["sku"] as string) ?? "" }],
           },
         };
@@ -76,8 +76,8 @@ export class ShopifyConnector extends BaseConnector {
           method: "POST", headers: this.headers(), body: JSON.stringify(body),
         });
         if (!res.ok) return { ok: false, error: `Shopify ${res.status}` };
-        const data = await res.json() as { product?: { id?: number; title?: string; admin_graphql_api_id?: string } };
-        return { ok: true, data: { id: data.product?.id, title: data.product?.title, message: `Product "${data.product?.title}" created in draft` } };
+        const data = await res.json() as { product?: { id?: number; title?: string; status?: string; admin_graphql_api_id?: string } };
+        return { ok: true, data: { id: data.product?.id, title: data.product?.title, status: data.product?.status, message: `Product "${data.product?.title}" created as ${data.product?.status ?? "draft"}` } };
       }
       if (action === "updateProduct") {
         const productId = params["productId"] as string;

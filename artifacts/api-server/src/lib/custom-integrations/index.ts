@@ -99,7 +99,8 @@ const TIMEOUT_MS = 10_000;
 export const transport = {
   send(url: URL, init: { method: string; headers: Record<string, string>; body?: string }): Promise<{ status: number; text: string }> {
     return new Promise((resolve, reject) => {
-      const req = https.request(url, { method: init.method, headers: init.headers, lookup: publicLookup }, (res) => {
+      const headers = init.body != null ? { ...init.headers, "content-length": String(Buffer.byteLength(init.body)) } : init.headers;
+      const req = https.request(url, { method: init.method, headers, lookup: publicLookup }, (res) => {
         const chunks: Buffer[] = [];
         let size = 0;
         const finish = () => { clearTimeout(timer); resolve({ status: res.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8") }); };

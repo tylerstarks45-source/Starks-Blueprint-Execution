@@ -45,6 +45,12 @@ describe("launch tools", () => {
     expect(asset).toMatchObject({ userId: ownerId, businessId: bizId, classKey: "page", canonicalName: "Launch", externalUrl: "https://blog.example.com/launch", status: "draft" });
     const live = await runLaunchAction(ownerId, { connectorId: "wordpress", action: "createPage", params: { title: "Live", status: "publish" } });
     expect(live).toMatchObject({ launched: true, status: "active" });
+    await db.update(userCredentialsTable).set({ encryptedValue: encrypt("https://other.example.com") })
+      .where(and(eq(userCredentialsTable.userId, ownerId), eq(userCredentialsTable.credentialKey, "WORDPRESS_SITE_URL")));
+    const otherSite = await runLaunchAction(ownerId, { connectorId: "wordpress", action: "createPage", params: { title: "Other" } }) as { assetId: number };
+    expect(otherSite.assetId).not.toBe((r as { assetId: number }).assetId);
+    await db.update(userCredentialsTable).set({ encryptedValue: encrypt("https://blog.example.com") })
+      .where(and(eq(userCredentialsTable.userId, ownerId), eq(userCredentialsTable.credentialKey, "WORDPRESS_SITE_URL")));
   });
 
   it("keeps one vault entry when a newsletter draft is later sent", async () => {

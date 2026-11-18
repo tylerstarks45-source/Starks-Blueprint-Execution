@@ -3,6 +3,7 @@
 // carries its ASH Control kind, so publishing and customer emails follow the owner's approval rules.
 import { and, eq, isNull } from "drizzle-orm";
 import { db, userCredentialsTable, canonicalAssets } from "@workspace/db";
+import { createHash } from "node:crypto";
 import { decrypt } from "../crypto";
 import { getConnector } from "../connectors/registry";
 import { CATALOG_CONNECTOR_MAP } from "../connectors/catalog-map";
@@ -76,6 +77,14 @@ function launchedStatus(key: string, params: Record<string, unknown>, data: unkn
   return ["draft", "pending", "private"].includes(String(s).toLowerCase()) ? "draft" : "active";
 }
 
+// Short stable id of the connected account (site, store, publication), so object ids from
+// different sites never share a vault entry. Falls back to all credentials when none name the account.
+function accountScope(creds: Record<string, string>): string {
+  const keys = Object.keys(creds).sort();
+  const named = keys.filter((k) => /SITE|URL|DOMAIN|STORE|SHOP|PUBLICATION|ACCOUNT|SERVER|ZONE/.test(k));
+  return createHash("sha256").update((named.length ? named : keys).map((k) => `${k}=${creds[k]}`).join("\n")).digest("hex").slice(0, 10);
+}
+
 export async function runLaunchAction(userId: number, a: { connectorId: string; action: string; params?: Record<string, unknown>; businessId?: number | null; assetName?: string | null }) {
   const key = `${a.connectorId}:${a.action}`;
   const def = LAUNCH_ACTIONS[key];
@@ -84,7 +93,8 @@ export async function runLaunchAction(userId: number, a: { connectorId: string; 
   if (businessId != null && !(await ownedBusinessIds(userId, [businessId])).has(businessId)) return { error: "Business not found" };
   const params = a.params ?? {};
   if (JSON.stringify(params).length > MAX_PARAMS_CHARS) return { error: "The content is too large to send in one action." };
-  const connector = getConnector(a.connectorId, await connectorCredentials(userId, a.connectorId));
+  const creds = await connectorCredentials(userId, a.connectorId);
+  const connector = getConnector(a.connectorId, creds);
   if (!connector || connector.describe().actionMeta[a.action] !== "automated") return { error: `${def.label} isn't available to run automatically.` };
   if (!connector.validateCredentials()) {
     return { error: `Connect ${connector.displayName} in Connections first (needs ${connector.requiredCredentials.join(", ")}).`, needsConnection: a.connectorId };
@@ -97,7 +107,7 @@ export async function runLaunchAction(userId: number, a: { connectorId: string; 
   // One vault entry per outside object, so sending a newsletter updates the draft it was created as.
   const d = (r.data && typeof r.data === "object" ? r.data : {}) as Record<string, unknown>;
   const objId = [d["id"], d["campaignId"], params["postId"]].find((x) => typeof x === "string" || typeof x === "number");
-  const builderObjectId = objId != null ? `${a.connectorId}:${def.asset}:${String(objId)}` : `${key}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const builderObjectId = objId != null ? `${a.connectorId}:${accountScope(creds)}:${def.asset}:${String(objId)}` : `${key}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const [prev] = objId != null ? await db.select({ name: canonicalAssets.canonicalName }).from(canonicalAssets)
     .where(and(eq(canonicalAssets.userId, userId), eq(canonicalAssets.builderSource, "ash_launch"), eq(canonicalAssets.builderObjectId, builderObjectId))).limit(1) : [];
   const assetId = await registerAsset({

@@ -67,10 +67,10 @@ function Integrations({ onChange }) {
           act(i, () => controlApi.testIntegration(i.id, { action, params }), (r) => (r.result.ok ? toast.success('Test passed') : toast.error(`Test failed: ${r.result.error ?? r.result.status}`)));
         }}>Run test</button></>}>
           <p className="text-xs text-white/50 mb-2">Runs one read-only GET action against {testing.i.baseUrl}{testing.i.auth.credentialKey ? ` using your saved ${testing.i.auth.credentialKey}` : ''}.</p>
-          <select className={input} value={testing.action} onChange={(e) => setTesting({ ...testing, action: e.target.value })}>
+          <select className={input} value={testing.action} onChange={(e) => { const action = e.target.value; setTesting((t) => ({ ...t, action })); }}>
             {testing.i.actions.filter((a) => a.method === 'GET').map((a) => <option key={a.name} value={a.name}>{a.name} — GET {a.path}</option>)}
           </select>
-          <textarea className={`${input} font-mono text-xs h-28 mt-2`} value={testing.params} onChange={(e) => setTesting({ ...testing, params: e.target.value })} spellCheck={false} aria-label="Params (JSON)" />
+          <textarea className={`${input} font-mono text-xs h-28 mt-2`} value={testing.params} onChange={(e) => { const params = e.target.value; setTesting((t) => ({ ...t, params })); }} spellCheck={false} aria-label="Params (JSON)" />
           <p className="text-[11px] text-white/40 mt-1">Params as JSON, e.g. {'{"id": "123"}'} for a path with {'{id}'}.</p>
         </Modal>
       )}

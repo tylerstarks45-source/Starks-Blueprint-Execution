@@ -2,7 +2,7 @@
 // missions) to put things live on outside sites with the owner's own connected accounts. Each action
 // carries its ASH Control kind, so publishing and customer emails follow the owner's approval rules.
 import { and, eq, isNull } from "drizzle-orm";
-import { db, userCredentialsTable } from "@workspace/db";
+import { db, userCredentialsTable, canonicalAssets } from "@workspace/db";
 import { decrypt } from "../crypto";
 import { getConnector } from "../connectors/registry";
 import { CATALOG_CONNECTOR_MAP } from "../connectors/catalog-map";
@@ -94,10 +94,15 @@ export async function runLaunchAction(userId: number, a: { connectorId: string; 
   const url = urlIn(r.data);
   const title = typeof params["title"] === "string" ? params["title"] : typeof params["subject"] === "string" ? params["subject"] : null;
   const status = launchedStatus(key, params, r.data);
+  // One vault entry per outside object, so sending a newsletter updates the draft it was created as.
+  const d = (r.data && typeof r.data === "object" ? r.data : {}) as Record<string, unknown>;
+  const objId = [d["id"], d["campaignId"], params["postId"]].find((x) => typeof x === "string" || typeof x === "number");
+  const builderObjectId = objId != null ? `${a.connectorId}:${def.asset}:${String(objId)}` : `${key}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const [prev] = objId != null ? await db.select({ name: canonicalAssets.canonicalName }).from(canonicalAssets)
+    .where(and(eq(canonicalAssets.userId, userId), eq(canonicalAssets.builderSource, "ash_launch"), eq(canonicalAssets.builderObjectId, builderObjectId))).limit(1) : [];
   const assetId = await registerAsset({
-    userId, businessId, classKey: def.asset, name: (a.assetName || title || def.label).slice(0, 200),
-    description: `${def.label} launched by ASH`, externalUrl: url, builderSource: "ash_launch", status,
-    builderObjectId: `${key}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    userId, businessId, classKey: def.asset, name: (a.assetName || title || prev?.name || def.label).slice(0, 200),
+    description: `${def.label} launched by ASH`, externalUrl: url, builderSource: "ash_launch", status, builderObjectId,
   });
   return { launched: true, status, what: def.label, url, assetId, result: JSON.stringify(r.data ?? null).slice(0, 1500) };
 }

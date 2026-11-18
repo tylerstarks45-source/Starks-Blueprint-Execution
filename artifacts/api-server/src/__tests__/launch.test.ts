@@ -8,6 +8,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { encrypt } from "../lib/crypto";
 import { runLaunchAction, launchActionKind } from "../lib/launch";
 import { WordPressConnector } from "../lib/connectors/wordpress-connector";
+import { BeehiivConnector } from "../lib/connectors/beehiiv-connector";
 
 let ownerId: number;
 let otherId: number;
@@ -44,6 +45,22 @@ describe("launch tools", () => {
     expect(asset).toMatchObject({ userId: ownerId, businessId: bizId, classKey: "page", canonicalName: "Launch", externalUrl: "https://blog.example.com/launch", status: "draft" });
     const live = await runLaunchAction(ownerId, { connectorId: "wordpress", action: "createPage", params: { title: "Live", status: "publish" } });
     expect(live).toMatchObject({ launched: true, status: "active" });
+  });
+
+  it("keeps one vault entry when a newsletter draft is later sent", async () => {
+    await db.insert(userCredentialsTable).values([
+      { userId: ownerId, credentialKey: "BEEHIIV_API_KEY", encryptedValue: encrypt("k"), status: "connected" },
+      { userId: ownerId, credentialKey: "BEEHIIV_PUBLICATION_ID", encryptedValue: encrypt("pub_1"), status: "connected" },
+    ]);
+    vi.spyOn(BeehiivConnector.prototype, "validateCredentials").mockReturnValue(true);
+    vi.spyOn(BeehiivConnector.prototype, "execute").mockImplementation(async (action: string) =>
+      action === "createPost" ? { ok: true, data: { id: "post_9", title: "Issue 1", status: "draft" } } : { ok: true, data: { id: "post_9", status: "confirmed" } });
+    const draft = await runLaunchAction(ownerId, { connectorId: "beehiiv", action: "createPost", params: { title: "Issue 1" } }) as { assetId: number; status: string };
+    const sent = await runLaunchAction(ownerId, { connectorId: "beehiiv", action: "sendPost", params: { postId: "post_9" } }) as { assetId: number; status: string };
+    expect(draft.status).toBe("draft");
+    expect(sent.assetId).toBe(draft.assetId);
+    const [asset] = await db.select().from(canonicalAssets).where(eq(canonicalAssets.id, draft.assetId));
+    expect(asset).toMatchObject({ canonicalName: "Issue 1", status: "active" });
   });
 
   it("refuses unlisted actions, missing connections, other owners' businesses and oversized content", async () => {

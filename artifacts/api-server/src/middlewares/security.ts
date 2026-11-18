@@ -29,6 +29,7 @@ const EXPENSIVE_AI_PATHS: RegExp[] = [
   /^\/media-gen\/(image|video|music|tts)$/,
   /^\/openrouter\/complete$/,
   /^\/income-plans$/,
+  /^\/custom-integrations\/\d+\/test$/,
   /^\/ai\/(openrouter|testing)\//,
   /\/generate(-variants)?$/,
 ];

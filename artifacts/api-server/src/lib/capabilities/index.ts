@@ -6,6 +6,7 @@ import { db, userCredentialsTable, capabilityRequestsTable, type CapabilityReque
 import { CATALOG_CONNECTOR_MAP } from "../connectors/catalog-map";
 import { getConnector } from "../connectors/registry";
 import { slugifyKey } from "../empire/business-types";
+import { approvedCapabilityProviders } from "../custom-integrations";
 
 export type CapabilityStatus = "ready" | "connect" | "manual" | "missing";
 
@@ -101,26 +102,33 @@ export interface CapabilityView {
   note: string;
 }
 
-function view(def: CapabilityDef | undefined, key: string, connected: Set<string>): CapabilityView {
+type Custom = Map<string, { id: string; name: string }[]>;
+
+function view(def: CapabilityDef | undefined, key: string, connected: Set<string>, custom: Custom): CapabilityView {
+  const own = (custom.get(key) ?? []).map((c) => ({ ...c, connected: true, credentialKeys: [] as string[] }));
+  const viaCustom = `Through your approved integration ${own.map((c) => c.name).join(", ")}.`;
+  if (!def && own.length) return { key, name: key.replace(/_/g, " "), status: "ready", tools: [], providers: own, note: viaCustom };
   if (!def) return { key, name: key.replace(/_/g, " "), status: "missing", tools: [], providers: [], note: "ASH has no tool or connector for this yet." };
   const providers = [...new Set((def.providers ?? []).filter(automated).map((p) => p.split(":")[0]!))].map((id) => ({
     id, name: getConnector(id, {})!.displayName, connected: connected.has(id), credentialKeys: connectorKeys(id),
-  }));
+  })).concat(def.ownerOnly ? [] : own);
   if (def.tools?.length) return { key, name: def.name, status: "ready", tools: def.tools, providers, note: "ASH can do this now." };
   if (def.ownerOnly) return { key, name: def.name, status: "manual", tools: [], providers, note: "Only you can do this. ASH prepares the work and asks you." };
+  if (own.length) return { key, name: def.name, status: "ready", tools: [], providers, note: viaCustom };
   if (providers.some((p) => p.connected)) return { key, name: def.name, status: "ready", tools: [], providers, note: `Connected through ${providers.filter((p) => p.connected).map((p) => p.name).join(", ")}.` };
   if (providers.length) return { key, name: def.name, status: "connect", tools: [], providers, note: `Connect ${providers.map((p) => p.name).join(" or ")} in Connections.` };
   return { key, name: def.name, status: "missing", tools: [], providers: [], note: "ASH has no tool or connector for this yet." };
 }
 
 export async function getCapabilityMap(userId: number): Promise<CapabilityView[]> {
-  const connected = await connectedConnectors(userId);
-  return CAPABILITIES.map((c) => view(c, c.key, connected));
+  const [connected, custom] = await Promise.all([connectedConnectors(userId), approvedCapabilityProviders(userId)]);
+  const extra = [...custom.keys()].filter((k) => !BY_KEY.has(k));
+  return [...CAPABILITIES.map((c) => view(c, c.key, connected, custom)), ...extra.map((k) => view(undefined, k, connected, custom))];
 }
 
 export async function checkCapabilities(userId: number, keys: string[]): Promise<CapabilityView[]> {
-  const connected = await connectedConnectors(userId);
-  return keys.map((k) => view(BY_KEY.get(k), k, connected));
+  const [connected, custom] = await Promise.all([connectedConnectors(userId), approvedCapabilityProviders(userId)]);
+  return keys.map((k) => view(BY_KEY.get(k), k, connected, custom));
 }
 
 /** Opens a request for each capability that isn't ready, skipping ones already open. */

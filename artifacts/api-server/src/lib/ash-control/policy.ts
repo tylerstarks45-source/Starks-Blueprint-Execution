@@ -16,7 +16,8 @@ const TOOL_KINDS: Record<string, ToolActionKind> = {
   list_businesses: "read", get_business_context: "read", get_portfolio_summary: "read",
   get_empire_overview: "read", list_business_types: "read", research: "read",
   get_learned_patterns: "read", consult_specialist: "read", navigate: "read",
-  get_ash_control: "read", list_missions: "read", start_mission: "read", plan_income_mission: "read", request_owner_action: "read", list_capabilities: "read", request_capability: "read",
+  get_ash_control: "read", list_missions: "read", start_mission: "read", plan_income_mission: "read", request_owner_action: "read", list_capabilities: "read", request_capability: "read", list_integrations: "read",
+  define_integration: "build", test_integration: "connect_service", run_integration_action: "connect_service",
   create_business: "build", add_income_stream: "build", register_asset: "build",
   image: "build", generate_video: "build", generate_music: "build", text_to_speech: "build", file: "build",
   schedule_post: "publish", connector_action: "connect_service",
@@ -91,6 +92,8 @@ export async function decide(opts: {
   interactive: boolean;
   clientTool?: boolean;
   costCents?: number;
+  /** The spend amount isn't known up front (e.g. a custom integration call), so limits can't be checked. */
+  costUnknown?: boolean;
 }): Promise<Decision> {
   if (opts.kind === "read") return { decision: "allow", reason: "Read-only" };
   const c = await getEffectiveControl(opts.userId, opts.businessId);
@@ -102,6 +105,7 @@ export async function decide(opts: {
 
   if (opts.kind === "spend") {
     if (c.level !== "autopilot") return queue("Spending needs approval below Autopilot");
+    if (opts.costUnknown) return queue("ASH can't check this action's cost against your spending limits");
     const cost = Math.max(0, opts.costCents ?? 0);
     if (c.dailySpendLimitCents <= 0 && c.monthlySpendLimitCents <= 0) return queue("No spending limit set");
     const s = await spendSummary(opts.userId);

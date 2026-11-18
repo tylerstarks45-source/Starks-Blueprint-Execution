@@ -48,6 +48,11 @@ export const controlApi = {
   capabilities: () => call('GET', '/api/capabilities'),
   requestCapability: (capability, reason) => call('POST', '/api/capability-requests', { capability, reason }),
   dismissCapabilityRequest: (id) => call('POST', `/api/capability-requests/${id}/dismiss`),
+  integrations: () => call('GET', '/api/custom-integrations'),
+  defineIntegration: (body) => call('POST', '/api/custom-integrations', body),
+  testIntegration: (id, body = {}) => call('POST', `/api/custom-integrations/${id}/test`, body),
+  integrationAction: (id, action) => call('POST', `/api/custom-integrations/${id}/${action}`),
+  deleteIntegration: (id) => call('DELETE', `/api/custom-integrations/${id}`),
   approvals: (status = 'pending') => call('GET', `/api/approvals${qs({ status })}`),
   resolveApproval: (id, action) => call('POST', `/api/approvals/${id}/${action}`),
 };

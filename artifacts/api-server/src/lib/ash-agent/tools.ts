@@ -19,6 +19,7 @@ import { registerAsset, syncUserAssets, ownedBusinessIds } from "../empire/asset
 import { createMission, listMissions } from "../ash-missions";
 import { draftIncomePlan } from "../income-missions";
 import { getCapabilityMap, listCapabilityRequests, requestMissingCapabilities } from "../capabilities";
+import { defineIntegration, listIntegrations, testIntegration, runIntegrationAction } from "../custom-integrations";
 import { getEffectiveControl } from "../ash-control/policy";
 
 // Pages ASH can send the user to (the web app's authenticated routes).
@@ -187,6 +188,58 @@ const SPECS: ToolSpec[] = [
       const created = await requestMissingCapabilities(userId, [key], { reason: String(a["reason"] ?? "") });
       return created.length ? { requested: created.map((r) => ({ id: r.id, kind: r.kind, name: r.name })), note: "Shown to the owner on /capabilities." } : { note: "Already available or already requested." };
     },
+  },
+  {
+    name: "list_integrations",
+    description: "The owner's custom API integrations with status (draft, tested, approved, disabled), declared actions and the capabilities they provide.",
+    parameters: obj({}),
+    kind: "server",
+    run: async (userId) => (await listIntegrations(userId)).map((i) => ({
+      key: i.key, name: i.name, status: i.status, baseUrl: i.baseUrl, capabilities: i.capabilities, lastTest: i.lastTest,
+      actions: i.actions.map((a) => ({ name: a.name, method: a.method, path: a.path, description: a.description, query: a.query })),
+    })),
+  },
+  {
+    name: "define_integration",
+    description: "Define a custom API integration for a service ASH has no connector for, using only endpoints from the provider's official API docs (research them first). Saved as a draft: it must pass a read-only test and the owner must approve it on /capabilities before you can use it. Secrets are never put here; auth points at a credential the owner saves in Connections (credentialKey, e.g. ACME_API_KEY). Redefining the same name replaces it and sends it back to draft.",
+    parameters: obj({
+      name: str("Service name, e.g. Acme Podcasts"),
+      description: str("What it's for"),
+      docsUrl: str("Official API docs URL"),
+      baseUrl: str("Public https API base URL, e.g. https://api.acme.com/v1"),
+      auth: { type: "object", properties: { type: { type: "string", enum: ["none", "bearer", "header", "query"] }, name: str("Header or query param name for header/query auth"), credentialKey: str("Owner credential key holding the secret, UPPER_SNAKE_CASE") }, required: ["type"] },
+      actions: { type: "array", items: { type: "object", properties: {
+        name: str("camelCase action name"), method: { type: "string", enum: ["GET", "POST", "PUT", "PATCH", "DELETE"] }, path: str("Path under baseUrl with {param} placeholders"),
+        description: str("What it does"), query: { type: "array", items: { type: "string" } },
+        kind: { type: "string", enum: ["connect_service", "publish", "email_customers", "spend", "delete", "build"], description: "What the action does for approval rules: spend for anything that costs money, email_customers for messaging customers, delete for removals" },
+      }, required: ["name", "method", "path"] } },
+      capabilities: { type: "array", items: { type: "string" }, description: "Capability keys it provides, e.g. podcast_hosting" },
+    }, ["name", "baseUrl", "auth", "actions"]),
+    kind: "server",
+    run: async (userId, a) => {
+      const r = await defineIntegration(userId, a);
+      return "error" in r ? r : { key: r.integration.key, status: r.integration.status, note: "Draft saved. Test it with test_integration (read-only GET), then the owner approves it on /capabilities." };
+    },
+  },
+  {
+    name: "test_integration",
+    description: "Sandbox-test a custom integration by running one of its read-only GET actions against the real API. Success marks it tested so the owner can approve it.",
+    parameters: obj({ integration: str("Integration key"), action: str("GET action name; defaults to the first GET action"), params: { type: "object", additionalProperties: true } }, ["integration"]),
+    kind: "server",
+    run: async (userId, a) => {
+      const i = (await listIntegrations(userId)).find((x) => x.key === String(a["integration"] ?? ""));
+      if (!i) return { error: "No such integration" };
+      const r = await testIntegration(userId, i.id, a["action"] != null ? String(a["action"]) : undefined, (a["params"] ?? {}) as Record<string, unknown>);
+      if (!r) return { error: "No such integration" };
+      return r.result.ok ? { status: r.integration.status, result: r.result } : { error: r.result.error ?? `Test failed (HTTP ${r.result.status})`, status: r.integration.status, result: r.result };
+    },
+  },
+  {
+    name: "run_integration_action",
+    description: "Run a declared action on one of the owner's approved custom integrations. Params fill {path} placeholders and declared query params; put a JSON request body under params.body.",
+    parameters: obj({ integration: str("Integration key"), action: str("Action name"), params: { type: "object", additionalProperties: true } }, ["integration", "action"]),
+    kind: "server",
+    run: async (userId, a) => runIntegrationAction(userId, String(a["integration"]), String(a["action"]), (a["params"] ?? {}) as Record<string, unknown>),
   },
   {
     name: "start_mission",

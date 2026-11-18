@@ -85,7 +85,7 @@ export function MissionDashboard({ missionId, refreshKey }) {
     <div className="space-y-2">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {stat('Verified revenue (30d)', r.revenueTracked ? usd(r.verifiedLast30Cents) : 'Not tracked')}
-        {stat('Recorded spend', usd(r.recordedSpendCents))}
+        {stat('ASH spend (30d)', usd(r.recordedSpendLast30Cents))}
         {stat('Net (30d)', r.netLast30Cents == null ? '—' : usd(r.netLast30Cents))}
         {stat('Toward target', r.progressPct == null ? `Target ${usd(r.targetMonthlyRevenueCents)}/mo` : `${r.progressPct}% of ${usd(r.targetMonthlyRevenueCents)}`)}
       </div>

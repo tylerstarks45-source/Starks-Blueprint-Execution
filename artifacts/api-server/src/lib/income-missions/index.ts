@@ -200,14 +200,14 @@ export async function getMissionDashboard(userId: number, missionId: number) {
         .from(canonicalAssets).where(and(eq(canonicalAssets.userId, userId), eq(canonicalAssets.businessId, m.businessId), sql`${canonicalAssets.status} <> 'deleted'`))
         .orderBy(desc(canonicalAssets.createdAt)).limit(50)
       : Promise.resolve([]),
-    db.select({ total: sql<number>`coalesce(sum(${ashSpendEventsTable.amountCents}), 0)::int` }).from(ashSpendEventsTable)
+    db.select({ last30: sql<number>`coalesce(sum(${ashSpendEventsTable.amountCents}) filter (where ${ashSpendEventsTable.createdAt} >= ${new Date(Date.now() - 30 * 86_400_000)}), 0)::int` }).from(ashSpendEventsTable)
       .where(and(eq(ashSpendEventsTable.userId, userId), eq(ashSpendEventsTable.missionId, m.id))),
     db.select({ id: pendingApprovalsTable.id, title: pendingApprovalsTable.title }).from(pendingApprovalsTable)
       .where(and(eq(pendingApprovalsTable.userId, userId), eq(pendingApprovalsTable.status, "pending"), sql`${pendingApprovalsTable.payload}->>'missionId' = ${String(m.id)}`)),
   ]);
   const biz = overview.businesses.find((b) => b.id === m.businessId) ?? null;
   const verified = biz?.verifiedRevenueCents?.last30 ?? null;
-  const expenses = Number(spend[0]?.total ?? 0);
+  const expenses = Number(spend[0]?.last30 ?? 0);
   const target = plan?.objective.targetMonthlyRevenueCents ?? null;
   return {
     mission: m,
@@ -218,7 +218,7 @@ export async function getMissionDashboard(userId: number, missionId: number) {
       verifiedLast30Cents: verified,
       revenueTracked: biz?.revenueTracked ?? false,
       projectedMonthlyUsd: biz?.projectedMonthlyUsd ?? 0,
-      recordedSpendCents: expenses,
+      recordedSpendLast30Cents: expenses,
       netLast30Cents: verified == null ? null : verified - expenses,
       targetMonthlyRevenueCents: target,
       progressPct: verified != null && target ? Math.min(100, Math.round((verified / target) * 100)) : null,

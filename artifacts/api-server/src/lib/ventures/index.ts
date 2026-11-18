@@ -34,7 +34,8 @@ export async function ensureVenture(userId: number, businessId: number, ctx: { p
     if (!ws) await tx.insert(businessWorkspaces).values({ userId, businessId, workspaceName: biz.name, workspaceType: "business", configuration: { createdBy: "venture_factory" } });
     await tx.insert(businessTeamTable).values(DEFAULT_TEAM.map((m) => ({ userId, businessId, ...m }))).onConflictDoNothing();
   });
-  try {
+  // Two setups can race to create the memory row (unique per business); the loser retries and merges.
+  for (let attempt = 0; attempt < 2; attempt++) try {
     if (ctx.plan) {
       await mergeBusinessMemory(businessId, {
         businessModel: ctx.plan.newType?.description || ctx.plan.typeKey.replace(/_/g, " "),
@@ -45,8 +46,9 @@ export async function ensureVenture(userId: number, businessId: number, ctx: { p
     } else {
       await getOrCreateBusinessMemory(businessId);
     }
+    break;
   } catch (err) {
-    logger.warn({ err, businessId }, "venture: business memory setup failed (non-fatal)");
+    if (attempt === 1) logger.warn({ err, businessId }, "venture: business memory setup failed (non-fatal)");
   }
   return true;
 }

@@ -24,7 +24,7 @@ vi.mock("../lib/stripe", () => ({
 import app from "../app";
 import {
   db, usersTable, subscriptionsTable, blueprintsTable, blueprintPurchasesTable,
-  processedStripeEventsTable, notificationsTable,
+  processedStripeEventsTable, notificationsTable, creatorEarningsTable,
 } from "@workspace/db";
 
 const tag = `pl${Date.now()}`;
@@ -102,8 +102,16 @@ describe("Stripe refunds, chargebacks and failed renewals", () => {
     expect(bp!.salesCount).toBe(0);
   });
 
+  it("a failed standalone invoice leaves the current plan alone", async () => {
+    expect((await send("invoice.payment_failed", { id: `in_${tag}_x`, customer: `cus_${tag}`, amount_due: 500, attempt_count: 1 })).status).toBe(200);
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, subscriber));
+    expect(sub!.status).toBe("active");
+    expect((await user(subscriber)).membershipStatus).toBe("active");
+  });
+
   it("failed renewal marks the plan past due and tells the user and admins", async () => {
-    const res = await send("invoice.payment_failed", { id: `in_${tag}`, customer: `cus_${tag}`, amount_due: 2900, attempt_count: 1 });
+    const res = await send("invoice.payment_failed", { id: `in_${tag}`, customer: `cus_${tag}`, amount_due: 2900, attempt_count: 1,
+      parent: { subscription_details: { subscription: `sub_${tag}` } } });
     expect(res.status).toBe(200);
     const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, subscriber));
     expect(sub!.status).toBe("past_due");
@@ -151,6 +159,7 @@ describe("Stripe refunds, chargebacks and failed renewals", () => {
 
   it("lost chargeback on a subscription ends the plan, takes back credits and cancels in Stripe", async () => {
     stripeMock.subscriptionsCancel.mockResolvedValue({});
+    stripeMock.invoicesRetrieve.mockResolvedValueOnce({ id: "in_x", parent: { subscription_details: { subscription: `sub_${tag}` } } });
     const res = await send("charge.dispute.closed", { id: `dp2_${tag}`, charge: `ch_${tag}_d`, amount: 2900, status: "lost" });
     expect(res.status).toBe(200);
     const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, subscriber));
@@ -160,6 +169,23 @@ describe("Stripe refunds, chargebacks and failed renewals", () => {
     expect(u.creditsBalance).toBeLessThan(5000);
     await new Promise((r) => setTimeout(r, 50));
     expect(stripeMock.subscriptionsCancel).toHaveBeenCalledWith(`sub_${tag}`);
+  });
+
+  it("an open dispute holds the sale's creator earning; winning it releases the hold", async () => {
+    const [e] = await db.insert(creatorEarningsTable).values({
+      userId: author, buyerUserId: buyer, paymentRef: "pi_hold", grossCents: 1000, amountCents: 700, status: "available", availableAt: new Date(Date.now() - 1000),
+    }).returning();
+    const charge = { id: `ch_${tag}_h`, amount: 1000, payment_intent: "pi_hold" };
+    stripeMock.sessionsList.mockResolvedValue({ data: [{ id: "cs_hold", metadata: { kind: "blueprint_purchase", userId: String(buyer), blueprintId: String(blueprintId) } }] });
+    await send("charge.dispute.created", { id: `dph_${tag}`, charge, amount: 1000, status: "needs_response" });
+    let [row] = await db.select().from(creatorEarningsTable).where(eq(creatorEarningsTable.id, e!.id));
+    expect(row!.status).toBe("pending");
+    expect(row!.availableAt.getUTCFullYear()).toBe(9999);
+    await send("charge.dispute.closed", { id: `dph_${tag}`, charge, amount: 1000, status: "won" });
+    [row] = await db.select().from(creatorEarningsTable).where(eq(creatorEarningsTable.id, e!.id));
+    expect(row!.availableAt.getUTCFullYear()).toBeLessThan(3000);
+    stripeMock.sessionsList.mockReset();
+    await db.delete(creatorEarningsTable).where(eq(creatorEarningsTable.id, e!.id));
   });
 
   it("a retried event is applied once", async () => {

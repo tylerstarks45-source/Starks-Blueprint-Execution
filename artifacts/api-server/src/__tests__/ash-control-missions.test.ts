@@ -6,17 +6,24 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vites
 import request from "supertest";
 import jwt from "jsonwebtoken";
 
-vi.mock("../lib/openrouter", () => ({ complete: vi.fn(), streamCompletion: vi.fn() }));
+// Business DNA inference runs in the background after a business is created; answer it here so it
+// can't take a reply queued for the call under test.
+const { queued } = vi.hoisted(() => ({ queued: vi.fn() }));
+vi.mock("../lib/openrouter", () => ({
+  complete: (opts: { systemPrompt?: string }) => (String(opts?.systemPrompt ?? "").startsWith("You infer likely business facts")
+    ? Promise.resolve({ content: "{}", model: "test", promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: null })
+    : queued(opts)),
+  streamCompletion: vi.fn(),
+}));
 
 import app from "../app";
-import { complete } from "../lib/openrouter";
 import { db, usersTable, businessesTable, ashMissionsTable, ashSpendEventsTable, pendingApprovalsTable } from "@workspace/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { decide } from "../lib/ash-control/policy";
 import { runAshTurn } from "../lib/ash-agent";
 import { claimDueMissions, runMissionOnce } from "../lib/ash-missions/runner";
 
-const mockComplete = vi.mocked(complete);
+const mockComplete = queued;
 let ownerId: number;
 let otherId: number;
 let bizId: number;
@@ -263,6 +270,49 @@ describe("missions", () => {
     const [a] = await db.select().from(pendingApprovalsTable).where(eq(pendingApprovalsTable.id, m.approvalId!));
     expect(a!.status).toBe("rejected");
     expect((await request(app).post(`/api/approvals/${m.approvalId}/approve`).set(as(ownerId))).status).not.toBe(200);
+  });
+
+  it("pauses a suspended account's mission without running it", async () => {
+    await setLevel("copilot");
+    const id = await plannedMission("Suspended work", ["Do the work"]);
+    await db.update(usersTable).set({ active: false }).where(eq(usersTable.id, ownerId));
+    try {
+      mockComplete.mockClear();
+      const m = await runDue(id);
+      expect(m.status).toBe("paused");
+      expect(mockComplete).not.toHaveBeenCalled();
+    } finally {
+      await db.update(usersTable).set({ active: true }).where(eq(usersTable.id, ownerId));
+    }
+  });
+
+  it("stops writing once the owner pauses the mission mid-step", async () => {
+    await setLevel("copilot");
+    const id = await plannedMission("Paused mid-step", ["Save the asset"]);
+    mockComplete
+      .mockImplementationOnce(async () => {
+        await db.update(ashMissionsTable).set({ status: "paused" }).where(eq(ashMissionsTable.id, id));
+        return toolCall("register_asset", { name: "After pause", classKey: "document", businessId: bizId });
+      })
+      .mockResolvedValueOnce(reply("Stopped."));
+    const m = await runDue(id);
+    expect(m.status).toBe("paused");
+    const assets = await request(app).get("/api/empire/assets").set(as(ownerId));
+    expect(JSON.stringify(assets.body)).not.toContain("After pause");
+  });
+
+  it("runs an approved action once even when approve is clicked twice at the same time", async () => {
+    await setLevel("advisor");
+    mockComplete
+      .mockResolvedValueOnce(toolCall("create_business", { name: "Twice Biz", typeKey: "saas" }))
+      .mockResolvedValueOnce(reply("Queued."));
+    const turn = await runAshTurn({ userId: ownerId, message: "start Twice Biz", history: [] });
+    const approvalId = turn.steps.find((s) => s.tool === "create_business")!.approvalId!;
+    const results = await Promise.all([1, 2].map(() => request(app).post(`/api/approvals/${approvalId}/approve`).set(as(ownerId))));
+    const statuses = results.map((r) => r.status);
+    expect(statuses.filter((st) => st === 200)).toHaveLength(1);
+    expect(statuses.find((st) => st !== 200)).toBeOneOf([400, 409]);
+    expect((await ownerBusinesses()).filter((b) => b.name === "Twice Biz")).toHaveLength(1);
   });
 
   it("waits for every approval a step queued and remembers them for the retry", async () => {

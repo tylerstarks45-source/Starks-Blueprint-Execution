@@ -8,7 +8,7 @@ import { ASH_TOOLS, ALL_TOOL_DEFS, getTool, checkToolArgs } from "./tools";
 import { decide, toolActionKind } from "../ash-control/policy";
 import { createPendingApproval } from "../approvals";
 import { ownedBusinessIds } from "../empire/assets";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, ashMissionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { chainForAgentMode, resolveAgentMode } from "../models";
 import { isFounderAdmin } from "../auth";
@@ -54,6 +54,12 @@ async function gate(userId: number, control: AgentControl, spec: { name: string;
   Promise<{ allowed: true } | { allowed: false; result: unknown; step: AgentStep }> {
   const kind = toolActionKind(spec.name);
   if (kind === "read") return { allowed: true };
+  if (control.missionId != null) {
+    const [mission] = await db.select({ status: ashMissionsTable.status }).from(ashMissionsTable).where(eq(ashMissionsTable.id, control.missionId));
+    if (!mission || !["planning", "running"].includes(mission.status)) {
+      return { allowed: false, result: { status: "mission_stopped", note: "The owner paused or cancelled this mission. Stop and summarize." }, step: { tool: spec.name, ok: false } };
+    }
+  }
   const argBiz = Number.isInteger(args["businessId"]) ? Number(args["businessId"]) : null;
   const candidate = argBiz ?? control.businessId ?? null;
   const businessId = candidate != null && (await ownedBusinessIds(userId, [candidate])).has(candidate) ? candidate : null;
@@ -182,7 +188,8 @@ export async function runAshAgent(opts: {
             control,
           });
           messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ specialist: specialist.title, report: report.content }) });
-          steps.push({ tool: spec.name, ok: true, specialist: key });
+          // The specialist's own calls (failures, queued approvals) count toward this turn.
+          steps.push(...report.steps.map((s) => ({ ...s, specialist: s.specialist ?? key })), { tool: spec.name, ok: true, specialist: key });
         } catch (err) {
           if (err instanceof OutOfCreditsError) throw err;
           logger.warn({ specialist: key, err: err instanceof Error ? err.message : String(err) }, "ASH specialist failed");

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { db, pendingApprovalsTable } from "@workspace/db";
 import { getActiveCallerPayload } from "../lib/auth";
 import { executeApprovedAction, revertApprovedAction, isExecutableApproval } from "../lib/approval-executor";
@@ -59,59 +59,68 @@ router.post("/approvals/:id/approve", async (req, res): Promise<void> => {
     return;
   }
 
-  const [existing] = await db
-    .select()
-    .from(pendingApprovalsTable)
-    .where(eq(pendingApprovalsTable.id, params.data.id));
-
-  if (!existing || existing.userId !== caller.id) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-
-  if (existing.status !== "pending") {
-    res.status(400).json({ error: `Approval already ${existing.status}` });
-    return;
-  }
-
-  // Carry out the approved action now (e.g. promote the A/B winner), snapshot
-  // the prior state into undoPayload so it can be reversed, and record when it
-  // ran. Actions are logged to the system activity feed by the executor.
-  //
-  // An approval with a recognized action MUST actually execute before we flip
-  // the row to "approved" — otherwise the user sees "approved" while nothing was
-  // applied, violating the operator trust contract. Decision-only approvals
-  // (no executable action) are simply marked approved with no side effects.
-  const executable = isExecutableApproval(existing);
-  let executedAt: Date | null = null;
-  let undoPayload: Record<string, unknown> | null = null;
-  try {
-    const outcome = await executeApprovedAction(existing);
-    if (outcome.executed) {
-      executedAt = new Date();
-      undoPayload = outcome.undoPayload ?? null;
-    } else if (executable) {
-      // The action was supposed to run but failed (e.g. target resource missing
-      // or not owned). Do not transition status — surface the failure instead.
-      res.status(400).json({ error: outcome.detail });
+  // One approve per row at a time, so the action runs once. A concurrent approve is turned away
+  // instead of waiting, so waiters can't hold every pooled connection while the holder needs one.
+  await db.transaction(async (lockTx) => {
+    const { rows } = await lockTx.execute(sql`select pg_try_advisory_xact_lock(hashtext('approval_approve'), ${params.data.id}) as locked`);
+    if (!(rows[0] as { locked: boolean } | undefined)?.locked) {
+      res.status(409).json({ error: "This approval is already being processed" });
       return;
     }
-  } catch (err) {
-    logger.error({ err, approvalId: existing.id }, "Failed to execute approved action");
-    res.status(500).json({ error: "Failed to execute the approved action" });
-    return;
-  }
+    const [existing] = await db
+      .select()
+      .from(pendingApprovalsTable)
+      .where(eq(pendingApprovalsTable.id, params.data.id));
 
-  const [row] = await db
-    .update(pendingApprovalsTable)
-    .set({ status: "approved", resolvedAt: new Date(), executedAt, undoPayload })
-    .where(eq(pendingApprovalsTable.id, params.data.id))
-    .returning();
+    if (!existing || existing.userId !== caller.id) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
 
-  await onApprovalResolved(existing, true, executedAt ? "done" : undefined)
-    .catch((err) => logger.warn({ err, approvalId: existing.id }, "Failed to update mission after approval"));
+    if (existing.status !== "pending") {
+      res.status(400).json({ error: `Approval already ${existing.status}` });
+      return;
+    }
 
-  res.json(ApprovePendingApprovalResponse.parse(serialize(row)));
+    // Carry out the approved action now (e.g. promote the A/B winner), snapshot
+    // the prior state into undoPayload so it can be reversed, and record when it
+    // ran. Actions are logged to the system activity feed by the executor.
+    //
+    // An approval with a recognized action MUST actually execute before we flip
+    // the row to "approved" — otherwise the user sees "approved" while nothing was
+    // applied, violating the operator trust contract. Decision-only approvals
+    // (no executable action) are simply marked approved with no side effects.
+    const executable = isExecutableApproval(existing);
+    let executedAt: Date | null = null;
+    let undoPayload: Record<string, unknown> | null = null;
+    try {
+      const outcome = await executeApprovedAction(existing);
+      if (outcome.executed) {
+        executedAt = new Date();
+        undoPayload = outcome.undoPayload ?? null;
+      } else if (executable) {
+        // The action was supposed to run but failed (e.g. target resource missing
+        // or not owned). Do not transition status — surface the failure instead.
+        res.status(400).json({ error: outcome.detail });
+        return;
+      }
+    } catch (err) {
+      logger.error({ err, approvalId: existing.id }, "Failed to execute approved action");
+      res.status(500).json({ error: "Failed to execute the approved action" });
+      return;
+    }
+
+    const [row] = await db
+      .update(pendingApprovalsTable)
+      .set({ status: "approved", resolvedAt: new Date(), executedAt, undoPayload })
+      .where(eq(pendingApprovalsTable.id, params.data.id))
+      .returning();
+
+    await onApprovalResolved(existing, true, executedAt ? "done" : undefined)
+      .catch((err) => logger.warn({ err, approvalId: existing.id }, "Failed to update mission after approval"));
+
+    res.json(ApprovePendingApprovalResponse.parse(serialize(row)));
+  });
 });
 
 // ─── POST /api/approvals/:id/reject ──────────────────────────────────────────

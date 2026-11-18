@@ -159,7 +159,7 @@ router.patch("/businesses/:id", async (req, res): Promise<void> => {
   }
 
   const [existing] = await db
-    .select({ ownerId: businessesTable.ownerId })
+    .select({ ownerId: businessesTable.ownerId, businessType: businessesTable.businessType })
     .from(businessesTable)
     .where(eq(businessesTable.id, params.data.id));
 
@@ -174,7 +174,8 @@ router.patch("/businesses/:id", async (req, res): Promise<void> => {
 
   const [row] = await db
     .update(businessesTable)
-    .set({ ...safeUpdate, updatedAt: new Date() })
+    // A new base type here drops the registry type, which no longer matches it.
+    .set({ ...safeUpdate, ...(safeUpdate.businessType && safeUpdate.businessType !== existing.businessType ? { typeKey: null } : {}), updatedAt: new Date() })
     .where(eq(businessesTable.id, params.data.id))
     .returning();
   publishBusinessEvent({

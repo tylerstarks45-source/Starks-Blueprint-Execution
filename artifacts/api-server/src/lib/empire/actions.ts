@@ -7,13 +7,14 @@ import { afterBusinessCreated } from "./after-create";
 // Empire write actions shared by the HTTP routes and ASH's tools.
 
 export async function createEmpireBusiness(userId: number, input: {
-  name: string; typeKey: string; websiteUrl?: string; notes?: string; createDefaultStreams?: boolean;
+  name: string; typeKey: string; websiteUrl?: string; notes?: string; createDefaultStreams?: boolean; clientWorkspaceId?: number | null;
 }) {
   const type = await resolveBusinessType(userId, input.typeKey);
   if (!type) return { error: "Unknown business type" } as const;
   const [row] = await db.insert(businessesTable).values({
     ownerId: userId, name: input.name, businessType: type.baseType, typeKey: type.key, origin: "imported",
     websiteUrl: input.websiteUrl ?? null, notes: input.notes ?? null,
+    ...(input.clientWorkspaceId != null ? { clientWorkspaceId: input.clientWorkspaceId } : {}),
   }).returning();
   afterBusinessCreated(row, userId);
   const streams = input.createDefaultStreams

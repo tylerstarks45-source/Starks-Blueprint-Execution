@@ -1,4 +1,4 @@
-import { and, eq, lte, sql, desc, inArray } from "drizzle-orm";
+import { and, eq, lte, sql, desc, inArray, isNull } from "drizzle-orm";
 import {
   db, usersTable, creatorPayoutAccountsTable, creatorEarningsTable, creatorPayoutsTable,
 } from "@workspace/db";
@@ -59,6 +59,22 @@ export async function reverseCardSaleEarning(tx: DbExecutor, paymentRefs: string
     }
   }
   return true;
+}
+
+const DISPUTE_HOLD = new Date("9999-12-31T00:00:00Z");
+
+/** Hold (dispute opened) or release (dispute won) unpaid creator earnings from one payment. */
+export async function holdCardSaleEarning(tx: DbExecutor, paymentRefs: string[], held: boolean): Promise<void> {
+  if (!paymentRefs.length) return;
+  const mine = and(inArray(creatorEarningsTable.paymentRef, paymentRefs), sql`${creatorEarningsTable.amountCents} > 0`, isNull(creatorEarningsTable.payoutId));
+  if (held) {
+    await tx.update(creatorEarningsTable).set({ status: "pending", availableAt: DISPUTE_HOLD })
+      .where(and(mine, inArray(creatorEarningsTable.status, ["pending", "available"])));
+  } else {
+    await tx.update(creatorEarningsTable)
+      .set({ availableAt: sql`greatest(${creatorEarningsTable.createdAt} + ${HOLD_DAYS} * interval '1 day', now())` })
+      .where(and(mine, eq(creatorEarningsTable.status, "pending"), eq(creatorEarningsTable.availableAt, DISPUTE_HOLD)));
+  }
 }
 
 async function releaseMatured(tx: DbExecutor, userId: number): Promise<void> {

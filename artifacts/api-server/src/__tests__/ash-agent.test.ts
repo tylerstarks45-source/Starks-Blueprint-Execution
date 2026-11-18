@@ -172,7 +172,10 @@ describe("POST /api/ash/agent", () => {
     expect(res.status).toBe(200);
     expect(res.body.content).toBe("Plan: focus on SEO first.");
     expect(res.body.structuredData).toBeNull();
-    expect(res.body.steps).toEqual([{ tool: "consult_specialist", ok: true, specialist: "marketing" }]);
+    // The specialist's own calls are reported too, tagged with the specialist.
+    expect(res.body.steps.map((s: { tool: string; specialist?: string }) => [s.tool, s.specialist]))
+      .toEqual([["image", "marketing"], ["list_businesses", "marketing"], ["consult_specialist", "marketing"]]);
+    expect(res.body.steps.at(-1)).toEqual({ tool: "consult_specialist", ok: true, specialist: "marketing" });
 
     const nested = sentBody(1);
     expect(JSON.stringify(nested.messages)).toContain("marketing specialist");

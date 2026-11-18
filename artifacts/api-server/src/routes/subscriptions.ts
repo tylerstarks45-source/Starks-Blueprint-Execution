@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getUncachableStripeClient } from "../lib/stripe";
 import { adjustCredits, adjustWalletCredits, tierAllotment, type DbExecutor } from "../lib/credits";
 import { notifyAdmins } from "../lib/admin-alerts";
-import { recordCardSaleEarning, reverseCardSaleEarning, syncAccountStatus } from "../lib/creator-payouts";
+import { recordCardSaleEarning, reverseCardSaleEarning, holdCardSaleEarning, syncAccountStatus } from "../lib/creator-payouts";
 import { requireAuthActive } from "../lib/auth";
 import { notifyUser } from "../lib/notify";
 import { hasOperationsModeAccess } from "../lib/operations-gate";
@@ -209,8 +209,10 @@ async function chargeSubscriptionId(stripe: StripeClient, charge: any, session: 
     const invoice: any = await stripe.invoices.retrieve(invoiceId);
     const sub = invoice.parent?.subscription_details?.subscription ?? invoice.subscription;
     return sub ? (typeof sub === "string" ? sub : sub.id) : null;
-  } catch {
-    return null;
+  } catch (err: any) {
+    // Unknown means "can't tell which plan this paid for": fail so Stripe retries, rather than cancel the current plan.
+    if (err?.code === "resource_missing") return null;
+    throw err;
   }
 }
 
@@ -256,10 +258,10 @@ async function reverseCharge(
       .where(and(eq(blueprintPurchasesTable.blueprintId, blueprintId), eq(blueprintPurchasesTable.buyerUserId, userId)))
       .returning();
     let creatorTaken = 0;
-    let cashReversed = false;
+    // Matched by this payment, so it applies even after the blueprint (and its purchase rows) was deleted.
+    const refs = [charge.payment_intent, session?.id].filter(Boolean).map(String);
+    const cashReversed = await reverseCardSaleEarning(tx, refs, `${label}: sale refunded`);
     if (purchase) {
-      const refs = [charge.payment_intent, session?.id].filter(Boolean).map(String);
-      cashReversed = await reverseCardSaleEarning(tx, refs, `${label}: sale refunded`);
       if (!cashReversed && purchase.authorUserId) {
         creatorTaken = await takeBackCredits(tx, purchase.authorUserId, purchase.creatorShareCredits, "wallet",
           `${label}: blueprint #${blueprintId} sale reversed`);
@@ -270,7 +272,7 @@ async function reverseCharge(
     }
     detail = purchase
       ? `revoked blueprint #${blueprintId} and ${cashReversed ? "reversed the creator's cash earning" : `took back ${creatorTaken} credits from the creator`}`
-      : `blueprint #${blueprintId} purchase was already revoked`;
+      : `blueprint #${blueprintId} purchase was already revoked${cashReversed ? "; reversed the creator's cash earning" : ""}`;
   } else if ((chargeSub = await chargeSubscriptionId(stripe, charge, session)) || charge.invoice || session?.mode === "subscription" || meta.tier) {
     const [sub] = await tx.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
     if (chargeSub && sub?.stripeSubscriptionId && chargeSub !== sub.stripeSubscriptionId) {
@@ -759,9 +761,12 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
           if (userId) await restoreMembership(tx, userId);
           await reverseCharge(tx, stripe, charge, "chargeback", afterCommit, req.log);
         } else {
-          const { userId } = await chargeOwner(tx, stripe, charge);
+          const { userId, session } = await chargeOwner(tx, stripe, charge);
           const opened = event.type === "charge.dispute.created";
           const won = dispute.status === "won";
+          // Creator earnings from a disputed sale can't be withdrawn until the dispute resolves.
+          const refs = [charge?.payment_intent, session?.id].filter(Boolean).map(String);
+          if (opened || won) await holdCardSaleEarning(tx, refs, opened);
           if (userId && opened) {
             // Disputed accounts lose paid access until the dispute resolves. The plan stays on the
             // subscription row so winning the dispute can restore it.
@@ -792,7 +797,16 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
             .where(eq(subscriptionsTable.stripeCustomerId, String(invoice.customer)));
           userId = sub?.userId ?? 0;
         }
+        const rawSub = invoice.parent?.subscription_details?.subscription ?? invoice.subscription ?? null;
+        const invoiceSub = rawSub ? (typeof rawSub === "string" ? rawSub : rawSub.id) : null;
+        let currentSub: string | null = null;
         if (userId) {
+          const [sub] = await tx.select({ id: subscriptionsTable.stripeSubscriptionId }).from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+          currentSub = sub?.id ?? null;
+        }
+        // Only a failed renewal of the current plan pauses it; standalone or older-subscription invoices don't.
+        const affectsPlan = Boolean(userId && invoiceSub && (!currentSub || currentSub === invoiceSub));
+        if (affectsPlan) {
           // Same mapping as customer.subscription.updated → past_due. Stripe keeps retrying the card;
           // a later invoice.payment_succeeded re-activates, a final failure cancels the subscription.
           await tx.update(subscriptionsTable).set({ status: "past_due" }).where(eq(subscriptionsTable.userId, userId));
@@ -808,7 +822,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
         }
         afterCommit.push(() => notifyAdmins({
           title: `Subscription payment failed: ${usd(invoice.amount_due)}`,
-          message: `Invoice ${invoice.id}${userId ? ` for user #${userId}` : ""} failed (attempt ${invoice.attempt_count ?? 1}). Stripe will retry automatically.`,
+          message: `Invoice ${invoice.id}${userId ? ` for user #${userId}` : ""} failed (attempt ${invoice.attempt_count ?? 1}). Stripe will retry automatically.${userId && !affectsPlan ? " It isn't for the current plan, so access was left unchanged." : ""}`,
           dedupeKey: `admin_payment_failed_${invoice.id}`, linkUrl: "/admin/stripe",
         }));
       }

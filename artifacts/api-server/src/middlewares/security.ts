@@ -129,7 +129,7 @@ export function createGlobalRateLimiter(limitPerMinute = positive(process.env["A
     standardHeaders: "draft-8",
     legacyHeaders: false,
     keyGenerator: rateLimitKey,
-    skip: (req) => isInternalForward(req) || /^\/(stripe\/webhook|webhooks\/sendgrid|healthz|readyz)$/.test(req.path),
+    skip: (req) => isInternalForward(req) || /^\/(stripe\/webhook|(email\/)?webhooks\/sendgrid|healthz|readyz)$/.test(req.path),
     handler: (_req, res) => {
       res.status(429).json({ error: "Too many requests. Please slow down.", code: "rate_limited" });
     },

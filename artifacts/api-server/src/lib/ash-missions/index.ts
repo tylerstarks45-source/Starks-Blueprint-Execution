@@ -1,7 +1,7 @@
 // ASH missions: long-running goals ASH works on in the background, one step
 // per run, persisted so they survive restarts. The runner lives in runner.ts.
 import { db, ashMissionsTable, pendingApprovalsTable, type AshMission, type MissionLogEntry, type PendingApproval } from "@workspace/db";
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { ownedBusinessIds } from "../empire/assets";
 
 const MAX_LOG = 200;
@@ -28,9 +28,14 @@ export async function createMission(userId: number, input: { goal: string; busin
   return { mission: mission! };
 }
 
-export function listMissions(userId: number, limit = 50) {
-  return db.select().from(ashMissionsTable).where(eq(ashMissionsTable.userId, userId))
-    .orderBy(desc(ashMissionsTable.createdAt)).limit(limit);
+/** The newest missions plus every one that still has controls (not completed or cancelled). */
+export async function listMissions(userId: number, limit = 50) {
+  const [recent, open] = await Promise.all([
+    db.select().from(ashMissionsTable).where(eq(ashMissionsTable.userId, userId)).orderBy(desc(ashMissionsTable.createdAt)).limit(limit),
+    db.select().from(ashMissionsTable).where(and(eq(ashMissionsTable.userId, userId), notInArray(ashMissionsTable.status, ["completed", "cancelled"]))),
+  ]);
+  const seen = new Set(recent.map((m) => m.id));
+  return [...recent, ...open.filter((m) => !seen.has(m.id))].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
 export async function getMission(userId: number, id: number) {

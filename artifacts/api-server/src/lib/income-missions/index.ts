@@ -61,10 +61,11 @@ const toText = (v: unknown): string => {
   }
   return v == null ? "" : String(v);
 };
-const prose = (max: number) => z.unknown().transform((v) => toText(v).trim().slice(0, max));
+const noCites = (t: string) => t.replace(/\s*(?:\[\d+\])+/g, "");
+const prose = (max: number) => z.unknown().transform((v) => noCites(toText(v)).trim().slice(0, max));
 const list = (items: number, max: number) => z.unknown().transform((v) =>
   (Array.isArray(v) ? v : typeof v === "string" ? v.split(/\n+/) : v == null ? [] : [v])
-    .map((x) => toText(x).replace(/^\s*(?:[-*\u2022]|\d+[.)])\s*/, "").trim().slice(0, max)).filter(Boolean).slice(0, items));
+    .map((x) => noCites(toText(x)).replace(/^\s*(?:[-*\u2022]|\d+[.)])\s*/, "").trim().slice(0, max)).filter(Boolean).slice(0, items));
 const PlannerOut = z.object({
   options: z.array(z.object({
     name: prose(120).pipe(z.string().min(1)), typeKey: prose(60).pipe(z.string().min(1)), newType: z.unknown().transform(() => false), // recomputed against the registry

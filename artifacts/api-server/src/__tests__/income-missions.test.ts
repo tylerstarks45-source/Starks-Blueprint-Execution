@@ -133,12 +133,12 @@ describe("Income plans", () => {
   it("accepts a research reply that strays from the requested shape", async () => {
     const body = planBody("digital_products");
     const loose = { ...body, options: body.options.map((o) => ({ ...o, why: "x".repeat(900), monthsToTarget: 4.5, newType: null })),
-      plan: { ...body.plan, timeline: ["Month 1: build", "Month 2: first clients"], risks: "Slow sales cycle",
+      plan: { ...body.plan, strategy: "Sell retainers [2][4].", timeline: ["Month 1: build", "Month 2: first clients"], risks: "Slow sales cycle",
         milestones: [{ title: "Research 50 clinics", description: "List and score them" }, "2. Build the offer page", { step: "Prepare outreach" }] } };
     queued.mockResolvedValueOnce({ ...reply(loose), content: JSON.stringify(loose).replace('"Local clinics miss calls."', '"Local clinics miss calls."[3][2]"').replace('"Slow sales cycle"', '"Slow sales cycle"[1]') });
     const d = await request(app).post("/api/income-plans").set(as(ownerId)).send({ goal: "Make $3,000 a month" });
     expect(d.status).toBe(201);
-    expect(d.body.plan).toMatchObject({ market: "Local clinics miss calls.", timeline: "Month 1: build\nMonth 2: first clients", risks: ["Slow sales cycle"],
+    expect(d.body.plan).toMatchObject({ market: "Local clinics miss calls.", strategy: "Sell retainers.", timeline: "Month 1: build\nMonth 2: first clients", risks: ["Slow sales cycle"],
       milestones: ["Research 50 clinics: List and score them", "Build the offer page", "Prepare outreach"] });
     expect(d.body.options[0].why).toHaveLength(600);
     await request(app).post(`/api/income-plans/${d.body.id}/reject`).set(as(ownerId));

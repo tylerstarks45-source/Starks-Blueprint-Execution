@@ -183,7 +183,7 @@ export async function testIntegration(userId: number, id: number, actionName?: s
   const lastTest = { ok: result.ok, action: action.name, status: result.status, detail: (result.error ?? JSON.stringify(result.data ?? "")).slice(0, 300), at: new Date().toISOString() };
   const [row] = await db.update(customIntegrationsTable)
     .set({ lastTest, ...(integ.status !== "approved" ? { status: result.ok ? "tested" : "draft" } : {}) })
-    .where(and(eq(customIntegrationsTable.id, id), eq(customIntegrationsTable.userId, userId), eq(customIntegrationsTable.updatedAt, integ.updatedAt))).returning();
+    .where(and(eq(customIntegrationsTable.id, id), eq(customIntegrationsTable.userId, userId), eq(customIntegrationsTable.updatedAt, integ.updatedAt), eq(customIntegrationsTable.status, integ.status))).returning();
   return { integration: row ?? integ, result };
 }
 
@@ -196,7 +196,7 @@ export async function setIntegrationStatus(userId: number, id: number, to: "appr
     return { error: to === "approved" ? "Run a successful test before approving" : "Already disabled", status: 409 };
   }
   const [row] = await db.update(customIntegrationsTable).set({ status: to, approvedAt: to === "approved" ? new Date() : integ.approvedAt })
-    .where(and(eq(customIntegrationsTable.id, id), eq(customIntegrationsTable.userId, userId), eq(customIntegrationsTable.updatedAt, integ.updatedAt))).returning();
+    .where(and(eq(customIntegrationsTable.id, id), eq(customIntegrationsTable.userId, userId), eq(customIntegrationsTable.updatedAt, integ.updatedAt), eq(customIntegrationsTable.status, integ.status))).returning();
   return row ? { integration: row } : { error: "It changed; reload and try again", status: 409 };
 }
 

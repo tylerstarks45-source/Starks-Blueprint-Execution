@@ -79,7 +79,7 @@ const PRIVATE_V6 = (ip: string) => {
   return v === "::" || v === "::1" || /^f[cd]/.test(v) || /^fe[89ab]/.test(v) || v.startsWith("ff");
 };
 
-const isPrivate = (address: string, family: number) => (family === 4 ? PRIVATE_V4(address) : PRIVATE_V6(address));
+const isPrivate = (address: string, _family?: number) => (isIP(address) === 4 ? PRIVATE_V4(address) : PRIVATE_V6(address));
 
 /** DNS lookup used by the connection itself, so the address checked is the address connected to (no rebinding). */
 export const publicLookup = ((host: string, opts: { all?: boolean }, cb: (err: Error | null, address: unknown, family?: number) => void) => {

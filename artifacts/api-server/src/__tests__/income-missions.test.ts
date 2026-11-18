@@ -130,10 +130,33 @@ describe("Income plans", () => {
     expect(await db.select().from(businessesTable).where(eq(businessesTable.ownerId, otherId))).toHaveLength(1);
   });
 
+  it("accepts a research reply that strays from the requested shape", async () => {
+    const body = planBody("digital_products");
+    const loose = { ...body, options: body.options.map((o) => ({ ...o, why: "x".repeat(900), monthsToTarget: 4.5, newType: null })),
+      plan: { ...body.plan, timeline: ["Month 1: build", "Month 2: first clients"], risks: "Slow sales cycle",
+        milestones: [{ title: "Research 50 clinics", description: "List and score them" }, "2. Build the offer page", { step: "Prepare outreach" }] } };
+    queued.mockResolvedValueOnce({ ...reply(loose), content: JSON.stringify(loose).replace('"Local clinics miss calls."', '"Local clinics miss calls."[3][2]"').replace('"Slow sales cycle"', '"Slow sales cycle"[1]') });
+    const d = await request(app).post("/api/income-plans").set(as(ownerId)).send({ goal: "Make $3,000 a month" });
+    expect(d.status).toBe(201);
+    expect(d.body.plan).toMatchObject({ market: "Local clinics miss calls.", timeline: "Month 1: build\nMonth 2: first clients", risks: ["Slow sales cycle"],
+      milestones: ["Research 50 clinics: List and score them", "Build the offer page", "Prepare outreach"] });
+    expect(d.body.options[0].why).toHaveLength(600);
+    await request(app).post(`/api/income-plans/${d.body.id}/reject`).set(as(ownerId));
+  });
+
+  it("has a broken research reply reformatted instead of failing", async () => {
+    queued.mockResolvedValueOnce({ ...reply({}), content: '{"options":[{"name":"Agency" "oops"}]}' });
+    queued.mockResolvedValueOnce(reply(planBody("digital_products")));
+    const d = await request(app).post("/api/income-plans").set(as(ownerId)).send({ goal: "Make $4,000 a month" });
+    expect(d.status).toBe(201);
+    expect(d.body.plan.businessName).toBe("Ring Ready AI");
+    await request(app).post(`/api/income-plans/${d.body.id}/reject`).set(as(ownerId));
+  });
+
   it("returns an error instead of saving when the model reply isn't a usable plan", async () => {
     queued.mockResolvedValueOnce({ content: "I think you should start a blog!", model: "test", promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: null });
     const d = await request(app).post("/api/income-plans").set(as(ownerId)).send({ goal: "Make $1,000 a month" });
     expect(d.status).toBe(502);
-    expect((await request(app).get("/api/income-plans").set(as(ownerId))).body).toHaveLength(1);
+    expect((await request(app).get("/api/income-plans").set(as(ownerId))).body).toHaveLength(3);
   });
 });

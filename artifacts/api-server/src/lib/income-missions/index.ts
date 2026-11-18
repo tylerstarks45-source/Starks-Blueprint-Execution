@@ -47,28 +47,55 @@ export function parseIncomeGoal(text: string): IncomeObjective {
 }
 
 const cents = z.coerce.number().min(0).max(1e10).transform((n) => Math.round(n));
+// Research models don't always keep to the requested shape (arrays for prose, objects for list items,
+// overlong text), so the reply is normalized rather than rejected.
+const toText = (v: unknown): string => {
+  if (typeof v === "string") return v;
+  if (Array.isArray(v)) return v.map(toText).filter(Boolean).join("\n");
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    const head = o.title ?? o.name ?? o.step ?? o.milestone ?? o.phase;
+    const body = o.description ?? o.detail ?? o.details;
+    if (head != null || body != null) return [head, body].filter((x) => x != null).map(toText).join(": ");
+    return JSON.stringify(v);
+  }
+  return v == null ? "" : String(v);
+};
+const prose = (max: number) => z.unknown().transform((v) => toText(v).trim().slice(0, max));
+const list = (items: number, max: number) => z.unknown().transform((v) =>
+  (Array.isArray(v) ? v : typeof v === "string" ? v.split(/\n+/) : v == null ? [] : [v])
+    .map((x) => toText(x).replace(/^\s*(?:[-*\u2022]|\d+[.)])\s*/, "").trim().slice(0, max)).filter(Boolean).slice(0, items));
 const PlannerOut = z.object({
   options: z.array(z.object({
-    name: z.string().min(1).max(120), typeKey: z.string().min(1).max(60), newType: z.boolean().default(false),
-    summary: z.string().max(600).default(""), startupCostCents: cents, monthlyCostCents: cents,
-    monthsToTarget: z.coerce.number().int().min(0).max(120).nullable().default(null),
-    score: z.coerce.number().min(0).max(100), why: z.string().max(600).default(""),
-  })).min(2).max(6),
-  selectedIndex: z.coerce.number().int().min(0),
+    name: prose(120).pipe(z.string().min(1)), typeKey: prose(60).pipe(z.string().min(1)), newType: z.unknown().transform(() => false), // recomputed against the registry
+    summary: prose(600), startupCostCents: cents, monthlyCostCents: cents,
+    monthsToTarget: z.coerce.number().min(0).max(120).transform((n) => Math.round(n)).nullable().default(null),
+    score: z.coerce.number().min(0).max(100), why: prose(600),
+  })).min(2).transform((o) => o.slice(0, 6)),
+  selectedIndex: z.coerce.number().int().min(0).default(0),
   plan: z.object({
-    businessName: z.string().min(1).max(120),
-    newType: z.object({ name: z.string().min(1).max(80), category: z.string().max(40).default("custom"), description: z.string().max(400).default(""), streamTypes: z.array(z.string()).max(6).default([]) }).nullable().default(null),
-    market: z.string().max(2000), strategy: z.string().max(3000), timeline: z.string().max(1000),
-    risks: z.array(z.string().max(300)).max(10), permissions: z.array(z.string().max(300)).max(10),
-    milestones: z.array(z.string().min(3).max(300)).min(3).max(10),
+    businessName: prose(120).pipe(z.string().min(1)),
+    newType: z.object({ name: prose(80).pipe(z.string().min(1)), category: prose(40).default("custom"), description: prose(400), streamTypes: list(6, 40) }).nullable().default(null),
+    market: prose(2000), strategy: prose(3000), timeline: prose(1000),
+    risks: list(10, 300), permissions: list(10, 300),
+    milestones: list(10, 300).pipe(z.array(z.string()).min(3)),
   }),
 });
 
 const jsonFrom = (s: string) => {
   const start = s.indexOf("{");
   const end = s.lastIndexOf("}");
-  return start >= 0 && end > start ? JSON.parse(s.slice(start, end + 1)) : null;
+  if (start < 0 || end <= start) return null;
+  const body = s.slice(start, end + 1);
+  try {
+    return JSON.parse(body);
+  } catch {
+    // Web-search models append citation markers to JSON values: "...text."[3][2]" or "...text."[1],
+    return JSON.parse(body.replace(/"((?:\[\d+\])+)"/g, '"').replace(/"((?:\[\d+\])+)(?=\s*[,}\]])/g, '"'));
+  }
 };
+
+const PLAN_SHAPE = '{"options":[{"name","typeKey","newType","summary","startupCostCents","monthlyCostCents","monthsToTarget","score","why"}],"selectedIndex":0,"plan":{"businessName","newType":null|{"name","category","description","streamTypes"},"market","strategy","timeline","risks":[],"permissions":[],"milestones":[]}}';
 
 /** Researches opportunities for the goal and saves a draft plan for the owner to approve. */
 export async function draftIncomePlan(userId: number, goal: string): Promise<{ plan: IncomePlan } | { error: string }> {
@@ -87,16 +114,34 @@ export async function draftIncomePlan(userId: number, goal: string): Promise<{ p
       `Income stream types: ${STREAM_TYPES.join(", ")}.`,
       "Revenue is not profit. Never promise the target will be reached. Costs are estimates in US cents. Milestones are concrete steps ASH can work through (research, build inside the platform, prepare launches that need the owner's accounts).",
       "Permissions lists what the owner must connect or approve (e.g. Stripe account, domain purchase, ad budget).",
-      'Reply with JSON only: {"options":[{"name","typeKey","newType","summary","startupCostCents","monthlyCostCents","monthsToTarget","score","why"}],"selectedIndex":0,"plan":{"businessName","newType":null|{"name","category","description","streamTypes"},"market","strategy","timeline","risks":[],"permissions":[],"milestones":[]}}. Give 3 to 5 options; score 0-100.',
+      `Reply with JSON only: ${PLAN_SHAPE}. Give 3 to 5 options; score 0-100.`,
     ].join("\n"),
     prompt: `Owner's goal: ${text}\nTarget monthly revenue: ${usd(objective.targetMonthlyRevenueCents)}\nStartup budget: ${usd(objective.budgetCents)}\nTimeline: ${objective.timelineMonths ? `${objective.timelineMonths} months` : "not stated"}\nConstraints: ${objective.constraints.join("; ") || "none stated"}`,
   });
-  let parsed: z.infer<typeof PlannerOut>;
-  try {
-    parsed = PlannerOut.parse(jsonFrom(result.content ?? ""));
-  } catch {
+  const tryParse = (content: string): { ok: z.infer<typeof PlannerOut> | null; err: unknown } => {
+    try {
+      return { ok: PlannerOut.parse(jsonFrom(content)), err: null };
+    } catch (err) {
+      return { ok: null, err };
+    }
+  };
+  let attempt = tryParse(result.content ?? "");
+  if (!attempt.ok && (result.content ?? "").includes("{")) {
+    // Web-search replies sometimes break JSON (citation markers, stray quotes); a cheap model reformats the same research.
+    logger.warn({ err: attempt.err }, "income plan: reformatting planner reply");
+    const fixed = await complete({
+      userId,
+      models: chainFor("utility"),
+      systemPrompt: `Rewrite the plan below as valid JSON only, in exactly this shape: ${PLAN_SHAPE}. Keep every value; drop citation markers like [1]. Costs are US cents.`,
+      prompt: (result.content ?? "").slice(0, 16000),
+    });
+    attempt = tryParse(fixed.content ?? "");
+  }
+  if (!attempt.ok) {
+    logger.warn({ err: attempt.err, reply: (result.content ?? "").slice(0, 4000) }, "income plan: unusable planner reply");
     return { error: "ASH couldn't produce a usable plan. Try again or add more detail." };
   }
+  const parsed = attempt.ok;
   const known = new Set(types.map((t) => t.key));
   const options = parsed.options.map((o) => {
     const key = slugifyKey(o.typeKey) || "custom";

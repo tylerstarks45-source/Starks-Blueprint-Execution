@@ -75,6 +75,8 @@ const PRIVATE_V4 = (ip: string) => {
 };
 const PRIVATE_V6 = (ip: string) => {
   const v = ip.toLowerCase();
+  const hex = v.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (hex) { const hi = parseInt(hex[1]!, 16), lo = parseInt(hex[2]!, 16); return PRIVATE_V4(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`); }
   if (v.startsWith("::ffff:")) return PRIVATE_V4(v.slice(7));
   return v === "::" || v === "::1" || /^f[cd]/.test(v) || /^fe[89ab]/.test(v) || v.startsWith("ff");
 };
@@ -159,7 +161,8 @@ export async function callAction(userId: number, integ: CustomIntegration, actio
   }
   try {
     const host = url.hostname.replace(/^\[|\]$/g, "");
-    if (isBlockedUrl(url.toString()) || (isIP(host) && isPrivate(host, isIP(host)))) throw new Error("Blocked address");
+    if (isIP(host)) throw new Error("Integrations must use a hostname, not an IP address");
+    if (isBlockedUrl(url.toString())) throw new Error("Blocked address");
     const res = await transport.send(url, { method: action.method, headers, body });
     if (res.status >= 300 && res.status < 400) return { ok: false, status: res.status, error: "The API redirected; redirects aren't followed" };
     const text = res.text.slice(0, 20_000);

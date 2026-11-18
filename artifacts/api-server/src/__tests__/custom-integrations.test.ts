@@ -117,6 +117,8 @@ describe("custom integrations", () => {
     expect((await lookupOnce("api.acme.example")).address).toBe("93.184.216.34");
     resolved.address = "10.0.0.5";
     expect((await lookupOnce("api.acme.example")).err?.message).toContain("private");
+    resolved.address = "::ffff:7f00:1";
+    expect((await lookupOnce("api.acme.example")).err?.message).toContain("private");
     resolved.address = "::ffff:127.0.0.1";
     expect((await lookupOnce("api.acme.example")).err?.message).toContain("private");
     expect(fetchSpy).toHaveBeenCalledTimes(3);

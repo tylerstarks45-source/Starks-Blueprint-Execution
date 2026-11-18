@@ -66,6 +66,16 @@ const urlIn = (data: unknown): string | null => {
   return (u as string | undefined)?.slice(0, 1000) ?? null;
 };
 
+// Whether the launched item is live: connectors report draft-like states, else fall back to the
+// action's default (WordPress and Shopify create drafts unless asked otherwise).
+function launchedStatus(key: string, params: Record<string, unknown>, data: unknown): "active" | "draft" {
+  const reported = data && typeof data === "object" ? (data as Record<string, unknown>)["status"] : undefined;
+  let s = typeof reported === "string" ? reported : typeof params["status"] === "string" ? (params["status"] as string) : undefined;
+  if (key === "shopify:createCollection") s = params["published"] === true ? "active" : "draft";
+  if (s == null && (key.startsWith("wordpress:") || key.startsWith("shopify:"))) s = "draft";
+  return ["draft", "pending", "private"].includes(String(s).toLowerCase()) ? "draft" : "active";
+}
+
 export async function runLaunchAction(userId: number, a: { connectorId: string; action: string; params?: Record<string, unknown>; businessId?: number | null; assetName?: string | null }) {
   const key = `${a.connectorId}:${a.action}`;
   const def = LAUNCH_ACTIONS[key];
@@ -83,10 +93,11 @@ export async function runLaunchAction(userId: number, a: { connectorId: string; 
   if (!r.ok) return { error: `${connector.displayName}: ${r.error ?? "the action failed"}`.slice(0, 500) };
   const url = urlIn(r.data);
   const title = typeof params["title"] === "string" ? params["title"] : typeof params["subject"] === "string" ? params["subject"] : null;
+  const status = launchedStatus(key, params, r.data);
   const assetId = await registerAsset({
     userId, businessId, classKey: def.asset, name: (a.assetName || title || def.label).slice(0, 200),
-    description: `${def.label} launched by ASH`, externalUrl: url, builderSource: "ash_launch",
+    description: `${def.label} launched by ASH`, externalUrl: url, builderSource: "ash_launch", status,
     builderObjectId: `${key}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   });
-  return { launched: true, what: def.label, url, assetId, result: JSON.stringify(r.data ?? null).slice(0, 1500) };
+  return { launched: true, status, what: def.label, url, assetId, result: JSON.stringify(r.data ?? null).slice(0, 1500) };
 }

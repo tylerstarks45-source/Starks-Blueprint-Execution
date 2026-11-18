@@ -41,7 +41,9 @@ describe("launch tools", () => {
     expect(r).toMatchObject({ launched: true, url: "https://blog.example.com/launch" });
     expect(spy).toHaveBeenCalledWith("createPage", { title: "Launch", content: "<p>Hi</p>" });
     const [asset] = await db.select().from(canonicalAssets).where(eq(canonicalAssets.id, (r as { assetId: number }).assetId));
-    expect(asset).toMatchObject({ userId: ownerId, businessId: bizId, classKey: "page", canonicalName: "Launch", externalUrl: "https://blog.example.com/launch" });
+    expect(asset).toMatchObject({ userId: ownerId, businessId: bizId, classKey: "page", canonicalName: "Launch", externalUrl: "https://blog.example.com/launch", status: "draft" });
+    const live = await runLaunchAction(ownerId, { connectorId: "wordpress", action: "createPage", params: { title: "Live", status: "publish" } });
+    expect(live).toMatchObject({ launched: true, status: "active" });
   });
 
   it("refuses unlisted actions, missing connections, other owners' businesses and oversized content", async () => {

@@ -154,7 +154,8 @@ export async function callAction(userId: number, integ: CustomIntegration, actio
   let body: string | undefined;
   if (action.method !== "GET" && params["body"] != null) {
     headers["content-type"] = "application/json";
-    body = JSON.stringify(params["body"]).slice(0, 100_000);
+    body = JSON.stringify(params["body"]);
+    if (body.length > 100_000) return { ok: false, status: null, error: "Request body is over 100,000 characters" };
   }
   try {
     const host = url.hostname.replace(/^\[|\]$/g, "");

@@ -139,7 +139,9 @@ export async function callAction(userId: number, integ: CustomIntegration, actio
   if (missing) return { ok: false, status: null, error: `Missing param "${missing}"` };
   const url = new URL(integ.baseUrl + path);
   const base = new URL(integ.baseUrl);
-  if (url.origin !== base.origin) return { ok: false, status: null, error: "Action path leaves the integration's host" };
+  if (url.origin !== base.origin || url.pathname !== base.pathname.replace(/\/$/, "") + path) {
+    return { ok: false, status: null, error: "Params can't change the action's declared path" };
+  }
   for (const q of action.query ?? []) if (params[q] != null) url.searchParams.set(q, String(params[q]));
   const headers: Record<string, string> = { accept: "application/json" };
   if (integ.auth.type !== "none") {

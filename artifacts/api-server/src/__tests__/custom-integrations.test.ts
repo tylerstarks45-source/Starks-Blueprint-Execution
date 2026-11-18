@@ -99,6 +99,7 @@ describe("custom integrations", () => {
     const [u2, i2] = fetchSpy.mock.calls[1]!;
     expect(String(u2)).toBe("https://api.acme.example/v1/shows/a%2Fb/episodes");
     expect((i2 as RequestInit).body).toBe(JSON.stringify({ title: "Ep 1" }));
+    for (const showId of ["..", "."]) expect(await runIntegrationAction(ownerId, "acme_podcasts", "createEpisode", { showId })).toMatchObject({ error: expect.stringContaining("declared path") });
     expect(await runIntegrationAction(ownerId, "acme_podcasts", "deleteEverything", {})).toMatchObject({ error: expect.stringContaining("Unknown action") });
     expect(await runIntegrationAction(otherId, "acme_podcasts", "listShows", {})).toMatchObject({ error: expect.stringContaining("No custom integration") });
 

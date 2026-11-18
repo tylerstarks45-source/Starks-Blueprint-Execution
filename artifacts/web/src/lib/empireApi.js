@@ -45,6 +45,9 @@ export const controlApi = {
   draftIncomePlan: (goal) => call('POST', '/api/income-plans', { goal }),
   decideIncomePlan: (id, action) => call('POST', `/api/income-plans/${id}/${action}`),
   missionDashboard: (id) => call('GET', `/api/missions/${id}/dashboard`),
+  capabilities: () => call('GET', '/api/capabilities'),
+  requestCapability: (capability, reason) => call('POST', '/api/capability-requests', { capability, reason }),
+  dismissCapabilityRequest: (id) => call('POST', `/api/capability-requests/${id}/dismiss`),
   approvals: (status = 'pending') => call('GET', `/api/approvals${qs({ status })}`),
   resolveApproval: (id, action) => call('POST', `/api/approvals/${id}/${action}`),
 };

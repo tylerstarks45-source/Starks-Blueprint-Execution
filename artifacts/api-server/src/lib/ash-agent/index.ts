@@ -53,13 +53,13 @@ function describeCall(tool: string, args: Record<string, unknown>): string {
 async function gate(userId: number, control: AgentControl, spec: { name: string; kind: string }, args: Record<string, unknown>):
   Promise<{ allowed: true } | { allowed: false; result: unknown; step: AgentStep }> {
   const kind = toolActionKind(spec.name);
-  if (kind === "read") return { allowed: true };
   if (control.missionId != null) {
     const [mission] = await db.select({ status: ashMissionsTable.status }).from(ashMissionsTable).where(eq(ashMissionsTable.id, control.missionId));
     if (!mission || !["planning", "running"].includes(mission.status)) {
       return { allowed: false, result: { status: "mission_stopped", note: "The owner paused or cancelled this mission. Stop and summarize." }, step: { tool: spec.name, ok: false } };
     }
   }
+  if (kind === "read") return { allowed: true };
   const argBiz = Number.isInteger(args["businessId"]) ? Number(args["businessId"]) : null;
   const candidate = argBiz ?? control.businessId ?? null;
   const businessId = candidate != null && (await ownedBusinessIds(userId, [candidate])).has(candidate) ? candidate : null;

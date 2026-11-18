@@ -5,6 +5,28 @@ import { TrendingUp, Check, X, AlertTriangle } from 'lucide-react';
 import { Card, Badge, btn, btnPrimary, input, Spinner, Field } from '@/components/empire/ui.jsx';
 import { controlApi } from '@/lib/empireApi.js';
 
+const CAP_TONE = { ready: 'green', connect: 'amber', manual: 'violet', missing: 'rose' };
+export const CAP_LABEL = { ready: 'Ready', connect: 'Connect', manual: 'Your step', missing: "Can't do yet" };
+
+/** What ASH can do for a plan or mission: ready, needs a connection, owner-only, or missing. */
+export function CapabilityChecklist({ items }) {
+  if (!items?.length) return null;
+  const blocked = items.filter((c) => c.status !== 'ready').length;
+  return (
+    <div>
+      <div className="text-xs text-white/50 mb-1">What ASH can do for this plan {blocked > 0 && <>· <Link to="/capabilities" className="text-cyan-300 hover:underline">{blocked} to sort out</Link></>}</div>
+      <ul className="grid sm:grid-cols-2 gap-1 text-xs">
+        {items.map((c) => (
+          <li key={c.key} className="flex items-start gap-2" title={c.note}>
+            <Badge tone={CAP_TONE[c.status]}>{CAP_LABEL[c.status]}</Badge>
+            <span className="text-white/80">{c.name}{c.status === 'connect' && <span className="text-white/40"> · {c.providers.map((p) => p.name).join(' / ')}</span>}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 const usd = (c) => (c == null ? '—' : `$${(c / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
 
 export function IncomePlanCard({ plan, onDecided }) {
@@ -41,6 +63,7 @@ export function IncomePlanCard({ plan, onDecided }) {
         <p><span className="text-white/50">Timeline: </span>{p.timeline}</p>
         {p.risks.length > 0 && <p><span className="text-white/50">Risks: </span>{p.risks.join(' · ')}</p>}
         {p.permissions.length > 0 && <p><span className="text-white/50">You'll need to connect or approve: </span>{p.permissions.join(' · ')}</p>}
+        <CapabilityChecklist items={plan.capabilityCheck} />
         <div><div className="text-xs text-white/50 mb-1">Milestones</div><ol className="list-decimal pl-5 text-xs space-y-0.5">{p.milestones.map((m, i) => <li key={i}>{m}</li>)}</ol></div>
         <p className="text-[11px] text-white/40">Estimates, not promises. Income isn't guaranteed; only revenue from connected payment providers counts as real.</p>
         {plan.status === 'draft' && (

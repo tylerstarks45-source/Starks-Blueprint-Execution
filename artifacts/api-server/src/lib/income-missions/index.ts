@@ -6,6 +6,7 @@ import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import {
   db, incomePlansTable, ashMissionsTable, businessesTable, customBusinessTypesTable, ashSpendEventsTable, canonicalAssets, pendingApprovalsTable,
   type IncomeObjective, type IncomePlan,
+  capabilityRequestsTable,
 } from "@workspace/db";
 import { complete } from "../openrouter";
 import { chainFor } from "../models";
@@ -15,6 +16,7 @@ import { getEmpireOverview } from "../empire/overview";
 import { logEntry } from "../ash-missions";
 import { ownedBusinessIds } from "../empire/assets";
 import { logger } from "../logger";
+import { CAPABILITIES, capabilitiesForPlan, requestMissingCapabilities, checkCapabilities } from "../capabilities";
 
 const STALE_CLAIM_MS = 10 * 60_000;
 
@@ -80,6 +82,7 @@ const PlannerOut = z.object({
     market: prose(2000), strategy: prose(3000), timeline: prose(1000),
     risks: list(10, 300), permissions: list(10, 300),
     milestones: list(10, 300).pipe(z.array(z.string()).min(3)),
+    capabilities: list(16, 60),
   }),
 }).transform((out) => {
   // Keep at most 6 options without dropping the one the plan was written for.
@@ -104,7 +107,7 @@ const jsonFrom = (s: string) => {
   }
 };
 
-const PLAN_SHAPE = '{"options":[{"name","typeKey","newType","summary","startupCostCents","monthlyCostCents","monthsToTarget","score","why"}],"selectedIndex":0,"plan":{"businessName","newType":null|{"name","category","description","streamTypes"},"market","strategy","timeline","risks":[],"permissions":[],"milestones":[]}}';
+const PLAN_SHAPE = '{"options":[{"name","typeKey","newType","summary","startupCostCents","monthlyCostCents","monthsToTarget","score","why"}],"selectedIndex":0,"plan":{"businessName","newType":null|{"name","category","description","streamTypes"},"market","strategy","timeline","risks":[],"permissions":[],"milestones":[],"capabilities":[]}}';
 
 /** Researches opportunities for the goal and saves a draft plan for the owner to approve. */
 export async function draftIncomePlan(userId: number, goal: string): Promise<{ plan: IncomePlan } | { error: string }> {
@@ -123,6 +126,7 @@ export async function draftIncomePlan(userId: number, goal: string): Promise<{ p
       `Income stream types: ${STREAM_TYPES.join(", ")}.`,
       "Revenue is not profit. Never promise the target will be reached. Costs are estimates in US cents. Milestones are concrete steps ASH can work through (research, build inside the platform, prepare launches that need the owner's accounts).",
       "Permissions lists what the owner must connect or approve (e.g. Stripe account, domain purchase, ad budget).",
+      `Capabilities lists what running the plan needs, using these keys where they fit: ${CAPABILITIES.map((c) => c.key).join(", ")}; anything else as a short snake_case key.`,
       `Reply with JSON only: ${PLAN_SHAPE}. Give 3 to 5 options; score 0-100.`,
     ].join("\n"),
     prompt: `Owner's goal: ${text}\nTarget monthly revenue: ${usd(objective.targetMonthlyRevenueCents)}\nStartup budget: ${usd(objective.budgetCents)}\nTimeline: ${objective.timelineMonths ? `${objective.timelineMonths} months` : "not stated"}\nConstraints: ${objective.constraints.join("; ") || "none stated"}`,
@@ -164,7 +168,7 @@ export async function draftIncomePlan(userId: number, goal: string): Promise<{ p
     : null;
   const [row] = await db.insert(incomePlansTable).values({
     userId, goal: text, objective, options,
-    plan: { ...parsed.plan, typeKey: chosen.typeKey, newType, startupCostCents: chosen.startupCostCents, monthlyCostCents: chosen.monthlyCostCents },
+    plan: { ...parsed.plan, capabilities: capabilitiesForPlan(parsed.plan), typeKey: chosen.typeKey, newType, startupCostCents: chosen.startupCostCents, monthlyCostCents: chosen.monthlyCostCents },
   }).returning();
   return { plan: row! };
 }
@@ -233,6 +237,8 @@ export async function approveIncomePlan(userId: number, id: number): Promise<{ p
         .where(eq(incomePlansTable.id, id)).returning();
       return row!;
     });
+    await requestMissingCapabilities(userId, plan.plan.capabilities ?? capabilitiesForPlan(plan.plan), { planId: plan.id, missionId: plan.missionId })
+      .catch((err) => logger.warn({ err, planId: plan.id }, "income plan: capability requests failed"));
     return { plan };
   } catch (err) {
     logger.error({ err, planId: id }, "Income plan approval failed");
@@ -266,6 +272,13 @@ export async function getMissionDashboard(userId: number, missionId: number) {
     db.select({ id: pendingApprovalsTable.id, title: pendingApprovalsTable.title }).from(pendingApprovalsTable)
       .where(and(eq(pendingApprovalsTable.userId, userId), eq(pendingApprovalsTable.status, "pending"), sql`${pendingApprovalsTable.payload}->>'missionId' = ${String(m.id)}`)),
   ]);
+  // Live check, so blockers follow connections even if a request row was never written or is shared with another plan.
+  const capabilities = plan ? await checkCapabilities(userId, plan.plan.capabilities ?? capabilitiesForPlan(plan.plan)) : [];
+  // Owner-only and missing capabilities the owner dismissed stop counting as blockers; connections stay live.
+  const reqs = await db.select({ c: capabilityRequestsTable.capability, status: capabilityRequestsTable.status }).from(capabilityRequestsTable)
+    .where(and(eq(capabilityRequestsTable.userId, userId), sql`${capabilityRequestsTable.status} in ('open', 'dismissed')`));
+  const reopened = new Set(reqs.filter((r) => r.status === "open").map((r) => r.c));
+  const dismissed = new Set(reqs.filter((r) => r.status === "dismissed" && !reopened.has(r.c)).map((r) => r.c));
   const biz = overview.businesses.find((b) => b.id === m.businessId) ?? null;
   const verified = biz?.verifiedRevenueCents?.last30 ?? null;
   const expenses = Number(spend[0]?.last30 ?? 0);
@@ -286,6 +299,8 @@ export async function getMissionDashboard(userId: number, missionId: number) {
     },
     milestones: { done: m.steps.filter((s) => s.status === "done").length, total: m.steps.length },
     nextActions: m.steps.filter((s) => s.status !== "done").slice(0, 3).map((s) => s.title),
-    blockers: [...(m.waitingFor ? [m.waitingFor] : []), ...approvals.map((a) => `Approval needed: ${a.title}`)],
+    blockers: [...(m.waitingFor ? [m.waitingFor] : []), ...approvals.map((a) => `Approval needed: ${a.title}`),
+      ...capabilities.filter((c) => c.status !== "ready" && (c.status === "connect" || !dismissed.has(c.key))).map((c) => `${c.status === "connect" ? "Connect" : c.status === "manual" ? "Your step" : "ASH can't do yet"}: ${c.name}`)],
+    capabilities,
   };
 }

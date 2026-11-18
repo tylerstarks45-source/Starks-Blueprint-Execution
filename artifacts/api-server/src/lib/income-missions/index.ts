@@ -120,8 +120,15 @@ export async function getIncomePlan(userId: number, id: number) {
   return p ?? null;
 }
 
-export const listIncomePlans = (userId: number) =>
-  db.select().from(incomePlansTable).where(eq(incomePlansTable.userId, userId)).orderBy(desc(incomePlansTable.createdAt)).limit(20);
+/** The newest plans plus every draft still waiting for the owner's decision. */
+export async function listIncomePlans(userId: number) {
+  const [recent, drafts] = await Promise.all([
+    db.select().from(incomePlansTable).where(eq(incomePlansTable.userId, userId)).orderBy(desc(incomePlansTable.createdAt)).limit(20),
+    db.select().from(incomePlansTable).where(and(eq(incomePlansTable.userId, userId), eq(incomePlansTable.status, "draft"))),
+  ]);
+  const seen = new Set(recent.map((p) => p.id));
+  return [...recent, ...drafts.filter((p) => !seen.has(p.id))].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
 
 /** Owner approved: create the business (registering a new type if the plan needs one) and the mission. */
 export async function approveIncomePlan(userId: number, id: number): Promise<{ plan: IncomePlan } | { error: string; status: number }> {

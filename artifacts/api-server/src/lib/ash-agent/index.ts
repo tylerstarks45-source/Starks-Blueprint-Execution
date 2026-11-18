@@ -182,7 +182,8 @@ export async function runAshAgent(opts: {
         const teamBiz = Number.isInteger(businessId) ? Number(businessId) : control.businessId ?? null;
         if (teamBiz != null && (await isTeamMemberPaused(opts.userId, teamBiz, key))) {
           messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: `The owner paused the ${specialist.title} employee for this business. Do the work yourself or ask the owner.` }) });
-          steps.push({ tool: spec.name, ok: false, specialist: key });
+          // An owner pause is a policy outcome, not a failed action, so missions shouldn't retry it.
+          steps.push({ tool: spec.name, ok: true, specialist: key });
           continue;
         }
         try {

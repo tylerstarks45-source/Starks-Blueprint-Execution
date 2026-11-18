@@ -95,6 +95,9 @@ describe("capability registry", () => {
     expect((await request(app).post(`/api/capability-requests/${podcast.id}/dismiss`).set(as(otherId))).status).toBe(404);
     expect((await request(app).post(`/api/capability-requests/${podcast.id}/dismiss`).set(as(ownerId))).body.status).toBe("dismissed");
     expect((await request(app).get(`/api/missions/${a.body.missionId}/dashboard`).set(as(ownerId))).body.blockers).not.toContain("ASH can't do yet: podcast hosting");
+    // A new request for the same capability makes it a blocker again.
+    await request(app).post("/api/capability-requests").set(as(ownerId)).send({ capability: "podcast_hosting" });
+    expect((await request(app).get(`/api/missions/${a.body.missionId}/dashboard`).set(as(ownerId))).body.blockers).toContain("ASH can't do yet: podcast hosting");
 
     await db.insert(userCredentialsTable).values({ userId: ownerId, credentialKey: "STRIPE_SECRET_KEY", encryptedValue: "x", status: "connected" });
     // A Shopify token without its shop domain isn't a working store connection.
@@ -103,6 +106,6 @@ describe("capability registry", () => {
     expect(caps.body.capabilities.find((c: { key: string }) => c.key === "payments").status).toBe("ready");
     expect(caps.body.capabilities.find((c: { key: string }) => c.key === "online_store").status).toBe("connect");
     expect((await request(app).get(`/api/missions/${a.body.missionId}/dashboard`).set(as(ownerId))).body.blockers).not.toContain("Connect: Take payments");
-    expect(caps.body.requests.map((r: { capability: string }) => r.capability)).toEqual(["email_marketing"]);
+    expect(caps.body.requests.map((r: { capability: string }) => r.capability).sort()).toEqual(["email_marketing", "podcast_hosting"]);
   });
 });

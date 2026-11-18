@@ -275,8 +275,10 @@ export async function getMissionDashboard(userId: number, missionId: number) {
   // Live check, so blockers follow connections even if a request row was never written or is shared with another plan.
   const capabilities = plan ? await checkCapabilities(userId, plan.plan.capabilities ?? capabilitiesForPlan(plan.plan)) : [];
   // Owner-only and missing capabilities the owner dismissed stop counting as blockers; connections stay live.
-  const dismissed = new Set((await db.select({ c: capabilityRequestsTable.capability }).from(capabilityRequestsTable)
-    .where(and(eq(capabilityRequestsTable.userId, userId), eq(capabilityRequestsTable.status, "dismissed")))).map((r) => r.c));
+  const reqs = await db.select({ c: capabilityRequestsTable.capability, status: capabilityRequestsTable.status }).from(capabilityRequestsTable)
+    .where(and(eq(capabilityRequestsTable.userId, userId), sql`${capabilityRequestsTable.status} in ('open', 'dismissed')`));
+  const reopened = new Set(reqs.filter((r) => r.status === "open").map((r) => r.c));
+  const dismissed = new Set(reqs.filter((r) => r.status === "dismissed" && !reopened.has(r.c)).map((r) => r.c));
   const biz = overview.businesses.find((b) => b.id === m.businessId) ?? null;
   const verified = biz?.verifiedRevenueCents?.last30 ?? null;
   const expenses = Number(spend[0]?.last30 ?? 0);

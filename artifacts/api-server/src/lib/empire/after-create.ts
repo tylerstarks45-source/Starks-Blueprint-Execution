@@ -1,3 +1,4 @@
+import { ensureVenture } from "../ventures";
 import type { Business } from "@workspace/db";
 import { enqueue } from "../runtime/jobs";
 import { logger } from "../logger";
@@ -5,6 +6,7 @@ import { initializeBusinessDna, publishBusinessEvent } from "../business-intelli
 
 /** Non-blocking follow-up work for a newly created business (health pass, DNA, timeline). */
 export function afterBusinessCreated(row: Pick<Business, "id" | "name">, userId: number): void {
+  ensureVenture(userId, row.id).catch((err) => logger.warn({ err, businessId: row.id }, "Venture setup failed (non-fatal)"));
   enqueue("business_health_analysis", { businessId: row.id, userId }, { priority: 5 }).catch((err) => {
     logger.warn({ err, businessId: row.id }, "Failed to enqueue initial business health analysis (non-fatal)");
   });

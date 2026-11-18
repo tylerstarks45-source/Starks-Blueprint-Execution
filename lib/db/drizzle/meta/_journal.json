@@ -57,6 +57,13 @@
       "when": 1794994253819,
       "tag": "0007_custom_integrations",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794995502870,
+      "tag": "0008_ventures",
+      "breakpoints": true
     }
   ]
 }

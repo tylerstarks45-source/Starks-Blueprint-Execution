@@ -16,7 +16,7 @@ const TOOL_KINDS: Record<string, ToolActionKind> = {
   list_businesses: "read", get_business_context: "read", get_portfolio_summary: "read",
   get_empire_overview: "read", list_business_types: "read", research: "read",
   get_learned_patterns: "read", consult_specialist: "read", navigate: "read",
-  get_ash_control: "read", list_missions: "read", start_mission: "read", plan_income_mission: "read", request_owner_action: "read", list_capabilities: "read", request_capability: "read", list_integrations: "read",
+  get_ash_control: "read", list_missions: "read", start_mission: "read", plan_income_mission: "read", request_owner_action: "read", list_capabilities: "read", request_capability: "read", list_integrations: "read", get_venture: "read",
   define_integration: "build", test_integration: "connect_service", run_integration_action: "connect_service",
   create_business: "build", add_income_stream: "build", register_asset: "build",
   image: "build", generate_video: "build", generate_music: "build", text_to_speech: "build", file: "build",

@@ -97,7 +97,7 @@ async function planMission(m: AshMission): Promise<Partial<AshMission>> {
   const result = await complete({
     userId: m.userId,
     models: chainFor("reasoning"),
-    systemPrompt: `You are ASH planning a mission for a business owner. Break the goal into 3-${MAX_PLAN_STEPS} concrete steps you can carry out with these tools: ${MISSION_TOOL_NAMES.join(", ")}. Steps that need things you can't do yet (external launches, payments, logins) should be phrased as preparing the work and asking the owner. Reply with JSON only: {"steps": ["..."]}`,
+    systemPrompt: `You are ASH planning a mission for a business owner. Break the goal into 3-${MAX_PLAN_STEPS} concrete steps you can carry out with these tools: ${MISSION_TOOL_NAMES.join(", ")}. Use launch to put pages, products, newsletters and posts live on the owner's connected sites (check list_launch_options first). Steps that need things you can't do (payments, logins, unconnected services) should be phrased as preparing the work and asking the owner. Reply with JSON only: {"steps": ["..."]}`,
     prompt: `Goal: ${m.goal}${m.businessId != null ? `\nBusiness id: ${m.businessId}` : ""}`,
   });
   const titles = parsePlan(result.content);

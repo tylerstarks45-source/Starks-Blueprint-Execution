@@ -36,7 +36,7 @@ export const GUIDE_SECTIONS = [
     where: 'Capabilities',
     summary: "See everything ASH can do for you right now: what she can do on her own (research, content, images, your business workspace), what needs a service connected first (payments, email, store, social, domains), what only you can do (ads, bank and legal setup) and what she can't do yet. Every income plan is checked against this before you approve it, and anything missing becomes a request here that clears itself once you connect the service.",
     tips: ['Connect a service in Connections and its requests resolve automatically', "Dismiss a request you don't want ASH to pursue", 'For a service with no built-in connector, ASH can define a custom integration from its API docs. You test and approve it before she can use it'],
-    examples: ['What can you do for my business right now?', 'What do I need to connect so you can take payments?', 'Set up an integration for Transistor podcast hosting from its API docs'],
+    examples: ['What can you do for my business right now?', 'What do I need to connect so you can take payments?', 'Set up an integration for Transistor podcast hosting from its API docs', 'Publish a landing page for my newest business on my WordPress site', 'Add my ebook as a product in my Shopify store'],
     link: { to: '/capabilities', label: 'Capabilities' },
   },
   {

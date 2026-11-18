@@ -8,6 +8,7 @@ import { ASH_TOOLS, ALL_TOOL_DEFS, getTool, checkToolArgs } from "./tools";
 import { decide, toolActionKind } from "../ash-control/policy";
 import { integrationActionKind } from "../custom-integrations";
 import { isTeamMemberPaused, recordTeamActivity } from "../ventures";
+import { launchActionKind } from "../launch";
 import { createPendingApproval } from "../approvals";
 import { ownedBusinessIds } from "../empire/assets";
 import { db, usersTable, ashMissionsTable } from "@workspace/db";
@@ -46,6 +47,7 @@ function describeCall(tool: string, args: Record<string, unknown>): string {
     case "add_income_stream": return `Add income stream ${q("title")}`;
     case "register_asset": return `Save asset ${q("name")} to the vault`;
     case "schedule_post": return `Schedule a post on ${String(args["platform"] ?? "social")}`;
+    case "launch": return `Launch on ${String(args["connectorId"] ?? "an outside site")}: ${String(args["action"] ?? "")}${typeof (args["params"] as Record<string, unknown> | undefined)?.["title"] === "string" ? ` "${String((args["params"] as Record<string, unknown>)["title"]).slice(0, 80)}"` : ""}`;
     case "connector_action": return `Run ${String(args["action"] ?? "an action")} on ${String(args["connectorId"] ?? "a connected service")}`;
     default: return `Run ${tool.replace(/_/g, " ")}`;
   }
@@ -54,7 +56,8 @@ function describeCall(tool: string, args: Record<string, unknown>): string {
 /** Applies the owner's ASH Control settings to one tool call. */
 async function gate(userId: number, control: AgentControl, spec: { name: string; kind: string }, args: Record<string, unknown>):
   Promise<{ allowed: true } | { allowed: false; result: unknown; step: AgentStep }> {
-  const kind = spec.name === "run_integration_action" ? await integrationActionKind(userId, args) : toolActionKind(spec.name);
+  const kind = spec.name === "run_integration_action" ? await integrationActionKind(userId, args)
+    : spec.name === "launch" ? launchActionKind(args) : toolActionKind(spec.name);
   if (control.missionId != null) {
     const [mission] = await db.select({ status: ashMissionsTable.status }).from(ashMissionsTable).where(eq(ashMissionsTable.id, control.missionId));
     if (!mission || !["planning", "running"].includes(mission.status)) {

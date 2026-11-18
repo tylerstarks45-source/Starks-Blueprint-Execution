@@ -21,6 +21,7 @@ import { draftIncomePlan } from "../income-missions";
 import { getCapabilityMap, listCapabilityRequests, requestMissingCapabilities } from "../capabilities";
 import { defineIntegration, listIntegrations, testIntegration, runIntegrationAction } from "../custom-integrations";
 import { getVenture } from "../ventures";
+import { LAUNCH_ACTIONS, LAUNCH_CONNECTORS, launchOptions, runLaunchAction } from "../launch";
 import { getEffectiveControl } from "../ash-control/policy";
 
 // Pages ASH can send the user to (the web app's authenticated routes).
@@ -196,6 +197,31 @@ const SPECS: ToolSpec[] = [
     parameters: obj({ businessId: { type: "integer", description: "Business id" } }, ["businessId"]),
     kind: "server",
     run: async (userId, a) => (await getVenture(userId, Number(a["businessId"]))) ?? { error: "Business not found" },
+  },
+  {
+    name: "list_launch_options",
+    description: "The outside sites ASH can launch things on with the owner's connected accounts (website pages, blog posts, store products, newsletters, email campaigns, social posts, site deploys), each with whether it's connected and which params it takes.",
+    parameters: obj({}, []),
+    kind: "server",
+    run: async (userId) => ({ options: await launchOptions(userId) }),
+  },
+  {
+    name: "launch",
+    description: `Put something live on an outside site using the owner's own connected account, then save it to the Asset Vault. Allowed actions (connectorId:action): ${Object.entries(LAUNCH_ACTIONS).map(([k, d]) => `${k} (${d.params})`).join("; ")}. Publishing and customer emails follow the owner's ASH Control approval rules. Prefer status "draft" for website content unless the owner asked to publish.`,
+    parameters: obj({
+      connectorId: { type: "string", enum: LAUNCH_CONNECTORS },
+      action: str("Action name, e.g. createPage"),
+      params: { type: "object", additionalProperties: true, description: "The action's params" },
+      businessId: int("Business this belongs to"),
+      assetName: str("Name for the Asset Vault entry"),
+    }, ["connectorId", "action", "params"]),
+    kind: "server",
+    run: async (userId, a) => runLaunchAction(userId, {
+      connectorId: String(a["connectorId"]), action: String(a["action"]),
+      params: a["params"] && typeof a["params"] === "object" ? (a["params"] as Record<string, unknown>) : {},
+      businessId: a["businessId"] != null ? Number(a["businessId"]) : null,
+      assetName: typeof a["assetName"] === "string" ? a["assetName"] : null,
+    }),
   },
   {
     name: "list_integrations",

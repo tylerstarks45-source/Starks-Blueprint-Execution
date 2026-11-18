@@ -64,7 +64,7 @@ async function gate(userId: number, control: AgentControl, spec: { name: string;
   const argBiz = Number.isInteger(args["businessId"]) ? Number(args["businessId"]) : null;
   const candidate = argBiz ?? control.businessId ?? null;
   const businessId = candidate != null && (await ownedBusinessIds(userId, [candidate])).has(candidate) ? candidate : null;
-  const d = await decide({ userId, businessId, kind, interactive: control.interactive, clientTool: spec.kind === "client" });
+  const d = await decide({ userId, businessId, kind, interactive: control.interactive, clientTool: spec.kind === "client", costUnknown: spec.name === "run_integration_action" });
   if (d.decision === "allow") return { allowed: true };
   if (d.decision === "block") {
     return { allowed: false, result: { status: "not_allowed", reason: d.reason, note: "Describe what you would do instead, or ask the owner to change ASH Control." }, step: { tool: spec.name, ok: false } };

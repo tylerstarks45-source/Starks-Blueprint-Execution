@@ -92,6 +92,8 @@ export async function decide(opts: {
   interactive: boolean;
   clientTool?: boolean;
   costCents?: number;
+  /** The spend amount isn't known up front (e.g. a custom integration call), so limits can't be checked. */
+  costUnknown?: boolean;
 }): Promise<Decision> {
   if (opts.kind === "read") return { decision: "allow", reason: "Read-only" };
   const c = await getEffectiveControl(opts.userId, opts.businessId);
@@ -103,6 +105,7 @@ export async function decide(opts: {
 
   if (opts.kind === "spend") {
     if (c.level !== "autopilot") return queue("Spending needs approval below Autopilot");
+    if (opts.costUnknown) return queue("ASH can't check this action's cost against your spending limits");
     const cost = Math.max(0, opts.costCents ?? 0);
     if (c.dailySpendLimitCents <= 0 && c.monthlySpendLimitCents <= 0) return queue("No spending limit set");
     const s = await spendSummary(opts.userId);

@@ -52,6 +52,7 @@ export const controlApi = {
   capabilities: () => call('GET', '/api/capabilities'),
   requestCapability: (capability, reason) => call('POST', '/api/capability-requests', { capability, reason }),
   dismissCapabilityRequest: (id) => call('POST', `/api/capability-requests/${id}/dismiss`),
+  launchOptions: () => call('GET', '/api/launch-options'),
   integrations: () => call('GET', '/api/custom-integrations'),
   defineIntegration: (body) => call('POST', '/api/custom-integrations', body),
   testIntegration: (id, body = {}) => call('POST', `/api/custom-integrations/${id}/test`, body),

@@ -84,6 +84,26 @@ function Integrations({ onChange }) {
   );
 }
 
+// Outside sites ASH can launch on with the owner's connected accounts.
+function LaunchTools() {
+  const [opts, setOpts] = useState(null);
+  useEffect(() => { controlApi.launchOptions().then((d) => setOpts(d.options)).catch(() => setOpts([])); }, []);
+  if (!opts) return null;
+  return (
+    <Card title="Launch tools">
+      <p className="text-xs text-white/50 mb-2">ASH can put these live with your own accounts, in chat or inside a mission. Publishing and customer emails follow your <Link to="/ash-control" className="text-cyan-300 hover:underline">ASH Control</Link> approval rules, and everything she launches is saved to the <Link to="/asset-vault" className="text-cyan-300 hover:underline">Asset Vault</Link>.</p>
+      <ul className="grid md:grid-cols-2 gap-2">
+        {opts.map((o) => (
+          <li key={`${o.connectorId}:${o.action}`} className="rounded-lg border border-white/10 px-3 py-2 text-sm flex items-center justify-between gap-2">
+            <span className="text-white">{o.label}{o.kind === 'email_customers' && <span className="text-[11px] text-white/40"> · emails customers</span>}</span>
+            {o.ready ? <Badge tone={TONE.ready}>{CAP_LABEL.ready}</Badge> : <Link to="/connections" className={btn}>Connect {o.connector}</Link>}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 export default function CapabilitiesPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -125,6 +145,7 @@ export default function CapabilitiesPage() {
                 </ul>
               )}
             </Card>
+            <LaunchTools />
             <Integrations onChange={load} />
             <Card title="Everything ASH can do">
               <ul className="grid md:grid-cols-2 gap-2">

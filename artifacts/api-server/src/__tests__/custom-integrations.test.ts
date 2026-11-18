@@ -13,7 +13,7 @@ import app from "../app";
 import { db, usersTable, userCredentialsTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 import { encrypt } from "../lib/crypto";
-import { runIntegrationAction, transport, publicLookup } from "../lib/custom-integrations";
+import { runIntegrationAction, testIntegration, transport, publicLookup } from "../lib/custom-integrations";
 
 let ownerId: number;
 let otherId: number;
@@ -68,6 +68,9 @@ describe("custom integrations", () => {
 
     expect((await request(app).post(`/api/custom-integrations/${id}/approve`).set(as(ownerId))).status).toBe(409);
     expect(await runIntegrationAction(ownerId, "acme_podcasts", "listShows", {})).toMatchObject({ error: expect.stringContaining("isn't approved") });
+
+    // ASH can't send the owner's saved key to an unreviewed host; only the owner's test does.
+    expect((await testIntegration(ownerId, id))!.result).toMatchObject({ ok: false, error: expect.stringContaining("owner tests it") });
 
     // The sandbox test refuses write actions and never calls the API for them.
     const w = await request(app).post(`/api/custom-integrations/${id}/test`).set(as(ownerId)).send({ action: "createEpisode" });

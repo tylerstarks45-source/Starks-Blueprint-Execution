@@ -230,7 +230,8 @@ const SPECS: ToolSpec[] = [
       const i = (await listIntegrations(userId)).find((x) => x.key === String(a["integration"] ?? ""));
       if (!i) return { error: "No such integration" };
       const r = await testIntegration(userId, i.id, a["action"] != null ? String(a["action"]) : undefined, (a["params"] ?? {}) as Record<string, unknown>);
-      return r ? { status: r.integration.status, result: r.result } : { error: "No such integration" };
+      if (!r) return { error: "No such integration" };
+      return r.result.ok ? { status: r.integration.status, result: r.result } : { error: r.result.error ?? `Test failed (HTTP ${r.result.status})`, status: r.integration.status, result: r.result };
     },
   },
   {

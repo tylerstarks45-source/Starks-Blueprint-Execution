@@ -26,7 +26,7 @@ router.post("/custom-integrations/:id/test", async (req, res): Promise<void> => 
   const id = idOf(req.params["id"]);
   const body = (req.body ?? {}) as { action?: unknown; params?: unknown };
   const params = body.params && typeof body.params === "object" && !Array.isArray(body.params) ? body.params as Record<string, unknown> : {};
-  const r = id ? await testIntegration(caller.id, id, typeof body.action === "string" ? body.action : undefined, params) : null;
+  const r = id ? await testIntegration(caller.id, id, typeof body.action === "string" ? body.action : undefined, params, true) : null;
   if (!r) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ integration: serialize(r.integration), result: r.result });
 });

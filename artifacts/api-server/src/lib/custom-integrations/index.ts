@@ -173,9 +173,13 @@ export async function callAction(userId: number, integ: CustomIntegration, actio
 }
 
 /** Sandbox test: runs one read-only GET action against the real API. Success marks it tested. */
-export async function testIntegration(userId: number, id: number, actionName?: string, params: Record<string, unknown> = {}) {
+export async function testIntegration(userId: number, id: number, actionName?: string, params: Record<string, unknown> = {}, byOwner = false) {
   const integ = await getIntegration(userId, id);
   if (!integ) return null;
+  // A draft's host hasn't been reviewed yet, so only the owner may send a saved key to it.
+  if (!byOwner && integ.auth.type !== "none") {
+    return { integration: integ, result: { ok: false, status: null, error: "This integration sends a saved key, so the owner tests it on the Capabilities page after checking where it goes." } as CallResult };
+  }
   const reads = integ.actions.filter((a) => a.method === "GET");
   const action = actionName ? reads.find((a) => a.name === actionName) : reads[0];
   if (!action) return { integration: integ, result: { ok: false, status: null, error: "Testing only runs read-only GET actions. Add or pick one." } as CallResult };

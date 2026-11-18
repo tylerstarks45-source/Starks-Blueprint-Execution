@@ -87,13 +87,21 @@ describe("capability registry", () => {
     // Requesting it again doesn't duplicate; the other account sees none and can't dismiss.
     expect((await request(app).post("/api/capability-requests").set(as(ownerId)).send({ capability: "payments" })).body.created).toEqual([]);
     expect((await request(app).get("/api/capabilities").set(as(otherId))).body.requests).toEqual([]);
+    const own = await request(app).post("/api/capability-requests").set(as(otherId)).send({ capability: "Podcast hosting", reason: "other account" });
+    expect(own.status).toBe(201);
+    expect(own.body.created[0]).toMatchObject({ userId: otherId, capability: "podcast_hosting" });
+    expect((await request(app).get("/api/capabilities").set(as(ownerId))).body.requests.filter((r: { userId: number }) => r.userId !== ownerId)).toEqual([]);
     const podcast = caps.body.requests.find((r: { capability: string }) => r.capability === "podcast_hosting");
     expect((await request(app).post(`/api/capability-requests/${podcast.id}/dismiss`).set(as(otherId))).status).toBe(404);
     expect((await request(app).post(`/api/capability-requests/${podcast.id}/dismiss`).set(as(ownerId))).body.status).toBe("dismissed");
 
     await db.insert(userCredentialsTable).values({ userId: ownerId, credentialKey: "STRIPE_SECRET_KEY", encryptedValue: "x", status: "connected" });
+    // A Shopify token without its shop domain isn't a working store connection.
+    await db.insert(userCredentialsTable).values({ userId: ownerId, credentialKey: "SHOPIFY_ACCESS_TOKEN", encryptedValue: "x", status: "connected" });
     caps = await request(app).get("/api/capabilities").set(as(ownerId));
     expect(caps.body.capabilities.find((c: { key: string }) => c.key === "payments").status).toBe("ready");
+    expect(caps.body.capabilities.find((c: { key: string }) => c.key === "online_store").status).toBe("connect");
+    expect((await request(app).get(`/api/missions/${a.body.missionId}/dashboard`).set(as(ownerId))).body.blockers).not.toContain("Connect: Take payments");
     expect(caps.body.requests.map((r: { capability: string }) => r.capability)).toEqual(["email_marketing"]);
   });
 });

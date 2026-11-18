@@ -20,6 +20,7 @@ import { createMission, listMissions } from "../ash-missions";
 import { draftIncomePlan } from "../income-missions";
 import { getCapabilityMap, listCapabilityRequests, requestMissingCapabilities } from "../capabilities";
 import { defineIntegration, listIntegrations, testIntegration, runIntegrationAction } from "../custom-integrations";
+import { getVenture } from "../ventures";
 import { getEffectiveControl } from "../ash-control/policy";
 
 // Pages ASH can send the user to (the web app's authenticated routes).
@@ -188,6 +189,13 @@ const SPECS: ToolSpec[] = [
       const created = await requestMissingCapabilities(userId, [key], { reason: String(a["reason"] ?? "") });
       return created.length ? { requested: created.map((r) => ({ id: r.id, kind: r.kind, name: r.name })), note: "Shown to the owner on /capabilities." } : { note: "Already available or already requested." };
     },
+  },
+  {
+    name: "get_venture",
+    description: "One business's venture setup: workspace, business memory, AI employee team (with who is paused and what each did last), ledger (provider-verified revenue, ASH spend, owner-recorded expenses, net for 30 days) and missions.",
+    parameters: obj({ businessId: { type: "integer", description: "Business id" } }, ["businessId"]),
+    kind: "server",
+    run: async (userId, a) => (await getVenture(userId, Number(a["businessId"]))) ?? { error: "Business not found" },
   },
   {
     name: "list_integrations",

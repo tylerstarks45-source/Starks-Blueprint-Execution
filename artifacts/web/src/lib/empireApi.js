@@ -30,6 +30,10 @@ export const empireApi = {
   updateAsset: (id, body) => call('PATCH', `/api/empire/assets/${id}`, body),
   shareAsset: (id, businessId) => call('POST', `/api/empire/assets/${id}/shares`, { businessId }),
   unshareAsset: (id, businessId) => call('DELETE', `/api/empire/assets/${id}/shares/${businessId}`),
+  venture: (businessId) => call('GET', `/api/empire/businesses/${businessId}/venture`),
+  addExpense: (businessId, body) => call('POST', `/api/empire/businesses/${businessId}/expenses`, body),
+  deleteExpense: (businessId, id) => call('DELETE', `/api/empire/businesses/${businessId}/expenses/${id}`),
+  setTeamMember: (businessId, role, status) => call('POST', `/api/empire/businesses/${businessId}/team/${role}`, { status }),
 };
 
 export const controlApi = {

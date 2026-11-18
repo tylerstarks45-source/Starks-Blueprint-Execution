@@ -1,3 +1,4 @@
+import { ensureVenture } from "./ventures";
 import { eq, isNull, and } from "drizzle-orm";
 import { db, businessesTable, systemInstancesTable, type SystemInstance } from "@workspace/db";
 import { logger } from "./logger";
@@ -78,6 +79,7 @@ export async function ensureBuiltBusiness(
     if (created) {
       await triggerHealthAnalysis(created.id, si.userId);
       await initializeBusinessDna(created.id);
+      await ensureVenture(si.userId, created.id).catch((err) => logger.warn({ err, businessId: created.id }, "Venture setup failed (non-fatal)"));
       await publishBusinessEvent({
         businessId: created.id,
         eventType: "business.created",

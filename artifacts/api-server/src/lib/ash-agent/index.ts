@@ -7,6 +7,7 @@ import { OutOfCreditsError } from "../credits";
 import { ASH_TOOLS, ALL_TOOL_DEFS, getTool, checkToolArgs } from "./tools";
 import { decide, toolActionKind } from "../ash-control/policy";
 import { integrationActionKind } from "../custom-integrations";
+import { isTeamMemberPaused, recordTeamActivity } from "../ventures";
 import { createPendingApproval } from "../approvals";
 import { ownedBusinessIds } from "../empire/assets";
 import { db, usersTable, ashMissionsTable } from "@workspace/db";
@@ -178,6 +179,13 @@ export async function runAshAgent(opts: {
         }
         const specialist = SPECIALISTS[key];
         const businessId = checked.args["businessId"];
+        const teamBiz = Number.isInteger(businessId) ? Number(businessId) : control.businessId ?? null;
+        if (teamBiz != null && (await isTeamMemberPaused(opts.userId, teamBiz, key))) {
+          messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: `The owner paused the ${specialist.title} employee for this business. Do the work yourself or ask the owner.` }) });
+          // An owner pause is a policy outcome, not a failed action, so missions shouldn't retry it.
+          steps.push({ tool: spec.name, ok: true, specialist: key });
+          continue;
+        }
         try {
           const report = await runAshAgent({
             userId: opts.userId,
@@ -189,6 +197,7 @@ export async function runAshAgent(opts: {
             control,
           });
           messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ specialist: specialist.title, report: report.content }) });
+          if (teamBiz != null) await recordTeamActivity(opts.userId, teamBiz, key, String(checked.args["task"])).catch(() => undefined);
           // The specialist's own calls (failures, queued approvals) count toward this turn.
           steps.push(...report.steps.map((s) => ({ ...s, specialist: s.specialist ?? key })), { tool: spec.name, ok: true, specialist: key });
         } catch (err) {

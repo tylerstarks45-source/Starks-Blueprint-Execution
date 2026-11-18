@@ -16,6 +16,7 @@ import { getEmpireOverview } from "../empire/overview";
 import { logEntry } from "../ash-missions";
 import { ownedBusinessIds } from "../empire/assets";
 import { logger } from "../logger";
+import { ensureVenture, listTeam } from "../ventures";
 import { CAPABILITIES, capabilitiesForPlan, requestMissingCapabilities, checkCapabilities } from "../capabilities";
 
 const STALE_CLAIM_MS = 10 * 60_000;
@@ -237,6 +238,8 @@ export async function approveIncomePlan(userId: number, id: number): Promise<{ p
         .where(eq(incomePlansTable.id, id)).returning();
       return row!;
     });
+    await ensureVenture(userId, businessId, { plan: p, goal: claimed.goal })
+      .catch((err) => logger.warn({ err, planId: plan.id }, "income plan: venture setup failed"));
     await requestMissingCapabilities(userId, plan.plan.capabilities ?? capabilitiesForPlan(plan.plan), { planId: plan.id, missionId: plan.missionId })
       .catch((err) => logger.warn({ err, planId: plan.id }, "income plan: capability requests failed"));
     return { plan };
@@ -302,5 +305,6 @@ export async function getMissionDashboard(userId: number, missionId: number) {
     blockers: [...(m.waitingFor ? [m.waitingFor] : []), ...approvals.map((a) => `Approval needed: ${a.title}`),
       ...capabilities.filter((c) => c.status !== "ready" && (c.status === "connect" || !dismissed.has(c.key))).map((c) => `${c.status === "connect" ? "Connect" : c.status === "manual" ? "Your step" : "ASH can't do yet"}: ${c.name}`)],
     capabilities,
+    team: m.businessId != null ? (await listTeam(userId, m.businessId)).map((t) => ({ role: t.role, title: t.title, status: t.status, lastTask: t.lastTask, lastActiveAt: t.lastActiveAt })) : [],
   };
 }

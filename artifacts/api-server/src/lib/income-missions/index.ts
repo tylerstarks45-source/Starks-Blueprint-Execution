@@ -2,9 +2,9 @@
 // opportunities and drafts a plan. Approving it creates the business and a mission that works the
 // plan's milestones in the background. Revenue shown against the target is provider-verified only.
 import { z } from "zod";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import {
-  db, incomePlansTable, ashMissionsTable, customBusinessTypesTable, ashSpendEventsTable, canonicalAssets, pendingApprovalsTable,
+  db, incomePlansTable, ashMissionsTable, businessesTable, customBusinessTypesTable, ashSpendEventsTable, canonicalAssets, pendingApprovalsTable,
   type IncomeObjective, type IncomePlan,
 } from "@workspace/db";
 import { complete } from "../openrouter";
@@ -13,6 +13,10 @@ import { listBusinessTypes, slugifyKey, BUILTIN_BUSINESS_TYPES, STREAM_TYPES } f
 import { createEmpireBusiness } from "../empire/actions";
 import { getEmpireOverview } from "../empire/overview";
 import { logEntry } from "../ash-missions";
+import { ownedBusinessIds } from "../empire/assets";
+import { logger } from "../logger";
+
+const STALE_CLAIM_MS = 10 * 60_000;
 
 const money = (s: string) => {
   const m = s.replace(/,/g, "").match(/^\$?\s*(\d+(?:\.\d+)?)\s*(k|thousand)?/i);
@@ -121,43 +125,60 @@ export const listIncomePlans = (userId: number) =>
 
 /** Owner approved: create the business (registering a new type if the plan needs one) and the mission. */
 export async function approveIncomePlan(userId: number, id: number): Promise<{ plan: IncomePlan } | { error: string; status: number }> {
-  // Claim first, so a double click can't build twice.
-  const [claimed] = await db.update(incomePlansTable).set({ status: "approving" })
-    .where(and(eq(incomePlansTable.id, id), eq(incomePlansTable.userId, userId), eq(incomePlansTable.status, "draft"))).returning();
+  // Claim first, so a double click can't build twice. A claim older than STALE_CLAIM_MS was cut off
+  // (e.g. a restart) and may be taken again; a business it already created is reused, not duplicated.
+  const [claimed] = await db.update(incomePlansTable).set({ status: "approving", decidedAt: new Date() })
+    .where(and(eq(incomePlansTable.id, id), eq(incomePlansTable.userId, userId), or(
+      eq(incomePlansTable.status, "draft"),
+      and(eq(incomePlansTable.status, "approving"), lt(incomePlansTable.decidedAt, new Date(Date.now() - STALE_CLAIM_MS))),
+    ))).returning();
   if (!claimed) {
     const existing = await getIncomePlan(userId, id);
     return existing ? { error: `This plan is already ${existing.status}`, status: 409 } : { error: "Not found", status: 404 };
   }
+  let createdBusinessId: number | null = null;
   try {
     const p = claimed.plan;
-    let typeKey = p.typeKey;
-    if (p.newType) {
-      typeKey = slugifyKey(p.newType.name) || p.typeKey;
-      if (BUILTIN_BUSINESS_TYPES.some((b) => b.key === typeKey)) typeKey = `${typeKey}_custom`;
-      await db.insert(customBusinessTypesTable).values({
-        ownerId: userId, key: typeKey, name: p.newType.name, description: p.newType.description, category: p.newType.category || "custom",
-        streamTypes: p.newType.streamTypes, assetClasses: [],
-      }).onConflictDoNothing();
+    let businessId = claimed.businessId != null && (await ownedBusinessIds(userId, [claimed.businessId])).has(claimed.businessId)
+      ? claimed.businessId : null;
+    if (businessId == null) {
+      let typeKey = p.typeKey;
+      if (p.newType) {
+        typeKey = slugifyKey(p.newType.name) || p.typeKey;
+        if (BUILTIN_BUSINESS_TYPES.some((b) => b.key === typeKey)) typeKey = `${typeKey}_custom`;
+        await db.insert(customBusinessTypesTable).values({
+          ownerId: userId, key: typeKey, name: p.newType.name, description: p.newType.description, category: p.newType.category || "custom",
+          streamTypes: p.newType.streamTypes, assetClasses: [],
+        }).onConflictDoNothing();
+      }
+      const created = await createEmpireBusiness(userId, {
+        name: p.businessName, typeKey, createDefaultStreams: true,
+        notes: `Created by ASH for the income goal: ${claimed.goal.slice(0, 500)}`,
+      });
+      if ("error" in created) throw new Error(created.error);
+      businessId = createdBusinessId = created.business.id;
+      await db.update(incomePlansTable).set({ businessId }).where(eq(incomePlansTable.id, id));
     }
-    const created = await createEmpireBusiness(userId, {
-      name: p.businessName, typeKey, createDefaultStreams: true,
-      notes: `Created by ASH for the income goal: ${claimed.goal.slice(0, 500)}`,
+    const plan = await db.transaction(async (tx) => {
+      const [m] = await tx.insert(ashMissionsTable).values({
+        userId, businessId, planId: claimed.id,
+        goal: `${claimed.goal}\n\nApproved plan: ${p.strategy.slice(0, 1200)}`,
+        status: "running", steps: p.milestones.map((title) => ({ title, status: "pending" as const })),
+        log: [logEntry("status", "Mission created from your approved income plan"),
+          logEntry("plan", `Plan: ${p.milestones.map((t, i) => `${i + 1}. ${t}`).join(" ")}`)],
+      }).returning();
+      const [row] = await tx.update(incomePlansTable)
+        .set({ status: "approved", businessId, missionId: m!.id, decidedAt: new Date() })
+        .where(eq(incomePlansTable.id, id)).returning();
+      return row!;
     });
-    if ("error" in created) throw new Error(created.error);
-    const [mission] = await db.insert(ashMissionsTable).values({
-      userId, businessId: created.business.id, planId: claimed.id,
-      goal: `${claimed.goal}\n\nApproved plan: ${p.strategy.slice(0, 1200)}`,
-      status: "running", steps: p.milestones.map((title) => ({ title, status: "pending" as const })),
-      log: [logEntry("status", "Mission created from your approved income plan"),
-        logEntry("plan", `Plan: ${p.milestones.map((t, i) => `${i + 1}. ${t}`).join(" ")}`)],
-    }).returning();
-    const [row] = await db.update(incomePlansTable)
-      .set({ status: "approved", businessId: created.business.id, missionId: mission!.id, decidedAt: new Date() })
-      .where(eq(incomePlansTable.id, id)).returning();
-    return { plan: row! };
+    return { plan };
   } catch (err) {
-    await db.update(incomePlansTable).set({ status: "draft" }).where(eq(incomePlansTable.id, id));
-    return { error: err instanceof Error ? err.message : "Could not start the plan", status: 400 };
+    logger.error({ err, planId: id }, "Income plan approval failed");
+    if (createdBusinessId != null) await db.delete(businessesTable).where(eq(businessesTable.id, createdBusinessId)).catch(() => undefined);
+    await db.update(incomePlansTable).set({ status: "draft", decidedAt: null, ...(createdBusinessId != null ? { businessId: null } : {}) })
+      .where(eq(incomePlansTable.id, id));
+    return { error: "Couldn't start the plan. Try approving again.", status: 500 };
   }
 }
 

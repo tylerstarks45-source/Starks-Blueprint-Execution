@@ -15,7 +15,7 @@ vi.mock("../lib/openrouter", () => ({
 }));
 
 import app from "../app";
-import { db, usersTable, businessesTable, customBusinessTypesTable, ashMissionsTable } from "@workspace/db";
+import { db, usersTable, businessesTable, customBusinessTypesTable, ashMissionsTable, incomePlansTable } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { parseIncomeGoal } from "../lib/income-missions";
 
@@ -115,6 +115,19 @@ describe("Income plans", () => {
     expect((await request(app).post(`/api/income-plans/${d.body.id}/reject`).set(as(otherId))).body.status).toBe("rejected");
     expect((await request(app).post(`/api/income-plans/${d.body.id}/approve`).set(as(otherId))).status).toBe(409);
     expect(await db.select().from(businessesTable).where(eq(businessesTable.ownerId, otherId))).toHaveLength(0);
+  });
+
+  it("retakes an approval cut off mid-way and reuses the business it already created", async () => {
+    queued.mockResolvedValueOnce(reply(planBody("digital_products")));
+    const d = await request(app).post("/api/income-plans").set(as(otherId)).send({ goal: "Make $1,500 a month selling templates" });
+    const b = await request(app).post("/api/empire/businesses").set(as(otherId)).send({ name: "Half-built", typeKey: "digital_products" });
+    await db.update(incomePlansTable).set({ status: "approving", decidedAt: new Date(Date.now() - 60_000), businessId: b.body.business.id }).where(eq(incomePlansTable.id, d.body.id));
+    expect((await request(app).post(`/api/income-plans/${d.body.id}/approve`).set(as(otherId))).status).toBe(409);
+    await db.update(incomePlansTable).set({ decidedAt: new Date(Date.now() - 11 * 60_000) }).where(eq(incomePlansTable.id, d.body.id));
+    const a = await request(app).post(`/api/income-plans/${d.body.id}/approve`).set(as(otherId));
+    expect(a.status).toBe(200);
+    expect(a.body).toMatchObject({ status: "approved", businessId: b.body.business.id });
+    expect(await db.select().from(businessesTable).where(eq(businessesTable.ownerId, otherId))).toHaveLength(1);
   });
 
   it("returns an error instead of saving when the model reply isn't a usable plan", async () => {

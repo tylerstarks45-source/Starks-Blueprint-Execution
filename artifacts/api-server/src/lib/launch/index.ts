@@ -34,7 +34,8 @@ export function launchActionKind(args: Record<string, unknown>): ToolActionKind 
 async function connectorCredentials(userId: number, connectorId: string): Promise<Record<string, string>> {
   const prefix = `${connectorId.toUpperCase()}_`;
   const rows = await db.select({ key: userCredentialsTable.credentialKey, v: userCredentialsTable.encryptedValue }).from(userCredentialsTable)
-    .where(and(eq(userCredentialsTable.userId, userId), isNull(userCredentialsTable.systemInstanceId), isNull(userCredentialsTable.clientWorkspaceId)));
+    .where(and(eq(userCredentialsTable.userId, userId), isNull(userCredentialsTable.systemInstanceId), isNull(userCredentialsTable.clientWorkspaceId),
+      eq(userCredentialsTable.status, "connected")));
   const creds: Record<string, string> = {};
   for (const r of rows) {
     const m = CATALOG_CONNECTOR_MAP[r.key];

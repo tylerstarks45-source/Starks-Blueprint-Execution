@@ -4,7 +4,7 @@ import request from "supertest";
 import jwt from "jsonwebtoken";
 import app from "../app";
 import { db, usersTable, userCredentialsTable, canonicalAssets, businessesTable } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { encrypt } from "../lib/crypto";
 import { runLaunchAction, launchActionKind } from "../lib/launch";
 import { WordPressConnector } from "../lib/connectors/wordpress-connector";
@@ -49,6 +49,9 @@ describe("launch tools", () => {
     expect(await runLaunchAction(ownerId, { connectorId: "stripe", action: "createPaymentLink", params: {} })).toHaveProperty("error");
     expect(await runLaunchAction(otherId, { connectorId: "wordpress", action: "createPage", params: { title: "x" } })).toMatchObject({ needsConnection: "wordpress" });
     expect(await runLaunchAction(otherId, { connectorId: "wordpress", action: "createPage", params: {}, businessId: bizId })).toEqual({ error: "Business not found" });
+    await db.update(userCredentialsTable).set({ status: "disconnected" }).where(and(eq(userCredentialsTable.userId, ownerId), eq(userCredentialsTable.credentialKey, "WORDPRESS_APP_PASSWORD")));
+    expect(await runLaunchAction(ownerId, { connectorId: "wordpress", action: "createPage", params: { title: "x" } })).toMatchObject({ needsConnection: "wordpress" });
+    await db.update(userCredentialsTable).set({ status: "connected" }).where(and(eq(userCredentialsTable.userId, ownerId), eq(userCredentialsTable.credentialKey, "WORDPRESS_APP_PASSWORD")));
     expect(await runLaunchAction(ownerId, { connectorId: "wordpress", action: "createPage", params: { content: "x".repeat(100_001) } })).toHaveProperty("error");
   });
 

@@ -71,7 +71,7 @@ const PlannerOut = z.object({
     summary: prose(600), startupCostCents: cents, monthlyCostCents: cents,
     monthsToTarget: z.coerce.number().min(0).max(120).transform((n) => Math.round(n)).nullable().default(null),
     score: z.coerce.number().min(0).max(100), why: prose(600),
-  })).min(2).transform((o) => o.slice(0, 6)),
+  })).min(2),
   selectedIndex: z.coerce.number().int().min(0).default(0),
   plan: z.object({
     businessName: prose(120).pipe(z.string().min(1)),
@@ -80,6 +80,14 @@ const PlannerOut = z.object({
     risks: list(10, 300), permissions: list(10, 300),
     milestones: list(10, 300).pipe(z.array(z.string()).min(3)),
   }),
+}).transform((out) => {
+  // Keep at most 6 options without dropping the one the plan was written for.
+  const sel = Math.min(out.selectedIndex, out.options.length - 1);
+  if (out.options.length <= 6) return { ...out, selectedIndex: sel };
+  const options = out.options.slice(0, 6);
+  if (sel < 6) return { ...out, options, selectedIndex: sel };
+  options[5] = out.options[sel]!;
+  return { ...out, options, selectedIndex: 5 };
 });
 
 const jsonFrom = (s: string) => {

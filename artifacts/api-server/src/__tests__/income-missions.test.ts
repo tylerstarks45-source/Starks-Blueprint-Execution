@@ -144,6 +144,18 @@ describe("Income plans", () => {
     await request(app).post(`/api/income-plans/${d.body.id}/reject`).set(as(ownerId));
   });
 
+  it("keeps the selected option when the reply has more than 6", async () => {
+    const body = planBody("digital_products");
+    const many = { ...body, options: [...Array.from({ length: 6 }, (_, i) => opt(`Filler ${i}`, "newsletter", 50)), opt("Chosen shop", "digital_products", 90)], selectedIndex: 6 };
+    queued.mockResolvedValueOnce(reply(many));
+    const d = await request(app).post("/api/income-plans").set(as(ownerId)).send({ goal: "Make $2,500 a month" });
+    expect(d.status).toBe(201);
+    expect(d.body.options).toHaveLength(6);
+    expect(d.body.options[5].name).toBe("Chosen shop");
+    expect(d.body.plan.typeKey).toBe("digital_products");
+    await request(app).post(`/api/income-plans/${d.body.id}/reject`).set(as(ownerId));
+  });
+
   it("has a broken research reply reformatted instead of failing", async () => {
     queued.mockResolvedValueOnce({ ...reply({}), content: '{"options":[{"name":"Agency" "oops"}]}' });
     queued.mockResolvedValueOnce(reply(planBody("digital_products")));
@@ -157,6 +169,6 @@ describe("Income plans", () => {
     queued.mockResolvedValueOnce({ content: "I think you should start a blog!", model: "test", promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: null });
     const d = await request(app).post("/api/income-plans").set(as(ownerId)).send({ goal: "Make $1,000 a month" });
     expect(d.status).toBe(502);
-    expect((await request(app).get("/api/income-plans").set(as(ownerId))).body).toHaveLength(3);
+    expect((await request(app).get("/api/income-plans").set(as(ownerId))).body).toHaveLength(4);
   });
 });

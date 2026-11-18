@@ -136,3 +136,4 @@ export * from "./ash_control";
 export * from "./creator_payouts";
 export * from "./income_plans";
 export * from "./capability_requests";
+export * from "./custom_integrations";

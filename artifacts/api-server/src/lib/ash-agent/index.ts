@@ -6,6 +6,7 @@ import { logger } from "../logger";
 import { OutOfCreditsError } from "../credits";
 import { ASH_TOOLS, ALL_TOOL_DEFS, getTool, checkToolArgs } from "./tools";
 import { decide, toolActionKind } from "../ash-control/policy";
+import { integrationActionKind } from "../custom-integrations";
 import { createPendingApproval } from "../approvals";
 import { ownedBusinessIds } from "../empire/assets";
 import { db, usersTable, ashMissionsTable } from "@workspace/db";
@@ -52,7 +53,7 @@ function describeCall(tool: string, args: Record<string, unknown>): string {
 /** Applies the owner's ASH Control settings to one tool call. */
 async function gate(userId: number, control: AgentControl, spec: { name: string; kind: string }, args: Record<string, unknown>):
   Promise<{ allowed: true } | { allowed: false; result: unknown; step: AgentStep }> {
-  const kind = toolActionKind(spec.name);
+  const kind = spec.name === "run_integration_action" ? await integrationActionKind(userId, args) : toolActionKind(spec.name);
   if (control.missionId != null) {
     const [mission] = await db.select({ status: ashMissionsTable.status }).from(ashMissionsTable).where(eq(ashMissionsTable.id, control.missionId));
     if (!mission || !["planning", "running"].includes(mission.status)) {

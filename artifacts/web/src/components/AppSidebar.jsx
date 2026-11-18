@@ -74,6 +74,7 @@ const NAV_GROUPS = [
     group: 'CONNECTIONS',
     items: [
       { label: 'Connections', path: '/connections', icon: Plug },
+      { label: 'Capabilities', path: '/capabilities', icon: Zap },
       { label: 'Domains',     path: '/domains',     icon: Globe2 },
       { label: 'Marketplace', path: '/marketplace', icon: ShoppingBag },
     ],

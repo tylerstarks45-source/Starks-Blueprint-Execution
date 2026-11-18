@@ -78,6 +78,7 @@ const StatsPage             = lazy(() => import('@/pages/StatsPage.jsx'));
 const AshGuidePage          = lazy(() => import('@/pages/AshGuidePage.jsx'));
 const EmpirePage            = lazy(() => import('@/pages/EmpirePage.jsx'));
 const MissionsPage          = lazy(() => import('@/pages/MissionsPage.jsx'));
+const CapabilitiesPage      = lazy(() => import('@/pages/CapabilitiesPage.jsx'));
 const ApprovalsPage         = lazy(() => import('@/pages/ApprovalsPage.jsx'));
 const AshControlPage        = lazy(() => import('@/pages/AshControlPage.jsx'));
 const IncomeStreamsPage     = lazy(() => import('@/pages/IncomeStreamsPage.jsx'));
@@ -326,6 +327,9 @@ const App = () => {
               } />
               <Route path="/missions" element={
                 <ProtectedRoute><MissionsPage /></ProtectedRoute>
+              } />
+              <Route path="/capabilities" element={
+                <ProtectedRoute><CapabilitiesPage /></ProtectedRoute>
               } />
               <Route path="/approvals" element={
                 <ProtectedRoute><ApprovalsPage /></ProtectedRoute>

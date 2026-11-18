@@ -18,6 +18,7 @@ import BusinessIntelligenceReviewQueue from '@/components/BusinessIntelligenceRe
 import OperationsModePanel from '@/components/OperationsModePanel.jsx';
 import GrowthRecommendationsPanel from '@/components/GrowthRecommendationsPanel.jsx';
 import BusinessEmpirePanel from '@/components/empire/BusinessEmpirePanel.jsx';
+import VenturePanel from '@/components/empire/VenturePanel.jsx';
 import { getAuthHeaders } from '@/lib/apiHeaders.js';
 import { useBusiness } from '@/contexts/BusinessContext.jsx';
 
@@ -322,6 +323,10 @@ export default function BusinessCommandCenterPage() {
 
           <SectionCard icon={Coins} title="Income Streams & Assets" className="lg:col-span-3">
             <BusinessEmpirePanel business={business} />
+          </SectionCard>
+
+          <SectionCard icon={Coins} title="Venture: team, ledger & missions" className="lg:col-span-3">
+            <VenturePanel businessId={business.id} />
           </SectionCard>
 
           {/* Connections */}

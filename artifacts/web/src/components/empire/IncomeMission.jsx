@@ -120,6 +120,7 @@ export function MissionDashboard({ missionId, refreshKey }) {
       </div>
       {d.blockers.length > 0 && <ul className="text-xs text-amber-200/90 space-y-0.5">{d.blockers.map((b, i) => <li key={i} className="flex gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0" />{b}</li>)}</ul>}
       {d.nextActions.length > 0 && <div className="text-xs text-white/55">Next: {d.nextActions.join(' → ')}</div>}
+      {d.team?.length > 0 && <div className="text-xs text-white/55">AI employees: {d.team.map((t) => `${t.title}${t.status === 'paused' ? ' (paused)' : t.lastTask ? ` (${t.lastTask.slice(0, 60)})` : ''}`).join(' · ')}</div>}
     </div>
   );
 }

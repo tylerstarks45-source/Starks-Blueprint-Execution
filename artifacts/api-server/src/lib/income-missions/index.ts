@@ -25,7 +25,8 @@ const AMOUNT = String.raw`\$\s?\d[\d,]*(?:\.\d+)?\s?(?:k|thousand)?`;
 export function parseIncomeGoal(text: string): IncomeObjective {
   const t = text.toLowerCase();
   const target = t.match(new RegExp(`(${AMOUNT})\\s*(?:usd\\s*)?(?:a|per|\\/|each)\\s*(?:month|mo)\\b|(${AMOUNT})\\s*(?:usd\\s*)?monthly`, "i"));
-  const budget = t.match(new RegExp(`(?:with|budget(?: of)?|invest(?:ing)?|start(?:ing)? with|spend(?: up to)?|only have)\\s*(?:about|around|up to)?\\s*(${AMOUNT})(?!\\s*(?:a|per|\\/)\\s*(?:month|mo))`, "i"));
+  // The lookahead also rules out a shorter prefix of the amount ("$50" of "$500 a month"); monthly amounts aren't a startup budget.
+  const budget = t.match(new RegExp(`(?:with|budget(?: of)?|invest(?:ing)?|start(?:ing)? with|spend(?: up to)?|only have)\\s*(?:about|around|up to)?\\s*(${AMOUNT})(?![\\d,.]|\\s?(?:k|thousand)|\\s*(?:usd\\s*)?(?:a|per|\\/|each)\\s*(?:month|mo)\\b|\\s*monthly)`, "i"));
   const months = t.match(/(?:in|within)\s+(\d{1,2})\s+months?/) ?? t.match(/(\d{1,2})[-\s]months?\s+(?:timeline|timeframe)/);
   const years = t.match(/(?:in|within)\s+(\d)\s+years?/);
   const constraints = [

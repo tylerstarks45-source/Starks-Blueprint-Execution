@@ -61,6 +61,8 @@ describe("parseIncomeGoal", () => {
     expect(o).toMatchObject({ targetMonthlyRevenueCents: 1000000, budgetCents: 50000, timelineMonths: 6 });
     expect(o.constraints).toContain("No physical inventory");
     expect(parseIncomeGoal("build me something").targetMonthlyRevenueCents).toBeNull();
+    expect(parseIncomeGoal("Make $3,000 a month, I can spend $500 a month").budgetCents).toBeNull();
+    expect(parseIncomeGoal("Make $3,000 a month starting with $2k").budgetCents).toBe(200000);
   });
 });
 

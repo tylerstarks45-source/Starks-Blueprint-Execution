@@ -6,6 +6,7 @@ import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import {
   db, incomePlansTable, ashMissionsTable, businessesTable, customBusinessTypesTable, ashSpendEventsTable, canonicalAssets, pendingApprovalsTable,
   type IncomeObjective, type IncomePlan,
+  capabilityRequestsTable,
 } from "@workspace/db";
 import { complete } from "../openrouter";
 import { chainFor } from "../models";
@@ -273,6 +274,9 @@ export async function getMissionDashboard(userId: number, missionId: number) {
   ]);
   // Live check, so blockers follow connections even if a request row was never written or is shared with another plan.
   const capabilities = plan ? await checkCapabilities(userId, plan.plan.capabilities ?? capabilitiesForPlan(plan.plan)) : [];
+  // Owner-only and missing capabilities the owner dismissed stop counting as blockers; connections stay live.
+  const dismissed = new Set((await db.select({ c: capabilityRequestsTable.capability }).from(capabilityRequestsTable)
+    .where(and(eq(capabilityRequestsTable.userId, userId), eq(capabilityRequestsTable.status, "dismissed")))).map((r) => r.c));
   const biz = overview.businesses.find((b) => b.id === m.businessId) ?? null;
   const verified = biz?.verifiedRevenueCents?.last30 ?? null;
   const expenses = Number(spend[0]?.last30 ?? 0);
@@ -294,7 +298,7 @@ export async function getMissionDashboard(userId: number, missionId: number) {
     milestones: { done: m.steps.filter((s) => s.status === "done").length, total: m.steps.length },
     nextActions: m.steps.filter((s) => s.status !== "done").slice(0, 3).map((s) => s.title),
     blockers: [...(m.waitingFor ? [m.waitingFor] : []), ...approvals.map((a) => `Approval needed: ${a.title}`),
-      ...capabilities.filter((c) => c.status !== "ready").map((c) => `${c.status === "connect" ? "Connect" : c.status === "manual" ? "Your step" : "ASH can't do yet"}: ${c.name}`)],
+      ...capabilities.filter((c) => c.status !== "ready" && (c.status === "connect" || !dismissed.has(c.key))).map((c) => `${c.status === "connect" ? "Connect" : c.status === "manual" ? "Your step" : "ASH can't do yet"}: ${c.name}`)],
     capabilities,
   };
 }

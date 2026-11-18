@@ -94,6 +94,7 @@ describe("capability registry", () => {
     const podcast = caps.body.requests.find((r: { capability: string }) => r.capability === "podcast_hosting");
     expect((await request(app).post(`/api/capability-requests/${podcast.id}/dismiss`).set(as(otherId))).status).toBe(404);
     expect((await request(app).post(`/api/capability-requests/${podcast.id}/dismiss`).set(as(ownerId))).body.status).toBe("dismissed");
+    expect((await request(app).get(`/api/missions/${a.body.missionId}/dashboard`).set(as(ownerId))).body.blockers).not.toContain("ASH can't do yet: podcast hosting");
 
     await db.insert(userCredentialsTable).values({ userId: ownerId, credentialKey: "STRIPE_SECRET_KEY", encryptedValue: "x", status: "connected" });
     // A Shopify token without its shop domain isn't a working store connection.

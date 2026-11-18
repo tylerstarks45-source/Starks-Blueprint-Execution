@@ -15,7 +15,7 @@ import { getEmpireOverview } from "../empire/overview";
 import { logEntry } from "../ash-missions";
 import { ownedBusinessIds } from "../empire/assets";
 import { logger } from "../logger";
-import { CAPABILITIES, capabilitiesForPlan, requestMissingCapabilities, checkCapabilities, listCapabilityRequests } from "../capabilities";
+import { CAPABILITIES, capabilitiesForPlan, requestMissingCapabilities, checkCapabilities } from "../capabilities";
 
 const STALE_CLAIM_MS = 10 * 60_000;
 
@@ -258,7 +258,7 @@ export async function rejectIncomePlan(userId: number, id: number) {
 export async function getMissionDashboard(userId: number, missionId: number) {
   const [m] = await db.select().from(ashMissionsTable).where(and(eq(ashMissionsTable.id, missionId), eq(ashMissionsTable.userId, userId)));
   if (!m) return null;
-  const [plan, overview, assets, spend, approvals, requests] = await Promise.all([
+  const [plan, overview, assets, spend, approvals] = await Promise.all([
     m.planId != null ? getIncomePlan(userId, m.planId) : Promise.resolve(null),
     getEmpireOverview(userId),
     m.businessId != null
@@ -270,9 +270,9 @@ export async function getMissionDashboard(userId: number, missionId: number) {
       .where(and(eq(ashSpendEventsTable.userId, userId), eq(ashSpendEventsTable.missionId, m.id))),
     db.select({ id: pendingApprovalsTable.id, title: pendingApprovalsTable.title }).from(pendingApprovalsTable)
       .where(and(eq(pendingApprovalsTable.userId, userId), eq(pendingApprovalsTable.status, "pending"), sql`${pendingApprovalsTable.payload}->>'missionId' = ${String(m.id)}`)),
-    listCapabilityRequests(userId),
   ]);
-  const missionRequests = requests.filter((r) => r.missionId === m.id);
+  // Live check, so blockers follow connections even if a request row was never written or is shared with another plan.
+  const capabilities = plan ? await checkCapabilities(userId, plan.plan.capabilities ?? capabilitiesForPlan(plan.plan)) : [];
   const biz = overview.businesses.find((b) => b.id === m.businessId) ?? null;
   const verified = biz?.verifiedRevenueCents?.last30 ?? null;
   const expenses = Number(spend[0]?.last30 ?? 0);
@@ -294,7 +294,7 @@ export async function getMissionDashboard(userId: number, missionId: number) {
     milestones: { done: m.steps.filter((s) => s.status === "done").length, total: m.steps.length },
     nextActions: m.steps.filter((s) => s.status !== "done").slice(0, 3).map((s) => s.title),
     blockers: [...(m.waitingFor ? [m.waitingFor] : []), ...approvals.map((a) => `Approval needed: ${a.title}`),
-      ...missionRequests.map((r) => `${r.kind === "connect" ? "Connect" : r.kind === "manual" ? "Your step" : "ASH can't do yet"}: ${r.name}`)],
-    capabilities: plan ? await checkCapabilities(userId, plan.plan.capabilities ?? capabilitiesForPlan(plan.plan)) : [],
+      ...capabilities.filter((c) => c.status !== "ready").map((c) => `${c.status === "connect" ? "Connect" : c.status === "manual" ? "Your step" : "ASH can't do yet"}: ${c.name}`)],
+    capabilities,
   };
 }

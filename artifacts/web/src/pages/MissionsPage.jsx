@@ -70,8 +70,10 @@ export default function MissionsPage() {
     if (!planParam) { setPlan(null); return; }
     controlApi.incomePlan(planParam).then(setPlan).catch((err) => toast.error(err.message));
   }, [planParam]);
-  const showPlan = (p) => { setPlan(p); setParams({ plan: String(p.id) }); };
-  const planDecided = (p) => { setPlan(p); missions.reload(); notifyEmpireChanged(); };
+  const plans = useEmpire(() => controlApi.incomePlans(), []);
+  const drafts = (plans.data ?? []).filter((p) => p.status === 'draft' && p.id !== plan?.id);
+  const showPlan = (p) => { setPlan(p); setParams({ plan: String(p.id) }); plans.reload(); };
+  const planDecided = (p) => { setPlan(p); missions.reload(); plans.reload(); notifyEmpireChanged(); };
 
   const create = async (e) => {
     e.preventDefault();
@@ -113,6 +115,18 @@ export default function MissionsPage() {
           </div>
         </div>
         {plan && <IncomePlanCard plan={plan} onDecided={planDecided} />}
+        {drafts.length > 0 && (
+          <Card title="Plans waiting for your decision" icon={Inbox}>
+            <ul className="space-y-1">
+              {drafts.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-2 text-sm text-white/75">
+                  <span className="min-w-0 truncate">{p.plan.businessName} · {p.goal}</span>
+                  <button type="button" className={btn} onClick={() => showPlan(p)}>Review</button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
         <CreateIncomeMission onDrafted={showPlan} />
         <Card title="New mission" icon={Plus}>
           <form onSubmit={create} className="space-y-3">

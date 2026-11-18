@@ -73,6 +73,8 @@ export const ashMissionsTable = pgTable("ash_missions", {
   approvalId: integer("approval_id"),
   stepRuns: integer("step_runs").notNull().default(0),
   maxStepRuns: integer("max_step_runs").notNull().default(20),
+  // Set when the mission carries out an approved income plan (income_plans.id).
+  planId: integer("plan_id"),
   failureCount: integer("failure_count").notNull().default(0),
   nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull().defaultNow(),
   leaseUntil: timestamp("lease_until", { withTimezone: true }),

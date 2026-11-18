@@ -40,6 +40,11 @@ export const controlApi = {
   missions: () => call('GET', '/api/missions'),
   createMission: (body) => call('POST', '/api/missions', body),
   missionAction: (id, action, note) => call('POST', `/api/missions/${id}/${action}`, note ? { note } : {}),
+  incomePlans: () => call('GET', '/api/income-plans'),
+  incomePlan: (id) => call('GET', `/api/income-plans/${id}`),
+  draftIncomePlan: (goal) => call('POST', '/api/income-plans', { goal }),
+  decideIncomePlan: (id, action) => call('POST', `/api/income-plans/${id}/${action}`),
+  missionDashboard: (id) => call('GET', `/api/missions/${id}/dashboard`),
   approvals: (status = 'pending') => call('GET', `/api/approvals${qs({ status })}`),
   resolveApproval: (id, action) => call('POST', `/api/approvals/${id}/${action}`),
 };

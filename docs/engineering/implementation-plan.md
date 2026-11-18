@@ -57,6 +57,20 @@ Order matters: each step uses the one before it.
 
 Blocked on the Unreal project and owner choices. Visual work starts only after 4b is stable. See the audit report §4 for the hybrid web-3D/Unreal design.
 
+## Phase 6: Universal autonomous business creation (owner directive, 2026-11-18)
+
+Extends the existing platform; nothing is replaced. Phases A–C (Empire, ASH Control, Missions) and #33 are the base.
+
+| Stage | Scope | Builds on | Status |
+|---|---|---|---|
+| 6.1 Goal Engine + Income Missions | Parse income goals (target, budget, timeline, constraints); research and compare 3–5 opportunities, including types outside the registry; plan for owner approval; approval creates the business (and a custom business type if needed) and a mission whose steps are the plan's milestones; mission dashboard with verified revenue, recorded spend, net, progress to target, blockers, next actions. `income_plans` table, `ash_missions.plan_id`, `plan_income_mission` ASH tool, `/api/income-plans`, `/api/missions/:id/dashboard`. | ash-missions, empire/business-types, empire/overview, research chain | In progress |
+| 6.2 Capability discovery | Registry of what ASH can do (tools, connectors, adapters); check each plan against it; capability requests; declarative custom API integrations from provider docs, sandbox-tested, owner-approved, then reusable. No arbitrary code execution or platform code changes. | capability-planning, capability-intelligence, adapter-framework, connectors | Planned |
+| 6.3 Venture Factory | Every created business gets workspace, ledger, assigned AI employees (specialists), business memory and a persistent mission. | 6.1, empire, specialists | Planned |
+| 6.4 Launch adapters | Sites, stores, products, domains, email, social on outside services (Phase D/E). | 6.2 | Planned |
+| 6.5 Adaptive intelligence + learning | Underperformance reviews that adjust pricing, marketing, funnels within ASH Control; reuse of proven strategies and capabilities. | 6.1–6.4, ash-brain | Planned |
+| 6.6 Treasury / ASH economy | Design only until the owner decides legal entity and custody. | Phase F | Blocked on owner |
+| 6.7 Acceptance | Sandbox run of "I want to make $5,000 per month…" plus one unregistered business type; sandbox results never shown as real revenue. | all | Planned |
+
 ## Decisions needed from the owner
 
 1. Secret rotation and making the repos private (Phase 1).

@@ -17,6 +17,7 @@ import { listBusinessTypes, STREAM_TYPES } from "../empire/business-types";
 import { createEmpireBusiness, createIncomeStream } from "../empire/actions";
 import { registerAsset, syncUserAssets, ownedBusinessIds } from "../empire/assets";
 import { createMission, listMissions } from "../ash-missions";
+import { draftIncomePlan } from "../income-missions";
 import { getEffectiveControl } from "../ash-control/policy";
 
 // Pages ASH can send the user to (the web app's authenticated routes).
@@ -144,6 +145,21 @@ const SPECS: ToolSpec[] = [
       const id = a["businessId"] != null ? Number(a["businessId"]) : null;
       if (id != null && !(await ownedBusinessIds(userId, [id])).has(id)) return { error: "Business not found" };
       return getEffectiveControl(userId, id);
+    },
+  },
+  {
+    name: "plan_income_mission",
+    description: "Use when the owner states an income or business goal and wants ASH to find, build and run the business (e.g. 'I want to make $5,000 a month, find a business and run it'). Researches and compares opportunities (any business model, not just known types) and saves a plan the owner approves on the Missions page; approving creates the business and a background mission. Don't answer income goals with advice or idea lists; call this.",
+    parameters: obj({ goal: str("The goal in the owner's words, with target income, budget, timeline and constraints") }, ["goal"]),
+    kind: "server",
+    run: async (userId, a) => {
+      const r = await draftIncomePlan(userId, String(a["goal"]));
+      if ("error" in r) return r;
+      const p = r.plan;
+      return {
+        planId: p.id, objective: p.objective, options: p.options, plan: p.plan,
+        note: `Summarise the comparison and the chosen plan for the owner, say revenue isn't guaranteed, and tell them to review and approve it at /missions?plan=${p.id}. Nothing is built until they approve.`,
+      };
     },
   },
   {

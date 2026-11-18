@@ -53,9 +53,10 @@ describe("venture factory", () => {
     const e = await request(app).post(`/api/empire/businesses/${id}/expenses`).set(as(ownerId)).send({ amountCents: 4900, category: "software", description: "Email tool" });
     expect(e.status).toBe(201);
     expect((await request(app).post(`/api/empire/businesses/${id}/expenses`).set(as(ownerId)).send({ amountCents: 100, description: "x", streamId: 999999999 })).status).toBe(400);
+    await request(app).post(`/api/empire/businesses/${id}/expenses`).set(as(ownerId)).send({ amountCents: 700, description: "Next year", occurredAt: new Date(Date.now() + 400 * 86_400_000).toISOString() });
     const v = (await request(app).get(`/api/empire/businesses/${id}/venture`).set(as(ownerId))).body;
     expect(v.ledger.expensesLast30Cents).toBe(4900);
-    expect(v.ledger.expenses[0]).toMatchObject({ description: "Email tool", category: "software" });
+    expect(v.ledger.expenses[1]).toMatchObject({ description: "Email tool", category: "software" });
 
     expect((await request(app).post(`/api/empire/businesses/${id}/team/marketing`).set(as(ownerId)).send({ status: "paused" })).body.status).toBe("paused");
     expect(await isTeamMemberPaused(ownerId, id, "marketing")).toBe(true);

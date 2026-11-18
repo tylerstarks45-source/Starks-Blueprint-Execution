@@ -1,7 +1,7 @@
 // Venture Factory: every business gets a workspace, business memory, a team of AI employees (ASH's
 // specialists) and a ledger. Setup is idempotent: it runs when a business is created and again
 // lazily for businesses created before this existed.
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import {
   db, businessesTable, businessWorkspaces, businessMemoryTable, businessTeamTable, businessExpensesTable,
   ashMissionsTable, ashSpendEventsTable, revenueStreams, type IncomePlanDetail,
@@ -97,7 +97,8 @@ export async function deleteExpense(userId: number, businessId: number, id: numb
 /** Workspace, memory, team, ledger and missions for one business. Revenue is provider-verified only. */
 export async function getVenture(userId: number, businessId: number) {
   if (!(await ensureVenture(userId, businessId))) return null;
-  const since = new Date(Date.now() - 30 * DAY);
+  const now = new Date();
+  const since = new Date(now.getTime() - 30 * DAY);
   const [workspace, memory, team, overview, spend, expenses, expenseTotal, missions] = await Promise.all([
     db.select({ id: businessWorkspaces.id, name: businessWorkspaces.workspaceName, status: businessWorkspaces.status }).from(businessWorkspaces)
       .where(and(eq(businessWorkspaces.userId, userId), eq(businessWorkspaces.businessId, businessId))).limit(1),
@@ -110,7 +111,7 @@ export async function getVenture(userId: number, businessId: number) {
     db.select().from(businessExpensesTable).where(and(eq(businessExpensesTable.userId, userId), eq(businessExpensesTable.businessId, businessId)))
       .orderBy(desc(businessExpensesTable.occurredAt)).limit(50),
     db.select({ cents: sql<number>`coalesce(sum(${businessExpensesTable.amountCents}), 0)::int` }).from(businessExpensesTable)
-      .where(and(eq(businessExpensesTable.userId, userId), eq(businessExpensesTable.businessId, businessId), gte(businessExpensesTable.occurredAt, since))),
+      .where(and(eq(businessExpensesTable.userId, userId), eq(businessExpensesTable.businessId, businessId), gte(businessExpensesTable.occurredAt, since), lte(businessExpensesTable.occurredAt, now))),
     db.select({ id: ashMissionsTable.id, goal: ashMissionsTable.goal, status: ashMissionsTable.status, steps: ashMissionsTable.steps }).from(ashMissionsTable)
       .where(and(eq(ashMissionsTable.userId, userId), eq(ashMissionsTable.businessId, businessId))).orderBy(desc(ashMissionsTable.createdAt)).limit(10),
   ]);

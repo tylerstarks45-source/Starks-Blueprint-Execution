@@ -2,14 +2,70 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Zap, X } from 'lucide-react';
+import { Zap, X, Plus, FlaskConical, Check, Trash2, Ban } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout.jsx';
-import { Card, Badge, btn, Spinner, ErrorBox } from '@/components/empire/ui.jsx';
+import { Card, Badge, btn, btnPrimary, input, Modal, Spinner, ErrorBox } from '@/components/empire/ui.jsx';
 import { CAP_LABEL } from '@/components/empire/IncomeMission.jsx';
 import { controlApi } from '@/lib/empireApi.js';
 
 const TONE = { ready: 'green', connect: 'amber', manual: 'violet', missing: 'rose' };
 const ORDER = ['connect', 'manual', 'missing', 'ready'];
+const INT_TONE = { draft: 'slate', tested: 'cyan', approved: 'green', disabled: 'rose' };
+const EXAMPLE = JSON.stringify({
+  name: 'Acme Podcasts', docsUrl: 'https://docs.acme.com/api', baseUrl: 'https://api.acme.com/v1',
+  auth: { type: 'bearer', credentialKey: 'ACME_API_KEY' },
+  actions: [{ name: 'listShows', method: 'GET', path: '/shows' }, { name: 'createEpisode', method: 'POST', path: '/shows/{showId}/episodes', kind: 'publish' }],
+  capabilities: ['podcast_hosting'],
+}, null, 2);
+
+function Integrations({ onChange }) {
+  const [items, setItems] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const load = useCallback(() => controlApi.integrations().then(setItems).catch((e) => toast.error(e.message)), []);
+  useEffect(() => { load(); }, [load]);
+  const act = async (i, fn, done) => {
+    setBusy(i.id);
+    try { const r = await fn(); if (done) done(r); await load(); onChange(); } catch (e) { toast.error(e.message); } finally { setBusy(null); }
+  };
+  const save = async () => {
+    let body;
+    try { body = JSON.parse(editing); } catch { toast.error('Not valid JSON'); return; }
+    try { await controlApi.defineIntegration(body); toast.success('Saved as draft. Test it, then approve it.'); setEditing(null); load(); } catch (e) { toast.error(e.message); }
+  };
+  const strip = ({ id, userId, key, status, lastTest, approvedAt, createdAt, updatedAt, ...rest }) => JSON.stringify(rest, null, 2);
+  return (
+    <Card title="Custom integrations" action={<button type="button" className={btn} onClick={() => setEditing(EXAMPLE)}><Plus className="w-3.5 h-3.5" /> Add</button>}>
+      <p className="text-xs text-white/50 mb-3">Services ASH has no built-in connector for, defined from their API docs. Only the listed actions on the listed host can run. Each one needs a successful read-only test and your approval before ASH can use it, and any edit sends it back for re-approval. Save its key in <Link to="/connections" className="text-cyan-300 hover:underline">Connections</Link> under the credential name it uses.</p>
+      {!items ? <Spinner /> : items.length === 0 ? <p className="text-sm text-white/50">None yet. Ask ASH: "Set up an integration for &lt;service&gt; from its API docs."</p> : (
+        <ul className="divide-y divide-white/5">
+          {items.map((i) => (
+            <li key={i.id} className="py-3 text-sm space-y-1">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2"><span className="text-white">{i.name}</span><Badge tone={INT_TONE[i.status]}>{i.status}</Badge><span className="text-[11px] text-white/40">{i.baseUrl}</span></div>
+                <div className="flex gap-2">
+                  <button type="button" className={btn} disabled={busy === i.id} onClick={() => act(i, () => controlApi.testIntegration(i.id), (r) => (r.result.ok ? toast.success('Test passed') : toast.error(`Test failed: ${r.result.error ?? r.result.status}`)))}><FlaskConical className="w-3.5 h-3.5" /> Test</button>
+                  {(i.status === 'tested' || (i.status === 'disabled' && i.lastTest?.ok)) && <button type="button" className={btnPrimary} disabled={busy === i.id} onClick={() => act(i, () => controlApi.integrationAction(i.id, 'approve'), () => toast.success('Approved: ASH can use it now'))}><Check className="w-3.5 h-3.5" /> Approve</button>}
+                  {i.status !== 'disabled' && <button type="button" className={btn} disabled={busy === i.id} onClick={() => act(i, () => controlApi.integrationAction(i.id, 'disable'))}><Ban className="w-3.5 h-3.5" /> Disable</button>}
+                  <button type="button" className={btn} onClick={() => setEditing(strip(i))}>Edit</button>
+                  <button type="button" className={btn} disabled={busy === i.id} onClick={() => act(i, () => controlApi.deleteIntegration(i.id))}><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+              <p className="text-xs text-white/60">{i.actions.map((a) => `${a.method} ${a.path}`).join(' · ')}</p>
+              <p className="text-[11px] text-white/40">Provides: {i.capabilities.join(', ') || '—'} · Auth: {i.auth.type}{i.auth.credentialKey ? ` (${i.auth.credentialKey})` : ''}{i.lastTest && ` · Last test: ${i.lastTest.ok ? 'passed' : 'failed'} (${i.lastTest.action})`}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      {editing != null && (
+        <Modal title="Integration definition" onClose={() => setEditing(null)} footer={<><button type="button" className={btn} onClick={() => setEditing(null)}>Cancel</button><button type="button" className={btnPrimary} onClick={save}>Save draft</button></>}>
+          <textarea className={`${input} font-mono text-xs h-80`} value={editing} onChange={(e) => setEditing(e.target.value)} spellCheck={false} />
+          <p className="text-[11px] text-white/40 mt-2">Never paste secrets here. Auth points at a credential name you save in Connections.</p>
+        </Modal>
+      )}
+    </Card>
+  );
+}
 
 export default function CapabilitiesPage() {
   const [data, setData] = useState(null);
@@ -52,6 +108,7 @@ export default function CapabilitiesPage() {
                 </ul>
               )}
             </Card>
+            <Integrations onChange={load} />
             <Card title="Everything ASH can do">
               <ul className="grid md:grid-cols-2 gap-2">
                 {caps.map((c) => (

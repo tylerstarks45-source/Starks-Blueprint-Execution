@@ -14,7 +14,7 @@ interface CapabilityDef {
   name: string;
   /** ASH tools that provide it with no connection. */
   tools?: string[];
-  /** Connector ids that provide it once the owner connects one. */
+  /** "connectorId:action" pairs that provide it once the owner connects one; the action must be automated. */
   providers?: string[];
   /** Only the owner can do it (legal, identity, money movement); ASH prepares the work. */
   ownerOnly?: boolean;
@@ -27,20 +27,20 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   { key: "images", name: "Image generation", tools: ["image"] },
   { key: "video", name: "Video generation", tools: ["generate_video"] },
   { key: "audio", name: "Voice-overs and music", tools: ["text_to_speech", "generate_music"] },
-  { key: "payments", name: "Take payments", providers: ["stripe"] },
-  { key: "revenue_tracking", name: "Verified revenue tracking", providers: ["stripe"] },
-  { key: "email_marketing", name: "Email lists and campaigns", providers: ["mailchimp", "convertkit", "beehiiv", "sendgrid", "gohighlevel"] },
-  { key: "social_posting", name: "Social media posting", providers: ["twitter", "meta", "linkedin", "tiktok", "youtube"] },
-  { key: "website", name: "Website or blog publishing", providers: ["wordpress"] },
-  { key: "online_store", name: "Online store and products", providers: ["shopify"] },
-  { key: "domain_dns", name: "Domains and DNS", providers: ["cloudflare"] },
-  { key: "courses", name: "Online courses", providers: ["teachable"] },
-  { key: "funnels", name: "Sales funnels", providers: ["clickfunnels", "gohighlevel"] },
-  { key: "crm_data", name: "CRM and data sheets", providers: ["airtable", "notion", "google_sheets"] },
-  { key: "automation", name: "Workflow automation and notifications", providers: ["zapier", "webhook", "slack"] },
+  { key: "payments", name: "Take payments", providers: ["stripe:createPaymentLink"] },
+  { key: "revenue_tracking", name: "Verified revenue tracking", providers: ["stripe:listPayments"] },
+  { key: "email_marketing", name: "Email lists and campaigns", providers: ["mailchimp:sendCampaign", "beehiiv:sendPost", "sendgrid:sendEmail", "convertkit:addSubscriber"] },
+  { key: "social_posting", name: "Social media posting", providers: ["twitter:postTweet", "meta:publishPost", "linkedin:createPost", "tiktok:createPost", "youtube:uploadVideo"] },
+  { key: "website", name: "Website or blog publishing", providers: ["wordpress:createPost"] },
+  { key: "online_store", name: "Online store and products", providers: ["shopify:createProduct"] },
+  { key: "domain_dns", name: "Domains and DNS", providers: ["cloudflare:getDNS"] },
+  { key: "courses", name: "Online courses", providers: ["teachable:createCourse"] },
+  { key: "funnels", name: "Sales funnels", providers: ["clickfunnels:createPage"] },
+  { key: "crm_data", name: "CRM and data sheets", providers: ["airtable:createRecord", "notion:createPage", "google_sheets:appendRow", "gohighlevel:createContact"] },
+  { key: "automation", name: "Workflow automation and notifications", providers: ["zapier:triggerWebhook", "webhook:trigger", "slack:postMessage"] },
   { key: "advertising", name: "Paid advertising", ownerOnly: true },
   { key: "legal_banking", name: "Business entity, bank and tax setup", ownerOnly: true },
-  { key: "outreach", name: "Direct outreach to prospects", providers: ["gmail", "linkedin"] },
+  { key: "outreach", name: "Direct outreach to prospects", providers: ["gmail:sendEmail"] },
 ];
 const BY_KEY = new Map(CAPABILITIES.map((c) => [c.key, c]));
 
@@ -71,18 +71,25 @@ export function capabilitiesForPlan(plan: { capabilities?: string[]; permissions
 const connectorKeys = (connectorId: string) =>
   Object.entries(CATALOG_CONNECTOR_MAP).filter(([, m]) => m.connectorId === connectorId).map(([k]) => k);
 
-const automated = (connectorId: string) => {
+const automated = (provider: string) => {
+  const [connectorId, action] = provider.split(":") as [string, string];
   const meta = getConnector(connectorId, {})?.describe();
-  return !!meta && meta.available && meta.actions.some((a) => (meta.actionMeta[a] ?? "automated") === "automated");
+  return !!meta && meta.available && meta.actions.includes(action) && meta.actionMeta[action] === "automated";
 };
 
+/** Connectors with a connected catalog key and every credential the connector needs. */
 async function connectedConnectors(userId: number): Promise<Set<string>> {
   const rows = await db.select({ key: userCredentialsTable.credentialKey }).from(userCredentialsTable)
     .where(and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.status, "connected")));
   const keys = new Set(rows.map((r) => r.key));
-  const out = new Set<string>();
-  for (const [key, m] of Object.entries(CATALOG_CONNECTOR_MAP)) if (keys.has(key)) out.add(m.connectorId);
-  return out;
+  const names = new Set(keys);
+  const candidates = new Set<string>();
+  for (const [key, m] of Object.entries(CATALOG_CONNECTOR_MAP)) {
+    if (!keys.has(key)) continue;
+    candidates.add(m.connectorId);
+    names.add(m.keyMap?.[key] ?? key);
+  }
+  return new Set([...candidates].filter((id) => (getConnector(id, {})?.requiredCredentials ?? []).every((k) => names.has(k))));
 }
 
 export interface CapabilityView {
@@ -96,7 +103,7 @@ export interface CapabilityView {
 
 function view(def: CapabilityDef | undefined, key: string, connected: Set<string>): CapabilityView {
   if (!def) return { key, name: key.replace(/_/g, " "), status: "missing", tools: [], providers: [], note: "ASH has no tool or connector for this yet." };
-  const providers = (def.providers ?? []).filter(automated).map((id) => ({
+  const providers = [...new Set((def.providers ?? []).filter(automated).map((p) => p.split(":")[0]!))].map((id) => ({
     id, name: getConnector(id, {})!.displayName, connected: connected.has(id), credentialKeys: connectorKeys(id),
   }));
   if (def.tools?.length) return { key, name: def.name, status: "ready", tools: def.tools, providers, note: "ASH can do this now." };

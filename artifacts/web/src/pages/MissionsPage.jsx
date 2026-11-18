@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { toast } from 'sonner';
 import { Target, Plus, Pause, Play, X, Inbox, SlidersHorizontal, CheckCircle2, Circle } from 'lucide-react';
@@ -7,6 +7,7 @@ import AuthLayout from '@/components/AuthLayout.jsx';
 import { Card, Badge, btn, btnPrimary, input, Spinner, ErrorBox, Field } from '@/components/empire/ui.jsx';
 import { useEmpire, useOverview, notifyEmpireChanged } from '@/components/empire/useEmpireData.js';
 import { controlApi, label } from '@/lib/empireApi.js';
+import { CreateIncomeMission, IncomePlanCard, MissionDashboard } from '@/components/empire/IncomeMission.jsx';
 
 const TONE = { planning: 'violet', running: 'cyan', waiting_approval: 'amber', waiting_owner: 'amber', paused: 'slate', completed: 'green', failed: 'amber', cancelled: 'slate' };
 const STATUS_TEXT = { waiting_approval: 'Waiting for approval', waiting_owner: 'Needs you' };
@@ -24,6 +25,7 @@ function MissionCard({ m, businessName, onAction, busy }) {
         </div>
         <Badge tone={TONE[m.status] ?? 'slate'}>{STATUS_TEXT[m.status] ?? label(m.status)}</Badge>
       </div>
+      {m.planId != null && <MissionDashboard missionId={m.id} refreshKey={`${m.updatedAt}`} />}
       {m.waitingFor && <p className="text-xs text-amber-200/90 bg-amber-400/5 border border-amber-400/20 rounded-lg px-3 py-2">{m.waitingFor}{m.status === 'waiting_approval' && <> · <Link to="/approvals" className="underline">Open Approvals</Link></>}</p>}
       {m.steps.length > 0 && (
         <div>
@@ -61,6 +63,17 @@ export default function MissionsPage() {
   const [businessId, setBusinessId] = useState('');
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const planParam = Number(params.get('plan')) || null;
+  const [plan, setPlan] = useState(null);
+  useEffect(() => {
+    if (!planParam) { setPlan(null); return; }
+    controlApi.incomePlan(planParam).then(setPlan).catch((err) => toast.error(err.message));
+  }, [planParam]);
+  const plans = useEmpire(() => controlApi.incomePlans(), []);
+  const drafts = (plans.data ?? []).filter((p) => p.status === 'draft' && p.id !== plan?.id);
+  const showPlan = (p) => { setPlan(p); setParams({ plan: String(p.id) }); plans.reload(); };
+  const planDecided = (p) => { setPlan(p); missions.reload(); plans.reload(); notifyEmpireChanged(); };
 
   const create = async (e) => {
     e.preventDefault();
@@ -101,6 +114,20 @@ export default function MissionsPage() {
             <Link to="/ash-control" className={btn}><SlidersHorizontal className="w-3.5 h-3.5" /> ASH Control</Link>
           </div>
         </div>
+        {plan && <IncomePlanCard plan={plan} onDecided={planDecided} />}
+        {drafts.length > 0 && (
+          <Card title="Plans waiting for your decision" icon={Inbox}>
+            <ul className="space-y-1">
+              {drafts.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-2 text-sm text-white/75">
+                  <span className="min-w-0 truncate">{p.plan.businessName} · {p.goal}</span>
+                  <button type="button" className={btn} onClick={() => showPlan(p)}>Review</button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+        <CreateIncomeMission onDrafted={showPlan} />
         <Card title="New mission" icon={Plus}>
           <form onSubmit={create} className="space-y-3">
             <Field label="Goal" hint="e.g. Build 3 income streams for my SaaS and save everything you make to the vault.">

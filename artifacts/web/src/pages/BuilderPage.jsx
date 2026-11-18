@@ -5782,6 +5782,7 @@ const BuilderPage = () => {
                   'Start a new business for me and add its usual income streams',
                   'Add an income stream to my newest business',
                   'Save what we just built to the Asset Vault',
+                  'I want to make $5,000 a month. Find a business, build it and run it for me',
                   'Start a mission: build 3 income streams for my newest business',
                   'What missions are you working on?',
                 ].map((ex) => (

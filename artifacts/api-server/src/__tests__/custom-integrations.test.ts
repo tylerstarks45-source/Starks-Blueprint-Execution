@@ -11,7 +11,7 @@ vi.mock("node:dns/promises", () => ({ lookup: vi.fn(async () => [resolved]) }));
 
 import app from "../app";
 import { db, usersTable, userCredentialsTable } from "@workspace/db";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { encrypt } from "../lib/crypto";
 import { runIntegrationAction, testIntegration, transport, publicLookup } from "../lib/custom-integrations";
 
@@ -96,6 +96,11 @@ describe("custom integrations", () => {
     const caps = await request(app).get("/api/capabilities").set(as(ownerId));
     expect(caps.body.capabilities.find((x: { key: string }) => x.key === "podcast_hosting")).toMatchObject({ status: "ready" });
     expect((await request(app).get("/api/capabilities").set(as(otherId))).body.capabilities.find((x: { key: string }) => x.key === "podcast_hosting")).toBeUndefined();
+
+    // Without its saved key the integration can't run, so its capability isn't ready.
+    await db.delete(userCredentialsTable).where(eq(userCredentialsTable.userId, ownerId));
+    expect((await request(app).get("/api/capabilities").set(as(ownerId))).body.capabilities.find((x: { key: string }) => x.key === "podcast_hosting")).toBeUndefined();
+    await db.insert(userCredentialsTable).values({ userId: ownerId, credentialKey: "ACME_API_KEY", encryptedValue: encrypt("sk_owner"), status: "connected" });
 
     fetchSpy.mockResolvedValueOnce(ok({ id: 9 }, 201));
     expect(await runIntegrationAction(ownerId, "acme_podcasts", "createEpisode", { showId: "a/b", body: { title: "Ep 1" } })).toEqual({ status: 201, data: { id: 9 } });

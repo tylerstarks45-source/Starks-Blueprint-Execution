@@ -227,9 +227,11 @@ export async function integrationActionKind(userId: number, args: Record<string,
 
 /** Approved integrations by the capability keys they provide. */
 export async function approvedCapabilityProviders(userId: number): Promise<Map<string, { id: string; name: string }[]>> {
-  const rows = await db.select({ key: customIntegrationsTable.key, name: customIntegrationsTable.name, capabilities: customIntegrationsTable.capabilities })
+  const rows = await db.select({ key: customIntegrationsTable.key, name: customIntegrationsTable.name, capabilities: customIntegrationsTable.capabilities, auth: customIntegrationsTable.auth })
     .from(customIntegrationsTable).where(and(eq(customIntegrationsTable.userId, userId), eq(customIntegrationsTable.status, "approved")));
+  const saved = new Set((await db.select({ k: userCredentialsTable.credentialKey }).from(userCredentialsTable).where(and(
+    eq(userCredentialsTable.userId, userId), isNull(userCredentialsTable.systemInstanceId), isNull(userCredentialsTable.clientWorkspaceId)))).map((r) => r.k));
   const out = new Map<string, { id: string; name: string }[]>();
-  for (const r of rows) for (const c of r.capabilities) out.set(c, [...(out.get(c) ?? []), { id: `custom:${r.key}`, name: r.name }]);
+  for (const r of rows) if (r.auth.type === "none" || saved.has(r.auth.credentialKey!)) for (const c of r.capabilities) out.set(c, [...(out.get(c) ?? []), { id: `custom:${r.key}`, name: r.name }]);
   return out;
 }

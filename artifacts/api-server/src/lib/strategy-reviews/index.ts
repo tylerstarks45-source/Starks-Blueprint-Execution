@@ -124,7 +124,8 @@ export async function runDueStrategyReviews(limit = 20): Promise<{ reviewed: num
     .where(and(isNotNull(ashMissionsTable.planId), inArray(ashMissionsTable.status, REVIEWABLE),
       sql`${ashMissionsTable.createdAt} < ${cutoff}`,
       sql`not exists (select 1 from ${strategyReviewsTable} r where r.mission_id = ${ashMissionsTable.id} and r.created_at >= ${cutoff})`))
-    .orderBy(ashMissionsTable.id).limit(limit);
+    // Random order so missions whose reviews keep failing (e.g. owner out of credits) can't starve the rest.
+    .orderBy(sql`random()`).limit(limit);
   let reviewed = 0;
   for (const m of due) {
     try {

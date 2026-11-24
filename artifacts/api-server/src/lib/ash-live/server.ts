@@ -18,7 +18,7 @@ import { verifyActiveToken } from "../auth";
 import { logger } from "../logger";
 import {
   ASH_LIVE_PATH, ASH_LIVE_PROTOCOL, ASH_LIVE_SUBPROTOCOL, AVATAR_STATES, EMOTIONS, GESTURES, LIVE_VOICES, DEFAULT_VOICE,
-  ClientMessage, cueForReply, splitSpeech, toSpokenText,
+  ClientMessage, cueForReply, toSpokenText,
 } from "./protocol";
 
 const HEARTBEAT_MS = 30_000;
@@ -183,24 +183,14 @@ class LiveSession {
     }
   }
 
-  /** Speaks sentence by sentence, synthesizing the next chunk while the client plays the current one. */
   async speak(turn: Turn, spokenText: string, voice: string, signal: AbortSignal): Promise<void> {
-    const chunks = splitSpeech(spokenText);
-    const synth = (text: string) => synthesizeSpeech({ text, voice, userId: this.userId, signal });
-    let next: Promise<Buffer> | null = synth(chunks[0]!);
-    this.state("speaking");
-    for (let seq = 0; seq < chunks.length; seq++) {
-      let audio: Buffer;
-      try {
-        audio = await next!;
-      } catch (err) {
-        if (!turn.controller.signal.aborted) this.send("ash.speech.error", { turnId: turn.id, ...errorCode(err) });
-        return;
-      }
+    try {
+      const audio = await synthesizeSpeech({ text: spokenText, voice, userId: this.userId, signal });
       if (turn.controller.signal.aborted) return;
-      next = seq + 1 < chunks.length ? synth(chunks[seq + 1]!) : null;
-      next?.catch(() => {});
-      this.send("ash.speech", { turnId: turn.id, seq, last: seq === chunks.length - 1, text: chunks[seq], mimeType: "audio/mpeg", audioBase64: audio.toString("base64") });
+      this.state("speaking");
+      this.send("ash.speech", { turnId: turn.id, seq: 0, last: true, text: spokenText, mimeType: "audio/mpeg", audioBase64: audio.toString("base64") });
+    } catch (err) {
+      if (!turn.controller.signal.aborted) this.send("ash.speech.error", { turnId: turn.id, ...errorCode(err) });
     }
   }
 

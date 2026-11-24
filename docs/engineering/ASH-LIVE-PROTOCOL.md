@@ -43,7 +43,7 @@ One backend turn runs at a time per connection. If you send a turn while the pri
 | `avatar.cue` | `turnId`, `emotion`, `gesture` | Facial expression and one gesture for the reply. |
 | `transcript.user` | `turnId`, `text` | What ASH heard. |
 | `ash.text` | `turnId`, `text` (markdown), `spokenText`, `actions`, `steps` | Her full reply, the workspace actions to apply (e.g. `navigate`) and the tools she ran (`ok`, `approvalId` when it is waiting for the owner). |
-| `ash.speech` | `turnId`, `seq`, `last`, `text`, `mimeType`, `audioBase64` | Speech, one sentence group per message, in order. Play them back to back. Use `text` for captions and lip-sync timing. |
+| `ash.speech` | `turnId`, `seq`, `last`, `text`, `mimeType`, `audioBase64` | One synthesized reply (`seq: 0`, `last: true`). Use `text` for captions and the local audio signal for lip-sync. |
 | `ash.speech.error` | `turnId`, `code`, `message` | Voice failed; show the text instead. |
 | `ash.turn.end` | `turnId`, `interrupted` | The turn is over. When `interrupted` is true, drop any queued audio for that turn. |
 | `tasks.snapshot` / `task.progress` | `missionId`, `goal`, `status`, `stepsDone`, `stepsTotal`, `currentStep`, `waitingFor` | Background missions. `tasks.snapshot` wraps rows in `tasks`; `task.progress` is one row. Progress polls every five seconds. |
@@ -88,6 +88,6 @@ ASH Live only carries conversation, expression and progress. It has no motor, st
 ## Not built yet
 
 - Streaming speech-to-text while the user is still talking (today an utterance is sent when it ends). Plan: Deepgram Flux or similar behind the server, keeping the same `transcript.user` event and adding partial transcripts.
-- Token-by-token model streaming. The agent finishes its tool loop first, then speech starts sentence by sentence.
+- Token-by-token model streaming. The agent finishes its tool loop before the reply is synthesized.
 - Wake word.
 - Premium voice: see `ASH-VOICE-PROVIDERS.md`.

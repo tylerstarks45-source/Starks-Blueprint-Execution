@@ -15,7 +15,7 @@ vi.mock("../lib/openrouter-media", async (orig) => ({
 
 import app, { isAllowedOrigin } from "../app";
 import { attachAshLive } from "../lib/ash-live/server";
-import { splitSpeech, cueForReply, toSpokenText } from "../lib/ash-live/protocol";
+import { cueForReply, toSpokenText } from "../lib/ash-live/protocol";
 import { getTool } from "../lib/ash-agent/tools";
 import { toolActionKind } from "../lib/ash-control/policy";
 import { db, usersTable, userMemoryTable, ashMissionsTable } from "@workspace/db";
@@ -80,9 +80,8 @@ afterAll(async () => {
 });
 
 describe("ASH Live protocol helpers", () => {
-  it("speaks ASH as a name, starts speech with a short chunk and picks cues from fixed rules", () => {
+  it("pronounces ASH as a name and picks cues from fixed rules", () => {
     expect(toSpokenText("**ASH** here, from STARKS.")).toBe("Ash here, from Starks.");
-    expect(splitSpeech("Hi there. This is the second sentence. And a third one.")).toEqual(["Hi there.", "This is the second sentence. And a third one."]);
     expect(cueForReply("Done.", [{ ok: true, approvalId: 3 }])).toEqual({ emotion: "focused", gesture: "explain" });
     expect(cueForReply("Congratulations on the first sale!", [])).toEqual({ emotion: "happy", gesture: "celebrate" });
     expect(cueForReply("Which store should I start with?", [])).toEqual({ emotion: "curious", gesture: "none" });
@@ -98,7 +97,7 @@ describe("ASH Live sessions", () => {
     await expect(new Promise((resolve, reject) => { foreign.on("open", resolve); foreign.on("error", reject); })).rejects.toThrow(/403/);
   });
 
-  it("runs a turn with the owner's memory and missions only, then speaks it sentence by sentence", async () => {
+  it("runs a turn with the owner's memory and missions only, then synthesizes the entire reply once", async () => {
     turn.mockResolvedValueOnce(reply("Hey! Your pet store is being built. I'll tell you when it's live."));
     speak.mockImplementation(async (o: { text: string }) => Buffer.from(`mp3:${o.text}`));
     const c = await signedIn();
@@ -115,27 +114,27 @@ describe("ASH Live sessions", () => {
     expect(prompt).toContain("You are speaking out loud");
 
     const types = c.got.filter((m) => m.turnId === "t1" || m.type === "avatar.state").map((m) => m.type === "avatar.state" ? `state:${m.state}` : m.type);
-    expect(types).toEqual(["state:idle", "state:thinking", "avatar.cue", "ash.text", "avatar.cue", "state:speaking", "ash.speech", "ash.speech", "ash.turn.end", "state:idle"]);
+    expect(types).toEqual(["state:idle", "state:thinking", "avatar.cue", "ash.text", "avatar.cue", "state:speaking", "ash.speech", "ash.turn.end", "state:idle"]);
     const speech = c.got.filter((m) => m.type === "ash.speech");
-    expect(speech.map((m) => [m.seq, m.text, m.last])).toEqual([[0, "Hey!", false], [1, "Your pet store is being built. I'll tell you when it's live.", true]]);
-    expect(Buffer.from(String(speech[0]!.audioBase64), "base64").toString()).toBe("mp3:Hey!");
+    expect(speech.map((m) => [m.seq, m.text, m.last])).toEqual([[0, "Hey! Your pet store is being built. I'll tell you when it's live.", true]]);
+    expect(Buffer.from(String(speech[0]!.audioBase64), "base64").toString()).toBe(`mp3:${speech[0]!.text}`);
+    expect(speak).toHaveBeenCalledTimes(1);
     c.ws.close();
   });
 
   it("stops speaking the moment the user starts talking", async () => {
     turn.mockResolvedValueOnce(reply("First sentence. Second sentence that is long enough to stay separate."));
     let release!: () => void;
-    speak.mockImplementationOnce(async () => Buffer.from("a"))
-      .mockImplementationOnce(() => new Promise<Buffer>((resolve) => { release = () => resolve(Buffer.from("b")); }));
+    speak.mockImplementationOnce(() => new Promise<Buffer>((resolve) => { release = () => resolve(Buffer.from("b")); }));
     const c = await signedIn();
     c.send({ type: "user.text", text: "tell me something", turnId: "t2" });
-    await c.next((m) => m.type === "ash.speech" && m.turnId === "t2");
+    await c.next((m) => m.type === "ash.text" && m.turnId === "t2");
     c.send({ type: "user.speech_start" });
     const end = await c.next((m) => m.type === "ash.turn.end" && m.turnId === "t2");
     expect(end.interrupted).toBe(true);
     release();
     await new Promise((r) => setTimeout(r, 200));
-    expect(c.got.filter((m) => m.type === "ash.speech" && m.turnId === "t2")).toHaveLength(1);
+    expect(c.got.filter((m) => m.type === "ash.speech" && m.turnId === "t2")).toHaveLength(0);
     expect(c.got.filter((m) => m.type === "ash.turn.end" && m.turnId === "t2")).toHaveLength(1);
     expect(c.got.at(-1)).toMatchObject({ type: "avatar.state", state: "listening" });
     c.ws.close();

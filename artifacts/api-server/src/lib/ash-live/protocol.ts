@@ -56,19 +56,6 @@ export function toSpokenText(markdown: string): string {
 }
 
 /** Splits spoken text into chunks for sentence-by-sentence speech; the first chunk is short so audio starts sooner. */
-export function splitSpeech(text: string, maxChunk = 220, maxChunks = 12): string[] {
-  const sentences = text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
-  const chunks: string[] = [];
-  for (const sentence of sentences) {
-    const last = chunks[chunks.length - 1];
-    if (last !== undefined && chunks.length > 1 && last.length + sentence.length + 1 <= maxChunk) chunks[chunks.length - 1] = `${last} ${sentence}`;
-    else chunks.push(sentence);
-  }
-  if (chunks.length <= maxChunks) return chunks;
-  return [...chunks.slice(0, maxChunks - 1), chunks.slice(maxChunks - 1).join(" ")];
-}
-
-/** Picks the character's expression and gesture for a finished reply from fixed rules. */
 export function cueForReply(text: string, steps: Array<{ ok: boolean; approvalId?: number }>): { emotion: Emotion; gesture: Gesture } {
   if (steps.some((s) => s.approvalId != null)) return { emotion: "focused", gesture: "explain" };
   if (steps.some((s) => !s.ok)) return { emotion: "concerned", gesture: "reassure" };

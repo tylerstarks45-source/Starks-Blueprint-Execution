@@ -59,7 +59,7 @@ Lip-sync: drive visemes locally from the audio you play (for example Unreal's au
 
 ## Unreal adapter checklist
 
-**Dashboard integration:** A signed-in browser tab owns one socket, microphone, transcript and playback queue. The dashboard's `AshAvatarStage` currently renders the portrait placeholder using the session's state, emotion and gesture. A future trusted renderer can receive those cues and the active audio/playhead through the stage adapter. It must not create another conversation, take the browser JWT, or play the same reply independently. Connect and test the Unreal transport with the real character project before enabling it. The steps below are for a *standalone* Unreal client instead.
+**Dashboard integration:** A signed-in browser tab owns one socket, microphone, transcript and playback queue. The transcript is account-scoped in browser session storage: it survives navigation and reload in the tab, but other tabs do not overwrite or sync it. The dashboard's `AshAvatarStage` currently renders the portrait placeholder using the session's state, emotion and gesture. A future trusted renderer can receive those cues and the active audio/playhead through the stage adapter. It must not create another conversation, take the browser JWT, or play the same reply independently. Connect and test the Unreal transport with the real character project before enabling it. The steps below are for a *standalone* Unreal client instead.
 
 1. Log in with `POST /api/auth/login`, keep the JWT in memory only.
 2. Connect with the `WebSockets` module, using the two handshake values above; wait for `session.ready` before sending `session.start` with `surface: "unreal"`.

@@ -17,7 +17,7 @@ export function restoreLog(ownerId) {
   if (!ownerId) return [];
   try {
     const legacyKey = `ash_dock_${ownerId}`;
-    const own = localStorage.getItem(keyFor(ownerId));
+    const own = sessionStorage.getItem(keyFor(ownerId));
     const entries = textEntries(JSON.parse(own ?? localStorage.getItem(legacyKey) ?? '[]'));
     return entries.map((entry, i) => ({ id: `saved-${i}`, ...entry }));
   } catch {
@@ -28,7 +28,7 @@ export function restoreLog(ownerId) {
 export function saveLog(ownerId, entries) {
   if (!ownerId) return;
   try {
-    localStorage.setItem(keyFor(ownerId), JSON.stringify(textEntries(entries)));
+    sessionStorage.setItem(keyFor(ownerId), JSON.stringify(textEntries(entries)));
     localStorage.removeItem(`ash_dock_${ownerId}`);
   } catch { /* Storage disabled or full. */ }
 }

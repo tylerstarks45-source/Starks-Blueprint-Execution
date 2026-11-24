@@ -269,16 +269,27 @@ export default function AshLivePage() {
         const now = performance.now();
         if (now - lastMeterAt > 100) { setLevel(Math.min(1, rms * 8)); lastMeterAt = now; }
         const threshold = 0.06 - (sensRef.current / 100) * 0.05;
-        if (m.rec?.state === 'recording' && now - m.startedAt > 45_000) { stopRecorder(); m.speechAt = 0; }
-        if (rms > threshold) {
+        if (m.rec?.state === 'recording' && now - m.startedAt > 45_000) {
+          stopRecorder();
+          m.speechAt = 0;
+        } else if (rms > threshold) {
+          if (!m.speechAt) {
+            m.speechAt = now;
+            m.confirmed = false;
+            startRecorder();
+          }
+          if (!m.confirmed && now - m.speechAt > 120) {
+            m.confirmed = true;
+            interrupt();
+          }
           m.quietAt = 0;
-          if (!m.speechAt) m.speechAt = now;
-          if (now - m.speechAt > 120 && m.rec?.state !== 'recording') { interrupt(); startRecorder(); }
         } else if (m.rec?.state === 'recording') {
           if (!m.quietAt) m.quietAt = now;
           if (now - m.quietAt > SILENCE_MS) {
-            if (now - m.speechAt > MIN_SPEECH_MS + SILENCE_MS) stopRecorder(); else { m.rec.onstop = null; m.rec.stop(); setRecording(false); }
-            m.speechAt = 0; m.quietAt = 0;
+            if (m.confirmed && m.quietAt - m.speechAt >= MIN_SPEECH_MS) stopRecorder();
+            else { m.rec.onstop = null; stopRecorder(); }
+            m.speechAt = 0;
+            m.quietAt = 0;
           }
         } else m.speechAt = 0;
         m.raf = requestAnimationFrame(tick);

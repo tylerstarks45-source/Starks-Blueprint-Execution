@@ -7,6 +7,7 @@ import { Toaster } from 'sonner';
 // Context Providers
 import { AuthProvider } from '@/contexts/AuthContext.jsx';
 import { AshConversationProvider } from '@/contexts/AshConversationContext.jsx';
+import { PwaInstallProvider } from '@/contexts/PwaInstallContext.jsx';
 import { CreditsModalProvider } from '@/contexts/CreditsModalContext.jsx';
 import { ClientProvider } from '@/contexts/ClientContext.jsx';
 import { BusinessProvider } from '@/contexts/BusinessContext.jsx';
@@ -199,6 +200,7 @@ const WhiteLabelHelmet = () => {
 const App = () => {
   return (
     <WhiteLabelProvider>
+    <PwaInstallProvider>
     <Router>
       <AuthProvider>
         <ClientProvider>
@@ -422,6 +424,7 @@ const App = () => {
         </ClientProvider>
       </AuthProvider>
     </Router>
+    </PwaInstallProvider>
     </WhiteLabelProvider>
   );
 };

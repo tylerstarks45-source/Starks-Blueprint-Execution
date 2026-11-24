@@ -114,7 +114,7 @@ describe("ASH Live sessions", () => {
     expect(prompt).toContain("You are speaking out loud");
 
     const types = c.got.filter((m) => m.turnId === "t1" || m.type === "avatar.state").map((m) => m.type === "avatar.state" ? `state:${m.state}` : m.type);
-    expect(types).toEqual(["state:idle", "state:thinking", "avatar.cue", "ash.text", "avatar.cue", "state:speaking", "ash.speech", "ash.turn.end", "state:idle"]);
+    expect(types).toEqual(["state:idle", "state:thinking", "avatar.cue", "transcript.user", "ash.text", "avatar.cue", "state:speaking", "ash.speech", "ash.turn.end", "state:idle"]);
     const speech = c.got.filter((m) => m.type === "ash.speech");
     expect(speech.map((m) => [m.seq, m.text, m.last])).toEqual([[0, "Hey! Your pet store is being built. I'll tell you when it's live.", true]]);
     expect(Buffer.from(String(speech[0]!.audioBase64), "base64").toString()).toBe(`mp3:${speech[0]!.text}`);

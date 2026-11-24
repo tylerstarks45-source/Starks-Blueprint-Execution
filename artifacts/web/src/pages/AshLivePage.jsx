@@ -15,6 +15,29 @@ const GESTURE_LABEL = { nod: 'nods', wave: 'waves', explain: 'explains', think: 
 const TASK_TONE = { running: 'cyan', planning: 'cyan', completed: 'green', failed: 'rose', cancelled: 'slate', paused: 'slate', waiting_approval: 'amber', waiting_owner: 'amber' };
 const SILENCE_MS = 900;
 const MIN_SPEECH_MS = 300;
+const CAPTURE_RATE = 16_000;
+const PREROLL_FRAMES = 20;
+const FRAME_MS = 20;
+
+function wavAudio(frames) {
+  const samples = frames.reduce((total, frame) => total + frame.length, 0);
+  const header = new ArrayBuffer(44);
+  const view = new DataView(header);
+  const tag = (offset, text) => Array.from(text).forEach((c, i) => view.setUint8(offset + i, c.charCodeAt(0)));
+  tag(0, 'RIFF');
+  view.setUint32(4, 36 + samples * 2, true);
+  tag(8, 'WAVEfmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, CAPTURE_RATE, true);
+  view.setUint32(28, CAPTURE_RATE * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  tag(36, 'data');
+  view.setUint32(40, samples * 2, true);
+  return new Blob([header, ...frames], { type: 'audio/wav' });
+}
 
 function Face({ state, emotion, gesture }) {
   const speaking = state === 'speaking';
@@ -58,7 +81,7 @@ export default function AshLivePage() {
   const audioRef = useRef(null);
   const turnRef = useRef(null);
   const micRequest = useRef(0);
-  const mic = useRef({ stream: null, ctx: null, rec: null, chunks: [], raf: 0, speechAt: 0, quietAt: 0 });
+  const mic = useRef({ stream: null, ctx: null, rec: null, worklet: null });
   const sensRef = useRef(sensitivity);
   sensRef.current = sensitivity;
   settingsRef.current = { speak, voice };
@@ -229,7 +252,6 @@ export default function AshLivePage() {
       sendRecording(new Blob(chunks, { type: rec.mimeType }));
     };
     rec.start();
-    m.startedAt = performance.now();
     m.rec = rec;
     setRecording(true);
   }, [sendRecording]);
@@ -255,12 +277,13 @@ export default function AshLivePage() {
   const closeMic = useCallback(() => {
     ++micRequest.current;
     const m = mic.current;
-    cancelAnimationFrame(m.raf);
+    m.worklet?.port.close();
+    m.worklet?.disconnect();
     if (m.rec) m.rec.onstop = null;
     stopRecorder();
     m.ctx?.close().catch(() => {});
     m.stream?.getTracks().forEach((t) => t.stop());
-    Object.assign(m, { stream: null, ctx: null, rec: null, speechAt: 0, quietAt: 0 });
+    Object.assign(m, { stream: null, ctx: null, rec: null, worklet: null });
     setLevel(0);
   }, [stopRecorder]);
 
@@ -278,50 +301,57 @@ export default function AshLivePage() {
       if (cancelled) return;
       if (!ready) { setHandsFree(false); return; }
       const m = mic.current;
-      const ctx = new AudioContext();
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 1024;
-      ctx.createMediaStreamSource(m.stream).connect(analyser);
-      m.ctx = ctx;
-      const data = new Uint8Array(analyser.fftSize);
-      let lastMeterAt = 0;
-      const tick = () => {
-        analyser.getByteTimeDomainData(data);
-        let sum = 0;
-        for (const v of data) sum += ((v - 128) / 128) ** 2;
-        const rms = Math.sqrt(sum / data.length);
-        const now = performance.now();
-        if (now - lastMeterAt > 100) { setLevel(Math.min(1, rms * 8)); lastMeterAt = now; }
-        const threshold = 0.06 - (sensRef.current / 100) * 0.05;
-        if (m.rec?.state === 'recording' && now - m.startedAt > 45_000) {
-          stopRecorder();
-          m.speechAt = 0;
-        } else if (rms > threshold) {
-          if (!m.speechAt) {
-            m.speechAt = now;
-            m.confirmed = false;
-            startRecorder();
+      try {
+        const ctx = new AudioContext({ sampleRate: CAPTURE_RATE });
+        m.ctx = ctx;
+        await ctx.resume();
+        await ctx.audioWorklet.addModule(new URL('../lib/ashLiveMic.worklet.js', import.meta.url));
+        if (cancelled) return;
+        const worklet = new AudioWorkletNode(ctx, 'ash-live-mic', { channelCount: 1, channelCountMode: 'explicit' });
+        m.worklet = worklet;
+        ctx.createMediaStreamSource(m.stream).connect(worklet);
+        worklet.connect(ctx.destination); // The processor emits silence; keep the graph live.
+        const preRoll = [];
+        let frames = null;
+        let elapsedMs = 0;
+        let quietMs = 0;
+        let voicedMs = 0;
+        let meterFrames = 0;
+        worklet.port.onmessage = ({ data: { pcm, rms } }) => {
+          if (cancelled) return;
+          if (++meterFrames % 5 === 0) setLevel(Math.min(1, rms * 8));
+          const audible = rms > 0.06 - (sensRef.current / 100) * 0.05;
+          if (!frames && audible) {
+            frames = [...preRoll];
+            elapsedMs = quietMs = voicedMs = 0;
+            setRecording(true);
           }
-          if (!m.confirmed && now - m.speechAt > 120) {
-            m.confirmed = true;
-            interrupt();
+          preRoll.push(pcm);
+          if (preRoll.length > PREROLL_FRAMES) preRoll.shift();
+          if (!frames) return;
+          frames.push(pcm);
+          elapsedMs += FRAME_MS;
+          quietMs = audible ? 0 : quietMs + FRAME_MS;
+          if (audible) {
+            voicedMs += FRAME_MS;
+            if (voicedMs === 120) interrupt();
           }
-          m.quietAt = 0;
-        } else if (m.rec?.state === 'recording') {
-          if (!m.quietAt) m.quietAt = now;
-          if (now - m.quietAt > SILENCE_MS) {
-            if (m.confirmed && m.quietAt - m.speechAt >= MIN_SPEECH_MS) stopRecorder();
-            else { m.rec.onstop = null; stopRecorder(); }
-            m.speechAt = 0;
-            m.quietAt = 0;
+          if (quietMs >= SILENCE_MS || elapsedMs >= 45_000) {
+            if (voicedMs >= 120 && elapsedMs - quietMs >= MIN_SPEECH_MS) sendRecording(wavAudio(frames));
+            frames = null;
+            preRoll.length = 0;
+            setRecording(false);
           }
-        } else m.speechAt = 0;
-        m.raf = requestAnimationFrame(tick);
-      };
-      tick();
+        };
+      } catch {
+        if (!cancelled) {
+          setError('Hands-free audio is unavailable. You can still use push to talk or type.');
+          setHandsFree(false);
+        }
+      }
     })();
     return () => { cancelled = true; closeMic(); };
-  }, [handsFree, status, openMic, closeMic, interrupt, startRecorder, stopRecorder]);
+  }, [handsFree, status, openMic, closeMic, interrupt, sendRecording]);
 
   const pushToTalk = async () => {
     if (recording) { stopRecorder(); return; }
@@ -349,7 +379,7 @@ export default function AshLivePage() {
               <Face {...avatar} />
               <div className="mt-4 flex flex-wrap gap-2 justify-center">
                 <button type="button" className={recording && !handsFree ? btnPrimary : btn} disabled={!connected || handsFree || !globalThis.MediaRecorder} onClick={pushToTalk}>{recording && !handsFree ? <><Square className="w-3.5 h-3.5" /> Send</> : <><Mic className="w-3.5 h-3.5" /> Push to talk</>}</button>
-                <button type="button" className={handsFree ? btnPrimary : btn} disabled={!connected || !globalThis.MediaRecorder || !globalThis.AudioContext} onClick={() => setHandsFree((v) => !v)}>{handsFree ? <><MicOff className="w-3.5 h-3.5" /> Hands-free on</> : <><Mic className="w-3.5 h-3.5" /> Hands-free</>}</button>
+                <button type="button" className={handsFree ? btnPrimary : btn} disabled={!connected || !globalThis.AudioWorkletNode || !globalThis.AudioContext} onClick={() => setHandsFree((v) => !v)}>{handsFree ? <><MicOff className="w-3.5 h-3.5" /> Hands-free on</> : <><Mic className="w-3.5 h-3.5" /> Hands-free</>}</button>
                 <button type="button" className={btn} disabled={!connected} onClick={() => interrupt('user.interrupt')} aria-label="Stop ASH"><Square className="w-3.5 h-3.5" /> Stop</button>
               </div>
               {handsFree && <div className="mt-3 h-1.5 rounded bg-white/10 overflow-hidden"><div className="h-full bg-emerald-400 transition-[width]" style={{ width: `${Math.round(level * 100)}%` }} /></div>}

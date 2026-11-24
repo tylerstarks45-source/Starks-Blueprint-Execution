@@ -51,6 +51,10 @@ export async function getRelevantLongTermMemory(params: {
   return top;
 }
 
+export function longTermMemoryKey(category: string, title: string): string {
+  return `auto:${category}:${title.toLowerCase().slice(0, 60).replace(/\s+/g, "_")}`;
+}
+
 // Auto-memory writer: upserts by (userId, category, normalized key derived
 // from title) so repeated similar facts strengthen one row instead of
 // spawning duplicates. Manual entries (category IS NULL) are never touched.
@@ -70,7 +74,7 @@ export async function upsertLongTermMemory(params: {
   scope?: "global_user" | "business";
   businessId?: number | null;
 }): Promise<void> {
-  const memoryKey = `auto:${params.category}:${params.title.toLowerCase().slice(0, 60).replace(/\s+/g, "_")}`;
+  const memoryKey = longTermMemoryKey(params.category, params.title);
   const scope = params.scope ?? "global_user";
   const businessId = scope === "business" ? params.businessId ?? null : null;
 

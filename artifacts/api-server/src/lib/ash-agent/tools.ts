@@ -5,7 +5,7 @@
 // the existing workspace actions the web app already executes from
 // SBEP_DATA {"action":"tool_calls"} blocks; the loop forwards them unchanged.
 import { db, businessesTable, userMemoryTable, SOCIAL_PLATFORMS } from "@workspace/db";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, isNull, ne } from "drizzle-orm";
 import type { ToolDefinition } from "../openrouter";
 import { complete } from "../openrouter";
 import { chainFor } from "../models";
@@ -24,7 +24,7 @@ import { getVenture } from "../ventures";
 import { reviewMission } from "../strategy-reviews";
 import { LAUNCH_ACTIONS, LAUNCH_CONNECTORS, launchOptions, runLaunchAction } from "../launch";
 import { getEffectiveControl } from "../ash-control/policy";
-import { getRelevantLongTermMemory, upsertLongTermMemory } from "../memory-engine/long-term-memory";
+import { getRelevantLongTermMemory, longTermMemoryKey, upsertLongTermMemory } from "../memory-engine/long-term-memory";
 import { ASH_STYLE_KEY } from "./persona";
 
 // Pages ASH can send the user to (the web app's authenticated routes).
@@ -317,7 +317,7 @@ const SPECS: ToolSpec[] = [
   {
     name: "remember",
     description: "Save a new fact or update an existing one only when the user asks. For corrections, call recall_memory first and pass the matching memory ID to update it in place. If the match is unclear, ask which item they meant. Never store credentials or payment details.",
-    parameters: obj({ topic: str("Short neutral label, without the old value when correcting a fact"), fact: str("What to remember, in one or two sentences"), memoryId: int("Existing memory ID to correct") }, ["fact"]),
+    parameters: obj({ topic: str("Short stable label, e.g. Answer style. For a correction, reuse the label if neutral, or replace it if it contains the old fact"), fact: str("What to remember, in one or two sentences"), memoryId: int("Existing memory ID to correct") }, ["topic", "fact"]),
     kind: "server",
     run: async (userId, a) => {
       const topic = String(a["topic"] ?? "").trim().slice(0, 60);
@@ -325,9 +325,24 @@ const SPECS: ToolSpec[] = [
       if (!fact) return { error: "Give the fact to remember" };
       if (a["memoryId"] != null) {
         const id = Number(a["memoryId"]);
+        const filter = editableMemoryFilter(userId, id);
+        const [existing] = await db.select({ key: userMemoryTable.memoryKey, category: userMemoryTable.category })
+          .from(userMemoryTable).where(filter);
+        if (!existing) return { error: "Memory not found" };
+        let key = `ash:corrected:${topic || `Memory #${id}`}`;
+        if (existing.category === "user_stated") {
+          if (!topic) return { error: "Give a topic for the corrected memory" };
+          key = longTermMemoryKey("user_stated", topic);
+          if (key !== existing.key) {
+            const [duplicate] = await db.select({ id: userMemoryTable.id }).from(userMemoryTable).where(and(
+              eq(userMemoryTable.userId, userId), eq(userMemoryTable.memoryKey, key), isNull(userMemoryTable.systemInstanceId),
+            )).limit(1);
+            if (duplicate) return { error: "That topic already belongs to another memory. Choose a different topic or correct that memory instead." };
+          }
+        }
         const updated = await db.update(userMemoryTable)
-          .set({ memoryKey: `ash:corrected:${topic || `Memory #${id}`}`, memoryValue: fact, confidenceScore: 100, lastAccessedAt: new Date() })
-          .where(editableMemoryFilter(userId, id))
+          .set({ memoryKey: key, memoryValue: fact, confidenceScore: 100, lastAccessedAt: new Date() })
+          .where(filter)
           .returning({ id: userMemoryTable.id });
         return updated.length ? { remembered: true, corrected: true } : { error: "Memory not found" };
       }

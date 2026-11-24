@@ -24,11 +24,12 @@ import SkillActivationPanel from '@/components/builder/SkillActivationPanel.jsx'
 import BrowserView from '@/components/builder/BrowserView.jsx';
 import RevenueSetupModal from '@/components/RevenueSetupModal.jsx';
 import AIModelBadge from '@/components/AIModelBadge.jsx';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import { useAshConversation } from '@/contexts/AshConversationContext.jsx';
 
 const authHeaders = () => {
   const token = localStorage.getItem('sbep_auth_token');
@@ -2323,6 +2324,7 @@ const saveCheckpoint = (userId, { messages, phase, buildData, stepOutputs, curre
 // ─── Builder Page ─────────────────────────────────────────────────────────────
 const BuilderPage = () => {
   const navigate = useNavigate();
+  const { openDock } = useAshConversation();
   const [searchParams] = useSearchParams();
   const { currentUser } = useAuth();
 
@@ -3343,13 +3345,14 @@ const BuilderPage = () => {
       .filter(m => m.id !== 'welcome' && typeof m.content === 'string' && m.content.length > 0)
       .map(m => ({ role: m.role, content: m.content }));
 
-    setMessages(prev => [...prev, { id: Date.now(), role: 'user', content: msg, ts: Date.now() }]);
+    const userMessage = { id: crypto.randomUUID(), role: 'user', content: msg, ts: Date.now() };
+    setMessages(prev => [...prev, userMessage]);
     setChatLoading(true);
     setThinkingSteps([]);
     setThinkingCurrentIdx(-1);
     setExpandedSteps(new Set());
 
-    const msgId = Date.now() + 1;
+    const msgId = crypto.randomUUID();
     let doneData = null;
 
     try {
@@ -3784,8 +3787,7 @@ const BuilderPage = () => {
 
       // Auto-save checkpoint
       const finalMsg = doneData?.content ?? '';
-      const updatedMessages = [...messages,
-        { id: Date.now(), role: 'user', content: msg, ts: Date.now() },
+      const updatedMessages = [...messages, userMessage,
         { id: msgId, role: 'assistant', content: finalMsg, ts: Date.now() },
       ];
       saveCheckpoint(currentUser?.id, { messages: updatedMessages, phase, buildData, stepOutputs, currentStepIdx, activatedSkills, mode, selectedBp });
@@ -5773,6 +5775,8 @@ const BuilderPage = () => {
             {/* ── PLATFORM CONTEXT ── */}
             {rightPanel === 'empire' && (
               <div className="p-3 flex flex-col gap-3">
+                <button type="button" onClick={openDock} className="rounded-lg border border-cyan-400/25 px-3 py-2 text-sm text-cyan-200 hover:bg-cyan-400/10">Open shared ASH conversation</button>
+                <Link to="/download" className="px-3 text-xs text-cyan-200 underline">Install app</Link>
                 <div className="rounded-lg border border-white/6 bg-white/2 p-2.5">
                   <EmpireSummary compact />
                 </div>

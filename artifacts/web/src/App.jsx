@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 
 // Context Providers
 import { AuthProvider } from '@/contexts/AuthContext.jsx';
+import { AshConversationProvider } from '@/contexts/AshConversationContext.jsx';
 import { CreditsModalProvider } from '@/contexts/CreditsModalContext.jsx';
 import { ClientProvider } from '@/contexts/ClientContext.jsx';
 import { BusinessProvider } from '@/contexts/BusinessContext.jsx';
@@ -30,6 +31,7 @@ const PublicLandingPage      = lazy(() => import('@/pages/PublicLandingPage.jsx'
 const ProductDetailPage     = lazy(() => import('@/pages/ProductDetailPage.jsx'));
 const ToolDetailPage        = lazy(() => import('@/pages/ToolDetailPage.jsx'));
 const AboutPage             = lazy(() => import('@/pages/AboutPage.jsx'));
+const DownloadPage          = lazy(() => import('@/pages/DownloadPage.jsx'));
 const ContactPage           = lazy(() => import('@/pages/ContactPage.jsx'));
 const BlueprintsPage        = lazy(() => import('@/pages/BlueprintsPage.jsx'));
 const BlueprintDetailPage   = lazy(() => import('@/pages/BlueprintDetailPage.jsx'));
@@ -202,6 +204,7 @@ const App = () => {
         <ClientProvider>
         <BusinessProvider>
         <CreditsModalProvider>
+        <AshConversationProvider>
           <WhiteLabelHelmet />
 
           <ErrorBoundary>
@@ -220,6 +223,7 @@ const App = () => {
               <Route path="/reset-password" element={<PasswordResetPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/about" element={<AboutPage />} />
+              <Route path="/download" element={<DownloadPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/blueprints" element={<BlueprintsPage />} />
               <Route path="/blueprints/submit" element={<BlueprintSubmitPage />} />
@@ -412,6 +416,7 @@ const App = () => {
           <AshDock />
 
           <Toaster position="bottom-right" />
+        </AshConversationProvider>
         </CreditsModalProvider>
         </BusinessProvider>
         </ClientProvider>

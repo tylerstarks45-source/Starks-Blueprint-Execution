@@ -15,7 +15,7 @@ vi.mock("../lib/openrouter-media", async (orig) => ({
 
 import app, { isAllowedOrigin } from "../app";
 import { attachAshLive } from "../lib/ash-live/server";
-import { cueForReply, toSpokenText } from "../lib/ash-live/protocol";
+import { ClientMessage, MAX_LIVE_HISTORY, cueForReply, toSpokenText } from "../lib/ash-live/protocol";
 import { getTool } from "../lib/ash-agent/tools";
 import { toolActionKind } from "../lib/ash-control/policy";
 import { db, usersTable, userMemoryTable, ashMissionsTable } from "@workspace/db";
@@ -80,6 +80,15 @@ afterAll(async () => {
 });
 
 describe("ASH Live protocol helpers", () => {
+  it("bounds restored history and only accepts conversation roles", () => {
+    const entry = { role: "user", content: "Earlier message" };
+    const history = Array.from({ length: MAX_LIVE_HISTORY }, () => entry);
+    expect(ClientMessage.safeParse({ type: "session.start", history }).success).toBe(true);
+    expect(ClientMessage.safeParse({ type: "session.start", history: [...history, entry] }).success).toBe(false);
+    expect(ClientMessage.safeParse({ type: "session.start", history: [{ ...entry, role: "system" }] }).success).toBe(false);
+    expect(ClientMessage.safeParse({ type: "session.start", history: [{ ...entry, content: "a".repeat(8001) }] }).success).toBe(false);
+  });
+
   it("pronounces ASH as a name and picks cues from fixed rules", () => {
     expect(toSpokenText("**ASH** here, from STARKS.")).toBe("Ash here, from Starks.");
     expect(toSpokenText("Hello ".repeat(800))).toHaveLength(2000);
@@ -121,6 +130,37 @@ describe("ASH Live sessions", () => {
     expect(Buffer.from(String(speech[0]!.audioBase64), "base64").toString()).toBe(`mp3:${speech[0]!.text}`);
     expect(speak).toHaveBeenCalledTimes(1);
     c.ws.close();
+  });
+
+  it("restores history once, follows the current page, and clears history without affecting another session", async () => {
+    const c = await signedIn();
+    const other = await signedIn(otherId);
+    const history = [{ role: "user", content: "My project is called Orchid" }];
+    try {
+      c.send({ type: "session.start", surface: "web", page: "/dashboard", speak: false, history });
+      c.send({ type: "session.start", page: "/builder", history: [{ role: "assistant", content: "Replacement" }] });
+      turn.mockResolvedValueOnce(reply("Of course."));
+      c.send({ type: "user.text", text: "What is it called?", turnId: "history" });
+      await c.next((m) => m.type === "ash.turn.end" && m.turnId === "history");
+      expect(turn).toHaveBeenLastCalledWith(expect.objectContaining({
+        userId: ownerId, history, systemPrompt: expect.stringContaining("/builder"),
+      }));
+
+      turn.mockResolvedValueOnce(reply("Tell me more."));
+      other.send({ type: "user.text", text: "What is it called?", turnId: "other" });
+      await other.next((m) => m.type === "ash.turn.end" && m.turnId === "other");
+      expect(turn).toHaveBeenLastCalledWith(expect.objectContaining({ userId: otherId, history: [] }));
+
+      c.send({ type: "session.clear" });
+      await c.next((m) => m.type === "session.cleared");
+      turn.mockResolvedValueOnce(reply("Tell me more."));
+      c.send({ type: "user.text", text: "What is it called?", turnId: "cleared" });
+      await c.next((m) => m.type === "ash.turn.end" && m.turnId === "cleared");
+      expect(turn).toHaveBeenLastCalledWith(expect.objectContaining({ userId: ownerId, history: [] }));
+    } finally {
+      c.ws.close();
+      other.ws.close();
+    }
   });
 
   it("stops speaking the moment the user starts talking", async () => {

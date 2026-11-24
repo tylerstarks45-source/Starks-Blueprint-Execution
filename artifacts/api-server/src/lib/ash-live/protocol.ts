@@ -17,6 +17,7 @@ export const DEFAULT_VOICE = "nova";
 
 export type Emotion = (typeof EMOTIONS)[number];
 export type Gesture = (typeof GESTURES)[number];
+export const MAX_LIVE_HISTORY = 20;
 
 const turnId = z.string().regex(/^[\w-]{1,64}$/).optional();
 // ~9 MB of audio once decoded; the socket's maxPayload caps the frame too.
@@ -29,7 +30,12 @@ export const ClientMessage = z.discriminatedUnion("type", [
     page: z.string().max(200).regex(/^\/[\w\-/]*$/).optional(),
     speak: z.boolean().optional(),
     voice: z.enum(LIVE_VOICES).optional(),
+    history: z.array(z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string().min(1).max(8000),
+    })).max(MAX_LIVE_HISTORY).optional(),
   }),
+  z.object({ type: z.literal("session.clear") }),
   z.object({ type: z.literal("user.text"), text: z.string().trim().min(1).max(8000), turnId }),
   z.object({ type: z.literal("user.audio"), audioBase64: z.string().min(1).max(MAX_AUDIO_B64), mimeType: z.string().max(100).optional(), turnId }),
   z.object({ type: z.literal("user.speech_start") }),

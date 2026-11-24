@@ -1,7 +1,7 @@
 // ASH Live: one realtime WebSocket session per connected ASH body (web
 // simulator, Unreal character, desktop, mobile). The intelligence is the same
 // tool-using ASH agent as chat; this layer adds turn-taking, interruption,
-// sentence-by-sentence speech, constrained animation cues and live progress
+// speech playback, constrained animation cues and live progress
 // from background missions.
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, Server } from "node:http";
@@ -18,7 +18,7 @@ import { verifyActiveToken } from "../auth";
 import { logger } from "../logger";
 import {
   ASH_LIVE_PATH, ASH_LIVE_PROTOCOL, ASH_LIVE_SUBPROTOCOL, AVATAR_STATES, EMOTIONS, GESTURES, LIVE_VOICES, DEFAULT_VOICE,
-  ClientMessage, cueForReply, toSpokenText,
+  ClientMessage, MAX_LIVE_HISTORY, cueForReply, toSpokenText,
 } from "./protocol";
 
 const HEARTBEAT_MS = 30_000;
@@ -26,7 +26,6 @@ const PROGRESS_POLL_MS = 5_000;
 const MAX_CONNECTIONS = 500;
 const MAX_CONNECTIONS_PER_USER = 5;
 const MAX_TURNS_PER_MINUTE = 20;
-const MAX_HISTORY = 20;
 const MAX_PAYLOAD = 12 * 1024 * 1024;
 
 type Settings = { surface: "live" | "unreal" | "desktop" | "mobile" | "web"; page: string | null; speak: boolean; voice: string };
@@ -46,6 +45,7 @@ class LiveSession {
   readonly id = randomUUID();
   private polling = false;
   private busy = false;
+  private historyInitialized = false;
   settings: Settings = { surface: "live", page: null, speak: true, voice: DEFAULT_VOICE };
   history: Array<{ role: "user" | "assistant"; content: string }> = [];
   turn: Turn | null = null;
@@ -91,6 +91,10 @@ class LiveSession {
     switch (msg.type) {
       case "ping": this.send("pong", { at: new Date().toISOString() }); return;
       case "session.start":
+        if (!this.historyInitialized) {
+          this.history = msg.history ?? [];
+          this.historyInitialized = true;
+        }
         this.settings = {
           surface: msg.surface ?? this.settings.surface,
           page: msg.page ?? this.settings.page,
@@ -98,6 +102,13 @@ class LiveSession {
           voice: msg.voice ?? this.settings.voice,
         };
         this.send("session.updated", { settings: this.settings });
+        return;
+      case "session.clear":
+        this.historyInitialized = true;
+        if (this.turn && !this.turn.controller.signal.aborted) this.interrupt("idle");
+        else this.state("idle");
+        this.history = [];
+        this.send("session.cleared");
         return;
       case "user.speech_start":
         // Barge-in: the user started talking, so ASH stops speaking at once.
@@ -133,6 +144,7 @@ class LiveSession {
   }
 
   async runTurn(turnId: string, input: { text?: string; audio?: Buffer; mimeType?: string }): Promise<void> {
+    this.historyInitialized = true;
     const userId = this.userId;
     if (this.busy) { this.send("error", { code: "turn_busy", message: "The previous turn is still finishing. Try again in a moment.", turnId }); return; }
     const now = Date.now();
@@ -164,7 +176,7 @@ class LiveSession {
       signal.throwIfAborted();
       const result = await runAshTurn({ userId, message: text, history: this.history, systemPrompt, toolNames: LIVE_TOOLS, signal: providerSignal });
       if (turn.controller.signal.aborted) return;
-      this.history = [...this.history, { role: "user" as const, content: text }, { role: "assistant" as const, content: result.content }].slice(-MAX_HISTORY);
+      this.history = [...this.history, { role: "user" as const, content: text }, { role: "assistant" as const, content: result.content }].slice(-MAX_LIVE_HISTORY);
       recordUserMessage(userId, text).catch(() => {});
       const spokenText = toSpokenText(result.content);
       this.send("ash.text", { turnId, text: result.content, spokenText, actions: result.clientCalls, steps: result.steps });

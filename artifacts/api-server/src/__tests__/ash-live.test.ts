@@ -62,7 +62,7 @@ beforeAll(async () => {
   ]).returning({ id: usersTable.id });
   ownerId = o!.id; otherId = x!.id;
   await db.insert(userMemoryTable).values([
-    { userId: ownerId, memoryKey: "favorite niche", memoryValue: "Owner loves pet products" },
+    { userId: ownerId, memoryKey: "Pets are my favorite niche", memoryValue: "Owner loves pet products" },
     { userId: otherId, memoryKey: "favorite niche", memoryValue: "Other user secret: crypto courses" },
   ]);
   const [m] = await db.insert(ashMissionsTable).values({ userId: ownerId, goal: "Launch the pet store", status: "running", steps: [{ title: "Build the store", status: "pending" }] }).returning();
@@ -188,6 +188,7 @@ describe("ASH memory tools", () => {
     expect(await run("remember", ownerId, { memoryId: manual.id, fact: "Owner now prefers garden products" })).toMatchObject({ corrected: true });
     const [record] = await db.select().from(userMemoryTable).where(eq(userMemoryTable.id, manual.id));
     expect(record?.memoryValue).toBe("Owner now prefers garden products");
+    expect(record?.memoryKey).not.toContain("Pets");
     expect(await run("forget_memory", otherId, { memoryId: saved.id })).toEqual({ error: "Memory not found" });
     expect(await run("forget_memory", ownerId, { memoryId: saved.id })).toEqual({ forgotten: true });
     expect(toolActionKind("forget_memory")).toBe("delete");

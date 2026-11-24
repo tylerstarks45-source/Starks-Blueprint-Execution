@@ -317,16 +317,17 @@ const SPECS: ToolSpec[] = [
   {
     name: "remember",
     description: "Save a new fact or update an existing one only when the user asks. For corrections, call recall_memory first and pass the matching memory ID to update it in place. If the match is unclear, ask which item they meant. Never store credentials or payment details.",
-    parameters: obj({ topic: str("Short label for a new fact"), fact: str("What to remember, in one or two sentences"), memoryId: int("Existing memory ID to correct") }, ["fact"]),
+    parameters: obj({ topic: str("Short neutral label, without the old value when correcting a fact"), fact: str("What to remember, in one or two sentences"), memoryId: int("Existing memory ID to correct") }, ["fact"]),
     kind: "server",
     run: async (userId, a) => {
       const topic = String(a["topic"] ?? "").trim().slice(0, 60);
       const fact = String(a["fact"] ?? "").trim().slice(0, 1000);
       if (!fact) return { error: "Give the fact to remember" };
       if (a["memoryId"] != null) {
+        const id = Number(a["memoryId"]);
         const updated = await db.update(userMemoryTable)
-          .set({ memoryValue: fact, confidenceScore: 100, lastAccessedAt: new Date() })
-          .where(editableMemoryFilter(userId, Number(a["memoryId"])))
+          .set({ memoryKey: `ash:corrected:${topic || `Memory #${id}`}`, memoryValue: fact, confidenceScore: 100, lastAccessedAt: new Date() })
+          .where(editableMemoryFilter(userId, id))
           .returning({ id: userMemoryTable.id });
         return updated.length ? { remembered: true, corrected: true } : { error: "Memory not found" };
       }

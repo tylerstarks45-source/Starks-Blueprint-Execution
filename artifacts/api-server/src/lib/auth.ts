@@ -132,7 +132,7 @@ export async function verifyActiveToken(token: string): Promise<number | null> {
     return null;
   }
   const id = Number(payload.sub);
-  if (!Number.isFinite(id)) return null;
+  if (!Number.isSafeInteger(id) || id < 1 || id > 2147483647) return null;
   const [user] = await db
     .select({ active: usersTable.active, tokenVersion: usersTable.tokenVersion })
     .from(usersTable)

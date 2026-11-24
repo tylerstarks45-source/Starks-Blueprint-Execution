@@ -15,17 +15,16 @@ Code: `artifacts/api-server/src/lib/ash-live/` (`protocol.ts` is the contract, `
 ## Connecting
 
 1. Open `wss://<api-host>/api/ash-live`. Browsers must come from an allowed origin (`ALLOWED_ORIGINS` or Replit domains); native clients send no `Origin`.
-2. Within 10 seconds send `{"type":"auth","token":"<JWT from POST /api/auth/login>"}`. The token is checked like every HTTP route: signature, active account, token version (on each turn and again during progress polling, so a revoked token cannot start a subsequent turn). Bad or missing auth closes with code `4401`.
+2. Offer two values in `Sec-WebSocket-Protocol`: `ash-live.v1` and `auth.<JWT from POST /api/auth/login>`. The server selects only `ash-live.v1` and validates the JWT before upgrading. Missing or invalid credentials return HTTP 401. Never put the credential in the URL or log the request header. The server rechecks it during turns and progress polling and closes revoked sessions with `4401`.
 3. The server replies `session.ready` with the protocol version and the fixed animation vocabulary, then `avatar.state` `idle` and a `tasks.snapshot`.
 4. Optional `session.start` sets `surface` (`live`, `unreal`, `desktop`, `mobile`, `web`), `page`, `speak`, `voice`. It can be sent again at any time.
 
-Limits: 500 connections per process, 5 sessions per user per process (close code `4429`), 20 turns a minute per connection, 12 MB per message, 30-second ping/pong heartbeat. Reconnect with backoff on any other close; the conversation history is per connection, long-term memory is shared.
+Limits: 500 connections per process, 5 sessions per user per process (HTTP 429), 20 turns a minute per connection, 12 MB per message, 30-second ping/pong heartbeat. Reconnect with backoff on any other close; the conversation history is per connection, long-term memory is shared.
 
 ## Client → server
 
 | type | fields | meaning |
 | --- | --- | --- |
-| `auth` | `token` | First message, required. |
 | `session.start` | `surface?`, `page?`, `speak?`, `voice?` | Session settings. |
 | `user.text` | `text`, `turnId?` | A typed or locally transcribed turn. |
 | `user.audio` | `audioBase64`, `mimeType?`, `turnId?` | One spoken utterance (webm, ogg, wav, mp3, m4a). The server transcribes it. |
@@ -59,7 +58,7 @@ Lip-sync: drive visemes locally from the audio you play (for example Unreal's au
 ## Unreal adapter checklist
 
 1. Log in with `POST /api/auth/login`, keep the JWT in memory only.
-2. Connect with the `WebSockets` module, send `auth`, then `session.start` with `surface: "unreal"`.
+2. Connect with the `WebSockets` module, using the two handshake values above; wait for `session.ready` before sending `session.start` with `surface: "unreal"`.
 3. Capture the mic with echo cancellation on, run voice activity detection, stop local playback immediately, send `user.speech_start` the moment speech begins, and send `user.audio` when the utterance ends.
 4. Queue `ash.speech` audio by `seq`, stop and clear it on `ash.turn.end` with `interrupted: true`.
 5. Drive the character from `avatar.state` and `avatar.cue`; show `tasks.snapshot` and `task.progress` on the command-center screens. `GET /api/command-center/context` gives the business and portfolio data for the room.
@@ -68,7 +67,7 @@ Lip-sync: drive visemes locally from the audio you play (for example Unreal's au
 ### Minimal Unreal client flow (pseudocode)
 
 ~~~text
-Socket.OnConnected → SendJson({ type: "auth", token: SessionJwt })
+Connect(offeredProtocols: ["ash-live.v1", "auth." + SessionJwt])
 Socket.OnMessage(event):
     session.ready  → SendJson({ type: "session.start", surface: "unreal" })
     ash.speech     → If event.turnId == ActiveTurn, enqueue decoded MP3 by seq

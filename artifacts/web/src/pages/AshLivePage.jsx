@@ -109,9 +109,8 @@ export default function AshLivePage() {
       const token = localStorage.getItem('sbep_auth_token');
       if (!token) { setStatus('signed out'); return; }
       setStatus(retry ? 'reconnecting' : 'connecting');
-      const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ash-live`);
+      const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ash-live`, ["ash-live.v1", `auth.${token}`]);
       wsRef.current = ws;
-      ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token }));
       ws.onmessage = (ev) => {
         if (closed || wsRef.current !== ws) return;
         let m;

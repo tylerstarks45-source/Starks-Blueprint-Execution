@@ -6,6 +6,7 @@ import { z } from "zod";
 
 export const ASH_LIVE_PROTOCOL = 1;
 export const ASH_LIVE_PATH = "/api/ash-live";
+export const ASH_LIVE_SUBPROTOCOL = "ash-live.v1";
 
 export const AVATAR_STATES = ["idle", "listening", "thinking", "speaking"] as const;
 export const EMOTIONS = ["neutral", "warm", "happy", "focused", "concerned", "curious"] as const;
@@ -22,7 +23,6 @@ const turnId = z.string().regex(/^[\w-]{1,64}$/).optional();
 const MAX_AUDIO_B64 = 12_000_000;
 
 export const ClientMessage = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("auth"), token: z.string().min(1).max(4096) }),
   z.object({
     type: z.literal("session.start"),
     surface: z.enum(LIVE_SURFACES).optional(),

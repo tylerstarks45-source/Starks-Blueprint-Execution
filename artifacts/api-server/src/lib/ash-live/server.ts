@@ -17,11 +17,10 @@ import { OutOfCreditsError, DailyAiLimitError } from "../credits";
 import { verifyActiveToken } from "../auth";
 import { logger } from "../logger";
 import {
-  ASH_LIVE_PATH, ASH_LIVE_PROTOCOL, AVATAR_STATES, EMOTIONS, GESTURES, LIVE_VOICES, DEFAULT_VOICE,
+  ASH_LIVE_PATH, ASH_LIVE_PROTOCOL, ASH_LIVE_SUBPROTOCOL, AVATAR_STATES, EMOTIONS, GESTURES, LIVE_VOICES, DEFAULT_VOICE,
   ClientMessage, cueForReply, splitSpeech, toSpokenText,
 } from "./protocol";
 
-const AUTH_TIMEOUT_MS = 10_000;
 const HEARTBEAT_MS = 30_000;
 const PROGRESS_POLL_MS = 5_000;
 const MAX_CONNECTIONS = 500;
@@ -45,9 +44,6 @@ function errorCode(err: unknown): { code: string; message: string } {
 
 class LiveSession {
   readonly id = randomUUID();
-  userId: number | null = null;
-  private token: string | null = null;
-  private authenticating = false;
   private polling = false;
   private busy = false;
   settings: Settings = { surface: "live", page: null, speak: true, voice: DEFAULT_VOICE };
@@ -58,11 +54,9 @@ class LiveSession {
   timers: NodeJS.Timeout[] = [];
   alive = true;
 
-  constructor(private ws: WebSocket) {
-    this.timers.push(setTimeout(() => { if (this.userId === null) this.close(4401, "Authentication timed out"); }, AUTH_TIMEOUT_MS));
+  constructor(private ws: WebSocket, private readonly userId: number, private readonly token: string) {
     ws.on("message", (raw, isBinary) => {
       if (this.ws.readyState !== WebSocket.OPEN) return;
-      if (this.userId === null && Buffer.byteLength(raw.toString()) > 8192) { this.close(4401, "Authenticate first"); return; }
       void this.onMessage(raw.toString(), isBinary).catch(() => this.close(1011, "Session failed"));
     });
     ws.on("pong", () => { this.alive = true; });
@@ -83,12 +77,9 @@ class LiveSession {
     for (const t of this.timers) clearTimeout(t);
     this.timers = [];
     this.turn?.controller.abort();
-    this.token = null;
-    if (this.userId !== null) {
-      const open = connections.get(this.userId);
-      open?.delete(this.ws);
-      if (open?.size === 0) connections.delete(this.userId);
-    }
+    const open = connections.get(this.userId);
+    open?.delete(this.ws);
+    if (open?.size === 0) connections.delete(this.userId);
   }
 
   async onMessage(raw: string, isBinary: boolean): Promise<void> {
@@ -97,13 +88,7 @@ class LiveSession {
     const parsed = ClientMessage.safeParse(json);
     if (!parsed.success) { this.send("error", { code: "bad_message", message: "Unrecognised message" }); return; }
     const msg = parsed.data;
-    if (this.userId === null) {
-      if (msg.type !== "auth") { this.close(4401, "Authenticate first"); return; }
-      await this.authenticate(msg.token);
-      return;
-    }
     switch (msg.type) {
-      case "auth": return;
       case "ping": this.send("pong", { at: new Date().toISOString() }); return;
       case "session.start":
         this.settings = {
@@ -129,18 +114,7 @@ class LiveSession {
     }
   }
 
-  async authenticate(token: string): Promise<void> {
-    if (this.authenticating) return;
-    this.authenticating = true;
-    const userId = await verifyActiveToken(token);
-    if (this.ws.readyState !== WebSocket.OPEN) return;
-    if (userId === null) { this.close(4401, "Unauthorized"); return; }
-    const open = connections.get(userId) ?? new Set<WebSocket>();
-    if (open.size >= MAX_CONNECTIONS_PER_USER) { this.close(4429, "Too many ASH Live sessions"); return; }
-    open.add(this.ws);
-    connections.set(userId, open);
-    this.userId = userId;
-    this.token = token;
+  async start(): Promise<void> {
     this.send("session.ready", {
       protocol: ASH_LIVE_PROTOCOL, sessionId: this.id, settings: this.settings,
       vocabulary: { states: AVATAR_STATES, emotions: EMOTIONS, gestures: GESTURES, voices: LIVE_VOICES },
@@ -159,7 +133,7 @@ class LiveSession {
   }
 
   async runTurn(turnId: string, input: { text?: string; audio?: Buffer; mimeType?: string }): Promise<void> {
-    const userId = this.userId!;
+    const userId = this.userId;
     if (this.busy) { this.send("error", { code: "turn_busy", message: "The previous turn is still finishing. Try again in a moment.", turnId }); return; }
     const now = Date.now();
     this.turnTimes = this.turnTimes.filter((t) => now - t < 60_000);
@@ -174,7 +148,7 @@ class LiveSession {
     this.state("thinking");
     this.send("avatar.cue", { turnId, emotion: "focused", gesture: "think" });
     try {
-      if (!this.token || await verifyActiveToken(this.token) !== userId) {
+      if (await verifyActiveToken(this.token) !== userId) {
         this.close(4401, "Unauthorized");
         return;
       }
@@ -212,7 +186,7 @@ class LiveSession {
   /** Speaks sentence by sentence, synthesizing the next chunk while the client plays the current one. */
   async speak(turn: Turn, spokenText: string, voice: string, signal: AbortSignal): Promise<void> {
     const chunks = splitSpeech(spokenText);
-    const synth = (text: string) => synthesizeSpeech({ text, voice, userId: this.userId!, signal });
+    const synth = (text: string) => synthesizeSpeech({ text, voice, userId: this.userId, signal });
     let next: Promise<Buffer> | null = synth(chunks[0]!);
     this.state("speaking");
     for (let seq = 0; seq < chunks.length; seq++) {
@@ -240,7 +214,7 @@ class LiveSession {
   }
 
   async pollProgress(initial: boolean): Promise<void> {
-    if (this.userId === null || !this.token || this.polling) return;
+    if (this.polling) return;
     this.polling = true;
     try {
       if (!initial && await verifyActiveToken(this.token) !== this.userId) {
@@ -270,24 +244,50 @@ class LiveSession {
 
 /** Adds the ASH Live WebSocket endpoint to the HTTP server. Returns a function that closes every session. */
 export function attachAshLive(server: Server, opts: { isAllowedOrigin: (origin: string) => boolean }): () => void {
-  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD });
-  const sessions = new Map<WebSocket, LiveSession>();
-  wss.on("connection", (ws) => {
-    sessions.set(ws, new LiveSession(ws));
-    ws.on("close", () => sessions.delete(ws));
+  const wss = new WebSocketServer({
+    noServer: true,
+    maxPayload: MAX_PAYLOAD,
+    handleProtocols: (offered) => offered.has(ASH_LIVE_SUBPROTOCOL) ? ASH_LIVE_SUBPROTOCOL : false,
   });
-  const onUpgrade = (req: IncomingMessage, socket: Duplex, head: Buffer) => {
-    const path = (req.url ?? "").split("?")[0];
-    if (path !== ASH_LIVE_PATH) { socket.destroy(); return; }
-    if (sessions.size >= MAX_CONNECTIONS) { socket.destroy(); return; }
+  const sessions = new Map<WebSocket, LiveSession>();
+  let shuttingDown = false;
+
+  function reject(socket: Duplex, status: string): void {
+    if (!socket.destroyed) socket.end(`HTTP/1.1 ${status}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+  }
+
+  async function authorizeUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): Promise<void> {
     const origin = req.headers.origin;
-    // Browsers send Origin; native clients (Unreal, desktop, mobile) don't and still need a valid token.
-    if (origin && !opts.isAllowedOrigin(origin)) {
-      socket.write("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
-      socket.destroy();
-      return;
-    }
-    wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
+    if (origin && !opts.isAllowedOrigin(origin)) { reject(socket, "403 Forbidden"); return; }
+    // Browsers cannot set Authorization on WebSocket; the credential is offered
+    // alongside the actual subprotocol, is never selected, and never goes in the URL.
+    const offered = (req.headers["sec-websocket-protocol"] ?? "").split(",").map((part) => part.trim());
+    const token = offered.find((part) => part.startsWith("auth."))?.slice(5);
+    if (!offered.includes(ASH_LIVE_SUBPROTOCOL) || !token || token.length > 4096) { reject(socket, "401 Unauthorized"); return; }
+    const userId = await verifyActiveToken(token);
+    if (socket.destroyed) return;
+    if (userId === null) { reject(socket, "401 Unauthorized"); return; }
+    if (shuttingDown || sessions.size >= MAX_CONNECTIONS) { reject(socket, "503 Service Unavailable"); return; }
+    const open = connections.get(userId) ?? new Set<WebSocket>();
+    if (open.size >= MAX_CONNECTIONS_PER_USER) { reject(socket, "429 Too Many Requests"); return; }
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      open.add(ws);
+      connections.set(userId, open);
+      const session = new LiveSession(ws, userId, token);
+      sessions.set(ws, session);
+      ws.on("close", () => sessions.delete(ws));
+      void session.start().catch(() => session.close(1011, "Session failed"));
+    });
+  }
+
+  const onUpgrade = (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+    if ((req.url ?? "").split("?")[0] !== ASH_LIVE_PATH) { socket.destroy(); return; }
+    const onError = () => socket.destroy();
+    socket.on("error", onError);
+    const timer = setTimeout(() => socket.destroy(), 5000);
+    void authorizeUpgrade(req, socket, head)
+      .catch(() => reject(socket, "503 Service Unavailable"))
+      .finally(() => { clearTimeout(timer); socket.off("error", onError); });
   };
   server.on("upgrade", onUpgrade);
   const heartbeat = setInterval(() => {
@@ -298,6 +298,7 @@ export function attachAshLive(server: Server, opts: { isAllowedOrigin: (origin: 
     }
   }, HEARTBEAT_MS);
   return () => {
+    shuttingDown = true;
     clearInterval(heartbeat);
     server.off("upgrade", onUpgrade);
     for (const session of sessions.values()) session.close(1001, "Server shutting down");

@@ -31,8 +31,8 @@ const tokenFor = (id: number) => jwt.sign({ sub: id, email: "", role: "USER", to
 const reply = (content: string, steps: unknown[] = []) => ({ content, clientCalls: [], steps, model: "test" });
 
 type Msg = { type: string; [k: string]: unknown };
-function client(headers: Record<string, string> = {}) {
-  const ws = new WebSocket(url, { headers });
+function client(token = tokenFor(ownerId)) {
+  const ws = new WebSocket(url, ['ash-live.v1', `auth.${token}`]);
   const got: Msg[] = [];
   const waiters: Array<() => void> = [];
   ws.on("message", (raw) => { got.push(JSON.parse(raw.toString())); waiters.splice(0).forEach((w) => w()); });
@@ -47,9 +47,9 @@ function client(headers: Record<string, string> = {}) {
   return { ws, got, next, send, closed, opened };
 }
 async function signedIn(id = ownerId) {
-  const c = client();
+  const c = client(tokenFor(id));
   await c.opened;
-  c.send({ type: "auth", token: tokenFor(id) });
+  expect(c.ws.protocol).toBe('ash-live.v1');
   await c.next((m) => m.type === "session.ready");
   return c;
 }
@@ -91,14 +91,9 @@ describe("ASH Live protocol helpers", () => {
 
 describe("ASH Live sessions", () => {
   it("requires a valid token before anything else", async () => {
-    const anon = client();
-    await anon.opened;
-    anon.send({ type: "user.text", text: "hello" });
-    expect((await anon.closed).code).toBe(4401);
-    const bad = client();
-    await bad.opened;
-    bad.send({ type: "auth", token: "not-a-token" });
-    expect((await bad.closed).code).toBe(4401);
+    const missing = new WebSocket(url);
+    await expect(new Promise((resolve, reject) => { missing.on("open", resolve); missing.on("error", reject); })).rejects.toThrow(/401/);
+    await expect(client("not-a-token").opened).rejects.toThrow(/401/);
     const foreign = new WebSocket(url, { headers: { Origin: "https://evil.example" } });
     await expect(new Promise((resolve, reject) => { foreign.on("open", resolve); foreign.on("error", reject); })).rejects.toThrow(/403/);
   });

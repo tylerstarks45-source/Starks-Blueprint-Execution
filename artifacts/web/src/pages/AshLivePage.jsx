@@ -5,10 +5,9 @@ import { Mic, MicOff, Square, Volume2, VolumeX, Radio, Wifi, WifiOff } from 'luc
 import AuthLayout from '@/components/AuthLayout.jsx';
 import AshAvatarStage from '@/components/ash/AshAvatarStage.jsx';
 import { AshTranscript, AshComposer, AshPushToTalk } from '@/components/ash/AshConversationParts.jsx';
-import { useAshConversation } from '@/contexts/AshConversationContext.jsx';
+import { ASH_VOICES, useAshConversation } from '@/contexts/AshConversationContext.jsx';
 import { Card, Badge, btn, btnPrimary, input } from '@/components/empire/ui.jsx';
 
-const VOICES = ['nova', 'shimmer', 'coral', 'sage', 'alloy', 'ash', 'echo', 'fable', 'onyx'];
 const TASK_TONE = { running: 'cyan', planning: 'cyan', completed: 'green', failed: 'rose', cancelled: 'slate', paused: 'slate', waiting_approval: 'amber', waiting_owner: 'amber' };
 
 export default function AshLivePage() {
@@ -43,7 +42,7 @@ export default function AshLivePage() {
             <Card title="Voice">
               <div className="space-y-3 text-sm">
                 <label className="flex items-center justify-between gap-2 text-white/70"><span className="flex items-center gap-2">{speak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />} ASH speaks</span><input type="checkbox" checked={speak} onChange={(e) => setSpeak(e.target.checked)} /></label>
-                <label className="block text-white/70">Voice<select className={`${input} mt-1`} value={voice} onChange={(e) => setVoice(e.target.value)}>{VOICES.map((v) => <option key={v} value={v}>{v}</option>)}</select></label>
+                <label className="block text-white/70">Voice<select className={`${input} mt-1`} value={voice} onChange={(e) => setVoice(e.target.value)}>{ASH_VOICES.map((v) => <option key={v} value={v}>{v}</option>)}</select></label>
                 <label className="block text-white/70">Mic sensitivity<input type="range" min="0" max="100" value={sensitivity} onChange={(e) => setSensitivity(Number(e.target.value))} className="w-full mt-1" /></label>
               </div>
             </Card>

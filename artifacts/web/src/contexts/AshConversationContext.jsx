@@ -15,6 +15,17 @@ const PREROLL_FRAMES = 20;
 const FRAME_MS = 20;
 const VOICE_WINDOW_FRAMES = 600 / FRAME_MS;
 const MIN_WINDOW_VOICE_MS = 260;
+export const ASH_VOICES = ['nova', 'shimmer', 'coral', 'sage', 'alloy', 'ash', 'echo', 'fable', 'onyx'];
+const voiceKey = (ownerId) => `ash_voice_${ownerId}`;
+
+function restoreVoice(ownerId) {
+  try {
+    const saved = ownerId && JSON.parse(localStorage.getItem(voiceKey(ownerId)));
+    return { speak: saved?.speak === true, voice: ASH_VOICES.includes(saved?.voice) ? saved.voice : 'nova' };
+  } catch {
+    return { speak: false, voice: 'nova' };
+  }
+}
 
 function canAttemptConnection(token) {
   if (!token) return false;
@@ -61,8 +72,9 @@ function AshSession({ ownerId, available, path, children }) {
   const [pendingText, setPendingText] = useState(null);
   const pendingTextRef = useRef(null);
   const queuedPrompt = useRef(null);
-  const [speak, setSpeak] = useState(false);
-  const [voice, setVoice] = useState('nova');
+  const [{ speak, voice }, setVoiceSettings] = useState(() => restoreVoice(ownerId));
+  const setSpeak = (value) => setVoiceSettings((settings) => ({ ...settings, speak: value }));
+  const setVoice = (value) => setVoiceSettings((settings) => ({ ...settings, voice: value }));
   const [handsFree, setHandsFree] = useState(false);
   const [recording, setRecording] = useState(false);
   const [sensitivity, setSensitivity] = useState(50);
@@ -87,6 +99,10 @@ function AshSession({ ownerId, available, path, children }) {
   settingsRef.current = { speak, voice, page: path, surface: path === '/ash-live' ? 'live' : 'web' };
 
   useEffect(() => saveLog(ownerId, log), [ownerId, log]);
+  useEffect(() => {
+    if (!ownerId) return;
+    try { localStorage.setItem(voiceKey(ownerId), JSON.stringify({ speak, voice })); } catch { /* Storage unavailable. */ }
+  }, [ownerId, speak, voice]);
   const add = useCallback((entry) => {
     const item = { id: crypto.randomUUID(), ...entry };
     setLog((log) => appendEntry(log, item));

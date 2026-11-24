@@ -131,6 +131,20 @@ describe("strategy reviews", () => {
     expect(await db.select().from(strategyReviewsTable).where(eq(strategyReviewsTable.missionId, deleted))).toHaveLength(0);
   });
 
+  it("can apply a review while another transaction holds a mission foreign-key lock", async () => {
+    const raceMission = await incomeMission(otherId, "completed");
+    reply.mockResolvedValueOnce(llm({ verdict: "no_data", summary: "No data yet.", adjustments: ["Build the welcome page"] }));
+    const proposed = await request(app).post(`/api/missions/${raceMission}/strategy-reviews`).set(as(otherId));
+    expect(proposed.body.review.status).toBe("proposed");
+    await db.transaction(async (tx) => {
+      await tx.select({ id: ashMissionsTable.id }).from(ashMissionsTable)
+        .where(eq(ashMissionsTable.id, raceMission)).for("key share");
+      const result = await request(app).post(`/api/strategy-reviews/${proposed.body.review.id}/apply`).set(as(otherId))
+        .timeout({ deadline: 2000 });
+      expect(result.body.status).toBe("applied");
+    });
+  });
+
   it("the scheduler reviews week-old income missions once", async () => {
     const old = await incomeMission(otherId, "running", new Date(Date.now() - 8 * 86_400_000));
     reply.mockResolvedValue(llm({ verdict: "no_data", summary: "Connect payments.", adjustments: [] }));

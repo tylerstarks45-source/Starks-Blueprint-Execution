@@ -137,7 +137,7 @@ export async function decideStrategyReview(userId: number, reviewId: number, act
     let added: string[] | null = null;
     if (action === "apply") {
       const [m] = await tx.select().from(ashMissionsTable)
-        .where(and(eq(ashMissionsTable.id, rev.missionId), eq(ashMissionsTable.userId, userId))).for("update");
+        .where(and(eq(ashMissionsTable.id, rev.missionId), eq(ashMissionsTable.userId, userId))).for("no key update");
       if (!m || m.status === "cancelled") return { error: "The mission was cancelled", status: 409 } as const;
       if (by === "ASH" && !(await appliesOnItsOwn(userId, m.businessId, tx))) return deferToOwner();
       // A step running now would write back its own copy of the steps and drop the new ones.

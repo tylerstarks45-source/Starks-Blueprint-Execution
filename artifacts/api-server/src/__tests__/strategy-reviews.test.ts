@@ -73,6 +73,9 @@ describe("strategy reviews", () => {
     expect(r.body).toMatchObject({ autoApplied: true, review: { status: "applied", adjustments: ["Email past leads"] } });
 
     await db.update(ashMissionsTable).set({ leaseUntil: new Date(Date.now() + 600_000) }).where(eq(ashMissionsTable.id, missionId));
+    reply.mockResolvedValueOnce(llm({ verdict: "behind", summary: "Behind.", adjustments: ["Change the welcome email"] }));
+    const older = await request(app).post(`/api/missions/${missionId}/strategy-reviews`).set(as(ownerId));
+    expect(older.body.review.status).toBe("queued");
     reply.mockResolvedValueOnce(llm({ verdict: "behind", summary: "Behind.", adjustments: ["Post a launch thread"] }));
     const busy = await request(app).post(`/api/missions/${missionId}/strategy-reviews`).set(as(ownerId));
     expect(busy.body).toMatchObject({ autoApplied: false, review: { status: "queued" } });
@@ -81,6 +84,9 @@ describe("strategy reviews", () => {
     await db.update(ashMissionsTable).set({ leaseUntil: null }).where(eq(ashMissionsTable.id, missionId));
     await applyHeldReviews();
     expect((await db.select().from(strategyReviewsTable).where(eq(strategyReviewsTable.id, busy.body.review.id)))[0]!.status).toBe("applied");
+    expect((await db.select().from(strategyReviewsTable).where(eq(strategyReviewsTable.id, older.body.review.id)))[0]!.status).toBe("superseded");
+    const [mission] = await db.select().from(ashMissionsTable).where(eq(ashMissionsTable.id, missionId));
+    expect(mission!.steps.map((s) => s.title)).not.toContain("Change the welcome email");
 
     await db.update(ashControlSettingsTable).set({ approvalRequired: ["build"] }).where(eq(ashControlSettingsTable.userId, ownerId));
     reply.mockResolvedValueOnce(llm({ verdict: "behind", summary: "Behind.", adjustments: ["Run a referral offer"] }));

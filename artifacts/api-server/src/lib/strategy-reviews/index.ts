@@ -73,16 +73,23 @@ export async function reviewMission(userId: number, missionId: number): Promise<
   const adjustments = [...new Set(out.adjustments.map((a) => a.trim().slice(0, 300)))]
     .filter((a) => !pending.has(a.toLowerCase())).slice(0, MAX_ADJUSTMENTS);
   const autoApply = adjustments.length > 0 && await appliesOnItsOwn(userId, d.mission.businessId);
-  const [review] = await db.insert(strategyReviewsTable).values({
-    userId, missionId, businessId: d.mission.businessId, metrics, adjustments,
-    status: autoApply ? "queued" : "proposed",
-    verdict: r.revenueTracked ? out.verdict : "no_data", summary: out.summary.trim().slice(0, 2000),
-  }).returning();
+  const review = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('strategy_reviews'), ${missionId}::int)`);
+    // Only the latest review can auto-apply; the dashboard only shows the latest review.
+    await tx.update(strategyReviewsTable).set({ status: "superseded", decidedAt: new Date() })
+      .where(and(eq(strategyReviewsTable.missionId, missionId), eq(strategyReviewsTable.userId, userId), eq(strategyReviewsTable.status, "queued")));
+    const [saved] = await tx.insert(strategyReviewsTable).values({
+      userId, missionId, businessId: d.mission.businessId, metrics, adjustments,
+      status: autoApply ? "queued" : "proposed", createdAt: sql`clock_timestamp()`,
+      verdict: r.revenueTracked ? out.verdict : "no_data", summary: out.summary.trim().slice(0, 2000),
+    }).returning();
+    return saved!;
+  });
   if (autoApply) {
-    const applied = await decideStrategyReview(userId, review!.id, "apply", "ASH");
+    const applied = await decideStrategyReview(userId, review.id, "apply", "ASH");
     if ("review" in applied) return { review: applied.review, autoApplied: applied.review.status === "applied" };
   }
-  return { review: review!, autoApplied: false } as const;
+  return { review, autoApplied: false };
 }
 
 // Operator/Autopilot apply reviews on their own, unless the owner's settings require approval for building.

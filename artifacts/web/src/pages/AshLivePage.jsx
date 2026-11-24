@@ -333,7 +333,8 @@ export default function AshLivePage() {
         let frames = null;
         let elapsedMs = 0;
         let quietMs = 0;
-        let voicedMs = 0;
+        let sustainedVoiceMs = 0;
+        let confirmed = false;
         let meterFrames = 0;
         worklet.port.onmessage = ({ data: { pcm, rms } }) => {
           if (cancelled) return;
@@ -341,7 +342,8 @@ export default function AshLivePage() {
           const audible = rms > 0.06 - (sensRef.current / 100) * 0.05;
           if (!frames && audible) {
             frames = [...preRoll];
-            elapsedMs = quietMs = voicedMs = 0;
+            elapsedMs = quietMs = sustainedVoiceMs = 0;
+            confirmed = false;
             setRecording(true);
           }
           preRoll.push(pcm);
@@ -350,12 +352,13 @@ export default function AshLivePage() {
           frames.push(pcm);
           elapsedMs += FRAME_MS;
           quietMs = audible ? 0 : quietMs + FRAME_MS;
-          if (audible) {
-            voicedMs += FRAME_MS;
-            if (voicedMs === 120) interrupt();
+          sustainedVoiceMs = audible ? sustainedVoiceMs + FRAME_MS : 0;
+          if (!confirmed && sustainedVoiceMs >= 120) {
+            confirmed = true;
+            interrupt();
           }
           if (quietMs >= SILENCE_MS || elapsedMs >= maxUtteranceMs) {
-            if (voicedMs >= 120 && elapsedMs - quietMs >= MIN_SPEECH_MS) sendRecording(wavAudio(frames, sampleRate));
+            if (confirmed && elapsedMs - quietMs >= MIN_SPEECH_MS) sendRecording(wavAudio(frames, sampleRate));
             frames = null;
             preRoll.length = 0;
             setRecording(false);

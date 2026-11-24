@@ -17,7 +17,7 @@ function Portrait({ state, emotion, gesture }) {
 }
 
 export default function ASHAssistantPanel() {
-  const { enabled, enable, openDock, status, log, speak, setSpeak, avatar } = useAshConversation();
+  const { enabled, enable, openDock, status, log, speak, setSpeak, avatar, error, retry } = useAshConversation();
   const lastReply = log.findLast((entry) => entry.role === 'ash');
   return (
     <section aria-label="Dashboard ASH" className="flex h-full min-w-0 flex-col gap-3 overflow-y-auto">
@@ -27,7 +27,9 @@ export default function ASHAssistantPanel() {
       </div>
       <AshAvatarStage renderer={Portrait} />
       <p className="text-center text-xs text-white/50">Character preview · Unreal integration pending</p>
-      {lastReply && <p className="line-clamp-4 rounded-lg bg-cyan-400/5 p-2 text-xs text-white/80" aria-live="polite">{lastReply.text}</p>}
+      {error ? <p className="rounded-lg bg-rose-400/10 p-2 text-xs text-rose-200" role="alert">{error}</p>
+        : lastReply && <p className="line-clamp-4 rounded-lg bg-cyan-400/5 p-2 text-xs text-white/80" aria-live="polite">{lastReply.text}</p>}
+      {status === 'disconnected' && <button type="button" className={btn} onClick={retry}>Retry connection</button>}
       {enabled ? (
         <>
           <div className="flex flex-wrap items-center gap-2">

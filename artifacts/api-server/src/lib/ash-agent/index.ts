@@ -4,14 +4,14 @@
 import { complete, type ChatMessage } from "../openrouter";
 import { logger } from "../logger";
 import { OutOfCreditsError } from "../credits";
-import { ASH_TOOLS, ALL_TOOL_DEFS, getTool, checkToolArgs } from "./tools";
+import { ASH_TOOLS, ALL_TOOL_DEFS, getTool, checkToolArgs, editableMemoryFilter } from "./tools";
 import { decide, toolActionKind } from "../ash-control/policy";
 import { integrationActionKind } from "../custom-integrations";
 import { isTeamMemberPaused, recordTeamActivity } from "../ventures";
 import { launchActionKind } from "../launch";
 import { createPendingApproval } from "../approvals";
 import { ownedBusinessIds } from "../empire/assets";
-import { db, usersTable, ashMissionsTable } from "@workspace/db";
+import { db, usersTable, ashMissionsTable, userMemoryTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { chainForAgentMode, resolveAgentMode } from "../models";
 import { isFounderAdmin } from "../auth";
@@ -54,7 +54,7 @@ function describeCall(tool: string, args: Record<string, unknown>): string {
 }
 
 /** Applies the owner's ASH Control settings to one tool call. */
-async function gate(userId: number, control: AgentControl, spec: { name: string; kind: string }, args: Record<string, unknown>):
+async function gate(userId: number, control: AgentControl, spec: { name: string; kind: string }, args: Record<string, unknown>, signal?: AbortSignal):
   Promise<{ allowed: true } | { allowed: false; result: unknown; step: AgentStep }> {
   const kind = spec.name === "run_integration_action" ? await integrationActionKind(userId, args)
     : spec.name === "launch" ? launchActionKind(args) : toolActionKind(spec.name);
@@ -69,16 +69,26 @@ async function gate(userId: number, control: AgentControl, spec: { name: string;
   const candidate = argBiz ?? control.businessId ?? null;
   const businessId = candidate != null && (await ownedBusinessIds(userId, [candidate])).has(candidate) ? candidate : null;
   const d = await decide({ userId, businessId, kind, interactive: control.interactive, clientTool: spec.kind === "client", costUnknown: spec.name === "run_integration_action" });
+  signal?.throwIfAborted();
   if (d.decision === "allow") return { allowed: true };
   if (d.decision === "block") {
     return { allowed: false, result: { status: "not_allowed", reason: d.reason, note: "Describe what you would do instead, or ask the owner to change ASH Control." }, step: { tool: spec.name, ok: false } };
   }
+  let title = describeCall(spec.name, args);
+  if (spec.name === "forget_memory" || (spec.name === "remember" && args.memoryId != null)) {
+    const id = Number(args.memoryId);
+    const [memory] = await db.select({ topic: userMemoryTable.memoryKey }).from(userMemoryTable).where(editableMemoryFilter(userId, id));
+    if (!memory) return { allowed: false, result: { error: "Memory not found" }, step: { tool: spec.name, ok: false } };
+    const topic = memory.topic.replace(/^(auto|ash):[^:]+:/, "").replace(/_/g, " ").slice(0, 80);
+    title = `${spec.name === "forget_memory" ? "Forget" : "Correct"} memory #${id}: ${topic}`;
+  }
+  signal?.throwIfAborted();
   const approval = await createPendingApproval({
     businessId,
     userId,
     category: "ashAction",
     riskLevel: kind === "spend" || kind === "delete" || kind === "legal" ? "high" : "low",
-    title: describeCall(spec.name, args),
+    title,
     description: d.reason,
     payload: { action: "ash_tool", tool: spec.name, args, ...(control.missionId != null ? { missionId: control.missionId } : {}) },
   });
@@ -116,6 +126,7 @@ export async function runAshAgent(opts: {
   /** Restrict the agent to these tools (used for specialists). */
   toolNames?: readonly string[];
   control?: AgentControl;
+  signal?: AbortSignal;
 }): Promise<AgentResult> {
   const maxSteps = opts.maxSteps ?? 6;
   const control: AgentControl = opts.control ?? { interactive: true };
@@ -126,9 +137,11 @@ export async function runAshAgent(opts: {
   const steps: AgentStep[] = [];
 
   for (let round = 0; ; round++) {
+    opts.signal?.throwIfAborted();
     // Last round: no tools, so the model must answer with what it has.
     const tools = round < maxSteps && toolset.length ? toolset : undefined;
-    const result = await complete({ systemPrompt: opts.systemPrompt, messages, tools, models: opts.models, userId: opts.userId });
+    const result = await complete({ systemPrompt: opts.systemPrompt, messages, tools, models: opts.models, userId: opts.userId, signal: opts.signal });
+    opts.signal?.throwIfAborted();
     const calls = result.toolCalls ?? [];
     if (calls.length === 0) {
       return { content: result.content, clientCalls, steps, model: result.model };
@@ -136,6 +149,7 @@ export async function runAshAgent(opts: {
 
     messages.push({ role: "assistant", content: result.content || null, tool_calls: calls });
     for (const call of calls) {
+      opts.signal?.throwIfAborted();
       const spec = allowed && !allowed.has(call.function.name) ? undefined : getTool(call.function.name);
       let args: Record<string, unknown>;
       try {
@@ -161,7 +175,8 @@ export async function runAshAgent(opts: {
           continue;
         }
         args = checked.args;
-        const g = await gate(opts.userId, control, spec, args);
+        const g = await gate(opts.userId, control, spec, args, opts.signal);
+        opts.signal?.throwIfAborted();
         if (!g.allowed) {
           messages.push({ role: "tool", tool_call_id: call.id, content: toResult(g.result) });
           steps.push(g.step);
@@ -198,13 +213,14 @@ export async function runAshAgent(opts: {
             maxSteps: SPECIALIST_MAX_STEPS,
             toolNames: specialist.tools,
             control,
+            signal: opts.signal,
           });
           messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ specialist: specialist.title, report: report.content }) });
           if (teamBiz != null) await recordTeamActivity(opts.userId, teamBiz, key, String(checked.args["task"])).catch(() => undefined);
           // The specialist's own calls (failures, queued approvals) count toward this turn.
           steps.push(...report.steps.map((s) => ({ ...s, specialist: s.specialist ?? key })), { tool: spec.name, ok: true, specialist: key });
         } catch (err) {
-          if (err instanceof OutOfCreditsError) throw err;
+          if (opts.signal?.aborted || err instanceof OutOfCreditsError) throw err;
           logger.warn({ specialist: key, err: err instanceof Error ? err.message : String(err) }, "ASH specialist failed");
           messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: "Specialist unavailable" }) });
           steps.push({ tool: spec.name, ok: false, specialist: key });
@@ -219,7 +235,8 @@ export async function runAshAgent(opts: {
           continue;
         }
         args = checked.args;
-        const g = await gate(opts.userId, control, spec, args);
+        const g = await gate(opts.userId, control, spec, args, opts.signal);
+        opts.signal?.throwIfAborted();
         if (!g.allowed) {
           messages.push({ role: "tool", tool_call_id: call.id, content: toResult(g.result) });
           steps.push(g.step);
@@ -229,6 +246,7 @@ export async function runAshAgent(opts: {
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult(value) });
         steps.push({ tool: spec.name, ok: !isErrorResult(value), args: JSON.stringify(args), ...(spec.name === "request_owner_action" ? { note: String(args["message"] ?? "") } : {}) });
       } catch (err) {
+        if (opts.signal?.aborted) throw err;
         logger.warn({ tool: spec.name, err: err instanceof Error ? err.message : String(err) }, "ASH tool failed");
         messages.push({ role: "tool", tool_call_id: call.id, content: toResult({ error: "Tool failed" }) });
         steps.push({ tool: spec.name, ok: false, args: JSON.stringify(args) });
@@ -255,6 +273,7 @@ export async function runAshTurn(opts: {
   mode?: string;
   systemPrompt?: string;
   toolNames?: readonly string[];
+  signal?: AbortSignal;
 }): Promise<AgentResult> {
   // Higher modes use the flagship model, so gate them like /ai-orchestrator/chat.
   const [caller] = await db
@@ -268,6 +287,7 @@ export async function runAshTurn(opts: {
     systemPrompt: opts.systemPrompt ?? ASH_AGENT_PROMPT,
     messages: [...opts.history, { role: "user", content: opts.message }],
     models: chainForAgentMode(mode),
+    signal: opts.signal,
     ...(opts.toolNames ? { toolNames: opts.toolNames } : {}),
   });
   return { ...result, steps: result.steps.map(({ args: _args, ...step }) => step) };

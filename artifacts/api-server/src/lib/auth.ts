@@ -123,6 +123,24 @@ export async function requireAuthActive(req: Request, res: Response): Promise<nu
   return id;
 }
 
+/** Verifies a raw JWT the way requireAuthActive does (signature, active account, token version), for non-HTTP transports. */
+export async function verifyActiveToken(token: string): Promise<number | null> {
+  let payload: import("jsonwebtoken").JwtPayload;
+  try {
+    payload = jwt.verify(token, JWT_SECRET) as import("jsonwebtoken").JwtPayload;
+  } catch {
+    return null;
+  }
+  const id = Number(payload.sub);
+  if (!Number.isSafeInteger(id) || id < 1 || id > 2147483647) return null;
+  const [user] = await db
+    .select({ active: usersTable.active, tokenVersion: usersTable.tokenVersion })
+    .from(usersTable)
+    .where(eq(usersTable.id, id));
+  if (!user || user.active === false) return null;
+  return Number(payload["tokenVersion"] ?? 1) === (user.tokenVersion ?? 1) ? id : null;
+}
+
 // Async version of getTokenPayload that also verifies users.active.
 // Sends its own 401/403 response and returns null on failure — callers just `if (!caller) return;`.
 // Also accepts API key callers from apiKeyMiddleware (does a minimal DB lookup for email+role).

@@ -6,6 +6,9 @@ import { eq } from "drizzle-orm";
 import { db, businessesTable } from "@workspace/db";
 import { requireAuthActive } from "../lib/auth";
 import { runAshTurn } from "../lib/ash-agent";
+import { buildAshSystemPrompt } from "../lib/ash-agent/context";
+import { recordUserMessage } from "../lib/ash-agent/persona";
+import { toSpokenText } from "../lib/ash-live/protocol";
 import { synthesizeSpeech } from "../lib/openrouter-media";
 import { assembleCrossBusinessSummary } from "../lib/business-intelligence/context";
 import { OutOfCreditsError, DailyAiLimitError } from "../lib/credits";
@@ -14,20 +17,8 @@ const router: IRouter = Router();
 
 export const COMMAND_CENTER_PROTOCOL = 1;
 const VOICES = ["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"] as const;
-const MAX_SPOKEN_CHARS = 4000;
 
-/** Plain text for TTS: drop markdown so the voice doesn't read symbols aloud. */
-export function toSpokenText(markdown: string): string {
-  return markdown
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/[*_`#>|~]+/g, "")
-    .replace(/^\s*[-+]\s+/gm, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MAX_SPOKEN_CHARS);
-}
+export { toSpokenText };
 
 // ─── GET /api/command-center/context — scene snapshot ────────────────────────
 router.get("/command-center/context", async (req, res): Promise<void> => {
@@ -63,7 +54,9 @@ router.post("/command-center/turn", async (req, res): Promise<void> => {
   const { message, history, mode, speak, voice } = parsed.data;
 
   try {
-    const result = await runAshTurn({ userId, message, history, mode });
+    const systemPrompt = await buildAshSystemPrompt({ userId, message, surface: "command_center" });
+    const result = await runAshTurn({ userId, message, history, mode, systemPrompt });
+    recordUserMessage(userId, message).catch(() => {});
     let speech: { audioBase64: string; mimeType: string; voice: string } | null = null;
     let speechError: string | null = null;
     const spoken = toSpokenText(result.content);

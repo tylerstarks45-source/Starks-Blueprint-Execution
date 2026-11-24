@@ -1,4 +1,5 @@
-import app from "./app";
+import app, { isAllowedOrigin } from "./app";
+import { attachAshLive } from "./lib/ash-live/server";
 import { logger } from "./lib/logger";
 import { db, platformSettingsTable, encryptionKeyRotationsTable } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
@@ -101,6 +102,9 @@ async function start() {
 backfillBuiltBusinesses().catch((err: unknown) => logger.error({ err }, "backfillBuiltBusinesses failed at startup — some imported businesses may be missing health scores"));
   });
 
+  // ASH Live realtime sessions (web simulator, Unreal, desktop, mobile) at /api/ash-live.
+  const closeAshLive = attachAshLive(server, { isAllowedOrigin });
+
   // Graceful shutdown: stop accepting requests, let the background tick in
   // progress finish (so nothing is left half-done, e.g. a post stuck in
   // "publishing"), then close the DB pool. Forced exit after 25s.
@@ -113,6 +117,7 @@ backfillBuiltBusinesses().catch((err: unknown) => logger.error({ err }, "backfil
       logger.error("Shutdown timed out — forcing exit");
       process.exit(1);
     }, 25_000).unref();
+    closeAshLive();
     const httpClosed = new Promise<void>((resolve) => server.close(() => resolve()));
     Promise.all([httpClosed, stopWorker(), stopScheduler(), stopRevenueSync(), stopMissionRunner()])
       .then(() => pool.end())

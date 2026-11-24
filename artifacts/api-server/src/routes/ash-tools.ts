@@ -1,5 +1,6 @@
-import { runAshTurn, ASH_AGENT_PROMPT } from "../lib/ash-agent";
-import { loadStyleProfile, personaNote, recordUserMessage } from "../lib/ash-agent/persona";
+import { runAshTurn } from "../lib/ash-agent";
+import { recordUserMessage } from "../lib/ash-agent/persona";
+import { buildAshSystemPrompt } from "../lib/ash-agent/context";
 import { ASH_TOOLS, getTool } from "../lib/ash-agent/tools";
 
 // The global dock can only run navigation; workspace actions need the Builder.
@@ -719,13 +720,12 @@ router.post("/ai-orchestrator/agent", async (req, res): Promise<void> => {
 
   try {
     const { message, history, mode, page, surface } = parsed.data;
-    const style = await loadStyleProfile(userId).catch(() => null);
     const result = await runAshTurn({
       userId,
       message,
       history,
       mode,
-      systemPrompt: ASH_AGENT_PROMPT + personaNote(style) + (page ? `\n\nThe user is currently on the ${page} page of the platform.` : "") + (surface === "dock" ? DOCK_NOTE : ""),
+      systemPrompt: await buildAshSystemPrompt({ userId, message, surface: surface ?? "web", page: page ?? null, extra: surface === "dock" ? DOCK_NOTE : "" }),
       ...(surface === "dock" ? { toolNames: DOCK_TOOLS } : {}),
     });
     recordUserMessage(userId, message).catch((err) =>

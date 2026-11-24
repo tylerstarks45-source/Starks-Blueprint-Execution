@@ -4,8 +4,8 @@
 // model. Every server tool is scoped to the calling user. "client" tools are
 // the existing workspace actions the web app already executes from
 // SBEP_DATA {"action":"tool_calls"} blocks; the loop forwards them unchanged.
-import { db, businessesTable, SOCIAL_PLATFORMS } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, businessesTable, userMemoryTable, SOCIAL_PLATFORMS } from "@workspace/db";
+import { and, eq, isNull, ne } from "drizzle-orm";
 import type { ToolDefinition } from "../openrouter";
 import { complete } from "../openrouter";
 import { chainFor } from "../models";
@@ -24,6 +24,8 @@ import { getVenture } from "../ventures";
 import { reviewMission } from "../strategy-reviews";
 import { LAUNCH_ACTIONS, LAUNCH_CONNECTORS, launchOptions, runLaunchAction } from "../launch";
 import { getEffectiveControl } from "../ash-control/policy";
+import { getRelevantLongTermMemory, longTermMemoryKey, upsertLongTermMemory, withLongTermMemoryWriteLock } from "../memory-engine/long-term-memory";
+import { ASH_STYLE_KEY } from "./persona";
 
 // Pages ASH can send the user to (the web app's authenticated routes).
 const APP_PAGES = [
@@ -31,7 +33,7 @@ const APP_PAGES = [
   "/memory", "/media", "/library", "/analytics", "/logs", "/email-marketing", "/landing-pages", "/domains",
   "/affiliate-links", "/connections", "/social-accounts", "/social", "/clients", "/credits", "/refer", "/settings",
   "/marketplace", "/blueprints", "/empire", "/income-streams", "/asset-vault", "/business-types", "/research-lab",
-  "/ash-guide", "/business-import", "/missions", "/approvals", "/ash-control",
+  "/ash-guide", "/business-import", "/ash-live", "/missions", "/approvals", "/ash-control",
 ] as const;
 
 type Args = Record<string, unknown>;
@@ -58,6 +60,8 @@ const obj = (properties: Record<string, JsonSchema>, required: string[] = []): J
 });
 const str = (description: string): JsonSchema => ({ type: "string", description });
 const int = (description: string): JsonSchema => ({ type: "integer", description });
+export const editableMemoryFilter = (userId: number, id: number) =>
+  and(eq(userMemoryTable.id, id), eq(userMemoryTable.userId, userId), ne(userMemoryTable.memoryKey, ASH_STYLE_KEY));
 
 const SPECS: ToolSpec[] = [
   {
@@ -311,6 +315,64 @@ const SPECS: ToolSpec[] = [
     })),
   },
   {
+    name: "remember",
+    description: "Save a new fact or update an existing one only when the user asks. For corrections, call recall_memory first and pass the matching memory ID to update it in place. If the match is unclear, ask which item they meant. Never store credentials or payment details.",
+    parameters: obj({ topic: str("Short stable label, e.g. Answer style. For a correction, reuse the label if neutral, or replace it if it contains the old fact"), fact: str("What to remember, in one or two sentences"), memoryId: int("Existing memory ID to correct") }, ["topic", "fact"]),
+    kind: "server",
+    run: async (userId, a) => {
+      const topic = String(a["topic"] ?? "").trim().slice(0, 60);
+      const fact = String(a["fact"] ?? "").trim().slice(0, 1000);
+      if (!fact) return { error: "Give the fact to remember" };
+      if (a["memoryId"] != null) return withLongTermMemoryWriteLock(userId, async (tx) => {
+        const id = Number(a["memoryId"]);
+        const filter = editableMemoryFilter(userId, id);
+        const [existing] = await tx.select({ key: userMemoryTable.memoryKey, category: userMemoryTable.category })
+          .from(userMemoryTable).where(filter);
+        if (!existing) return { error: "Memory not found" };
+        let key = `ash:corrected:${topic || `Memory #${id}`}`;
+        if (existing.category === "user_stated") {
+          if (!topic) return { error: "Give a topic for the corrected memory" };
+          key = longTermMemoryKey("user_stated", topic);
+          if (key !== existing.key) {
+            const [duplicate] = await tx.select({ id: userMemoryTable.id }).from(userMemoryTable).where(and(
+              eq(userMemoryTable.userId, userId), eq(userMemoryTable.memoryKey, key), isNull(userMemoryTable.systemInstanceId),
+            )).limit(1);
+            if (duplicate) return { error: "That topic already belongs to another memory. Choose a different topic or correct that memory instead." };
+          }
+        }
+        const updated = await tx.update(userMemoryTable)
+          .set({ memoryKey: key, memoryValue: fact, confidenceScore: 100, lastAccessedAt: new Date() })
+          .where(filter)
+          .returning({ id: userMemoryTable.id });
+        return updated.length ? { remembered: true, corrected: true } : { error: "Memory not found" };
+      });
+      if (!topic) return { error: "Give a topic for the new memory" };
+      await upsertLongTermMemory({ userId, category: "user_stated", title: topic, content: fact, tags: ["remembered"], importanceScore: 80, confidenceScore: 100 });
+      return { remembered: true, note: "Saved. The user can review or delete it on /memory." };
+    },
+  },
+  {
+    name: "recall_memory",
+    description: "Search what you remember about this user. Returns memory IDs you can pass to remember for corrections or to forget_memory for deletion.",
+    parameters: obj({ query: str("What to look for") }, ["query"]),
+    kind: "server",
+    run: async (userId, a) => (await getRelevantLongTermMemory({ userId, message: String(a["query"] ?? ""), limit: 9 }))
+      .filter((m) => m.memoryKey !== ASH_STYLE_KEY).slice(0, 8)
+      .map((m) => ({ id: m.id, topic: m.memoryKey.replace(/^(auto|ash):[^:]+:/, "").replace(/_/g, " "), fact: m.memoryValue.slice(0, 400) })),
+  },
+  {
+    name: "forget_memory",
+    description: "Delete one of the user's memories when they ask you to forget it. Get the id from recall_memory first.",
+    parameters: obj({ memoryId: int("Memory id") }, ["memoryId"]),
+    kind: "server",
+    run: async (userId, a) => {
+      const deleted = await db.delete(userMemoryTable)
+        .where(editableMemoryFilter(userId, Number(a["memoryId"])))
+        .returning({ id: userMemoryTable.id });
+      return deleted.length ? { forgotten: true } : { error: "Memory not found" };
+    },
+  },
+  {
     name: "request_owner_action",
     description: "Pause this mission until the owner does something only they can do (log in, pay, verify identity, accept terms, provide an API key). Say exactly what they need to do.",
     parameters: obj({ message: str("What the owner needs to do, and why") }, ["message"]),
@@ -430,7 +492,7 @@ export const ALL_TOOL_DEFS: ToolDefinition[] = SPECS.map(toDef);
 
 // Background missions can't run workspace (client) tools or start more missions.
 export const MISSION_TOOL_NAMES: readonly string[] = SPECS
-  .filter((s) => s.kind !== "client" && s.name !== "start_mission")
+  .filter((s) => s.kind !== "client" && !["start_mission", "remember", "forget_memory"].includes(s.name))
   .map((s) => s.name);
 
 export function getTool(name: string): ToolSpec | undefined {

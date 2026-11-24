@@ -57,16 +57,16 @@ if (process.env["NODE_ENV"] !== "production") {
   }
 }
 
+/** Same browser-origin allowlist as CORS; used by the ASH Live WebSocket upgrade too. */
+export function isAllowedOrigin(origin: string): boolean {
+  return origin.endsWith(".replit.dev") || origin.endsWith(".repl.co") || origin.endsWith(".replit.app") || _explicitOrigins.has(origin);
+}
+
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true); // non-browser / server-to-server
-      if (
-        origin.endsWith(".replit.dev") ||
-        origin.endsWith(".repl.co") ||
-        origin.endsWith(".replit.app") ||
-        _explicitOrigins.has(origin)
-      ) {
+      if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
       logger.warn({ origin }, "CORS: rejected unlisted origin");

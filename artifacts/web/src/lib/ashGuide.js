@@ -13,6 +13,15 @@ export const GUIDE_SECTIONS = [
     examples: ['What should I focus on today?', 'Summarize how my businesses are doing'],
   },
   {
+    id: 'live',
+    title: 'ASH Live: real-time voice',
+    where: 'ASH Live',
+    summary: 'Talk to ASH out loud like a phone call. Use push-to-talk, or turn on hands-free and just speak. She answers in her voice sentence by sentence, and you can cut in at any time: start talking or press Stop and she stops right away. Background missions update live while you talk. The 3D character and future ASH devices use this same connection.',
+    tips: ['Allow the microphone when your browser asks', 'Lower the mic sensitivity if background noise keeps cutting ASH off', 'Turn off "ASH speaks" to read her replies instead'],
+    examples: ['What are you working on right now?', 'Remember that I prefer short answers', 'What do you remember about my goals?'],
+    link: { to: '/ash-live', label: 'ASH Live' },
+  },
+  {
     id: 'empire',
     title: 'Your empire: businesses, income streams and assets',
     where: 'Empire Command Center, Income Streams, Asset Vault, Business Types',
@@ -106,8 +115,8 @@ export const GUIDE_SECTIONS = [
     title: 'Memory',
     where: 'Memory page or Builder Memory tab',
     summary: 'ASH remembers your preferences, goals and decisions and uses them in every answer. You can add, edit or delete memories yourself.',
-    tips: ['Tell her "remember that..." to save something'],
-    examples: ['Remember that I prefer short, direct answers'],
+    tips: ['Tell her "remember that..." to save something', 'Ask "what do you remember about..." to check', 'Say "forget that..." and she deletes it (your ASH Control rules for deleting apply)'],
+    examples: ['Remember that I prefer short, direct answers', 'What do you remember about my goals?'],
     link: { to: '/memory', label: 'Memory' },
   },
   {

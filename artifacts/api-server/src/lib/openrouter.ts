@@ -38,6 +38,7 @@ interface CompletionRequest {
   userId?: number;
   systemInstanceId?: number;
   imageBase64?: string;
+  signal?: AbortSignal;
 }
 
 interface CompletionResult {
@@ -229,6 +230,7 @@ export async function complete(request: CompletionRequest): Promise<CompletionRe
         "HTTP-Referer": process.env.APP_URL ?? "https://sbep.replit.app",
         "X-Title": "SBEP - Starks Blueprint Execution Platform",
       },
+      signal: request.signal,
       body: JSON.stringify({
         model,
         ...(chain ? { models: chain } : {}),

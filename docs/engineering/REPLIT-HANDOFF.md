@@ -18,7 +18,7 @@ Where to find things: section 1 maps every feature to its files; section 5 lists
 
 ## 1. What is in `main`
 
-Everything from the GitHub work is merged into `main` in this order: integration branch (#29, which contains #1 and #4–#28), Empire structure (#30), ASH Control and Missions (#31), and launch completion (#32: refunds, payouts, abuse limits, alerts). Highlights:
+The earlier GitHub launch work was merged into `main` in this order: integration branch (#29, which contains #1 and #4–#28), Empire structure (#30), ASH Control and Missions (#31), and launch completion (#32: refunds, payouts, abuse limits, alerts). Highlights:
 
 | Area | Where |
 | --- | --- |
@@ -78,6 +78,8 @@ pnpm --filter @workspace/web run dev                   # web app
 After deploy, check: `GET /api/healthz` and `/api/readyz` return 200; sign-up and log-in work; the ASH dock answers on any page; `/empire`, `/missions`, `/approvals`, `/ash-control`, `/creator-payouts` load; a Stripe test-mode checkout grants the plan, and a test refund moves the user back to free.
 
 If browsers get `Origin not allowed`, add the site origin to `ALLOWED_ORIGINS` (comma-separated).
+
+**After the ASH Live branch is merged:** This feature adds no schema changes or new secrets. Keep the existing database and follow the backup and additive migration order above for any prerequisite branches. The web simulator connects to its own host at `/api/ash-live`; configure the same ingress that serves `/api` to pass WebSocket upgrades to the API server, and verify an HTTPS/WSS handshake on staging. The existing `ALLOWED_ORIGINS` list applies. Check that the simulator connects, answers a text turn, and stops playback when the user interrupts. See [ASH Live protocol](ASH-LIVE-PROTOCOL.md) and [voice evaluation](ASH-VOICE-PROVIDERS.md).
 
 Optional tuning variables: `API_RATE_LIMIT_PER_MINUTE` (600), `PUBLIC_FORM_RATE_LIMIT_PER_MINUTE` (30), `AI_RATE_LIMIT_PER_MINUTE` (20), `CREATOR_PAYOUT_HOLD_DAYS` (14), `CREATOR_MIN_PAYOUT_CENTS` (1000).
 

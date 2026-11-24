@@ -29,11 +29,12 @@ async function assertCanSpend(userId: number | undefined): Promise<void> {
   await assertCanSpendAi(userId);
 }
 
-async function post(path: string, body: unknown): Promise<Response> {
+async function post(path: string, body: unknown, signal?: AbortSignal): Promise<Response> {
   const apiKey = process.env["OPENROUTER_API_KEY"];
   if (!apiKey) throw new Error("OPENROUTER_API_KEY environment variable is not set");
   const response = await fetch(`${OPENROUTER_BASE_URL}${path}`, {
     method: "POST",
+    signal,
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
@@ -112,14 +113,14 @@ export function audioFormatFor(mimeType: string | undefined, audio?: Buffer): st
   return "m4a";
 }
 
-export function transcribeAudio(opts: { audio: Buffer; format: string; userId?: number; language?: string }): Promise<string> {
+export function transcribeAudio(opts: { audio: Buffer; format: string; userId?: number; language?: string; signal?: AbortSignal }): Promise<string> {
   const model = MEDIA_MODELS.transcription;
   return run("transcription", model, opts.userId, async () => {
     const res = await post("/audio/transcriptions", {
       model,
       input_audio: { data: opts.audio.toString("base64"), format: opts.format },
       ...(opts.language ? { language: opts.language } : {}),
-    });
+    }, opts.signal);
     const data = (await res.json()) as { text?: string; usage?: { cost?: number } };
     return { value: data.text ?? "", usd: data.usage?.cost };
   });
@@ -140,7 +141,7 @@ const AURA_VOICES: Record<string, string> = {
 export const speechVoice = (voice: string): string =>
   voice.startsWith("aura-2-") ? voice : AURA_VOICES[voice.toLowerCase()] ?? AURA_VOICES.onyx;
 
-export function synthesizeSpeech(opts: { text: string; voice: string; userId?: number; instructions?: string }): Promise<Buffer> {
+export function synthesizeSpeech(opts: { text: string; voice: string; userId?: number; instructions?: string; signal?: AbortSignal }): Promise<Buffer> {
   const model = MEDIA_MODELS.speech;
   return run("speech", model, opts.userId, async () => {
     const res = await post("/audio/speech", {
@@ -149,7 +150,7 @@ export function synthesizeSpeech(opts: { text: string; voice: string; userId?: n
       voice: speechVoice(opts.voice),
       response_format: "mp3",
       ...(opts.instructions ? { instructions: opts.instructions } : {}),
-    });
+    }, opts.signal);
     return { value: Buffer.from(await res.arrayBuffer()), usd: speechCostUsd(opts.text) };
   });
 }

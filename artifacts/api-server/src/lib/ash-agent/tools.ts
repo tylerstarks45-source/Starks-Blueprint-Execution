@@ -4,8 +4,8 @@
 // model. Every server tool is scoped to the calling user. "client" tools are
 // the existing workspace actions the web app already executes from
 // SBEP_DATA {"action":"tool_calls"} blocks; the loop forwards them unchanged.
-import { db, businessesTable, SOCIAL_PLATFORMS } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, businessesTable, userMemoryTable, SOCIAL_PLATFORMS } from "@workspace/db";
+import { and, eq, ne } from "drizzle-orm";
 import type { ToolDefinition } from "../openrouter";
 import { complete } from "../openrouter";
 import { chainFor } from "../models";
@@ -24,6 +24,8 @@ import { getVenture } from "../ventures";
 import { reviewMission } from "../strategy-reviews";
 import { LAUNCH_ACTIONS, LAUNCH_CONNECTORS, launchOptions, runLaunchAction } from "../launch";
 import { getEffectiveControl } from "../ash-control/policy";
+import { getRelevantLongTermMemory, upsertLongTermMemory } from "../memory-engine/long-term-memory";
+import { ASH_STYLE_KEY } from "./persona";
 
 // Pages ASH can send the user to (the web app's authenticated routes).
 const APP_PAGES = [
@@ -31,7 +33,7 @@ const APP_PAGES = [
   "/memory", "/media", "/library", "/analytics", "/logs", "/email-marketing", "/landing-pages", "/domains",
   "/affiliate-links", "/connections", "/social-accounts", "/social", "/clients", "/credits", "/refer", "/settings",
   "/marketplace", "/blueprints", "/empire", "/income-streams", "/asset-vault", "/business-types", "/research-lab",
-  "/ash-guide", "/business-import", "/missions", "/approvals", "/ash-control",
+  "/ash-guide", "/business-import", "/ash-live", "/missions", "/approvals", "/ash-control",
 ] as const;
 
 type Args = Record<string, unknown>;
@@ -311,6 +313,40 @@ const SPECS: ToolSpec[] = [
     })),
   },
   {
+    name: "remember",
+    description: "Save something the user wants you to remember, or a correction to what you remembered (their preferences, goals, facts about them or their businesses). Private to this user. Only when they explicitly ask. Never store credentials or payment details.",
+    parameters: obj({ topic: str("Short label, e.g. preferred tone or main goal"), fact: str("What to remember, in one or two sentences") }, ["topic", "fact"]),
+    kind: "server",
+    run: async (userId, a) => {
+      const topic = String(a["topic"] ?? "").trim().slice(0, 60);
+      const fact = String(a["fact"] ?? "").trim().slice(0, 1000);
+      if (!topic || !fact) return { error: "Give a topic and the fact" };
+      await upsertLongTermMemory({ userId, category: "user_stated", title: topic, content: fact, tags: ["remembered"], importanceScore: 80, confidenceScore: 100 });
+      return { remembered: true, note: "Saved. The user can review or delete it on /memory." };
+    },
+  },
+  {
+    name: "recall_memory",
+    description: "Search what you remember about this user. Returns memory ids you can pass to forget_memory.",
+    parameters: obj({ query: str("What to look for") }, ["query"]),
+    kind: "server",
+    run: async (userId, a) => (await getRelevantLongTermMemory({ userId, message: String(a["query"] ?? ""), limit: 9 }))
+      .filter((m) => m.memoryKey !== ASH_STYLE_KEY).slice(0, 8)
+      .map((m) => ({ id: m.id, topic: m.memoryKey.replace(/^(auto|ash):[^:]+:/, "").replace(/_/g, " "), fact: m.memoryValue.slice(0, 400) })),
+  },
+  {
+    name: "forget_memory",
+    description: "Delete one of the user's memories when they ask you to forget it. Get the id from recall_memory first.",
+    parameters: obj({ memoryId: int("Memory id") }, ["memoryId"]),
+    kind: "server",
+    run: async (userId, a) => {
+      const deleted = await db.delete(userMemoryTable)
+        .where(and(eq(userMemoryTable.id, Number(a["memoryId"])), eq(userMemoryTable.userId, userId), ne(userMemoryTable.memoryKey, ASH_STYLE_KEY)))
+        .returning({ id: userMemoryTable.id });
+      return deleted.length ? { forgotten: true } : { error: "Memory not found" };
+    },
+  },
+  {
     name: "request_owner_action",
     description: "Pause this mission until the owner does something only they can do (log in, pay, verify identity, accept terms, provide an API key). Say exactly what they need to do.",
     parameters: obj({ message: str("What the owner needs to do, and why") }, ["message"]),
@@ -430,7 +466,7 @@ export const ALL_TOOL_DEFS: ToolDefinition[] = SPECS.map(toDef);
 
 // Background missions can't run workspace (client) tools or start more missions.
 export const MISSION_TOOL_NAMES: readonly string[] = SPECS
-  .filter((s) => s.kind !== "client" && s.name !== "start_mission")
+  .filter((s) => s.kind !== "client" && !["start_mission", "remember", "forget_memory"].includes(s.name))
   .map((s) => s.name);
 
 export function getTool(name: string): ToolSpec | undefined {

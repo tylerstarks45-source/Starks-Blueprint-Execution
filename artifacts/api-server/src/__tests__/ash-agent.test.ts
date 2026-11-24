@@ -5,9 +5,10 @@
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from "vitest";
 import request from "supertest";
 import jwt from "jsonwebtoken";
-import { db, usersTable, businessesTable, openrouterUsageTable, creditTransactionsTable } from "@workspace/db";
+import { db, usersTable, businessesTable, openrouterUsageTable, creditTransactionsTable, userMemoryTable } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import app from "../app";
+import { runAshTurn } from "../lib/ash-agent";
 
 const fetchSpy = vi.spyOn(globalThis, "fetch");
 let userId: number;
@@ -58,6 +59,16 @@ afterAll(async () => {
 });
 
 const ask = (message: string) => request(app).post("/api/ash/agent").set("Authorization", `Bearer ${token}`).send({ message });
+
+it("does not persist a tool call returned after the user interrupts a turn", async () => {
+  const controller = new AbortController();
+  fetchSpy.mockImplementationOnce(async () => {
+    controller.abort();
+    return reply({ content: null, tool_calls: [call("c1", "remember", { topic: "cancelled turn", fact: "Do not save this" })] });
+  });
+  await expect(runAshTurn({ userId, message: "Remember this", history: [], signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+  expect(await db.select().from(userMemoryTable).where(eq(userMemoryTable.userId, userId))).toEqual([]);
+});
 
 describe("POST /api/ash/agent", () => {
   it("runs server tools for the caller only and returns workspace tools as tool_calls", async () => {

@@ -60,6 +60,8 @@ const obj = (properties: Record<string, JsonSchema>, required: string[] = []): J
 });
 const str = (description: string): JsonSchema => ({ type: "string", description });
 const int = (description: string): JsonSchema => ({ type: "integer", description });
+export const editableMemoryFilter = (userId: number, id: number) =>
+  and(eq(userMemoryTable.id, id), eq(userMemoryTable.userId, userId), ne(userMemoryTable.memoryKey, ASH_STYLE_KEY));
 
 const SPECS: ToolSpec[] = [
   {
@@ -314,20 +316,28 @@ const SPECS: ToolSpec[] = [
   },
   {
     name: "remember",
-    description: "Save something the user wants you to remember, or a correction to what you remembered (their preferences, goals, facts about them or their businesses). Private to this user. Only when they explicitly ask. Never store credentials or payment details.",
-    parameters: obj({ topic: str("Short label, e.g. preferred tone or main goal"), fact: str("What to remember, in one or two sentences") }, ["topic", "fact"]),
+    description: "Save a new fact or update an existing one only when the user asks. For corrections, call recall_memory first and pass the matching memory ID to update it in place. If the match is unclear, ask which item they meant. Never store credentials or payment details.",
+    parameters: obj({ topic: str("Short label for a new fact"), fact: str("What to remember, in one or two sentences"), memoryId: int("Existing memory ID to correct") }, ["fact"]),
     kind: "server",
     run: async (userId, a) => {
       const topic = String(a["topic"] ?? "").trim().slice(0, 60);
       const fact = String(a["fact"] ?? "").trim().slice(0, 1000);
-      if (!topic || !fact) return { error: "Give a topic and the fact" };
+      if (!fact) return { error: "Give the fact to remember" };
+      if (a["memoryId"] != null) {
+        const updated = await db.update(userMemoryTable)
+          .set({ memoryValue: fact, confidenceScore: 100, lastAccessedAt: new Date() })
+          .where(editableMemoryFilter(userId, Number(a["memoryId"])))
+          .returning({ id: userMemoryTable.id });
+        return updated.length ? { remembered: true, corrected: true } : { error: "Memory not found" };
+      }
+      if (!topic) return { error: "Give a topic for the new memory" };
       await upsertLongTermMemory({ userId, category: "user_stated", title: topic, content: fact, tags: ["remembered"], importanceScore: 80, confidenceScore: 100 });
       return { remembered: true, note: "Saved. The user can review or delete it on /memory." };
     },
   },
   {
     name: "recall_memory",
-    description: "Search what you remember about this user. Returns memory ids you can pass to forget_memory.",
+    description: "Search what you remember about this user. Returns memory IDs you can pass to remember for corrections or to forget_memory for deletion.",
     parameters: obj({ query: str("What to look for") }, ["query"]),
     kind: "server",
     run: async (userId, a) => (await getRelevantLongTermMemory({ userId, message: String(a["query"] ?? ""), limit: 9 }))
@@ -341,7 +351,7 @@ const SPECS: ToolSpec[] = [
     kind: "server",
     run: async (userId, a) => {
       const deleted = await db.delete(userMemoryTable)
-        .where(and(eq(userMemoryTable.id, Number(a["memoryId"])), eq(userMemoryTable.userId, userId), ne(userMemoryTable.memoryKey, ASH_STYLE_KEY)))
+        .where(editableMemoryFilter(userId, Number(a["memoryId"])))
         .returning({ id: userMemoryTable.id });
       return deleted.length ? { forgotten: true } : { error: "Memory not found" };
     },

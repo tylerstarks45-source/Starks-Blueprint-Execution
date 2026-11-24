@@ -182,6 +182,11 @@ describe("ASH memory tools", () => {
     const theirs = (await run("recall_memory", otherId, { query: "answer style short pet" })) as Array<{ fact: string }>;
     expect(theirs.map((m) => m.fact)).not.toContain("Prefers short spoken answers");
     expect(theirs.map((m) => m.fact)).not.toContain("Owner loves pet products");
+    const manual = found.find((m) => m.fact === "Owner loves pet products")!;
+    expect(await run("remember", otherId, { memoryId: manual.id, fact: "Not mine" })).toEqual({ error: "Memory not found" });
+    expect(await run("remember", ownerId, { memoryId: manual.id, fact: "Owner now prefers garden products" })).toMatchObject({ corrected: true });
+    const [record] = await db.select().from(userMemoryTable).where(eq(userMemoryTable.id, manual.id));
+    expect(record?.memoryValue).toBe("Owner now prefers garden products");
     expect(await run("forget_memory", otherId, { memoryId: saved.id })).toEqual({ error: "Memory not found" });
     expect(await run("forget_memory", ownerId, { memoryId: saved.id })).toEqual({ forgotten: true });
     expect(toolActionKind("forget_memory")).toBe("delete");

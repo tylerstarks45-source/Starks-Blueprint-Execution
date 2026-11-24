@@ -3,6 +3,7 @@ const MAX_NOTICES = 20;
 const MAX_CONTEXT = 20;
 const MAX_TEXT = 8000;
 const keyFor = (ownerId) => `ash_conversation_${ownerId}`;
+const legacyKeyFor = (ownerId) => `ash_dock_${ownerId}`;
 
 export function appendEntry(log, entry) {
   const isNotice = (item) => item.role === 'system';
@@ -25,9 +26,8 @@ function textEntries(entries) {
 export function restoreLog(ownerId) {
   if (!ownerId) return [];
   try {
-    const legacyKey = `ash_dock_${ownerId}`;
     const own = sessionStorage.getItem(keyFor(ownerId));
-    const entries = textEntries(JSON.parse(own ?? localStorage.getItem(legacyKey) ?? '[]'));
+    const entries = textEntries(JSON.parse(own ?? localStorage.getItem(legacyKeyFor(ownerId)) ?? '[]'));
     return entries.map((entry, i) => ({ id: `saved-${i}`, ...entry }));
   } catch {
     return [];
@@ -38,8 +38,13 @@ export function saveLog(ownerId, entries) {
   if (!ownerId) return;
   try {
     sessionStorage.setItem(keyFor(ownerId), JSON.stringify(textEntries(entries)));
-    localStorage.removeItem(`ash_dock_${ownerId}`);
   } catch { /* Storage disabled or full. */ }
+}
+
+export function clearLog(ownerId) {
+  if (!ownerId) return;
+  saveLog(ownerId, []);
+  try { localStorage.removeItem(legacyKeyFor(ownerId)); } catch { /* Storage unavailable. */ }
 }
 
 export function historyForTurn(entries) {

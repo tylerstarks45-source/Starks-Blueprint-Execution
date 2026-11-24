@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext.jsx';
-import { appendEntry, historyForTurn, restoreLog, saveLog } from '@/lib/ashConversationHistory.js';
+import { appendEntry, clearLog, historyForTurn, restoreLog, saveLog } from '@/lib/ashConversationHistory.js';
 
 const AshConversationContext = createContext(null);
 
@@ -180,7 +180,7 @@ function AshSession({ ownerId, available, path, children }) {
             ws.send(JSON.stringify({ type: 'session.start', ...settingsRef.current, history: historyForTurn(logRef.current) }));
             break;
           case 'session.cleared':
-            stopPlayback(); saveLog(ownerId, []); setLog([]); setText(''); clearPendingText(); turnRef.current = null; setError(null);
+            stopPlayback(); clearLog(ownerId); setLog([]); setText(''); clearPendingText(); turnRef.current = null; setError(null);
             break;
           case 'avatar.state': setAvatar((a) => ({ ...a, state: m.state === 'idle' && audioRef.current ? 'speaking' : m.state, ...(m.state === 'listening' ? { gesture: 'none' } : {}) })); break;
           case 'avatar.cue': setAvatar((a) => ({ ...a, emotion: m.emotion, gesture: m.gesture })); break;
@@ -455,7 +455,7 @@ function AshSession({ ownerId, available, path, children }) {
     pauseMic();
     if (!send({ type: 'session.clear' })) {
       stopPlayback();
-      saveLog(ownerId, []);
+      clearLog(ownerId);
       setLog([]);
       setText('');
       setError(null);

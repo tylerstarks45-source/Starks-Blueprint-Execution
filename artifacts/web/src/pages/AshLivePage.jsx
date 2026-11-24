@@ -42,6 +42,8 @@ export default function AshLivePage() {
   const [log, setLog] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [text, setText] = useState('');
+  const [pendingText, setPendingText] = useState(null);
+  const pendingTextRef = useRef(null);
   const [speak, setSpeak] = useState(true);
   const [voice, setVoice] = useState('nova');
   const [handsFree, setHandsFree] = useState(false);
@@ -62,7 +64,16 @@ export default function AshLivePage() {
   settingsRef.current = { speak, voice };
 
   const add = useCallback((entry) => setLog((l) => [...l.slice(-60), { id: `${Date.now()}-${Math.random()}`, ...entry }]), []);
-  const send = useCallback((msg) => { const ws = wsRef.current; if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg)); }, []);
+  const send = useCallback((msg) => {
+    const ws = wsRef.current;
+    if (ws?.readyState !== WebSocket.OPEN) return false;
+    ws.send(JSON.stringify(msg));
+    return true;
+  }, []);
+  const clearPendingText = useCallback(() => {
+    pendingTextRef.current = null;
+    setPendingText(null);
+  }, []);
 
   const stopPlayback = useCallback(() => {
     queueRef.current = [];
@@ -122,7 +133,17 @@ export default function AshLivePage() {
             break;
           case 'avatar.state': setAvatar((a) => ({ ...a, state: m.state === 'idle' && audioRef.current ? 'speaking' : m.state, ...(m.state === 'listening' ? { gesture: 'none' } : {}) })); break;
           case 'avatar.cue': setAvatar((a) => ({ ...a, emotion: m.emotion, gesture: m.gesture })); break;
-          case 'transcript.user': add({ role: 'user', text: m.text, voice: true }); break;
+          case 'transcript.user': {
+            const pending = pendingTextRef.current;
+            if (pending?.turnId === m.turnId) {
+              setText((draft) => draft.trim() === pending.text ? '' : draft);
+              clearPendingText();
+              stopPlayback();
+              turnRef.current = m.turnId;
+            }
+            add({ role: 'user', text: m.text, voice: m.source === 'voice' });
+            break;
+          }
           case 'ash.text': add({ role: 'ash', text: m.text, actions: (m.actions ?? []).filter((c) => c.type === 'navigate' && typeof c.path === 'string' && c.path.startsWith('/')), steps: m.steps ?? [] }); break;
           case 'ash.speech':
             if (m.turnId !== turnRef.current || !settingsRef.current.speak) break;
@@ -131,6 +152,7 @@ export default function AshLivePage() {
           case 'ash.speech.error': add({ role: 'system', text: `Voice unavailable: ${m.message}` }); break;
           case 'ash.turn.end':
             if (m.interrupted) {
+              if (pendingTextRef.current?.turnId === m.turnId) clearPendingText();
               if (turnRef.current === m.turnId) { stopPlayback(); turnRef.current = null; }
               add({ role: 'system', text: 'Interrupted' });
             }
@@ -141,7 +163,10 @@ export default function AshLivePage() {
             setTasks((t) => [m, ...t.filter((x) => x.missionId !== m.missionId)]);
             add({ role: 'system', text: `Mission "${m.goal}": ${m.status.replace(/_/g, ' ')} (${m.stepsDone}/${m.stepsTotal} steps)${m.waitingFor ? ` · needs: ${m.waitingFor}` : ''}` });
             break;
-          case 'error': setError(m.message); break;
+          case 'error':
+            if (pendingTextRef.current?.turnId === m.turnId) clearPendingText();
+            setError(m.message);
+            break;
           default: break;
         }
       };
@@ -149,6 +174,7 @@ export default function AshLivePage() {
         if (wsRef.current === ws) wsRef.current = null;
         if (closed) return;
         turnRef.current = null;
+        clearPendingText();
         stopPlayback();
         setHandsFree(false);
         setTasks([]);
@@ -161,21 +187,19 @@ export default function AshLivePage() {
     };
     connect();
     return () => { closed = true; clearTimeout(timer); wsRef.current?.close(1000); stopPlayback(); };
-  }, [add, playNext, stopPlayback]);
+  }, [add, playNext, stopPlayback, clearPendingText]);
 
   useEffect(() => { send({ type: 'session.start', speak, voice }); if (!speak) stopPlayback(); }, [speak, voice, send, stopPlayback]);
 
   const submitText = (e) => {
     e.preventDefault();
     const t = text.trim();
-    if (!t) return;
-    stopPlayback();
-    add({ role: 'user', text: t });
+    if (!t || pendingTextRef.current) return;
     const turnId = crypto.randomUUID();
-    turnRef.current = turnId;
+    if (!send({ type: 'user.text', text: t, turnId })) return;
+    pendingTextRef.current = { turnId, text: t };
+    setPendingText(turnId);
     setError(null);
-    send({ type: 'user.text', text: t, turnId });
-    setText('');
   };
 
   const sendRecording = useCallback((blob) => {
@@ -378,7 +402,7 @@ export default function AshLivePage() {
             </div>
             <form onSubmit={submitText} className="mt-3 flex gap-2">
               <input className={input} value={text} onChange={(e) => setText(e.target.value)} placeholder={connected ? 'Type to ASH…' : 'Connecting…'} disabled={!connected} maxLength={8000} aria-label="Message ASH" />
-              <button type="submit" className={btnPrimary} aria-label="Send message" disabled={!connected || !text.trim()}><Send className="w-3.5 h-3.5" /></button>
+              <button type="submit" className={btnPrimary} aria-label="Send message" disabled={!connected || !!pendingText || !text.trim()}><Send className="w-3.5 h-3.5" /></button>
             </form>
           </Card>
         </div>

@@ -41,7 +41,7 @@ One backend turn runs at a time per connection. If you send a turn while the pri
 | `session.ready` / `session.updated` | `settings`; `protocol`, `sessionId`, `vocabulary` on ready only | Connected / settings changed. |
 | `avatar.state` | `state`: `idle` \| `listening` \| `thinking` \| `speaking` | Drive idle, listening, thinking and talking loops. |
 | `avatar.cue` | `turnId`, `emotion`, `gesture` | Facial expression and one gesture for the reply. |
-| `transcript.user` | `turnId`, `text` | What ASH heard. |
+| `transcript.user` | `turnId`, `text`, `source` | Confirms an accepted typed turn (`text`) or recognized utterance (`voice`). |
 | `ash.text` | `turnId`, `text` (markdown), `spokenText`, `actions`, `steps` | Her full reply, the workspace actions to apply (e.g. `navigate`) and the tools she ran (`ok`, `approvalId` when it is waiting for the owner). |
 | `ash.speech` | `turnId`, `seq`, `last`, `text`, `mimeType`, `audioBase64` | One synthesized reply (`seq: 0`, `last: true`). Use `text` for captions and the local audio signal for lip-sync. |
 | `ash.speech.error` | `turnId`, `code`, `message` | Voice failed; show the text instead. |

@@ -158,8 +158,8 @@ class LiveSession {
         text = (await transcribeAudio({ audio: input.audio, format: audioFormatFor(input.mimeType, input.audio), userId, signal: providerSignal })).trim();
         if (turn.controller.signal.aborted) return;
         if (!text) { this.finish(turn, { code: "no_speech", message: "I didn't catch that." }); return; }
-        this.send("transcript.user", { turnId, text });
       }
+      this.send("transcript.user", { turnId, text, source: input.audio ? "voice" : "text" });
       const systemPrompt = await buildAshSystemPrompt({ userId, message: text, surface: settings.surface, page: settings.page, spoken: settings.speak });
       signal.throwIfAborted();
       const result = await runAshTurn({ userId, message: text, history: this.history, systemPrompt, toolNames: LIVE_TOOLS, signal: providerSignal });

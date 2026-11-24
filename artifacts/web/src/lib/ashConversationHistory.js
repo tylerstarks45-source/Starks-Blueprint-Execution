@@ -1,7 +1,16 @@
 const MAX_DISPLAY = 40;
+const MAX_NOTICES = 20;
 const MAX_CONTEXT = 20;
 const MAX_TEXT = 8000;
 const keyFor = (ownerId) => `ash_conversation_${ownerId}`;
+
+export function appendEntry(log, entry) {
+  const isNotice = (item) => item.role === 'system';
+  const notice = isNotice(entry);
+  const limit = notice ? MAX_NOTICES : MAX_DISPLAY;
+  let count = 0;
+  return [...log, entry].reverse().filter((item) => isNotice(item) !== notice || ++count <= limit).reverse();
+}
 
 function textEntries(entries) {
   if (!Array.isArray(entries)) return [];

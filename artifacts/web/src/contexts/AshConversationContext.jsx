@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext.jsx';
-import { restoreLog, saveLog, historyForTurn } from '@/lib/ashConversationHistory.js';
+import { appendEntry, historyForTurn, restoreLog, saveLog } from '@/lib/ashConversationHistory.js';
 
 const AshConversationContext = createContext(null);
 
@@ -87,7 +87,10 @@ function AshSession({ ownerId, available, path, children }) {
   settingsRef.current = { speak, voice, page: path, surface: path === '/ash-live' ? 'live' : 'web' };
 
   useEffect(() => saveLog(ownerId, log), [ownerId, log]);
-  const add = useCallback((entry) => setLog((l) => [...l.slice(-60), { id: crypto.randomUUID(), ...entry }]), []);
+  const add = useCallback((entry) => {
+    const item = { id: crypto.randomUUID(), ...entry };
+    setLog((log) => appendEntry(log, item));
+  }, []);
   const send = useCallback((msg) => {
     const ws = wsRef.current;
     if (!readyRef.current || ws?.readyState !== WebSocket.OPEN) return false;

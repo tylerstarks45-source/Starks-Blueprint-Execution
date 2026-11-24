@@ -93,6 +93,8 @@ export async function decideStrategyReview(userId: number, reviewId: number, act
       .where(and(eq(strategyReviewsTable.id, reviewId), eq(strategyReviewsTable.userId, userId))).for("update");
     if (!rev) return { error: "Not found", status: 404 } as const;
     if (rev.status !== "proposed") return { error: `This review was already ${rev.status}`, status: 409 } as const;
+    // Steps that fit under the mission's cap; the review records only those.
+    let added: string[] | null = null;
     if (action === "apply") {
       const [m] = await tx.select().from(ashMissionsTable)
         .where(and(eq(ashMissionsTable.id, rev.missionId), eq(ashMissionsTable.userId, userId))).for("update");
@@ -100,7 +102,7 @@ export async function decideStrategyReview(userId: number, reviewId: number, act
       // A step running now would write back its own copy of the steps and drop the new ones.
       if (m.leaseUntil && m.leaseUntil > new Date()) return { error: "ASH is working on a step of this mission. Try again in a few minutes.", status: 409 } as const;
       const room = Math.max(0, MAX_MISSION_STEPS - m.steps.length);
-      const added = rev.adjustments.slice(0, room);
+      added = rev.adjustments.slice(0, room);
       if (!added.length) return { error: "The mission has no room for more steps", status: 409 } as const;
       const finished = m.status === "completed" || m.status === "failed";
       await tx.update(ashMissionsTable).set({
@@ -111,7 +113,7 @@ export async function decideStrategyReview(userId: number, reviewId: number, act
         updatedAt: new Date(),
       }).where(eq(ashMissionsTable.id, m.id));
     }
-    const [row] = await tx.update(strategyReviewsTable).set({ status: action === "apply" ? "applied" : "dismissed", decidedAt: new Date() })
+    const [row] = await tx.update(strategyReviewsTable).set({ status: action === "apply" ? "applied" : "dismissed", decidedAt: new Date(), ...(added ? { adjustments: added } : {}) })
       .where(eq(strategyReviewsTable.id, rev.id)).returning();
     return { review: row! } as const;
   });

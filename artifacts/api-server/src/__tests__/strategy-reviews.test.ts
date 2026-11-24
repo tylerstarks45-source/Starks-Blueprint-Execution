@@ -83,6 +83,16 @@ describe("strategy reviews", () => {
     await db.update(ashControlSettingsTable).set({ approvalRequired: [] }).where(eq(ashControlSettingsTable.userId, ownerId));
   });
 
+  it("records only the steps that fit under the mission's step cap", async () => {
+    const full = await incomeMission(ownerId, "running");
+    await db.update(ashMissionsTable).set({ steps: Array.from({ length: 39 }, (_, i) => ({ title: `Step ${i}`, status: "done" as const })) }).where(eq(ashMissionsTable.id, full));
+    await db.update(ashControlSettingsTable).set({ level: "copilot" }).where(eq(ashControlSettingsTable.userId, ownerId));
+    reply.mockResolvedValueOnce(llm({ verdict: "behind", summary: "Behind.", adjustments: ["One", "Two"] }));
+    const r = await request(app).post(`/api/missions/${full}/strategy-reviews`).set(as(ownerId));
+    const applied = await request(app).post(`/api/strategy-reviews/${r.body.review.id}/apply`).set(as(ownerId));
+    expect(applied.body).toMatchObject({ status: "applied", adjustments: ["One"] });
+  });
+
   it("rejects unusable replies and non-income missions", async () => {
     for (const id of ["12", "%2012", "1e1", "0x0c"]) expect(isExpensiveAiRequest("POST", `/missions/${id}/strategy-reviews`)).toBe(true);
     reply.mockResolvedValueOnce(llm({ nope: true }));

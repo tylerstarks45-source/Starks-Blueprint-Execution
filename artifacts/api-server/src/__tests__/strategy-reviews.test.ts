@@ -10,6 +10,7 @@ import app from "../app";
 import { db, usersTable, businessesTable, ashMissionsTable, incomePlansTable, ashControlSettingsTable, strategyReviewsTable } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { runDueStrategyReviews } from "../lib/strategy-reviews";
+import { isExpensiveAiRequest } from "../middlewares/security";
 
 let ownerId: number;
 let otherId: number;
@@ -80,6 +81,7 @@ describe("strategy reviews", () => {
   });
 
   it("rejects unusable replies and non-income missions", async () => {
+    for (const id of ["12", "%2012", "1e1", "0x0c"]) expect(isExpensiveAiRequest("POST", `/missions/${id}/strategy-reviews`)).toBe(true);
     reply.mockResolvedValueOnce(llm({ nope: true }));
     expect((await request(app).post(`/api/missions/${missionId}/strategy-reviews`).set(as(ownerId))).status).toBe(502);
     const [plain] = await db.insert(ashMissionsTable).values({ userId: ownerId, goal: "Plain", status: "running" }).returning();

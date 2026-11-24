@@ -21,6 +21,7 @@ import { draftIncomePlan } from "../income-missions";
 import { getCapabilityMap, listCapabilityRequests, requestMissingCapabilities } from "../capabilities";
 import { defineIntegration, listIntegrations, testIntegration, runIntegrationAction } from "../custom-integrations";
 import { getVenture } from "../ventures";
+import { reviewMission } from "../strategy-reviews";
 import { LAUNCH_ACTIONS, LAUNCH_CONNECTORS, launchOptions, runLaunchAction } from "../launch";
 import { getEffectiveControl } from "../ash-control/policy";
 
@@ -197,6 +198,18 @@ const SPECS: ToolSpec[] = [
     parameters: obj({ businessId: { type: "integer", description: "Business id" } }, ["businessId"]),
     kind: "server",
     run: async (userId, a) => (await getVenture(userId, Number(a["businessId"]))) ?? { error: "Business not found" },
+  },
+  {
+    name: "review_strategy",
+    description: "Review an income mission's measured results (verified revenue, spend, milestones) against its target and propose next steps. On Operator/Autopilot the steps are added to the mission automatically; otherwise the owner applies them on the Missions page.",
+    parameters: obj({ missionId: int("Income mission id") }, ["missionId"]),
+    kind: "server",
+    run: async (userId, a) => {
+      const r = await reviewMission(userId, Number(a["missionId"]));
+      if (!("review" in r)) return { error: r.error };
+      return { verdict: r.review.verdict, summary: r.review.summary, adjustments: r.review.adjustments, metrics: r.review.metrics,
+        applied: r.autoApplied, note: r.autoApplied ? "The steps were added to the mission." : "The owner can apply these steps on the Missions page." };
+    },
   },
   {
     name: "list_launch_options",

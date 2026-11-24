@@ -25,6 +25,7 @@ import { distillAshBrain } from "../ash-brain";
 import { runScheduledResearch } from "../research-engine/scheduled";
 import { measureRecommendationOutcomes } from "../recommendation-outcomes";
 import { runOpportunityScan } from "../research-engine/opportunity-scan";
+import { runDueStrategyReviews } from "../strategy-reviews";
 import { runMemoryMaintenance } from "../memory-engine";
 import { initializeBusinessDna, publishBusinessEvent } from "../business-intelligence";
 // A-03 fix: expire stale DOL execution sessions on a regular interval
@@ -1082,6 +1083,20 @@ async function processScheduledResearch(): Promise<void> {
   }
 }
 
+const STRATEGY_REVIEW_CHECK_MS = 6 * 60 * 60 * 1000;
+
+async function processStrategyReviews(): Promise<void> {
+  const now = Date.now();
+  if (now - getState("strategy_reviews") < STRATEGY_REVIEW_CHECK_MS) return;
+  await setState("strategy_reviews", now);
+  try {
+    const r = await runDueStrategyReviews();
+    if (r.reviewed) logger.info(r, "Strategy reviews completed");
+  } catch (err) {
+    logger.warn({ err }, "Strategy reviews failed");
+  }
+}
+
 async function processOpportunityScan(): Promise<void> {
   try {
     const result = await runOpportunityScan({ now: Date.now(), lastRun: getState, markRun: setState });
@@ -1208,6 +1223,7 @@ export function startScheduler(): void {
     await processBrainDistillation();
     await processScheduledResearch();
     await processOpportunityScan();
+    await processStrategyReviews();
     await processRecommendationOutcomes();
     await processExpiringCredentialWarnings();
     await processMemoryMaintenance();

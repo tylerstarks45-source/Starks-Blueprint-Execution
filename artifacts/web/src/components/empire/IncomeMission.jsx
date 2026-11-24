@@ -100,7 +100,8 @@ export function CreateIncomeMission({ onDrafted }) {
 
 export function MissionDashboard({ missionId, refreshKey }) {
   const [d, setD] = useState(null);
-  useEffect(() => { controlApi.missionDashboard(missionId).then(setD).catch(() => setD(null)); }, [missionId, refreshKey]);
+  const [reviewKey, setReviewKey] = useState(0);
+  useEffect(() => { controlApi.missionDashboard(missionId).then(setD).catch(() => setD(null)); }, [missionId, refreshKey, reviewKey]);
   if (!d) return null;
   const r = d.revenue;
   const stat = (k, v) => <div className="rounded-lg border border-white/10 px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-white/40">{k}</div><div className="text-sm text-white">{v}</div></div>;
@@ -121,6 +122,44 @@ export function MissionDashboard({ missionId, refreshKey }) {
       {d.blockers.length > 0 && <ul className="text-xs text-amber-200/90 space-y-0.5">{d.blockers.map((b, i) => <li key={i} className="flex gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0" />{b}</li>)}</ul>}
       {d.nextActions.length > 0 && <div className="text-xs text-white/55">Next: {d.nextActions.join(' → ')}</div>}
       {d.team?.length > 0 && <div className="text-xs text-white/55">AI employees: {d.team.map((t) => `${t.title}${t.status === 'paused' ? ' (paused)' : t.lastTask ? ` (${t.lastTask.slice(0, 60)})` : ''}`).join(' · ')}</div>}
+      {d.plan && <StrategyReview missionId={missionId} onChanged={() => setReviewKey((k) => k + 1)} />}
+    </div>
+  );
+}
+
+const VERDICT = { on_track: ['green', 'On track'], behind: ['amber', 'Behind target'], no_data: ['slate', 'No verified revenue yet'] };
+
+/** ASH's latest strategy review for an income mission, with apply/dismiss for proposed steps. */
+function StrategyReview({ missionId, onChanged }) {
+  const [reviews, setReviews] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const load = () => controlApi.strategyReviews(missionId).then(setReviews).catch(() => setReviews([]));
+  useEffect(() => { load(); }, [missionId]);
+  const run = async (fn, ok) => {
+    setBusy(true);
+    try { await fn(); toast.success(ok); await load(); onChanged?.(); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
+  };
+  if (!reviews) return null;
+  const r = reviews[0];
+  return (
+    <div className="rounded-lg border border-white/10 px-3 py-2 space-y-1.5 text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-white/70 font-medium">Strategy review</span>
+        <button type="button" className={btn} disabled={busy} onClick={() => run(() => controlApi.reviewStrategy(missionId), 'ASH reviewed the strategy.')}>{busy ? <Spinner /> : <TrendingUp className="w-3.5 h-3.5" />} Review now</button>
+      </div>
+      {!r ? <p className="text-white/45">ASH reviews results against the target every week. Run one now to get next steps.</p> : (
+        <>
+          <div className="flex items-center gap-2"><Badge tone={VERDICT[r.verdict]?.[0] ?? 'slate'}>{VERDICT[r.verdict]?.[1] ?? r.verdict}</Badge><span className="text-white/40">{new Date(r.createdAt).toLocaleDateString()}</span>{r.status !== 'proposed' && <span className="text-white/40">{r.status}</span>}</div>
+          <p className="text-white/70">{r.summary}</p>
+          {r.adjustments.length > 0 && <ul className="list-disc pl-4 text-white/60 space-y-0.5">{r.adjustments.map((a, i) => <li key={i}>{a}</li>)}</ul>}
+          {r.status === 'proposed' && r.adjustments.length > 0 && (
+            <div className="flex gap-2">
+              <button type="button" className={btnPrimary} disabled={busy} onClick={() => run(() => controlApi.decideStrategyReview(r.id, 'apply'), 'Steps added to the mission.')}><Check className="w-3.5 h-3.5" /> Add steps to mission</button>
+              <button type="button" className={btn} disabled={busy} onClick={() => run(() => controlApi.decideStrategyReview(r.id, 'dismiss'), 'Review dismissed.')}><X className="w-3.5 h-3.5" /> Dismiss</button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

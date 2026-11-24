@@ -18,6 +18,17 @@ const MIN_SPEECH_MS = 300;
 const PREROLL_FRAMES = 20;
 const FRAME_MS = 20;
 
+function canAttemptConnection(token) {
+  if (!token) return false;
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const { exp } = JSON.parse(atob(payload));
+    return typeof exp !== 'number' || Date.now() < exp * 1000;
+  } catch {
+    return false;
+  }
+}
+
 function wavAudio(frames, sampleRate) {
   const samples = frames.reduce((total, frame) => total + frame.length, 0);
   const header = new ArrayBuffer(44);
@@ -60,6 +71,7 @@ function Face({ state, emotion, gesture }) {
 export default function AshLivePage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState('connecting');
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [avatar, setAvatar] = useState({ state: 'idle', emotion: 'neutral', gesture: 'none' });
   const [log, setLog] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -140,7 +152,7 @@ export default function AshLivePage() {
     let timer;
     const connect = () => {
       const token = localStorage.getItem('sbep_auth_token');
-      if (!token) { setStatus('signed out'); return; }
+      if (!canAttemptConnection(token)) { setStatus('signed out'); return; }
       setStatus(retry ? 'reconnecting' : 'connecting');
       const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ash-live`, ["ash-live.v1", `auth.${token}`]);
       wsRef.current = ws;
@@ -201,15 +213,20 @@ export default function AshLivePage() {
         setHandsFree(false);
         setTasks([]);
         setAvatar({ state: 'idle', emotion: 'neutral', gesture: 'none' });
-        if (ev.code === 4401) { setStatus('signed out'); return; }
-        setStatus('reconnecting');
+        if (ev.code === 4401 || !canAttemptConnection(localStorage.getItem('sbep_auth_token'))) { setStatus('signed out'); return; }
         retry += 1;
+        if (retry > 6) {
+          setStatus('disconnected');
+          setError('ASH Live could not connect. Retry the connection or sign in again.');
+          return;
+        }
+        setStatus('reconnecting');
         timer = setTimeout(connect, Math.min(15000, 1000 * 2 ** Math.min(retry, 4)));
       };
     };
     connect();
     return () => { closed = true; clearTimeout(timer); wsRef.current?.close(1000); stopPlayback(); };
-  }, [add, playNext, stopPlayback, clearPendingText]);
+  }, [add, playNext, stopPlayback, clearPendingText, connectionAttempt]);
 
   useEffect(() => { send({ type: 'session.start', speak, voice }); if (!speak) stopPlayback(); }, [speak, voice, send, stopPlayback]);
 
@@ -374,6 +391,8 @@ export default function AshLivePage() {
           <Badge tone={connected ? 'green' : status === 'signed out' ? 'rose' : 'amber'}>{connected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}{status}</Badge>
         </div>
         {error && <div className="rounded-lg border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-200" role="alert">{error}</div>}
+        {status === 'disconnected' && <button type="button" className={btn} onClick={() => setConnectionAttempt((attempt) => attempt + 1)}>Retry connection</button>}
+        {(status === 'signed out' || status === 'disconnected') && <Link to="/login" className="text-sm text-cyan-300 underline">Sign in again</Link>}
         <div className="grid lg:grid-cols-[300px_1fr] gap-4">
           <div className="space-y-4">
             <Card>

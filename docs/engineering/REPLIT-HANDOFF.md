@@ -79,7 +79,7 @@ After deploy, check: `GET /api/healthz` and `/api/readyz` return 200; sign-up an
 
 If browsers get `Origin not allowed`, add the site origin to `ALLOWED_ORIGINS` (comma-separated).
 
-**After the ASH Live branch is merged:** This feature adds no schema changes or new secrets. Keep the existing database and follow the backup and additive migration order above for any prerequisite branches. The web simulator connects to its own host at `/api/ash-live`; configure the same ingress that serves `/api` to pass WebSocket upgrades to the API server, and verify an HTTPS/WSS handshake on staging. The existing `ALLOWED_ORIGINS` list applies. Check that the simulator connects, answers a text turn, and stops playback when the user interrupts. See [ASH Live protocol](ASH-LIVE-PROTOCOL.md) and [voice evaluation](ASH-VOICE-PROVIDERS.md).
+**After the ASH Live branch is merged:** This feature adds no schema changes or new secrets. Keep the existing database and follow the backup and additive migration order above for any prerequisite branches. The web simulator connects to its own host at `/api/ash-live`; configure the same ingress that serves `/api` to pass WebSocket upgrades and preserve `Sec-WebSocket-Protocol` to the API server. Do not log that credential-bearing header. Verify an HTTPS/WSS handshake on staging. The existing `ALLOWED_ORIGINS` list applies. Check that the simulator connects, answers a text turn, and stops playback when the user interrupts. See [ASH Live protocol](ASH-LIVE-PROTOCOL.md) and [voice evaluation](ASH-VOICE-PROVIDERS.md).
 
 Optional tuning variables: `API_RATE_LIMIT_PER_MINUTE` (600), `PUBLIC_FORM_RATE_LIMIT_PER_MINUTE` (30), `AI_RATE_LIMIT_PER_MINUTE` (20), `CREATOR_PAYOUT_HOLD_DAYS` (14), `CREATOR_MIN_PAYOUT_CENTS` (1000).
 

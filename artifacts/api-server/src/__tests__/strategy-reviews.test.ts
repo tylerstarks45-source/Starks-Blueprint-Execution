@@ -75,9 +75,9 @@ describe("strategy reviews", () => {
     await db.update(ashMissionsTable).set({ leaseUntil: new Date(Date.now() + 600_000) }).where(eq(ashMissionsTable.id, missionId));
     reply.mockResolvedValueOnce(llm({ verdict: "behind", summary: "Behind.", adjustments: ["Post a launch thread"] }));
     const busy = await request(app).post(`/api/missions/${missionId}/strategy-reviews`).set(as(ownerId));
-    expect(busy.body).toMatchObject({ autoApplied: false, review: { status: "proposed" } });
+    expect(busy.body).toMatchObject({ autoApplied: false, review: { status: "queued" } });
     await applyHeldReviews();
-    expect((await db.select().from(strategyReviewsTable).where(eq(strategyReviewsTable.id, busy.body.review.id)))[0]!.status).toBe("proposed");
+    expect((await db.select().from(strategyReviewsTable).where(eq(strategyReviewsTable.id, busy.body.review.id)))[0]!.status).toBe("queued");
     await db.update(ashMissionsTable).set({ leaseUntil: null }).where(eq(ashMissionsTable.id, missionId));
     await applyHeldReviews();
     expect((await db.select().from(strategyReviewsTable).where(eq(strategyReviewsTable.id, busy.body.review.id)))[0]!.status).toBe("applied");
@@ -89,8 +89,10 @@ describe("strategy reviews", () => {
     await db.update(ashMissionsTable).set({ leaseUntil: new Date(Date.now() + 600_000) }).where(eq(ashMissionsTable.id, missionId));
     expect((await request(app).post(`/api/strategy-reviews/${held.body.review.id}/apply`).set(as(ownerId))).status).toBe(409);
     await db.update(ashMissionsTable).set({ leaseUntil: null }).where(eq(ashMissionsTable.id, missionId));
-    await request(app).post(`/api/strategy-reviews/${held.body.review.id}/dismiss`).set(as(ownerId));
     await db.update(ashControlSettingsTable).set({ approvalRequired: [] }).where(eq(ashControlSettingsTable.userId, ownerId));
+    await applyHeldReviews();
+    expect((await db.select().from(strategyReviewsTable).where(eq(strategyReviewsTable.id, held.body.review.id)))[0]!.status).toBe("proposed");
+    await request(app).post(`/api/strategy-reviews/${held.body.review.id}/dismiss`).set(as(ownerId));
   });
 
   it("records only the steps that fit under the mission's step cap", async () => {

@@ -208,7 +208,9 @@ const SPECS: ToolSpec[] = [
       const r = await reviewMission(userId, Number(a["missionId"]));
       if (!("review" in r)) return { error: r.error };
       return { verdict: r.review.verdict, summary: r.review.summary, adjustments: r.review.adjustments, metrics: r.review.metrics,
-        applied: r.autoApplied, note: r.autoApplied ? "The steps were added to the mission." : "The owner can apply these steps on the Missions page." };
+        applied: r.autoApplied, note: r.autoApplied ? "The steps were added to the mission."
+          : r.review.status === "queued" ? "The steps will be added when the current mission step finishes, if the owner's settings still allow it."
+          : "The owner can apply proposed steps on the Missions page." };
     },
   },
   {

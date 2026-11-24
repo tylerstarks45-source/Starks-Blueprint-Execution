@@ -12,7 +12,7 @@ import { CreateIncomeMission, IncomePlanCard, MissionDashboard } from '@/compone
 const TONE = { planning: 'violet', running: 'cyan', waiting_approval: 'amber', waiting_owner: 'amber', paused: 'slate', completed: 'green', failed: 'amber', cancelled: 'slate' };
 const STATUS_TEXT = { waiting_approval: 'Waiting for approval', waiting_owner: 'Needs you' };
 
-function MissionCard({ m, businessName, onAction, busy }) {
+function MissionCard({ m, businessName, onAction, onChanged, busy }) {
   const [showLog, setShowLog] = useState(false);
   const done = m.steps.filter((s) => s.status === 'done').length;
   const can = (a) => ({ pause: ['planning', 'running', 'waiting_approval', 'waiting_owner'], resume: ['paused', 'waiting_owner', 'failed'], cancel: ['planning', 'running', 'waiting_approval', 'waiting_owner', 'paused', 'failed'] })[a].includes(m.status);
@@ -25,7 +25,7 @@ function MissionCard({ m, businessName, onAction, busy }) {
         </div>
         <Badge tone={TONE[m.status] ?? 'slate'}>{STATUS_TEXT[m.status] ?? label(m.status)}</Badge>
       </div>
-      {m.planId != null && <MissionDashboard missionId={m.id} refreshKey={`${m.updatedAt}`} />}
+      {m.planId != null && <MissionDashboard missionId={m.id} refreshKey={`${m.updatedAt}`} onChanged={onChanged} />}
       {m.waitingFor && <p className="text-xs text-amber-200/90 bg-amber-400/5 border border-amber-400/20 rounded-lg px-3 py-2">{m.waitingFor}{m.status === 'waiting_approval' && <> · <Link to="/approvals" className="underline">Open Approvals</Link></>}</p>}
       {m.steps.length > 0 && (
         <div>
@@ -148,7 +148,7 @@ export default function MissionsPage() {
         {missions.error && <ErrorBox>{missions.error}</ErrorBox>}
         {missions.loading && !missions.data ? <div className="py-10 flex justify-center text-white/50"><Spinner className="w-5 h-5" /></div>
           : !rows.length ? <p className="text-sm text-white/50">No missions yet.</p>
-          : <ul className="space-y-3">{rows.map((m) => <MissionCard key={m.id} m={m} businessName={nameFor(m.businessId)} onAction={act} busy={busy === m.id} />)}</ul>}
+          : <ul className="space-y-3">{rows.map((m) => <MissionCard key={m.id} m={m} businessName={nameFor(m.businessId)} onAction={act} onChanged={reload} busy={busy === m.id} />)}</ul>}
       </div>
     </AuthLayout>
   );

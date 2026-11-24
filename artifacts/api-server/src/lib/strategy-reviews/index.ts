@@ -7,7 +7,7 @@ import { db, ashMissionsTable, strategyReviewsTable, type StrategyReview, type S
 import { complete } from "../openrouter";
 import { chainFor } from "../models";
 import { getMissionDashboard } from "../income-missions";
-import { decide, getEffectiveControl } from "../ash-control/policy";
+import { getEffectiveControl } from "../ash-control/policy";
 import { logEntry, withLog } from "../ash-missions";
 import { logger } from "../logger";
 
@@ -72,36 +72,36 @@ export async function reviewMission(userId: number, missionId: number): Promise<
   const pending = new Set(d.mission.steps.filter((s) => s.status === "pending").map((s) => s.title.trim().toLowerCase()));
   const adjustments = [...new Set(out.adjustments.map((a) => a.trim().slice(0, 300)))]
     .filter((a) => !pending.has(a.toLowerCase())).slice(0, MAX_ADJUSTMENTS);
+  const autoApply = adjustments.length > 0 && await appliesOnItsOwn(userId, d.mission.businessId);
   const [review] = await db.insert(strategyReviewsTable).values({
     userId, missionId, businessId: d.mission.businessId, metrics, adjustments,
+    status: autoApply ? "queued" : "proposed",
     verdict: r.revenueTracked ? out.verdict : "no_data", summary: out.summary.trim().slice(0, 2000),
   }).returning();
-  if (adjustments.length && await appliesOnItsOwn(userId, d.mission.businessId)) {
+  if (autoApply) {
     const applied = await decideStrategyReview(userId, review!.id, "apply", "ASH");
-    if ("review" in applied) return { review: applied.review, autoApplied: true } as const;
+    if ("review" in applied) return { review: applied.review, autoApplied: applied.review.status === "applied" };
   }
   return { review: review!, autoApplied: false } as const;
 }
 
 // Operator/Autopilot apply reviews on their own, unless the owner's settings require approval for building.
-async function appliesOnItsOwn(userId: number, businessId: number | null): Promise<boolean> {
-  const control = await getEffectiveControl(userId, businessId);
-  if (control.level !== "operator" && control.level !== "autopilot") return false;
-  return (await decide({ userId, businessId, kind: "build", interactive: false })).decision === "allow";
+async function appliesOnItsOwn(userId: number, businessId: number | null, client?: Pick<typeof db, "select">): Promise<boolean> {
+  const control = await getEffectiveControl(userId, businessId, client);
+  return (control.level === "operator" || control.level === "autopilot") && !control.approvalRequired.includes("build");
 }
 
 /** Scheduler: applies reviews ASH couldn't apply on her own because a mission step was running then. */
 export async function applyHeldReviews(limit = 50): Promise<{ applied: number }> {
-  const held = await db.select({ id: strategyReviewsTable.id, userId: strategyReviewsTable.userId, businessId: ashMissionsTable.businessId })
+  const held = await db.select({ id: strategyReviewsTable.id, userId: strategyReviewsTable.userId })
     .from(strategyReviewsTable).innerJoin(ashMissionsTable, eq(ashMissionsTable.id, strategyReviewsTable.missionId))
-    .where(and(eq(strategyReviewsTable.status, "proposed"), sql`jsonb_array_length(${strategyReviewsTable.adjustments}) > 0`,
-      sql`${strategyReviewsTable.createdAt} > ${new Date(Date.now() - REVIEW_INTERVAL_MS)}`,
+    .where(and(eq(strategyReviewsTable.status, "queued"), inArray(ashMissionsTable.status, REVIEWABLE),
       sql`(${ashMissionsTable.leaseUntil} is null or ${ashMissionsTable.leaseUntil} < now())`))
-    .orderBy(strategyReviewsTable.id).limit(limit);
+    .orderBy(sql`random()`).limit(limit);
   let applied = 0;
   for (const r of held) {
-    if (!(await appliesOnItsOwn(r.userId, r.businessId))) continue;
-    if ("review" in await decideStrategyReview(r.userId, r.id, "apply", "ASH")) applied++;
+    const result = await decideStrategyReview(r.userId, r.id, "apply", "ASH");
+    if ("review" in result && result.review.status === "applied") applied++;
   }
   return { applied };
 }
@@ -112,18 +112,30 @@ export async function decideStrategyReview(userId: number, reviewId: number, act
     const [rev] = await tx.select().from(strategyReviewsTable)
       .where(and(eq(strategyReviewsTable.id, reviewId), eq(strategyReviewsTable.userId, userId))).for("update");
     if (!rev) return { error: "Not found", status: 404 } as const;
-    if (rev.status !== "proposed") return { error: `This review was already ${rev.status}`, status: 409 } as const;
+    if (!["proposed", "queued"].includes(rev.status) || (by === "ASH" && rev.status !== "queued")) {
+      return { error: "This review is no longer awaiting this decision", status: 409 };
+    }
+    const deferToOwner = async () => {
+      const [review] = await tx.update(strategyReviewsTable).set({ status: "proposed" })
+        .where(eq(strategyReviewsTable.id, rev.id)).returning();
+      return { review: review! };
+    };
     // Steps that fit under the mission's cap; the review records only those.
     let added: string[] | null = null;
     if (action === "apply") {
       const [m] = await tx.select().from(ashMissionsTable)
         .where(and(eq(ashMissionsTable.id, rev.missionId), eq(ashMissionsTable.userId, userId))).for("update");
       if (!m || m.status === "cancelled") return { error: "The mission was cancelled", status: 409 } as const;
+      if (by === "ASH" && !(await appliesOnItsOwn(userId, m.businessId, tx))) return deferToOwner();
       // A step running now would write back its own copy of the steps and drop the new ones.
       if (m.leaseUntil && m.leaseUntil > new Date()) return { error: "ASH is working on a step of this mission. Try again in a few minutes.", status: 409 } as const;
       const room = Math.max(0, MAX_MISSION_STEPS - m.steps.length);
-      added = rev.adjustments.slice(0, room);
-      if (!added.length) return { error: "The mission has no room for more steps", status: 409 } as const;
+      const pending = new Set(m.steps.filter((s) => s.status === "pending").map((s) => s.title.trim().toLowerCase()));
+      added = rev.adjustments.filter((title) => !pending.has(title.toLowerCase())).slice(0, room);
+      if (!added.length) {
+        if (by === "ASH") return deferToOwner();
+        return { error: room ? "No new steps to add" : "The mission has no room for more steps", status: 409 };
+      }
       const finished = m.status === "completed" || m.status === "failed";
       await tx.update(ashMissionsTable).set({
         steps: [...m.steps, ...added.map((title: string) => ({ title, status: "pending" as const }))],

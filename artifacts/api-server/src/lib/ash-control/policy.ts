@@ -45,8 +45,8 @@ export const DEFAULT_CONTROL: Omit<EffectiveControl, "source"> = {
 export const isLevel = (v: unknown): v is AshControlLevel => typeof v === "string" && (ASH_CONTROL_LEVELS as readonly string[]).includes(v);
 export const isActionKind = (v: unknown): v is AshActionKind => typeof v === "string" && (ASH_ACTION_KINDS as readonly string[]).includes(v);
 
-export async function getEffectiveControl(userId: number, businessId: number | null): Promise<EffectiveControl> {
-  const rows = await db.select().from(ashControlSettingsTable).where(and(
+export async function getEffectiveControl(userId: number, businessId: number | null, client: Pick<typeof db, "select"> = db): Promise<EffectiveControl> {
+  const rows = await client.select().from(ashControlSettingsTable).where(and(
     eq(ashControlSettingsTable.userId, userId),
     businessId != null
       ? sql`(${ashControlSettingsTable.businessId} is null or ${ashControlSettingsTable.businessId} = ${businessId})`

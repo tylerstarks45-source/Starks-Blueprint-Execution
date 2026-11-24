@@ -4,14 +4,14 @@
 import { complete, type ChatMessage } from "../openrouter";
 import { logger } from "../logger";
 import { OutOfCreditsError } from "../credits";
-import { ASH_TOOLS, ALL_TOOL_DEFS, getTool, checkToolArgs } from "./tools";
+import { ASH_TOOLS, ALL_TOOL_DEFS, getTool, checkToolArgs, editableMemoryFilter } from "./tools";
 import { decide, toolActionKind } from "../ash-control/policy";
 import { integrationActionKind } from "../custom-integrations";
 import { isTeamMemberPaused, recordTeamActivity } from "../ventures";
 import { launchActionKind } from "../launch";
 import { createPendingApproval } from "../approvals";
 import { ownedBusinessIds } from "../empire/assets";
-import { db, usersTable, ashMissionsTable } from "@workspace/db";
+import { db, usersTable, ashMissionsTable, userMemoryTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { chainForAgentMode, resolveAgentMode } from "../models";
 import { isFounderAdmin } from "../auth";
@@ -74,12 +74,21 @@ async function gate(userId: number, control: AgentControl, spec: { name: string;
   if (d.decision === "block") {
     return { allowed: false, result: { status: "not_allowed", reason: d.reason, note: "Describe what you would do instead, or ask the owner to change ASH Control." }, step: { tool: spec.name, ok: false } };
   }
+  let title = describeCall(spec.name, args);
+  if (spec.name === "forget_memory" || (spec.name === "remember" && args.memoryId != null)) {
+    const id = Number(args.memoryId);
+    const [memory] = await db.select({ topic: userMemoryTable.memoryKey }).from(userMemoryTable).where(editableMemoryFilter(userId, id));
+    if (!memory) return { allowed: false, result: { error: "Memory not found" }, step: { tool: spec.name, ok: false } };
+    const topic = memory.topic.replace(/^(auto|ash):[^:]+:/, "").replace(/_/g, " ").slice(0, 80);
+    title = `${spec.name === "forget_memory" ? "Forget" : "Correct"} memory #${id}: ${topic}`;
+  }
+  signal?.throwIfAborted();
   const approval = await createPendingApproval({
     businessId,
     userId,
     category: "ashAction",
     riskLevel: kind === "spend" || kind === "delete" || kind === "legal" ? "high" : "low",
-    title: describeCall(spec.name, args),
+    title,
     description: d.reason,
     payload: { action: "ash_tool", tool: spec.name, args, ...(control.missionId != null ? { missionId: control.missionId } : {}) },
   });

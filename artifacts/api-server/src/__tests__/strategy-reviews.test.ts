@@ -76,6 +76,9 @@ describe("strategy reviews", () => {
     reply.mockResolvedValueOnce(llm({ verdict: "behind", summary: "Behind.", adjustments: ["Run a referral offer"] }));
     const held = await request(app).post(`/api/missions/${missionId}/strategy-reviews`).set(as(ownerId));
     expect(held.body).toMatchObject({ autoApplied: false, review: { status: "proposed" } });
+    await db.update(ashMissionsTable).set({ leaseUntil: new Date(Date.now() + 600_000) }).where(eq(ashMissionsTable.id, missionId));
+    expect((await request(app).post(`/api/strategy-reviews/${held.body.review.id}/apply`).set(as(ownerId))).status).toBe(409);
+    await db.update(ashMissionsTable).set({ leaseUntil: null }).where(eq(ashMissionsTable.id, missionId));
     await request(app).post(`/api/strategy-reviews/${held.body.review.id}/dismiss`).set(as(ownerId));
     await db.update(ashControlSettingsTable).set({ approvalRequired: [] }).where(eq(ashControlSettingsTable.userId, ownerId));
   });

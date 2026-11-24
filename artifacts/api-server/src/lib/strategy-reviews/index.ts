@@ -97,6 +97,8 @@ export async function decideStrategyReview(userId: number, reviewId: number, act
       const [m] = await tx.select().from(ashMissionsTable)
         .where(and(eq(ashMissionsTable.id, rev.missionId), eq(ashMissionsTable.userId, userId))).for("update");
       if (!m || m.status === "cancelled") return { error: "The mission was cancelled", status: 409 } as const;
+      // A step running now would write back its own copy of the steps and drop the new ones.
+      if (m.leaseUntil && m.leaseUntil > new Date()) return { error: "ASH is working on a step of this mission. Try again in a few minutes.", status: 409 } as const;
       const room = Math.max(0, MAX_MISSION_STEPS - m.steps.length);
       const added = rev.adjustments.slice(0, room);
       if (!added.length) return { error: "The mission has no room for more steps", status: 409 } as const;

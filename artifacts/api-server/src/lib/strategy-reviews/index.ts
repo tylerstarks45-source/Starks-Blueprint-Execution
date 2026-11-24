@@ -76,14 +76,34 @@ export async function reviewMission(userId: number, missionId: number): Promise<
     userId, missionId, businessId: d.mission.businessId, metrics, adjustments,
     verdict: r.revenueTracked ? out.verdict : "no_data", summary: out.summary.trim().slice(0, 2000),
   }).returning();
-  // Operator/Autopilot apply on their own, unless the owner's settings require approval for building.
-  const control = await getEffectiveControl(userId, d.mission.businessId);
-  if (adjustments.length && (control.level === "operator" || control.level === "autopilot")
-    && (await decide({ userId, businessId: d.mission.businessId, kind: "build", interactive: false })).decision === "allow") {
+  if (adjustments.length && await appliesOnItsOwn(userId, d.mission.businessId)) {
     const applied = await decideStrategyReview(userId, review!.id, "apply", "ASH");
     if ("review" in applied) return { review: applied.review, autoApplied: true } as const;
   }
   return { review: review!, autoApplied: false } as const;
+}
+
+// Operator/Autopilot apply reviews on their own, unless the owner's settings require approval for building.
+async function appliesOnItsOwn(userId: number, businessId: number | null): Promise<boolean> {
+  const control = await getEffectiveControl(userId, businessId);
+  if (control.level !== "operator" && control.level !== "autopilot") return false;
+  return (await decide({ userId, businessId, kind: "build", interactive: false })).decision === "allow";
+}
+
+/** Scheduler: applies reviews ASH couldn't apply on her own because a mission step was running then. */
+export async function applyHeldReviews(limit = 50): Promise<{ applied: number }> {
+  const held = await db.select({ id: strategyReviewsTable.id, userId: strategyReviewsTable.userId, businessId: ashMissionsTable.businessId })
+    .from(strategyReviewsTable).innerJoin(ashMissionsTable, eq(ashMissionsTable.id, strategyReviewsTable.missionId))
+    .where(and(eq(strategyReviewsTable.status, "proposed"), sql`jsonb_array_length(${strategyReviewsTable.adjustments}) > 0`,
+      sql`${strategyReviewsTable.createdAt} > ${new Date(Date.now() - REVIEW_INTERVAL_MS)}`,
+      sql`(${ashMissionsTable.leaseUntil} is null or ${ashMissionsTable.leaseUntil} < now())`))
+    .orderBy(strategyReviewsTable.id).limit(limit);
+  let applied = 0;
+  for (const r of held) {
+    if (!(await appliesOnItsOwn(r.userId, r.businessId))) continue;
+    if ("review" in await decideStrategyReview(r.userId, r.id, "apply", "ASH")) applied++;
+  }
+  return { applied };
 }
 
 /** Applies a proposed review (its steps join the mission, which runs again if it had finished) or dismisses it. */

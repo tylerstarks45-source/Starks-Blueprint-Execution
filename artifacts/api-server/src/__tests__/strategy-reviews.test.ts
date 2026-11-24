@@ -9,7 +9,7 @@ vi.mock("../lib/openrouter", () => ({ complete: (opts: unknown) => reply(opts), 
 import app from "../app";
 import { db, usersTable, businessesTable, ashMissionsTable, incomePlansTable, ashControlSettingsTable, strategyReviewsTable } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
-import { runDueStrategyReviews } from "../lib/strategy-reviews";
+import { runDueStrategyReviews, applyHeldReviews } from "../lib/strategy-reviews";
 import { isExpensiveAiRequest } from "../middlewares/security";
 
 let ownerId: number;
@@ -71,6 +71,16 @@ describe("strategy reviews", () => {
     reply.mockResolvedValueOnce(llm({ verdict: "behind", summary: "Behind.", adjustments: ["Launch a pricing page", "Email past leads"] }));
     const r = await request(app).post(`/api/missions/${missionId}/strategy-reviews`).set(as(ownerId));
     expect(r.body).toMatchObject({ autoApplied: true, review: { status: "applied", adjustments: ["Email past leads"] } });
+
+    await db.update(ashMissionsTable).set({ leaseUntil: new Date(Date.now() + 600_000) }).where(eq(ashMissionsTable.id, missionId));
+    reply.mockResolvedValueOnce(llm({ verdict: "behind", summary: "Behind.", adjustments: ["Post a launch thread"] }));
+    const busy = await request(app).post(`/api/missions/${missionId}/strategy-reviews`).set(as(ownerId));
+    expect(busy.body).toMatchObject({ autoApplied: false, review: { status: "proposed" } });
+    await applyHeldReviews();
+    expect((await db.select().from(strategyReviewsTable).where(eq(strategyReviewsTable.id, busy.body.review.id)))[0]!.status).toBe("proposed");
+    await db.update(ashMissionsTable).set({ leaseUntil: null }).where(eq(ashMissionsTable.id, missionId));
+    await applyHeldReviews();
+    expect((await db.select().from(strategyReviewsTable).where(eq(strategyReviewsTable.id, busy.body.review.id)))[0]!.status).toBe("applied");
 
     await db.update(ashControlSettingsTable).set({ approvalRequired: ["build"] }).where(eq(ashControlSettingsTable.userId, ownerId));
     reply.mockResolvedValueOnce(llm({ verdict: "behind", summary: "Behind.", adjustments: ["Run a referral offer"] }));

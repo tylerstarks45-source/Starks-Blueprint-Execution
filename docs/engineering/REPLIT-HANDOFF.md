@@ -81,6 +81,8 @@ If browsers get `Origin not allowed`, add the site origin to `ALLOWED_ORIGINS` (
 
 **After the ASH Live branch is merged:** This feature adds no schema changes or new secrets. Keep the existing database and follow the backup and additive migration order above for any prerequisite branches. The web simulator connects to its own host at `/api/ash-live`; configure the same ingress that serves `/api` to pass WebSocket upgrades and preserve `Sec-WebSocket-Protocol` to the API server. Do not log that credential-bearing header. Verify an HTTPS/WSS handshake on staging. The existing `ALLOWED_ORIGINS` list applies. Check that the simulator connects, answers a text turn, and stops playback when the user interrupts. See [ASH Live protocol](ASH-LIVE-PROTOCOL.md) and [voice evaluation](ASH-VOICE-PROVIDERS.md).
 
+**After the shared conversation branch is merged:** Update the web and API together so reconnect history and Clear use the same protocol. No new migration or secret is required. In staging, turn on ASH on the dashboard, move to Builder and ASH Live without reloading, and check that one socket and transcript follow you. Test that signing out stops the mic, and that a different account sees no transcript. `/download` describes browser installation only; it does not publish a native installer or grant desktop access.
+
 Optional tuning variables: `API_RATE_LIMIT_PER_MINUTE` (600), `PUBLIC_FORM_RATE_LIMIT_PER_MINUTE` (30), `AI_RATE_LIMIT_PER_MINUTE` (20), `CREATOR_PAYOUT_HOLD_DAYS` (14), `CREATOR_MIN_PAYOUT_CENTS` (1000).
 
 ## 5. Rules for further changes

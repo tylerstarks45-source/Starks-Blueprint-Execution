@@ -51,6 +51,7 @@ const Footer = () => {
             <h4 className="text-sm font-bold text-foreground mb-6 uppercase tracking-wider">Platform</h4>
             <ul className="space-y-3">
               <li><Link to="/dashboard" className="text-sm text-muted-foreground hover:text-primary transition-colors">Dashboard</Link></li>
+              <li><Link to="/download" className="text-sm text-muted-foreground hover:text-primary transition-colors">Install app</Link></li>
               <li><Link to="/blueprints" className="text-sm text-muted-foreground hover:text-primary transition-colors">System Blueprints</Link></li>
               <li><Link to="/marketplace" className="text-sm text-muted-foreground hover:text-primary transition-colors">Marketplace</Link></li>
               <li><Link to="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">About Us</Link></li>

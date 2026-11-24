@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext.jsx';
+import { useAshConversation } from '@/contexts/AshConversationContext.jsx';
 import ASHReactor from './ASHReactor.jsx';
 import ASHAssistantPanel from './ASHAssistantPanel.jsx';
 import BrainLevelsPanel, { useBrainActivity, overallLevel } from '@/components/ash/BrainLevelsPanel.jsx';
@@ -42,7 +42,8 @@ function GlassPanel({ children, className = '', style = {}, noBrackets = false }
 }
 
 /* ── Top navigation bar ──────────────────────────────────────────────── */
-function TopBar({ userName }) {
+function TopBar() {
+  const { status } = useAshConversation();
   const [time, setTime] = useState(new Date());
   useEffect(() => { const id = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(id); }, []);
   const hms  = time.toLocaleTimeString('en-US', { hour12: false });
@@ -72,7 +73,7 @@ function TopBar({ userName }) {
             { label: '◎ Income',     path: '/income-streams' },
             { label: '⚙ Settings',   path: '/settings'    },
           ].map(({ label, path, active }) => (
-            <a key={label} href={path ?? '#'}
+            <Link key={label} to={path ?? '/dashboard'}
               className="px-2.5 py-1 rounded text-[9px] font-semibold uppercase tracking-wider transition-all hover:text-white/80"
               style={{
                 color: active ? '#00c8ff' : 'rgba(255,255,255,0.35)',
@@ -80,7 +81,7 @@ function TopBar({ userName }) {
                 border: active ? '1px solid rgba(0,200,255,0.2)' : '1px solid transparent',
               }}>
               {label}
-            </a>
+            </Link>
           ))}
         </div>
       </div>
@@ -97,8 +98,8 @@ function TopBar({ userName }) {
           style={{ background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.22)' }}>
           <img src="https://horizons-cdn.hostinger.com/c23c9050-cfff-41bf-82a4-af121e0b4678/4c35c9e2294c3d0e16fb5ed3a74c5ddc.png"
             alt="" className="h-4 w-auto object-contain" />
-          <span className="text-[8px] font-bold text-cyan-400 uppercase tracking-widest">ASH AI · Active</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          <span className="text-[8px] font-bold text-cyan-400 uppercase tracking-widest">ASH AI · {status}</span>
+          <span className={`w-1.5 h-1.5 rounded-full ${status === 'connected' ? 'bg-cyan-400 motion-safe:animate-pulse' : 'bg-slate-500'}`} />
         </div>
       </div>
     </div>
@@ -125,18 +126,17 @@ function ActiveTasksPanel({ systems }) {
           </div>
         ))}
       </div>
-      <button onClick={() => window.location.href='/systems'}
-        className="w-full py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-widest transition-all hover:brightness-125"
+      <Link to="/systems"
+        className="w-full py-1.5 rounded-lg text-center text-[8px] font-bold uppercase tracking-widest transition-all hover:brightness-125"
         style={{ background:'rgba(0,200,255,0.07)', border:'1px solid rgba(0,200,255,0.2)', color:'rgba(0,200,255,0.65)' }}>
         View All Tasks
-      </button>
+      </Link>
     </GlassPanel>
   );
 }
 
 /* ── Main dashboard ──────────────────────────────────────────────────── */
 export default function CommandCenterDashboard() {
-  const { currentUser } = useAuth();
   const [systems,   setSystems]   = useState([]);
   const [ashOpen,   setAshOpen]   = useState(false);
   const brain = useBrainActivity();
@@ -148,7 +148,6 @@ export default function CommandCenterDashboard() {
       .catch(() => {});
   }, []);
 
-  const userName     = currentUser?.name?.split(' ')[0] ?? currentUser?.email?.split('@')[0] ?? 'Tyler';
   const totalSystems = systems.length;
   const building     = systems.filter(s => s.buildStatus === 'building').length;
   const active       = systems.filter(s => s.buildStatus === 'active').length;
@@ -175,7 +174,7 @@ export default function CommandCenterDashboard() {
       </div>
 
       {/* ── Top bar ── */}
-      <TopBar userName={userName} />
+      <TopBar />
 
       {/* ── Main body ── */}
       <div className="relative z-10 flex-1 flex gap-2 px-2 pt-2 min-h-0 overflow-hidden">
@@ -208,7 +207,7 @@ export default function CommandCenterDashboard() {
         <div className="shrink-0 hidden lg:block" style={{ width: 258 }}>
           <GlassPanel className="h-full p-3.5"
             style={{ border:'1px solid rgba(0,200,255,0.16)' }}>
-            <ASHAssistantPanel userName={userName} systemStats={{ totalSystems, building, active }} />
+            <ASHAssistantPanel />
           </GlassPanel>
         </div>
       </div>
@@ -233,7 +232,7 @@ export default function CommandCenterDashboard() {
           <div className="w-full max-h-[80vh] overflow-y-auto rounded-t-2xl p-4"
             style={{ background:'rgba(4,10,28,0.98)', border:'1px solid rgba(0,200,255,0.18)',
               borderBottom:'none' }}>
-            <ASHAssistantPanel userName={userName} systemStats={{ totalSystems, building, active }} />
+            <ASHAssistantPanel />
           </div>
         </div>
       )}

@@ -15,11 +15,10 @@ const GESTURE_LABEL = { nod: 'nods', wave: 'waves', explain: 'explains', think: 
 const TASK_TONE = { running: 'cyan', planning: 'cyan', completed: 'green', failed: 'rose', cancelled: 'slate', paused: 'slate', waiting_approval: 'amber', waiting_owner: 'amber' };
 const SILENCE_MS = 900;
 const MIN_SPEECH_MS = 300;
-const CAPTURE_RATE = 16_000;
 const PREROLL_FRAMES = 20;
 const FRAME_MS = 20;
 
-function wavAudio(frames) {
+function wavAudio(frames, sampleRate) {
   const samples = frames.reduce((total, frame) => total + frame.length, 0);
   const header = new ArrayBuffer(44);
   const view = new DataView(header);
@@ -30,8 +29,8 @@ function wavAudio(frames) {
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
   view.setUint16(22, 1, true);
-  view.setUint32(24, CAPTURE_RATE, true);
-  view.setUint32(28, CAPTURE_RATE * 2, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
   view.setUint16(32, 2, true);
   view.setUint16(34, 16, true);
   tag(36, 'data');
@@ -302,9 +301,11 @@ export default function AshLivePage() {
       if (!ready) { setHandsFree(false); return; }
       const m = mic.current;
       try {
-        const ctx = new AudioContext({ sampleRate: CAPTURE_RATE });
+        const ctx = new AudioContext();
         m.ctx = ctx;
         await ctx.resume();
+        const { sampleRate } = ctx;
+        const maxUtteranceMs = Math.min(45_000, Math.floor(4_000_000 / (sampleRate * 2) * 1000));
         await ctx.audioWorklet.addModule(new URL('../lib/ashLiveMic.worklet.js', import.meta.url));
         if (cancelled) return;
         const worklet = new AudioWorkletNode(ctx, 'ash-live-mic', { channelCount: 1, channelCountMode: 'explicit' });
@@ -336,8 +337,8 @@ export default function AshLivePage() {
             voicedMs += FRAME_MS;
             if (voicedMs === 120) interrupt();
           }
-          if (quietMs >= SILENCE_MS || elapsedMs >= 45_000) {
-            if (voicedMs >= 120 && elapsedMs - quietMs >= MIN_SPEECH_MS) sendRecording(wavAudio(frames));
+          if (quietMs >= SILENCE_MS || elapsedMs >= maxUtteranceMs) {
+            if (voicedMs >= 120 && elapsedMs - quietMs >= MIN_SPEECH_MS) sendRecording(wavAudio(frames, sampleRate));
             frames = null;
             preRoll.length = 0;
             setRecording(false);

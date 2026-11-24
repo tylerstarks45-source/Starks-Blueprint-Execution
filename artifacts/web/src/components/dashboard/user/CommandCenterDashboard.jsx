@@ -126,11 +126,11 @@ function ActiveTasksPanel({ systems }) {
           </div>
         ))}
       </div>
-      <button onClick={() => window.location.href='/systems'}
-        className="w-full py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-widest transition-all hover:brightness-125"
+      <Link to="/systems"
+        className="w-full py-1.5 rounded-lg text-center text-[8px] font-bold uppercase tracking-widest transition-all hover:brightness-125"
         style={{ background:'rgba(0,200,255,0.07)', border:'1px solid rgba(0,200,255,0.2)', color:'rgba(0,200,255,0.65)' }}>
         View All Tasks
-      </button>
+      </Link>
     </GlassPanel>
   );
 }

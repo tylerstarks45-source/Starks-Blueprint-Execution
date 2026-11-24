@@ -70,6 +70,13 @@ describe("strategy reviews", () => {
     reply.mockResolvedValueOnce(llm({ verdict: "behind", summary: "Behind.", adjustments: ["Launch a pricing page", "Email past leads"] }));
     const r = await request(app).post(`/api/missions/${missionId}/strategy-reviews`).set(as(ownerId));
     expect(r.body).toMatchObject({ autoApplied: true, review: { status: "applied", adjustments: ["Email past leads"] } });
+
+    await db.update(ashControlSettingsTable).set({ approvalRequired: ["build"] }).where(eq(ashControlSettingsTable.userId, ownerId));
+    reply.mockResolvedValueOnce(llm({ verdict: "behind", summary: "Behind.", adjustments: ["Run a referral offer"] }));
+    const held = await request(app).post(`/api/missions/${missionId}/strategy-reviews`).set(as(ownerId));
+    expect(held.body).toMatchObject({ autoApplied: false, review: { status: "proposed" } });
+    await request(app).post(`/api/strategy-reviews/${held.body.review.id}/dismiss`).set(as(ownerId));
+    await db.update(ashControlSettingsTable).set({ approvalRequired: [] }).where(eq(ashControlSettingsTable.userId, ownerId));
   });
 
   it("rejects unusable replies and non-income missions", async () => {

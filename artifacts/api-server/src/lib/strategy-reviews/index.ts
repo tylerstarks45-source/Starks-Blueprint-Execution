@@ -7,7 +7,7 @@ import { db, ashMissionsTable, strategyReviewsTable, type StrategyReview, type S
 import { complete } from "../openrouter";
 import { chainFor } from "../models";
 import { getMissionDashboard } from "../income-missions";
-import { getEffectiveControl } from "../ash-control/policy";
+import { decide, getEffectiveControl } from "../ash-control/policy";
 import { logEntry, withLog } from "../ash-missions";
 import { logger } from "../logger";
 
@@ -76,8 +76,10 @@ export async function reviewMission(userId: number, missionId: number): Promise<
     userId, missionId, businessId: d.mission.businessId, metrics, adjustments,
     verdict: r.revenueTracked ? out.verdict : "no_data", summary: out.summary.trim().slice(0, 2000),
   }).returning();
+  // Operator/Autopilot apply on their own, unless the owner's settings require approval for building.
   const control = await getEffectiveControl(userId, d.mission.businessId);
-  if (adjustments.length && (control.level === "operator" || control.level === "autopilot")) {
+  if (adjustments.length && (control.level === "operator" || control.level === "autopilot")
+    && (await decide({ userId, businessId: d.mission.businessId, kind: "build", interactive: false })).decision === "allow") {
     const applied = await decideStrategyReview(userId, review!.id, "apply", "ASH");
     if ("review" in applied) return { review: applied.review, autoApplied: true } as const;
   }

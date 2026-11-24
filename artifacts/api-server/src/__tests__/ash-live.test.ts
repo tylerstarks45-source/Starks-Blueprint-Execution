@@ -82,6 +82,7 @@ afterAll(async () => {
 describe("ASH Live protocol helpers", () => {
   it("pronounces ASH as a name and picks cues from fixed rules", () => {
     expect(toSpokenText("**ASH** here, from STARKS.")).toBe("Ash here, from Starks.");
+    expect(toSpokenText("Hello ".repeat(800))).toHaveLength(2000);
     expect(cueForReply("Done.", [{ ok: true, approvalId: 3 }])).toEqual({ emotion: "focused", gesture: "explain" });
     expect(cueForReply("Congratulations on the first sale!", [])).toEqual({ emotion: "happy", gesture: "celebrate" });
     expect(cueForReply("Which store should I start with?", [])).toEqual({ emotion: "curious", gesture: "none" });

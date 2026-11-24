@@ -38,7 +38,7 @@ export const ClientMessage = z.discriminatedUnion("type", [
 ]);
 export type ClientMessage = z.infer<typeof ClientMessage>;
 
-const MAX_SPOKEN_CHARS = 4000;
+const MAX_SPOKEN_CHARS = 2000;
 
 /** Plain text for TTS: drop markdown so the voice doesn't read symbols aloud, and say "ASH" as the name "Ash". */
 export function toSpokenText(markdown: string): string {

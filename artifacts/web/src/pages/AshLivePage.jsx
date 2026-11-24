@@ -17,6 +17,8 @@ const SILENCE_MS = 900;
 const MIN_SPEECH_MS = 300;
 const PREROLL_FRAMES = 20;
 const FRAME_MS = 20;
+const VOICE_WINDOW_FRAMES = 600 / FRAME_MS;
+const MIN_WINDOW_VOICE_MS = 260;
 
 function canAttemptConnection(token) {
   if (!token) return false;
@@ -334,6 +336,9 @@ export default function AshLivePage() {
         let elapsedMs = 0;
         let quietMs = 0;
         let sustainedVoiceMs = 0;
+        const voiceWindow = new Uint8Array(VOICE_WINDOW_FRAMES);
+        let windowVoiceMs = 0;
+        let windowIndex = 0;
         let confirmed = false;
         let meterFrames = 0;
         worklet.port.onmessage = ({ data: { pcm, rms } }) => {
@@ -343,6 +348,8 @@ export default function AshLivePage() {
           if (!frames && audible) {
             frames = [...preRoll];
             elapsedMs = quietMs = sustainedVoiceMs = 0;
+            voiceWindow.fill(0);
+            windowVoiceMs = windowIndex = 0;
             confirmed = false;
             setRecording(true);
           }
@@ -353,9 +360,16 @@ export default function AshLivePage() {
           elapsedMs += FRAME_MS;
           quietMs = audible ? 0 : quietMs + FRAME_MS;
           sustainedVoiceMs = audible ? sustainedVoiceMs + FRAME_MS : 0;
-          if (!confirmed && sustainedVoiceMs >= 120) {
-            confirmed = true;
-            interrupt();
+          if (!confirmed) {
+            const voiced = audible ? FRAME_MS : 0;
+            windowVoiceMs += voiced - voiceWindow[windowIndex];
+            voiceWindow[windowIndex] = voiced;
+            windowIndex = (windowIndex + 1) % voiceWindow.length;
+            // Allow short gaps in speech, but not isolated sounds spread over the recording.
+            if (sustainedVoiceMs >= 120 || windowVoiceMs >= MIN_WINDOW_VOICE_MS) {
+              confirmed = true;
+              interrupt();
+            }
           }
           if (quietMs >= SILENCE_MS || elapsedMs >= maxUtteranceMs) {
             if (confirmed && elapsedMs - quietMs >= MIN_SPEECH_MS) sendRecording(wavAudio(frames, sampleRate));

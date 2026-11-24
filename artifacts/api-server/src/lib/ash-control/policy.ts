@@ -16,7 +16,7 @@ const TOOL_KINDS: Record<string, ToolActionKind> = {
   list_businesses: "read", get_business_context: "read", get_portfolio_summary: "read",
   get_empire_overview: "read", list_business_types: "read", research: "read",
   get_learned_patterns: "read", consult_specialist: "read", navigate: "read",
-  get_ash_control: "read", list_missions: "read", start_mission: "read", plan_income_mission: "read", request_owner_action: "read", list_capabilities: "read", request_capability: "read", list_integrations: "read", get_venture: "read", list_launch_options: "read", launch: "publish",
+  get_ash_control: "read", list_missions: "read", start_mission: "read", plan_income_mission: "read", request_owner_action: "read", list_capabilities: "read", request_capability: "read", list_integrations: "read", get_venture: "read", list_launch_options: "read", launch: "publish", review_strategy: "read",
   define_integration: "build", test_integration: "connect_service", run_integration_action: "connect_service",
   create_business: "build", add_income_stream: "build", register_asset: "build",
   image: "build", generate_video: "build", generate_music: "build", text_to_speech: "build", file: "build",
@@ -45,8 +45,8 @@ export const DEFAULT_CONTROL: Omit<EffectiveControl, "source"> = {
 export const isLevel = (v: unknown): v is AshControlLevel => typeof v === "string" && (ASH_CONTROL_LEVELS as readonly string[]).includes(v);
 export const isActionKind = (v: unknown): v is AshActionKind => typeof v === "string" && (ASH_ACTION_KINDS as readonly string[]).includes(v);
 
-export async function getEffectiveControl(userId: number, businessId: number | null): Promise<EffectiveControl> {
-  const rows = await db.select().from(ashControlSettingsTable).where(and(
+export async function getEffectiveControl(userId: number, businessId: number | null, client: Pick<typeof db, "select"> = db): Promise<EffectiveControl> {
+  const rows = await client.select().from(ashControlSettingsTable).where(and(
     eq(ashControlSettingsTable.userId, userId),
     businessId != null
       ? sql`(${ashControlSettingsTable.businessId} is null or ${ashControlSettingsTable.businessId} = ${businessId})`

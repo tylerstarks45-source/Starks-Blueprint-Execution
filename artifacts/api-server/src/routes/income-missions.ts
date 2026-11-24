@@ -7,6 +7,7 @@ import {
 } from "../lib/income-missions";
 import { checkCapabilities, capabilitiesForPlan } from "../lib/capabilities";
 import type { IncomePlan } from "@workspace/db";
+import { listStrategyReviews, reviewMission, decideStrategyReview } from "../lib/strategy-reviews";
 
 const router: IRouter = Router();
 const bad = (res: Response, error: string, status = 400) => void res.status(status).json({ error });
@@ -70,6 +71,36 @@ router.get("/missions/:id/dashboard", async (req, res): Promise<void> => {
   const d = await getMissionDashboard(caller.id, id);
   if (!d) return bad(res, "Not found", 404);
   res.json(serialize(d));
+});
+
+router.get("/missions/:id/strategy-reviews", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+  const id = idOf(req.params["id"]);
+  if (!id) return bad(res, "Invalid mission id");
+  res.json(serialize(await listStrategyReviews(caller.id, id)));
+});
+
+router.post("/missions/:id/strategy-reviews", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+  const id = idOf(req.params["id"]);
+  if (!id) return bad(res, "Invalid mission id");
+  const r = await reviewMission(caller.id, id);
+  if (!("review" in r)) return bad(res, r.error, r.status);
+  res.status(201).json(serialize(r));
+});
+
+router.post("/strategy-reviews/:id/:action", async (req, res): Promise<void> => {
+  const caller = await getActiveCallerPayload(req, res);
+  if (!caller) return;
+  const id = idOf(req.params["id"]);
+  const action = req.params["action"];
+  if (!id) return bad(res, "Invalid review id");
+  if (action !== "apply" && action !== "dismiss") return bad(res, "Unknown action", 404);
+  const r = await decideStrategyReview(caller.id, id, action);
+  if (!("review" in r)) return bad(res, r.error, r.status);
+  res.json(serialize(r.review));
 });
 
 export default router;

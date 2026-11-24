@@ -64,6 +64,13 @@
       "when": 1794995502870,
       "tag": "0008_ventures",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795520061597,
+      "tag": "0009_strategy_reviews",
+      "breakpoints": true
     }
   ]
 }

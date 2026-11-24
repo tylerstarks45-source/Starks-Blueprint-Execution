@@ -1,5 +1,5 @@
 import { db, userMemoryTable } from "@workspace/db";
-import { eq, and, isNull, ne, or } from "drizzle-orm";
+import { eq, and, isNull, ne, or, sql } from "drizzle-orm";
 import type { UserMemory } from "@workspace/db";
 import { topByRelevance } from "./relevance";
 import { resolveRelevantKnowledgeScopes } from "../business-intelligence";
@@ -55,6 +55,15 @@ export function longTermMemoryKey(category: string, title: string): string {
   return `auto:${category}:${title.toLowerCase().slice(0, 60).replace(/\s+/g, "_")}`;
 }
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export function withLongTermMemoryWriteLock<T>(userId: number, write: (tx: Tx) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('long_term_memory'), ${userId}::int)`);
+    return write(tx);
+  });
+}
+
 // Auto-memory writer: upserts by (userId, category, normalized key derived
 // from title) so repeated similar facts strengthen one row instead of
 // spawning duplicates. Manual entries (category IS NULL) are never touched.
@@ -84,33 +93,27 @@ export async function upsertLongTermMemory(params: {
   } else {
     conditions.push(isNull(userMemoryTable.systemInstanceId));
   }
-  const [existing] = await db.select().from(userMemoryTable).where(and(...conditions));
-
-  if (existing) {
-    await db.update(userMemoryTable).set({
-      memoryValue: params.content,
+  await withLongTermMemoryWriteLock(params.userId, async (tx) => {
+    const [existing] = await tx.select().from(userMemoryTable).where(and(...conditions));
+    const values = {
       category: params.category,
       tags: params.tags,
-      importanceScore: Math.max(existing.importanceScore, params.importanceScore),
       confidenceScore: params.confidenceScore,
+      memoryValue: params.content,
+      importanceScore: Math.max(existing?.importanceScore ?? params.importanceScore, params.importanceScore),
       scope,
       businessId,
       lastAccessedAt: new Date(),
-    }).where(eq(userMemoryTable.id, existing.id));
-    return;
-  }
-
-  await db.insert(userMemoryTable).values({
-    userId: params.userId,
-    systemInstanceId: params.systemInstanceId ?? null,
-    memoryKey,
-    memoryValue: params.content,
-    category: params.category,
-    tags: params.tags,
-    importanceScore: params.importanceScore,
-    confidenceScore: params.confidenceScore,
-    scope,
-    businessId,
-    lastAccessedAt: new Date(),
+    };
+    if (existing) {
+      await tx.update(userMemoryTable).set(values).where(eq(userMemoryTable.id, existing.id));
+    } else {
+      await tx.insert(userMemoryTable).values({
+        ...values,
+        userId: params.userId,
+        systemInstanceId: params.systemInstanceId ?? null,
+        memoryKey,
+      });
+    }
   });
 }

@@ -24,7 +24,7 @@ import { getVenture } from "../ventures";
 import { reviewMission } from "../strategy-reviews";
 import { LAUNCH_ACTIONS, LAUNCH_CONNECTORS, launchOptions, runLaunchAction } from "../launch";
 import { getEffectiveControl } from "../ash-control/policy";
-import { getRelevantLongTermMemory, longTermMemoryKey, upsertLongTermMemory } from "../memory-engine/long-term-memory";
+import { getRelevantLongTermMemory, longTermMemoryKey, upsertLongTermMemory, withLongTermMemoryWriteLock } from "../memory-engine/long-term-memory";
 import { ASH_STYLE_KEY } from "./persona";
 
 // Pages ASH can send the user to (the web app's authenticated routes).
@@ -323,10 +323,10 @@ const SPECS: ToolSpec[] = [
       const topic = String(a["topic"] ?? "").trim().slice(0, 60);
       const fact = String(a["fact"] ?? "").trim().slice(0, 1000);
       if (!fact) return { error: "Give the fact to remember" };
-      if (a["memoryId"] != null) {
+      if (a["memoryId"] != null) return withLongTermMemoryWriteLock(userId, async (tx) => {
         const id = Number(a["memoryId"]);
         const filter = editableMemoryFilter(userId, id);
-        const [existing] = await db.select({ key: userMemoryTable.memoryKey, category: userMemoryTable.category })
+        const [existing] = await tx.select({ key: userMemoryTable.memoryKey, category: userMemoryTable.category })
           .from(userMemoryTable).where(filter);
         if (!existing) return { error: "Memory not found" };
         let key = `ash:corrected:${topic || `Memory #${id}`}`;
@@ -334,18 +334,18 @@ const SPECS: ToolSpec[] = [
           if (!topic) return { error: "Give a topic for the corrected memory" };
           key = longTermMemoryKey("user_stated", topic);
           if (key !== existing.key) {
-            const [duplicate] = await db.select({ id: userMemoryTable.id }).from(userMemoryTable).where(and(
+            const [duplicate] = await tx.select({ id: userMemoryTable.id }).from(userMemoryTable).where(and(
               eq(userMemoryTable.userId, userId), eq(userMemoryTable.memoryKey, key), isNull(userMemoryTable.systemInstanceId),
             )).limit(1);
             if (duplicate) return { error: "That topic already belongs to another memory. Choose a different topic or correct that memory instead." };
           }
         }
-        const updated = await db.update(userMemoryTable)
+        const updated = await tx.update(userMemoryTable)
           .set({ memoryKey: key, memoryValue: fact, confidenceScore: 100, lastAccessedAt: new Date() })
           .where(filter)
           .returning({ id: userMemoryTable.id });
         return updated.length ? { remembered: true, corrected: true } : { error: "Memory not found" };
-      }
+      });
       if (!topic) return { error: "Give a topic for the new memory" };
       await upsertLongTermMemory({ userId, category: "user_stated", title: topic, content: fact, tags: ["remembered"], importanceScore: 80, confidenceScore: 100 });
       return { remembered: true, note: "Saved. The user can review or delete it on /memory." };

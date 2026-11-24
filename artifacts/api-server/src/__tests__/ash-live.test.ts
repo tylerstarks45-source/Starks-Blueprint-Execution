@@ -19,7 +19,7 @@ import { cueForReply, toSpokenText } from "../lib/ash-live/protocol";
 import { getTool } from "../lib/ash-agent/tools";
 import { toolActionKind } from "../lib/ash-control/policy";
 import { db, usersTable, userMemoryTable, ashMissionsTable } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 let server: http.Server;
 let close: () => void;
@@ -199,5 +199,22 @@ describe("ASH memory tools", () => {
     expect(await run("forget_memory", ownerId, { memoryId: saved.id })).toEqual({ forgotten: true });
     expect(toolActionKind("forget_memory")).toBe("delete");
     expect(toolActionKind("remember")).toBe("build");
+  });
+
+  it("allows only one concurrent correction to claim the same normalized topic", async () => {
+    const remember = getTool("remember")!.run!;
+    const originals = await db.insert(userMemoryTable).values([
+      { userId: ownerId, memoryKey: "auto:user_stated:voice", memoryValue: "Voice", category: "user_stated" },
+      { userId: ownerId, memoryKey: "auto:user_stated:tone", memoryValue: "Tone", category: "user_stated" },
+    ]).returning({ id: userMemoryTable.id });
+    const results = await Promise.all(originals.map(({ id }, i) => remember(ownerId, {
+      memoryId: id, topic: i ? "delivery style" : "Delivery Style", fact: `Correction ${i}`,
+    })));
+    expect(results.filter((result) => "corrected" in (result as object))).toHaveLength(1);
+    expect(results).toContainEqual({ error: expect.stringContaining("already belongs") });
+    const rows = await db.select().from(userMemoryTable).where(and(
+      eq(userMemoryTable.userId, ownerId), eq(userMemoryTable.memoryKey, "auto:user_stated:delivery_style"),
+    ));
+    expect(rows).toHaveLength(1);
   });
 });

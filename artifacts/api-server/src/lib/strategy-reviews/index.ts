@@ -2,8 +2,8 @@
 // spend, milestones) with its target and proposes next steps. On Operator/Autopilot she adds them
 // to the mission herself; otherwise the owner applies or dismisses them.
 import { z } from "zod";
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
-import { db, ashMissionsTable, strategyReviewsTable, type StrategyReview, type StrategyReviewMetrics } from "@workspace/db";
+import { and, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { db, ashMissionsTable, businessesTable, strategyReviewsTable, type StrategyReview, type StrategyReviewMetrics } from "@workspace/db";
 import { complete } from "../openrouter";
 import { chainFor } from "../models";
 import { getMissionDashboard } from "../income-missions";
@@ -75,16 +75,22 @@ export async function reviewMission(userId: number, missionId: number): Promise<
   const autoApply = adjustments.length > 0 && await appliesOnItsOwn(userId, d.mission.businessId);
   const review = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext('strategy_reviews'), ${missionId}::int)`);
-    // Only the latest review can auto-apply; the dashboard only shows the latest review.
-    await tx.update(strategyReviewsTable).set({ status: "superseded", decidedAt: new Date() })
-      .where(and(eq(strategyReviewsTable.missionId, missionId), eq(strategyReviewsTable.userId, userId), eq(strategyReviewsTable.status, "queued")));
+    if (d.mission.businessId !== null) {
+      const [business] = await tx.select({ id: businessesTable.id }).from(businessesTable)
+        .where(eq(businessesTable.id, d.mission.businessId)).for("key share");
+      if (!business) return null;
+    }
     const [saved] = await tx.insert(strategyReviewsTable).values({
       userId, missionId, businessId: d.mission.businessId, metrics, adjustments,
       status: autoApply ? "queued" : "proposed", createdAt: sql`clock_timestamp()`,
       verdict: r.revenueTracked ? out.verdict : "no_data", summary: out.summary.trim().slice(0, 2000),
     }).returning();
+    // Insert first so the foreign-key locks come before locks on older review rows.
+    await tx.update(strategyReviewsTable).set({ status: "superseded", decidedAt: new Date() })
+      .where(and(eq(strategyReviewsTable.missionId, missionId), eq(strategyReviewsTable.status, "queued"), ne(strategyReviewsTable.id, saved!.id)));
     return saved!;
   });
+  if (!review) return { error: "The business was removed while ASH was reviewing it.", status: 409 };
   if (autoApply) {
     const applied = await decideStrategyReview(userId, review.id, "apply", "ASH");
     if ("review" in applied) return { review: applied.review, autoApplied: applied.review.status === "applied" };

@@ -119,6 +119,18 @@ describe("strategy reviews", () => {
     expect((await request(app).post(`/api/missions/${plain!.id}/strategy-reviews`).set(as(ownerId))).status).toBe(400);
   });
 
+  it("does not save a stale review after the business is deleted", async () => {
+    const deleted = await incomeMission(otherId, "running");
+    const [mission] = await db.select().from(ashMissionsTable).where(eq(ashMissionsTable.id, deleted));
+    reply.mockImplementationOnce(async () => {
+      await db.delete(businessesTable).where(eq(businessesTable.id, mission!.businessId!));
+      return llm({ verdict: "no_data", summary: "Connect payments.", adjustments: [] });
+    });
+    const result = await request(app).post(`/api/missions/${deleted}/strategy-reviews`).set(as(otherId));
+    expect(result.status).toBe(409);
+    expect(await db.select().from(strategyReviewsTable).where(eq(strategyReviewsTable.missionId, deleted))).toHaveLength(0);
+  });
+
   it("the scheduler reviews week-old income missions once", async () => {
     const old = await incomeMission(otherId, "running", new Date(Date.now() - 8 * 86_400_000));
     reply.mockResolvedValue(llm({ verdict: "no_data", summary: "Connect payments.", adjustments: [] }));

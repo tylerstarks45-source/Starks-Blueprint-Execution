@@ -92,12 +92,18 @@ export default function MissionsPage() {
   };
   const rows = missions.data ?? [];
   const active = rows.some((m) => ['planning', 'running', 'waiting_approval'].includes(m.status));
+  const reviewable = rows.some((m) => m.planId != null && m.status !== 'cancelled');
   const { reload } = missions;
   useEffect(() => {
-    if (!active) return undefined;
-    const t = setInterval(reload, 10000);
-    return () => clearInterval(t);
-  }, [active, reload]);
+    if (!active && !reviewable) return undefined;
+    const refresh = () => { if (!document.hidden) reload(); };
+    const t = setInterval(refresh, active ? 10_000 : 30_000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [active, reviewable, reload]);
   const nameFor = (id) => businesses.find((b) => b.id === id)?.name;
 
   return (

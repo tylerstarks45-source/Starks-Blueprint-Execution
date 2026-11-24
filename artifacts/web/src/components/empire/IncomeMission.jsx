@@ -122,7 +122,7 @@ export function MissionDashboard({ missionId, refreshKey, onChanged }) {
       {d.blockers.length > 0 && <ul className="text-xs text-amber-200/90 space-y-0.5">{d.blockers.map((b, i) => <li key={i} className="flex gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0" />{b}</li>)}</ul>}
       {d.nextActions.length > 0 && <div className="text-xs text-white/55">Next: {d.nextActions.join(' → ')}</div>}
       {d.team?.length > 0 && <div className="text-xs text-white/55">AI employees: {d.team.map((t) => `${t.title}${t.status === 'paused' ? ' (paused)' : t.lastTask ? ` (${t.lastTask.slice(0, 60)})` : ''}`).join(' · ')}</div>}
-      {d.plan && <StrategyReview key={missionId} missionId={missionId} refreshKey={refreshKey} onChanged={() => { setReviewKey((k) => k + 1); onChanged?.(); }} />}
+      {d.plan && <StrategyReview key={missionId} missionId={missionId} refreshKey={refreshKey} watch={d.mission.status !== 'cancelled'} onChanged={() => { setReviewKey((k) => k + 1); onChanged?.(); }} />}
     </div>
   );
 }
@@ -130,11 +130,21 @@ export function MissionDashboard({ missionId, refreshKey, onChanged }) {
 const VERDICT = { on_track: ['green', 'On track'], behind: ['amber', 'Behind target'], no_data: ['slate', 'No verified revenue yet'] };
 
 /** ASH's latest strategy review for an income mission, with apply/dismiss for proposed steps. */
-function StrategyReview({ missionId, refreshKey, onChanged }) {
+function StrategyReview({ missionId, refreshKey, watch, onChanged }) {
   const [reviews, setReviews] = useState(null);
   const [busy, setBusy] = useState(false);
   const load = () => controlApi.strategyReviews(missionId).then(setReviews).catch(() => setReviews([]));
   useEffect(() => { load(); }, [missionId, refreshKey]);
+  useEffect(() => {
+    if (!watch || busy) return undefined;
+    const refresh = () => { if (!document.hidden) load(); };
+    const t = setInterval(refresh, 60_000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [missionId, watch, busy]);
   const run = async (fn, ok) => {
     setBusy(true);
     try { await fn(); toast.success(ok); await load(); onChanged?.(); } catch (err) { toast.error(err.message); } finally { setBusy(false); }

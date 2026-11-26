@@ -15,12 +15,12 @@ const auth = () => ({ Authorization: `Bearer ${jwt.sign({ sub: userId, email: ""
 beforeAll(async () => {
   const [u] = await db.insert(usersTable).values({ email: `conn_auth_${Date.now()}@test.internal`, role: "USER", membershipStatus: "active", membershipTier: "starter" }).returning({ id: usersTable.id });
   userId = u!.id;
+  await db.insert(ashControlSettingsTable).values({ userId, level: "advisor" });
 }, 120_000);
 afterAll(async () => { await db.delete(usersTable).where(eq(usersTable.id, userId)); });
 
 describe("connector action authority", () => {
   it("queues a connector action for approval when ASH is set to Advisor", async () => {
-    await db.insert(ashControlSettingsTable).values({ userId, level: "advisor" });
     const res = await request(app).post("/api/ash/connector-action").set(auth()).send({ connectorId: "slack", action: "postMessage", params: { text: "hi" } });
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ ok: false, status: "awaiting_approval" });
@@ -116,9 +116,9 @@ describe("connector action authority", () => {
       const replacement = await request(app).post("/api/user-credentials").set(auth())
         .send({ credentialKey, encryptedValue: Buffer.from("replacement-token").toString("base64") });
       expect(replacement.status).toBe(200);
-      expect(replacement.body).toMatchObject({ id: expired!.id, status: "connected" });
+      expect(replacement.body).toMatchObject({ id: expired!.id });
       const [stored] = await db.select().from(userCredentialsTable).where(eq(userCredentialsTable.id, expired!.id));
-      expect(stored?.expiresAt).toBeNull();
+      expect(stored).toMatchObject({ status: "connected", expiresAt: null });
     } finally {
       await db.delete(userCredentialsTable).where(eq(userCredentialsTable.id, expired!.id));
     }

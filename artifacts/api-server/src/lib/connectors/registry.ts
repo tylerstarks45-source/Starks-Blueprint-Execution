@@ -56,6 +56,7 @@ const REGISTRY: Record<string, ConnectorCtor> = {
 };
 
 export function getConnector(id: string, creds: Record<string, string> = {}): BaseConnector | null {
+  if (!isKnownConnector(id)) return null;
   const Cls = REGISTRY[id];
   return Cls ? new Cls(creds) : null;
 }
@@ -65,7 +66,7 @@ export function listConnectors(): ConnectorMeta[] {
 }
 
 export function isKnownConnector(id: string): boolean {
-  return id in REGISTRY;
+  return Object.hasOwn(REGISTRY, id);
 }
 
 export type { ConnectorMeta };

@@ -45,9 +45,8 @@ import { buildOpportunityResearchNote } from "../lib/research-engine/opportunity
 import { hasCredits } from "../lib/credits";
 import { requireAuthActive, requireAdmin, isFounderAdmin } from "../lib/auth";
 import { encrypt, decrypt } from "../lib/crypto";
-import { getConnector, isKnownConnector } from "../lib/connectors/registry";
 import { z } from "zod";
-import { decide, toolActionKind } from "../lib/ash-control/policy";
+import { connectorScope, runConnectorAction } from "../lib/connector-actions";
 
 const router: IRouter = Router();
 
@@ -1403,93 +1402,32 @@ Do NOT invent IDs — only use exact integer IDs shown above.`;
       const connectorCalls = calls.filter(c => c.type === "connector_action");
 
       if (connectorCalls.length > 0) {
-        // Fetch and decrypt all user credentials for connector execution
-        const credRows = await db
-          .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue })
-          .from(userCredentialsTable)
-          .where(eq(userCredentialsTable.userId, userId));
-
-        const userCreds: Record<string, string> = {};
-        for (const row of credRows) {
-          if (row.encryptedValue) {
-            try { userCreds[row.credentialKey] = await decrypt(row.encryptedValue); } catch { /* skip */ }
-          }
-        }
-
-        // Verify systemInstanceId ownership once for the whole batch
-        let verifiedInstanceId: number | undefined;
-        const requestedInstanceId = parsed.data.systemInstanceId;
-        if (requestedInstanceId != null) {
-          const [owned] = await db
-            .select({ id: systemInstancesTable.id })
-            .from(systemInstancesTable)
-            .where(and(
-              eq(systemInstancesTable.id, requestedInstanceId),
-              eq(systemInstancesTable.userId, userId),
-            ))
-            .limit(1);
-          if (owned) verifiedInstanceId = requestedInstanceId;
-        }
-
+        const systemInstanceId = parsed.data.systemInstanceId;
+        const scope = await connectorScope(userId, systemInstanceId ?? null);
         for (const call of connectorCalls) {
-          const connectorId = call.connectorId as string | undefined;
-          const action = call.action as string | undefined;
-          const params = (call.params ?? {}) as Record<string, unknown>;
+          const { connectorId, action, params = {} } = call;
+          if (typeof connectorId !== "string" || typeof action !== "string" || !params || typeof params !== "object" || Array.isArray(params)) continue;
 
-          if (!connectorId || !action || !isKnownConnector(connectorId)) continue;
-          const connector = getConnector(connectorId, userCreds);
-          if (!connector) continue;
-
-          const control = await decide({ userId, businessId: null, kind: toolActionKind("connector_action"), interactive: true, clientTool: true });
-          if (control.decision !== "allow") {
-            send({
-              type: "tool_result",
-              tool: "connector",
-              data: { connectorId, connectorName: connector.displayName, action, ok: false, status: "not_allowed", error: `Not run: ${control.reason}. Change this in ASH Control.`, latencyMs: 0 },
-            });
+          if (!scope) {
+            send({ type: "tool_result", tool: "connector", data: {
+              connectorId, connectorName: connectorId, action, ok: false, status: "not_allowed",
+              error: "No uniquely owned system found for this action.",
+            } });
             continue;
           }
 
-          const startMs = Date.now();
-          let execResult: { ok: boolean; data?: unknown; error?: string };
-          try {
-            execResult = await connector.execute(action, params);
-          } catch (err) {
-            execResult = { ok: false, error: err instanceof Error ? err.message : String(err) };
-          }
-          const latencyMs = Date.now() - startMs;
-
-          // Activity logging — only when we have an owned instance
-          if (verifiedInstanceId != null) {
-            const eventDescription = execResult.ok
-              ? `Connector action executed: ${connector.displayName} → ${action} (${latencyMs}ms)`
-              : `Connector action failed: ${connector.displayName} → ${action} — ${(execResult.error ?? "unknown error").slice(0, 200)}`;
-            db.insert(systemActivityEventsTable).values({
-              systemInstanceId: verifiedInstanceId,
-              eventType: execResult.ok ? "action" : "warning",
-              description: eventDescription,
-              metadata: JSON.stringify({ connectorId, connectorName: connector.displayName, action, ok: execResult.ok, latencyMs }),
+          const result = await runConnectorAction(scope, connectorId, action, params as Record<string, unknown>);
+          const { connectorName, ok, latencyMs } = result;
+          if (systemInstanceId != null && !result.status) {
+            void db.insert(systemActivityEventsTable).values({
+              systemInstanceId,
+              eventType: ok ? "action" : "warning",
+              description: `Connector action ${ok ? "executed" : "failed"}: ${connectorName} → ${action}`,
+              metadata: JSON.stringify({ connectorId, connectorName, action, ok, latencyMs }),
             }).catch(() => { /* non-critical */ });
           }
-
-          // Include original params in the SSE payload so the client can build a retry call
-          send({
-            type: "tool_result",
-            tool: "connector",
-            data: {
-              connectorId,
-              connectorName: connector.displayName,
-              action,
-              params,              // included for client-side retry
-              systemInstanceId: verifiedInstanceId,
-              ok: execResult.ok,
-              data: execResult.ok ? execResult.data : undefined,
-              error: execResult.ok ? undefined : execResult.error,
-              latencyMs,
-            },
-          });
+          send({ type: "tool_result", tool: "connector", data: { ...result, params, systemInstanceId } });
         }
-
         // Remove executed connector calls so the client doesn't double-execute
         (structuredData as Record<string, unknown>).calls = calls.filter(c => c.type !== "connector_action");
         if ((structuredData.calls as unknown[]).length === 0) {
@@ -2279,16 +2217,17 @@ router.post("/ai-orchestrator/execute", async (req, res): Promise<void> => {
     await Promise.all(
       parsed.data.credentials.map(async (cred) => {
         const encryptedValue = encrypt(cred.value);
+        const connection = { encryptedValue, status: "connected", connectedAt: new Date(), expiresAt: null, clientWorkspaceId: instance.clientWorkspaceId };
         const existing = instanceKeyMap[cred.key];
         if (existing) {
           await db.update(userCredentialsTable)
-            .set({ encryptedValue, updatedAt: new Date() })
+            .set(connection)
             .where(eq(userCredentialsTable.id, existing.id));
         } else {
           await db.insert(userCredentialsTable).values({
             userId,
             credentialKey: cred.key,
-            encryptedValue,
+            ...connection,
             systemInstanceId: instance.id,
           });
         }

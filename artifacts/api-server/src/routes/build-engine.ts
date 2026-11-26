@@ -25,6 +25,7 @@ import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector } from "../lib/connectors/registry";
 import { logEvent } from "../lib/log-event";
 import { z } from "zod";
+import { decide, toolActionKind } from "../lib/ash-control/policy";
 
 // NOTE: real revenue milestones are recorded by lib/milestones.ts's
 // checkMilestones(), invoked from the real revenue sync (lib/revenue/sync.ts).
@@ -431,6 +432,11 @@ Execute this step now. Write detailed output describing exactly what was configu
         const missingCred = connector.requiredCredentials.find(k => !userCreds[k]);
         if (missingCred) {
           connectorResults.push({ connectorId, connectorName: connector.displayName, action, ok: false, summary: `${connector.displayName}: ${missingCred} not configured — connect at /connections`, latencyMs: 0 });
+          continue;
+        }
+        const control = await decide({ userId, businessId: null, kind: toolActionKind("connector_action"), interactive: true, clientTool: true });
+        if (control.decision !== "allow") {
+          connectorResults.push({ connectorId, connectorName: connector.displayName, action, ok: false, summary: `${connector.displayName} → ${action} not run: ${control.reason}`, latencyMs: 0 });
           continue;
         }
 

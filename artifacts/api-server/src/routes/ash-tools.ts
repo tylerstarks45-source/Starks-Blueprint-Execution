@@ -33,6 +33,7 @@ import { OutOfCreditsError, DailyAiLimitError } from "../lib/credits";
 import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector, listConnectors } from "../lib/connectors/registry";
 import { z } from "zod";
+import { decide, toolActionKind } from "../lib/ash-control/policy";
 
 const SOCIAL_PLATFORM_KEYS = [
   { key: "TIKTOK_ACCESS_TOKEN",    name: "TikTok" },
@@ -304,6 +305,13 @@ router.post("/ai-orchestrator/connector-action", async (req, res): Promise<void>
 
   if (!isKnownConnector(connectorId)) {
     res.status(404).json({ error: `Unknown connector: ${connectorId}` });
+    return;
+  }
+
+  // The Builder calls this route for actions ASH proposed, so the owner's ASH Control settings apply.
+  const control = await decide({ userId, businessId: null, kind: toolActionKind("connector_action"), interactive: true, clientTool: true });
+  if (control.decision !== "allow") {
+    res.json({ ok: false, connectorId, connectorName: connectorId, action, status: "not_allowed", error: `Not run: ${control.reason}. Change this in ASH Control.` });
     return;
   }
 

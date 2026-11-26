@@ -47,6 +47,7 @@ import { requireAuthActive, requireAdmin, isFounderAdmin } from "../lib/auth";
 import { encrypt, decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector } from "../lib/connectors/registry";
 import { z } from "zod";
+import { decide, toolActionKind } from "../lib/ash-control/policy";
 
 const router: IRouter = Router();
 
@@ -1438,6 +1439,16 @@ Do NOT invent IDs — only use exact integer IDs shown above.`;
           if (!connectorId || !action || !isKnownConnector(connectorId)) continue;
           const connector = getConnector(connectorId, userCreds);
           if (!connector) continue;
+
+          const control = await decide({ userId, businessId: null, kind: toolActionKind("connector_action"), interactive: true, clientTool: true });
+          if (control.decision !== "allow") {
+            send({
+              type: "tool_result",
+              tool: "connector",
+              data: { connectorId, connectorName: connector.displayName, action, ok: false, status: "not_allowed", error: `Not run: ${control.reason}. Change this in ASH Control.`, latencyMs: 0 },
+            });
+            continue;
+          }
 
           const startMs = Date.now();
           let execResult: { ok: boolean; data?: unknown; error?: string };

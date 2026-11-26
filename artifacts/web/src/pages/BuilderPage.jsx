@@ -3418,7 +3418,8 @@ const BuilderPage = () => {
             } else if (event.tool === 'connector') {
               const connData = event.data || {};
               // Build a retry function using the call context embedded in the SSE payload
-              const retryFn = !connData.ok && connData.connectorId ? async () => {
+              // An action ASH Control declined would be declined again, so it gets no Retry.
+              const retryFn = !connData.ok && connData.connectorId && connData.status !== 'not_allowed' ? async () => {
                 try {
                   const res = await fetch('/api/ash/connector-action', {
                     method: 'POST',
@@ -3433,7 +3434,7 @@ const BuilderPage = () => {
                   const data = await res.json();
                   setMessages(prev => prev.map(m => m.id === toolMsgId ? {
                     ...m, data,
-                    retryFn: !data.ok ? retryFn : undefined,
+                    retryFn: !data.ok && data.status !== 'not_allowed' ? retryFn : undefined,
                   } : m));
                 } catch (err) {
                   setMessages(prev => prev.map(m => m.id === toolMsgId ? {
@@ -3687,7 +3688,7 @@ const BuilderPage = () => {
                   data,
                   tool: undefined,
                   label: undefined,
-                  retryFn: !data.ok ? executeConnectorAction : undefined,
+                  retryFn: !data.ok && data.status !== 'not_allowed' ? executeConnectorAction : undefined,
                 } : m));
               } catch (err) {
                 setMessages(prev => prev.map(m => m.id === toolMsgId ? {

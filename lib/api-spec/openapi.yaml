@@ -6768,6 +6768,9 @@ components:
           type: ["string", "null"]
         executedAt:
           type: ["string", "null"]
+        checkoutUrl:
+          type: ["string", "null"]
+          description: Stripe checkout URL created by an approved connector action.
         revertedAt:
           type: ["string", "null"]
         undoPayload:

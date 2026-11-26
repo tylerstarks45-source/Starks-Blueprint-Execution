@@ -71,6 +71,13 @@
       "when": 1795520061597,
       "tag": "0009_strategy_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795733575878,
+      "tag": "0010_approved_checkout_url",
+      "breakpoints": true
     }
   ]
 }

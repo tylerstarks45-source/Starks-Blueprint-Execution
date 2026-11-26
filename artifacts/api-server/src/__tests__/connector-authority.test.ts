@@ -6,6 +6,7 @@ import app from "../app";
 import { db, usersTable, ashControlSettingsTable, pendingApprovalsTable, businessesTable, systemInstancesTable, userCredentialsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { SlackConnector } from "../lib/connectors/slack-connector";
+import { StripeConnector } from "../lib/connectors/stripe-connector";
 import { encrypt } from "../lib/crypto";
 
 let userId: number;
@@ -83,6 +84,27 @@ describe("connector action authority", () => {
     const res = await request(app).post(`/api/approvals/${pending.body.approvalId}/approve`).set(auth());
     expect(res.status).toBe(400);
     expect(res.body.error).toContain("missing credentials");
+  });
+
+  it("keeps the Stripe checkout link on the executed approval", async () => {
+    const checkoutUrl = "https://checkout.stripe.com/c/pay/test-checkout";
+    const [credential] = await db.insert(userCredentialsTable).values({
+      userId, credentialKey: "STRIPE_SECRET_KEY", encryptedValue: encrypt("test-stripe-key"), status: "connected",
+    }).returning({ id: userCredentialsTable.id });
+    const execute = vi.spyOn(StripeConnector.prototype, "execute").mockResolvedValue({ ok: true, data: { checkoutUrl } });
+    try {
+      const pending = await request(app).post("/api/ash/connector-action").set(auth())
+        .send({ connectorId: "stripe", action: "createCheckout" });
+      expect(pending.body).toMatchObject({ status: "awaiting_approval" });
+      const approved = await request(app).post(`/api/approvals/${pending.body.approvalId}/approve`).set(auth());
+      expect(approved.status, JSON.stringify(approved.body)).toBe(200);
+      expect(approved.body).toMatchObject({ status: "approved", checkoutUrl });
+      const list = await request(app).get("/api/approvals?status=approved").set(auth());
+      expect(list.body).toEqual(expect.arrayContaining([expect.objectContaining({ id: pending.body.approvalId, checkoutUrl })]));
+    } finally {
+      execute.mockRestore();
+      await db.delete(userCredentialsTable).where(eq(userCredentialsTable.id, credential!.id));
+    }
   });
 
   it("accepts a replacement credential after the original expires", async () => {

@@ -26,6 +26,11 @@ export interface PendingApproval {
   resolvedAt?: string | null;
   /** @nullable */
   executedAt?: string | null;
+  /**
+     * Stripe checkout URL created by an approved connector action.
+     * @nullable
+     */
+  checkoutUrl?: string | null;
   /** @nullable */
   revertedAt?: string | null;
   /** @nullable */

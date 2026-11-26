@@ -20,6 +20,7 @@ export interface ExecutionResult {
   executed: boolean;
   reversible: boolean;
   detail: string;
+  checkoutUrl?: string;
   undoPayload?: Record<string, unknown> | null;
 }
 
@@ -97,7 +98,13 @@ async function runApprovedConnectorAction(approval: PendingApproval, payload: Ac
   }
   const result = await runConnectorAction(scope, connectorId, connectorAction, params as Record<string, unknown>, true);
   if (!result.ok) return { executed: false, reversible: false, detail: result.error ?? "The connector action failed." };
-  return { executed: true, reversible: false, detail: `${result.connectorName} reported success for ${connectorAction}.` };
+  const outcome = { executed: true, reversible: false, detail: `${result.connectorName} reported success for ${connectorAction}.` };
+  if (connectorId === "stripe" && (connectorAction === "createCheckout" || connectorAction === "createPaymentLink")) {
+    const data = result.data as { checkoutUrl?: unknown } | null | undefined;
+    const url = typeof data?.checkoutUrl === "string" ? URL.parse(data.checkoutUrl) : null;
+    if (url?.protocol === "https:" && !url.username && !url.password) return { ...outcome, checkoutUrl: url.href };
+  }
+  return outcome;
 }
 
 async function promoteAbVariant(approval: PendingApproval, payload: ActionPayload): Promise<ExecutionResult> {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import PageMeta from '@/components/PageMeta.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -22,26 +22,18 @@ const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 
 // ─── Data ──────────────────────────────────────────────────────────────────────
 
-const STATS = [
-  { value: '2,400+', label: 'Systems Deployed' },
-  { value: '1.2M+',  label: 'AI Requests Processed' },
-  { value: '40+',    label: 'Platform Integrations' },
-  { value: '17+',    label: 'Marketplace Tools' },
-  { value: '8',      label: 'AI System Blueprints' },
-];
-
 const ASH_CAPABILITIES = [
-  { icon: Cpu,           text: 'Build complete business systems end-to-end' },
+  { icon: Cpu,           text: 'Plan and build business systems' },
   { icon: ImageIcon,     text: 'Generate AI images on demand' },
   { icon: Film,          text: 'Produce AI-generated videos' },
   { icon: MessageCircle, text: 'Build & deploy custom AI chatbots' },
-  { icon: Globe,         text: 'Browse the web autonomously' },
-  { icon: Activity,      text: 'Run multiple income systems simultaneously' },
-  { icon: Workflow,      text: 'Create automations end-to-end' },
+  { icon: Globe,         text: 'Research the web for current information' },
+  { icon: Activity,      text: 'Manage multiple business systems' },
+  { icon: Workflow,      text: 'Create automation workflows' },
   { icon: Settings2,     text: 'Connect tools & platforms' },
   { icon: BarChart3,     text: 'Monitor live system performance' },
-  { icon: TrendingUp,    text: 'Scale revenue automatically' },
-  { icon: Layers,        text: 'Manage everything in one place' },
+  { icon: TrendingUp,    text: 'Review growth opportunities' },
+  { icon: Layers,        text: 'Organize business assets in one workspace' },
   { icon: Search,        text: 'Research markets & competitors' },
 ];
 
@@ -64,10 +56,10 @@ const ASH_POWERS = [
     bg: 'bg-blue-500/8',
     border: 'border-blue-500/20',
     items: [
-      { icon: Users,        title: 'Lead Generation Machines', desc: 'Ads → landing pages → CRM pipelines running on autopilot' },
-      { icon: DollarSign,   title: 'Affiliate Income Empires', desc: 'Fully automated affiliate marketing at any scale' },
-      { icon: ShoppingCart, title: 'Ecommerce Automation',     desc: 'Storefronts, product feeds, order fulfillment — automated' },
-      { icon: Building2,    title: 'AI Agency Infrastructure', desc: 'Full agency setup, client delivery, and management systems' },
+      { icon: Users,        title: 'Lead Generation', desc: 'Build landing pages and plan workflows for leads and CRM' },
+      { icon: DollarSign,   title: 'Affiliate Marketing', desc: 'Research programs and create affiliate content' },
+      { icon: ShoppingCart, title: 'Ecommerce',     desc: 'Plan a storefront and create product assets' },
+      { icon: Building2,    title: 'AI Agency Infrastructure', desc: 'Plan a service offer and organize client workflows' },
     ],
   },
   {
@@ -76,10 +68,10 @@ const ASH_POWERS = [
     bg: 'bg-emerald-500/8',
     border: 'border-emerald-500/20',
     items: [
-      { icon: MessageCircle, title: 'AI Chatbot Builder',       desc: 'Build & deploy chatbots for any website or niche business' },
-      { icon: Globe,         title: 'Autonomous Web Browsing',  desc: 'ASH browses the web, scrapes data, and researches for you' },
+      { icon: MessageCircle, title: 'AI Chatbot Builder',       desc: 'Create chatbots for supported publishing workflows' },
+      { icon: Globe,         title: 'Web Research',  desc: 'Research markets, technologies, and business opportunities' },
       { icon: Workflow,      title: 'No-Code Workflow Builder', desc: 'Connect Make, Zapier, n8n without writing a line of code' },
-      { icon: Zap,           title: 'Trigger-Based Automation', desc: 'Set it and forget it — your systems run 24 / 7 on autopilot' },
+      { icon: Zap,           title: 'Trigger-Based Automation', desc: 'Configure recurring work with connected services' },
     ],
   },
   {
@@ -88,10 +80,10 @@ const ASH_POWERS = [
     bg: 'bg-amber-500/8',
     border: 'border-amber-500/20',
     items: [
-      { icon: Rocket,     title: 'Full Income Empire Stack',   desc: 'From a single revenue stream to a full multi-income empire — all managed by ASH' },
-      { icon: Target,     title: 'Revenue Goal Tracking',      desc: 'Set your monthly targets and ASH optimizes toward them daily' },
-      { icon: BarChart3,  title: 'Live Performance Dashboard', desc: 'Real-time data across every active system you operate' },
-      { icon: TrendingUp, title: 'Multi-Market Expansion',     desc: 'Scale into new verticals without starting from scratch' },
+      { icon: Rocket,     title: 'Business Portfolio',   desc: 'Organize businesses and income streams in one place' },
+      { icon: Target,     title: 'Revenue Goal Tracking',      desc: 'Set monthly targets and review progress' },
+      { icon: BarChart3,  title: 'Live Performance Dashboard', desc: 'Monitor data reported by connected systems' },
+      { icon: TrendingUp, title: 'Multi-Market Expansion',     desc: 'Research new markets and compare ways to expand' },
     ],
   },
 ];
@@ -118,9 +110,9 @@ const EMPIRE_STEPS = [
   { step: '01', title: 'Choose Your Goal',       desc: 'Tell ASH what kind of income system or business you want to build.' },
   { step: '02', title: 'ASH Creates A Plan',     desc: 'Your AI agent maps out the full system architecture and blueprint.' },
   { step: '03', title: 'Connect Required Tools', desc: 'Link the platforms and software your system needs to operate.' },
-  { step: '04', title: 'Deploy Your System',     desc: 'ASH builds and launches your automated system from the blueprint.' },
+  { step: '04', title: 'Deploy Your System',     desc: 'Build from a blueprint and launch through supported integrations.' },
   { step: '05', title: 'Monitor Growth',         desc: 'Track real-time performance from your command center dashboard.' },
-  { step: '06', title: 'Scale Revenue',          desc: 'Expand to new systems and markets — all managed in one place.' },
+  { step: '06', title: 'Plan Your Next Move',          desc: 'Expand to new systems and markets — all managed in one place.' },
 ];
 
 const INTEGRATIONS = [
@@ -176,23 +168,10 @@ const PRICING = [
 const HomePage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading } = useAuth();
-  const [liveStats, setLiveStats] = useState(null);
-  const [milestoneEvents, setMilestoneEvents] = useState([]);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) navigate('/dashboard', { replace: true });
   }, [isAuthenticated, isLoading, navigate]);
-
-  useEffect(() => {
-    const base = import.meta.env.BASE_URL ?? '/';
-    Promise.all([
-      fetch(`${base}api/leaderboard/stats`).then(r => r.json()).catch(() => null),
-      fetch(`${base}api/success-wall`).then(r => r.json()).catch(() => ({ events: [] })),
-    ]).then(([st, sw]) => {
-      if (st) setLiveStats(st);
-      setMilestoneEvents(sw?.events ?? []);
-    });
-  }, []);
 
   if (isLoading || isAuthenticated) return <div className="min-h-screen" />;
 
@@ -200,7 +179,7 @@ const HomePage = () => {
     <VideoBackground videoId="e1mZ2LO1vzQ">
       <PageMeta
         title="Starks Global Group — Build. Launch. Run. Scale. With ASH AI."
-        description="The AI Business Operating System that helps entrepreneurs build automated income systems, generate images & videos, deploy chatbots, run 45 income system types, and manage everything from one dashboard."
+        description="Research online business opportunities, build systems with ASH AI, and manage connected tools and workflows from one dashboard."
       />
 
       <Header />
@@ -223,7 +202,7 @@ const HomePage = () => {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
                   </span>
-                  <span className="text-foreground font-medium">ASH AI Agent — Now Live &amp; Fully Autonomous</span>
+                  <span className="text-foreground font-medium">ASH AI</span>
                 </div>
               </motion.div>
 
@@ -238,7 +217,7 @@ const HomePage = () => {
 
               {/* Subheadline */}
               <motion.p variants={fadeUp} className="text-xl md:text-2xl text-zinc-100 max-w-3xl mx-auto mb-10 leading-relaxed font-medium text-balance text-shadow-lg">
-                Your AI builds automated income systems — then runs them 24/7 while you sleep. One platform. One agent. Unlimited earning potential.
+                Tell ASH your business goal. Research opportunities, build a plan, and run supported tasks with the tools and permissions you choose.
               </motion.p>
 
               {/* CTAs */}
@@ -257,116 +236,14 @@ const HomePage = () => {
               <motion.div variants={fadeUp} className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 text-sm md:text-base text-zinc-200 font-medium text-shadow-sm">
                 <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-accent" /> Free account — no credit card</span>
                 <span className="hidden md:inline text-zinc-400">·</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-accent" /> ASH builds &amp; runs your systems</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-accent" /> You set ASH’s permissions</span>
                 <span className="hidden md:inline text-zinc-400">·</span>
                 <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-accent" /> Images, videos &amp; chatbots included</span>
                 <span className="hidden md:inline text-zinc-400">·</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-accent" /> 17+ tested AI tools in the marketplace</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-accent" /> Explore tools in the marketplace</span>
               </motion.div>
             </motion.div>
           </div>
-        </section>
-
-        {/* ═══════════════════════════════════════════════════════════════
-            STATS STRIP
-        ═══════════════════════════════════════════════════════════════ */}
-        <section className="border-y border-white/6 bg-background/60 backdrop-blur-md py-10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-              {STATS.map((s, i) => (
-                <motion.div
-                  key={s.label}
-                  initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }} transition={{ delay: i * 0.08 }}
-                  className="text-center"
-                >
-                  <div className="text-3xl md:text-4xl font-extrabold text-white text-glow mb-1">{s.value}</div>
-                  <div className="text-sm text-zinc-400 font-medium">{s.label}</div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ═══════════════════════════════════════════════════════════════
-            LIVE EARNINGS PROOF
-        ═══════════════════════════════════════════════════════════════ */}
-        <section className="border-b border-white/6 bg-background/40">
-          {/* Live stats bar */}
-          {liveStats && (
-            <div className="border-b border-white/5">
-              <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6">
-                <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16">
-                  <div className="flex items-center gap-3">
-                    <TrendingUp className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <div>
-                      <div className="text-2xl font-black text-emerald-400 font-mono tabular-nums leading-none">
-                        ${liveStats.totalEarnedCents > 0
-                          ? (liveStats.totalEarnedCents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })
-                          : '284,000+'}
-                      </div>
-                      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mt-0.5">Total Earned by Members</div>
-                    </div>
-                  </div>
-                  <div className="w-px h-8 bg-white/8 hidden md:block" />
-                  <div className="flex items-center gap-3">
-                    <Activity className="w-5 h-5 text-sky-400 shrink-0" />
-                    <div>
-                      <div className="text-2xl font-black text-sky-400 font-mono tabular-nums leading-none">
-                        {liveStats.activeSystems > 0 ? liveStats.activeSystems.toLocaleString() : '247'}
-                      </div>
-                      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mt-0.5">Active Income Systems</div>
-                    </div>
-                  </div>
-                  <div className="w-px h-8 bg-white/8 hidden md:block" />
-                  <div className="flex items-center gap-3">
-                    <Users className="w-5 h-5 text-violet-400 shrink-0" />
-                    <div>
-                      <div className="text-2xl font-black text-violet-400 font-mono tabular-nums leading-none">
-                        {liveStats.totalMembers > 0 ? liveStats.totalMembers.toLocaleString() : '1,200+'}
-                      </div>
-                      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mt-0.5">Empire Members</div>
-                    </div>
-                  </div>
-                  <div className="w-px h-8 bg-white/8 hidden md:block" />
-                  <Link
-                    to="/leaderboard"
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-primary/30 bg-primary/8 hover:bg-primary/15 text-primary text-sm font-bold transition-all"
-                  >
-                    <Crown className="w-4 h-4" /> View Leaderboard
-                  </Link>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Milestone ticker */}
-          {milestoneEvents.length > 0 && (
-            <div className="overflow-hidden relative h-10 flex items-center">
-              <div className="absolute left-0 z-10 h-full w-20 bg-gradient-to-r from-background to-transparent pointer-events-none" />
-              <div className="absolute right-0 z-10 h-full w-20 bg-gradient-to-l from-background to-transparent pointer-events-none" />
-              <div
-                className="flex gap-0 whitespace-nowrap"
-                style={{ animation: 'homeTicker 45s linear infinite' }}
-              >
-                {[...milestoneEvents, ...milestoneEvents].map((e, i) => (
-                  <div key={i} className="inline-flex items-center gap-2 px-5 border-r border-white/6">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                    <span className="text-xs font-mono text-zinc-500">
-                      <span className="text-zinc-300">{e.memberName}</span> hit{' '}
-                      <span className="text-emerald-400 font-bold">{e.milestoneLabel}</span>
-                      {e.daysSinceSignup > 0 && (
-                        <span className="text-zinc-600"> in {e.daysSinceSignup} days</span>
-                      )}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <style>{`
-                @keyframes homeTicker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-              `}</style>
-            </div>
-          )}
         </section>
 
         {/* ═══════════════════════════════════════════════════════════════
@@ -378,14 +255,14 @@ const HomePage = () => {
               {/* Left: text */}
               <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-sm font-bold font-mono mb-6">
-                  <Bot className="w-4 h-4" /> AI AGENT · FULLY AUTONOMOUS
+                  <Bot className="w-4 h-4" /> AI BUSINESS AGENT
                 </div>
                 <h2 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4 text-shadow-lg">
                   Meet ASH AI
-                  <span className="block text-gradient-blue mt-1">The Only AI Agent You'll Ever Need</span>
+                  <span className="block text-gradient-blue mt-1">Plan and build in one workspace</span>
                 </h2>
                 <p className="text-lg text-zinc-300 mb-8 leading-relaxed">
-                  ASH can be your chatbot — and your builder, your creator, your automation engine, and your full business operating system. Built from the ground up by Tyler Starks, ASH is the one AI you'll ever need. Chat with it, ask it to create, tell it to build — it just does it.
+                  Use ASH to research a market, create assets, or work on a business system. Connect the services your workflow needs and choose which actions ASH can take.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
                   {ASH_CAPABILITIES.map((cap, i) => (
@@ -417,14 +294,14 @@ const HomePage = () => {
                       <div className="w-3 h-3 rounded-full bg-emerald-500/70" />
                     </div>
                     <div className="flex-1 flex items-center justify-center">
-                      <span className="text-xs text-zinc-400 font-mono">ASH — AI Business Operating System</span>
+                      <span className="text-xs text-zinc-400 font-mono">Example conversation</span>
                     </div>
                   </div>
                   <div className="p-5 space-y-3 font-mono text-sm min-h-[340px]">
                     {[
-                      { role: 'user', text: 'Build me a full affiliate income system, generate a promotional image, and create a chatbot for my landing page' },
-                      { role: 'ash',  text: 'On it. Building 3 systems in parallel:\n\n① Affiliate system: ClickBank → email funnel → CRM pipeline\n② Generating promotional image with AI now...\n③ Deploying chatbot to your landing page', running: false },
-                      { role: 'ash',  text: '✓ Affiliate pipeline activated — tracking live\n✓ Promo image generated and delivered\n⚡ Chatbot deploying to your domain...', running: true },
+                      { role: 'user', text: 'Help me plan an affiliate business and create an image for its landing page.' },
+                      { role: 'ash',  text: 'I’ll compare affiliate programs and review their commission terms. Then I’ll outline a landing page and draft an image for it.' },
+                      { role: 'ash',  text: 'Once you’ve chosen a program, we can connect the tools for publishing and tracking referrals.' },
                     ].map((msg, i) => (
                       <motion.div
                         key={i}
@@ -443,7 +320,6 @@ const HomePage = () => {
                             : 'bg-white/5 border border-white/8 text-zinc-300'
                         }`}>
                           {msg.text}
-                          {msg.running && <span className="inline-block ml-1 animate-pulse text-primary">▋</span>}
                         </div>
                       </motion.div>
                     ))}
@@ -461,11 +337,11 @@ const HomePage = () => {
           <div className="section-container">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-sm font-bold font-mono mb-5">
-                <Sparkles className="w-4 h-4" /> FULL CAPABILITY SUITE
+                <Sparkles className="w-4 h-4" /> ASH CAPABILITIES
               </div>
-              <h2 className="section-title">ASH Can Do Anything</h2>
+              <h2 className="section-title">What You Can Do With ASH</h2>
               <p className="section-subtitle max-w-3xl mx-auto">
-                One AI agent. Four power domains. From generating creative content to running a full online empire — ASH handles it all so you don't have to.
+                Create content, research markets, and work on business systems with your connected tools.
               </p>
             </motion.div>
 
@@ -525,15 +401,15 @@ const HomePage = () => {
                   <Store className="w-6 h-6 text-blue-400" />
                 </div>
                 <div className="inline-block text-xs font-bold font-mono text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-full px-3 py-1 mb-4">PATH 1</div>
-                <h3 className="text-2xl font-extrabold text-white mb-3">I Want Tested AI Tools</h3>
-                <p className="text-zinc-400 mb-6 text-sm leading-relaxed">For users who want access to the best AI software — every tool is tested inside a real automated money-making system before it ever hits the marketplace. Zero guesswork.</p>
+                <h3 className="text-2xl font-extrabold text-white mb-3">I Want to Explore AI Tools</h3>
+                <p className="text-zinc-400 mb-6 text-sm leading-relaxed">Browse tools for content creation, marketing, automation, and business operations.</p>
                 <ul className="space-y-2.5 mb-8 flex-1">
                   {[
                     'Browse the AI Marketplace',
-                    'Every tool tested in real systems',
+                    'Compare tools by category',
                     'Access exclusive deals',
                     'Affiliate offers & discounts',
-                    'No guesswork — proven results',
+                    'Explore business blueprints',
                   ].map(f => (
                     <li key={f} className="flex items-center gap-2 text-sm text-zinc-300">
                       <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" /> {f}
@@ -555,11 +431,11 @@ const HomePage = () => {
                 </div>
                 <div className="inline-block text-xs font-bold font-mono text-primary bg-primary/10 border border-primary/25 rounded-full px-3 py-1 mb-4">PATH 2</div>
                 <h3 className="text-2xl font-extrabold text-white mb-3">I Want ASH To Build My Empire</h3>
-                <p className="text-zinc-400 mb-6 text-sm leading-relaxed">For entrepreneurs who want complete automated income systems built, managed, and scaled by their own AI agent — 24/7, without hiring a team.</p>
+                <p className="text-zinc-400 mb-6 text-sm leading-relaxed">Research income opportunities, build business assets, and manage approved workflows with ASH.</p>
                 <ul className="space-y-2.5 mb-8 flex-1">
                   {[
-                    'ASH AI Agent builds everything',
-                    'Run multiple income systems simultaneously',
+                    'Give ASH a business goal and review a plan',
+                    'Manage multiple business systems',
                     'Images, videos & chatbots included',
                     'Host & monitor live systems',
                     'Command center dashboard',
@@ -583,8 +459,8 @@ const HomePage = () => {
         <section className="section-padding border-b border-white/5 bg-background/40 backdrop-blur-sm">
           <div className="section-container">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
-              <h2 className="section-title">What Can ASH Build For You?</h2>
-              <p className="section-subtitle">Tell ASH your goal. ASH architects the system, builds it, and runs it — you own the business and the income.</p>
+              <h2 className="section-title">Business Ideas to Explore With ASH</h2>
+              <p className="section-subtitle">Explore business ideas with ASH. Supported actions depend on your connected tools and permissions.</p>
             </motion.div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -627,10 +503,10 @@ const HomePage = () => {
               </motion.div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-10">
                 {[
-                  { icon: Bot,        title: 'One AI Agent',     desc: 'ASH builds, runs, and scales everything — chatbots to empires.' },
+                  { icon: Bot,        title: 'One AI Agent',     desc: 'Research, build, and run supported workflows with ASH.' },
                   { icon: Layers,     title: 'One Dashboard',    desc: 'Every system, tool, metric, and AI capability in a single view.' },
-                  { icon: Globe,      title: 'One Marketplace',  desc: 'Curated tools tested inside real automated income systems.' },
-                  { icon: TrendingUp, title: 'One Growth Path',  desc: 'From zero to scaled revenue — a clear roadmap the entire way.' },
+                  { icon: Globe,      title: 'One Marketplace',  desc: 'Browse tools and blueprints for online business workflows.' },
+                  { icon: TrendingUp, title: 'One Growth Path',  desc: 'Set milestones and track progress from one workspace.' },
                 ].map((item, i) => (
                   <motion.div
                     key={item.title}
@@ -698,21 +574,19 @@ const HomePage = () => {
               {/* Left: text */}
               <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-sm font-bold font-mono mb-6">
-                  <BadgeCheck className="w-4 h-4" /> ZERO GUESSWORK GUARANTEE
+                  <BadgeCheck className="w-4 h-4" /> AI TOOL MARKETPLACE
                 </div>
                 <h2 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4 text-shadow-lg">
-                  Every Tool, Tested.<br />
-                  <span className="text-gradient-blue">No Guesswork. Ever.</span>
+                  Find tools for<br />
+                  <span className="text-gradient-blue">your workflow.</span>
                 </h2>
                 <p className="text-lg text-zinc-300 mb-8 leading-relaxed">
-                  Our AI Tool Marketplace isn't a directory — it's a curated collection of software that's been deployed inside real, live automated income systems. If a tool isn't producing results in the wild, it's not in our marketplace.
+                  Browse software for content, marketing, automation, and business operations.
                 </p>
                 <ul className="space-y-3 mb-8">
                   {[
-                    { label: 'No paid placements — ever', sub: 'Tools earn their spot through performance, not payments' },
-                    { label: '17+ tools across 8 categories', sub: 'AI writing, video, automation, CRM, email, analytics & more' },
-                    { label: 'Tested in real income systems', sub: 'Every tool verified inside a live ASH-run automated system' },
-                    { label: 'Exclusive deals & affiliate discounts', sub: 'Members get access to special pricing not available elsewhere' },
+                    { label: 'Browse by category', sub: 'AI writing, video, automation, CRM, email, analytics & more' },
+                    { label: 'Tool and blueprint details', sub: 'Review what each listing offers before choosing it' },
                   ].map(f => (
                     <li key={f.label} className="flex items-start gap-3">
                       <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
@@ -732,14 +606,14 @@ const HomePage = () => {
               <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.1 }}>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { icon: FileText, label: 'AI Writing', count: '4 tools', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-                    { icon: Film, label: 'AI Video', count: '3 tools', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-                    { icon: Mail, label: 'Email Marketing', count: '2 tools', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-                    { icon: Workflow, label: 'Automation', count: '3 tools', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-                    { icon: BarChart3, label: 'Analytics', count: '2 tools', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
-                    { icon: MessageCircle, label: 'Chatbots', count: '1 tool', color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
-                    { icon: ImageIcon, label: 'AI Images', count: '1 tool', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
-                    { icon: Target, label: 'CRM & Leads', count: '1 tool', color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
+                    { icon: FileText, label: 'AI Writing', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+                    { icon: Film, label: 'AI Video', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+                    { icon: Mail, label: 'Email Marketing', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+                    { icon: Workflow, label: 'Automation', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+                    { icon: BarChart3, label: 'Analytics', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
+                    { icon: MessageCircle, label: 'Chatbots', color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
+                    { icon: ImageIcon, label: 'AI Images', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
+                    { icon: Target, label: 'CRM & Leads', color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
                   ].map((cat, i) => (
                     <motion.div
                       key={cat.label}
@@ -752,7 +626,6 @@ const HomePage = () => {
                       </div>
                       <div>
                         <div className="text-sm font-bold text-white">{cat.label}</div>
-                        <div className={`text-xs font-mono ${cat.color}`}>{cat.count}</div>
                       </div>
                     </motion.div>
                   ))}
@@ -877,7 +750,7 @@ const HomePage = () => {
                     <div className="text-sm font-semibold text-zinc-400 mb-5">Developer &amp; Founder — Starks Global Group</div>
                     <div className="space-y-4 text-zinc-300 leading-relaxed">
                       <p>
-                        Tyler Starks designed and built ASH from scratch — a fully autonomous AI agent engineered to do everything from running chatbots and generating images and videos, to operating multiple automated income systems simultaneously, 24/7.
+                        Tyler Starks built ASH to bring business research, content creation, automation, and operations into one platform.
                       </p>
                       <p>
                         "I saw entrepreneurs wasting thousands of hours testing random AI tools with no structure, no proven systems, and no AI to execute for them. I built Starks Global Group to change that — and then I built ASH to make sure you never had to figure it out alone.
@@ -911,7 +784,7 @@ const HomePage = () => {
                 Build With ASH.
               </h2>
               <p className="text-xl text-zinc-300 max-w-3xl mx-auto mb-10 leading-relaxed">
-                Run everything from one dashboard. Images, videos, chatbots, automations, and 45 income system types — all powered by ASH and backed by the most tested AI tool marketplace online. This is your all-in-one tech infrastructure for building online wealth.
+                Start with an idea, explore tools and blueprints, and use ASH to build and manage supported business workflows.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
                 <Link to="/signup" className="saas-button text-lg px-10 py-4 gap-2">

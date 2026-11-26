@@ -32,8 +32,10 @@ describe("Stripe webhook retries", () => {
 
   it("still ignores true duplicates after a successful run", async () => {
     constructEvent.mockReturnValue({ id: eventId, type: "some.unhandled.event", data: { object: {} } });
-    const first = await request(app).post("/api/stripe/webhook").set("stripe-signature", "t=1,v1=x").set("Content-Type", "application/json").send("{}");
+    const body = '{ "id": "preserve the signed bytes" }\n';
+    const first = await request(app).post("/api/stripe/webhook").set("stripe-signature", "t=1,v1=x").set("Content-Type", "application/json").send(body);
     expect(first.status).toBe(200);
+    expect(constructEvent).toHaveBeenLastCalledWith(Buffer.from(body), "t=1,v1=x", "whsec_test");
     const second = await request(app).post("/api/stripe/webhook").set("stripe-signature", "t=1,v1=x").set("Content-Type", "application/json").send("{}");
     expect(second.body).toMatchObject({ duplicate: true });
   });

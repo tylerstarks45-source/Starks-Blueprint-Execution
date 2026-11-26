@@ -76,26 +76,21 @@ app.use(
   }),
 );
 
-// Capture raw body for webhook signature verification (Stripe + SendGrid).
-// Also manually parses JSON so req.body is still available in route handlers
-// (the readable stream can only be consumed once, so express.json() would see an empty body).
+// Bound Stripe and SendGrid bodies before buffering and keep the signed bytes.
 const RAW_BODY_PATHS = new Set(["/api/stripe/webhook", "/api/email/webhooks/sendgrid", "/api/webhooks/sendgrid"]);
-app.use((req, _res, next) => {
-  if (RAW_BODY_PATHS.has(req.path)) {
-    let data = Buffer.alloc(0);
-    req.on("data", (chunk: Buffer) => { data = Buffer.concat([data, chunk]); });
-    req.on("end", () => {
-      (req as any).rawBody = data;
-      if (data.length > 0) {
-        try { req.body = JSON.parse(data.toString("utf8")); } catch { req.body = {}; }
-      } else {
-        req.body = {};
-      }
-      next();
-    });
-  } else {
-    next();
-  }
+const parseWebhook = express.json({
+  limit: "1mb",
+  inflate: false,
+  type: () => true,
+  verify(req, _res, body) {
+    (req as typeof req & { rawBody: Buffer }).rawBody = body;
+  },
+});
+app.use((req, res, next) => {
+  // Match Express's case-insensitive routes and optional trailing slash.
+  const path = req.path.toLowerCase().replace(/\/$/, "");
+  if (req.method === "POST" && RAW_BODY_PATHS.has(path)) return parseWebhook(req, res, next);
+  next();
 });
 
 app.use(express.json());

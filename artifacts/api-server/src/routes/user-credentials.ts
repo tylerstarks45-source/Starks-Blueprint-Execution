@@ -243,7 +243,7 @@ router.post("/user-credentials", async (req, res): Promise<void> => {
   }
 
   const [existing] = await db
-    .select({ id: userCredentialsTable.id, connectedAt: userCredentialsTable.connectedAt })
+    .select({ id: userCredentialsTable.id })
     .from(userCredentialsTable)
     .where(and(...upsertConditions));
 
@@ -269,6 +269,8 @@ router.post("/user-credentials", async (req, res): Promise<void> => {
       .set({
         encryptedValue,
         status: "connected",
+        connectedAt: now,
+        expiresAt: null,
         lastSyncAt: now,
         updatedAt: now,
       })

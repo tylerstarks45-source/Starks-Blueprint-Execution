@@ -84,4 +84,21 @@ describe("connector action authority", () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toContain("missing credentials");
   });
+
+  it("accepts a replacement credential after the original expires", async () => {
+    const credentialKey = new SlackConnector({}).requiredCredentials[0]!;
+    const [expired] = await db.insert(userCredentialsTable).values({
+      userId, credentialKey, encryptedValue: encrypt("expired-token"), status: "expired", expiresAt: new Date(0),
+    }).returning({ id: userCredentialsTable.id });
+    try {
+      const replacement = await request(app).post("/api/user-credentials").set(auth())
+        .send({ credentialKey, encryptedValue: Buffer.from("replacement-token").toString("base64") });
+      expect(replacement.status).toBe(200);
+      expect(replacement.body).toMatchObject({ id: expired!.id, status: "connected" });
+      const [stored] = await db.select().from(userCredentialsTable).where(eq(userCredentialsTable.id, expired!.id));
+      expect(stored?.expiresAt).toBeNull();
+    } finally {
+      await db.delete(userCredentialsTable).where(eq(userCredentialsTable.id, expired!.id));
+    }
+  });
 });

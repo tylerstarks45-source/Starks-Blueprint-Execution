@@ -101,8 +101,12 @@ async function runApprovedConnectorAction(approval: PendingApproval, payload: Ac
   const outcome = { executed: true, reversible: false, detail: `${result.connectorName} reported success for ${connectorAction}.` };
   if (connectorId === "stripe" && (connectorAction === "createCheckout" || connectorAction === "createPaymentLink")) {
     const data = result.data as { checkoutUrl?: unknown } | null | undefined;
-    const url = typeof data?.checkoutUrl === "string" ? URL.parse(data.checkoutUrl) : null;
-    if (url?.protocol === "https:" && !url.username && !url.password) return { ...outcome, checkoutUrl: url.href };
+    if (typeof data?.checkoutUrl === "string") {
+      try {
+        const url = new URL(data.checkoutUrl);
+        if (url.protocol === "https:" && !url.username && !url.password) return { ...outcome, checkoutUrl: url.href };
+      } catch { /* The approval ran, but Stripe did not return a usable checkout URL. */ }
+    }
   }
   return outcome;
 }

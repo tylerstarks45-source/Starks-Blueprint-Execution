@@ -1,5 +1,4 @@
 import { BaseConnector, TestResult, ExecResult } from "./base";
-import { getUncachableStripeClient } from "../stripe";
 import Stripe from "stripe";
 
 export class StripeConnector extends BaseConnector {
@@ -7,18 +6,13 @@ export class StripeConnector extends BaseConnector {
   readonly displayName = "Stripe Payments";
   readonly category = "payments";
   readonly authType = "api_key" as const;
-  // requiredCredentials is empty: per-user STRIPE_SECRET_KEY is used when present;
-  // otherwise falls back to the platform Stripe client.
-  readonly requiredCredentials = [] as string[];
+  readonly requiredCredentials = ["STRIPE_SECRET_KEY"];
   readonly actions = ["getBalance", "listPayments", "createCheckout", "createPaymentLink", "getSubscriptions", "createProduct", "createPrice"];
 
   private async getClient(): Promise<Stripe> {
     const userKey = this.creds["STRIPE_SECRET_KEY"];
-    if (userKey) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return new (Stripe as any)(userKey) as Stripe;
-    }
-    return getUncachableStripeClient();
+    if (!userKey) throw new Error("Connect a Stripe account before running Stripe actions.");
+    return new Stripe(userKey);
   }
 
   async testConnection(): Promise<TestResult> {

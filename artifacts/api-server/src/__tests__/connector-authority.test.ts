@@ -75,4 +75,13 @@ describe("connector action authority", () => {
       .send({ connectorId: "slack", action: "postMessage", systemInstanceId: 2147483647 });
     expect(res.status).toBe(404);
   });
+
+  it("requires a connected tenant credential before running an approved Stripe action", async () => {
+    const pending = await request(app).post("/api/ash/connector-action").set(auth())
+      .send({ connectorId: "stripe", action: "getBalance" });
+    expect(pending.body).toMatchObject({ status: "awaiting_approval" });
+    const res = await request(app).post(`/api/approvals/${pending.body.approvalId}/approve`).set(auth());
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("missing credentials");
+  });
 });

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, sql, and, or, isNull } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import {
   db,
   systemInstancesTable,
@@ -21,11 +21,10 @@ import { MODELS, chainFor } from "../lib/models";
 import { hasCredits, adjustCredits, adjustWalletCredits } from "../lib/credits";
 import { requireAuthActive, validateClientWorkspaceId } from "../lib/auth";
 import { sendPushNotification } from "../lib/push";
-import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector } from "../lib/connectors/registry";
 import { logEvent } from "../lib/log-event";
 import { z } from "zod";
-import { decide, toolActionKind } from "../lib/ash-control/policy";
+import { connectorScope, decideConnectorAction, loadConnectorCredentials } from "../lib/connector-actions";
 
 // NOTE: real revenue milestones are recorded by lib/milestones.ts's
 // checkMilestones(), invoked from the real revenue sync (lib/revenue/sync.ts).
@@ -133,6 +132,26 @@ router.post("/build-engine/analyze", async (req, res): Promise<void> => {
 
   if (instance.userId != null && !(await hasCredits(instance.userId))) {
     res.status(402).json({ error: "You're out of AI credits. Top up to continue building.", code: "out_of_credits" });
+    return;
+  }
+
+  const [requestedStep] = await db
+    .select({ status: buildProgressTable.status, currentStepNumber: buildSessionsTable.currentStepNumber })
+    .from(buildProgressTable)
+    .innerJoin(buildSessionsTable, eq(buildSessionsTable.id, buildProgressTable.buildSessionId))
+    .where(and(
+      eq(buildProgressTable.id, parsed.data.stepId),
+      eq(buildProgressTable.stepNumber, parsed.data.stepNumber),
+      eq(buildSessionsTable.id, parsed.data.sessionId),
+      eq(buildSessionsTable.systemInstanceId, instance.id),
+    ));
+  if (!requestedStep) { res.status(404).json({ error: "Build step not found for this system." }); return; }
+  if (requestedStep.currentStepNumber !== parsed.data.stepNumber || requestedStep.status === "completed") {
+    res.status(409).json({ error: "This is no longer the current build step." });
+    return;
+  }
+  if (requestedStep.status === "blocked" && !parsed.data.liveMode) {
+    res.status(409).json({ error: "Retry this required connector step in Live Mode." });
     return;
   }
 
@@ -288,6 +307,7 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
 
   let output = "";
   let stepFailed = false;
+  let connectorBlocked = requestedStep.status === "blocked";
   let recoveryMessage = "";
   // Best-model policy (Task #282): build-step execution is the highest-stakes AI
   // work, so default to the flagship chain. Respect an explicit model only if the
@@ -300,34 +320,13 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   // ── Live mode: fetch + decrypt user credentials ──────────────────────────────
   let userCreds: Record<string, string> = {};
   let availableConnectorIds: string[] = [];
-  if (parsed.data.liveMode) {
-    // Scope credentials to the user's current workspace (clientWorkspaceId) to prevent
-    // cross-workspace credential leakage in multi-tenant / agency contexts, AND to
-    // this system instance: a running system uses its own instance-scoped tokens
-    // (systemInstanceId = this instance) plus any shared user-level rows
-    // (systemInstanceId IS NULL), with the instance-scoped copy winning on collision.
-    const workspaceId = await validateClientWorkspaceId(req, userId);
-    const instanceScope = or(
-      eq(userCredentialsTable.systemInstanceId, parsed.data.systemInstanceId),
-      isNull(userCredentialsTable.systemInstanceId),
-    );
-    const credCondition = workspaceId !== null
-      ? and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.clientWorkspaceId, workspaceId), instanceScope)
-      : and(eq(userCredentialsTable.userId, userId), instanceScope);
-
-    const credRows = await db
-      .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue, systemInstanceId: userCredentialsTable.systemInstanceId })
-      .from(userCredentialsTable)
-      .where(credCondition);
-
-    // Apply NULL-scoped rows first, then instance-scoped so the instance copy wins.
-    credRows.sort((a, b) => (a.systemInstanceId === null ? 0 : 1) - (b.systemInstanceId === null ? 0 : 1));
-
-    for (const row of credRows) {
-      if (row.encryptedValue) {
-        try { userCreds[row.credentialKey] = await decrypt(row.encryptedValue); } catch { /* skip */ }
-      }
-    }
+  const scope = parsed.data.liveMode ? await connectorScope(userId, instance.id) : null;
+  if (parsed.data.liveMode && !scope) {
+    res.status(409).json({ error: "No uniquely owned system found for live execution." });
+    return;
+  }
+  if (scope) {
+    userCreds = await loadConnectorCredentials(scope);
 
     // Derive connector IDs from credential key prefixes.
     // Stored keys are UPPERCASE (e.g. MAILCHIMP_API_KEY, TWITTER_BEARER_TOKEN).
@@ -413,8 +412,16 @@ Execute this step now. Write detailed output describing exactly what was configu
         }
       } catch { /* ignore malformed block */ }
 
-      for (const call of calls) {
-        if (call.type !== "connector_action") continue;
+      const connectorCalls = calls.filter(call => call?.type === "connector_action");
+      const control = scope && connectorCalls.length > 0 ? await decideConnectorAction(scope) : null;
+      if (control && control.decision !== "allow") {
+        stepFailed = true;
+        connectorBlocked = true;
+        recoveryMessage = control.reason;
+        output = `Live connector actions held by ASH Control. ${control.reason}`;
+      }
+
+      for (const call of stepFailed ? [] : connectorCalls) {
         const connectorId = call.connectorId as string | undefined;
         const action = call.action as string | undefined;
         const params = (call.params ?? {}) as Record<string, unknown>;
@@ -432,11 +439,6 @@ Execute this step now. Write detailed output describing exactly what was configu
         const missingCred = connector.requiredCredentials.find(k => !userCreds[k]);
         if (missingCred) {
           connectorResults.push({ connectorId, connectorName: connector.displayName, action, ok: false, summary: `${connector.displayName}: ${missingCred} not configured — connect at /connections`, latencyMs: 0 });
-          continue;
-        }
-        const control = await decide({ userId, businessId: null, kind: toolActionKind("connector_action"), interactive: true, clientTool: true });
-        if (control.decision !== "allow") {
-          connectorResults.push({ connectorId, connectorName: connector.displayName, action, ok: false, summary: `${connector.displayName} → ${action} not run: ${control.reason}`, latencyMs: 0 });
           continue;
         }
 
@@ -481,6 +483,15 @@ Execute this step now. Write detailed output describing exactly what was configu
         const resultLines = connectorResults.map(r => `${r.ok ? "✅" : "❌"} ${r.summary}`).join("\n");
         output = `${output}\n\n**Live Execution Results:**\n${resultLines}`;
       }
+      if (connectorBlocked && !stepFailed && connectorResults.length === connectorCalls.length &&
+          connectorResults.length > 0 && connectorResults.every(result => result.ok)) {
+        connectorBlocked = false;
+      }
+    }
+    if (connectorBlocked && !stepFailed) {
+      stepFailed = true;
+      recoveryMessage = "The required connector actions did not report success.";
+      output = recoveryMessage;
     }
   } catch (err) {
     // AI call failed — flag for frontend recovery UI
@@ -489,11 +500,10 @@ Execute this step now. Write detailed output describing exactly what was configu
     output = `Step ${parsed.data.stepNumber} encountered an AI error.`;
   }
 
-  // ── Early-return path for AI failures — do NOT advance session state ──────
+  // AI failures and policy holds leave the current step incomplete.
   if (stepFailed) {
-    // Mark step as failed (not completed) so state remains accurate
     const [failedStep] = await db.update(buildProgressTable)
-      .set({ status: "failed", notes: output })
+      .set({ status: connectorBlocked ? "blocked" : "failed", ...(connectorBlocked ? {} : { notes: output }) })
       .where(eq(buildProgressTable.id, parsed.data.stepId))
       .returning();
 
@@ -510,7 +520,7 @@ Execute this step now. Write detailed output describing exactly what was configu
 
     // Recovery explanation is generated by POST /api/ai-orchestrator/step-recovery (SSE)
     // — the frontend calls that endpoint immediately after receiving stepFailed.
-    res.json({ stepFailed: true, recoveryMessage, step: serialize(failedStep ?? { id: parsed.data.stepId }) });
+    res.json({ stepFailed: true, connectorBlocked, recoveryMessage, output, step: serialize(failedStep ?? { id: parsed.data.stepId }) });
     return;
   }
 
@@ -644,16 +654,20 @@ router.post("/build-engine/skip-step", async (req, res): Promise<void> => {
   if (!ensureOwner(instance, userId, res)) return;
 
   // IDOR guard: confirm session belongs to this instance (not just any session ID)
-  const [sessionRow] = await db.select({ id: buildSessionsTable.id })
+  const [sessionRow] = await db.select({ currentStepNumber: buildSessionsTable.currentStepNumber })
     .from(buildSessionsTable)
     .where(and(eq(buildSessionsTable.id, parsed.data.sessionId), eq(buildSessionsTable.systemInstanceId, parsed.data.systemInstanceId)));
   if (!sessionRow) { res.status(403).json({ error: "Session does not belong to this system" }); return; }
 
   // IDOR guard: confirm step belongs to this session
-  const [stepRow] = await db.select({ id: buildProgressTable.id })
+  const [stepRow] = await db.select({ status: buildProgressTable.status, stepNumber: buildProgressTable.stepNumber })
     .from(buildProgressTable)
     .where(and(eq(buildProgressTable.id, parsed.data.stepId), eq(buildProgressTable.buildSessionId, parsed.data.sessionId)));
   if (!stepRow) { res.status(403).json({ error: "Step does not belong to this session" }); return; }
+  if (stepRow.status === "blocked" || stepRow.stepNumber !== sessionRow.currentStepNumber || stepRow.stepNumber !== parsed.data.stepNumber) {
+    res.status(409).json({ error: "Only the current, unblocked build step can be skipped." });
+    return;
+  }
 
   // Mark step as failed/skipped
   await db.update(buildProgressTable)

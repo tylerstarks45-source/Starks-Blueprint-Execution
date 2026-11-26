@@ -91,17 +91,13 @@ export class StripeConnector extends BaseConnector {
           return { ok: false, error: "Minimum charge amount is 50 cents" };
         }
 
-        // Create an inline price on a new product
-        const product = await stripe.products.create({ name: productName });
-        const price = await stripe.prices.create({
-          product: product.id,
-          unit_amount: amountCents,
-          currency,
-        });
-
+        // Let Checkout create its inline line item; rejected sessions must not leave separate catalog records.
         const session = await stripe.checkout.sessions.create({
           payment_method_types: ["card"],
-          line_items: [{ price: price.id, quantity: 1 }],
+          line_items: [{
+            quantity: 1,
+            price_data: { currency, unit_amount: amountCents, product_data: { name: productName } },
+          }],
           mode: "payment",
           success_url: successUrl,
           cancel_url: cancelUrl,

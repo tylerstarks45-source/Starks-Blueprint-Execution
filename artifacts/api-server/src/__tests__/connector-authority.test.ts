@@ -107,6 +107,29 @@ describe("connector action authority", () => {
     }
   });
 
+  it("requests a Stripe checkout without separate product or price writes", async () => {
+    const stripe = {
+      checkout: { sessions: { create: vi.fn().mockRejectedValue(new Error("Checkout rejected")) } },
+      products: { create: vi.fn() },
+      prices: { create: vi.fn() },
+    };
+    const connector = new StripeConnector({ STRIPE_SECRET_KEY: "test-stripe-key" });
+    const getClient = vi.spyOn(connector as unknown as { getClient: () => Promise<typeof stripe> }, "getClient")
+      .mockResolvedValue(stripe);
+    try {
+      const params = { productName: "Test product", amountCents: 1500 };
+      for (let i = 0; i < 2; i++) expect(await connector.execute("createCheckout", params)).toMatchObject({ ok: false });
+      expect(stripe.checkout.sessions.create).toHaveBeenCalledTimes(2);
+      expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(expect.objectContaining({
+        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: 1500, product_data: { name: "Test product" } } }],
+      }));
+      expect(stripe.products.create).not.toHaveBeenCalled();
+      expect(stripe.prices.create).not.toHaveBeenCalled();
+    } finally {
+      getClient.mockRestore();
+    }
+  });
+
   it("accepts a replacement credential after the original expires", async () => {
     const credentialKey = new SlackConnector({}).requiredCredentials[0]!;
     const [expired] = await db.insert(userCredentialsTable).values({

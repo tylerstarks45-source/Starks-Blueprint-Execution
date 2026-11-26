@@ -2,10 +2,11 @@ import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import request from "supertest";
-import { clientWorkspacesTable, db, systemInstancesTable, userCredentialsTable, usersTable } from "@workspace/db";
+import { clientWorkspacesTable, db, systemActivityEventsTable, systemInstancesTable, systemRevenueProvidersTable, userCredentialsTable, usersTable } from "@workspace/db";
 import app from "../app";
 import { encrypt } from "../lib/crypto";
 import { getRevenueProvider } from "../lib/revenue/registry";
+import { syncProvider } from "../lib/revenue/sync";
 
 let userId: number;
 
@@ -78,6 +79,51 @@ it("links and syncs only with active credentials in the system's workspace", asy
     expect(fetchTransactions).toHaveBeenCalledTimes(1);
   } finally {
     testCredentials.mockRestore();
+    fetchTransactions.mockRestore();
+  }
+});
+
+it("replays a partial sync window and imports each transaction once across overlapping syncs", async () => {
+  const [system] = await db.insert(systemInstancesTable).values({ userId, name: "Import retry system" }).returning();
+  const lastSyncAt = new Date(Date.now() - 60_000);
+  const credentialKey = "IMPORT_STRIPE";
+  await db.insert(userCredentialsTable).values({
+    userId, systemInstanceId: system!.id, credentialKey, encryptedValue: encrypt("import-key"), status: "connected",
+  });
+  const [provider] = await db.insert(systemRevenueProvidersTable)
+    .values({ userId, systemInstanceId: system!.id, provider: "stripe", credentialKey, lastSyncAt }).returning();
+  const payment = { externalId: "stripe_paid", amountCents: 500, currency: "usd", description: "Test", occurredAt: new Date() };
+  const recoveredPayment = { ...payment, externalId: "stripe_recovered" };
+  let overlappingFetches = 0;
+  let releaseFetches!: () => void;
+  const ready = new Promise<void>(resolve => { releaseFetches = resolve; });
+  const fetchTransactions = vi.spyOn(getRevenueProvider("stripe")!, "fetchTransactions")
+    .mockResolvedValueOnce({ ok: true, transactions: [payment, { ...recoveredPayment, amountCents: 2 ** 31 }] })
+    .mockImplementation(async () => {
+      if (++overlappingFetches === 2) releaseFetches();
+      await ready;
+      return { ok: true, transactions: [payment, recoveredPayment] };
+    });
+  const sync = () => syncProvider(provider!.id);
+  const status = async () => {
+    const [updated] = await db.select().from(systemRevenueProvidersTable).where(eq(systemRevenueProvidersTable.id, provider!.id));
+    return updated;
+  };
+
+  try {
+    expect(await sync()).toMatchObject({ synced: 1, errors: [expect.any(String)] });
+    expect(await status()).toMatchObject({ lastSyncAt, syncStatus: "error" });
+
+    const results = await Promise.all([sync(), sync()]);
+    expect(results.flatMap(result => result.errors)).toEqual([]);
+    expect(results.reduce((total, result) => total + result.synced, 0)).toBe(1);
+    expect(fetchTransactions.mock.calls.map(([, since]) => since)).toEqual([lastSyncAt, lastSyncAt, lastSyncAt]);
+    const events = await db.select({ externalTxId: systemActivityEventsTable.externalTxId })
+      .from(systemActivityEventsTable).where(eq(systemActivityEventsTable.systemInstanceId, system!.id));
+    expect(events.map(event => event.externalTxId).sort()).toEqual(["stripe_paid", "stripe_recovered"]);
+    expect(await status()).toMatchObject({ lastSyncAt: expect.any(Date), syncStatus: "ok" });
+    expect((await status())!.lastSyncAt!.getTime()).toBeGreaterThan(lastSyncAt.getTime());
+  } finally {
     fetchTransactions.mockRestore();
   }
 });

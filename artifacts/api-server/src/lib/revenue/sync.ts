@@ -1,5 +1,5 @@
-import { pool, db, systemRevenueProvidersTable, systemActivityEventsTable, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, systemRevenueProvidersTable, systemActivityEventsTable, usersTable } from "@workspace/db";
+import { and, eq, sql } from "drizzle-orm";
 import { connectorScope, loadConnectorCredentials, type ConnectorScope } from "../connector-actions";
 import { getRevenueProvider } from "./registry";
 import { logger } from "../logger";
@@ -42,12 +42,20 @@ export async function loadMappedRevenueCredentials(
   return Object.fromEntries(provider.credentialKeys.map(key => [key, scoped[keyMap[key]!]!]));
 }
 
-async function txExists(systemInstanceId: number, externalTxId: string): Promise<boolean> {
-  const res = await pool.query(
-    `SELECT 1 FROM system_activity_events WHERE system_instance_id = $1 AND external_tx_id = $2 LIMIT 1`,
-    [systemInstanceId, externalTxId],
-  );
-  return res.rowCount !== null && res.rowCount > 0;
+async function insertRevenueOnce(event: typeof systemActivityEventsTable.$inferInsert & { externalTxId: string }): Promise<boolean> {
+  return db.transaction(async tx => {
+    // A manual sync can overlap with a worker sync for the same system.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('revenue_import'), ${event.systemInstanceId}::int)`);
+    const [existing] = await tx.select({ id: systemActivityEventsTable.id })
+      .from(systemActivityEventsTable)
+      .where(and(
+        eq(systemActivityEventsTable.systemInstanceId, event.systemInstanceId),
+        eq(systemActivityEventsTable.externalTxId, event.externalTxId),
+      )).limit(1);
+    if (existing) return false;
+    await tx.insert(systemActivityEventsTable).values(event);
+    return true;
+  });
 }
 
 export async function syncProvider(providerId: number): Promise<{ synced: number; errors: string[] }> {
@@ -79,7 +87,8 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
     .set({ syncStatus: "syncing" })
     .where(eq(systemRevenueProvidersTable.id, providerId));
 
-  const since = record.lastSyncAt ? new Date(record.lastSyncAt) : new Date(Date.now() - 30 * 86_400_000);
+  const fetchStartedAt = new Date();
+  const since = record.lastSyncAt ?? new Date(fetchStartedAt.getTime() - 30 * 86_400_000);
 
   const result = await provider.fetchTransactions(creds, since);
 
@@ -96,10 +105,7 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
 
   for (const tx of result.transactions) {
     try {
-      const exists = await txExists(record.systemInstanceId, tx.externalId);
-      if (exists) continue;
-
-      await db.insert(systemActivityEventsTable).values({
+      const inserted = await insertRevenueOnce({
         systemInstanceId: record.systemInstanceId,
         eventType: "revenue",
         amountCents: tx.amountCents,
@@ -110,6 +116,7 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
         createdAt: tx.occurredAt,
         metadata: JSON.stringify({ provider: record.provider, currency: tx.currency }),
       });
+      if (!inserted) continue;
       // Check and record any newly crossed lifetime earning milestones
       checkMilestones(record.userId, record.systemInstanceId).catch(() => {});
 
@@ -143,7 +150,10 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
     .set({
       syncStatus: errors.length > 0 ? "error" : "ok",
       syncMessage: errors.length > 0 ? errors[0] : `Synced ${synced} transactions`,
-      lastSyncAt: new Date(),
+      // Keep the window open after a partial import and catch arrivals during a successful fetch.
+      ...(errors.length === 0 ? {
+        lastSyncAt: sql`greatest(${systemRevenueProvidersTable.lastSyncAt}, ${fetchStartedAt.toISOString()}::timestamptz)`,
+      } : {}),
     })
     .where(eq(systemRevenueProvidersTable.id, providerId));
 

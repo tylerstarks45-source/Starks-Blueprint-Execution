@@ -298,11 +298,6 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   if (!instance) { res.status(404).json({ error: "System instance not found" }); return; }
   if (!ensureOwner(instance, userId, res)) return;
 
-  if (instance.userId != null && !(await hasCredits(instance.userId))) {
-    res.status(402).json({ error: "You're out of AI credits. Top up to continue building.", code: "out_of_credits" });
-    return;
-  }
-
   const [requestedStep] = await db
     .select({
       status: buildProgressTable.status,
@@ -329,6 +324,10 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   }
 
   let connectorCalls = requestedStep.pendingConnectorActions;
+  if (!connectorCalls?.length && !(await hasCredits(userId))) {
+    res.status(402).json({ error: "You're out of AI credits. Top up to continue building.", code: "out_of_credits" });
+    return;
+  }
   if (requestedStep.status === "blocked" && !connectorCalls?.length) {
     res.status(409).json({ error: "This held step has no valid saved actions. Start a new live build to create a new action plan." });
     return;

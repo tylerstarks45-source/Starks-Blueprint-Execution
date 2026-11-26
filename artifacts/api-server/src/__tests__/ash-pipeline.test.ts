@@ -441,6 +441,8 @@ describe("POST /api/build-engine/execute-step (liveMode)", () => {
       encryptedValue: encrypt("test-token"), systemInstanceId: instance!.id, status: "connected",
     }).returning();
     const execute = vi.spyOn(TwitterConnector.prototype, "execute").mockResolvedValue({ ok: true });
+    const [balances] = await db.select({ creditsBalance: usersTable.creditsBalance, walletBalance: usersTable.walletBalance })
+      .from(usersTable).where(eq(usersTable.id, testUserId));
     try {
       mockComplete.mockResolvedValueOnce(fakeCompletion(
         '<SBEP_ACTIONS>{"calls":[{"type":"connector_action","connectorId":"twitter","action":"postTweet","params":{"text":"Test"}}]}</SBEP_ACTIONS> Posted an update.',
@@ -463,6 +465,7 @@ describe("POST /api/build-engine/execute-step (liveMode)", () => {
 
       await db.update(ashControlSettingsTable).set({ level: "operator", approvalRequired: [] })
         .where(eq(ashControlSettingsTable.id, settings!.id));
+      await db.update(usersTable).set({ creditsBalance: 0, walletBalance: 0 }).where(eq(usersTable.id, testUserId));
       const previousModelCalls = mockComplete.mock.calls.length;
       const retried = await request(app).post("/api/build-engine/execute-step").set(auth())
         .send({ ...stepRequest, stepDescription: "A different description after the hold" });
@@ -472,6 +475,7 @@ describe("POST /api/build-engine/execute-step (liveMode)", () => {
       expect(execute).toHaveBeenCalledExactlyOnceWith("postTweet", { text: "Test" });
     } finally {
       execute.mockRestore();
+      if (balances) await db.update(usersTable).set(balances).where(eq(usersTable.id, testUserId));
       await db.delete(ashControlSettingsTable).where(eq(ashControlSettingsTable.id, settings!.id));
       await db.delete(userCredentialsTable).where(eq(userCredentialsTable.id, credential!.id));
     }

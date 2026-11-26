@@ -135,26 +135,6 @@ router.post("/build-engine/analyze", async (req, res): Promise<void> => {
     return;
   }
 
-  const [requestedStep] = await db
-    .select({ status: buildProgressTable.status, currentStepNumber: buildSessionsTable.currentStepNumber })
-    .from(buildProgressTable)
-    .innerJoin(buildSessionsTable, eq(buildSessionsTable.id, buildProgressTable.buildSessionId))
-    .where(and(
-      eq(buildProgressTable.id, parsed.data.stepId),
-      eq(buildProgressTable.stepNumber, parsed.data.stepNumber),
-      eq(buildSessionsTable.id, parsed.data.sessionId),
-      eq(buildSessionsTable.systemInstanceId, instance.id),
-    ));
-  if (!requestedStep) { res.status(404).json({ error: "Build step not found for this system." }); return; }
-  if (requestedStep.currentStepNumber !== parsed.data.stepNumber || requestedStep.status === "completed") {
-    res.status(409).json({ error: "This is no longer the current build step." });
-    return;
-  }
-  if (requestedStep.status === "blocked" && !parsed.data.liveMode) {
-    res.status(409).json({ error: "Retry this required connector step in Live Mode." });
-    return;
-  }
-
   const allCategories = await db.select().from(toolCategoriesTable);
   const allTools = await db.select().from(toolsTable).where(eq(toolsTable.activeStatus, true));
   const categoryList = allCategories.map((c) => `ID:${c.id} NAME:${c.name}`).join("\n");
@@ -302,6 +282,26 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
 
   if (instance.userId != null && !(await hasCredits(instance.userId))) {
     res.status(402).json({ error: "You're out of AI credits. Top up to continue building.", code: "out_of_credits" });
+    return;
+  }
+
+  const [requestedStep] = await db
+    .select({ status: buildProgressTable.status, currentStepNumber: buildSessionsTable.currentStepNumber })
+    .from(buildProgressTable)
+    .innerJoin(buildSessionsTable, eq(buildSessionsTable.id, buildProgressTable.buildSessionId))
+    .where(and(
+      eq(buildProgressTable.id, parsed.data.stepId),
+      eq(buildProgressTable.stepNumber, parsed.data.stepNumber),
+      eq(buildSessionsTable.id, parsed.data.sessionId),
+      eq(buildSessionsTable.systemInstanceId, instance.id),
+    ));
+  if (!requestedStep) { res.status(404).json({ error: "Build step not found for this system." }); return; }
+  if (requestedStep.currentStepNumber !== parsed.data.stepNumber || requestedStep.status === "completed") {
+    res.status(409).json({ error: "This is no longer the current build step." });
+    return;
+  }
+  if (requestedStep.status === "blocked" && !parsed.data.liveMode) {
+    res.status(409).json({ error: "Retry this required connector step in Live Mode." });
     return;
   }
 

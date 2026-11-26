@@ -181,7 +181,7 @@ describe("POST /api/build-engine/execute-step", () => {
   let steps: Array<{ id: number; stepNumber: number; status: string; notes: string }>;
 
   beforeAll(async () => {
-    // Set up a fresh system instance with 3 build steps.
+    // Each execution assertion gets its own step in a single ordered build.
     mockComplete.mockResolvedValueOnce(
       fakeCompletion(
         JSON.stringify({
@@ -189,7 +189,8 @@ describe("POST /api/build-engine/execute-step", () => {
           buildPlan: [
             "Step 1: Configure API integrations and service accounts",
             "Step 2: Deploy affiliate link tracker for revenue attribution",
-            "Step 3: Launch email campaign to subscriber list",
+            "Step 3: Validate affiliate tracking reports",
+            "Step 4: Launch email campaign to subscriber list",
           ],
         }),
       ),
@@ -322,8 +323,8 @@ describe("POST /api/build-engine/execute-step", () => {
   });
 
   it("REGRESSION (task #272): AI narrative dollar claims are stripped, never stored or shown verbatim", async () => {
-    const step2 = steps.find((s) => s.stepNumber === 2)!;
-    expect(step2).toBeDefined();
+    const step3 = steps.find((s) => s.stepNumber === 3)!;
+    expect(step3).toBeDefined();
 
     mockComplete.mockResolvedValueOnce(
       fakeCompletion(
@@ -335,10 +336,10 @@ describe("POST /api/build-engine/execute-step", () => {
       .post("/api/build-engine/execute-step")
       .set(auth())
       .send({
-        stepId: step2.id,
-        stepDescription: "Deploy affiliate link tracker for revenue attribution",
+        stepId: step3.id,
+        stepDescription: "Validate affiliate tracking reports",
         blueprintName: "AI Blog Content Machine",
-        stepNumber: 2,
+        stepNumber: 3,
         totalSteps: steps.length,
         systemInstanceId: instanceId,
         sessionId,
@@ -355,7 +356,7 @@ describe("POST /api/build-engine/execute-step", () => {
     const [dbStep] = await db
       .select({ notes: buildProgressTable.notes })
       .from(buildProgressTable)
-      .where(eq(buildProgressTable.id, step2.id));
+      .where(eq(buildProgressTable.id, step3.id));
     expect(dbStep.notes).not.toMatch(/\$\s?\d/);
 
     const events = await db

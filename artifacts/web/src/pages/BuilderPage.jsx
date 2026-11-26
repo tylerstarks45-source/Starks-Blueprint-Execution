@@ -3059,7 +3059,7 @@ const BuilderPage = () => {
 
           // Stream an AI explanation from ai-orchestrator/step-recovery (SSE)
           let explanation = data.connectorBlocked
-            ? 'Review this business’s ASH Control settings before retrying the step.'
+            ? (data.recoveryMessage || 'Check the required service and ASH Control settings before retrying.')
             : 'Try retrying the step — transient AI errors often resolve on retry.';
           if (!data.connectorBlocked) try {
             const sseResp = await fetch('/api/ai-orchestrator/step-recovery', {

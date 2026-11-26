@@ -1,0 +1,1 @@
+ALTER TABLE "build_progress" ADD COLUMN "pending_connector_actions" jsonb;

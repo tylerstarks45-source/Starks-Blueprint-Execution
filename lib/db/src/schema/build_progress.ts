@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { buildSessionsTable } from "./build_sessions";
@@ -11,6 +11,7 @@ export const buildProgressTable = pgTable("build_progress", {
   stepNumber: integer("step_number").notNull(),
   status: text("status").notNull().default("pending"),
   notes: text("notes"),
+  pendingConnectorActions: jsonb("pending_connector_actions").$type<Array<Record<string, unknown>>>(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

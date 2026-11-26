@@ -89,6 +89,17 @@ it("links and syncs only with active credentials in the system's workspace", asy
     await updateCredential({ status: "disconnected" });
     expect((await sync()).body).toMatchObject({ ok: false, synced: 0, errors: [expect.stringContaining("Reconnect")] });
     expect(fetchTransactions).toHaveBeenCalledTimes(1);
+
+    await updateCredential({ status: "connected", encryptedValue: encrypt("pasted\u00a0key") });
+    const invalidProbe = vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("Unexpected Stripe probe"));
+    try {
+      expect((await probe()).body).toMatchObject({ ok: false, status: "invalid" });
+      expect(invalidProbe).not.toHaveBeenCalled();
+    } finally {
+      invalidProbe.mockRestore();
+    }
+    expect((await sync()).body).toMatchObject({ ok: false, synced: 0 });
+    expect(fetchTransactions).toHaveBeenCalledTimes(1);
   } finally {
     testCredentials.mockRestore();
     fetchTransactions.mockRestore();

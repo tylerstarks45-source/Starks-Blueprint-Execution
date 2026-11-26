@@ -323,19 +323,16 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
     return;
   }
 
-  let connectorCalls = requestedStep.pendingConnectorActions;
-  if (!connectorCalls?.length && !(await hasCredits(userId))) {
+  const savedConnectorCalls = requestedStep.pendingConnectorActions?.length ? requestedStep.pendingConnectorActions : null;
+  let connectorCalls = savedConnectorCalls;
+  if (!savedConnectorCalls && !(await hasCredits(userId))) {
     res.status(402).json({ error: "You're out of AI credits. Top up to continue building.", code: "out_of_credits" });
     return;
   }
-  if (requestedStep.status === "blocked" && !connectorCalls?.length) {
-    res.status(409).json({ error: "This held step has no valid saved actions. Start a new live build to create a new action plan." });
-    return;
-  }
-
   let output = "";
   let stepFailed = false;
   let connectorBlocked = requestedStep.status === "blocked";
+  let discardConnectorPlan = false;
   let recoveryMessage = "";
   // Best-model policy (Task #282): build-step execution is the highest-stakes AI
   // work, so default to the flagship chain. Respect an explicit model only if the
@@ -416,20 +413,6 @@ Execute this step now. Write detailed output describing exactly what was configu
     }
 
     if (scope && connectorCalls) {
-      if (connectorCalls.length === 0) {
-        stepFailed = true;
-        connectorBlocked = true;
-        recoveryMessage = "ASH did not provide a valid live connector action.";
-        output = recoveryMessage;
-      }
-      const control = connectorCalls.length > 0 ? await decideConnectorAction(scope) : null;
-      if (control && control.decision !== "allow") {
-        stepFailed = true;
-        connectorBlocked = true;
-        recoveryMessage = control.reason;
-        output = `Live connector actions held by ASH Control. ${control.reason}`;
-      }
-
       const plannedActions = connectorCalls.map(call => {
         const connector = typeof call.connectorId === "string" ? getConnector(call.connectorId, userCreds) : null;
         const action = typeof call.action === "string" ? call.action : "";
@@ -437,17 +420,21 @@ Execute this step now. Write detailed output describing exactly what was configu
         const metadata = connector?.describe();
         return { connector, action, params, supported: metadata?.available && metadata.actionMeta[action] === "automated" };
       });
-      if (!stepFailed) {
-        const invalid = plannedActions.find(plan => !plan.supported || !plan.params.success);
-        const disconnected = plannedActions.find(plan => plan.connector && !plan.connector.validateCredentials())?.connector;
-        if (invalid || disconnected) {
-          stepFailed = true;
-          connectorBlocked = true;
-          recoveryMessage = invalid
-            ? "ASH proposed an unavailable or invalid connector action."
-            : `Check the ${disconnected?.displayName ?? "required service"} connection before retrying this step.`;
-          output = recoveryMessage;
+      const invalid = !plannedActions.length || plannedActions.some(plan => !plan.supported || !plan.params.success);
+      const control = invalid ? null : await decideConnectorAction(scope);
+      const disconnected = plannedActions.find(plan => plan.connector && !plan.connector.validateCredentials())?.connector;
+      if (invalid || (control && control.decision !== "allow") || disconnected) {
+        stepFailed = true;
+        connectorBlocked = true;
+        discardConnectorPlan = invalid && !savedConnectorCalls;
+        if (invalid) {
+          recoveryMessage = "ASH proposed an unavailable or invalid connector action.";
+        } else if (control && control.decision !== "allow") {
+          recoveryMessage = control.reason;
+        } else {
+          recoveryMessage = `Check the ${disconnected?.displayName ?? "required service"} connection before retrying this step.`;
         }
+        output = recoveryMessage;
       }
 
       for (const { connector, action, params } of stepFailed ? [] : plannedActions) {
@@ -524,7 +511,7 @@ Execute this step now. Write detailed output describing exactly what was configu
     const [failedStep] = await db.update(buildProgressTable)
       .set({
         status: connectorBlocked ? "blocked" : "failed",
-        ...(connectorBlocked ? { pendingConnectorActions: connectorCalls } : { notes: output }),
+        ...(connectorBlocked ? { pendingConnectorActions: discardConnectorPlan ? null : connectorCalls } : { notes: output }),
       })
       .where(eq(buildProgressTable.id, parsed.data.stepId))
       .returning();

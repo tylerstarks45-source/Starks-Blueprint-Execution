@@ -498,10 +498,11 @@ describe("POST /api/build-engine/execute-step (liveMode)", () => {
       mockComplete.mockResolvedValueOnce(fakeCompletion(
         `<SBEP_ACTIONS>${JSON.stringify({ calls })}</SBEP_ACTIONS> Posted an update.`,
       ));
-      const response = await request(app).post("/api/build-engine/execute-step").set(auth()).send({
+      const stepRequest = {
         stepId: step!.id, sessionId: session!.id, systemInstanceId: instance!.id, stepNumber: 1, totalSteps: 1,
         blueprintName: "Connector failure", stepDescription: "Post an update", liveMode: true,
-      });
+      };
+      const response = await request(app).post("/api/build-engine/execute-step").set(auth()).send(stepRequest);
       expect(response.status).toBe(200);
       expect(execute).toHaveBeenCalledTimes(connectorCalled ? 1 : 0);
       expect(response.body).toMatchObject({ stepFailed: true, connectorBlocked: true, step: { status: "blocked" } });
@@ -510,6 +511,15 @@ describe("POST /api/build-engine/execute-step (liveMode)", () => {
       expect(currentSession).toMatchObject({ status: "active", currentStepNumber: 1, completedAt: null });
       const [currentInstance] = await db.select().from(systemInstancesTable).where(eq(systemInstancesTable.id, instance!.id));
       expect(currentInstance?.buildStatus).toBe("pending");
+      if (!connectorCalled) {
+        expect(response.body.step.pendingConnectorActions).toBeNull();
+        execute.mockResolvedValueOnce({ ok: true });
+        calls[0]!.action = "postTweet";
+        mockComplete.mockResolvedValueOnce(fakeCompletion(`<SBEP_ACTIONS>${JSON.stringify({ calls })}</SBEP_ACTIONS>`));
+        const retry = await request(app).post("/api/build-engine/execute-step").set(auth()).send(stepRequest);
+        expect(retry.body).toMatchObject({ stepFailed: false, step: { status: "completed" } });
+        expect(execute).toHaveBeenCalledExactlyOnceWith("postTweet", { text: "Test" });
+      }
     } finally {
       execute.mockRestore();
       await db.delete(userCredentialsTable).where(eq(userCredentialsTable.id, credential!.id));

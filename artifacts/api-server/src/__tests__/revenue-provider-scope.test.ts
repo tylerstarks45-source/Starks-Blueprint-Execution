@@ -30,7 +30,7 @@ it("links and syncs only with active credentials in the system's workspace", asy
     { userId, name: "Revenue system", clientWorkspaceId: workspace!.id },
     { userId, name: "Other system", clientWorkspaceId: workspace!.id },
   ]).returning({ id: systemInstancesTable.id });
-  const key = "REVENUE_STRIPE";
+  const key = "STRIPE_SECRET_KEY";
   const [credential] = await db.insert(userCredentialsTable).values([
     {
       userId, credentialKey: key, status: "connected", clientWorkspaceId: workspace!.id,
@@ -71,6 +71,18 @@ it("links and syncs only with active credentials in the system's workspace", asy
     expect(testCredentials).toHaveBeenCalledExactlyOnceWith({ stripe_secret_key: "system-key" });
 
     const sync = () => request(app).post(`${base}/${linked.body.id}/sync`).auth(token, { type: "bearer" });
+    const probe = () => request(app).post(`/api/user-credentials/${credential!.id}/test`).auth(token, { type: "bearer" });
+    const stripeProbe = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockRejectedValueOnce(new TypeError("Stripe network error"));
+    try {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        expect((await probe()).body).toMatchObject({ ok: false, status: "connected" });
+      }
+    } finally {
+      stripeProbe.mockRestore();
+    }
+
     expect((await sync()).body).toMatchObject({ ok: true, synced: 0 });
     expect(fetchTransactions).toHaveBeenCalledExactlyOnceWith({ stripe_secret_key: "system-key" }, expect.any(Date));
 

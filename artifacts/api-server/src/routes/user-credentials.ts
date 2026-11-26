@@ -340,7 +340,13 @@ router.post("/user-credentials/:id/test", async (req, res): Promise<void> => {
     } else if (cred.credentialKey === "STRIPE_SECRET_KEY") {
       const r = await fetch("https://api.stripe.com/v1/account", {
         headers: { Authorization: `Bearer ${plaintext}` },
-      });
+        signal: AbortSignal.timeout(10_000),
+      }).catch(() => null);
+      if (!r || r.status === 408 || r.status === 429 || r.status >= 500) {
+        // A temporary provider failure doesn't change the owner's saved connection.
+        res.json({ ok: false, message: "Stripe is temporarily unavailable. Try again shortly.", status: cred.status });
+        return;
+      }
       if (r.ok) {
         testOk = true;
         testMessage = "Stripe API reachable — authentication valid";

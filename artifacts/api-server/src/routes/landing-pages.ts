@@ -8,6 +8,7 @@ import { MODELS } from "../lib/models";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import { logger } from "../lib/logger";
+import { GENERATED_HTML_SANDBOX } from "../lib/generated-html";
 
 // ─── Short-lived, single-use preview exchange tokens ─────────────────────────
 // Opening an unpublished page preview in a new tab used to pass the user's
@@ -515,7 +516,9 @@ router.get("/landing-pages/:id/preview-html", async (req, res): Promise<void> =>
     res.status(404).json({ error: "Landing page not found" });
     return;
   }
-  res.setHeader("Content-Type", "text/html");
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Content-Security-Policy", `${GENERATED_HTML_SANDBOX}; frame-ancestors 'self'; base-uri 'none'`);
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.send(row.htmlContent || "<html><body style='background:#0a0a0a;color:#888;font-family:monospace;padding:40px'>No content yet. Generate a page with ASH first.</body></html>");
 });
 

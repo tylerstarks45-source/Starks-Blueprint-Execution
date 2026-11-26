@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { GENERATED_PAGE_ENDPOINTS } from "./lib/generated-html";
 import { apiKeyMiddleware } from "./middlewares/apiKey";
 import { createAiRateLimiter, createGlobalRateLimiter, createPublicFormRateLimiter, redactServerErrors, securityHeaders } from "./middlewares/security";
 
@@ -62,19 +63,21 @@ export function isAllowedOrigin(origin: string): boolean {
   return origin.endsWith(".replit.dev") || origin.endsWith(".repl.co") || origin.endsWith(".replit.app") || _explicitOrigins.has(origin);
 }
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // non-browser / server-to-server
-      if (isAllowedOrigin(origin)) {
-        return callback(null, true);
-      }
-      logger.warn({ origin }, "CORS: rejected unlisted origin");
-      return callback(new Error("CORS: origin not in allowlist"), false);
-    },
-    credentials: true,
-  }),
-);
+const appCors = cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // non-browser / server-to-server
+    if (isAllowedOrigin(origin)) {
+      return callback(null, true);
+    }
+    logger.warn({ origin }, "CORS: rejected unlisted origin");
+    return callback(new Error("CORS: origin not in allowlist"), false);
+  },
+  credentials: true,
+});
+// Generated pages run sandboxed with an opaque origin; their anonymous form and
+// beacon endpoints accept any origin and never share credentials.
+const generatedPageCors = cors({ origin: "*" });
+app.use((req, res, next) => (GENERATED_PAGE_ENDPOINTS.test(req.path) ? generatedPageCors : appCors)(req, res, next));
 
 // Bound Stripe and SendGrid bodies before buffering and keep the signed bytes.
 const RAW_BODY_PATHS = new Set(["/api/stripe/webhook", "/api/email/webhooks/sendgrid", "/api/webhooks/sendgrid"]);

@@ -1,6 +1,6 @@
 import { pool, db, systemRevenueProvidersTable, systemActivityEventsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { decrypt } from "../crypto";
+import { connectorScope, loadConnectorCredentials, type ConnectorScope } from "../connector-actions";
 import { getRevenueProvider } from "./registry";
 import { logger } from "../logger";
 import { notifyAdmins } from "../admin-alerts";
@@ -14,7 +14,7 @@ let running = false;
 let inFlight: Promise<void> = Promise.resolve();
 
 // Parse stored credentialKey column — either JSON map (new) or plain key name (legacy).
-// Returns { providerKeyName → decryptedValue }.
+// Returns { providerKeyName → stored credential key }.
 function parseCredentialKeyMap(credentialKey: string, provider: RevenueProvider): Record<string, string> {
   try {
     const parsed: unknown = JSON.parse(credentialKey);
@@ -30,26 +30,16 @@ function parseCredentialKeyMap(credentialKey: string, provider: RevenueProvider)
 }
 
 // Load and decrypt only the specific credentials needed, remapped to provider key names.
-async function loadMappedCredentials(
-  userId: number,
-  keyMap: Record<string, string>, // { providerKeyName → userStoredCredentialKey }
-): Promise<Record<string, string>> {
-  const creds: Record<string, string> = {};
-  for (const [providerKey, userCredKey] of Object.entries(keyMap)) {
-    const rows = await pool.query<{ encrypted_value: string | null }>(
-      `SELECT encrypted_value FROM user_credentials WHERE user_id = $1 AND credential_key = $2 LIMIT 1`,
-      [userId, userCredKey],
-    );
-    const row = rows.rows[0];
-    if (row?.encrypted_value) {
-      try {
-        creds[providerKey] = await decrypt(row.encrypted_value);
-      } catch {
-        // skip malformed entry
-      }
-    }
-  }
-  return creds;
+export async function loadMappedRevenueCredentials(
+  scope: ConnectorScope,
+  provider: RevenueProvider,
+  keyMap: Record<string, string>,
+): Promise<Record<string, string> | null> {
+  const keys = provider.credentialKeys.map(key => keyMap[key]);
+  if (!keys.every((key): key is string => typeof key === "string" && key.length > 0)) return null;
+  const scoped = await loadConnectorCredentials(scope, keys);
+  if (!keys.every(key => scoped[key])) return null;
+  return Object.fromEntries(provider.credentialKeys.map(key => [key, scoped[keyMap[key]!]!]));
 }
 
 async function txExists(systemInstanceId: number, externalTxId: string): Promise<boolean> {
@@ -73,14 +63,21 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
     return { synced: 0, errors: [`Unknown provider: ${record.provider}`] };
   }
 
+  const scope = await connectorScope(record.userId, record.systemInstanceId);
+  const keyMap = parseCredentialKeyMap(record.credentialKey, provider);
+  const creds = scope ? await loadMappedRevenueCredentials(scope, provider, keyMap) : null;
+  if (!creds) {
+    const error = "Reconnect this provider with active credentials for the system's workspace.";
+    await db.update(systemRevenueProvidersTable)
+      .set({ syncStatus: "error", syncMessage: error })
+      .where(eq(systemRevenueProvidersTable.id, providerId));
+    return { synced: 0, errors: [error] };
+  }
+
   await db
     .update(systemRevenueProvidersTable)
     .set({ syncStatus: "syncing" })
     .where(eq(systemRevenueProvidersTable.id, providerId));
-
-  // Build credentials using only the keys linked to this provider record
-  const keyMap = parseCredentialKeyMap(record.credentialKey, provider);
-  const creds = await loadMappedCredentials(record.userId, keyMap);
 
   const since = record.lastSyncAt ? new Date(record.lastSyncAt) : new Date(Date.now() - 30 * 86_400_000);
 

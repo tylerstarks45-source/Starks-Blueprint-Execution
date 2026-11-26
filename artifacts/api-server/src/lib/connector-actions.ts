@@ -1,5 +1,5 @@
 import { businessesTable, db, systemInstancesTable, userCredentialsTable } from "@workspace/db";
-import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { createPendingApproval } from "./approvals";
 import { decide, toolActionKind, type Decision } from "./ash-control/policy";
 import type { ExecResult } from "./connectors/base";
@@ -49,7 +49,7 @@ export function decideConnectorAction(scope: ConnectorScope): Promise<Decision> 
   return decide({ userId: scope.userId, businessId: scope.businessId, kind: toolActionKind("connector_action"), interactive: true });
 }
 
-export async function loadConnectorCredentials(scope: ConnectorScope): Promise<Record<string, string>> {
+export async function loadConnectorCredentials(scope: ConnectorScope, keys?: string[]): Promise<Record<string, string>> {
   const shared = isNull(userCredentialsTable.systemInstanceId);
   const rows = await db.select({
     credentialKey: userCredentialsTable.credentialKey,
@@ -62,6 +62,7 @@ export async function loadConnectorCredentials(scope: ConnectorScope): Promise<R
       ? isNull(userCredentialsTable.clientWorkspaceId)
       : eq(userCredentialsTable.clientWorkspaceId, scope.workspaceId),
     scope.systemInstanceId === null ? shared : or(shared, eq(userCredentialsTable.systemInstanceId, scope.systemInstanceId)),
+    keys === undefined ? undefined : inArray(userCredentialsTable.credentialKey, keys),
   )).orderBy(sql`${userCredentialsTable.systemInstanceId} asc nulls first`, asc(userCredentialsTable.id));
 
   const creds: Record<string, string> = Object.create(null);

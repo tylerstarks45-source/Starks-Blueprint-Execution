@@ -43,7 +43,7 @@ Every backend feature also has a page in the web app, a sidebar link, a link in 
    - `CREDENTIAL_ENCRYPTION_KEY` (64 hex characters; generate with `openssl rand -hex 32`, and never change it after users have saved credentials)
    - `OPENROUTER_API_KEY`
    - `APP_URL=https://starksglobalgroup.net`, `STRIPE_SECRET_KEY` (or the Replit Stripe connector), `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`
-   - In production, registration and new checkouts return `rollout_closed` until `PUBLIC_ROLLOUT_OPEN=true`. Admins and addresses in `ROLLOUT_ALLOWED_EMAILS` (comma-separated) can run acceptance before then. Set the flag only after the exact release candidate passes acceptance.
+   - In production, registration and new checkouts return `rollout_closed` until `PUBLIC_ROLLOUT_OPEN=true`. Admins and addresses in `ROLLOUT_ALLOWED_EMAILS` (comma-separated) can run acceptance before then; testers must verify their email before they can sign in or check out. Set the flag only after the exact release candidate passes acceptance.
 3. Stripe dashboard:
    - Webhook endpoint `https://starksglobalgroup.net/api/stripe/webhook` with these events: `checkout.session.completed`, `invoice.payment_succeeded`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`. Its signing secret goes in `STRIPE_WEBHOOK_SECRET`.
    - Enable **Connect** (Express accounts) for creator payouts, and add `account.updated` to the webhook (as a Connect event). Payouts are transfers from the platform balance, so the platform needs available funds.

@@ -8,7 +8,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import crypto from "crypto";
 import { adjustCredits, SIGNUP_GRANT } from "../lib/credits";
-import { rolloutAllowsEmail } from "../lib/rollout";
+import { rolloutAllowsEmail, testerNeedsVerification } from "../lib/rollout";
 import { getActiveCallerPayload } from "../lib/auth";
 import {
   sendPasswordResetEmail,
@@ -211,6 +211,10 @@ router.post("/auth/register", authLimiter, async (req, res) => {
       notifyEmailFailed();
     });
 
+  if (testerNeedsVerification(newUser)) {
+    return res.status(201).json({ verificationRequired: true, user: userResponse({ ...newUser, creditsBalance: balance }) });
+  }
+
   const token = signToken(newUser.id, newUser.email, newUser.role ?? "USER", newUser.tokenVersion ?? 1);
 
   return res.status(201).json({ token, user: userResponse({ ...newUser, creditsBalance: balance }) });
@@ -244,6 +248,10 @@ router.post("/auth/login", authLimiter, async (req, res) => {
 
   if (!user.active) {
     return res.status(403).json({ error: "Account is deactivated." });
+  }
+
+  if (testerNeedsVerification(user)) {
+    return res.status(403).json({ error: "Verify your email to sign in before the public launch.", code: "email_unverified" });
   }
 
   const token = signToken(user.id, user.email, user.role ?? "USER", user.tokenVersion ?? 1);

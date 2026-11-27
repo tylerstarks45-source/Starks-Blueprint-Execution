@@ -28,11 +28,26 @@ it("keeps production signup and new checkouts closed until the public rollout op
   vi.stubEnv("NODE_ENV", "production");
   vi.stubEnv("PUBLIC_ROLLOUT_OPEN", "");
   vi.stubEnv("ROLLOUT_ALLOWED_EMAILS", testerEmail.toUpperCase());
+  const password = "Rollout-test-password-1";
   const register = (email: string) => request(app).post("/api/auth/register")
-    .send({ email, password: "Rollout-test-password-1", name: "Rollout test" });
+    .send({ email, password, name: "Rollout test" });
+  const login = () => request(app).post("/api/auth/login").send({ email: testerEmail, password });
 
   expect((await register(closedEmail)).body).toMatchObject({ code: "rollout_closed" });
-  expect((await register(testerEmail)).status).toBeLessThan(300);
+
+  // An allowlisted address only unlocks pre-launch access after its owner verifies it.
+  const tester = await register(testerEmail);
+  expect(tester.status).toBe(201);
+  expect(tester.body.token).toBeUndefined();
+  expect((await login()).body.code).toBe("email_unverified");
+  const testerToken = jwt.sign({ sub: tester.body.user.id, role: "USER", tokenVersion: 1 }, process.env["SESSION_SECRET"]!);
+  const unverifiedCheckout = await request(app).post("/api/subscriptions/checkout").auth(testerToken, { type: "bearer" }).send({ tier: "builder" });
+  expect(unverifiedCheckout.body.code).toBe("rollout_closed");
+
+  await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.email, testerEmail));
+  expect((await login()).body.token).toEqual(expect.any(String));
+  const verifiedCheckout = await request(app).post("/api/subscriptions/checkout").auth(testerToken, { type: "bearer" }).send({ tier: "builder" });
+  expect(verifiedCheckout.body.code).not.toBe("rollout_closed");
 
   const token = jwt.sign({ sub: userId, role: "USER", tokenVersion: 1 }, process.env["SESSION_SECRET"]!);
   for (const [path, body] of [

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, or, isNull, inArray, sql } from "drizzle-orm";
 import { db, subscriptionsTable, usersTable, processedStripeEventsTable, blueprintsTable, blueprintPurchasesTable, notificationsTable, referralEventsTable, referralCodesTable } from "@workspace/db";
 import { z } from "zod";
 import { getUncachableStripeClient } from "../lib/stripe";
@@ -256,12 +256,17 @@ async function reverseCharge(
     detail = `took back ${taken} of ${credits} wallet credits`;
   } else if (meta.kind === "blueprint_purchase") {
     const blueprintId = Number(meta.blueprintId);
-    const [purchase] = await tx.delete(blueprintPurchasesTable)
-      .where(and(eq(blueprintPurchasesTable.blueprintId, blueprintId), eq(blueprintPurchasesTable.buyerUserId, userId)))
-      .returning();
-    let creatorTaken = 0;
     // Matched by this payment, so it applies even after the blueprint (and its purchase rows) was deleted.
     const refs = [charge.payment_intent, session?.id].filter(Boolean).map(String);
+    // Only revoke access this payment granted: refunding a duplicate payment must not remove access another payment paid for.
+    const [purchase] = await tx.delete(blueprintPurchasesTable)
+      .where(and(
+        eq(blueprintPurchasesTable.blueprintId, blueprintId),
+        eq(blueprintPurchasesTable.buyerUserId, userId),
+        or(isNull(blueprintPurchasesTable.paymentRef), inArray(blueprintPurchasesTable.paymentRef, refs.length ? refs : [""])),
+      ))
+      .returning();
+    let creatorTaken = 0;
     const cashReversed = await reverseCardSaleEarning(tx, refs, `${label}: sale refunded`);
     if (purchase) {
       if (!cashReversed && purchase.authorUserId) {
@@ -474,7 +479,19 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
           const blueprintId = Number(session.metadata?.blueprintId);
           if (userId && blueprintId) {
             const [bp] = await tx.select().from(blueprintsTable).where(eq(blueprintsTable.id, blueprintId));
-            if (bp) {
+            const paymentRef = session.payment_intent ? String(session.payment_intent) : session.id;
+            // A refund or dispute can arrive before this event; don't grant access the buyer already got back.
+            const latestCharge: any = session.payment_intent
+              ? (await stripe.paymentIntents.retrieve(String(session.payment_intent), { expand: ["latest_charge"] })).latest_charge
+              : null;
+            if (latestCharge?.refunded || latestCharge?.disputed) {
+              req.log.info({ userId, blueprintId, paymentRef }, "Blueprint payment already reversed; access not granted");
+              afterCommit.push(() => notifyAdmins({
+                title: "Blueprint payment reversed before fulfillment",
+                message: `Payment ${paymentRef} for blueprint #${blueprintId} by user #${userId} was refunded or disputed before checkout completed, so access was not granted.`,
+                dedupeKey: `blueprint_reversed_before_fulfillment_${paymentRef}`, linkUrl: "/admin/stripe",
+              }));
+            } else if (bp) {
               const priceCredits = bp.priceCredits ?? 0;
               const creatorShare = Math.floor(priceCredits * 0.7);
 
@@ -487,6 +504,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
                   authorUserId: bp.authorUserId ?? null,
                   priceCredits,
                   creatorShareCredits: creatorShare,
+                  paymentRef,
                 })
                 .onConflictDoNothing()
                 .returning();
@@ -498,7 +516,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
                 if (bp.authorUserId) {
                   earnedCents = await recordCardSaleEarning(tx, {
                     creatorId: bp.authorUserId, blueprintId, buyerUserId: userId,
-                    paymentRef: session.payment_intent ? String(session.payment_intent) : session.id, grossCents: amountTotal,
+                    paymentRef, grossCents: amountTotal,
                   });
                 }
                 // Increment salesCount
@@ -520,7 +538,13 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
                 }
                 req.log.info({ userId, blueprintId, priceCredits }, "Blueprint purchase fulfilled via Stripe");
               } else {
-                req.log.info({ userId, blueprintId }, "Blueprint already purchased — Stripe duplicate event ignored");
+                // Stripe retries are absorbed by the processed-event check, so this is a second payment for owned access.
+                req.log.warn({ userId, blueprintId, paymentRef }, "Blueprint already owned; duplicate payment needs a refund");
+                afterCommit.push(() => notifyAdmins({
+                  title: "Duplicate blueprint payment",
+                  message: `User #${userId} paid again (${paymentRef}, ${usd(amountTotal)}) for blueprint #${blueprintId}, which they already own. Refund this payment in Stripe; refunding it won't remove their access.`,
+                  dedupeKey: `duplicate_blueprint_payment_${paymentRef}`, linkUrl: "/admin/stripe",
+                }));
               }
             }
           }

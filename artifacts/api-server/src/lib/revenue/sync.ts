@@ -132,7 +132,7 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
             expoPushToken: usersTable.expoPushToken,
             notifyRevenue: usersTable.notifyRevenue,
           }).from(usersTable).where(eq(usersTable.id, record.userId)).limit(1);
-          if (user?.notifyRevenue && user.expoPushToken) {
+          if (user?.notifyRevenue && user.expoPushToken && tx.amountCents > 0) {
             const dollars = (tx.amountCents / 100).toFixed(2);
             await sendPushNotification(
               user.expoPushToken,

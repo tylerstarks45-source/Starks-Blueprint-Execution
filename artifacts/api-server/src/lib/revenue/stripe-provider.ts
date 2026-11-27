@@ -31,39 +31,42 @@ export class StripeRevenueProvider implements RevenueProvider {
 
     const transactions: RevenueTransaction[] = [];
     try {
-      let hasMore = true;
-      let startingAfter: string | undefined;
       const sinceTs = since ? Math.floor(since.getTime() / 1000) : undefined;
-      let pageCount = 0;
       const maxPages = 20;
 
-      while (hasMore && pageCount < maxPages) {
-        const params: Stripe.BalanceTransactionListParams = {
-          limit: 100,
-          type: "charge",
-          ...(sinceTs ? { created: { gte: sinceTs } } : {}),
-          ...(startingAfter ? { starting_after: startingAfter } : {}),
-        };
+      // Payments add revenue; refunds arrive as negative balance transactions and subtract it.
+      for (const type of ["charge", "payment", "refund", "payment_refund"]) {
+        let hasMore = true;
+        let startingAfter: string | undefined;
+        let pageCount = 0;
+        while (hasMore && pageCount < maxPages) {
+          const params: Stripe.BalanceTransactionListParams = {
+            limit: 100,
+            type,
+            ...(sinceTs ? { created: { gte: sinceTs } } : {}),
+            ...(startingAfter ? { starting_after: startingAfter } : {}),
+          };
 
-        const list = await stripe.balanceTransactions.list(params);
+          const list = await stripe.balanceTransactions.list(params);
 
-        for (const tx of list.data) {
-          if (tx.status !== "available" && tx.status !== "pending") continue;
-          if (tx.amount <= 0) continue;
-          transactions.push({
-            externalId: `stripe_${tx.id}`,
-            amountCents: tx.amount,
-            currency: tx.currency,
-            description: tx.description ?? `Stripe payment ${tx.id}`,
-            occurredAt: new Date(tx.created * 1000),
-          });
+          for (const tx of list.data) {
+            if (tx.status !== "available" && tx.status !== "pending") continue;
+            if (tx.amount === 0) continue;
+            transactions.push({
+              externalId: `stripe_${tx.id}`,
+              amountCents: tx.amount,
+              currency: tx.currency,
+              description: tx.description ?? `Stripe ${tx.amount < 0 ? "refund" : "payment"} ${tx.id}`,
+              occurredAt: new Date(tx.created * 1000),
+            });
+          }
+
+          hasMore = list.has_more;
+          if (list.data.length > 0) {
+            startingAfter = list.data[list.data.length - 1]!.id;
+          }
+          pageCount++;
         }
-
-        hasMore = list.has_more;
-        if (list.data.length > 0) {
-          startingAfter = list.data[list.data.length - 1]!.id;
-        }
-        pageCount++;
       }
 
       return { ok: true, transactions };

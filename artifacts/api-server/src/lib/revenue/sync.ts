@@ -101,13 +101,17 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
   }
 
   let synced = 0;
+  let unconverted = 0;
   const errors: string[] = [];
 
   for (const tx of result.transactions) {
     try {
+      // Revenue totals are reported in USD. Other currencies are kept on record, outside those totals,
+      // until they can be converted at the provider's settlement rate.
+      const isUsd = (tx.currency ?? "usd").toLowerCase() === "usd";
       const inserted = await insertRevenueOnce({
         systemInstanceId: record.systemInstanceId,
-        eventType: "revenue",
+        eventType: isUsd ? "revenue" : "revenue_unconverted",
         amountCents: tx.amountCents,
         description: tx.description,
         externalTxId: tx.externalId,
@@ -117,6 +121,7 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
         metadata: JSON.stringify({ provider: record.provider, currency: tx.currency }),
       });
       if (!inserted) continue;
+      if (!isUsd) unconverted++;
       // Check and record any newly crossed lifetime earning milestones
       checkMilestones(record.userId, record.systemInstanceId).catch(() => {});
 
@@ -149,7 +154,9 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
     .update(systemRevenueProvidersTable)
     .set({
       syncStatus: errors.length > 0 ? "error" : "ok",
-      syncMessage: errors.length > 0 ? errors[0] : `Synced ${synced} transactions`,
+      syncMessage: errors.length > 0
+        ? errors[0]
+        : `Synced ${synced} transactions${unconverted ? ` (${unconverted} in other currencies, excluded from USD totals)` : ""}`,
       // Keep the window open after a partial import and catch arrivals during a successful fetch.
       ...(errors.length === 0 ? {
         lastSyncAt: sql`greatest(${systemRevenueProvidersTable.lastSyncAt}, ${fetchStartedAt.toISOString()}::timestamptz)`,

@@ -146,6 +146,14 @@ it("replays a partial sync window and imports each transaction once across overl
     expect(events.map(event => event.externalTxId).sort()).toEqual(["stripe_paid", "stripe_recovered"]);
     expect(await status()).toMatchObject({ lastSyncAt: expect.any(Date), syncStatus: "ok" });
     expect((await status())!.lastSyncAt!.getTime()).toBeGreaterThan(lastSyncAt.getTime());
+
+    // A payment in another currency is recorded but stays out of USD revenue totals.
+    fetchTransactions.mockReset().mockResolvedValue({ ok: true, transactions: [{ ...payment, externalId: "stripe_eur", currency: "eur" }] });
+    expect(await sync()).toMatchObject({ synced: 1, errors: [] });
+    expect((await status())!.syncMessage).toContain("excluded from USD totals");
+    const [eur] = await db.select({ eventType: systemActivityEventsTable.eventType })
+      .from(systemActivityEventsTable).where(eq(systemActivityEventsTable.externalTxId, "stripe_eur"));
+    expect(eur!.eventType).toBe("revenue_unconverted");
   } finally {
     fetchTransactions.mockRestore();
   }

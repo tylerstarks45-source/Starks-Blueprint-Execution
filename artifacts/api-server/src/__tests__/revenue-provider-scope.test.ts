@@ -144,6 +144,9 @@ it("replays a partial sync window and imports each transaction once across overl
     const events = await db.select({ externalTxId: systemActivityEventsTable.externalTxId })
       .from(systemActivityEventsTable).where(eq(systemActivityEventsTable.systemInstanceId, system!.id));
     expect(events.map(event => event.externalTxId).sort()).toEqual(["stripe_paid", "stripe_recovered"]);
+    const readMilestones = () => db.select({ amountCents: milestoneEventsTable.amountCents })
+      .from(milestoneEventsTable).where(eq(milestoneEventsTable.userId, userId));
+    expect(await readMilestones()).toEqual([{ amountCents: 100 }]);
     expect(await status()).toMatchObject({ lastSyncAt: expect.any(Date), syncStatus: "ok" });
     expect((await status())!.lastSyncAt!.getTime()).toBeGreaterThan(lastSyncAt.getTime());
 
@@ -154,15 +157,16 @@ it("replays a partial sync window and imports each transaction once across overl
     const [eur] = await db.select({ eventType: systemActivityEventsTable.eventType })
       .from(systemActivityEventsTable).where(eq(systemActivityEventsTable.externalTxId, "stripe_eur"));
     expect(eur!.eventType).toBe("revenue_unconverted");
+    await db.insert(systemActivityEventsTable).values({
+      systemInstanceId: system!.id, eventType: "revenue", amountCents: 100_000, description: "Owner-entered revenue",
+    });
 
     fetchTransactions.mockResolvedValue({ ok: true, transactions: [
       { ...payment, externalId: "stripe_later_sale", amountCents: 15_000 },
       { ...payment, externalId: "stripe_later_refund", amountCents: -15_000 },
     ] });
     expect(await sync()).toMatchObject({ synced: 2, errors: [] });
-    const milestones = await db.select({ amountCents: milestoneEventsTable.amountCents })
-      .from(milestoneEventsTable).where(eq(milestoneEventsTable.userId, userId));
-    expect(milestones.map(row => row.amountCents)).not.toContain(10_000);
+    expect(await readMilestones()).toEqual([{ amountCents: 100 }]);
   } finally {
     fetchTransactions.mockRestore();
   }

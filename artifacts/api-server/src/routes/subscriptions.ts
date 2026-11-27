@@ -763,6 +763,12 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
 
       if (event.type === "charge.dispute.created" || event.type === "charge.dispute.closed") {
         const dispute = event.data.object as any;
+        // Serialize event handling for this dispute while checking whether an open event is stale.
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`stripe_dispute:${dispute.id}`}, 0))`);
+        if (event.type === "charge.dispute.created") {
+          const current = await stripe.disputes.retrieve(dispute.id);
+          if (["won", "lost", "warning_closed"].includes(current.status)) return false;
+        }
         const charge = typeof dispute.charge === "string" ? await stripe.charges.retrieve(dispute.charge) : dispute.charge;
         if (event.type === "charge.dispute.closed" && dispute.status === "lost") {
           // Lift the pause from when the dispute opened; reverseCharge then takes back only what

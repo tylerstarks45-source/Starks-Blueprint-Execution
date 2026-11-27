@@ -6,6 +6,7 @@ const stripeMock = vi.hoisted(() => ({
   constructEvent: vi.fn(),
   sessionsList: vi.fn(),
   chargesRetrieve: vi.fn(),
+  disputesRetrieve: vi.fn(),
   subscriptionsCancel: vi.fn(),
   invoicePaymentsList: vi.fn(),
   invoicesRetrieve: vi.fn(),
@@ -15,6 +16,7 @@ vi.mock("../lib/stripe", () => ({
     webhooks: { constructEvent: stripeMock.constructEvent },
     checkout: { sessions: { list: stripeMock.sessionsList } },
     charges: { retrieve: stripeMock.chargesRetrieve },
+    disputes: { retrieve: stripeMock.disputesRetrieve },
     subscriptions: { cancel: stripeMock.subscriptionsCancel },
     invoicePayments: { list: stripeMock.invoicePaymentsList },
     invoices: { retrieve: stripeMock.invoicesRetrieve },
@@ -46,6 +48,7 @@ const adminAlerts = async () => {
 
 beforeAll(async () => {
   process.env["STRIPE_WEBHOOK_SECRET"] = "whsec_test";
+  stripeMock.disputesRetrieve.mockResolvedValue({ status: "needs_response" });
   const rows = await db.insert(usersTable).values([
     { email: `${tag}-buyer@test.dev`, walletBalance: 300 },
     { email: `${tag}-author@test.dev`, walletBalance: 50 },

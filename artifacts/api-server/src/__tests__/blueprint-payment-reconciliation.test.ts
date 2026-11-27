@@ -6,12 +6,14 @@ const stripeMock = vi.hoisted(() => ({
   constructEvent: vi.fn(),
   sessionsList: vi.fn(),
   paymentIntentsRetrieve: vi.fn(),
+  disputesRetrieve: vi.fn(),
 }));
 vi.mock("../lib/stripe", () => ({
   getUncachableStripeClient: async () => ({
     webhooks: { constructEvent: stripeMock.constructEvent },
     checkout: { sessions: { list: stripeMock.sessionsList } },
     paymentIntents: { retrieve: stripeMock.paymentIntentsRetrieve },
+    disputes: { retrieve: stripeMock.disputesRetrieve },
   }),
 }));
 
@@ -93,8 +95,13 @@ it("fulfills a held blueprint payment when the matching dispute is won", async (
   }] });
   expect((await send("charge.dispute.closed", { id: `dp_${tag}`, charge, status: "won", amount: 2000 })).status).toBe(200);
   expect(await purchases()).toMatchObject([{ paymentRef: paymentIntent }]);
+  stripeMock.disputesRetrieve.mockResolvedValueOnce({ status: "won" });
+  expect((await send("charge.dispute.created", {
+    id: `dp_${tag}`, charge, status: "needs_response", amount: 2000,
+  })).status).toBe(200);
   const earnings = await db.select().from(creatorEarningsTable).where(eq(creatorEarningsTable.paymentRef, paymentIntent));
   expect(earnings).toMatchObject([{ amountCents: 1400, status: "pending" }]);
+  expect(earnings[0]!.availableAt.getUTCFullYear()).toBeLessThan(3000);
   expect((await refund(paymentIntent)).status).toBe(200);
 });
 

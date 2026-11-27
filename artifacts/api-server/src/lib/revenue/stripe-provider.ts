@@ -31,14 +31,12 @@ export class StripeRevenueProvider implements RevenueProvider {
     const transactions: RevenueTransaction[] = [];
     try {
       const sinceTs = since ? Math.floor(since.getTime() / 1000) : undefined;
-      const maxPages = 20;
 
       // Payments add revenue; refunds arrive as negative balance transactions and subtract it.
       for (const type of ["charge", "payment", "refund", "payment_refund"]) {
         let hasMore = true;
         let startingAfter: string | undefined;
-        let pageCount = 0;
-        while (hasMore && pageCount < maxPages) {
+        while (hasMore) {
           const params: Stripe.BalanceTransactionListParams = {
             limit: 100,
             type,
@@ -61,13 +59,11 @@ export class StripeRevenueProvider implements RevenueProvider {
           }
 
           hasMore = list.has_more;
-          if (list.data.length > 0) {
-            startingAfter = list.data[list.data.length - 1]!.id;
+          if (hasMore) {
+            const next = list.data.at(-1)?.id;
+            if (!next || next === startingAfter) throw new Error(`Stripe ${type} pagination did not advance`);
+            startingAfter = next;
           }
-          pageCount++;
-        }
-        if (hasMore) {
-          return { ok: false, transactions, error: `Stripe ${type} import exceeded the page limit. The sync checkpoint was retained.` };
         }
       }
 

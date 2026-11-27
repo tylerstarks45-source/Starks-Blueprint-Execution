@@ -25,3 +25,17 @@ it("imports Stripe refunds as negative revenue next to the payments they reverse
   ]);
   expect(list.mock.calls.map(([params]) => params.type)).toEqual(["charge", "payment", "refund", "payment_refund"]);
 });
+
+it("follows Stripe cursors beyond 20 pages", async () => {
+  list.mockImplementation(async ({ type, starting_after }) => {
+    if (type !== "charge") return { has_more: false, data: [] };
+    const page = starting_after ? Number(starting_after) + 1 : 1;
+    return {
+      has_more: page < 21,
+      data: [{ id: String(page), amount: 100, currency: "usd", status: "available", created: 1_700_000_000 }],
+    };
+  });
+  const result = await new StripeRevenueProvider().fetchTransactions({ stripe_secret_key: "sk_test_x" });
+  expect(result.ok).toBe(true);
+  expect(result.transactions).toHaveLength(21);
+});

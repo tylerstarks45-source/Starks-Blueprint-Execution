@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import request from "supertest";
-import { clientWorkspacesTable, db, systemActivityEventsTable, systemInstancesTable, systemRevenueProvidersTable, userCredentialsTable, usersTable } from "@workspace/db";
+import { clientWorkspacesTable, db, milestoneEventsTable, systemActivityEventsTable, systemInstancesTable, systemRevenueProvidersTable, userCredentialsTable, usersTable } from "@workspace/db";
 import app from "../app";
 import { encrypt } from "../lib/crypto";
 import { getRevenueProvider } from "../lib/revenue/registry";
@@ -154,6 +154,15 @@ it("replays a partial sync window and imports each transaction once across overl
     const [eur] = await db.select({ eventType: systemActivityEventsTable.eventType })
       .from(systemActivityEventsTable).where(eq(systemActivityEventsTable.externalTxId, "stripe_eur"));
     expect(eur!.eventType).toBe("revenue_unconverted");
+
+    fetchTransactions.mockResolvedValue({ ok: true, transactions: [
+      { ...payment, externalId: "stripe_later_sale", amountCents: 15_000 },
+      { ...payment, externalId: "stripe_later_refund", amountCents: -15_000 },
+    ] });
+    expect(await sync()).toMatchObject({ synced: 2, errors: [] });
+    const milestones = await db.select({ amountCents: milestoneEventsTable.amountCents })
+      .from(milestoneEventsTable).where(eq(milestoneEventsTable.userId, userId));
+    expect(milestones.map(row => row.amountCents)).not.toContain(10_000);
   } finally {
     fetchTransactions.mockRestore();
   }

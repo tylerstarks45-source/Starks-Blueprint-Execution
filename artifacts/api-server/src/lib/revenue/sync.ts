@@ -122,9 +122,6 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
       });
       if (!inserted) continue;
       if (!isUsd) unconverted++;
-      // Check and record any newly crossed lifetime earning milestones
-      checkMilestones(record.userId, record.systemInstanceId).catch(() => {});
-
       // Push notification for new revenue event
       (async () => {
         try {
@@ -163,6 +160,11 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
       } : {}),
     })
     .where(eq(systemRevenueProvidersTable.id, providerId));
+
+  // Evaluate the completed import, including any offsets, before awarding milestones.
+  if (errors.length === 0 && result.transactions.some(tx => tx.currency?.toLowerCase() === "usd")) {
+    await checkMilestones(record.userId, record.systemInstanceId);
+  }
 
   return { synced, errors };
 }

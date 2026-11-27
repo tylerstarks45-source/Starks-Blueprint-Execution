@@ -9,6 +9,7 @@ import { pool } from "@workspace/db";
 // then applies only what the database doesn't have yet. See docs/engineering/database-migrations.md.
 const migrationsFolder = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../lib/db/drizzle");
 const CREATE_TABLE = /CREATE TABLE (?:IF NOT EXISTS )?(?:"?public"?\.)?"?([A-Za-z0-9_]+)"?/g;
+const ADD_COLUMN = /ALTER TABLE "(\w+)" ADD COLUMN "(\w+)"/g;
 
 async function tableExists(name: string): Promise<boolean> {
   const { rows } = await pool.query<{ ok: boolean }>(`SELECT to_regclass($1) IS NOT NULL AS ok`, [`public.${name}`]);
@@ -35,18 +36,30 @@ async function main() {
 
   let recorded = 0;
   for (const [i, m] of migrations.entries()) {
-    const tables = [...m.sql.join("\n").matchAll(CREATE_TABLE)].map((x) => x[1]!);
+    const existing = await pool.query(`SELECT 1 FROM drizzle.__drizzle_migrations WHERE hash = $1`, [m.hash]);
+    if (existing.rowCount) continue;
+    const migration = m.sql.join("\n");
+    if (migration.includes("-- @requires-execution")) {
+      console.log(`Migration #${i} must execute against existing data; db:migrate will apply it and the ones after it.`);
+      break;
+    }
+    const tables = [...migration.matchAll(CREATE_TABLE)].map((x) => x[1]!);
     const missing: string[] = [];
     for (const t of tables) if (!(await tableExists(t))) missing.push(t);
+    for (const [, table, column] of migration.matchAll(ADD_COLUMN)) {
+      const { rowCount } = await pool.query(
+        `SELECT 1 FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`,
+        [table, column],
+      );
+      if (!rowCount) missing.push(`${table}.${column}`);
+    }
     if (missing.length) {
       console.log(`Migration #${i} is not in the database yet (missing: ${missing.join(", ")}); db:migrate will apply it and the ones after it.`);
       break;
     }
-    const existing = await pool.query(`SELECT 1 FROM drizzle.__drizzle_migrations WHERE hash = $1`, [m.hash]);
-    if (!existing.rowCount) {
-      await pool.query(`INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)`, [m.hash, m.folderMillis]);
-      recorded++;
-    }
+    await pool.query(`INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)`, [m.hash, m.folderMillis]);
+    recorded++;
     console.log(`Migration #${i}: already in the database, recorded as applied.`);
   }
   console.log(`Baseline done (${recorded} newly recorded). Next: pnpm --filter @workspace/scripts run db:migrate`);

@@ -18,8 +18,8 @@ Do this once, in order:
 
 1. Back up the database: `pnpm --filter @workspace/scripts run db:backup` (see `backup-restore.md`).
 2. Bring the schema up to date. On Replit, `scripts/post-merge.sh` already ran `pnpm --filter db push` after the merge. (Without push, apply `lib/db/manual-migrations/0001_health_unmeasured_and_signal_index.sql` instead; it is idempotent.)
-3. `pnpm --filter @workspace/scripts run db:baseline`: records, in order, every migration whose tables already exist, without running it. It stops at the first migration whose tables are missing.
-4. `pnpm --filter @workspace/scripts run db:migrate`: applies whatever step 3 didn't record (nothing, if push ran).
+3. `pnpm --filter @workspace/scripts run db:baseline` records existing schema migrations in order. It stops at the first missing table or column, or a migration marked `-- @requires-execution`.
+4. `pnpm --filter @workspace/scripts run db:migrate` applies the remaining migrations, including data updates after a schema push.
 
 `db:migrate` refuses to run on a database that has tables but no migration history, so it can never try to re-create existing tables.
 
@@ -30,6 +30,8 @@ After step 4, change `scripts/post-merge.sh` from `pnpm --filter db push` to `pn
 1. Edit `lib/db/src/schema/*.ts`.
 2. `cd lib/db && DATABASE_URL=unused pnpm exec drizzle-kit generate --name <change>` (doesn't connect to a database).
 3. Review and commit the generated SQL plus `meta/`.
+
+Mark a custom migration that mutates existing data with `-- @requires-execution` so baselining leaves it for `db:migrate`.
 
 CI fails if the schema and migrations disagree.
 

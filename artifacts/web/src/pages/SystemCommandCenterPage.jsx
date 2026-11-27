@@ -1287,7 +1287,7 @@ const SystemCommandCenterPage = () => {
         const verifiedCents = revenue?.realRevenueCents ?? 0;
         const next = MILESTONES.find(t => verifiedCents < t) ?? null;
         const prev = next ? (MILESTONES[MILESTONES.indexOf(next) - 1] ?? 0) : MILESTONES[MILESTONES.length - 1];
-        const pct = next ? Math.max(0, Math.floor(((verifiedCents - prev) / (next - prev)) * 100)) : 100;
+        const pct = next ? Math.max(0, Math.floor((verifiedCents - prev) * 100 / (next - prev))) : 100;
         const nextLabel = next ? LABELS[next] : null;
 
         return (

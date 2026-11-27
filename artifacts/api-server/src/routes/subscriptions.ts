@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, and, or, isNull, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { db, subscriptionsTable, usersTable, processedStripeEventsTable, blueprintsTable, blueprintPurchasesTable, notificationsTable, referralEventsTable, referralCodesTable } from "@workspace/db";
 import { z } from "zod";
 import { getUncachableStripeClient } from "../lib/stripe";
+import type Stripe from "stripe";
 import { adjustCredits, adjustWalletCredits, tierAllotment, type DbExecutor } from "../lib/credits";
 import { notifyAdmins } from "../lib/admin-alerts";
 import { recordCardSaleEarning, reverseCardSaleEarning, holdCardSaleEarning, syncAccountStatus } from "../lib/creator-payouts";
@@ -227,6 +228,64 @@ async function restoreMembership(tx: DbExecutor, userId: number): Promise<void> 
   await tx.update(usersTable).set({ membershipTier: tier ?? "free", membershipStatus: "active" }).where(eq(usersTable.id, userId));
 }
 
+async function fulfillBlueprintCheckout(
+  tx: DbExecutor, stripe: StripeClient, session: Stripe.Checkout.Session, userId: number,
+  afterCommit: AfterCommit, wonChargeId?: string,
+): Promise<void> {
+  const blueprintId = Number(session.metadata?.blueprintId);
+  const paymentRef = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+  if (!userId || !blueprintId || !paymentRef || session.payment_status !== "paid") return;
+
+  // Full refunds take this same lock before looking up the entitlement.
+  const [bp] = await tx.select().from(blueprintsTable).where(eq(blueprintsTable.id, blueprintId)).for("update");
+  if (!bp) return;
+  const [existing] = await tx.select({ paymentRef: blueprintPurchasesTable.paymentRef })
+    .from(blueprintPurchasesTable).where(and(
+      eq(blueprintPurchasesTable.blueprintId, blueprintId),
+      eq(blueprintPurchasesTable.buyerUserId, userId),
+    ));
+  if (existing?.paymentRef === paymentRef || existing?.paymentRef === session.id) return;
+
+  const intent = await stripe.paymentIntents.retrieve(paymentRef, { expand: ["latest_charge"] });
+  const charge = intent.latest_charge;
+  if (!charge || typeof charge === "string") throw new Error("Stripe did not return the settled blueprint charge");
+  if (charge.refunded || (charge.disputed && charge.id !== wonChargeId)) return;
+
+  const amountTotal = session.amount_total ?? 0;
+  const priceCredits = bp.priceCredits ?? 0;
+  const [purchase] = await tx.insert(blueprintPurchasesTable).values({
+    blueprintId,
+    buyerUserId: userId,
+    authorUserId: bp.authorUserId,
+    priceCredits,
+    paymentRef,
+  }).onConflictDoNothing().returning();
+  if (!purchase) {
+    afterCommit.push(() => notifyAdmins({
+      title: "Review blueprint payment for existing access",
+      message: `User #${userId} has payment ${paymentRef} (${usd(amountTotal)}) for blueprint #${blueprintId}, which they already own. Verify that it is a separate charge before issuing a refund in Stripe.`,
+      dedupeKey: `duplicate_blueprint_payment_${paymentRef}`, linkUrl: "/admin/stripe",
+    }));
+    return;
+  }
+  await tx.update(blueprintsTable).set({ salesCount: sql`${blueprintsTable.salesCount} + 1` })
+    .where(eq(blueprintsTable.id, blueprintId));
+  if (bp.authorUserId) {
+    const authorUserId = bp.authorUserId;
+    const earnedCents = await recordCardSaleEarning(tx, {
+      creatorId: authorUserId, blueprintId, buyerUserId: userId, paymentRef, grossCents: amountTotal,
+    });
+    afterCommit.push(() => db.insert(notificationsTable).values({
+      userId: authorUserId,
+      title: "Blueprint Sold!",
+      message: `Your blueprint "${bp.name}" was purchased via card. You earned ${usd(earnedCents)}, payable from Creator Payouts once the refund window passes.`,
+      linkUrl: "/creator-payouts",
+      notificationType: "success",
+      read: false,
+    }));
+  }
+}
+
 /**
  * Undo what a fully refunded or charged-back payment granted: wallet top-ups are taken back,
  * blueprint purchases are revoked along with the creator's share, and subscription payments
@@ -256,30 +315,26 @@ async function reverseCharge(
     detail = `took back ${taken} of ${credits} wallet credits`;
   } else if (meta.kind === "blueprint_purchase") {
     const blueprintId = Number(meta.blueprintId);
-    // Matched by this payment, so it applies even after the blueprint (and its purchase rows) was deleted.
+    await tx.select({ id: blueprintsTable.id }).from(blueprintsTable)
+      .where(eq(blueprintsTable.id, blueprintId)).for("update");
+    // Creator earnings can outlive the blueprint and its purchase rows.
     const refs = [charge.payment_intent, session?.id].filter(Boolean).map(String);
-    // Only revoke access this payment granted: refunding a duplicate payment must not remove access another payment paid for.
-    const [purchase] = await tx.delete(blueprintPurchasesTable)
+    const [purchase] = refs.length ? await tx.delete(blueprintPurchasesTable)
       .where(and(
         eq(blueprintPurchasesTable.blueprintId, blueprintId),
         eq(blueprintPurchasesTable.buyerUserId, userId),
-        or(isNull(blueprintPurchasesTable.paymentRef), inArray(blueprintPurchasesTable.paymentRef, refs.length ? refs : [""])),
+        inArray(blueprintPurchasesTable.paymentRef, refs),
       ))
-      .returning();
-    let creatorTaken = 0;
+      .returning() : [];
     const cashReversed = await reverseCardSaleEarning(tx, refs, `${label}: sale refunded`);
     if (purchase) {
-      if (!cashReversed && purchase.authorUserId) {
-        creatorTaken = await takeBackCredits(tx, purchase.authorUserId, purchase.creatorShareCredits, "wallet",
-          `${label}: blueprint #${blueprintId} sale reversed`);
-      }
       await tx.update(blueprintsTable)
         .set({ salesCount: sql`GREATEST(${blueprintsTable.salesCount} - 1, 0)` })
         .where(eq(blueprintsTable.id, blueprintId));
     }
     detail = purchase
-      ? `revoked blueprint #${blueprintId} and ${cashReversed ? "reversed the creator's cash earning" : `took back ${creatorTaken} credits from the creator`}`
-      : `blueprint #${blueprintId} purchase was already revoked${cashReversed ? "; reversed the creator's cash earning" : ""}`;
+      ? `revoked blueprint #${blueprintId}${cashReversed ? " and reversed the creator's cash earning" : ""}`
+      : `no entitlement matched this payment for blueprint #${blueprintId}${cashReversed ? "; reversed the creator's cash earning" : ""}. Review older purchases without payment references in Stripe.`;
   } else if ((chargeSub = await chargeSubscriptionId(stripe, charge, session)) || charge.invoice || session?.mode === "subscription" || meta.tier) {
     const [sub] = await tx.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
     if (chargeSub && sub?.stripeSubscriptionId && chargeSub !== sub.stripeSubscriptionId) {
@@ -476,78 +531,7 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
         }
 
         if (session.metadata?.kind === "blueprint_purchase") {
-          const blueprintId = Number(session.metadata?.blueprintId);
-          if (userId && blueprintId) {
-            const [bp] = await tx.select().from(blueprintsTable).where(eq(blueprintsTable.id, blueprintId));
-            const paymentRef = session.payment_intent ? String(session.payment_intent) : session.id;
-            // A refund or dispute can arrive before this event; don't grant access the buyer already got back.
-            const latestCharge: any = session.payment_intent
-              ? (await stripe.paymentIntents.retrieve(String(session.payment_intent), { expand: ["latest_charge"] })).latest_charge
-              : null;
-            if (latestCharge?.refunded || latestCharge?.disputed) {
-              req.log.info({ userId, blueprintId, paymentRef }, "Blueprint payment already reversed; access not granted");
-              afterCommit.push(() => notifyAdmins({
-                title: "Blueprint payment reversed before fulfillment",
-                message: `Payment ${paymentRef} for blueprint #${blueprintId} by user #${userId} was refunded or disputed before checkout completed, so access was not granted.`,
-                dedupeKey: `blueprint_reversed_before_fulfillment_${paymentRef}`, linkUrl: "/admin/stripe",
-              }));
-            } else if (bp) {
-              const priceCredits = bp.priceCredits ?? 0;
-              const creatorShare = Math.floor(priceCredits * 0.7);
-
-              // Insert purchase record — idempotent via unique constraint
-              const [purchase] = await tx
-                .insert(blueprintPurchasesTable)
-                .values({
-                  blueprintId,
-                  buyerUserId: userId,
-                  authorUserId: bp.authorUserId ?? null,
-                  priceCredits,
-                  creatorShareCredits: creatorShare,
-                  paymentRef,
-                })
-                .onConflictDoNothing()
-                .returning();
-
-              if (purchase) {
-                // Card sales pay the creator 70% in real money (Stripe Connect payouts), held
-                // through the refund window; credit-paid sales keep paying wallet credits.
-                let earnedCents = 0;
-                if (bp.authorUserId) {
-                  earnedCents = await recordCardSaleEarning(tx, {
-                    creatorId: bp.authorUserId, blueprintId, buyerUserId: userId,
-                    paymentRef, grossCents: amountTotal,
-                  });
-                }
-                // Increment salesCount
-                await tx
-                  .update(blueprintsTable)
-                  .set({ salesCount: (bp.salesCount ?? 0) + 1 })
-                  .where(eq(blueprintsTable.id, blueprintId));
-                // Notify creator
-                if (bp.authorUserId) {
-                  const authorUserId = bp.authorUserId;
-                  afterCommit.push(() => db.insert(notificationsTable).values({
-                    userId: authorUserId,
-                    title: "Blueprint Sold!",
-                    message: `Your blueprint "${bp.name}" was purchased via card. You earned $${(earnedCents / 100).toFixed(2)}, payable from Creator Payouts once the refund window passes.`,
-                    linkUrl: "/creator-payouts",
-                    notificationType: "success",
-                    read: false,
-                  }));
-                }
-                req.log.info({ userId, blueprintId, priceCredits }, "Blueprint purchase fulfilled via Stripe");
-              } else {
-                // Stripe retries are absorbed by the processed-event check, so this is a second payment for owned access.
-                req.log.warn({ userId, blueprintId, paymentRef }, "Blueprint already owned; duplicate payment needs a refund");
-                afterCommit.push(() => notifyAdmins({
-                  title: "Duplicate blueprint payment",
-                  message: `User #${userId} paid again (${paymentRef}, ${usd(amountTotal)}) for blueprint #${blueprintId}, which they already own. Refund this payment in Stripe; refunding it won't remove their access.`,
-                  dedupeKey: `duplicate_blueprint_payment_${paymentRef}`, linkUrl: "/admin/stripe",
-                }));
-              }
-            }
-          }
+          await fulfillBlueprintCheckout(tx, stripe, session, userId, afterCommit);
         } else if (session.metadata?.kind === "wallet_purchase") {
           const credits = Number(session.metadata?.credits);
           if (userId && credits > 0) {
@@ -790,6 +774,9 @@ router.post("/stripe/webhook", async (req, res): Promise<void> => {
           const { userId, session } = await chargeOwner(tx, stripe, charge);
           const opened = event.type === "charge.dispute.created";
           const won = dispute.status === "won";
+          if (userId && won && session?.metadata?.kind === "blueprint_purchase") {
+            await fulfillBlueprintCheckout(tx, stripe, session, userId, afterCommit, charge?.id);
+          }
           // Creator earnings from a disputed sale can't be withdrawn until the dispute resolves.
           const refs = [charge?.payment_intent, session?.id].filter(Boolean).map(String);
           if (opened || won) await holdCardSaleEarning(tx, refs, opened);

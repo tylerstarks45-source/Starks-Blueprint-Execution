@@ -90,16 +90,16 @@ describe("Stripe refunds, chargebacks and failed renewals", () => {
     expect((await adminAlerts()).some((n) => n.title.startsWith("Partial Stripe refund"))).toBe(true);
   });
 
-  it("refunded blueprint purchase is revoked and the creator's share taken back", async () => {
+  it("preserves an older blueprint purchase and creator credits when the refund cannot be matched to it", async () => {
     stripeMock.sessionsList.mockResolvedValueOnce({ data: [{ metadata: { kind: "blueprint_purchase", blueprintId: String(blueprintId), userId: String(buyer) } }] });
     const res = await send("charge.refunded", { id: `ch_${tag}_b`, amount: 2000, amount_refunded: 2000, payment_intent: "pi_b" });
     expect(res.status).toBe(200);
     const purchases = await db.select().from(blueprintPurchasesTable)
       .where(and(eq(blueprintPurchasesTable.blueprintId, blueprintId), eq(blueprintPurchasesTable.buyerUserId, buyer)));
-    expect(purchases).toHaveLength(0);
-    expect((await user(author)).walletBalance).toBe(0);
+    expect(purchases).toHaveLength(1);
+    expect((await user(author)).walletBalance).toBe(50);
     const [bp] = await db.select().from(blueprintsTable).where(eq(blueprintsTable.id, blueprintId));
-    expect(bp!.salesCount).toBe(0);
+    expect(bp!.salesCount).toBe(1);
   });
 
   it("a failed standalone invoice leaves the current plan alone", async () => {

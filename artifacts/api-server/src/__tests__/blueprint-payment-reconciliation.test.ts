@@ -16,7 +16,7 @@ vi.mock("../lib/stripe", () => ({
 }));
 
 import app from "../app";
-import { db, usersTable, blueprintsTable, blueprintPurchasesTable, processedStripeEventsTable } from "@workspace/db";
+import { db, usersTable, blueprintsTable, blueprintPurchasesTable, creatorEarningsTable, processedStripeEventsTable } from "@workspace/db";
 
 const tag = `bpr${Date.now()}`;
 const eventIds: string[] = [];
@@ -65,6 +65,9 @@ afterAll(async () => {
 it("refunding a duplicate blueprint payment keeps the access the first payment granted", async () => {
   stripeMock.paymentIntentsRetrieve.mockResolvedValue({ latest_charge: { refunded: false, disputed: false } });
   expect((await checkout(`pi_${tag}_first`)).status).toBe(200);
+  stripeMock.paymentIntentsRetrieve.mockClear();
+  expect((await checkout(`pi_${tag}_first`)).status).toBe(200);
+  expect(stripeMock.paymentIntentsRetrieve).not.toHaveBeenCalled();
   expect((await checkout(`pi_${tag}_second`)).status).toBe(200);
   expect(await purchases()).toMatchObject([{ paymentRef: `pi_${tag}_first` }]);
 
@@ -73,6 +76,26 @@ it("refunding a duplicate blueprint payment keeps the access the first payment g
 
   expect((await refund(`pi_${tag}_first`)).status).toBe(200);
   expect(await purchases()).toHaveLength(0);
+  const earnings = await db.select().from(creatorEarningsTable).where(eq(creatorEarningsTable.buyerUserId, buyer));
+  expect(earnings).toMatchObject([{ paymentRef: `pi_${tag}_first`, status: "reversed", amountCents: 1400 }]);
+});
+
+it("fulfills a held blueprint payment when the matching dispute is won", async () => {
+  const paymentIntent = `pi_${tag}_dispute`;
+  const charge = { id: `ch_${tag}_dispute`, payment_intent: paymentIntent, refunded: false, disputed: true };
+  stripeMock.paymentIntentsRetrieve.mockResolvedValue({ latest_charge: charge });
+  expect((await checkout(paymentIntent)).status).toBe(200);
+  expect(await purchases()).toHaveLength(0);
+
+  stripeMock.sessionsList.mockResolvedValueOnce({ data: [{
+    id: `cs_${paymentIntent}`, payment_intent: paymentIntent, payment_status: "paid", amount_total: 2000,
+    metadata: { kind: "blueprint_purchase", blueprintId: String(blueprintId), userId: String(buyer) },
+  }] });
+  expect((await send("charge.dispute.closed", { id: `dp_${tag}`, charge, status: "won", amount: 2000 })).status).toBe(200);
+  expect(await purchases()).toMatchObject([{ paymentRef: paymentIntent }]);
+  const earnings = await db.select().from(creatorEarningsTable).where(eq(creatorEarningsTable.paymentRef, paymentIntent));
+  expect(earnings).toMatchObject([{ amountCents: 1400, status: "pending" }]);
+  expect((await refund(paymentIntent)).status).toBe(200);
 });
 
 it("a refund that arrives before checkout completion doesn't grant access", async () => {

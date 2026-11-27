@@ -108,7 +108,7 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
     try {
       // Revenue totals are reported in USD. Other currencies are kept on record, outside those totals,
       // until they can be converted at the provider's settlement rate.
-      const isUsd = (tx.currency ?? "usd").toLowerCase() === "usd";
+      const isUsd = tx.currency?.toLowerCase() === "usd";
       const inserted = await insertRevenueOnce({
         systemInstanceId: record.systemInstanceId,
         eventType: isUsd ? "revenue" : "revenue_unconverted",
@@ -132,7 +132,7 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
             expoPushToken: usersTable.expoPushToken,
             notifyRevenue: usersTable.notifyRevenue,
           }).from(usersTable).where(eq(usersTable.id, record.userId)).limit(1);
-          if (user?.notifyRevenue && user.expoPushToken && tx.amountCents > 0) {
+          if (user?.notifyRevenue && user.expoPushToken && isUsd && tx.amountCents > 0) {
             const dollars = (tx.amountCents / 100).toFixed(2);
             await sendPushNotification(
               user.expoPushToken,

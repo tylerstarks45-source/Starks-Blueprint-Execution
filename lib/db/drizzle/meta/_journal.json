@@ -92,6 +92,13 @@
       "when": 1795820008746,
       "tag": "0012_blueprint_purchase_payment_ref",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795820534765,
+      "tag": "0013_classify_existing_provider_currencies",
+      "breakpoints": true
     }
   ]
 }

@@ -17,9 +17,8 @@ export class StripeRevenueProvider implements RevenueProvider {
     const stripe = this.getClient(creds);
     if (!stripe) return { ok: false, message: "Missing stripe_secret_key credential" };
     try {
-      const balance = await stripe.balance.retrieve();
-      const available = balance.available.reduce((s, a) => s + a.amount, 0) / 100;
-      return { ok: true, message: `Stripe connected — $${available.toFixed(2)} available` };
+      await stripe.balance.retrieve();
+      return { ok: true, message: "Stripe connected" };
     } catch (err) {
       return { ok: false, message: err instanceof Error ? err.message : String(err) };
     }
@@ -66,6 +65,9 @@ export class StripeRevenueProvider implements RevenueProvider {
             startingAfter = list.data[list.data.length - 1]!.id;
           }
           pageCount++;
+        }
+        if (hasMore) {
+          return { ok: false, transactions, error: `Stripe ${type} import exceeded the page limit. The sync checkpoint was retained.` };
         }
       }
 

@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import crypto from "crypto";
 import { adjustCredits, SIGNUP_GRANT } from "../lib/credits";
+import { rolloutAllowsEmail } from "../lib/rollout";
 import { getActiveCallerPayload } from "../lib/auth";
 import {
   sendPasswordResetEmail,
@@ -92,6 +93,9 @@ router.post("/auth/register", authLimiter, async (req, res) => {
 
   const { email: rawEmail, password, name, referralCode } = parsed.data;
   const email = rawEmail.toLowerCase().trim();
+  if (!rolloutAllowsEmail(email)) {
+    return res.status(403).json({ error: "Signup opens with the public launch.", code: "rollout_closed" });
+  }
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing.length > 0) {

@@ -8,6 +8,7 @@ import { adjustCredits, adjustWalletCredits, tierAllotment, type DbExecutor } fr
 import { notifyAdmins } from "../lib/admin-alerts";
 import { recordCardSaleEarning, reverseCardSaleEarning, holdCardSaleEarning, syncAccountStatus } from "../lib/creator-payouts";
 import { requireAuthActive } from "../lib/auth";
+import { requireCheckoutOpen } from "../lib/rollout";
 import { notifyUser } from "../lib/notify";
 import { hasOperationsModeAccess } from "../lib/operations-gate";
 
@@ -78,6 +79,7 @@ router.get("/subscriptions/me", async (req, res): Promise<void> => {
 router.post("/subscriptions/checkout", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
+  if (!(await requireCheckoutOpen(userId, res))) return;
 
   const schema = z.object({ tier: z.enum(["pro", "empire", "starter", "operator", "builder"]) });
   const parsed = schema.safeParse(req.body);

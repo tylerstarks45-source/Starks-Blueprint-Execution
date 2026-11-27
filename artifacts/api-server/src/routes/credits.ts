@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { getUncachableStripeClient } from "../lib/stripe";
 import { requireAuthActive } from "../lib/auth";
+import { requireCheckoutOpen } from "../lib/rollout";
 import {
   TIER_ALLOTMENTS,
   TIER_NAMES,
@@ -82,6 +83,7 @@ router.get("/credits/config", async (_req, res): Promise<void> => {
 router.post("/credits/checkout", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
+  if (!(await requireCheckoutOpen(userId, res))) return;
 
   const parsed = CreateCreditCheckoutBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
@@ -134,6 +136,7 @@ router.post("/credits/checkout", async (req, res): Promise<void> => {
 router.post("/credits/checkout/custom", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
   if (userId === null) return;
+  if (!(await requireCheckoutOpen(userId, res))) return;
 
   const schema = z.object({
     dollars: z.number().int().min(MIN_CUSTOM_PURCHASE_DOLLARS).max(10000),

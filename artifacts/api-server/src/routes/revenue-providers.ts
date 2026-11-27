@@ -1,14 +1,13 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
 import { eq, and, sql } from "drizzle-orm";
-import { db, systemInstancesTable, systemRevenueProvidersTable, systemActivityEventsTable, userCredentialsTable } from "@workspace/db";
+import { db, systemInstancesTable, systemRevenueProvidersTable, systemActivityEventsTable } from "@workspace/db";
 import { z } from "zod/v4";
 import { getActiveCallerPayload } from "../lib/auth";
 import { isAdminRole } from "../lib/auth";
 import { getRevenueProvider, listRevenueProviders } from "../lib/revenue/registry";
-import { syncProvider } from "../lib/revenue/sync";
-import { decrypt } from "../lib/crypto";
-import { inArray } from "drizzle-orm";
+import { loadMappedRevenueCredentials, syncProvider } from "../lib/revenue/sync";
+import { connectorScope } from "../lib/connector-actions";
 
 const router: IRouter = Router();
 
@@ -71,8 +70,8 @@ router.post("/system-instances/:id/revenue-providers", async (req, res): Promise
   const instanceId = Number(req.params["id"]);
   if (!Number.isInteger(instanceId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const { allowed } = await checkSystemAccess(instanceId, caller.id, caller.role);
-  if (!allowed) { res.status(403).json({ error: "Forbidden" }); return; }
+  const scope = await connectorScope(caller.id, instanceId);
+  if (!scope) { res.status(403).json({ error: "Forbidden" }); return; }
 
   const parsed = LinkProviderBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
@@ -91,37 +90,10 @@ router.post("/system-instances/:id/revenue-providers", async (req, res): Promise
     return;
   }
 
-  // Verify each mapped user credential exists and belongs to this user, then decrypt
-  const userCredKeys = Object.values(credentialKeys);
-  const credRows = await db
-    .select()
-    .from(userCredentialsTable)
-    .where(
-      and(
-        eq(userCredentialsTable.userId, caller.id),
-        inArray(userCredentialsTable.credentialKey, userCredKeys),
-      ),
-    );
-
-  const credMap = new Map(credRows.map((r) => [r.credentialKey, r]));
-  for (const userCredKey of userCredKeys) {
-    if (!credMap.has(userCredKey)) {
-      res.status(400).json({ error: `Credential '${userCredKey}' not found in your Connections Hub` });
-      return;
-    }
-  }
-
-  // Decrypt and assemble creds keyed by provider's expected key names
-  const decryptedCreds: Record<string, string> = {};
-  for (const [providerKey, userCredKey] of Object.entries(credentialKeys)) {
-    const row = credMap.get(userCredKey);
-    if (!row) continue;
-    try {
-      decryptedCreds[providerKey] = await decrypt(row.encryptedValue);
-    } catch {
-      res.status(400).json({ error: `Failed to decrypt credential '${userCredKey}'` });
-      return;
-    }
+  const decryptedCreds = await loadMappedRevenueCredentials(scope, revenueProvider, credentialKeys);
+  if (!decryptedCreds) {
+    res.status(400).json({ error: "Connect active provider credentials in this system's workspace." });
+    return;
   }
 
   // Test credentials against the live provider
@@ -146,7 +118,7 @@ router.post("/system-instances/:id/revenue-providers", async (req, res): Promise
   if (existing) {
     [row] = await db
       .update(systemRevenueProvidersTable)
-      .set({ credentialKey: credentialKeyJson, enabled: true, syncStatus: "idle", syncMessage: null })
+      .set({ userId: caller.id, credentialKey: credentialKeyJson, enabled: true, syncStatus: "idle", syncMessage: null })
       .where(eq(systemRevenueProvidersTable.id, existing.id))
       .returning();
   } else {
@@ -219,7 +191,7 @@ router.post("/system-instances/:id/revenue-providers/:providerId/sync", async (r
 
   try {
     const { synced, errors } = await syncProvider(providerId);
-    res.json({ ok: true, synced, errors });
+    res.json({ ok: errors.length === 0, synced, errors });
   } catch (err) {
     res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
   }

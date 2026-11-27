@@ -71,6 +71,34 @@
       "when": 1795520061597,
       "tag": "0009_strategy_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795733575878,
+      "tag": "0010_approved_checkout_url",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795733631707,
+      "tag": "0011_persist_held_build_actions",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795820008746,
+      "tag": "0012_blueprint_purchase_payment_ref",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795820534765,
+      "tag": "0013_classify_existing_provider_currencies",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@
 import { Router, type IRouter } from "express";
 import { eq, sql, and } from "drizzle-orm";
 import { db, pool, landingPagesTable, userAffiliateLinksTable, abVariantsTable, emailSubscribersTable, emailListsTable, usersTable } from "@workspace/db";
+import { GENERATED_HTML_SANDBOX } from "../lib/generated-html";
 
 const router: IRouter = Router();
 
@@ -64,8 +65,8 @@ router.get("/pages/:slug", async (req, res): Promise<void> => {
         const snippet = `<script>
 (function(){
   var t='${test.token}',v=${vRow.id},b='/api/public/ab-tests/'+t+'/convert';
-  fetch(b,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({variantId:v,eventType:'page_view'})}).catch(function(){});
-  window.__sbepConvert=function(et){fetch(b,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({variantId:v,eventType:et||'button_click'})}).catch(function(){})};
+  fetch(b,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'omit',body:JSON.stringify({variantId:v,eventType:'page_view'})}).catch(function(){});
+  window.__sbepConvert=function(et){fetch(b,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'omit',body:JSON.stringify({variantId:v,eventType:et||'button_click'})}).catch(function(){})};
 })();
 </script>`;
         const finalHtml = /<\/body>/i.test(safeHtml)
@@ -73,7 +74,7 @@ router.get("/pages/:slug", async (req, res): Promise<void> => {
           : safeHtml + snippet;
 
         res.setHeader("Content-Type", "text/html; charset=utf-8");
-        res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline' 'self'; connect-src 'self'; style-src 'unsafe-inline' https: data:; img-src * data:; font-src * data:; frame-ancestors 'self'; base-uri 'none'; form-action 'self' https:");
+        res.setHeader("Content-Security-Policy", `${GENERATED_HTML_SANDBOX}; default-src 'none'; script-src 'unsafe-inline' 'self'; connect-src 'self'; style-src 'unsafe-inline' https: data:; img-src * data:; font-src * data:; frame-ancestors 'self'; base-uri 'none'; form-action 'self' https:`);
         res.setHeader("X-Content-Type-Options", "nosniff");
         res.setHeader("X-Frame-Options", "SAMEORIGIN");
         res.send(finalHtml);
@@ -197,8 +198,8 @@ router.get("/pages/:slug", async (req, res): Promise<void> => {
     const snippet = `<script>
 (function(){
   var t='${activeTestToken}',v=${assignedVariantId},b='/api/public/ab-tests/'+t+'/convert';
-  fetch(b,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({variantId:v,eventType:'page_view'})}).catch(function(){});
-  window.__sbepConvert=function(et){fetch(b,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({variantId:v,eventType:et||'button_click'})}).catch(function(){})};
+  fetch(b,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'omit',body:JSON.stringify({variantId:v,eventType:'page_view'})}).catch(function(){});
+  window.__sbepConvert=function(et){fetch(b,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'omit',body:JSON.stringify({variantId:v,eventType:et||'button_click'})}).catch(function(){})};
 })();
 </script>`;
     safeHtml = /<\/body>/i.test(safeHtml)
@@ -211,7 +212,7 @@ router.get("/pages/:slug", async (req, res): Promise<void> => {
   const scriptPolicy = activeTestToken ? "script-src 'unsafe-inline' 'self'; connect-src 'self';" : "";
   res.setHeader(
     "Content-Security-Policy",
-    `default-src 'none'; ${scriptPolicy} style-src 'unsafe-inline' https: data:; img-src * data:; font-src * data:; frame-ancestors 'self'; base-uri 'none'; form-action 'self' https:`,
+    `${GENERATED_HTML_SANDBOX}; default-src 'none'; ${scriptPolicy} style-src 'unsafe-inline' https: data:; img-src * data:; font-src * data:; frame-ancestors 'self'; base-uri 'none'; form-action 'self' https:`,
   );
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");

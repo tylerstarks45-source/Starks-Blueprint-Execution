@@ -1,6 +1,7 @@
 import { db, pool, systemActivityEventsTable, ashMissionsTable, type PendingApproval } from "@workspace/db";
 import { and, eq, ne } from "drizzle-orm";
 import { getTool, checkToolArgs } from "./ash-agent/tools";
+import { connectorScope, runConnectorAction } from "./connector-actions";
 
 // ─── Autonomous action executor ───────────────────────────────────────────────
 //
@@ -19,6 +20,7 @@ export interface ExecutionResult {
   executed: boolean;
   reversible: boolean;
   detail: string;
+  checkoutUrl?: string;
   undoPayload?: Record<string, unknown> | null;
 }
 
@@ -31,7 +33,7 @@ export function isExecutableApproval(approval: Pick<PendingApproval, "payload">)
   return typeof action === "string" && KNOWN_ACTIONS.has(action);
 }
 
-const KNOWN_ACTIONS = new Set(["promote_ab_variant", "ash_tool"]);
+const KNOWN_ACTIONS = new Set(["promote_ab_variant", "ash_tool", "run_connector_action"]);
 
 // ─── Execute an approved action ───────────────────────────────────────────────
 
@@ -48,6 +50,8 @@ export async function executeApprovedAction(approval: PendingApproval): Promise<
       return promoteAbVariant(approval, payload);
     case "ash_tool":
       return runApprovedAshTool(approval, payload);
+    case "run_connector_action":
+      return runApprovedConnectorAction(approval, payload);
     default:
       return { executed: false, reversible: false, detail: `Unknown action: ${action}` };
   }
@@ -78,6 +82,33 @@ async function runApprovedAshTool(approval: PendingApproval, payload: ActionPayl
     if (!live.length) return { executed: false, reversible: false, detail: "The mission behind this action was cancelled." };
   }
   return run();
+}
+
+// A connector action ASH proposed in chat or the Builder. It runs with the owner's credentials as they are at approval time.
+async function runApprovedConnectorAction(approval: PendingApproval, payload: ActionPayload): Promise<ExecutionResult> {
+  const { connectorId, connectorAction, params, systemInstanceId, workspaceId } = payload;
+  if (typeof connectorId !== "string" || typeof connectorAction !== "string" ||
+      (systemInstanceId !== null && typeof systemInstanceId !== "number") ||
+      !params || typeof params !== "object" || Array.isArray(params)) {
+    return { executed: false, reversible: false, detail: "This connector action is missing its service or action name." };
+  }
+  const scope = await connectorScope(approval.userId, systemInstanceId);
+  if (!scope || scope.businessId !== approval.businessId || scope.workspaceId !== workspaceId) {
+    return { executed: false, reversible: false, detail: "The connector action's system or business changed. Request a new approval." };
+  }
+  const result = await runConnectorAction(scope, connectorId, connectorAction, params as Record<string, unknown>, true);
+  if (!result.ok) return { executed: false, reversible: false, detail: result.error ?? "The connector action failed." };
+  const outcome = { executed: true, reversible: false, detail: `${result.connectorName} reported success for ${connectorAction}.` };
+  if (connectorId === "stripe" && (connectorAction === "createCheckout" || connectorAction === "createPaymentLink")) {
+    const data = result.data as { checkoutUrl?: unknown } | null | undefined;
+    if (typeof data?.checkoutUrl === "string") {
+      try {
+        const url = new URL(data.checkoutUrl);
+        if (url.protocol === "https:" && !url.username && !url.password) return { ...outcome, checkoutUrl: url.href };
+      } catch { /* The approval ran, but Stripe did not return a usable checkout URL. */ }
+    }
+  }
+  return outcome;
 }
 
 async function promoteAbVariant(approval: PendingApproval, payload: ActionPayload): Promise<ExecutionResult> {

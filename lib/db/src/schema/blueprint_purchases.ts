@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, timestamp, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { blueprintsTable } from "./blueprints";
@@ -11,6 +11,8 @@ export const blueprintPurchasesTable = pgTable("blueprint_purchases", {
   authorUserId: integer("author_user_id").references(() => usersTable.id, { onDelete: "set null" }),
   priceCredits: integer("price_credits").notNull().default(0),
   creatorShareCredits: integer("creator_share_credits").notNull().default(0),
+  // Stripe payment intent (or Checkout Session) that granted a card purchase; null for credit purchases and older rows.
+  paymentRef: text("payment_ref"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique("blueprint_purchases_unique_buyer").on(t.blueprintId, t.buyerUserId),

@@ -81,10 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signup(name: string, email: string, password: string) {
-    const data = await apiFetch<{ token: string; user: AuthUser }>("/auth/register", {
+    const data = await apiFetch<{ token?: string; user: AuthUser }>("/auth/register", {
       method: "POST",
       body: JSON.stringify({ name, email, password }),
     });
+    // Pre-launch testers get no session until they verify their email.
+    if (!data.token) throw new Error("Account created. Verify your email, then sign in.");
     await setToken(data.token);
     setUser(data.user);
     registerPushTokenSilently();

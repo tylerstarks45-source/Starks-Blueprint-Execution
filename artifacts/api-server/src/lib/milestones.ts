@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { systemActivityEventsTable, systemInstancesTable, usersTable, notificationsTable, milestoneEventsTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, isNotNull, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { sendPushNotification } from "./push";
 
@@ -23,88 +23,75 @@ export const MILESTONE_LABELS: Record<number, string> = {
  */
 export async function checkMilestones(userId: number, triggeringSystemInstanceId?: number): Promise<void> {
   try {
-    const [rev] = await db
-      .select({ total: sql<string>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::bigint` })
-      .from(systemActivityEventsTable)
-      .innerJoin(systemInstancesTable, eq(systemActivityEventsTable.systemInstanceId, systemInstancesTable.id))
-      .where(and(
-        eq(systemInstancesTable.userId, userId),
-        eq(systemActivityEventsTable.eventType, "revenue"),
-      ));
+    const push = await db.transaction(async tx => {
+      // Concurrent provider imports must read and update this user's awards in order.
+      const [user] = await tx.select({
+        milestonesReached: usersTable.milestonesReached,
+        expoPushToken: usersTable.expoPushToken,
+        notifyMilestone: usersTable.notifyMilestone,
+      }).from(usersTable).where(eq(usersTable.id, userId)).for("update");
+      if (!user) return;
 
-    const totalCents = Number(rev?.total ?? 0);
-    if (totalCents === 0) return;
+      const [rev] = await tx
+        .select({ total: sql<string>`coalesce(sum(${systemActivityEventsTable.amountCents}), 0)::bigint` })
+        .from(systemActivityEventsTable)
+        .innerJoin(systemInstancesTable, eq(systemActivityEventsTable.systemInstanceId, systemInstancesTable.id))
+        .where(and(
+          eq(systemInstancesTable.userId, userId),
+          eq(systemActivityEventsTable.eventType, "revenue"),
+          isNotNull(systemActivityEventsTable.revenueProvider),
+        ));
+      const totalCents = Number(rev?.total ?? 0);
+      const current = (user.milestonesReached ?? []) as Array<{ amount: number; reachedAt: string }>;
+      const reached = new Set(current.map(m => m.amount));
+      const reachedAt = new Date().toISOString();
+      const newMilestones = MILESTONE_THRESHOLDS
+        .filter(amount => totalCents >= amount && !reached.has(amount))
+        .map(amount => ({ amount, reachedAt, label: MILESTONE_LABELS[amount]! }));
+      if (!newMilestones.length) return;
 
-    const [userRow] = await db
-      .select({ milestonesReached: usersTable.milestonesReached })
-      .from(usersTable)
-      .where(eq(usersTable.id, userId));
+      const context = triggeringSystemInstanceId === undefined ? undefined : (await tx.execute<{
+        blueprint_name: string | null;
+        category_name: string | null;
+      }>(sql`
+        SELECT b.name AS blueprint_name, bc.name AS category_name
+        FROM system_instances si
+        JOIN blueprints b ON b.id = si.blueprint_id
+        LEFT JOIN blueprint_categories bc ON bc.id = b.category_id
+        WHERE si.id = ${triggeringSystemInstanceId} AND si.user_id = ${userId}
+      `)).rows[0];
 
-    const current = (userRow?.milestonesReached ?? []) as Array<{ amount: number; reachedAt: string }>;
-    const reached = new Set(current.map(m => m.amount));
-
-    const newMilestones: Array<{ amount: number; reachedAt: string }> = [];
-    for (const threshold of MILESTONE_THRESHOLDS) {
-      if (totalCents >= threshold && !reached.has(threshold)) {
-        newMilestones.push({ amount: threshold, reachedAt: new Date().toISOString() });
-      }
-    }
-    if (newMilestones.length === 0) return;
-
-    await db.update(usersTable)
-      .set({ milestonesReached: [...current, ...newMilestones] })
-      .where(eq(usersTable.id, userId));
-
-    // Resolve blueprint name + category for the triggering system (used in success wall)
-    let systemType: string | null = null;
-    let bestCategory: string | null = null;
-    if (triggeringSystemInstanceId) {
-      try {
-        const [bpRow] = await db.execute(sql`
-          SELECT b.name AS blueprint_name, bc.name AS category_name
-          FROM system_instances si
-          JOIN blueprints b ON b.id = si.blueprint_id
-          LEFT JOIN blueprint_categories bc ON bc.id = b.category_id
-          WHERE si.id = ${triggeringSystemInstanceId}
-          LIMIT 1
-        `).then(r => r.rows as Array<{ blueprint_name: string; category_name: string | null }>);
-        systemType = bpRow?.blueprint_name ?? null;
-        bestCategory = bpRow?.category_name ?? null;
-      } catch (_err) { /* non-fatal */ }
-    }
-
-    for (const m of newMilestones) {
-      const label = MILESTONE_LABELS[m.amount] ?? `$${Math.round(m.amount / 100).toLocaleString()}`;
-
-      await db.insert(milestoneEventsTable).values({
+      await tx.update(usersTable)
+        .set({ milestonesReached: [...current, ...newMilestones.map(({ amount, reachedAt }) => ({ amount, reachedAt }))] })
+        .where(eq(usersTable.id, userId));
+      await tx.insert(milestoneEventsTable).values(newMilestones.map(({ amount, label }) => ({
         userId,
         systemInstanceId: triggeringSystemInstanceId ?? null,
-        amountCents: m.amount,
+        amountCents: amount,
         milestoneLabel: label,
-        systemType,
-        bestCategory,
-      });
-
-      await db.insert(notificationsTable).values({
+        systemType: context?.blueprint_name ?? null,
+        bestCategory: context?.category_name ?? null,
+      })));
+      await tx.insert(notificationsTable).values(newMilestones.map(({ amount, label }) => ({
         userId,
         title: `🎉 You hit ${label} in total earnings!`,
-        message: JSON.stringify({ amount: m.amount, label }),
+        message: JSON.stringify({ amount, label }),
         notificationType: "milestone_reached",
-      });
+      })));
 
-      // Push notification for milestone
-      try {
-        const [uRow] = await db.select({ expoPushToken: usersTable.expoPushToken, notifyMilestone: usersTable.notifyMilestone })
-          .from(usersTable).where(eq(usersTable.id, userId));
-        if (uRow?.expoPushToken && uRow.notifyMilestone !== false) {
-          void sendPushNotification(
-            uRow.expoPushToken,
-            "🎉 Milestone Reached!",
-            `You hit ${label} in total earnings!`,
-            { type: "milestone", systemInstanceId: triggeringSystemInstanceId ?? null },
-          );
-        }
-      } catch { /* non-fatal */ }
+      if (user.expoPushToken && user.notifyMilestone !== false) {
+        return { token: user.expoPushToken, milestones: newMilestones };
+      }
+      return undefined;
+    });
+    if (!push) return;
+    for (const { label } of push.milestones) {
+      void sendPushNotification(
+        push.token,
+        "🎉 Milestone Reached!",
+        `You hit ${label} in total earnings!`,
+        { type: "milestone", systemInstanceId: triggeringSystemInstanceId ?? null },
+      );
     }
   } catch (err) {
     logger.error({ err, userId, triggeringSystemInstanceId }, "checkMilestones failed");

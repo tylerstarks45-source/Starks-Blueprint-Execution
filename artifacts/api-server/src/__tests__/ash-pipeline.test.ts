@@ -40,7 +40,7 @@ vi.mock("../lib/credits", async (importOriginal) => {
 // ─── Now import app and DB (after mocks are hoisted) ─────────────────────────
 
 import app from "../app";
-import { db, usersTable, systemInstancesTable, buildSessionsTable, buildProgressTable, systemActivityEventsTable, userCredentialsTable } from "@workspace/db";
+import { db, usersTable, systemInstancesTable, buildSessionsTable, buildProgressTable, systemActivityEventsTable, userCredentialsTable, ashControlSettingsTable } from "@workspace/db";
 import { complete as _complete } from "../lib/openrouter";
 import { encrypt } from "../lib/crypto";
 import { TwitterConnector } from "../lib/connectors/twitter-connector";
@@ -181,7 +181,7 @@ describe("POST /api/build-engine/execute-step", () => {
   let steps: Array<{ id: number; stepNumber: number; status: string; notes: string }>;
 
   beforeAll(async () => {
-    // Set up a fresh system instance with 3 build steps.
+    // Each execution assertion gets its own step in a single ordered build.
     mockComplete.mockResolvedValueOnce(
       fakeCompletion(
         JSON.stringify({
@@ -189,7 +189,8 @@ describe("POST /api/build-engine/execute-step", () => {
           buildPlan: [
             "Step 1: Configure API integrations and service accounts",
             "Step 2: Deploy affiliate link tracker for revenue attribution",
-            "Step 3: Launch email campaign to subscriber list",
+            "Step 3: Validate affiliate tracking reports",
+            "Step 4: Launch email campaign to subscriber list",
           ],
         }),
       ),
@@ -322,8 +323,8 @@ describe("POST /api/build-engine/execute-step", () => {
   });
 
   it("REGRESSION (task #272): AI narrative dollar claims are stripped, never stored or shown verbatim", async () => {
-    const step2 = steps.find((s) => s.stepNumber === 2)!;
-    expect(step2).toBeDefined();
+    const step3 = steps.find((s) => s.stepNumber === 3)!;
+    expect(step3).toBeDefined();
 
     mockComplete.mockResolvedValueOnce(
       fakeCompletion(
@@ -335,10 +336,10 @@ describe("POST /api/build-engine/execute-step", () => {
       .post("/api/build-engine/execute-step")
       .set(auth())
       .send({
-        stepId: step2.id,
-        stepDescription: "Deploy affiliate link tracker for revenue attribution",
+        stepId: step3.id,
+        stepDescription: "Validate affiliate tracking reports",
         blueprintName: "AI Blog Content Machine",
-        stepNumber: 2,
+        stepNumber: 3,
         totalSteps: steps.length,
         systemInstanceId: instanceId,
         sessionId,
@@ -355,7 +356,7 @@ describe("POST /api/build-engine/execute-step", () => {
     const [dbStep] = await db
       .select({ notes: buildProgressTable.notes })
       .from(buildProgressTable)
-      .where(eq(buildProgressTable.id, step2.id));
+      .where(eq(buildProgressTable.id, step3.id));
     expect(dbStep.notes).not.toMatch(/\$\s?\d/);
 
     const events = await db
@@ -430,6 +431,101 @@ describe("POST /api/build-engine/execute-step", () => {
 // ─── 2b. Live Mode really calls connector.execute() (task #272) ─────────────
 
 describe("POST /api/build-engine/execute-step (liveMode)", () => {
+  it("keeps the build and system incomplete when ASH Control holds a required connector action", async () => {
+    const [instance] = await db.insert(systemInstancesTable).values({ userId: testUserId, name: "Build requiring approval" }).returning();
+    const [session] = await db.insert(buildSessionsTable).values({ systemInstanceId: instance!.id }).returning();
+    const [step] = await db.insert(buildProgressTable).values({ buildSessionId: session!.id, stepNumber: 1, status: "in_progress" }).returning();
+    const [settings] = await db.insert(ashControlSettingsTable).values({ userId: testUserId, level: "advisor" }).returning();
+    const [credential] = await db.insert(userCredentialsTable).values({
+      userId: testUserId, credentialKey: "TWITTER_BEARER_TOKEN",
+      encryptedValue: encrypt("test-token"), systemInstanceId: instance!.id, status: "connected",
+    }).returning();
+    const execute = vi.spyOn(TwitterConnector.prototype, "execute").mockResolvedValue({ ok: true });
+    const [balances] = await db.select({ creditsBalance: usersTable.creditsBalance, walletBalance: usersTable.walletBalance })
+      .from(usersTable).where(eq(usersTable.id, testUserId));
+    try {
+      mockComplete.mockResolvedValueOnce(fakeCompletion(
+        '<SBEP_ACTIONS>{"calls":[{"type":"connector_action","connectorId":"twitter","action":"postTweet","params":{"text":"Test"}}]}</SBEP_ACTIONS> Posted an update.',
+      ));
+      const stepRequest = {
+        stepId: step!.id, sessionId: session!.id, systemInstanceId: instance!.id, stepNumber: 1, totalSteps: 1,
+        blueprintName: "Build requiring approval", stepDescription: "Post an update", liveMode: true,
+      };
+      const response = await request(app).post("/api/build-engine/execute-step").set(auth()).send(stepRequest);
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ stepFailed: true, connectorBlocked: true, step: { status: "blocked" } });
+      expect(response.body.output).not.toContain("Posted an update");
+      expect(execute).not.toHaveBeenCalled();
+      expect((await request(app).post("/api/build-engine/skip-step").set(auth()).send(stepRequest)).status).toBe(409);
+      expect((await request(app).post("/api/build-engine/execute-step").set(auth()).send({ ...stepRequest, liveMode: false })).status).toBe(409);
+      const [currentSession] = await db.select().from(buildSessionsTable).where(eq(buildSessionsTable.id, session!.id));
+      expect(currentSession).toMatchObject({ status: "active", currentStepNumber: 1, completedAt: null });
+      const [currentInstance] = await db.select().from(systemInstancesTable).where(eq(systemInstancesTable.id, instance!.id));
+      expect(currentInstance?.buildStatus).toBe("pending");
+
+      await db.update(ashControlSettingsTable).set({ level: "operator", approvalRequired: [] })
+        .where(eq(ashControlSettingsTable.id, settings!.id));
+      await db.update(usersTable).set({ creditsBalance: 0, walletBalance: 0 }).where(eq(usersTable.id, testUserId));
+      const previousModelCalls = mockComplete.mock.calls.length;
+      const retried = await request(app).post("/api/build-engine/execute-step").set(auth())
+        .send({ ...stepRequest, stepDescription: "A different description after the hold" });
+      expect(retried.status, JSON.stringify(retried.body)).toBe(200);
+      expect(retried.body).toMatchObject({ stepFailed: false, step: { status: "completed", pendingConnectorActions: null } });
+      expect(mockComplete.mock.calls).toHaveLength(previousModelCalls);
+      expect(execute).toHaveBeenCalledExactlyOnceWith("postTweet", { text: "Test" });
+    } finally {
+      execute.mockRestore();
+      if (balances) await db.update(usersTable).set(balances).where(eq(usersTable.id, testUserId));
+      await db.delete(ashControlSettingsTable).where(eq(ashControlSettingsTable.id, settings!.id));
+      await db.delete(userCredentialsTable).where(eq(userCredentialsTable.id, credential!.id));
+    }
+  });
+
+  it.each([
+    { action: "postTweet", connectorCalled: true },
+    { action: "unknownAction", connectorCalled: false },
+  ])("keeps a live build incomplete after an unsuccessful $action action", async ({ action, connectorCalled }) => {
+    const [instance] = await db.insert(systemInstancesTable).values({ userId: testUserId, name: "Connector failure" }).returning();
+    const [session] = await db.insert(buildSessionsTable).values({ systemInstanceId: instance!.id }).returning();
+    const [step] = await db.insert(buildProgressTable).values({ buildSessionId: session!.id, stepNumber: 1, status: "in_progress" }).returning();
+    const [credential] = await db.insert(userCredentialsTable).values({
+      userId: testUserId, credentialKey: "TWITTER_BEARER_TOKEN",
+      encryptedValue: encrypt("test-token"), systemInstanceId: instance!.id, status: "connected",
+    }).returning();
+    const execute = vi.spyOn(TwitterConnector.prototype, "execute").mockResolvedValue({ ok: false, error: "Provider rejected the action" });
+    try {
+      const calls = [{ type: "connector_action", connectorId: "twitter", action, params: { text: "Test" } }];
+      mockComplete.mockResolvedValueOnce(fakeCompletion(
+        `<SBEP_ACTIONS>${JSON.stringify({ calls })}</SBEP_ACTIONS> Posted an update.`,
+      ));
+      const stepRequest = {
+        stepId: step!.id, sessionId: session!.id, systemInstanceId: instance!.id, stepNumber: 1, totalSteps: 1,
+        blueprintName: "Connector failure", stepDescription: "Post an update", liveMode: true,
+      };
+      const response = await request(app).post("/api/build-engine/execute-step").set(auth()).send(stepRequest);
+      expect(response.status).toBe(200);
+      expect(execute).toHaveBeenCalledTimes(connectorCalled ? 1 : 0);
+      expect(response.body).toMatchObject({ stepFailed: true, connectorBlocked: true, step: { status: "blocked" } });
+      expect(response.body.output).not.toContain("Posted an update");
+      const [currentSession] = await db.select().from(buildSessionsTable).where(eq(buildSessionsTable.id, session!.id));
+      expect(currentSession).toMatchObject({ status: "active", currentStepNumber: 1, completedAt: null });
+      const [currentInstance] = await db.select().from(systemInstancesTable).where(eq(systemInstancesTable.id, instance!.id));
+      expect(currentInstance?.buildStatus).toBe("pending");
+      if (!connectorCalled) {
+        expect(response.body.step.pendingConnectorActions).toBeNull();
+        execute.mockResolvedValueOnce({ ok: true });
+        calls[0]!.action = "postTweet";
+        mockComplete.mockResolvedValueOnce(fakeCompletion(`<SBEP_ACTIONS>${JSON.stringify({ calls })}</SBEP_ACTIONS>`));
+        const retry = await request(app).post("/api/build-engine/execute-step").set(auth()).send(stepRequest);
+        expect(retry.body).toMatchObject({ stepFailed: false, step: { status: "completed" } });
+        expect(execute).toHaveBeenCalledExactlyOnceWith("postTweet", { text: "Test" });
+      }
+    } finally {
+      execute.mockRestore();
+      await db.delete(userCredentialsTable).where(eq(userCredentialsTable.id, credential!.id));
+    }
+  });
+
   it("REGRESSION (task #272): live mode invokes the real connector.execute(), not just narrative text", async () => {
     // Give the test user a fake Twitter credential so the endpoint's
     // credential-derived connector detection recognises "twitter" as available.

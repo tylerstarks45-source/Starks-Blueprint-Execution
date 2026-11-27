@@ -132,7 +132,9 @@ export const AuthProvider = ({ children }) => {
         name: name || '',
       };
       if (referralCode) createData.referralCode = referralCode;
-      await pb.collection('users').create(createData, { $autoCancel: false });
+      const created = await pb.collection('users').create(createData, { $autoCancel: false });
+      // Pre-launch testers get no session until they verify their email.
+      if (created?.verificationRequired) return { success: true, verificationRequired: true };
 
       const authData = await pb.collection('users').authWithPassword(email, password, { $autoCancel: false });
       return { success: true, data: authData };

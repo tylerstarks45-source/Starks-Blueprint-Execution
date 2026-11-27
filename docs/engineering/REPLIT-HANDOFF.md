@@ -10,7 +10,7 @@ The Replit project already has a production database with real users. Nothing be
 2. **Pull GitHub `main`.** `git fetch origin && git merge origin/main` (or Replit's Git pane "Pull"). If the Replit branch also had changes, resolve conflicts by keeping both sides' features. Don't revert files to an older Replit copy: `main` contains PRs #1–#32 (section 1), and an older copy of a file silently removes their fixes.
 3. **Back up the database:** `pnpm --filter @workspace/scripts run db:backup`.
 4. **Install and update the schema.** Replit runs `scripts/post-merge.sh` after a merge: `pnpm install --frozen-lockfile`, then `pnpm --filter db push`. The new schema is only additive (new tables and one column made nullable), so push applies it without prompting. If push asks to **drop or rename** anything, answer no and ask the owner; it usually means the Replit database has a table the GitHub schema doesn't know about, and the fix is to add that table to `lib/db/src/schema/`, not to drop it.
-5. **Switch to versioned migrations (one time).** `pnpm --filter @workspace/scripts run db:baseline` records every migration in `lib/db/drizzle/` whose tables already exist; then `pnpm --filter @workspace/scripts run db:migrate` should print `Migrations applied.` with nothing left to do. After that, change the last line of `scripts/post-merge.sh` to `pnpm --filter @workspace/scripts run db:migrate`.
+5. **Switch to versioned migrations (one time).** Run `pnpm --filter @workspace/scripts run db:baseline` to record the migrations reflected in the database schema. Then run `pnpm --filter @workspace/scripts run db:migrate` to apply remaining migrations, including data updates such as the revenue currency backfill. After that, change the last line of `scripts/post-merge.sh` to `pnpm --filter @workspace/scripts run db:migrate`.
 6. **Set the Secrets** in section 2 (the server refuses to start without the required ones), restart, and run the checks in section 4.
 7. **Hand the owner the owner-only list** in section 2. Don't do those steps yourself.
 
@@ -43,6 +43,7 @@ Every backend feature also has a page in the web app, a sidebar link, a link in 
    - `CREDENTIAL_ENCRYPTION_KEY` (64 hex characters; generate with `openssl rand -hex 32`, and never change it after users have saved credentials)
    - `OPENROUTER_API_KEY`
    - `APP_URL=https://starksglobalgroup.net`, `STRIPE_SECRET_KEY` (or the Replit Stripe connector), `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`
+   - In production, registration and new checkouts return `rollout_closed` until `PUBLIC_ROLLOUT_OPEN=true`. Admins and addresses in `ROLLOUT_ALLOWED_EMAILS` (comma-separated) can run acceptance before then; testers must verify their email before they can sign in or check out. Set the flag only after the exact release candidate passes acceptance.
 3. Stripe dashboard:
    - Webhook endpoint `https://starksglobalgroup.net/api/stripe/webhook` with these events: `checkout.session.completed`, `invoice.payment_succeeded`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`. Its signing secret goes in `STRIPE_WEBHOOK_SECRET`.
    - Enable **Connect** (Express accounts) for creator payouts, and add `account.updated` to the webhook (as a Connect event). Payouts are transfers from the platform balance, so the platform needs available funds.
@@ -56,7 +57,7 @@ Section 0 has the exact order. Background:
 
 - The schema source of truth is `lib/db/src/schema/*.ts`. Versioned migrations are in `lib/db/drizzle/` (`0000_baseline` through `0004_creator_payouts`), applied by `db:migrate` and recorded in `drizzle.__drizzle_migrations`.
 - The Replit database was created with `drizzle-kit push`, so it has no migration history yet. `db:migrate` refuses to run on such a database until `db:baseline` has been run, so it can never try to re-create existing tables.
-- `db:baseline` walks the migrations in order and records each one whose tables already exist, stopping at the first one whose tables are missing; `db:migrate` then applies only the rest. This works whether or not `push` ran first. (Both cases were tested on copies: a database at the original baseline, and one updated by `push`.)
+- `db:baseline` stops at the first missing table or column, or a migration marked `-- @requires-execution`. `db:migrate` applies the remaining migrations.
 - New tables in this release: `media_blobs`, `asset_business_shares`, `custom_business_types`, `ash_control_settings`, `ash_missions`, `ash_spend_events`, `creator_earnings`, `creator_payout_accounts`, `creator_payouts`. Changed: `businesses.type_key` added; `pending_approvals.business_id` made nullable.
 - Optional: `lib/db/manual-migrations/0001_health_unmeasured_and_signal_index.sql` (idempotent) is only needed if the database is not updated with `push`.
 

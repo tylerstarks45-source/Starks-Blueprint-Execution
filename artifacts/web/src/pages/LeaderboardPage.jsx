@@ -60,7 +60,7 @@ function MiniConfetti() {
 export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [events, setEvents] = useState([]);
-  const [stats, setStats] = useState({ totalEarnedCents: 0, activeSystems: 0, totalMembers: 0 });
+  const [stats, setStats] = useState(null);
   const [ownRank, setOwnRank] = useState(null);
   const [loading, setLoading] = useState(true);
   const tickerRef = useRef(null);
@@ -71,7 +71,7 @@ export default function LeaderboardPage() {
     Promise.all([
       fetch(`${BASE}api/leaderboard`, { headers: authHeaders }).then(r => r.json()).catch(() => ({ leaderboard: [], ownRank: null })),
       fetch(`${BASE}api/success-wall`).then(r => r.json()).catch(() => ({ events: [] })),
-      fetch(`${BASE}api/leaderboard/stats`).then(r => r.json()).catch(() => ({})),
+      fetch(`${BASE}api/leaderboard/stats`).then(r => r.ok ? r.json() : null).catch(() => null),
     ]).then(([lb, sw, st]) => {
       setLeaderboard(lb.leaderboard ?? []);
       setOwnRank(lb.ownRank ?? null);
@@ -83,24 +83,7 @@ export default function LeaderboardPage() {
 
   const displayLeaderboard = loading
     ? Array.from({ length: 10 }, (_, i) => ({ rank: i + 1, _skeleton: true }))
-    : leaderboard.length > 0
-      ? leaderboard
-      : Array.from({ length: 8 }, (_, i) => ({
-          rank: i + 1,
-          displayName: `Empire Member #${1000 + (i + 1) * 37}`,
-          tier: ['Empire', 'Empire', 'Operator', 'Operator', 'Builder', 'Builder', 'Free', 'Free'][i],
-          lifetimeCents: [8472000, 4120000, 2310000, 1876000, 987000, 654000, 412000, 187000][i],
-          monthlyCents: [340000, 210000, 98000, 120000, 45000, 32000, 18000, 9000][i],
-          systemCount: [5, 4, 3, 3, 2, 2, 1, 1][i],
-        }));
-
-  const displayEvents = events.length > 0 ? events : [
-    { memberName: 'Empire Member #4237', tier: 'Empire', milestoneLabel: '$10K', reachedAt: new Date(Date.now() - 7200000).toISOString(), daysSinceSignup: 42 },
-    { memberName: 'Empire Member #1892', tier: 'Operator', milestoneLabel: '$1K', reachedAt: new Date(Date.now() - 18000000).toISOString(), daysSinceSignup: 15 },
-    { memberName: 'Empire Member #7631', tier: 'Builder', milestoneLabel: '$500', reachedAt: new Date(Date.now() - 36000000).toISOString(), daysSinceSignup: 28 },
-    { memberName: 'Empire Member #3015', tier: 'Empire', milestoneLabel: '$50K', reachedAt: new Date(Date.now() - 86400000).toISOString(), daysSinceSignup: 90 },
-    { memberName: 'Empire Member #5544', tier: 'Operator', milestoneLabel: '$5K', reachedAt: new Date(Date.now() - 172800000).toISOString(), daysSinceSignup: 61 },
-  ];
+    : leaderboard;
 
   return (
     <VideoBackground className="text-foreground overflow-x-hidden">
@@ -136,18 +119,18 @@ export default function LeaderboardPage() {
             The <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-violet-400">Earnings</span> Leaderboard
           </h1>
           <p className="text-lg text-white/50 max-w-xl mx-auto mb-10">
-            Real automated income from real Empire members. All identities anonymized.
+            View revenue records and milestones reported to the platform.
           </p>
 
           {/* Live Stats Bar */}
           <div className="flex flex-wrap items-center justify-center gap-8">
             {[
-              { icon: TrendingUp, label: 'Total Earned', value: stats.totalEarnedCents > 0 ? fmtDollars(stats.totalEarnedCents) : '$284K+', color: 'text-emerald-400' },
-              { icon: TrendingUp, label: 'This Month', value: stats.monthlyEarnedCents > 0 ? fmtDollars(stats.monthlyEarnedCents) : '$21K+', color: 'text-green-300' },
-              { icon: Zap, label: 'Active Systems', value: stats.activeSystems > 0 ? stats.activeSystems.toLocaleString() : '247', color: 'text-sky-400' },
-              { icon: Users, label: 'Members', value: stats.totalMembers > 0 ? stats.totalMembers.toLocaleString() : '1,200+', color: 'text-violet-400' },
-              { icon: Zap, label: 'Avg / System', value: stats.avgEarningsPerSystemCents > 0 ? fmtDollars(stats.avgEarningsPerSystemCents) : '$1.1K', color: 'text-amber-400' },
-            ].map(({ icon: Icon, label, value, color }) => (
+              { icon: TrendingUp, label: 'Recorded Revenue', value: stats?.totalEarnedCents > 0 ? fmtDollars(stats.totalEarnedCents) : null, color: 'text-emerald-400' },
+              { icon: TrendingUp, label: 'This Month', value: stats?.monthlyEarnedCents > 0 ? fmtDollars(stats.monthlyEarnedCents) : null, color: 'text-green-300' },
+              { icon: Zap, label: 'Active Systems', value: stats?.activeSystems > 0 ? stats.activeSystems.toLocaleString() : null, color: 'text-sky-400' },
+              { icon: Users, label: 'Members', value: stats?.totalMembers > 0 ? stats.totalMembers.toLocaleString() : null, color: 'text-violet-400' },
+              { icon: Zap, label: 'Avg / System', value: stats?.avgEarningsPerSystemCents > 0 ? fmtDollars(stats.avgEarningsPerSystemCents) : null, color: 'text-amber-400' },
+            ].filter(({ value }) => value !== null).map(({ icon: Icon, label, value, color }) => (
               <div key={label} className="flex flex-col items-center gap-1">
                 <div className="flex items-center gap-1.5">
                   <Icon className={`w-4 h-4 ${color}`} />
@@ -161,7 +144,7 @@ export default function LeaderboardPage() {
       </div>
 
       {/* Milestone Ticker */}
-      {displayEvents.length > 0 && (
+      {events.length > 0 && (
         <div className="border-b border-white/8 bg-white/[0.02] overflow-hidden">
           <div className="relative flex items-center h-10">
             <div className="absolute left-0 z-10 h-full w-20 bg-gradient-to-r from-background to-transparent pointer-events-none" />
@@ -171,7 +154,7 @@ export default function LeaderboardPage() {
               className="flex gap-0 animate-[tickerScroll_40s_linear_infinite] whitespace-nowrap"
               style={{ animation: 'tickerScroll 40s linear infinite' }}
             >
-              {[...displayEvents, ...displayEvents].map((e, i) => (
+              {[...events, ...events].map((e, i) => (
                 <div key={i} className="inline-flex items-center gap-2 px-6 border-r border-white/8">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                   <span className="text-xs font-mono text-white/50">
@@ -220,6 +203,9 @@ export default function LeaderboardPage() {
           )}
 
           <div className="space-y-2">
+            {!loading && leaderboard.length === 0 && (
+              <p className="text-sm text-white/50">No rankings to display.</p>
+            )}
             {displayLeaderboard.map((entry, i) => (
               <div
                 key={entry.rank}
@@ -291,7 +277,10 @@ export default function LeaderboardPage() {
               <h3 className="text-xs font-mono font-bold text-white/50 uppercase tracking-widest">Recent Milestones</h3>
             </div>
             <div className="space-y-3">
-              {displayEvents.slice(0, 8).map((e, i) => (
+              {!loading && events.length === 0 && (
+                <p className="text-sm text-white/50">No milestones to display.</p>
+              )}
+              {events.slice(0, 8).map((e, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <div className="shrink-0 mt-0.5 w-6 h-6 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
                     <span className="text-[9px] text-emerald-400 font-bold">✓</span>

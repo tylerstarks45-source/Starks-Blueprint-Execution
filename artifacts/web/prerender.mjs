@@ -50,7 +50,7 @@ const STATIC_ROUTES = [
     path: '/',
     title: 'Starks Global Group — Build. Launch. Run. Scale. With ASH AI.',
     description:
-      'The AI Business Operating System for entrepreneurs. Select a blueprint, connect your tools, and let ASH AI build and run your automated income systems from one powerful dashboard.',
+      'Research online business opportunities, build systems with ASH AI, and manage connected tools and workflows from one dashboard.',
     robots: 'index, follow',
   },
   {
@@ -113,7 +113,7 @@ const STATIC_ROUTES = [
     path: '/why-trust-us',
     title: 'Why Trust Us | Starks Global Group',
     description:
-      'Learn how Starks Global Group tests, validates, and deploys AI tools and automation systems before recommending them.',
+      'Learn what to check before connecting business tools and how Starks Global Group handles connections and affiliate links.',
     robots: 'index, follow',
   },
   {

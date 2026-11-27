@@ -128,6 +128,11 @@ const SignupPage = () => {
         localStorage.removeItem(COOKIE_NAME);
         document.cookie = `${COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
       }
+      if (result.verificationRequired) {
+        toast.success('Account created. Verify your email, then sign in and choose your plan from Pricing.');
+        navigate('/login', { replace: true });
+        return;
+      }
       toast.success('Account created!');
       // For paid plans, redirect to checkout after signup
       if (selectedPlan !== 'free') {

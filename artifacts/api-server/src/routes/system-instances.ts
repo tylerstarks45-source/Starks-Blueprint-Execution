@@ -5,7 +5,6 @@ import { db, systemInstancesTable, systemHealthTable, systemActivityEventsTable,
 import { tierSystemLimit } from "../lib/credits";
 import { z } from "zod/v4";
 import { getActiveCallerPayload, requireAuthActive, validateClientWorkspaceId } from "../lib/auth";
-import { checkMilestones } from "../lib/milestones";
 import { ensureBuiltBusiness } from "../lib/built-businesses";
 import {
   ListSystemInstancesResponse,
@@ -377,10 +376,6 @@ router.post("/system-instances/:id/activity", async (req, res): Promise<void> =>
     .returning();
 
   res.status(201).json(serialize(row));
-
-  if (parsed.data.eventType === "revenue" && instance.userId !== null) {
-    checkMilestones(instance.userId, params.data.id).catch(() => {});
-  }
 });
 
 // ─── POST /api/system-instances/revenue-batch ────────────────────────────────

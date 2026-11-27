@@ -359,7 +359,7 @@ function EditHtmlModal({ page, onClose, onSaved }) {
               {activeTab === 'editor' && <span className="text-[9px] font-mono text-violet-400/50">updates 600ms after typing</span>}
             </div>
             {preview
-              ? <iframe srcDoc={preview} className="flex-1 w-full border-0 bg-white" title="HTML Preview" sandbox="allow-scripts allow-same-origin" />
+              ? <iframe srcDoc={preview} className="flex-1 w-full border-0 bg-white" title="HTML Preview" sandbox="allow-scripts" />
               : <div className="flex-1 flex items-center justify-center text-white/20 font-mono text-xs">No content to preview</div>}
           </div>
         )}
@@ -390,7 +390,7 @@ function PreviewModal({ page, onClose }) {
       </div>
       <div className="flex-1 overflow-hidden">
         {page.htmlContent
-          ? <iframe srcDoc={page.htmlContent} className="w-full h-full border-0" title="Page Preview" sandbox="allow-scripts allow-same-origin" />
+          ? <iframe srcDoc={page.htmlContent} className="w-full h-full border-0" title="Page Preview" sandbox="allow-scripts" />
           : <div className="flex items-center justify-center h-full text-white/25 font-mono text-sm">No content yet. Use ASH to generate this page.</div>}
       </div>
     </div>

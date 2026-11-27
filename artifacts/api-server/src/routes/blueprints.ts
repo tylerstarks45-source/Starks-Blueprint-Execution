@@ -4,6 +4,7 @@ import { eq, ilike, and, or, inArray, desc, sql } from "drizzle-orm";
 import { db, blueprintsTable, blueprintStepsTable, blueprintReviewsTable, blueprintPurchasesTable, notificationsTable, usersTable, subscriptionsTable, creditTransactionsTable, systemInstancesTable } from "@workspace/db";
 import { getUncachableStripeClient } from "../lib/stripe";
 import { requireAdmin, getActiveCallerPayload, requireAuth, isAdminRole, getTokenPayload } from "../lib/auth";
+import { requireCheckoutOpen } from "../lib/rollout";
 import { adjustCredits, adjustWalletCredits, getBalance } from "../lib/credits";
 import {
   ListBlueprintsResponse,
@@ -532,6 +533,7 @@ router.post("/blueprints/:id/purchase", async (req, res): Promise<void> => {
 router.post("/blueprints/:id/checkout", async (req, res): Promise<void> => {
   const caller = await getActiveCallerPayload(req, res);
   if (!caller) return;
+  if (!(await requireCheckoutOpen(caller.id, res))) return;
 
   const params = PurchaseBlueprintParams.safeParse(req.params);
   if (!params.success) {

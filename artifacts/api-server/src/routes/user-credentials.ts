@@ -243,7 +243,7 @@ router.post("/user-credentials", async (req, res): Promise<void> => {
   }
 
   const [existing] = await db
-    .select({ id: userCredentialsTable.id, connectedAt: userCredentialsTable.connectedAt })
+    .select({ id: userCredentialsTable.id })
     .from(userCredentialsTable)
     .where(and(...upsertConditions));
 
@@ -269,6 +269,8 @@ router.post("/user-credentials", async (req, res): Promise<void> => {
       .set({
         encryptedValue,
         status: "connected",
+        connectedAt: now,
+        expiresAt: null,
         lastSyncAt: now,
         updatedAt: now,
       })
@@ -336,20 +338,29 @@ router.post("/user-credentials/:id/test", async (req, res): Promise<void> => {
         newStatus = "needs_reconnect";
       }
     } else if (cred.credentialKey === "STRIPE_SECRET_KEY") {
-      const r = await fetch("https://api.stripe.com/v1/account", {
-        headers: { Authorization: `Bearer ${plaintext}` },
-      });
-      if (r.ok) {
-        testOk = true;
-        testMessage = "Stripe API reachable — authentication valid";
-      } else if (r.status === 401) {
-        testOk = false;
-        testMessage = "Invalid Stripe key";
+      if (!plaintext || /[^!-~]/.test(plaintext)) {
+        testMessage = "Invalid Stripe key format";
         newStatus = "invalid";
       } else {
-        testOk = false;
-        testMessage = `Stripe returned ${r.status}`;
-        newStatus = "needs_reconnect";
+        const r = await fetch("https://api.stripe.com/v1/account", {
+          headers: { Authorization: `Bearer ${plaintext}` },
+          signal: AbortSignal.timeout(10_000),
+        }).catch(() => null);
+        if (!r || r.status === 408 || r.status === 429 || r.status >= 500) {
+          // A temporary provider failure doesn't change the owner's saved connection.
+          res.json({ ok: false, message: "Stripe is temporarily unavailable. Try again shortly.", status: cred.status });
+          return;
+        }
+        if (r.ok) {
+          testOk = true;
+          testMessage = "Stripe API reachable — authentication valid";
+        } else if (r.status === 401) {
+          testMessage = "Invalid Stripe key";
+          newStatus = "invalid";
+        } else {
+          testMessage = `Stripe returned ${r.status}`;
+          newStatus = "needs_reconnect";
+        }
       }
     } else if (KEY_TO_CONNECTOR[cred.credentialKey]) {
       // Route through the real connector implementation for anything with

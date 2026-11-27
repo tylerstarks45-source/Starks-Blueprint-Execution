@@ -30,9 +30,9 @@ import { deleteMediaForContent } from "../lib/media-store";
 import { complete } from "../lib/openrouter";
 import { MODELS, chainFor, chainForAgentMode, resolveAgentMode } from "../lib/models";
 import { OutOfCreditsError, DailyAiLimitError } from "../lib/credits";
-import { decrypt } from "../lib/crypto";
-import { getConnector, isKnownConnector, listConnectors } from "../lib/connectors/registry";
+import { isKnownConnector, listConnectors } from "../lib/connectors/registry";
 import { z } from "zod";
+import { connectorScope, runConnectorAction } from "../lib/connector-actions";
 
 const SOCIAL_PLATFORM_KEYS = [
   { key: "TIKTOK_ACCESS_TOKEN",    name: "TikTok" },
@@ -307,86 +307,23 @@ router.post("/ai-orchestrator/connector-action", async (req, res): Promise<void>
     return;
   }
 
-  // Fetch all credentials for this user, decrypt them
-  const credRows = await db
-    .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue })
-    .from(userCredentialsTable)
-    .where(eq(userCredentialsTable.userId, userId));
-
-  const creds: Record<string, string> = {};
-  for (const row of credRows) {
-    if (row.encryptedValue) {
-      try {
-        creds[row.credentialKey] = await decrypt(row.encryptedValue);
-      } catch {
-        // Skip malformed entries — connector will report missing cred gracefully
-      }
-    }
-  }
-
-  const connector = getConnector(connectorId, creds);
-  if (!connector) {
-    res.status(404).json({ error: `Connector ${connectorId} not available` });
+  const scope = await connectorScope(userId, systemInstanceId ?? null);
+  if (!scope) {
+    res.status(404).json({ error: "No uniquely owned system found for this action." });
     return;
   }
 
-  const startMs = Date.now();
-  let execResult: { ok: boolean; data?: unknown; error?: string };
-
-  try {
-    execResult = await connector.execute(action, params as Record<string, unknown>);
-  } catch (err: unknown) {
-    execResult = { ok: false, error: err instanceof Error ? err.message : String(err) };
+  const result = await runConnectorAction(scope, connectorId, action, params);
+  if (systemInstanceId != null && !result.status) {
+    const { connectorName, ok, latencyMs } = result;
+    void db.insert(systemActivityEventsTable).values({
+      systemInstanceId,
+      eventType: ok ? "action" : "warning",
+      description: `Connector action ${ok ? "executed" : "failed"}: ${connectorName} → ${action}`,
+      metadata: JSON.stringify({ connectorId, connectorName, action, ok, latencyMs }),
+    }).catch(() => { /* non-critical */ });
   }
-
-  const latencyMs = Date.now() - startMs;
-
-  // Log to activity feed only when we have a system instance to attach to
-  // (systemActivityEventsTable.systemInstanceId is NOT NULL).
-  // First verify the instance belongs to the authenticated user to prevent
-  // cross-instance event injection.
-  if (systemInstanceId != null) {
-    const [ownedInstance] = await db
-      .select({ id: systemInstancesTable.id })
-      .from(systemInstancesTable)
-      .where(
-        and(
-          eq(systemInstancesTable.id, systemInstanceId),
-          eq(systemInstancesTable.userId, userId),
-        )
-      )
-      .limit(1);
-
-    if (ownedInstance) {
-      const eventDescription = execResult.ok
-        ? `Connector action executed: ${connector.displayName} → ${action} (${latencyMs}ms)`
-        : `Connector action failed: ${connector.displayName} → ${action} — ${(execResult.error ?? "unknown error").slice(0, 200)}`;
-
-      db.insert(systemActivityEventsTable).values({
-        systemInstanceId,
-        eventType: execResult.ok ? "action" : "warning",
-        description: eventDescription,
-        metadata: JSON.stringify({
-          connectorId,
-          connectorName: connector.displayName,
-          action,
-          ok: execResult.ok,
-          latencyMs,
-          ...(execResult.ok ? { data: execResult.data } : { error: execResult.error }),
-        }),
-      }).catch(() => { /* non-critical — never crash the response */ });
-    }
-  }
-
-  res.json({
-    connectorId,
-    connectorName: connector.displayName,
-    action,
-    ok: execResult.ok,
-    data: execResult.ok ? execResult.data : undefined,
-    error: execResult.ok ? undefined : execResult.error,
-    latencyMs,
-  });
+  res.json(result);
 });
 
 // ─── GET /api/ash/connectors — list connected connectors for the current user ──

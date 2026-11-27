@@ -92,11 +92,13 @@ router.post("/approvals/:id/approve", async (req, res): Promise<void> => {
     // (no executable action) are simply marked approved with no side effects.
     const executable = isExecutableApproval(existing);
     let executedAt: Date | null = null;
+    let checkoutUrl: string | null = null;
     let undoPayload: Record<string, unknown> | null = null;
     try {
       const outcome = await executeApprovedAction(existing);
       if (outcome.executed) {
         executedAt = new Date();
+        checkoutUrl = outcome.checkoutUrl ?? null;
         undoPayload = outcome.undoPayload ?? null;
       } else if (executable) {
         // The action was supposed to run but failed (e.g. target resource missing
@@ -112,7 +114,7 @@ router.post("/approvals/:id/approve", async (req, res): Promise<void> => {
 
     const [row] = await db
       .update(pendingApprovalsTable)
-      .set({ status: "approved", resolvedAt: new Date(), executedAt, undoPayload })
+      .set({ status: "approved", resolvedAt: new Date(), executedAt, checkoutUrl, undoPayload })
       .where(eq(pendingApprovalsTable.id, params.data.id))
       .returning();
 

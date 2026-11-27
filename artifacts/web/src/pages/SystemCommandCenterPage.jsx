@@ -1284,9 +1284,10 @@ const SystemCommandCenterPage = () => {
         // Milestone thresholds (cents)
         const MILESTONES = [100, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000];
         const LABELS = { 100: '$1', 10000: '$100', 50000: '$500', 100000: '$1K', 500000: '$5K', 1000000: '$10K', 5000000: '$50K', 10000000: '$100K' };
-        const next = MILESTONES.find(t => lifetimeCents < t) ?? null;
+        const verifiedCents = revenue?.realRevenueCents ?? 0;
+        const next = MILESTONES.find(t => verifiedCents < t) ?? null;
         const prev = next ? (MILESTONES[MILESTONES.indexOf(next) - 1] ?? 0) : MILESTONES[MILESTONES.length - 1];
-        const pct = next ? Math.min(100, Math.round(((lifetimeCents - prev) / (next - prev)) * 100)) : 100;
+        const pct = next ? Math.max(0, Math.floor((verifiedCents - prev) * 100 / (next - prev))) : 100;
         const nextLabel = next ? LABELS[next] : null;
 
         return (
@@ -1310,7 +1311,7 @@ const SystemCommandCenterPage = () => {
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse" />
               </div>
               <div className="flex items-center justify-between text-[10px] font-mono">
-                <span className="text-white/40">${(lifetimeCents / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} earned</span>
+                <span className="text-white/40">{(verifiedCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} verified</span>
                 <span className={`font-bold ${pct === 100 ? 'text-amber-400' : 'text-white/30'}`}>{pct}%</span>
               </div>
               {/* Milestone dots */}
@@ -1318,7 +1319,7 @@ const SystemCommandCenterPage = () => {
                 {MILESTONES.slice(0, 6).map(t => (
                   <span
                     key={t}
-                    className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${lifetimeCents >= t ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-white/4 text-white/20 border-white/8'}`}
+                    className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${verifiedCents >= t ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-white/4 text-white/20 border-white/8'}`}
                   >
                     {LABELS[t]}
                   </span>

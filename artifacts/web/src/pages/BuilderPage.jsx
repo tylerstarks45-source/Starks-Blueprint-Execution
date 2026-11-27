@@ -1555,10 +1555,10 @@ const MessageBubble = ({ msg, onConfirmPlan }) => {
             className="text-[10px] font-mono font-semibold px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 hover:bg-violet-500/30 transition-colors flex items-center gap-1.5">
             <RotateCcw className="w-2.5 h-2.5" /> Retry
           </button>
-          <button onClick={msg.skipFn}
+          {msg.skipFn && <button onClick={msg.skipFn}
             className="text-[10px] font-mono px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-white/70 transition-colors">
             Skip step →
-          </button>
+          </button>}
         </div>
       </div>
     </div>
@@ -3058,8 +3058,10 @@ const BuilderPage = () => {
           setStepPaused(true);
 
           // Stream an AI explanation from ai-orchestrator/step-recovery (SSE)
-          let explanation = 'Try retrying the step — transient AI errors often resolve on retry.';
-          try {
+          let explanation = data.connectorBlocked
+            ? (data.recoveryMessage || 'Check the required service and ASH Control settings before retrying.')
+            : 'Try retrying the step — transient AI errors often resolve on retry.';
+          if (!data.connectorBlocked) try {
             const sseResp = await fetch('/api/ai-orchestrator/step-recovery', {
               method: 'POST',
               headers: authHeaders(),
@@ -3147,7 +3149,7 @@ const BuilderPage = () => {
               stepNumber: step.stepNumber,
             },
             retryFn,
-            skipFn,
+            skipFn: data.connectorBlocked ? undefined : skipFn,
           }]);
           return;
         }
@@ -3418,7 +3420,8 @@ const BuilderPage = () => {
             } else if (event.tool === 'connector') {
               const connData = event.data || {};
               // Build a retry function using the call context embedded in the SSE payload
-              const retryFn = !connData.ok && connData.connectorId ? async () => {
+              // Actions ASH Control declined or queued for approval (they carry a status) get no Retry.
+              const retryFn = !connData.ok && connData.connectorId && !connData.status ? async () => {
                 try {
                   const res = await fetch('/api/ash/connector-action', {
                     method: 'POST',
@@ -3433,7 +3436,7 @@ const BuilderPage = () => {
                   const data = await res.json();
                   setMessages(prev => prev.map(m => m.id === toolMsgId ? {
                     ...m, data,
-                    retryFn: !data.ok ? retryFn : undefined,
+                    retryFn: !data.ok && !data.status ? retryFn : undefined,
                   } : m));
                 } catch (err) {
                   setMessages(prev => prev.map(m => m.id === toolMsgId ? {
@@ -3687,7 +3690,7 @@ const BuilderPage = () => {
                   data,
                   tool: undefined,
                   label: undefined,
-                  retryFn: !data.ok ? executeConnectorAction : undefined,
+                  retryFn: !data.ok && !data.status ? executeConnectorAction : undefined,
                 } : m));
               } catch (err) {
                 setMessages(prev => prev.map(m => m.id === toolMsgId ? {

@@ -1,6 +1,6 @@
-import { pool, db, systemRevenueProvidersTable, systemActivityEventsTable, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import { decrypt } from "../crypto";
+import { db, systemRevenueProvidersTable, systemActivityEventsTable, usersTable } from "@workspace/db";
+import { and, eq, sql } from "drizzle-orm";
+import { connectorScope, loadConnectorCredentials, type ConnectorScope } from "../connector-actions";
 import { getRevenueProvider } from "./registry";
 import { logger } from "../logger";
 import { notifyAdmins } from "../admin-alerts";
@@ -14,7 +14,7 @@ let running = false;
 let inFlight: Promise<void> = Promise.resolve();
 
 // Parse stored credentialKey column — either JSON map (new) or plain key name (legacy).
-// Returns { providerKeyName → decryptedValue }.
+// Returns { providerKeyName → stored credential key }.
 function parseCredentialKeyMap(credentialKey: string, provider: RevenueProvider): Record<string, string> {
   try {
     const parsed: unknown = JSON.parse(credentialKey);
@@ -30,34 +30,32 @@ function parseCredentialKeyMap(credentialKey: string, provider: RevenueProvider)
 }
 
 // Load and decrypt only the specific credentials needed, remapped to provider key names.
-async function loadMappedCredentials(
-  userId: number,
-  keyMap: Record<string, string>, // { providerKeyName → userStoredCredentialKey }
-): Promise<Record<string, string>> {
-  const creds: Record<string, string> = {};
-  for (const [providerKey, userCredKey] of Object.entries(keyMap)) {
-    const rows = await pool.query<{ encrypted_value: string | null }>(
-      `SELECT encrypted_value FROM user_credentials WHERE user_id = $1 AND credential_key = $2 LIMIT 1`,
-      [userId, userCredKey],
-    );
-    const row = rows.rows[0];
-    if (row?.encrypted_value) {
-      try {
-        creds[providerKey] = await decrypt(row.encrypted_value);
-      } catch {
-        // skip malformed entry
-      }
-    }
-  }
-  return creds;
+export async function loadMappedRevenueCredentials(
+  scope: ConnectorScope,
+  provider: RevenueProvider,
+  keyMap: Record<string, string>,
+): Promise<Record<string, string> | null> {
+  const keys = provider.credentialKeys.map(key => keyMap[key]);
+  if (!keys.every((key): key is string => typeof key === "string" && key.length > 0)) return null;
+  const scoped = await loadConnectorCredentials(scope, keys);
+  if (!keys.every(key => scoped[key])) return null;
+  return Object.fromEntries(provider.credentialKeys.map(key => [key, scoped[keyMap[key]!]!]));
 }
 
-async function txExists(systemInstanceId: number, externalTxId: string): Promise<boolean> {
-  const res = await pool.query(
-    `SELECT 1 FROM system_activity_events WHERE system_instance_id = $1 AND external_tx_id = $2 LIMIT 1`,
-    [systemInstanceId, externalTxId],
-  );
-  return res.rowCount !== null && res.rowCount > 0;
+async function insertRevenueOnce(event: typeof systemActivityEventsTable.$inferInsert & { externalTxId: string }): Promise<boolean> {
+  return db.transaction(async tx => {
+    // A manual sync can overlap with a worker sync for the same system.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('revenue_import'), ${event.systemInstanceId}::int)`);
+    const [existing] = await tx.select({ id: systemActivityEventsTable.id })
+      .from(systemActivityEventsTable)
+      .where(and(
+        eq(systemActivityEventsTable.systemInstanceId, event.systemInstanceId),
+        eq(systemActivityEventsTable.externalTxId, event.externalTxId),
+      )).limit(1);
+    if (existing) return false;
+    await tx.insert(systemActivityEventsTable).values(event);
+    return true;
+  });
 }
 
 export async function syncProvider(providerId: number): Promise<{ synced: number; errors: string[] }> {
@@ -73,16 +71,24 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
     return { synced: 0, errors: [`Unknown provider: ${record.provider}`] };
   }
 
+  const scope = await connectorScope(record.userId, record.systemInstanceId);
+  const keyMap = parseCredentialKeyMap(record.credentialKey, provider);
+  const creds = scope ? await loadMappedRevenueCredentials(scope, provider, keyMap) : null;
+  if (!creds) {
+    const error = "Reconnect this provider with active credentials for the system's workspace.";
+    await db.update(systemRevenueProvidersTable)
+      .set({ syncStatus: "error", syncMessage: error })
+      .where(eq(systemRevenueProvidersTable.id, providerId));
+    return { synced: 0, errors: [error] };
+  }
+
   await db
     .update(systemRevenueProvidersTable)
     .set({ syncStatus: "syncing" })
     .where(eq(systemRevenueProvidersTable.id, providerId));
 
-  // Build credentials using only the keys linked to this provider record
-  const keyMap = parseCredentialKeyMap(record.credentialKey, provider);
-  const creds = await loadMappedCredentials(record.userId, keyMap);
-
-  const since = record.lastSyncAt ? new Date(record.lastSyncAt) : new Date(Date.now() - 30 * 86_400_000);
+  const fetchStartedAt = new Date();
+  const since = record.lastSyncAt ?? new Date(fetchStartedAt.getTime() - 30 * 86_400_000);
 
   const result = await provider.fetchTransactions(creds, since);
 
@@ -95,16 +101,17 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
   }
 
   let synced = 0;
+  let unconverted = 0;
   const errors: string[] = [];
 
   for (const tx of result.transactions) {
     try {
-      const exists = await txExists(record.systemInstanceId, tx.externalId);
-      if (exists) continue;
-
-      await db.insert(systemActivityEventsTable).values({
+      // Revenue totals are reported in USD. Other currencies are kept on record, outside those totals,
+      // until they can be converted at the provider's settlement rate.
+      const isUsd = tx.currency?.toLowerCase() === "usd";
+      const inserted = await insertRevenueOnce({
         systemInstanceId: record.systemInstanceId,
-        eventType: "revenue",
+        eventType: isUsd ? "revenue" : "revenue_unconverted",
         amountCents: tx.amountCents,
         description: tx.description,
         externalTxId: tx.externalId,
@@ -113,9 +120,8 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
         createdAt: tx.occurredAt,
         metadata: JSON.stringify({ provider: record.provider, currency: tx.currency }),
       });
-      // Check and record any newly crossed lifetime earning milestones
-      checkMilestones(record.userId, record.systemInstanceId).catch(() => {});
-
+      if (!inserted) continue;
+      if (!isUsd) unconverted++;
       // Push notification for new revenue event
       (async () => {
         try {
@@ -123,7 +129,7 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
             expoPushToken: usersTable.expoPushToken,
             notifyRevenue: usersTable.notifyRevenue,
           }).from(usersTable).where(eq(usersTable.id, record.userId)).limit(1);
-          if (user?.notifyRevenue && user.expoPushToken) {
+          if (user?.notifyRevenue && user.expoPushToken && isUsd && tx.amountCents > 0) {
             const dollars = (tx.amountCents / 100).toFixed(2);
             await sendPushNotification(
               user.expoPushToken,
@@ -145,10 +151,20 @@ export async function syncProvider(providerId: number): Promise<{ synced: number
     .update(systemRevenueProvidersTable)
     .set({
       syncStatus: errors.length > 0 ? "error" : "ok",
-      syncMessage: errors.length > 0 ? errors[0] : `Synced ${synced} transactions`,
-      lastSyncAt: new Date(),
+      syncMessage: errors.length > 0
+        ? errors[0]
+        : `Synced ${synced} transactions${unconverted ? ` (${unconverted} in other currencies, excluded from USD totals)` : ""}`,
+      // Keep the window open after a partial import and catch arrivals during a successful fetch.
+      ...(errors.length === 0 ? {
+        lastSyncAt: sql`greatest(${systemRevenueProvidersTable.lastSyncAt}, ${fetchStartedAt.toISOString()}::timestamptz)`,
+      } : {}),
     })
     .where(eq(systemRevenueProvidersTable.id, providerId));
+
+  // Evaluate the completed import, including any offsets, before awarding milestones.
+  if (errors.length === 0 && result.transactions.some(tx => tx.currency?.toLowerCase() === "usd")) {
+    await checkMilestones(record.userId, record.systemInstanceId);
+  }
 
   return { synced, errors };
 }

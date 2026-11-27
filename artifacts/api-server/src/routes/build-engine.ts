@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { serialize } from "../lib/serialize";
-import { eq, sql, and, or, isNull } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import {
   db,
   systemInstancesTable,
@@ -21,10 +21,10 @@ import { MODELS, chainFor } from "../lib/models";
 import { hasCredits, adjustCredits, adjustWalletCredits } from "../lib/credits";
 import { requireAuthActive, validateClientWorkspaceId } from "../lib/auth";
 import { sendPushNotification } from "../lib/push";
-import { decrypt } from "../lib/crypto";
 import { getConnector, isKnownConnector } from "../lib/connectors/registry";
 import { logEvent } from "../lib/log-event";
 import { z } from "zod";
+import { connectorScope, decideConnectorAction, loadConnectorCredentials } from "../lib/connector-actions";
 
 // NOTE: real revenue milestones are recorded by lib/milestones.ts's
 // checkMilestones(), invoked from the real revenue sync (lib/revenue/sync.ts).
@@ -257,6 +257,24 @@ function stripUnverifiedMoneyClaims(text: string): string {
   return text.replace(UNVERIFIED_DOLLAR_AMOUNT_RE, "[verified earnings shown in the Revenue tab]");
 }
 
+function extractLiveConnectorActions(raw: string): Array<Record<string, unknown>> | null {
+  const tag = raw.match(/<SBEP_ACTIONS>([\s\S]*?)<\/SBEP_ACTIONS>/);
+  if (!tag && !raw.includes('"connector_action"')) return null;
+
+  // Prefer the dedicated block. Some models return the action list in a JSON fence.
+  const blocks = tag ? [tag] : raw.matchAll(/```(?:json)?\s*([\s\S]*?)```/g);
+  for (const block of blocks) {
+    try {
+      const parsed = JSON.parse(block[1].trim()) as { calls?: unknown } | unknown[] | null;
+      const list = Array.isArray(parsed) ? parsed : parsed?.calls;
+      if (!Array.isArray(list)) continue;
+      const actions = list.filter(call => call?.type === "connector_action");
+      if (actions.length) return actions;
+    } catch { /* Invalid action block. */ }
+  }
+  return [];
+}
+
 // POST /api/build-engine/execute-step
 router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   const userId = await requireAuthActive(req, res);
@@ -280,13 +298,41 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   if (!instance) { res.status(404).json({ error: "System instance not found" }); return; }
   if (!ensureOwner(instance, userId, res)) return;
 
-  if (instance.userId != null && !(await hasCredits(instance.userId))) {
-    res.status(402).json({ error: "You're out of AI credits. Top up to continue building.", code: "out_of_credits" });
+  const [requestedStep] = await db
+    .select({
+      status: buildProgressTable.status,
+      pendingConnectorActions: buildProgressTable.pendingConnectorActions,
+      currentStepNumber: buildSessionsTable.currentStepNumber,
+      currentModel: buildSessionsTable.currentModel,
+    })
+    .from(buildProgressTable)
+    .innerJoin(buildSessionsTable, eq(buildSessionsTable.id, buildProgressTable.buildSessionId))
+    .where(and(
+      eq(buildProgressTable.id, parsed.data.stepId),
+      eq(buildProgressTable.stepNumber, parsed.data.stepNumber),
+      eq(buildSessionsTable.id, parsed.data.sessionId),
+      eq(buildSessionsTable.systemInstanceId, instance.id),
+    ));
+  if (!requestedStep) { res.status(404).json({ error: "Build step not found for this system." }); return; }
+  if (requestedStep.currentStepNumber !== parsed.data.stepNumber || requestedStep.status === "completed") {
+    res.status(409).json({ error: "This is no longer the current build step." });
+    return;
+  }
+  if (requestedStep.status === "blocked" && !parsed.data.liveMode) {
+    res.status(409).json({ error: "Retry this required connector step in Live Mode." });
     return;
   }
 
+  const savedConnectorCalls = requestedStep.pendingConnectorActions?.length ? requestedStep.pendingConnectorActions : null;
+  let connectorCalls = savedConnectorCalls;
+  if (!savedConnectorCalls && !(await hasCredits(userId))) {
+    res.status(402).json({ error: "You're out of AI credits. Top up to continue building.", code: "out_of_credits" });
+    return;
+  }
   let output = "";
   let stepFailed = false;
+  let connectorBlocked = requestedStep.status === "blocked";
+  let discardConnectorPlan = false;
   let recoveryMessage = "";
   // Best-model policy (Task #282): build-step execution is the highest-stakes AI
   // work, so default to the flagship chain. Respect an explicit model only if the
@@ -294,39 +340,18 @@ router.post("/build-engine/execute-step", async (req, res): Promise<void> => {
   const explicitModel = parsed.data.model;
   const stepModelChain = chainFor("flagship");
   // Will be overwritten with the actual model string confirmed by OpenRouter
-  let actualModel: string = explicitModel ?? stepModelChain[0] ?? MODELS.flagship;
+  let actualModel: string = requestedStep.currentModel ?? explicitModel ?? stepModelChain[0] ?? MODELS.flagship;
 
   // ── Live mode: fetch + decrypt user credentials ──────────────────────────────
   let userCreds: Record<string, string> = {};
   let availableConnectorIds: string[] = [];
-  if (parsed.data.liveMode) {
-    // Scope credentials to the user's current workspace (clientWorkspaceId) to prevent
-    // cross-workspace credential leakage in multi-tenant / agency contexts, AND to
-    // this system instance: a running system uses its own instance-scoped tokens
-    // (systemInstanceId = this instance) plus any shared user-level rows
-    // (systemInstanceId IS NULL), with the instance-scoped copy winning on collision.
-    const workspaceId = await validateClientWorkspaceId(req, userId);
-    const instanceScope = or(
-      eq(userCredentialsTable.systemInstanceId, parsed.data.systemInstanceId),
-      isNull(userCredentialsTable.systemInstanceId),
-    );
-    const credCondition = workspaceId !== null
-      ? and(eq(userCredentialsTable.userId, userId), eq(userCredentialsTable.clientWorkspaceId, workspaceId), instanceScope)
-      : and(eq(userCredentialsTable.userId, userId), instanceScope);
-
-    const credRows = await db
-      .select({ credentialKey: userCredentialsTable.credentialKey, encryptedValue: userCredentialsTable.encryptedValue, systemInstanceId: userCredentialsTable.systemInstanceId })
-      .from(userCredentialsTable)
-      .where(credCondition);
-
-    // Apply NULL-scoped rows first, then instance-scoped so the instance copy wins.
-    credRows.sort((a, b) => (a.systemInstanceId === null ? 0 : 1) - (b.systemInstanceId === null ? 0 : 1));
-
-    for (const row of credRows) {
-      if (row.encryptedValue) {
-        try { userCreds[row.credentialKey] = await decrypt(row.encryptedValue); } catch { /* skip */ }
-      }
-    }
+  const scope = parsed.data.liveMode ? await connectorScope(userId, instance.id) : null;
+  if (parsed.data.liveMode && !scope) {
+    res.status(409).json({ error: "No uniquely owned system found for live execution." });
+    return;
+  }
+  if (scope) {
+    userCreds = await loadConnectorCredentials(scope);
 
     // Derive connector IDs from credential key prefixes.
     // Stored keys are UPPERCASE (e.g. MAILCHIMP_API_KEY, TWITTER_BEARER_TOKEN).
@@ -357,87 +382,69 @@ Use ONLY connectors from the available list. For pure config/planning/setup step
   const connectorResults: Array<{ connectorId: string; connectorName: string; action: string; ok: boolean; summary: string; latencyMs: number; confirmation?: unknown }> = [];
 
   try {
-    const result = await complete({
-      systemPrompt: `You are ASH — SBEP's elite AI Build Agent executing automated income systems autonomously.
+    if (connectorCalls) {
+      output = "Resumed the saved live connector actions.";
+    } else {
+      const result = await complete({
+        systemPrompt: `You are ASH — SBEP's elite AI Build Agent executing automated income systems autonomously.
 ${liveExecHint}
 For each step, write 3-5 technical sentences describing EXACTLY what you executed (specific actions, tool configurations, API calls made, data structures created, webhook URLs deployed, etc.).
 
 Write like a real build log: be specific about what was configured, which endpoints were hit, what values were set, what outputs were produced. Make it feel real and detailed.
 
 Do NOT claim or imply that this step generated real revenue or a specific dollar amount — actual earnings are only ever reported from real connected payment providers (Stripe/PayPal/Gumroad), never from build narration.`,
-      prompt: `System: ${parsed.data.blueprintName}
+        prompt: `System: ${parsed.data.blueprintName}
 Step ${parsed.data.stepNumber}/${parsed.data.totalSteps}: ${parsed.data.stepDescription}
 
 Execute this step now. Write detailed output describing exactly what was configured, deployed, and activated.${liveExecHint ? " If real API calls are needed, emit <SBEP_ACTIONS> first." : ""}`,
-      ...(explicitModel ? { model: explicitModel } : { models: stepModelChain }),
-      userId: instance.userId ?? undefined,
-      systemInstanceId: instance.id,
-    });
+        ...(explicitModel ? { model: explicitModel } : { models: stepModelChain }),
+        userId: instance.userId ?? undefined,
+        systemInstanceId: instance.id,
+      });
+      actualModel = result.model;
+      const raw = result.content;
+      output = stripUnverifiedMoneyClaims(
+        raw
+          .replace(/<SBEP_REVENUE>[\s\S]*?<\/SBEP_REVENUE>/g, "")
+          .replace(/<SBEP_ACTIONS>[\s\S]*?<\/SBEP_ACTIONS>/g, "")
+          .trim(),
+      );
+      if (scope) connectorCalls = extractLiveConnectorActions(raw);
+    }
 
-    // Use the model string confirmed by OpenRouter (may differ from what was requested)
-    actualModel = result.model;
-
-    const raw = result.content;
-    const actionsMatch = raw.match(/<SBEP_ACTIONS>([\s\S]*?)<\/SBEP_ACTIONS>/);
-
-    output = stripUnverifiedMoneyClaims(
-      raw
-        .replace(/<SBEP_REVENUE>[\s\S]*?<\/SBEP_REVENUE>/g, "")
-        .replace(/<SBEP_ACTIONS>[\s\S]*?<\/SBEP_ACTIONS>/g, "")
-        .trim(),
-    );
-
-    // ── Execute real connector actions (live mode) ──────────────────────────────
-    // Supports two formats:
-    // 1. <SBEP_ACTIONS>{"calls":[...]} </SBEP_ACTIONS>  (primary tag format)
-    // 2. ```json\n{"calls":[...]\n```  (JSON code block fallback for tool_call-style responses)
-    if (parsed.data.liveMode && (actionsMatch || raw.includes('"connector_action"'))) {
-      let calls: Array<Record<string, unknown>> = [];
-      try {
-        // Priority 1: dedicated XML tag
-        if (actionsMatch) {
-          const parsed2 = JSON.parse(actionsMatch[1].trim()) as { calls?: Array<Record<string, unknown>> };
-          if (Array.isArray(parsed2.calls)) calls = parsed2.calls;
+    if (scope && connectorCalls) {
+      const plannedActions = connectorCalls.map(call => {
+        const connector = typeof call.connectorId === "string" ? getConnector(call.connectorId, userCreds) : null;
+        const action = typeof call.action === "string" ? call.action : "";
+        const params = z.record(z.string(), z.unknown()).safeParse(call.params ?? {});
+        const metadata = connector?.describe();
+        return { connector, action, params, supported: metadata?.available && metadata.actionMeta[action] === "automated" };
+      });
+      const invalid = !plannedActions.length || plannedActions.some(plan => !plan.supported || !plan.params.success);
+      const control = invalid ? null : await decideConnectorAction(scope);
+      const disconnected = plannedActions.find(plan => plan.connector && !plan.connector.validateCredentials())?.connector;
+      if (invalid || (control && control.decision !== "allow") || disconnected) {
+        stepFailed = true;
+        connectorBlocked = true;
+        discardConnectorPlan = invalid && !savedConnectorCalls;
+        if (invalid) {
+          recoveryMessage = "ASH proposed an unavailable or invalid connector action.";
+        } else if (control && control.decision !== "allow") {
+          recoveryMessage = control.reason;
+        } else {
+          recoveryMessage = `Check the ${disconnected?.displayName ?? "required service"} connection before retrying this step.`;
         }
-        // Priority 2: JSON code blocks containing connector_action entries
-        if (calls.length === 0) {
-          const codeBlocks = raw.matchAll(/```(?:json)?\s*([\s\S]*?)```/g);
-          for (const block of codeBlocks) {
-            try {
-              const parsed3 = JSON.parse(block[1].trim()) as { calls?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>;
-              const items = Array.isArray(parsed3) ? parsed3 : (parsed3.calls ?? []);
-              if (items.some(i => i.type === "connector_action")) { calls = items; break; }
-            } catch { /* skip invalid block */ }
-          }
-        }
-      } catch { /* ignore malformed block */ }
+        output = recoveryMessage;
+      }
 
-      for (const call of calls) {
-        if (call.type !== "connector_action") continue;
-        const connectorId = call.connectorId as string | undefined;
-        const action = call.action as string | undefined;
-        const params = (call.params ?? {}) as Record<string, unknown>;
-
-        if (!connectorId || !action || !isKnownConnector(connectorId)) {
-          // Connector not recognised — add a targeted "connect" hint
-          if (connectorId) {
-            connectorResults.push({ connectorId, connectorName: connectorId, action: action ?? "unknown", ok: false, summary: `Connect ${connectorId} at /connections to enable live execution`, latencyMs: 0 });
-          }
-          continue;
-        }
-        const connector = getConnector(connectorId, userCreds);
-        if (!connector) continue;
-        // Per-step credential gate: check required creds before executing
-        const missingCred = connector.requiredCredentials.find(k => !userCreds[k]);
-        if (missingCred) {
-          connectorResults.push({ connectorId, connectorName: connector.displayName, action, ok: false, summary: `${connector.displayName}: ${missingCred} not configured — connect at /connections`, latencyMs: 0 });
-          continue;
-        }
+      for (const { connector, action, params } of stepFailed ? [] : plannedActions) {
+        if (!connector || !params.success) continue;
+        const connectorId = connector.id;
 
         const startMs = Date.now();
         let execResult: { ok: boolean; data?: unknown; error?: string };
         try {
-          execResult = await connector.execute(action, params);
+          execResult = await connector.execute(action, params.data);
         } catch (err) {
           execResult = { ok: false, error: err instanceof Error ? err.message : String(err) };
         }
@@ -468,6 +475,14 @@ Execute this step now. Write detailed output describing exactly what was configu
           message: summary,
           metadata: { connectorId, action, ok: execResult.ok, latencyMs, stepNumber: parsed.data.stepNumber },
         });
+        if (!execResult.ok) {
+          stepFailed = true;
+          connectorBlocked = true;
+          recoveryMessage = `${connector.displayName} could not confirm success. Check the provider before retrying this step.`;
+          output = "A required live connector action did not report success.";
+          break;
+        }
+        connectorCalls = connectorCalls.slice(1);
       }
 
       // Append connector result summary to output
@@ -475,6 +490,14 @@ Execute this step now. Write detailed output describing exactly what was configu
         const resultLines = connectorResults.map(r => `${r.ok ? "✅" : "❌"} ${r.summary}`).join("\n");
         output = `${output}\n\n**Live Execution Results:**\n${resultLines}`;
       }
+      if (!stepFailed && connectorCalls.length === 0 && connectorResults.length > 0) {
+        connectorBlocked = false;
+      }
+    }
+    if (connectorBlocked && !stepFailed) {
+      stepFailed = true;
+      recoveryMessage = "The required connector actions did not report success.";
+      output = recoveryMessage;
     }
   } catch (err) {
     // AI call failed — flag for frontend recovery UI
@@ -483,11 +506,13 @@ Execute this step now. Write detailed output describing exactly what was configu
     output = `Step ${parsed.data.stepNumber} encountered an AI error.`;
   }
 
-  // ── Early-return path for AI failures — do NOT advance session state ──────
+  // AI failures and policy holds leave the current step incomplete.
   if (stepFailed) {
-    // Mark step as failed (not completed) so state remains accurate
     const [failedStep] = await db.update(buildProgressTable)
-      .set({ status: "failed", notes: output })
+      .set({
+        status: connectorBlocked ? "blocked" : "failed",
+        ...(connectorBlocked ? { pendingConnectorActions: discardConnectorPlan ? null : connectorCalls } : { notes: output }),
+      })
       .where(eq(buildProgressTable.id, parsed.data.stepId))
       .returning();
 
@@ -504,13 +529,13 @@ Execute this step now. Write detailed output describing exactly what was configu
 
     // Recovery explanation is generated by POST /api/ai-orchestrator/step-recovery (SSE)
     // — the frontend calls that endpoint immediately after receiving stepFailed.
-    res.json({ stepFailed: true, recoveryMessage, step: serialize(failedStep ?? { id: parsed.data.stepId }) });
+    res.json({ stepFailed: true, connectorBlocked, recoveryMessage, output, step: serialize(failedStep ?? { id: parsed.data.stepId }) });
     return;
   }
 
   // Mark step complete
   const [updated] = await db.update(buildProgressTable)
-    .set({ status: "completed", notes: output, completedAt: new Date() })
+    .set({ status: "completed", notes: output, completedAt: new Date(), pendingConnectorActions: null })
     .where(eq(buildProgressTable.id, parsed.data.stepId))
     .returning();
 
@@ -638,16 +663,20 @@ router.post("/build-engine/skip-step", async (req, res): Promise<void> => {
   if (!ensureOwner(instance, userId, res)) return;
 
   // IDOR guard: confirm session belongs to this instance (not just any session ID)
-  const [sessionRow] = await db.select({ id: buildSessionsTable.id })
+  const [sessionRow] = await db.select({ currentStepNumber: buildSessionsTable.currentStepNumber })
     .from(buildSessionsTable)
     .where(and(eq(buildSessionsTable.id, parsed.data.sessionId), eq(buildSessionsTable.systemInstanceId, parsed.data.systemInstanceId)));
   if (!sessionRow) { res.status(403).json({ error: "Session does not belong to this system" }); return; }
 
   // IDOR guard: confirm step belongs to this session
-  const [stepRow] = await db.select({ id: buildProgressTable.id })
+  const [stepRow] = await db.select({ status: buildProgressTable.status, stepNumber: buildProgressTable.stepNumber })
     .from(buildProgressTable)
     .where(and(eq(buildProgressTable.id, parsed.data.stepId), eq(buildProgressTable.buildSessionId, parsed.data.sessionId)));
   if (!stepRow) { res.status(403).json({ error: "Step does not belong to this session" }); return; }
+  if (stepRow.status === "blocked" || stepRow.stepNumber !== sessionRow.currentStepNumber || stepRow.stepNumber !== parsed.data.stepNumber) {
+    res.status(409).json({ error: "Only the current, unblocked build step can be skipped." });
+    return;
+  }
 
   // Mark step as failed/skipped
   await db.update(buildProgressTable)

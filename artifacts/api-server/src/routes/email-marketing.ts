@@ -1006,7 +1006,7 @@ export async function handleSendGridWebhook(req: Request, res: Response): Promis
     req.log.warn("SendGrid webhook: signature verification disabled (development mode, no SENDGRID_WEBHOOK_PUBLIC_KEY)");
   }
 
-  const events = Array.isArray(req.body) ? req.body : [req.body];
+  const events = Array.isArray(req.body) ? req.body : [req.body ?? {}];
   req.log.info({ count: events.length }, "SendGrid webhook: processing events");
 
   for (const evt of events) {

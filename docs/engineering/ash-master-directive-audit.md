@@ -21,9 +21,9 @@ pnpm monorepo: `artifacts/api-server` (Express 5, TypeScript), `artifacts/web` (
 
 The Cognitive Foundation (`lib/cognitive-foundation/`) holds an in-process **Brain Registry**, **Capability Registry** and **Extension Point** registry. Core brains are registered at boot by `register-core-brains.ts` with health probes; health is cached (30 s) and served at `GET /api/executive-brain/brains` and `/health-report`. The Executive Brain is the coordinating pre-pass (`routes/executive-brain.ts`). Status: **Implemented, unverified** (no registry test on `main`); now surfaced to users on the ASH Brain page (PR #21).
 
-## 3. Engine inventory and recovered 001–055 roadmap (items 3 and 13)
+## 3. Historical build register 001–057
 
-Recovered from `.agents/memory/MEMORY.md`, `docs/superpowers/reports/` and code comments. Each build has a schema file in `lib/db/src/schema/` and a route file in `artifacts/api-server/src/routes/` unless noted. Only the ASH pipeline, platform tools, business intelligence, memory isolation, research reuse and health-monitor paths have tests on `main`, so most builds are **Implemented, unverified**.
+Recovered from `.agents/memory/MEMORY.md`, `docs/superpowers/reports/`, original directives and code. Status is reconciled against the November 26 candidate. **Implemented but unverified** means evidence of code exists and end-to-end operational proof is outstanding. Local tests indicate only the named behavior. The rest of this audit records the earlier snapshot. The [current development roadmap](implementation-plan.md) governs new delivery work.
 
 | Build | Name | Evidence | Status |
 |---|---|---|---|
@@ -42,15 +42,15 @@ Recovered from `.agents/memory/MEMORY.md`, `docs/superpowers/reports/` and code 
 | 013 | Executive Principle Learning Engine | `executive_learning.ts` | Implemented, unverified |
 | 014 | Executive Governance & Adaptation Engine | `executive_governance.ts` | Implemented, unverified |
 | 015 | Business Graph & Health Engine | `business_graph.ts`, `business_health*.ts` | Verified (`health-monitor-unmeasured.test.ts`, `business-intelligence.test.ts`) |
-| 016 | Business Analysis Engine | `business_analysis.ts`; tenant isolation PR #8 | In open PR (isolation tests) |
-| 017 | Opportunity Discovery Engine | `opportunity_discovery.ts`; PR #8 | In open PR (isolation tests) |
-| 018 | Future State Simulation Engine | `future_simulation.ts`; PR #8 | In open PR (isolation tests) |
-| 019 | Decision Intelligence Engine | `decision_intelligence.ts`; PR #8 | In open PR (isolation tests) |
-| 020 | Executive Strategy Engine | `executive_strategy.ts`; PR #8 | In open PR (isolation tests) |
-| 021 | Strategic Planning Engine | `strategic_planning.ts`; PR #8 | In open PR (isolation tests) |
-| 022 | Capability Planning Engine | `capability_planning.ts`; PR #8 | In open PR (isolation tests) |
-| 023 | Operational Planning Engine | `operational_planning.ts`; PR #8 | In open PR (isolation tests) |
-| 024 | Execution Orchestration Engine | `execution_orchestration.ts`; PR #8 | In open PR (isolation tests) |
+| 016 | Business Analysis Engine | `business-analysis.ts`; tenant-isolation coverage integrated through PR #29 | Implemented but unverified end to end; local access checks passed |
+| 017 | Opportunity Discovery Engine | `opportunity-discovery.ts`; tenant-isolation coverage integrated through PR #29 | Implemented but unverified end to end; local access checks passed |
+| 018 | Future State Simulation Engine | `future-simulation.ts`; tenant-isolation coverage integrated through PR #29 | Implemented but unverified end to end; local access checks passed |
+| 019 | Decision Intelligence Engine | `decision-intelligence.ts`; tenant-isolation coverage integrated through PR #29 | Implemented but unverified end to end; local access checks passed |
+| 020 | Executive Strategy Engine | `executive-strategy.ts`; tenant-isolation coverage integrated through PR #29 | Implemented but unverified end to end; local access checks passed |
+| 021 | Strategic Planning Engine | `strategic-planning.ts`; tenant-isolation coverage integrated through PR #29 | Implemented but unverified end to end; local access checks passed |
+| 022 | Capability Planning Engine | `capability-planning.ts`; tenant-isolation coverage integrated through PR #29 | Implemented but unverified end to end; local access checks passed |
+| 023 | Operational Planning Engine | `operational-planning.ts`; tenant-isolation coverage integrated through PR #29 | Implemented but unverified end to end; local access checks passed |
+| 024 | Execution Orchestration Engine | `execution-orchestration.ts`; tenant-isolation coverage integrated through PR #29 | Implemented but unverified end to end; local access checks passed |
 | 025 | Authority Resolution Engine | `authority_resolution.ts` | Implemented, unverified |
 | 026 | Execution Risk Assessment Engine | `execution_risk.ts` | Implemented, unverified |
 | 027 | Execution Simulation Engine | `execution_simulation.ts` | Implemented, unverified |
@@ -68,10 +68,10 @@ Recovered from `.agents/memory/MEMORY.md`, `docs/superpowers/reports/` and code 
 | 039 | Executive Priority Intelligence Engine | `priority_intelligence.ts` | Implemented, unverified |
 | 040 | Unified Cognitive Orchestration Engine | `unified-orchestration.ts` | Implemented, unverified |
 | 041 | Unified Cognitive Knowledge Graph Engine | `knowledge_graph.ts` | Implemented, unverified |
-| 042 | *Unresolved* — the only reference is "Wait for Build 042"; no spec, schema or route found | — | **Unresolved historical item** |
+| 042 | Historical spec unresolved | "Wait for Build 042" in the attached directive archives. The November 26 directive preserves this item without defining it. | **Blocked by dependency** (recover original specification) |
 | 043 | Unified Digital Operating Layer | `digital_operating.ts` | Implemented, unverified |
 | 044 | Unified Connections & Integration Hub | `connections_hub.ts` (credentials stored as references) | Implemented, unverified |
-| 045 / 045A / 045C | Certification & Launch Readiness; Launch Hardening | `certification.ts`, `launch_hardening.ts`; admin-check bug fixed in PR #10 | In open PR (admin tests) |
+| 045 / 045A / 045C | Certification & Launch Readiness; Launch Hardening | `certification.ts`, `launch-hardening.ts`; admin-check fix merged in PR #10 | Implemented but unverified for production launch |
 | 046 | Unified Platform Operating System | `unified-platform.ts` | Implemented, unverified |
 | 047 | Unified Workspace & Project System | `unified-workspace.ts` | Implemented, unverified |
 | 048 | Unified Business Asset Framework | `unified-asset.ts` | Implemented, unverified |
@@ -82,8 +82,10 @@ Recovered from `.agents/memory/MEMORY.md`, `docs/superpowers/reports/` and code 
 | 053 | Business Experience Builder | `business-experience-builder.ts` | Implemented, unverified |
 | 054 | Unified Customer Intelligence Engine | `unified-customer-intelligence.ts` | Implemented, unverified |
 | 055 | Unified Business Process Engine | `unified-business-process.ts` | Implemented, unverified |
+| 056 | Unified Revenue, Commerce & Monetization Platform | [Implementation report](../superpowers/reports/2026-08-05-build-056-implementation-report.md), `unified-revenue-commerce.ts` | Partially implemented for real commerce; this build does not execute payments |
+| 057 | Unified External Capability & Integration Operating System | `unified-external-capability.ts`, original Build 057 directive | Implemented but unverified end to end; verify actual provider execution and synchronization |
 
-Builds 056 (Unified Revenue, Commerce & Monetization — no payment execution) and 057 (Unified External Capability & Integration OS) also exist beyond the original roadmap.
+No separately numbered build after 057 was identified in the reviewed roadmap and build reports. Keep Project Helix and later initiatives under their own names without assigning historical build numbers. [Project Helix reuse and gaps](reuse-and-gaps.md#gaps-against-the-project-helix-loop)
 
 Most engines 016–057 are **deterministic metadata/registry layers** (registries, scores, plans) feeding the Executive Brain on throttled cycles. They describe and plan; few of them act on the outside world. That distinction matters for every "autonomous" claim below.
 

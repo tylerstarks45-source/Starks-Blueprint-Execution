@@ -922,7 +922,7 @@ export default function UserLandingPageCanvas() {
                   className="w-full border-0"
                   style={{ height: '80vh', minHeight: '600px' }}
                   title="Landing Page Canvas Preview"
-                  sandbox="allow-same-origin allow-scripts"
+                  sandbox="allow-same-origin"
                 />
               </div>
             )}

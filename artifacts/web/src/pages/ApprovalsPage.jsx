@@ -20,8 +20,9 @@ export default function ApprovalsPage() {
   const resolve = async (a, action) => {
     setBusy(a.id);
     try {
-      await controlApi.resolveApproval(a.id, action);
+      const resolved = await controlApi.resolveApproval(a.id, action);
       toast.success(action === 'approve' ? 'Approved' : 'Rejected');
+      if (resolved.checkoutUrl) setStatus('approved');
       approvals.reload(); notifyEmpireChanged();
     } catch (e) { toast.error(e.message); } finally { setBusy(null); }
   };
@@ -61,6 +62,7 @@ export default function ApprovalsPage() {
                         <span>· {new Date(a.createdAt).toLocaleString()}</span>
                       </div>
                       {a.description && <p className="text-xs text-white/50 mt-1">Why: {a.description}</p>}
+                      {a.checkoutUrl && <a href={a.checkoutUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-amber-300 underline">Open Stripe checkout</a>}
                     </div>
                     {a.status === 'pending' ? (
                       <div className="flex gap-2">

@@ -1,5 +1,4 @@
 import { BaseConnector, TestResult, ExecResult } from "./base";
-import { getUncachableStripeClient } from "../stripe";
 import Stripe from "stripe";
 
 export class StripeConnector extends BaseConnector {
@@ -7,18 +6,13 @@ export class StripeConnector extends BaseConnector {
   readonly displayName = "Stripe Payments";
   readonly category = "payments";
   readonly authType = "api_key" as const;
-  // requiredCredentials is empty: per-user STRIPE_SECRET_KEY is used when present;
-  // otherwise falls back to the platform Stripe client.
-  readonly requiredCredentials = [] as string[];
+  readonly requiredCredentials = ["STRIPE_SECRET_KEY"];
   readonly actions = ["getBalance", "listPayments", "createCheckout", "createPaymentLink", "getSubscriptions", "createProduct", "createPrice"];
 
   private async getClient(): Promise<Stripe> {
     const userKey = this.creds["STRIPE_SECRET_KEY"];
-    if (userKey) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return new (Stripe as any)(userKey) as Stripe;
-    }
-    return getUncachableStripeClient();
+    if (!userKey) throw new Error("Connect a Stripe account before running Stripe actions.");
+    return new Stripe(userKey);
   }
 
   async testConnection(): Promise<TestResult> {
@@ -97,17 +91,13 @@ export class StripeConnector extends BaseConnector {
           return { ok: false, error: "Minimum charge amount is 50 cents" };
         }
 
-        // Create an inline price on a new product
-        const product = await stripe.products.create({ name: productName });
-        const price = await stripe.prices.create({
-          product: product.id,
-          unit_amount: amountCents,
-          currency,
-        });
-
+        // Let Checkout create its inline line item; rejected sessions must not leave separate catalog records.
         const session = await stripe.checkout.sessions.create({
           payment_method_types: ["card"],
-          line_items: [{ price: price.id, quantity: 1 }],
+          line_items: [{
+            quantity: 1,
+            price_data: { currency, unit_amount: amountCents, product_data: { name: productName } },
+          }],
           mode: "payment",
           success_url: successUrl,
           cancel_url: cancelUrl,

@@ -166,7 +166,7 @@ class SBEPCollection {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-      return result.user;
+      return result.verificationRequired ? { ...result.user, verificationRequired: true } : result.user;
     }
     return apiRequest(this._endpoint, { method: 'POST', body: JSON.stringify(data) });
   }

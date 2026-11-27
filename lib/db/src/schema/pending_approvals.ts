@@ -43,6 +43,7 @@ export const pendingApprovalsTable = pgTable("pending_approvals", {
   // Set when an approved action was actually carried out by the executor
   // (lib/approval-executor.ts). Distinct from resolvedAt (decision time).
   executedAt: timestamp("executed_at", { withTimezone: true }),
+  checkoutUrl: text("checkout_url"),
   // Set when a previously-executed action was rolled back by the user.
   revertedAt: timestamp("reverted_at", { withTimezone: true }),
   // Snapshot of the prior state captured at execution time so the action can
